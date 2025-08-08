@@ -1,0 +1,11 @@
+{
+  "name": "Nutrio Drivers",
+  "short_name": "Drivers",
+  "start_url": "/driver",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": []
+}
+
+
