@@ -31,5 +31,3 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ gym
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ class: data });
 }
-
-

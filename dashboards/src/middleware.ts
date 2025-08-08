@@ -8,5 +8,3 @@ export function middleware() {
 export const config = {
   matcher: ["/admin/:path*", "/restaurant/:path*", "/gym/:path*", "/driver/:path*"],
 };
-
-

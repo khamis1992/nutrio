@@ -1,29 +1,74 @@
-import { createSupabaseServerClient } from "./supabase/server";
+import { createSupabaseBrowserClient } from './supabase/client';
+import { createSupabaseServerClient } from './supabase/server';
+import { UserRole } from '@/types';
 
-export async function getSessionUser() {
-  const supabase = createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+export async function getCurrentUser() {
+  const supabase = createSupabaseBrowserClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) {
+    return null;
+  }
+
+  // Get user roles
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('is_active', true);
+
+  return {
+    ...user,
+    roles: roles?.map(r => r.role) || []
+  };
 }
 
-export async function userHasRole(userId: string, roles: string | string[]) {
-  const supabase = createSupabaseServerClient();
-  const roleList = Array.isArray(roles) ? roles : [roles];
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) return false;
-  const userRoles = new Set((data || []).map((r) => r.role));
-  return roleList.some((r) => userRoles.has(r));
+export async function getUserRoles(userId: string): Promise<UserRole[]> {
+  const supabase = createSupabaseBrowserClient();
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('is_active', true);
+
+  return roles?.map(r => r.role) || [];
 }
 
-export async function requireRole(roles: string | string[]) {
-  const user = await getSessionUser();
-  if (!user) return { allowed: false, reason: "unauthenticated" } as const;
-  const ok = await userHasRole(user.id, roles);
-  if (!ok) return { allowed: false, reason: "forbidden" } as const;
-  return { allowed: true, user } as const;
+export async function hasRole(userId: string, role: UserRole): Promise<boolean> {
+  const roles = await getUserRoles(userId);
+  return roles.includes(role);
 }
 
+export async function signIn(email: string, password: string) {
+  const supabase = createSupabaseBrowserClient();
+  return await supabase.auth.signInWithPassword({ email, password });
+}
 
+export async function signOut() {
+  const supabase = createSupabaseBrowserClient();
+  return await supabase.auth.signOut();
+}
+
+export async function signUp(email: string, password: string, role: UserRole = 'customer') {
+  const supabase = createSupabaseBrowserClient();
+  
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error || !data.user) {
+    return { data, error };
+  }
+
+  // Add user role
+  const { error: roleError } = await supabase
+    .from('user_roles')
+    .insert({
+      user_id: data.user.id,
+      role,
+      is_active: true
+    });
+
+  return { data, error: roleError };
+}

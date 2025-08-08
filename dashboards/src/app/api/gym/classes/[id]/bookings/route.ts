@@ -14,5 +14,3 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ bookings: data });
 }
-
-

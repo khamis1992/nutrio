@@ -10,5 +10,3 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
-
-

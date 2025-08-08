@@ -37,5 +37,3 @@ export default async function DriverAssignmentDetail({ params }: { params: Promi
     </main>
   );
 }
-
-
