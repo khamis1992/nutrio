@@ -74,6 +74,31 @@ const PartnerDashboard = () => {
     }
   }, [user]);
 
+  // Subscribe to real-time updates for meal schedules
+  useEffect(() => {
+    if (!restaurant) return;
+
+    const channel = supabase
+      .channel("partner-dashboard-schedules")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "meal_schedules",
+        },
+        () => {
+          // Refetch data when schedules change
+          fetchPartnerData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [restaurant]);
+
   const fetchPartnerData = async () => {
     if (!user) return;
 
