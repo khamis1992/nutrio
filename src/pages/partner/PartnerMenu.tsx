@@ -39,7 +39,9 @@ import {
   Clock,
   DollarSign,
   ImageIcon,
+  Tag,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +62,13 @@ interface Meal {
   is_available: boolean;
   rating: number;
   order_count: number;
+  diet_tags?: string[];
+}
+
+interface DietTag {
+  id: string;
+  name: string;
+  description: string | null;
 }
 
 const mealSchema = z.object({
@@ -101,18 +110,32 @@ const PartnerMenu = () => {
   const [saving, setSaving] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [dietTags, setDietTags] = useState<DietTag[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [mealToDelete, setMealToDelete] = useState<Meal | null>(null);
   const [formData, setFormData] = useState<MealFormData>(emptyMeal);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchMeals();
+      fetchDietTags();
     }
   }, [user]);
+
+  const fetchDietTags = async () => {
+    const { data, error } = await supabase
+      .from("diet_tags")
+      .select("*")
+      .order("name");
+
+    if (!error && data) {
+      setDietTags(data);
+    }
+  };
 
   const fetchMeals = async () => {
     if (!user) return;
@@ -160,10 +183,11 @@ const PartnerMenu = () => {
     setEditingMeal(null);
     setFormData(emptyMeal);
     setFormErrors({});
+    setSelectedTags([]);
     setDialogOpen(true);
   };
 
-  const openEditDialog = (meal: Meal) => {
+  const openEditDialog = async (meal: Meal) => {
     setEditingMeal(meal);
     setFormData({
       name: meal.name,
@@ -179,6 +203,14 @@ const PartnerMenu = () => {
       is_available: meal.is_available,
     });
     setFormErrors({});
+
+    // Fetch existing diet tags for this meal
+    const { data: mealTags } = await supabase
+      .from("meal_diet_tags")
+      .select("diet_tag_id")
+      .eq("meal_id", meal.id);
+
+    setSelectedTags(mealTags?.map((t) => t.diet_tag_id) || []);
     setDialogOpen(true);
   };
 
@@ -215,6 +247,8 @@ const PartnerMenu = () => {
         is_available: formData.is_available,
       };
 
+      let mealId = editingMeal?.id;
+
       if (editingMeal) {
         const { error } = await supabase
           .from("meals")
@@ -222,13 +256,37 @@ const PartnerMenu = () => {
           .eq("id", editingMeal.id);
 
         if (error) throw error;
-        toast({ title: "Meal updated" });
       } else {
-        const { error } = await supabase.from("meals").insert(mealData);
+        const { data: newMeal, error } = await supabase
+          .from("meals")
+          .insert(mealData)
+          .select("id")
+          .single();
 
         if (error) throw error;
-        toast({ title: "Meal added" });
+        mealId = newMeal.id;
       }
+
+      // Update diet tags
+      if (mealId) {
+        // Remove existing tags
+        await supabase
+          .from("meal_diet_tags")
+          .delete()
+          .eq("meal_id", mealId);
+
+        // Add new tags
+        if (selectedTags.length > 0) {
+          const tagInserts = selectedTags.map((tagId) => ({
+            meal_id: mealId!,
+            diet_tag_id: tagId,
+          }));
+
+          await supabase.from("meal_diet_tags").insert(tagInserts);
+        }
+      }
+
+      toast({ title: editingMeal ? "Meal updated" : "Meal added" });
 
       setDialogOpen(false);
       fetchMeals();
@@ -521,6 +579,40 @@ const PartnerMenu = () => {
               onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
               mealId={editingMeal?.id}
             />
+
+            {/* Diet Tags */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Diet Tags
+              </Label>
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
+                {dietTags.map((tag) => (
+                  <div
+                    key={tag.id}
+                    className="flex items-center space-x-2"
+                  >
+                    <Checkbox
+                      id={`tag-${tag.id}`}
+                      checked={selectedTags.includes(tag.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedTags([...selectedTags, tag.id]);
+                        } else {
+                          setSelectedTags(selectedTags.filter((t) => t !== tag.id));
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`tag-${tag.id}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      {tag.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="flex items-center justify-between">
               <Label>Available for ordering</Label>
