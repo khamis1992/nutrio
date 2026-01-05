@@ -28,6 +28,11 @@ import PartnerDashboard from "./pages/partner/PartnerDashboard";
 import PartnerMenu from "./pages/partner/PartnerMenu";
 import PartnerOrders from "./pages/partner/PartnerOrders";
 import PartnerSettings from "./pages/partner/PartnerSettings";
+import PartnerAnalytics from "./pages/partner/PartnerAnalytics";
+import PartnerNotifications from "./pages/partner/PartnerNotifications";
+import PartnerProfile from "./pages/partner/PartnerProfile";
+import PartnerReviews from "./pages/partner/PartnerReviews";
+import PartnerPayouts from "./pages/partner/PartnerPayouts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -201,6 +206,46 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PartnerSettings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/analytics" 
+              element={
+                <ProtectedRoute>
+                  <PartnerAnalytics />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/notifications" 
+              element={
+                <ProtectedRoute>
+                  <PartnerNotifications />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/profile" 
+              element={
+                <ProtectedRoute>
+                  <PartnerProfile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/reviews" 
+              element={
+                <ProtectedRoute>
+                  <PartnerReviews />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/payouts" 
+              element={
+                <ProtectedRoute>
+                  <PartnerPayouts />
                 </ProtectedRoute>
               } 
             />

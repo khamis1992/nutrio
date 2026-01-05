@@ -18,6 +18,10 @@ import {
   LogOut,
   Star,
   Package,
+  BarChart3,
+  MessageSquare,
+  Wallet,
+  User,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -471,12 +475,13 @@ const PartnerDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* Quick Actions */}
         <div className="grid grid-cols-3 gap-3">
           <Link to="/partner/menu">
             <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
               <CardContent className="pt-4 text-center">
                 <UtensilsCrossed className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-sm">Manage Menu</p>
+                <p className="font-medium text-sm">Menu</p>
               </CardContent>
             </Card>
           </Link>
@@ -484,7 +489,31 @@ const PartnerDashboard = () => {
             <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
               <CardContent className="pt-4 text-center">
                 <Package className="h-6 w-6 mx-auto mb-2 text-amber-500" />
-                <p className="font-medium text-sm">View Orders</p>
+                <p className="font-medium text-sm">Orders</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/partner/analytics">
+            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <BarChart3 className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+                <p className="font-medium text-sm">Analytics</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/partner/reviews">
+            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <MessageSquare className="h-6 w-6 mx-auto mb-2 text-purple-500" />
+                <p className="font-medium text-sm">Reviews</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/partner/payouts">
+            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <Wallet className="h-6 w-6 mx-auto mb-2 text-green-500" />
+                <p className="font-medium text-sm">Payouts</p>
               </CardContent>
             </Card>
           </Link>
