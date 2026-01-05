@@ -34,6 +34,8 @@ import PartnerProfile from "./pages/partner/PartnerProfile";
 import PartnerReviews from "./pages/partner/PartnerReviews";
 import PartnerPayouts from "./pages/partner/PartnerPayouts";
 import PartnerOnboarding from "./pages/partner/PartnerOnboarding";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminRestaurants from "./pages/admin/AdminRestaurants";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -255,6 +257,23 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PartnerPayouts />
+                </ProtectedRoute>
+              } 
+            />
+            {/* Admin Portal Routes */}
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/restaurants" 
+              element={
+                <ProtectedRoute>
+                  <AdminRestaurants />
                 </ProtectedRoute>
               } 
             />
