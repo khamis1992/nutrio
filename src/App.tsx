@@ -18,6 +18,7 @@ import Profile from "./pages/Profile";
 import OrderHistory from "./pages/OrderHistory";
 import Subscription from "./pages/Subscription";
 import Notifications from "./pages/Notifications";
+import Favorites from "./pages/Favorites";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -117,6 +118,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Notifications />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/favorites" 
+              element={
+                <ProtectedRoute>
+                  <Favorites />
                 </ProtectedRoute>
               } 
             />
