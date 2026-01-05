@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -24,14 +25,40 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - check for partner role
   useEffect(() => {
-    if (user) {
-      const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";
-      navigate(from, { replace: true });
-    }
+    const checkUserRole = async () => {
+      if (!user) return;
+      
+      setCheckingRole(true);
+      try {
+        // Check if user has a restaurant (is a partner)
+        const { data: restaurant } = await supabase
+          .from("restaurants")
+          .select("id")
+          .eq("owner_id", user.id)
+          .maybeSingle();
+        
+        if (restaurant) {
+          // User is a partner, redirect to partner dashboard
+          navigate("/partner", { replace: true });
+        } else {
+          // Regular user, check onboarding or go to dashboard
+          const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";
+          navigate(from, { replace: true });
+        }
+      } catch (error) {
+        console.error("Error checking user role:", error);
+        navigate("/dashboard", { replace: true });
+      } finally {
+        setCheckingRole(false);
+      }
+    };
+
+    checkUserRole();
   }, [user, navigate, location]);
 
   const validateForm = () => {
@@ -114,7 +141,7 @@ const Auth = () => {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
