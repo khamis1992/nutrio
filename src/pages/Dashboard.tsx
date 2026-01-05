@@ -19,7 +19,8 @@ import {
   User,
   Bell,
   LogOut,
-  Loader2
+  Loader2,
+  Receipt
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -247,29 +248,42 @@ const Dashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3 animate-fade-in stagger-1">
+        <div className="grid grid-cols-3 gap-3 animate-fade-in stagger-1">
           <Link to="/schedule">
             <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex items-center gap-3">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">Meal Schedule</p>
-                  <p className="text-xs text-muted-foreground">Plan your week</p>
+                  <p className="font-semibold text-sm">Schedule</p>
+                  <p className="text-xs text-muted-foreground">Plan week</p>
                 </div>
               </CardContent>
             </Card>
           </Link>
           <Link to="/progress">
             <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex items-center gap-3">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
                 <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-accent" />
                 </div>
                 <div>
                   <p className="font-semibold text-sm">Progress</p>
-                  <p className="text-xs text-muted-foreground">View analytics</p>
+                  <p className="text-xs text-muted-foreground">Analytics</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/orders">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-warning/10 flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Orders</p>
+                  <p className="text-xs text-muted-foreground">History</p>
                 </div>
               </CardContent>
             </Card>
