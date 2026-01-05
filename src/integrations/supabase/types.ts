@@ -588,6 +588,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          city: string
+          country: string
+          created_at: string
+          delivery_instructions: string | null
+          id: string
+          is_default: boolean | null
+          label: string
+          phone: string | null
+          postal_code: string
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          city: string
+          country?: string
+          created_at?: string
+          delivery_instructions?: string | null
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          phone?: string | null
+          postal_code: string
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          city?: string
+          country?: string
+          created_at?: string
+          delivery_instructions?: string | null
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          phone?: string | null
+          postal_code?: string
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_dietary_preferences: {
         Row: {
           created_at: string
