@@ -373,7 +373,7 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-5 gap-3 animate-fade-in stagger-1">
-          <Link to="/meals?favorites=true">
+          <Link to="/favorites">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
                 <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center relative">
