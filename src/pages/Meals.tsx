@@ -3,13 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
-  Salad, 
-  Utensils,
-  Calendar,
-  TrendingUp,
   Loader2,
   ChevronLeft,
-  User,
   Store,
   Heart,
   LayoutGrid,
@@ -21,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { RestaurantSearch } from "@/components/RestaurantSearch";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { CustomerNavigation } from "@/components/CustomerNavigation";
 
 interface Restaurant {
   id: string;
@@ -281,33 +277,7 @@ const Meals = () => {
         </div>
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-around items-center h-16">
-            {[
-              { icon: Salad, label: "Home", active: false, to: "/dashboard" },
-              { icon: Utensils, label: "Restaurants", active: true, to: "/meals" },
-              { icon: Calendar, label: "Schedule", active: false, to: "/schedule" },
-              { icon: TrendingUp, label: "Progress", active: false, to: "/progress" },
-              { icon: User, label: "Profile", active: false, to: "/profile" },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors ${
-                  item.active 
-                    ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <item.icon className={`w-5 h-5 ${item.active ? "fill-primary/20" : ""}`} />
-                <span className="text-xs font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </nav>
+      <CustomerNavigation />
     </div>
   );
 };
