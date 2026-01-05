@@ -13,7 +13,8 @@ import {
   Users,
   ArrowRight,
   Check,
-  Star
+  Star,
+  Store
 } from "lucide-react";
 import heroFood from "@/assets/hero-food.jpg";
 
@@ -34,6 +35,7 @@ const Index = () => {
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">How it Works</a>
             <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+            <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">For Restaurants</Link>
           </div>
 
           <div className="flex items-center gap-3">
@@ -349,6 +351,29 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Partner CTA Section */}
+      <section className="py-16 px-4 bg-muted/30">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 max-w-4xl mx-auto">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Store className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Own a Restaurant?</h3>
+                <p className="text-muted-foreground">Partner with us and reach health-conscious customers</p>
+              </div>
+            </div>
+            <Link to="/partner/auth">
+              <Button variant="outline" size="lg" className="gap-2">
+                Become a Partner
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 px-4 border-t border-border">
         <div className="container mx-auto">
@@ -359,9 +384,14 @@ const Index = () => {
               </div>
               <span className="font-bold">NUTRIO</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © 2026 NUTRIO. All rights reserved.
-            </p>
+            <div className="flex items-center gap-6">
+              <Link to="/partner/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Partner Portal
+              </Link>
+              <p className="text-sm text-muted-foreground">
+                © 2026 NUTRIO. All rights reserved.
+              </p>
+            </div>
           </div>
         </div>
       </footer>
