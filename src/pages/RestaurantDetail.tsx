@@ -20,7 +20,9 @@ import {
   TrendingUp,
   User,
   Salad,
-  Crown
+  Crown,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -57,6 +59,7 @@ const RestaurantDetail = () => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const { hasActiveSubscription, subscription, remainingMeals, isUnlimited } = useSubscription();
 
   useEffect(() => {
@@ -281,36 +284,97 @@ const RestaurantDetail = () => {
 
         {/* Meals Section */}
         <section className="space-y-4 animate-fade-in stagger-2">
-          <h3 className="font-semibold">Menu ({filteredMeals.length})</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Menu ({filteredMeals.length})</h3>
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === "gallery" ? "secondary" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode("gallery")}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
           
-          <div className="grid gap-4">
-            {filteredMeals.length === 0 ? (
-              <Card variant="default">
-                <CardContent className="p-8 text-center">
-                  <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">No meals found</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {searchQuery ? "Try a different search term" : "This restaurant hasn't added any meals yet"}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredMeals.map((meal) => (
+          {filteredMeals.length === 0 ? (
+            <Card variant="default">
+              <CardContent className="p-8 text-center">
+                <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">No meals found</h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery ? "Try a different search term" : "This restaurant hasn't added any meals yet"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : viewMode === "gallery" ? (
+            /* Gallery View */
+            <div className="grid grid-cols-2 gap-4">
+              {filteredMeals.map((meal) => (
+                <Link key={meal.id} to={`/meals/${meal.id}`}>
+                  <Card variant="interactive" className="overflow-hidden h-full">
+                    <div className="aspect-square relative bg-muted">
+                      {meal.image_url ? (
+                        <img 
+                          src={meal.image_url} 
+                          alt={meal.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-muted to-muted-foreground/10">
+                          🍽️
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
+                      <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs">
+                        Included
+                      </Badge>
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <h4 className="font-semibold text-sm line-clamp-2 mb-1">{meal.name}</h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Flame className="w-3 h-3" />
+                            {meal.calories}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-warning text-warning" />
+                            {meal.rating.toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            /* List View */
+            <div className="grid gap-4">
+              {filteredMeals.map((meal) => (
                 <Link key={meal.id} to={`/meals/${meal.id}`}>
                   <Card variant="interactive">
                     <CardContent className="p-4">
                       <div className="flex gap-4">
-                      <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
-                        {meal.image_url ? (
-                          <img 
-                            src={meal.image_url} 
-                            alt={meal.name}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          "🍽️"
-                        )}
-                      </div>
+                        <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
+                          {meal.image_url ? (
+                            <img 
+                              src={meal.image_url} 
+                              alt={meal.name}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            "🍽️"
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="font-semibold truncate">{meal.name}</h4>
@@ -357,9 +421,9 @@ const RestaurantDetail = () => {
                     </CardContent>
                   </Card>
                 </Link>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </main>
 
