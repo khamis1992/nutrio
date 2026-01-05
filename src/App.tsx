@@ -17,6 +17,7 @@ import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
 import OrderHistory from "./pages/OrderHistory";
 import Subscription from "./pages/Subscription";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -108,6 +109,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Subscription />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/notifications" 
+              element={
+                <ProtectedRoute>
+                  <Notifications />
                 </ProtectedRoute>
               } 
             />
