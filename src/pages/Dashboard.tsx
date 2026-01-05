@@ -29,19 +29,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
 
-interface Meal {
+interface Restaurant {
   id: string;
   name: string;
-  restaurant_name: string;
-  image_url: string | null;
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  price: number;
+  description: string | null;
+  logo_url: string | null;
   rating: number;
-  prep_time_minutes: number;
-  diet_tags: string[];
+  total_orders: number;
+  meal_count: number;
 }
 
 const Dashboard = () => {
@@ -50,9 +45,8 @@ const Dashboard = () => {
   const { profile, loading: profileLoading } = useProfile();
   const { toast } = useToast();
   
-  const [meals, setMeals] = useState<Meal[]>([]);
-  const [mealsLoading, setMealsLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState("All");
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [restaurantsLoading, setRestaurantsLoading] = useState(true);
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
@@ -102,55 +96,50 @@ const Dashboard = () => {
     fetchTodayProgress();
   }, [user, progressKey]);
 
-  // Fetch meals
+  // Fetch restaurants
   useEffect(() => {
-    const fetchMeals = async () => {
+    const fetchRestaurants = async () => {
       try {
         const { data, error } = await supabase
-          .from("meals")
+          .from("restaurants")
           .select(`
             id,
             name,
-            image_url,
-            calories,
-            protein_g,
-            carbs_g,
-            fat_g,
-            price,
+            description,
+            logo_url,
             rating,
-            prep_time_minutes,
-            restaurants (name)
+            total_orders,
+            meals!inner (id)
           `)
-          .eq("is_available", true)
-          .limit(10);
+          .eq("approval_status", "approved")
+          .eq("is_active", true)
+          .limit(5);
 
         if (error) throw error;
 
-        // Transform data
-        const transformedMeals: Meal[] = (data || []).map((meal: any) => ({
-          id: meal.id,
-          name: meal.name,
-          restaurant_name: meal.restaurants?.name || "Unknown",
-          image_url: meal.image_url,
-          calories: meal.calories,
-          protein_g: meal.protein_g,
-          carbs_g: meal.carbs_g,
-          fat_g: meal.fat_g,
-          price: parseFloat(meal.price),
-          rating: parseFloat(meal.rating) || 0,
-          prep_time_minutes: meal.prep_time_minutes || 15,
-          diet_tags: [], // TODO: Fetch from meal_diet_tags
+        // Transform data with meal counts
+        const transformedRestaurants: Restaurant[] = (data || []).map((restaurant: any) => ({
+          id: restaurant.id,
+          name: restaurant.name,
+          description: restaurant.description,
+          logo_url: restaurant.logo_url,
+          rating: parseFloat(restaurant.rating) || 0,
+          total_orders: restaurant.total_orders || 0,
+          meal_count: restaurant.meals?.length || 0,
         }));
 
-        setMeals(transformedMeals);
+        // Sort by rating
+        transformedRestaurants.sort((a, b) => b.rating - a.rating);
+
+        setRestaurants(transformedRestaurants);
       } catch (err) {
-        console.error("Error fetching meals:", err);
+        console.error("Error fetching restaurants:", err);
       } finally {
-        setMealsLoading(false);
+        setRestaurantsLoading(false);
       }
     };
 
-    fetchMeals();
+    fetchRestaurants();
   }, []);
 
   const handleSignOut = async () => {
@@ -161,8 +150,6 @@ const Dashboard = () => {
     });
     navigate("/");
   };
-
-  const filters = ["All", "High Protein", "Low Carb", "Keto", "Vegan"];
 
   const userStats = {
     dailyCalories: profile?.daily_calorie_target || 2000,
@@ -341,10 +328,10 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        {/* Browse Meals Section */}
+        {/* Browse Restaurants Section */}
         <section className="space-y-4 animate-fade-in stagger-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Browse Meals</h2>
+            <h2 className="text-lg font-bold">Browse Restaurants</h2>
             <Link to="/meals">
               <Button variant="ghost" size="sm" className="text-primary">
                 View All <ChevronRight className="w-4 h-4" />
@@ -352,88 +339,69 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-            {filters.map((filter) => (
-              <Button
-                key={filter}
-                variant={selectedFilter === filter ? "default" : "secondary"}
-                size="sm"
-                onClick={() => setSelectedFilter(filter)}
-                className="whitespace-nowrap"
-              >
-                {filter}
-              </Button>
-            ))}
-          </div>
-
-          {/* Meal Cards */}
+          {/* Restaurant Cards */}
           <div className="grid gap-4">
-            {mealsLoading ? (
+            {restaurantsLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ) : meals.length === 0 ? (
+            ) : restaurants.length === 0 ? (
               <Card variant="default">
                 <CardContent className="p-8 text-center">
                   <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-semibold mb-2">No meals available yet</h3>
+                  <h3 className="font-semibold mb-2">No restaurants available yet</h3>
                   <p className="text-sm text-muted-foreground">
-                    Partner restaurants will add meals soon. Check back later!
+                    Partner restaurants will be added soon. Check back later!
                   </p>
                 </CardContent>
               </Card>
             ) : (
-              meals.map((meal) => (
-                <Card key={meal.id} variant="interactive">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
-                        {meal.image_url ? (
-                          <img 
-                            src={meal.image_url} 
-                            alt={meal.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          "🍽️"
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="font-semibold truncate">{meal.name}</h3>
-                            <p className="text-sm text-muted-foreground">{meal.restaurant_name}</p>
+              restaurants.map((restaurant) => (
+                <Link key={restaurant.id} to={`/restaurants/${restaurant.id}`}>
+                  <Card variant="interactive">
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
+                          {restaurant.logo_url ? (
+                            <img 
+                              src={restaurant.logo_url} 
+                              alt={restaurant.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            "🍽️"
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold truncate">{restaurant.name}</h3>
+                              {restaurant.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-1">
+                                  {restaurant.description}
+                                </p>
+                              )}
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                           </div>
-                          <p className="font-bold text-primary">${meal.price.toFixed(2)}</p>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Flame className="w-3 h-3" />
-                            {meal.calories} kcal
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {meal.prep_time_minutes} min
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Star className="w-3 h-3 fill-warning text-warning" />
-                            {meal.rating.toFixed(1)}
-                          </span>
-                        </div>
-
-                        <div className="flex gap-1.5 mt-2">
-                          {meal.diet_tags.slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="diet" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
+                          
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <span className="flex items-center gap-1">
+                              <Star className="w-4 h-4 fill-warning text-warning" />
+                              {restaurant.rating.toFixed(1)}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {restaurant.total_orders} orders
+                            </span>
+                            <span className="text-muted-foreground">
+                              {restaurant.meal_count} meals
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))
             )}
           </div>
@@ -446,7 +414,7 @@ const Dashboard = () => {
           <div className="flex justify-around items-center h-16">
             {[
               { icon: Salad, label: "Home", active: true, to: "/dashboard" },
-              { icon: Utensils, label: "Meals", active: false, to: "/meals" },
+              { icon: Utensils, label: "Restaurants", active: false, to: "/meals" },
               { icon: Calendar, label: "Schedule", active: false, to: "/schedule" },
               { icon: TrendingUp, label: "Progress", active: false, to: "/progress" },
               { icon: User, label: "Profile", active: false, to: "/profile" },
