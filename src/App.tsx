@@ -14,6 +14,7 @@ import MealDetail from "./pages/MealDetail";
 import Schedule from "./pages/Schedule";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
+import OrderHistory from "./pages/OrderHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/orders" 
+              element={
+                <ProtectedRoute>
+                  <OrderHistory />
                 </ProtectedRoute>
               } 
             />
