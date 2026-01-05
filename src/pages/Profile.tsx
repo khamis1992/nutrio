@@ -43,6 +43,7 @@ import {
   Mail,
   RefreshCw,
   Receipt,
+  Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -729,6 +730,23 @@ const Profile = () => {
 
           {/* Account Tab */}
           <TabsContent value="account" className="space-y-4">
+            <Link to="/subscription">
+              <Card variant="interactive">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                      <Crown className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Subscription Plans</p>
+                      <p className="text-sm text-muted-foreground">Manage your plan & billing</p>
+                    </div>
+                  </div>
+                  <ArrowLeft className="w-5 h-5 text-muted-foreground rotate-180" />
+                </CardContent>
+              </Card>
+            </Link>
+
             <Link to="/orders">
               <Card variant="interactive">
                 <CardContent className="p-4 flex items-center justify-between">
