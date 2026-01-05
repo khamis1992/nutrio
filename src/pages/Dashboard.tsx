@@ -20,12 +20,14 @@ import {
   Bell,
   LogOut,
   Loader2,
-  Receipt
+  Receipt,
+  Plus
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { LogMealDialog } from "@/components/LogMealDialog";
 
 interface Meal {
   id: string;
@@ -51,12 +53,14 @@ const Dashboard = () => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [mealsLoading, setMealsLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [logMealOpen, setLogMealOpen] = useState(false);
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
     protein: 0,
     carbs: 0,
     fat: 0,
   });
+  const [progressKey, setProgressKey] = useState(0);
 
   // Redirect to onboarding if not completed
   useEffect(() => {
@@ -96,7 +100,7 @@ const Dashboard = () => {
     };
 
     fetchTodayProgress();
-  }, [user]);
+  }, [user, progressKey]);
 
   // Fetch meals
   useEffect(() => {
@@ -282,6 +286,15 @@ const Dashboard = () => {
                 <p className="text-xs font-medium">{userStats.fat.consumed}g / {userStats.fat.target}g</p>
               </div>
             </div>
+
+            {/* Log Meal Button */}
+            <Button 
+              onClick={() => setLogMealOpen(true)} 
+              className="w-full mt-4"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Log Meal
+            </Button>
           </CardContent>
         </Card>
 
@@ -454,6 +467,16 @@ const Dashboard = () => {
           </div>
         </div>
       </nav>
+
+      {/* Log Meal Dialog */}
+      {user && (
+        <LogMealDialog
+          open={logMealOpen}
+          onOpenChange={setLogMealOpen}
+          userId={user.id}
+          onMealLogged={() => setProgressKey((k) => k + 1)}
+        />
+      )}
     </div>
   );
 };
