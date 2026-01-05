@@ -237,7 +237,7 @@ const MealDetail = () => {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Hero Image */}
-      <div className="relative h-64 bg-muted">
+      <div className="relative h-80 bg-muted">
         {meal.image_url ? (
           <img 
             src={meal.image_url} 
@@ -245,11 +245,11 @@ const MealDetail = () => {
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-8xl">
+          <div className="w-full h-full flex items-center justify-center text-8xl bg-gradient-to-br from-muted to-muted-foreground/10">
             🍽️
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
         
         {/* Back Button */}
         <Button 

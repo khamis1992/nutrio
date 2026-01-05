@@ -171,7 +171,7 @@ const RestaurantDetail = () => {
         <Card variant="stat" className="animate-fade-in">
           <CardContent className="p-5">
             <div className="flex gap-4">
-              <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0">
+              <div className="w-24 h-24 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0 shadow-md border border-border/50">
                 {restaurant.logo_url ? (
                   <img 
                     src={restaurant.logo_url} 
@@ -300,17 +300,17 @@ const RestaurantDetail = () => {
                   <Card variant="interactive">
                     <CardContent className="p-4">
                       <div className="flex gap-4">
-                        <div className="w-24 h-24 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0">
-                          {meal.image_url ? (
-                            <img 
-                              src={meal.image_url} 
-                              alt={meal.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            "🍽️"
-                          )}
-                        </div>
+                      <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
+                        {meal.image_url ? (
+                          <img 
+                            src={meal.image_url} 
+                            alt={meal.name}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          "🍽️"
+                        )}
+                      </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="font-semibold truncate">{meal.name}</h4>
