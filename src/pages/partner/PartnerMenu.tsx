@@ -560,139 +560,203 @@ const PartnerMenu = () => {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label>Name *</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Grilled Chicken Salad"
-                className={formErrors.name ? "border-destructive" : ""}
-              />
-              {formErrors.name && (
-                <p className="text-sm text-destructive">{formErrors.name}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Fresh greens with grilled chicken..."
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Price ($) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.price || ""}
-                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                  className={formErrors.price ? "border-destructive" : ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Calories *</Label>
-                <Input
-                  type="number"
-                  value={formData.calories || ""}
-                  onChange={(e) => setFormData({ ...formData, calories: parseInt(e.target.value) || 0 })}
-                  className={formErrors.calories ? "border-destructive" : ""}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label>Protein (g)</Label>
-                <Input
-                  type="number"
-                  value={formData.protein_g || ""}
-                  onChange={(e) => setFormData({ ...formData, protein_g: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Carbs (g)</Label>
-                <Input
-                  type="number"
-                  value={formData.carbs_g || ""}
-                  onChange={(e) => setFormData({ ...formData, carbs_g: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Fat (g)</Label>
-                <Input
-                  type="number"
-                  value={formData.fat_g || ""}
-                  onChange={(e) => setFormData({ ...formData, fat_g: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fiber (g)</Label>
-                <Input
-                  type="number"
-                  value={formData.fiber_g || ""}
-                  onChange={(e) => setFormData({ ...formData, fiber_g: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Prep Time (min)</Label>
-                <Input
-                  type="number"
-                  value={formData.prep_time_minutes || ""}
-                  onChange={(e) => setFormData({ ...formData, prep_time_minutes: parseInt(e.target.value) || 15 })}
-                />
-              </div>
-            </div>
-
-
-            {/* Diet Tags */}
-            <div className="space-y-3">
-              <Label className="flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                Diet Tags
-              </Label>
-              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
-                {dietTags.map((tag) => (
-                  <div
-                    key={tag.id}
-                    className="flex items-center space-x-2"
-                  >
-                    <Checkbox
-                      id={`tag-${tag.id}`}
-                      checked={selectedTags.includes(tag.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedTags([...selectedTags, tag.id]);
-                        } else {
-                          setSelectedTags(selectedTags.filter((t) => t !== tag.id));
-                        }
-                      }}
-                    />
-                    <label
-                      htmlFor={`tag-${tag.id}`}
-                      className="text-sm cursor-pointer"
-                    >
-                      {tag.name}
-                    </label>
+            {analyzing ? (
+              /* Skeleton Loading State */
+              <div className="space-y-4 animate-pulse">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary animate-spin" />
+                    <span className="text-sm text-primary font-medium">AI is analyzing your meal...</span>
                   </div>
-                ))}
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-10" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-16" />
+                  <div className="grid grid-cols-2 gap-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-6 w-full" />
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Actual Form Fields */
+              <>
+                <div className="space-y-2">
+                  <Label>Name *</Label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Grilled Chicken Salad"
+                    className={formErrors.name ? "border-destructive" : ""}
+                  />
+                  {formErrors.name && (
+                    <p className="text-sm text-destructive">{formErrors.name}</p>
+                  )}
+                </div>
 
-            <div className="flex items-center justify-between">
-              <Label>Available for ordering</Label>
-              <Switch
-                checked={formData.is_available}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Fresh greens with grilled chicken..."
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Price ($) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.price || ""}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                      className={formErrors.price ? "border-destructive" : ""}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Calories *</Label>
+                    <Input
+                      type="number"
+                      value={formData.calories || ""}
+                      onChange={(e) => setFormData({ ...formData, calories: parseInt(e.target.value) || 0 })}
+                      className={formErrors.calories ? "border-destructive" : ""}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Protein (g)</Label>
+                    <Input
+                      type="number"
+                      value={formData.protein_g || ""}
+                      onChange={(e) => setFormData({ ...formData, protein_g: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Carbs (g)</Label>
+                    <Input
+                      type="number"
+                      value={formData.carbs_g || ""}
+                      onChange={(e) => setFormData({ ...formData, carbs_g: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fat (g)</Label>
+                    <Input
+                      type="number"
+                      value={formData.fat_g || ""}
+                      onChange={(e) => setFormData({ ...formData, fat_g: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Fiber (g)</Label>
+                    <Input
+                      type="number"
+                      value={formData.fiber_g || ""}
+                      onChange={(e) => setFormData({ ...formData, fiber_g: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Prep Time (min)</Label>
+                    <Input
+                      type="number"
+                      value={formData.prep_time_minutes || ""}
+                      onChange={(e) => setFormData({ ...formData, prep_time_minutes: parseInt(e.target.value) || 15 })}
+                    />
+                  </div>
+                </div>
+
+                {/* Diet Tags */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Diet Tags
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
+                    {dietTags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`tag-${tag.id}`}
+                          checked={selectedTags.includes(tag.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTags([...selectedTags, tag.id]);
+                            } else {
+                              setSelectedTags(selectedTags.filter((t) => t !== tag.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`tag-${tag.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {tag.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>Available for ordering</Label>
+                  <Switch
+                    checked={formData.is_available}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>
