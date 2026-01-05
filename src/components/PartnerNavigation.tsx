@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
 import { Store, UtensilsCrossed, Package, Settings, Bell } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 const navItems = [
   { icon: Store, label: "Dashboard", to: "/partner" },
@@ -11,10 +12,43 @@ const navItems = [
   { icon: Settings, label: "Settings", to: "/partner/settings" },
 ];
 
+// Create notification sound using Web Audio API
+const playNotificationSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+    oscillator.frequency.setValueAtTime(1108.73, audioContext.currentTime + 0.1); // C#6 note
+    oscillator.frequency.setValueAtTime(1318.51, audioContext.currentTime + 0.2); // E6 note
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.4);
+  } catch (error) {
+    console.log("Audio playback not supported:", error);
+  }
+};
+
+// Trigger device vibration
+const triggerVibration = () => {
+  if ("vibrate" in navigator) {
+    navigator.vibrate([100, 50, 100]); // Vibrate pattern: 100ms on, 50ms off, 100ms on
+  }
+};
+
 export function PartnerNavigation() {
   const location = useLocation();
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const previousCountRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
   
   const isActive = (path: string) => {
     if (path === "/partner") {
@@ -22,6 +56,15 @@ export function PartnerNavigation() {
     }
     return location.pathname.startsWith(path);
   };
+
+  const notifyNewOrder = useCallback((title: string, message: string) => {
+    playNotificationSound();
+    triggerVibration();
+    toast({
+      title: title,
+      description: message,
+    });
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -33,7 +76,16 @@ export function PartnerNavigation() {
         .eq("user_id", user.id)
         .eq("is_read", false);
       
-      setUnreadCount(count || 0);
+      const newCount = count || 0;
+      
+      // Only notify if count increased and not initial load
+      if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
+        // Don't notify here, we'll notify from the realtime handler with details
+      }
+      
+      previousCountRef.current = newCount;
+      setUnreadCount(newCount);
+      isInitialLoadRef.current = false;
     };
 
     fetchUnreadCount();
@@ -44,7 +96,33 @@ export function PartnerNavigation() {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const notification = payload.new as { title: string; message: string };
+          notifyNewOrder(notification.title, notification.message);
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchUnreadCount();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
           schema: "public",
           table: "notifications",
           filter: `user_id=eq.${user.id}`,
@@ -58,7 +136,7 @@ export function PartnerNavigation() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, notifyNewOrder]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
