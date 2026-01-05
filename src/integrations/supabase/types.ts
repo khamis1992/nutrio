@@ -376,7 +376,7 @@ export type Database = {
           is_active: boolean | null
           logo_url: string | null
           name: string
-          owner_id: string
+          owner_id: string | null
           phone: string | null
           rating: number | null
           total_orders: number | null
@@ -394,7 +394,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name: string
-          owner_id: string
+          owner_id?: string | null
           phone?: string | null
           rating?: number | null
           total_orders?: number | null
@@ -412,7 +412,7 @@ export type Database = {
           is_active?: boolean | null
           logo_url?: string | null
           name?: string
-          owner_id?: string
+          owner_id?: string | null
           phone?: string | null
           rating?: number | null
           total_orders?: number | null
