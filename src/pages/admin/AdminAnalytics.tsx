@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  ArrowLeft,
   TrendingUp,
   DollarSign,
   ShoppingBag,
@@ -13,8 +9,8 @@ import {
   Utensils,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminLayout } from "@/components/AdminLayout";
 import {
   LineChart,
   Line,
@@ -51,11 +47,8 @@ interface MealTypeData {
 const COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
 const AdminAnalytics = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [topRestaurants, setTopRestaurants] = useState<TopRestaurant[]>([]);
   const [mealTypeData, setMealTypeData] = useState<MealTypeData[]>([]);
@@ -71,41 +64,11 @@ const AdminAnalytics = () => {
 
   useEffect(() => {
     if (user) {
-      checkAdminAndFetch();
+      fetchAnalytics();
     }
   }, [user]);
 
-  const checkAdminAndFetch = async () => {
-    if (!user) return;
-
-    try {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive",
-        });
-        navigate("/dashboard");
-        return;
-      }
-
-      await fetchAnalytics();
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchAnalytics = async () => {
-    // Fetch all meals with prices
     const { data: meals } = await supabase
       .from("meals")
       .select("id, price, restaurant_id");
@@ -120,7 +83,6 @@ const AdminAnalytics = () => {
       return acc;
     }, {} as Record<string, string>);
 
-    // Fetch restaurants
     const { data: restaurants, count: restaurantCount } = await supabase
       .from("restaurants")
       .select("id, name", { count: "exact" })
@@ -131,17 +93,14 @@ const AdminAnalytics = () => {
       return acc;
     }, {} as Record<string, string>);
 
-    // Fetch all schedules
     const { data: schedules, count: totalOrders } = await supabase
       .from("meal_schedules")
       .select("*", { count: "exact" });
 
-    // Fetch user count
     const { count: totalUsers } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true });
 
-    // Calculate daily data for last 30 days
     const last30Days: DailyData[] = [];
     const dailyMap: Record<string, { orders: number; revenue: number; users: Set<string> }> = {};
 
@@ -167,13 +126,11 @@ const AdminAnalytics = () => {
     }
     setDailyData(last30Days);
 
-    // Calculate total revenue
     const totalRevenue = (schedules || []).reduce(
       (sum, s) => sum + (mealPrices[s.meal_id] || 0),
       0
     );
 
-    // Calculate top restaurants
     const restaurantStats: Record<string, { orders: number; revenue: number }> = {};
     (schedules || []).forEach((s) => {
       const restaurantId = mealRestaurants[s.meal_id];
@@ -194,7 +151,6 @@ const AdminAnalytics = () => {
       .slice(0, 5);
     setTopRestaurants(topRestaurantsList);
 
-    // Calculate meal type distribution
     const mealTypeCounts: Record<string, number> = {};
     (schedules || []).forEach((s) => {
       mealTypeCounts[s.meal_type] = (mealTypeCounts[s.meal_type] || 0) + 1;
@@ -203,7 +159,6 @@ const AdminAnalytics = () => {
       Object.entries(mealTypeCounts).map(([name, value]) => ({ name, value }))
     );
 
-    // Calculate growth rate (this week vs last week)
     const now = new Date();
     const thisWeekStart = new Date(now);
     thisWeekStart.setDate(now.getDate() - now.getDay());
@@ -232,41 +187,9 @@ const AdminAnalytics = () => {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-          </div>
-          <Skeleton className="h-64" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold">Platform Analytics</h1>
-              <p className="text-sm text-muted-foreground">Last 30 days overview</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Stats Grid */}
+    <AdminLayout title="Platform Analytics" subtitle="Last 30 days overview">
+      <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4">
@@ -325,7 +248,6 @@ const AdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* Growth Indicator */}
         <Card className={`${stats.growthRate >= 0 ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
@@ -343,9 +265,7 @@ const AdminAnalytics = () => {
           </CardContent>
         </Card>
 
-        {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Revenue Trend</CardTitle>
@@ -376,7 +296,6 @@ const AdminAnalytics = () => {
             </CardContent>
           </Card>
 
-          {/* Orders Chart */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Daily Orders</CardTitle>
@@ -403,9 +322,7 @@ const AdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* Bottom Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Restaurants */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -433,7 +350,6 @@ const AdminAnalytics = () => {
             </CardContent>
           </Card>
 
-          {/* Meal Type Distribution */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -470,8 +386,8 @@ const AdminAnalytics = () => {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

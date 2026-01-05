@@ -1,26 +1,19 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Shield,
   Store,
   Users,
   ShoppingBag,
   TrendingUp,
   Clock,
-  LogOut,
-  ChevronRight,
   DollarSign,
   BarChart3,
-  Settings,
-  Utensils,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminLayout } from "@/components/AdminLayout";
 import {
   LineChart,
   Line,
@@ -57,12 +50,8 @@ interface RecentActivity {
 }
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const { toast } = useToast();
+  const { user } = useAuth();
 
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState<Stats>({
     totalRestaurants: 0,
     approvedRestaurants: 0,
@@ -78,181 +67,123 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (user) {
-      checkAdminAndFetchData();
+      fetchData();
     }
   }, [user]);
 
-  const checkAdminAndFetchData = async () => {
-    if (!user) return;
+  const fetchData = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    
+    const [
+      restaurantsRes,
+      approvedRes,
+      pendingRes,
+      profilesRes,
+      schedulesRes,
+      mealsRes,
+      todaySchedulesRes,
+    ] = await Promise.all([
+      supabase.from("restaurants").select("*", { count: "exact", head: true }),
+      supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
+      supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "pending"),
+      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      supabase.from("meal_schedules").select("*", { count: "exact", head: true }),
+      supabase.from("meals").select("*", { count: "exact", head: true }),
+      supabase.from("meal_schedules").select("*", { count: "exact", head: true }).eq("scheduled_date", today),
+    ]);
 
-    try {
-      // Check if user is admin
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    const { data: weeklySchedules } = await supabase
+      .from("meal_schedules")
+      .select("scheduled_date, meal_id")
+      .gte("scheduled_date", weekAgo.toISOString().split("T")[0]);
 
-      if (!roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive",
-        });
-        navigate("/dashboard");
-        return;
+    const { data: allMeals } = await supabase
+      .from("meals")
+      .select("id, price");
+
+    const mealPrices = (allMeals || []).reduce((acc, m) => {
+      acc[m.id] = m.price;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const dailyMap: Record<string, { orders: number; revenue: number }> = {};
+    let weeklyRevenue = 0;
+
+    (weeklySchedules || []).forEach((s) => {
+      if (!dailyMap[s.scheduled_date]) {
+        dailyMap[s.scheduled_date] = { orders: 0, revenue: 0 };
       }
+      dailyMap[s.scheduled_date].orders++;
+      const price = mealPrices[s.meal_id] || 0;
+      dailyMap[s.scheduled_date].revenue += price;
+      weeklyRevenue += price;
+    });
 
-      setIsAdmin(true);
-
-      // Fetch all stats in parallel
-      const today = new Date().toISOString().split("T")[0];
-      
-      const [
-        restaurantsRes,
-        approvedRes,
-        pendingRes,
-        profilesRes,
-        schedulesRes,
-        mealsRes,
-        todaySchedulesRes,
-      ] = await Promise.all([
-        supabase.from("restaurants").select("*", { count: "exact", head: true }),
-        supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
-        supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "pending"),
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("meal_schedules").select("*", { count: "exact", head: true }),
-        supabase.from("meals").select("*", { count: "exact", head: true }),
-        supabase.from("meal_schedules").select("*", { count: "exact", head: true }).eq("scheduled_date", today),
-      ]);
-
-      // Fetch weekly data for chart
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      
-      const { data: weeklySchedules } = await supabase
-        .from("meal_schedules")
-        .select("scheduled_date, meal_id")
-        .gte("scheduled_date", weekAgo.toISOString().split("T")[0]);
-
-      const { data: allMeals } = await supabase
-        .from("meals")
-        .select("id, price");
-
-      const mealPrices = (allMeals || []).reduce((acc, m) => {
-        acc[m.id] = m.price;
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Calculate daily data
-      const dailyMap: Record<string, { orders: number; revenue: number }> = {};
-      let weeklyRevenue = 0;
-
-      (weeklySchedules || []).forEach((s) => {
-        if (!dailyMap[s.scheduled_date]) {
-          dailyMap[s.scheduled_date] = { orders: 0, revenue: 0 };
-        }
-        dailyMap[s.scheduled_date].orders++;
-        const price = mealPrices[s.meal_id] || 0;
-        dailyMap[s.scheduled_date].revenue += price;
-        weeklyRevenue += price;
+    const last7Days: DailyData[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      last7Days.push({
+        date: date.toLocaleDateString("en-US", { weekday: "short" }),
+        orders: dailyMap[dateStr]?.orders || 0,
+        revenue: dailyMap[dateStr]?.revenue || 0,
       });
-
-      const last7Days: DailyData[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split("T")[0];
-        last7Days.push({
-          date: date.toLocaleDateString("en-US", { weekday: "short" }),
-          orders: dailyMap[dateStr]?.orders || 0,
-          revenue: dailyMap[dateStr]?.revenue || 0,
-        });
-      }
-      setDailyData(last7Days);
-
-      // Fetch recent activity
-      const { data: recentRestaurants } = await supabase
-        .from("restaurants")
-        .select("id, name, created_at, approval_status")
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      const { data: recentSchedules } = await supabase
-        .from("meal_schedules")
-        .select("id, created_at, meals:meal_id(name)")
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      const activities: RecentActivity[] = [];
-
-      (recentRestaurants || []).forEach((r) => {
-        activities.push({
-          id: r.id,
-          type: "restaurant",
-          title: r.name,
-          description: r.approval_status === "pending" ? "New registration" : `Status: ${r.approval_status}`,
-          time: new Date(r.created_at).toLocaleString(),
-        });
-      });
-
-      (recentSchedules || []).forEach((s: any) => {
-        activities.push({
-          id: s.id,
-          type: "order",
-          title: s.meals?.name || "Meal Order",
-          description: "New meal scheduled",
-          time: new Date(s.created_at).toLocaleString(),
-        });
-      });
-
-      setRecentActivity(activities.sort((a, b) => 
-        new Date(b.time).getTime() - new Date(a.time).getTime()
-      ).slice(0, 5));
-
-      setStats({
-        totalRestaurants: restaurantsRes.count || 0,
-        approvedRestaurants: approvedRes.count || 0,
-        pendingApprovals: pendingRes.count || 0,
-        totalUsers: profilesRes.count || 0,
-        totalOrders: schedulesRes.count || 0,
-        totalMeals: mealsRes.count || 0,
-        todayOrders: todaySchedulesRes.count || 0,
-        weeklyRevenue,
-      });
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
     }
+    setDailyData(last7Days);
+
+    const { data: recentRestaurants } = await supabase
+      .from("restaurants")
+      .select("id, name, created_at, approval_status")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    const { data: recentSchedules } = await supabase
+      .from("meal_schedules")
+      .select("id, created_at, meals:meal_id(name)")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    const activities: RecentActivity[] = [];
+
+    (recentRestaurants || []).forEach((r) => {
+      activities.push({
+        id: r.id,
+        type: "restaurant",
+        title: r.name,
+        description: r.approval_status === "pending" ? "New registration" : `Status: ${r.approval_status}`,
+        time: new Date(r.created_at).toLocaleString(),
+      });
+    });
+
+    (recentSchedules || []).forEach((s: any) => {
+      activities.push({
+        id: s.id,
+        type: "order",
+        title: s.meals?.name || "Meal Order",
+        description: "New meal scheduled",
+        time: new Date(s.created_at).toLocaleString(),
+      });
+    });
+
+    setRecentActivity(activities.sort((a, b) => 
+      new Date(b.time).getTime() - new Date(a.time).getTime()
+    ).slice(0, 5));
+
+    setStats({
+      totalRestaurants: restaurantsRes.count || 0,
+      approvedRestaurants: approvedRes.count || 0,
+      pendingApprovals: pendingRes.count || 0,
+      totalUsers: profilesRes.count || 0,
+      totalOrders: schedulesRes.count || 0,
+      totalMeals: mealsRes.count || 0,
+      todayOrders: todaySchedulesRes.count || 0,
+      weeklyRevenue,
+    });
   };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
-          <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-          </div>
-          <Skeleton className="h-64" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return null;
-  }
 
   const navItems = [
     { icon: Store, label: "Restaurants", to: "/admin/restaurants", count: stats.pendingApprovals, color: "text-primary" },
@@ -262,31 +193,8 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-        <div className="container max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-destructive" />
-            </div>
-            <div>
-              <p className="font-semibold">Admin Dashboard</p>
-              <p className="text-xs text-muted-foreground">Platform Management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
-              View as Customer
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <AdminLayout title="Admin Dashboard" subtitle="Platform Management">
+      <div className="space-y-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
@@ -480,46 +388,17 @@ const AdminDashboard = () => {
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold">{stats.totalOrders}</p>
-                <p className="text-sm text-muted-foreground">All-time Orders</p>
+                <p className="text-sm text-muted-foreground">All-Time Orders</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-3xl font-bold">{stats.totalUsers}</p>
-                <p className="text-sm text-muted-foreground">Registered Users</p>
+                <p className="text-3xl font-bold">{stats.pendingApprovals}</p>
+                <p className="text-sm text-muted-foreground">Pending Approvals</p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
-        <div className="container max-w-6xl mx-auto px-4">
-          <div className="flex justify-around py-2">
-            <Link to="/admin" className="flex flex-col items-center py-2 text-primary">
-              <Shield className="h-5 w-5" />
-              <span className="text-xs mt-1">Dashboard</span>
-            </Link>
-            <Link to="/admin/restaurants" className="flex flex-col items-center py-2 text-muted-foreground hover:text-foreground relative">
-              <Store className="h-5 w-5" />
-              <span className="text-xs mt-1">Restaurants</span>
-              {stats.pendingApprovals > 0 && (
-                <Badge className="absolute -top-1 right-0 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                  {stats.pendingApprovals}
-                </Badge>
-              )}
-            </Link>
-            <Link to="/admin/users" className="flex flex-col items-center py-2 text-muted-foreground hover:text-foreground">
-              <Users className="h-5 w-5" />
-              <span className="text-xs mt-1">Users</span>
-            </Link>
-            <Link to="/admin/orders" className="flex flex-col items-center py-2 text-muted-foreground hover:text-foreground">
-              <ShoppingBag className="h-5 w-5" />
-              <span className="text-xs mt-1">Orders</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

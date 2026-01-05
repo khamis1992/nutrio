@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -14,7 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
   Store,
   MapPin,
   Phone,
@@ -22,12 +19,12 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Eye,
   Calendar,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminLayout } from "@/components/AdminLayout";
 
 interface Restaurant {
   id: string;
@@ -47,11 +44,9 @@ interface Restaurant {
 }
 
 const AdminRestaurants = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [activeTab, setActiveTab] = useState("pending");
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
@@ -60,39 +55,9 @@ const AdminRestaurants = () => {
 
   useEffect(() => {
     if (user) {
-      checkAdminAndFetch();
+      fetchRestaurants();
     }
   }, [user]);
-
-  const checkAdminAndFetch = async () => {
-    if (!user) return;
-
-    try {
-      // Check if user is admin
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive",
-        });
-        navigate("/dashboard");
-        return;
-      }
-
-      await fetchRestaurants();
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchRestaurants = async () => {
     const { data, error } = await supabase
@@ -105,7 +70,6 @@ const AdminRestaurants = () => {
       return;
     }
 
-    // Fetch owner profiles
     const ownerIds = [...new Set((data || []).map((r) => r.owner_id).filter(Boolean))];
     let ownersMap: Record<string, { full_name: string | null; email: string | null }> = {};
 
@@ -136,7 +100,6 @@ const AdminRestaurants = () => {
 
     try {
       setProcessing(true);
-
       const newStatus = actionType === "approve" ? "approved" : "rejected";
 
       const { error } = await supabase
@@ -204,22 +167,6 @@ const AdminRestaurants = () => {
     }
   };
 
-  const pendingRestaurants = restaurants.filter((r) => r.approval_status === "pending");
-  const approvedRestaurants = restaurants.filter((r) => r.approval_status === "approved");
-  const rejectedRestaurants = restaurants.filter((r) => r.approval_status === "rejected");
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    );
-  }
-
   const renderRestaurantList = (list: Restaurant[], showActions: boolean = false) => {
     if (list.length === 0) {
       return (
@@ -236,7 +183,6 @@ const AdminRestaurants = () => {
       <Card key={restaurant.id}>
         <CardContent className="p-4">
           <div className="flex gap-4">
-            {/* Logo */}
             <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center overflow-hidden shrink-0">
               {restaurant.logo_url ? (
                 <img
@@ -249,7 +195,6 @@ const AdminRestaurants = () => {
               )}
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div>
@@ -328,55 +273,39 @@ const AdminRestaurants = () => {
     ));
   };
 
+  const pendingRestaurants = restaurants.filter((r) => r.approval_status === "pending");
+  const approvedRestaurants = restaurants.filter((r) => r.approval_status === "approved");
+  const rejectedRestaurants = restaurants.filter((r) => r.approval_status === "rejected");
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold">Manage Restaurants</h1>
-              <p className="text-sm text-muted-foreground">
-                {pendingRestaurants.length} pending approval
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <AdminLayout title="Manage Restaurants" subtitle={`${pendingRestaurants.length} pending approval`}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-3 w-full mb-6">
+          <TabsTrigger value="pending" className="relative">
+            Pending
+            {pendingRestaurants.length > 0 && (
+              <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {pendingRestaurants.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+        </TabsList>
 
-      <main className="container max-w-4xl mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full mb-6">
-            <TabsTrigger value="pending" className="relative">
-              Pending
-              {pendingRestaurants.length > 0 && (
-                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {pendingRestaurants.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="approved">Approved</TabsTrigger>
-            <TabsTrigger value="rejected">Rejected</TabsTrigger>
-          </TabsList>
+        <TabsContent value="pending" className="space-y-4">
+          {renderRestaurantList(pendingRestaurants, true)}
+        </TabsContent>
 
-          <TabsContent value="pending" className="space-y-4">
-            {renderRestaurantList(pendingRestaurants, true)}
-          </TabsContent>
+        <TabsContent value="approved" className="space-y-4">
+          {renderRestaurantList(approvedRestaurants)}
+        </TabsContent>
 
-          <TabsContent value="approved" className="space-y-4">
-            {renderRestaurantList(approvedRestaurants)}
-          </TabsContent>
+        <TabsContent value="rejected" className="space-y-4">
+          {renderRestaurantList(rejectedRestaurants)}
+        </TabsContent>
+      </Tabs>
 
-          <TabsContent value="rejected" className="space-y-4">
-            {renderRestaurantList(rejectedRestaurants)}
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Confirmation Dialog */}
       <Dialog
         open={!!selectedRestaurant && !!actionType}
         onOpenChange={() => {
@@ -419,7 +348,7 @@ const AdminRestaurants = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminLayout>
   );
 };
 
