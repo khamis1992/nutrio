@@ -51,6 +51,12 @@ const Dashboard = () => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [mealsLoading, setMealsLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [todayProgress, setTodayProgress] = useState({
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  });
 
   // Redirect to onboarding if not completed
   useEffect(() => {
@@ -58,6 +64,39 @@ const Dashboard = () => {
       navigate("/onboarding");
     }
   }, [profile, profileLoading, navigate]);
+
+  // Fetch today's progress
+  useEffect(() => {
+    const fetchTodayProgress = async () => {
+      if (!user) return;
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      try {
+        const { data, error } = await supabase
+          .from("progress_logs")
+          .select("calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
+          .eq("user_id", user.id)
+          .eq("log_date", today)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setTodayProgress({
+            calories: data.calories_consumed || 0,
+            protein: data.protein_consumed_g || 0,
+            carbs: data.carbs_consumed_g || 0,
+            fat: data.fat_consumed_g || 0,
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching today's progress:", err);
+      }
+    };
+
+    fetchTodayProgress();
+  }, [user]);
 
   // Fetch meals
   useEffect(() => {
@@ -121,13 +160,12 @@ const Dashboard = () => {
 
   const filters = ["All", "High Protein", "Low Carb", "Keto", "Vegan"];
 
-  // Calculate consumed values (placeholder - would come from progress_logs)
   const userStats = {
     dailyCalories: profile?.daily_calorie_target || 2000,
-    consumedCalories: 0, // Would be calculated from today's logged meals
-    protein: { target: profile?.protein_target_g || 150, consumed: 0 },
-    carbs: { target: profile?.carbs_target_g || 200, consumed: 0 },
-    fat: { target: profile?.fat_target_g || 65, consumed: 0 },
+    consumedCalories: todayProgress.calories,
+    protein: { target: profile?.protein_target_g || 150, consumed: todayProgress.protein },
+    carbs: { target: profile?.carbs_target_g || 200, consumed: todayProgress.carbs },
+    fat: { target: profile?.fat_target_g || 65, consumed: todayProgress.fat },
   };
 
   const userName = profile?.full_name?.split(" ")[0] || "there";
