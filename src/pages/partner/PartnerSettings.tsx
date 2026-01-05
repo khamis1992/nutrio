@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LogoUpload } from "@/components/LogoUpload";
 import {
   Store,
   UtensilsCrossed,
@@ -17,7 +18,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  Image,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -196,29 +196,11 @@ const PartnerSettings = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Image className="h-4 w-4" />
-                Logo URL
-              </Label>
-              <Input
-                value={formData.logo_url}
-                onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-                placeholder="https://example.com/logo.jpg"
-              />
-              {formData.logo_url && (
-                <div className="mt-2">
-                  <img
-                    src={formData.logo_url}
-                    alt="Logo preview"
-                    className="w-20 h-20 rounded-lg object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+            <LogoUpload
+              currentLogoUrl={formData.logo_url}
+              onLogoChange={(url) => setFormData({ ...formData, logo_url: url || "" })}
+              restaurantId={restaurant?.id}
+            />
           </CardContent>
         </Card>
 
