@@ -280,9 +280,11 @@ const Dashboard = () => {
         <section className="space-y-4 animate-fade-in stagger-2">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold">Browse Meals</h2>
-            <Button variant="ghost" size="sm" className="text-primary">
-              View All <ChevronRight className="w-4 h-4" />
-            </Button>
+            <Link to="/meals">
+              <Button variant="ghost" size="sm" className="text-primary">
+                View All <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
           </div>
 
           {/* Filters */}
