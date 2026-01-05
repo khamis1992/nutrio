@@ -57,7 +57,7 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile?.onboarding_completed) {
+    if (profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
