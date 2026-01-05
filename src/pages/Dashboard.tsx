@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { RoleIndicator } from "@/components/RoleIndicator";
 
 interface Restaurant {
   id: string;
@@ -62,6 +63,21 @@ const Dashboard = () => {
     fat: 0,
   });
   const [progressKey, setProgressKey] = useState(0);
+  const [hasRestaurant, setHasRestaurant] = useState(false);
+
+  // Check if user has a restaurant (for role switcher)
+  useEffect(() => {
+    const checkRestaurant = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      setHasRestaurant(!!data);
+    };
+    checkRestaurant();
+  }, [user]);
 
   // Redirect to onboarding if not completed
   useEffect(() => {
@@ -191,6 +207,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {hasRestaurant && <RoleIndicator role="customer" />}
             <Link to="/notifications">
               <Button variant="icon" size="icon">
                 <Bell className="w-5 h-5" />
