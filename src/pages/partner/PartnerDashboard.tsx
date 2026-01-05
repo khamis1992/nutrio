@@ -309,14 +309,19 @@ const PartnerDashboard = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md mx-4">
           <CardContent className="pt-6 text-center">
-            <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-xl font-bold mb-2">No Restaurant Found</h2>
+            <Store className="h-16 w-16 mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-bold mb-2">Welcome, Partner!</h2>
             <p className="text-muted-foreground mb-6">
-              You don't have a restaurant registered yet. Contact admin to get your restaurant approved.
+              You don't have a restaurant registered yet. Let's get you set up!
             </p>
-            <Button onClick={() => navigate("/dashboard")}>
-              Go to Customer Dashboard
-            </Button>
+            <div className="space-y-3">
+              <Button onClick={() => navigate("/partner/onboarding")} className="w-full">
+                Register Your Restaurant
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/dashboard")} className="w-full">
+                Go to Customer Dashboard
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

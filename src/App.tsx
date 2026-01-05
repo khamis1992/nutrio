@@ -33,6 +33,7 @@ import PartnerNotifications from "./pages/partner/PartnerNotifications";
 import PartnerProfile from "./pages/partner/PartnerProfile";
 import PartnerReviews from "./pages/partner/PartnerReviews";
 import PartnerPayouts from "./pages/partner/PartnerPayouts";
+import PartnerOnboarding from "./pages/partner/PartnerOnboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -177,6 +178,14 @@ const App = () => (
             />
             {/* Partner Portal Routes */}
             <Route path="/partner/auth" element={<PartnerAuth />} />
+            <Route 
+              path="/partner/onboarding" 
+              element={
+                <ProtectedRoute>
+                  <PartnerOnboarding />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/partner" 
               element={
