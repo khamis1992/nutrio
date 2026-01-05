@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MealImageUpload } from "@/components/MealImageUpload";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ import {
   Flame,
   Clock,
   DollarSign,
+  ImageIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -514,14 +516,11 @@ const PartnerMenu = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Image URL</Label>
-              <Input
-                value={formData.image_url}
-                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                placeholder="https://example.com/image.jpg"
-              />
-            </div>
+            <MealImageUpload
+              currentImageUrl={formData.image_url}
+              onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
+              mealId={editingMeal?.id}
+            />
 
             <div className="flex items-center justify-between">
               <Label>Available for ordering</Label>
