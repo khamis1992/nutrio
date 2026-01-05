@@ -19,7 +19,8 @@ import {
   LogOut,
   Loader2,
   Receipt,
-  Plus
+  Plus,
+  Crown
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -287,7 +288,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-3 animate-fade-in stagger-1">
+        <div className="grid grid-cols-5 gap-3 animate-fade-in stagger-1">
           <Link to="/meals?favorites=true">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
@@ -341,6 +342,19 @@ const Dashboard = () => {
                 <div>
                   <p className="font-semibold text-sm">Orders</p>
                   <p className="text-xs text-muted-foreground">History</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/subscription">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Plans</p>
+                  <p className="text-xs text-muted-foreground">Upgrade</p>
                 </div>
               </CardContent>
             </Card>
