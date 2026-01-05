@@ -130,6 +130,8 @@ const MealDetail = () => {
     fetchMeal();
   }, [id, toast]);
 
+  const [success, setSuccess] = useState(false);
+
   const handleAddToSchedule = async () => {
     if (!user || !meal || !selectedDate) return;
 
@@ -146,10 +148,16 @@ const MealDetail = () => {
 
       if (error) throw error;
 
+      setSuccess(true);
       toast({
-        title: "Added to schedule",
+        title: "Added to schedule!",
         description: `${meal.name} scheduled for ${format(selectedDate, "MMM d")} (${selectedMealType})`,
       });
+
+      // Navigate to schedule after brief animation
+      setTimeout(() => {
+        navigate("/schedule");
+      }, 1200);
     } catch (err) {
       console.error("Error scheduling meal:", err);
       toast({
@@ -157,7 +165,6 @@ const MealDetail = () => {
         description: "Failed to add meal to schedule",
         variant: "destructive",
       });
-    } finally {
       setScheduling(false);
     }
   };
@@ -415,6 +422,19 @@ const MealDetail = () => {
         </Card>
       </main>
 
+      {/* Success Overlay */}
+      {success && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-sm animate-fade-in">
+          <div className="text-center animate-scale-in">
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+              <Check className="w-10 h-10 text-primary animate-scale-in" />
+            </div>
+            <h3 className="text-xl font-bold mb-1">Scheduled!</h3>
+            <p className="text-muted-foreground text-sm">Redirecting to your schedule...</p>
+          </div>
+        </div>
+      )}
+
       {/* Fixed Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border z-50">
         <div className="container mx-auto">
@@ -422,14 +442,16 @@ const MealDetail = () => {
             className="w-full" 
             size="lg"
             onClick={handleAddToSchedule}
-            disabled={scheduling || !selectedDate}
+            disabled={scheduling || success || !selectedDate}
           >
             {scheduling ? (
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            ) : success ? (
+              <Check className="w-5 h-5 mr-2" />
             ) : (
               <Check className="w-5 h-5 mr-2" />
             )}
-            Add to Schedule
+            {success ? "Scheduled!" : "Add to Schedule"}
           </Button>
         </div>
       </div>
