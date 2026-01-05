@@ -70,7 +70,14 @@ export const MealImageUpload = ({ currentImageUrl, onImageChange, mealId, onImag
 
       // Trigger auto-analysis if callback is provided
       if (onImageUploaded) {
-        onImageUploaded(publicUrl);
+        console.log("Triggering AI analysis for image:", publicUrl);
+        try {
+          onImageUploaded(publicUrl);
+        } catch (callbackError) {
+          console.error("Error in onImageUploaded callback:", callbackError);
+        }
+      } else {
+        console.log("No onImageUploaded callback provided");
       }
     } catch (error: any) {
       console.error("Upload error:", error);
