@@ -103,6 +103,9 @@ const Schedule = () => {
   };
 
   const toggleMealCompletion = async (scheduleId: string, isCompleted: boolean) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (!schedule || !user) return;
+
     const { error } = await supabase
       .from("meal_schedules")
       .update({ is_completed: !isCompleted })
@@ -114,11 +117,55 @@ const Schedule = () => {
         description: "Failed to update meal status",
         variant: "destructive",
       });
-    } else {
-      setSchedules(prev => 
-        prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s)
-      );
+      return;
     }
+
+    // Update progress log with nutrition data
+    const logDate = schedule.scheduled_date;
+    const meal = schedule.meal;
+    const multiplier = isCompleted ? -1 : 1; // Subtract if uncompleting, add if completing
+
+    // Get existing progress log for this date
+    const { data: existingLog } = await supabase
+      .from("progress_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("log_date", logDate)
+      .maybeSingle();
+
+    if (existingLog) {
+      // Update existing log
+      await supabase
+        .from("progress_logs")
+        .update({
+          calories_consumed: Math.max(0, (existingLog.calories_consumed || 0) + (meal.calories * multiplier)),
+          protein_consumed_g: Math.max(0, (existingLog.protein_consumed_g || 0) + (meal.protein_g * multiplier)),
+          carbs_consumed_g: Math.max(0, (existingLog.carbs_consumed_g || 0) + (meal.carbs_g * multiplier)),
+          fat_consumed_g: Math.max(0, (existingLog.fat_consumed_g || 0) + (meal.fat_g * multiplier)),
+        })
+        .eq("id", existingLog.id);
+    } else if (!isCompleted) {
+      // Create new log only when completing a meal
+      await supabase
+        .from("progress_logs")
+        .insert({
+          user_id: user.id,
+          log_date: logDate,
+          calories_consumed: meal.calories,
+          protein_consumed_g: meal.protein_g,
+          carbs_consumed_g: meal.carbs_g,
+          fat_consumed_g: meal.fat_g,
+        });
+    }
+
+    setSchedules(prev => 
+      prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s)
+    );
+
+    toast({
+      title: isCompleted ? "Meal uncompleted" : "Meal completed",
+      description: isCompleted ? "Nutrition removed from progress" : "Nutrition logged to progress",
+    });
   };
 
   const deleteMeal = async (scheduleId: string) => {
