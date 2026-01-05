@@ -40,6 +40,7 @@ import {
   DollarSign,
   ImageIcon,
   Tag,
+  Sparkles,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -544,6 +545,21 @@ const PartnerMenu = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Image Upload - First Step */}
+            <div className="space-y-2">
+              <MealImageUpload
+                currentImageUrl={formData.image_url}
+                onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
+                mealId={editingMeal?.id}
+                onImageUploaded={handleImageUploaded}
+                isAnalyzing={analyzing}
+              />
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-muted/50 p-2 rounded-md">
+                <Sparkles className="h-3 w-3 text-primary" />
+                Upload a photo and AI will auto-fill all meal details for you
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label>Name *</Label>
               <Input
@@ -635,13 +651,6 @@ const PartnerMenu = () => {
               </div>
             </div>
 
-            <MealImageUpload
-              currentImageUrl={formData.image_url}
-              onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
-              mealId={editingMeal?.id}
-              onImageUploaded={handleImageUploaded}
-              isAnalyzing={analyzing}
-            />
 
             {/* Diet Tags */}
             <div className="space-y-3">
