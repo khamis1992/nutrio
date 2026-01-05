@@ -16,6 +16,7 @@ import Schedule from "./pages/Schedule";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
 import OrderHistory from "./pages/OrderHistory";
+import DeliveryTracking from "./pages/DeliveryTracking";
 import Subscription from "./pages/Subscription";
 import Notifications from "./pages/Notifications";
 import Favorites from "./pages/Favorites";
@@ -102,6 +103,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <OrderHistory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/tracking" 
+              element={
+                <ProtectedRoute>
+                  <DeliveryTracking />
                 </ProtectedRoute>
               } 
             />
