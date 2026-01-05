@@ -171,6 +171,48 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_notifications: boolean | null
+          id: string
+          meal_reminders: boolean | null
+          order_updates: boolean | null
+          promotional_emails: boolean | null
+          push_notifications: boolean | null
+          reminder_time: string | null
+          updated_at: string
+          user_id: string
+          weekly_summary: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          email_notifications?: boolean | null
+          id?: string
+          meal_reminders?: boolean | null
+          order_updates?: boolean | null
+          promotional_emails?: boolean | null
+          push_notifications?: boolean | null
+          reminder_time?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_summary?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          email_notifications?: boolean | null
+          id?: string
+          meal_reminders?: boolean | null
+          order_updates?: boolean | null
+          promotional_emails?: boolean | null
+          push_notifications?: boolean | null
+          reminder_time?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_summary?: boolean | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

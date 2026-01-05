@@ -20,6 +20,7 @@ import DeliveryTracking from "./pages/DeliveryTracking";
 import Subscription from "./pages/Subscription";
 import Notifications from "./pages/Notifications";
 import Favorites from "./pages/Favorites";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -135,6 +136,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Favorites />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               } 
             />
