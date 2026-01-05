@@ -17,11 +17,13 @@ import {
   CalendarIcon,
   Check,
   Loader2,
-  Leaf
+  Leaf,
+  Crown
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
 import { format } from "date-fns";
 
 interface MealDetail {
@@ -34,7 +36,6 @@ interface MealDetail {
   carbs_g: number;
   fat_g: number;
   fiber_g: number | null;
-  price: number;
   rating: number;
   prep_time_minutes: number;
   restaurant: {
@@ -56,6 +57,7 @@ const MealDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +83,6 @@ const MealDetail = () => {
             carbs_g,
             fat_g,
             fiber_g,
-            price,
             rating,
             prep_time_minutes,
             restaurants (name, address),
@@ -105,7 +106,6 @@ const MealDetail = () => {
             carbs_g: parseFloat(String(data.carbs_g)),
             fat_g: parseFloat(String(data.fat_g)),
             fiber_g: data.fiber_g ? parseFloat(String(data.fiber_g)) : null,
-            price: parseFloat(String(data.price)),
             rating: parseFloat(String(data.rating)) || 0,
             prep_time_minutes: data.prep_time_minutes || 15,
             restaurant: {
@@ -135,8 +135,33 @@ const MealDetail = () => {
   const handleAddToSchedule = async () => {
     if (!user || !meal || !selectedDate) return;
 
+    if (!hasActiveSubscription) {
+      toast({
+        title: "Subscription required",
+        description: "Please subscribe to a plan to order meals.",
+        variant: "destructive",
+      });
+      navigate("/subscription");
+      return;
+    }
+
+    if (!canOrderMeal) {
+      toast({
+        title: "Meal limit reached",
+        description: "You've used all your meals for this week. Consider upgrading your plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setScheduling(true);
     try {
+      // Increment meal usage first
+      const usageSuccess = await incrementMealUsage();
+      if (!usageSuccess) {
+        throw new Error("Failed to update meal quota");
+      }
+
       const { error } = await supabase
         .from("meal_schedules")
         .insert({
@@ -150,7 +175,7 @@ const MealDetail = () => {
 
       setSuccess(true);
       toast({
-        title: "Added to schedule!",
+        title: "Meal scheduled!",
         description: `${meal.name} scheduled for ${format(selectedDate, "MMM d")} (${selectedMealType})`,
       });
 
@@ -162,7 +187,7 @@ const MealDetail = () => {
       console.error("Error scheduling meal:", err);
       toast({
         title: "Error",
-        description: "Failed to add meal to schedule",
+        description: "Failed to schedule meal",
         variant: "destructive",
       });
       setScheduling(false);
@@ -180,7 +205,7 @@ const MealDetail = () => {
     fat: Math.round((meal.fat_g * 9 / totalMacroCalories) * 100) || 0,
   } : { protein: 0, carbs: 0, fat: 0 };
 
-  if (loading) {
+  if (loading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -249,7 +274,9 @@ const MealDetail = () => {
                   {meal.restaurant.name}
                 </p>
               </div>
-              <p className="text-2xl font-bold text-primary">${meal.price.toFixed(2)}</p>
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                Included in plan
+              </Badge>
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
@@ -278,6 +305,50 @@ const MealDetail = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Subscription Status Banner */}
+        {!hasActiveSubscription ? (
+          <Card className="animate-fade-in border-amber-500/50 bg-amber-500/10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">Subscribe to order meals</p>
+                  <p className="text-sm text-muted-foreground">Get access to all meals with a subscription plan</p>
+                </div>
+                <Button size="sm" onClick={() => navigate("/subscription")}>
+                  Subscribe
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="animate-fade-in border-primary/50 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Crown className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium capitalize">{subscription?.plan} Plan</p>
+                    <p className="text-sm text-muted-foreground">
+                      {isUnlimited 
+                        ? "Unlimited meals" 
+                        : `${remainingMeals} of ${subscription?.meals_per_week} meals remaining`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {!canOrderMeal && !isUnlimited && (
+                  <Badge variant="destructive">Limit reached</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Description */}
         {meal.description && (
@@ -370,56 +441,58 @@ const MealDetail = () => {
         </Card>
 
         {/* Schedule Section */}
-        <Card className="animate-fade-in stagger-3">
-          <CardContent className="p-5">
-            <h2 className="font-semibold mb-4">Add to Schedule</h2>
-            
-            {/* Date Picker */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">Select Date</label>
-                <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => {
-                        setSelectedDate(date);
-                        setDatePickerOpen(false);
-                      }}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+        {hasActiveSubscription && (
+          <Card className="animate-fade-in stagger-3">
+            <CardContent className="p-5">
+              <h2 className="font-semibold mb-4">Schedule Delivery</h2>
+              
+              {/* Date Picker */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Select Date</label>
+                  <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          setDatePickerOpen(false);
+                        }}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              {/* Meal Type Selection */}
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">Meal Type</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {mealTypes.map((type) => (
-                    <Button
-                      key={type.value}
-                      variant={selectedMealType === type.value ? "default" : "outline"}
-                      className="flex flex-col h-auto py-3"
-                      onClick={() => setSelectedMealType(type.value)}
-                    >
-                      <span className="text-lg mb-1">{type.icon}</span>
-                      <span className="text-xs">{type.label}</span>
-                    </Button>
-                  ))}
+                {/* Meal Type Selection */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Meal Type</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {mealTypes.map((type) => (
+                      <Button
+                        key={type.value}
+                        variant={selectedMealType === type.value ? "default" : "outline"}
+                        className="flex flex-col h-auto py-3"
+                        onClick={() => setSelectedMealType(type.value)}
+                      >
+                        <span className="text-lg mb-1">{type.icon}</span>
+                        <span className="text-xs">{type.label}</span>
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       {/* Success Overlay */}
@@ -438,21 +511,32 @@ const MealDetail = () => {
       {/* Fixed Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border z-50">
         <div className="container mx-auto">
-          <Button 
-            className="w-full" 
-            size="lg"
-            onClick={handleAddToSchedule}
-            disabled={scheduling || success || !selectedDate}
-          >
-            {scheduling ? (
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-            ) : success ? (
-              <Check className="w-5 h-5 mr-2" />
-            ) : (
-              <Check className="w-5 h-5 mr-2" />
-            )}
-            {success ? "Scheduled!" : "Add to Schedule"}
-          </Button>
+          {hasActiveSubscription ? (
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={handleAddToSchedule}
+              disabled={scheduling || success || !selectedDate || !canOrderMeal}
+            >
+              {scheduling ? (
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              ) : success ? (
+                <Check className="w-5 h-5 mr-2" />
+              ) : (
+                <Check className="w-5 h-5 mr-2" />
+              )}
+              {success ? "Scheduled!" : !canOrderMeal ? "Meal Limit Reached" : "Schedule Meal"}
+            </Button>
+          ) : (
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={() => navigate("/subscription")}
+            >
+              <Crown className="w-5 h-5 mr-2" />
+              Subscribe to Order
+            </Button>
+          )}
         </div>
       </div>
     </div>

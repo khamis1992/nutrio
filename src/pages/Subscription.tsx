@@ -24,6 +24,7 @@ const plans = [
     name: "Basic",
     price: 29,
     period: "week",
+    mealsPerWeek: 5,
     description: "Perfect for getting started with healthy eating",
     icon: Star,
     features: [
@@ -41,6 +42,7 @@ const plans = [
     name: "Pro",
     price: 79,
     period: "week",
+    mealsPerWeek: 14,
     description: "Most popular choice for health enthusiasts",
     icon: Zap,
     features: [
@@ -60,6 +62,7 @@ const plans = [
     name: "Premium",
     price: 149,
     period: "week",
+    mealsPerWeek: 0, // 0 = unlimited
     description: "Ultimate plan for serious fitness goals",
     icon: Crown,
     features: [
@@ -110,14 +113,24 @@ export default function Subscription() {
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 7); // Weekly subscription
 
+    // Map plan id to subscription plan enum
+    const planMapping: Record<string, "weekly" | "monthly"> = {
+      basic: "weekly",
+      pro: "weekly",
+      premium: "weekly",
+    };
+
     const { error } = await supabase.from("subscriptions").insert({
       user_id: user.id,
-      plan: "weekly",
+      plan: planMapping[selectedPlan.id],
       price: selectedPlan.price,
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
       status: "active",
       stripe_subscription_id: `demo_${Date.now()}`, // Demo ID
+      meals_per_week: selectedPlan.mealsPerWeek,
+      meals_used_this_week: 0,
+      week_start_date: startDate.toISOString().split('T')[0],
     });
 
     setIsProcessing(false);
@@ -132,7 +145,7 @@ export default function Subscription() {
     } else {
       toast({
         title: "Subscription successful!",
-        description: `You're now subscribed to the ${selectedPlan.name} plan.`,
+        description: `You're now subscribed to the ${selectedPlan.name} plan with ${selectedPlan.mealsPerWeek === 0 ? 'unlimited' : selectedPlan.mealsPerWeek} meals per week.`,
       });
       navigate("/dashboard");
     }
@@ -195,9 +208,15 @@ export default function Subscription() {
                 </CardHeader>
 
                 <CardContent className="pb-4">
-                  <div className="mb-6">
+                  <div className="mb-4">
                     <span className="text-4xl font-bold">${plan.price}</span>
                     <span className="text-muted-foreground">/{plan.period}</span>
+                  </div>
+                  
+                  <div className="mb-6 p-3 bg-primary/10 rounded-lg">
+                    <p className="text-sm font-medium text-primary">
+                      {plan.mealsPerWeek === 0 ? "♾️ Unlimited meals" : `🍽️ ${plan.mealsPerWeek} meals per week`}
+                    </p>
                   </div>
 
                   <ul className="space-y-3">
@@ -248,10 +267,13 @@ export default function Subscription() {
 
           {selectedPlan && (
             <div className="bg-muted/50 rounded-lg p-4 mb-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-2">
                 <span className="font-medium">{selectedPlan.name} Plan</span>
                 <span className="font-bold">${selectedPlan.price}/week</span>
               </div>
+              <p className="text-sm text-muted-foreground">
+                {selectedPlan.mealsPerWeek === 0 ? "Unlimited meals" : `${selectedPlan.mealsPerWeek} meals per week`}
+              </p>
             </div>
           )}
 

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
@@ -44,6 +45,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
+  const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, loading: subscriptionLoading } = useSubscription();
   const { toast } = useToast();
   
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -163,7 +165,7 @@ const Dashboard = () => {
 
   const userName = profile?.full_name?.split(" ")[0] || "there";
 
-  if (profileLoading) {
+  if (profileLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -199,6 +201,86 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 pb-24">
+        {/* Subscription Status Card */}
+        {hasActiveSubscription ? (
+          <Card variant="stat" className="animate-fade-in border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <Crown className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold capitalize">{subscription?.plan} Plan</p>
+                    <p className="text-sm text-muted-foreground">
+                      {isUnlimited 
+                        ? "Unlimited meals this week" 
+                        : `${remainingMeals} of ${subscription?.meals_per_week} meals remaining`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {!isUnlimited && subscription && (
+                  <div className="text-right">
+                    <div className="w-16 h-16 relative">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          fill="none"
+                          stroke="hsl(var(--muted))"
+                          strokeWidth="6"
+                        />
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          fill="none"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth="6"
+                          strokeLinecap="round"
+                          strokeDasharray={`${(remainingMeals / subscription.meals_per_week) * 175.9} 175.9`}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-lg font-bold">{remainingMeals}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {!isUnlimited && subscription && (
+                <Progress 
+                  value={(remainingMeals / subscription.meals_per_week) * 100} 
+                  className="h-2 mt-4"
+                />
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card variant="stat" className="animate-fade-in border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-amber-500/10">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <Crown className="w-7 h-7 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">No Active Subscription</p>
+                    <p className="text-sm text-muted-foreground">
+                      Subscribe to start ordering healthy meals
+                    </p>
+                  </div>
+                </div>
+                <Button onClick={() => navigate("/subscription")}>
+                  Subscribe
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Daily Summary Card */}
         <Card variant="stat" className="animate-fade-in">
           <CardContent className="p-5">

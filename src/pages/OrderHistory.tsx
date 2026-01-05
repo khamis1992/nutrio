@@ -17,7 +17,6 @@ import {
   RefreshCw,
   Calendar,
   Flame,
-  ChevronRight,
   ShoppingBag,
   Home,
   UtensilsCrossed,
@@ -31,7 +30,6 @@ import { format } from "date-fns";
 interface OrderItem {
   id: string;
   quantity: number;
-  unit_price: number;
   meal: {
     id: string;
     name: string;
@@ -44,7 +42,6 @@ interface Order {
   id: string;
   created_at: string;
   delivery_date: string;
-  total_price: number;
   status: string;
   meal_type: string | null;
   notes: string | null;
@@ -94,7 +91,6 @@ const OrderHistory = () => {
         id,
         created_at,
         delivery_date,
-        total_price,
         status,
         meal_type,
         notes,
@@ -106,7 +102,6 @@ const OrderHistory = () => {
         order_items (
           id,
           quantity,
-          unit_price,
           meal:meals (
             id,
             name,
@@ -137,7 +132,7 @@ const OrderHistory = () => {
     setReordering(order.id);
     
     try {
-      // Create new order with same items
+      // Create new order with same items (subscription-based, no price)
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       
@@ -147,7 +142,7 @@ const OrderHistory = () => {
           user_id: user.id,
           restaurant_id: order.restaurant?.id,
           delivery_date: format(tomorrow, "yyyy-MM-dd"),
-          total_price: order.total_price,
+          total_price: 0, // Subscription-based, no charge
           status: "pending",
           meal_type: order.meal_type,
         })
@@ -163,7 +158,7 @@ const OrderHistory = () => {
           order_id: newOrder.id,
           meal_id: item.meal!.id,
           quantity: item.quantity,
-          unit_price: item.unit_price,
+          unit_price: 0, // Subscription-based
         }));
 
       if (orderItems.length > 0) {
@@ -298,12 +293,12 @@ const OrderHistory = () => {
                             {item.meal?.name || "Unknown meal"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Qty: {item.quantity} × ${Number(item.unit_price).toFixed(2)}
+                            Qty: {item.quantity}
                           </p>
                         </div>
-                        <p className="text-sm font-medium">
-                          ${(item.quantity * Number(item.unit_price)).toFixed(2)}
-                        </p>
+                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                          Included
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -320,9 +315,9 @@ const OrderHistory = () => {
                         {totalCalories} kcal
                       </span>
                     </div>
-                    <p className="font-bold text-primary">
-                      ${Number(order.total_price).toFixed(2)}
-                    </p>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary">
+                      Subscription Order
+                    </Badge>
                   </div>
 
                   {/* Reorder Button */}

@@ -15,8 +15,6 @@ import {
   Calendar,
   Flame,
   Beef,
-  Wheat,
-  Droplets,
   Trash2,
   Home,
   UtensilsCrossed,
@@ -39,7 +37,6 @@ interface ScheduledMeal {
     carbs_g: number;
     fat_g: number;
     image_url: string | null;
-    price: number;
   };
 }
 
@@ -86,8 +83,7 @@ const Schedule = () => {
           protein_g,
           carbs_g,
           fat_g,
-          image_url,
-          price
+          image_url
         )
       `)
       .eq("user_id", user.id)
@@ -361,6 +357,9 @@ const Schedule = () => {
                                     <Beef className="h-3 w-3" />
                                     {schedule.meal?.protein_g}g
                                   </span>
+                                  <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                    Included
+                                  </Badge>
                                 </div>
                               </div>
                               <Button

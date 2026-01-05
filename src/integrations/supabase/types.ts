@@ -459,6 +459,8 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
+          meals_per_week: number | null
+          meals_used_this_week: number | null
           plan: Database["public"]["Enums"]["subscription_plan"]
           price: number
           start_date: string
@@ -466,12 +468,15 @@ export type Database = {
           stripe_subscription_id: string | null
           updated_at: string
           user_id: string
+          week_start_date: string | null
         }
         Insert: {
           auto_renew?: boolean | null
           created_at?: string
           end_date: string
           id?: string
+          meals_per_week?: number | null
+          meals_used_this_week?: number | null
           plan: Database["public"]["Enums"]["subscription_plan"]
           price: number
           start_date: string
@@ -479,12 +484,15 @@ export type Database = {
           stripe_subscription_id?: string | null
           updated_at?: string
           user_id: string
+          week_start_date?: string | null
         }
         Update: {
           auto_renew?: boolean | null
           created_at?: string
           end_date?: string
           id?: string
+          meals_per_week?: number | null
+          meals_used_this_week?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           price?: number
           start_date?: string
@@ -492,6 +500,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           updated_at?: string
           user_id?: string
+          week_start_date?: string | null
         }
         Relationships: []
       }
@@ -587,6 +596,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_meal_usage: {
+        Args: { subscription_id: string }
+        Returns: boolean
+      }
+      reset_weekly_meal_quotas: { Args: never; Returns: undefined }
     }
     Enums: {
       activity_level:

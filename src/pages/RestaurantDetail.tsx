@@ -19,9 +19,11 @@ import {
   Calendar,
   TrendingUp,
   User,
-  Salad
+  Salad,
+  Crown
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface Restaurant {
   id: string;
@@ -43,7 +45,6 @@ interface Meal {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-  price: number;
   rating: number;
   prep_time_minutes: number;
   diet_tags: string[];
@@ -56,6 +57,7 @@ const RestaurantDetail = () => {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const { hasActiveSubscription, subscription, remainingMeals, isUnlimited } = useSubscription();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -94,7 +96,6 @@ const RestaurantDetail = () => {
             protein_g,
             carbs_g,
             fat_g,
-            price,
             rating,
             prep_time_minutes,
             meal_diet_tags (
@@ -114,7 +115,6 @@ const RestaurantDetail = () => {
           protein_g: parseFloat(meal.protein_g),
           carbs_g: parseFloat(meal.carbs_g),
           fat_g: parseFloat(meal.fat_g),
-          price: parseFloat(meal.price),
           rating: parseFloat(meal.rating) || 0,
           prep_time_minutes: meal.prep_time_minutes || 15,
           diet_tags: meal.meal_diet_tags?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
@@ -227,6 +227,47 @@ const RestaurantDetail = () => {
           </CardContent>
         </Card>
 
+        {/* Subscription Status Banner */}
+        {hasActiveSubscription ? (
+          <Card className="animate-fade-in border-primary/50 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Crown className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium capitalize">{subscription?.plan} Plan</p>
+                    <p className="text-sm text-muted-foreground">
+                      {isUnlimited 
+                        ? "Unlimited meals included" 
+                        : `${remainingMeals} meals remaining this week`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="animate-fade-in border-amber-500/50 bg-amber-500/10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">Subscribe to order meals</p>
+                  <p className="text-sm text-muted-foreground">All meals are included in your subscription</p>
+                </div>
+                <Button size="sm" onClick={() => navigate("/subscription")}>
+                  Subscribe
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Search */}
         <div className="relative animate-fade-in stagger-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -273,7 +314,9 @@ const RestaurantDetail = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="font-semibold truncate">{meal.name}</h4>
-                            <p className="font-bold text-primary shrink-0">${meal.price.toFixed(2)}</p>
+                            <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-xs">
+                              Included
+                            </Badge>
                           </div>
                           
                           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
