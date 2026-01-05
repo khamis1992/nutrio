@@ -39,6 +39,7 @@ import {
   UtensilsCrossed,
   CalendarDays,
   Calendar,
+  User,
 } from "lucide-react";
 import { format, subDays, parseISO, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 
@@ -554,6 +555,14 @@ const Progress = () => {
           >
             <TrendingUp className="h-5 w-5" />
             <span className="text-xs">Progress</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className="flex flex-col items-center gap-1 h-auto py-2"
+            onClick={() => navigate("/profile")}
+          >
+            <User className="h-5 w-5" />
+            <span className="text-xs">Profile</span>
           </Button>
         </div>
       </div>
