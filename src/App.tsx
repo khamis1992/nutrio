@@ -23,6 +23,7 @@ import Favorites from "./pages/Favorites";
 import Settings from "./pages/Settings";
 import Referral from "./pages/Referral";
 import Addresses from "./pages/Addresses";
+import PartnerAuth from "./pages/partner/PartnerAuth";
 import PartnerDashboard from "./pages/partner/PartnerDashboard";
 import PartnerMenu from "./pages/partner/PartnerMenu";
 import PartnerOrders from "./pages/partner/PartnerOrders";
@@ -170,6 +171,7 @@ const App = () => (
               } 
             />
             {/* Partner Portal Routes */}
+            <Route path="/partner/auth" element={<PartnerAuth />} />
             <Route 
               path="/partner" 
               element={
