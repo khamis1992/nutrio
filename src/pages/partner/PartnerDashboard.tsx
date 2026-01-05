@@ -51,6 +51,9 @@ interface Stats {
   activeOrders: number;
   todayOrders: number;
   totalRevenue: number;
+  weeklyRevenue: number;
+  lastWeekRevenue: number;
+  weeklyOrders: number;
 }
 
 const PartnerDashboard = () => {
@@ -66,6 +69,9 @@ const PartnerDashboard = () => {
     activeOrders: 0,
     todayOrders: 0,
     totalRevenue: 0,
+    weeklyRevenue: 0,
+    lastWeekRevenue: 0,
+    weeklyOrders: 0,
   });
 
   useEffect(() => {
@@ -140,6 +146,9 @@ const PartnerDashboard = () => {
           activeOrders: 0,
           todayOrders: 0,
           totalRevenue: 0,
+          weeklyRevenue: 0,
+          lastWeekRevenue: 0,
+          weeklyOrders: 0,
         });
         setRecentSchedules([]);
         setLoading(false);
@@ -184,23 +193,61 @@ const PartnerDashboard = () => {
         .in("meal_id", mealIds);
 
       // Calculate stats
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
+      
+      // Calculate week boundaries (Monday to Sunday)
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const thisMonday = new Date(today);
+      thisMonday.setDate(today.getDate() + mondayOffset);
+      const thisMondayStr = thisMonday.toISOString().split("T")[0];
+      
+      const lastMonday = new Date(thisMonday);
+      lastMonday.setDate(thisMonday.getDate() - 7);
+      const lastMondayStr = lastMonday.toISOString().split("T")[0];
+      const lastSunday = new Date(thisMonday);
+      lastSunday.setDate(thisMonday.getDate() - 1);
+      const lastSundayStr = lastSunday.toISOString().split("T")[0];
+
       const activeOrders = allSchedules?.filter(
-        (s) => !s.is_completed && s.scheduled_date >= today
+        (s) => !s.is_completed && s.scheduled_date >= todayStr
       ).length || 0;
       const todayOrders = allSchedules?.filter(
-        (s) => s.scheduled_date === today
+        (s) => s.scheduled_date === todayStr
       ).length || 0;
       const totalRevenue = allSchedules?.reduce(
         (sum, s) => sum + (mealPrices[s.meal_id] || 0),
         0
       ) || 0;
 
+      // This week's revenue and orders
+      const thisWeekSchedules = allSchedules?.filter(
+        (s) => s.scheduled_date >= thisMondayStr && s.scheduled_date <= todayStr
+      ) || [];
+      const weeklyRevenue = thisWeekSchedules.reduce(
+        (sum, s) => sum + (mealPrices[s.meal_id] || 0),
+        0
+      );
+      const weeklyOrders = thisWeekSchedules.length;
+
+      // Last week's revenue
+      const lastWeekSchedules = allSchedules?.filter(
+        (s) => s.scheduled_date >= lastMondayStr && s.scheduled_date <= lastSundayStr
+      ) || [];
+      const lastWeekRevenue = lastWeekSchedules.reduce(
+        (sum, s) => sum + (mealPrices[s.meal_id] || 0),
+        0
+      );
+
       setStats({
         totalMeals: mealsCount || 0,
         activeOrders,
         todayOrders,
         totalRevenue,
+        weeklyRevenue,
+        lastWeekRevenue,
+        weeklyOrders,
       });
     } catch (error) {
       console.error("Error fetching partner data:", error);
@@ -376,7 +423,54 @@ const PartnerDashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Weekly Revenue Summary */}
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">This Week's Revenue</p>
+                  <p className="text-3xl font-bold">${stats.weeklyRevenue.toFixed(2)}</p>
+                </div>
+              </div>
+              {stats.lastWeekRevenue > 0 && (
+                <div className="text-right">
+                  {(() => {
+                    const change = stats.lastWeekRevenue > 0 
+                      ? ((stats.weeklyRevenue - stats.lastWeekRevenue) / stats.lastWeekRevenue) * 100
+                      : 0;
+                    const isPositive = change >= 0;
+                    return (
+                      <div className={`flex items-center gap-1 ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
+                        <TrendingUp className={`h-4 w-4 ${!isPositive && 'rotate-180'}`} />
+                        <span className="text-sm font-medium">
+                          {isPositive ? '+' : ''}{change.toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-xs text-muted-foreground">vs last week</p>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/10">
+              <div>
+                <p className="text-2xl font-semibold">{stats.weeklyOrders}</p>
+                <p className="text-xs text-muted-foreground">Orders this week</p>
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">
+                  ${stats.weeklyOrders > 0 ? (stats.weeklyRevenue / stats.weeklyOrders).toFixed(2) : '0.00'}
+                </p>
+                <p className="text-xs text-muted-foreground">Avg. order value</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-3 gap-3">
           <Link to="/partner/menu">
             <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
