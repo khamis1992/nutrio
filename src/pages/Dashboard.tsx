@@ -186,9 +186,11 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="icon" size="icon">
-              <Bell className="w-5 h-5" />
-            </Button>
+            <Link to="/notifications">
+              <Button variant="icon" size="icon">
+                <Bell className="w-5 h-5" />
+              </Button>
+            </Link>
             <Button variant="icon" size="icon" onClick={handleSignOut}>
               <LogOut className="w-5 h-5" />
             </Button>
