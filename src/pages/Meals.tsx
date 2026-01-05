@@ -11,8 +11,12 @@ import {
   ChevronLeft,
   User,
   Store,
-  Heart
+  Heart,
+  LayoutGrid,
+  List,
+  Star
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { RestaurantSearch } from "@/components/RestaurantSearch";
@@ -34,6 +38,7 @@ const Meals = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
+  const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
 
   // Fetch restaurants
@@ -154,14 +159,38 @@ const Meals = () => {
           </div>
         )}
 
-        {/* Restaurant Grid */}
-        <div className="grid gap-4 animate-fade-in stagger-1">
+        {/* View Toggle and Restaurant Grid */}
+        <div className="flex items-center justify-between animate-fade-in">
+          <h3 className="font-semibold text-sm text-muted-foreground">
+            {filteredRestaurants.length} restaurant{filteredRestaurants.length !== 1 ? 's' : ''}
+          </h3>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === "gallery" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode("gallery")}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className={`animate-fade-in stagger-1 ${viewMode === "gallery" ? "grid grid-cols-2 gap-4" : "grid gap-4"}`}>
           {loading ? (
-            <div className="flex items-center justify-center py-20">
+            <div className={`flex items-center justify-center py-20 ${viewMode === "gallery" ? "col-span-2" : ""}`}>
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : filteredRestaurants.length === 0 ? (
-            <Card variant="default">
+            <Card variant="default" className={viewMode === "gallery" ? "col-span-2" : ""}>
               <CardContent className="p-12 text-center">
                 <Store className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-semibold text-lg mb-2">
@@ -188,7 +217,58 @@ const Meals = () => {
                 )}
               </CardContent>
             </Card>
+          ) : viewMode === "gallery" ? (
+            /* Gallery View */
+            filteredRestaurants.map((restaurant) => (
+              <Link key={restaurant.id} to={`/restaurants/${restaurant.id}`}>
+                <Card variant="interactive" className="overflow-hidden h-full">
+                  <div className="aspect-square relative bg-muted">
+                    {restaurant.logo_url ? (
+                      <img 
+                        src={restaurant.logo_url} 
+                        alt={restaurant.name}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-muted to-muted-foreground/10">
+                        🍽️
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 bg-background/80 backdrop-blur-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleFavorite(restaurant.id, restaurant.name);
+                      }}
+                    >
+                      <Heart 
+                        className={`w-4 h-4 ${
+                          isFavorite(restaurant.id) 
+                            ? "fill-destructive text-destructive" 
+                            : "text-muted-foreground"
+                        }`} 
+                      />
+                    </Button>
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                      <h4 className="font-semibold text-sm line-clamp-1 mb-1">{restaurant.name}</h4>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-warning text-warning" />
+                          {restaurant.rating.toFixed(1)}
+                        </span>
+                        <span>{restaurant.meal_count} meals</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            ))
           ) : (
+            /* List View */
             filteredRestaurants.map((restaurant) => (
               <RestaurantCard
                 key={restaurant.id}
