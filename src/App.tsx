@@ -16,6 +16,7 @@ import Schedule from "./pages/Schedule";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
 import OrderHistory from "./pages/OrderHistory";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -99,6 +100,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <OrderHistory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/subscription" 
+              element={
+                <ProtectedRoute>
+                  <Subscription />
                 </ProtectedRoute>
               } 
             />
