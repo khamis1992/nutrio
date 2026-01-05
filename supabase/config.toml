@@ -2,3 +2,6 @@ project_id = "fimhnpinpswlhzifcfnv"
 
 [functions.send-meal-reminders]
 verify_jwt = false
+
+[functions.analyze-meal-image]
+verify_jwt = false
