@@ -23,6 +23,10 @@ import Favorites from "./pages/Favorites";
 import Settings from "./pages/Settings";
 import Referral from "./pages/Referral";
 import Addresses from "./pages/Addresses";
+import PartnerDashboard from "./pages/partner/PartnerDashboard";
+import PartnerMenu from "./pages/partner/PartnerMenu";
+import PartnerOrders from "./pages/partner/PartnerOrders";
+import PartnerSettings from "./pages/partner/PartnerSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -162,6 +166,39 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Addresses />
+                </ProtectedRoute>
+              } 
+            />
+            {/* Partner Portal Routes */}
+            <Route 
+              path="/partner" 
+              element={
+                <ProtectedRoute>
+                  <PartnerDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/menu" 
+              element={
+                <ProtectedRoute>
+                  <PartnerMenu />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/orders" 
+              element={
+                <ProtectedRoute>
+                  <PartnerOrders />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/settings" 
+              element={
+                <ProtectedRoute>
+                  <PartnerSettings />
                 </ProtectedRoute>
               } 
             />
