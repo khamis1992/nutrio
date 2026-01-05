@@ -13,6 +13,7 @@ import {
   TrendingUp,
   ChevronRight,
   Utensils,
+  Heart,
   User,
   Bell,
   LogOut,
@@ -46,7 +47,7 @@ const Dashboard = () => {
   
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurantsLoading, setRestaurantsLoading] = useState(true);
-  const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
+  const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
@@ -286,7 +287,25 @@ const Dashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3 animate-fade-in stagger-1">
+        <div className="grid grid-cols-4 gap-3 animate-fade-in stagger-1">
+          <Link to="/meals?favorites=true">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center relative">
+                  <Heart className="w-5 h-5 text-destructive fill-destructive" />
+                  {favoriteIds.size > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium">
+                      {favoriteIds.size}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Favorites</p>
+                  <p className="text-xs text-muted-foreground">{favoriteIds.size} saved</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
           <Link to="/schedule">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
