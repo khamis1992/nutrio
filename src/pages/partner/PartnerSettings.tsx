@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PartnerNavigation } from "@/components/PartnerNavigation";
 
 interface Restaurant {
   id: string;
@@ -275,29 +276,7 @@ const PartnerSettings = () => {
         </Card>
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-        <div className="container max-w-4xl mx-auto px-4">
-          <div className="flex justify-around py-2">
-            <Link to="/partner" className="flex-col h-auto py-2 flex items-center text-muted-foreground hover:text-foreground">
-              <Store className="h-5 w-5" />
-              <span className="text-xs mt-1">Dashboard</span>
-            </Link>
-            <Link to="/partner/menu" className="flex-col h-auto py-2 flex items-center text-muted-foreground hover:text-foreground">
-              <UtensilsCrossed className="h-5 w-5" />
-              <span className="text-xs mt-1">Menu</span>
-            </Link>
-            <Link to="/partner/orders" className="flex-col h-auto py-2 flex items-center text-muted-foreground hover:text-foreground">
-              <Package className="h-5 w-5" />
-              <span className="text-xs mt-1">Orders</span>
-            </Link>
-            <Link to="/partner/settings" className="flex-col h-auto py-2 flex items-center text-primary">
-              <Settings className="h-5 w-5" />
-              <span className="text-xs mt-1">Settings</span>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <PartnerNavigation />
     </div>
   );
 };
