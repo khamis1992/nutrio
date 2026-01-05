@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
   Salad, 
@@ -13,8 +12,6 @@ import {
   Calendar,
   TrendingUp,
   ChevronRight,
-  Star,
-  Clock,
   Utensils,
   User,
   Bell,
@@ -28,6 +25,8 @@ import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
+import { RestaurantCard } from "@/components/RestaurantCard";
+import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 
 interface Restaurant {
   id: string;
@@ -47,6 +46,7 @@ const Dashboard = () => {
   
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurantsLoading, setRestaurantsLoading] = useState(true);
+  const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
@@ -357,51 +357,12 @@ const Dashboard = () => {
               </Card>
             ) : (
               restaurants.map((restaurant) => (
-                <Link key={restaurant.id} to={`/restaurants/${restaurant.id}`}>
-                  <Card variant="interactive">
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
-                          {restaurant.logo_url ? (
-                            <img 
-                              src={restaurant.logo_url} 
-                              alt={restaurant.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            "🍽️"
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h3 className="font-semibold truncate">{restaurant.name}</h3>
-                              {restaurant.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-1">
-                                  {restaurant.description}
-                                </p>
-                              )}
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-                          </div>
-                          
-                          <div className="flex items-center gap-4 mt-2 text-sm">
-                            <span className="flex items-center gap-1">
-                              <Star className="w-4 h-4 fill-warning text-warning" />
-                              {restaurant.rating.toFixed(1)}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {restaurant.total_orders} orders
-                            </span>
-                            <span className="text-muted-foreground">
-                              {restaurant.meal_count} meals
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <RestaurantCard
+                  key={restaurant.id}
+                  restaurant={restaurant}
+                  isFavorite={isFavorite(restaurant.id)}
+                  onToggleFavorite={toggleFavorite}
+                />
               ))
             )}
           </div>

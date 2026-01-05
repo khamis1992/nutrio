@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { 
   Salad, 
-  Star,
   Utensils,
   Calendar,
   TrendingUp,
@@ -13,10 +12,12 @@ import {
   Loader2,
   ChevronLeft,
   User,
-  ChevronRight,
-  Store
+  Store,
+  Heart
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { RestaurantCard } from "@/components/RestaurantCard";
+import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 
 interface Restaurant {
   id: string;
@@ -32,6 +33,8 @@ const Meals = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
 
   // Fetch restaurants
   useEffect(() => {
@@ -79,14 +82,25 @@ const Meals = () => {
     fetchRestaurants();
   }, []);
 
-  // Filter restaurants based on search
+  // Filter restaurants based on search and favorites
   const filteredRestaurants = useMemo(() => {
-    if (!searchQuery) return restaurants;
-    return restaurants.filter((restaurant) =>
-      restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      restaurant.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [restaurants, searchQuery]);
+    let result = restaurants;
+    
+    // Filter by favorites if enabled
+    if (showFavoritesOnly) {
+      result = result.filter(r => favoriteIds.has(r.id));
+    }
+    
+    // Filter by search
+    if (searchQuery) {
+      result = result.filter((restaurant) =>
+        restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        restaurant.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return result;
+  }, [restaurants, searchQuery, showFavoritesOnly, favoriteIds]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -106,16 +120,42 @@ const Meals = () => {
       </header>
 
       <main className="container mx-auto px-4 py-4 space-y-4 pb-24">
-        {/* Search Bar */}
-        <div className="relative animate-fade-in">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search restaurants..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        {/* Search and Filter Bar */}
+        <div className="flex gap-2 animate-fade-in">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search restaurants..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button
+            variant={showFavoritesOnly ? "default" : "outline"}
+            size="icon"
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            className="shrink-0"
+          >
+            <Heart className={`w-4 h-4 ${showFavoritesOnly ? "fill-current" : ""}`} />
+          </Button>
         </div>
+
+        {/* Favorites Filter Indicator */}
+        {showFavoritesOnly && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-fade-in">
+            <Heart className="w-4 h-4 fill-destructive text-destructive" />
+            <span>Showing favorites only</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-auto p-0 text-primary"
+              onClick={() => setShowFavoritesOnly(false)}
+            >
+              Show all
+            </Button>
+          </div>
+        )}
 
         {/* Restaurant Grid */}
         <div className="grid gap-4 animate-fade-in stagger-1">
@@ -127,64 +167,38 @@ const Meals = () => {
             <Card variant="default">
               <CardContent className="p-12 text-center">
                 <Store className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold text-lg mb-2">No restaurants found</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  {showFavoritesOnly ? "No favorite restaurants yet" : "No restaurants found"}
+                </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {searchQuery ? "Try a different search term" : "Check back later for new restaurants"}
+                  {showFavoritesOnly 
+                    ? "Tap the heart icon on restaurants to add them to your favorites" 
+                    : searchQuery 
+                      ? "Try a different search term" 
+                      : "Check back later for new restaurants"
+                  }
                 </p>
-                {searchQuery && (
-                  <Button variant="outline" onClick={() => setSearchQuery("")}>
-                    Clear search
+                {(searchQuery || showFavoritesOnly) && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearchQuery("");
+                      setShowFavoritesOnly(false);
+                    }}
+                  >
+                    Clear filters
                   </Button>
                 )}
               </CardContent>
             </Card>
           ) : (
             filteredRestaurants.map((restaurant) => (
-              <Link key={restaurant.id} to={`/restaurants/${restaurant.id}`}>
-                <Card variant="interactive">
-                  <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0">
-                        {restaurant.logo_url ? (
-                          <img 
-                            src={restaurant.logo_url} 
-                            alt={restaurant.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          "🍽️"
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="font-semibold truncate">{restaurant.name}</h3>
-                            {restaurant.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-1">
-                                {restaurant.description}
-                              </p>
-                            )}
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-                        </div>
-                        
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="flex items-center gap-1">
-                            <Star className="w-4 h-4 fill-warning text-warning" />
-                            {restaurant.rating.toFixed(1)}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {restaurant.total_orders} orders
-                          </span>
-                          <span className="text-muted-foreground">
-                            {restaurant.meal_count} meals
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+              <RestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                isFavorite={isFavorite(restaurant.id)}
+                onToggleFavorite={toggleFavorite}
+              />
             ))
           )}
         </div>
