@@ -66,7 +66,7 @@ const Progress = () => {
   const [activeTab, setActiveTab] = useState<"weight" | "nutrition">("weight");
 
   useEffect(() => {
-    if (!profile?.onboarding_completed) {
+    if (profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
