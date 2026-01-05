@@ -462,6 +462,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_dietary_preferences: {
+        Row: {
+          created_at: string
+          diet_tag_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diet_tag_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diet_tag_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_dietary_preferences_diet_tag_id_fkey"
+            columns: ["diet_tag_id"]
+            isOneToOne: false
+            referencedRelation: "diet_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

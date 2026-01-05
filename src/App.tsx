@@ -13,6 +13,7 @@ import Meals from "./pages/Meals";
 import MealDetail from "./pages/MealDetail";
 import Schedule from "./pages/Schedule";
 import Progress from "./pages/Progress";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Progress />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } 
             />

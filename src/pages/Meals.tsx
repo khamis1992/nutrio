@@ -19,7 +19,8 @@ import {
   SlidersHorizontal,
   X,
   Loader2,
-  ChevronLeft
+  ChevronLeft,
+  User
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -470,11 +471,12 @@ const Meals = () => {
               { icon: Utensils, label: "Meals", active: true, to: "/meals" },
               { icon: Calendar, label: "Schedule", active: false, to: "/schedule" },
               { icon: TrendingUp, label: "Progress", active: false, to: "/progress" },
+              { icon: User, label: "Profile", active: false, to: "/profile" },
             ].map((item) => (
               <Link
                 key={item.label}
                 to={item.to}
-                className={`flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-colors ${
+                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors ${
                   item.active 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-foreground"
