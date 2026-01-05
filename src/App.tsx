@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Meals from "./pages/Meals";
+import RestaurantDetail from "./pages/RestaurantDetail";
 import MealDetail from "./pages/MealDetail";
 import Schedule from "./pages/Schedule";
 import Progress from "./pages/Progress";
@@ -50,6 +51,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Meals />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/restaurants/:id" 
+              element={
+                <ProtectedRoute>
+                  <RestaurantDetail />
                 </ProtectedRoute>
               } 
             />
