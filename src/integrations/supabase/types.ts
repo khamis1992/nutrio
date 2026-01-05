@@ -352,6 +352,9 @@ export type Database = {
           id: string
           onboarding_completed: boolean | null
           protein_target_g: number | null
+          referral_code: string | null
+          referral_rewards_earned: number | null
+          referred_by: string | null
           target_weight_kg: number | null
           updated_at: string
           user_id: string
@@ -372,6 +375,9 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean | null
           protein_target_g?: number | null
+          referral_code?: string | null
+          referral_rewards_earned?: number | null
+          referred_by?: string | null
           target_weight_kg?: number | null
           updated_at?: string
           user_id: string
@@ -392,6 +398,9 @@ export type Database = {
           id?: string
           onboarding_completed?: boolean | null
           protein_target_g?: number | null
+          referral_code?: string | null
+          referral_rewards_earned?: number | null
+          referred_by?: string | null
           target_weight_kg?: number | null
           updated_at?: string
           user_id?: string
@@ -437,6 +446,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          referral_code: string
+          referred_id: string | null
+          referrer_id: string
+          reward_earned: number | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_id?: string | null
+          referrer_id: string
+          reward_earned?: number | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_id?: string | null
+          referrer_id?: string
+          reward_earned?: number | null
+          status?: string
         }
         Relationships: []
       }
