@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
@@ -119,11 +120,31 @@ const Onboarding = () => {
 
   const totalSteps = 4;
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated or if user is a partner
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
+    const checkUserType = async () => {
+      if (authLoading) return;
+      
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      // Check if user has a restaurant (is a partner)
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      
+      if (restaurant) {
+        // Partners don't need customer onboarding
+        navigate("/partner");
+        return;
+      }
+    };
+
+    checkUserType();
   }, [user, authLoading, navigate]);
 
   // Redirect if onboarding already completed
