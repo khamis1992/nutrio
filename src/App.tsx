@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Meals from "./pages/Meals";
 import MealDetail from "./pages/MealDetail";
 import Schedule from "./pages/Schedule";
+import Progress from "./pages/Progress";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Schedule />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/progress" 
+              element={
+                <ProtectedRoute>
+                  <Progress />
                 </ProtectedRoute>
               } 
             />
