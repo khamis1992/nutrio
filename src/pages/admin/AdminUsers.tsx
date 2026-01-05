@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,10 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
   Search,
   User,
-  Mail,
   Shield,
   Store,
   Calendar,
@@ -40,6 +36,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminLayout } from "@/components/AdminLayout";
 
 interface UserData {
   id: string;
@@ -52,11 +49,9 @@ interface UserData {
 }
 
 const AdminUsers = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<UserData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -66,41 +61,11 @@ const AdminUsers = () => {
 
   useEffect(() => {
     if (user) {
-      checkAdminAndFetch();
+      fetchUsers();
     }
   }, [user]);
 
-  const checkAdminAndFetch = async () => {
-    if (!user) return;
-
-    try {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive",
-        });
-        navigate("/dashboard");
-        return;
-      }
-
-      await fetchUsers();
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchUsers = async () => {
-    // Fetch profiles
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("*")
@@ -111,7 +76,6 @@ const AdminUsers = () => {
       return;
     }
 
-    // Fetch all roles
     const { data: roles, error: rolesError } = await supabase
       .from("user_roles")
       .select("user_id, role");
@@ -121,7 +85,6 @@ const AdminUsers = () => {
       return;
     }
 
-    // Map roles to users
     const rolesMap: Record<string, string[]> = {};
     (roles || []).forEach((r) => {
       if (!rolesMap[r.user_id]) {
@@ -148,7 +111,6 @@ const AdminUsers = () => {
     try {
       setProcessing(true);
 
-      // Check if role already exists
       const existingRole = selectedUser.roles.includes(newRole);
       if (existingRole) {
         toast({
@@ -271,37 +233,9 @@ const AdminUsers = () => {
     return matchesSearch && matchesRole;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold">User Management</h1>
-              <p className="text-sm text-muted-foreground">{users.length} users</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* Filters */}
+    <AdminLayout title="User Management" subtitle={`${users.length} users`}>
+      <div className="space-y-4">
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -325,7 +259,6 @@ const AdminUsers = () => {
           </Select>
         </div>
 
-        {/* Users List */}
         {filteredUsers.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -396,37 +329,36 @@ const AdminUsers = () => {
             </Card>
           ))
         )}
-      </main>
 
-      {/* Add Role Dialog */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Role</DialogTitle>
-            <DialogDescription>
-              Add a new role to {selectedUser?.full_name || "this user"}
-            </DialogDescription>
-          </DialogHeader>
-          <Select value={newRole} onValueChange={setNewRole}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="partner">Partner</SelectItem>
-            </SelectContent>
-          </Select>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedUser(null)}>
-              Cancel
-            </Button>
-            <Button onClick={addRole} disabled={!newRole || processing}>
-              {processing ? "Adding..." : "Add Role"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Role</DialogTitle>
+              <DialogDescription>
+                Add a new role to {selectedUser?.full_name || "this user"}
+              </DialogDescription>
+            </DialogHeader>
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="partner">Partner</SelectItem>
+              </SelectContent>
+            </Select>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedUser(null)}>
+                Cancel
+              </Button>
+              <Button onClick={addRole} disabled={!newRole || processing}>
+                {processing ? "Adding..." : "Add Role"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AdminLayout>
   );
 };
 

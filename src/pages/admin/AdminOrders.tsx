@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft,
   Search,
   Calendar,
   Utensils,
@@ -17,8 +13,8 @@ import {
   Store,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminLayout } from "@/components/AdminLayout";
 
 interface OrderData {
   id: string;
@@ -39,49 +35,17 @@ interface OrderData {
 }
 
 const AdminOrders = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
 
-  const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
     if (user) {
-      checkAdminAndFetch();
+      fetchOrders();
     }
   }, [user]);
-
-  const checkAdminAndFetch = async () => {
-    if (!user) return;
-
-    try {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges",
-          variant: "destructive",
-        });
-        navigate("/dashboard");
-        return;
-      }
-
-      await fetchOrders();
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchOrders = async () => {
     const { data, error } = await supabase
@@ -107,7 +71,6 @@ const AdminOrders = () => {
       return;
     }
 
-    // Fetch profiles
     const userIds = [...new Set((data || []).map((o) => o.user_id))];
     let profilesMap: Record<string, { full_name: string | null }> = {};
 
@@ -162,40 +125,10 @@ const AdminOrders = () => {
   });
 
   const todayCount = orders.filter((o) => o.scheduled_date === today).length;
-  const upcomingCount = orders.filter((o) => !o.is_completed && o.scheduled_date >= today).length;
-  const completedCount = orders.filter((o) => o.is_completed).length;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold">Order Management</h1>
-              <p className="text-sm text-muted-foreground">{orders.length} total orders</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* Search */}
+    <AdminLayout title="Order Management" subtitle={`${orders.length} total orders`}>
+      <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -206,7 +139,6 @@ const AdminOrders = () => {
           />
         </div>
 
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="all">All</TabsTrigger>
@@ -291,8 +223,8 @@ const AdminOrders = () => {
             )}
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 
