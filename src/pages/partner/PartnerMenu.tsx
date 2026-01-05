@@ -41,6 +41,7 @@ import {
   ImageIcon,
   Tag,
   Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -110,6 +111,7 @@ const PartnerMenu = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [dietTags, setDietTags] = useState<DietTag[]>([]);
@@ -400,6 +402,10 @@ const PartnerMenu = () => {
           setSelectedTags(matchedTagIds);
         }
 
+        // Trigger success animation
+        setAnalysisComplete(true);
+        setTimeout(() => setAnalysisComplete(false), 2000);
+
         toast({
           title: "AI has auto-filled the meal details",
           description: "Review and adjust the values before saving.",
@@ -622,7 +628,16 @@ const PartnerMenu = () => {
               </div>
             ) : (
               /* Actual Form Fields */
-              <>
+              <div className={analysisComplete ? "animate-success-pop" : ""}>
+                {/* Success Banner */}
+                {analysisComplete && (
+                  <div className="mb-4 p-3 rounded-lg bg-success/10 border border-success/30 flex items-center gap-2 animate-success-glow">
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                    <span className="text-sm font-medium text-success">
+                      AI analysis complete! Review the details below.
+                    </span>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>Name *</Label>
                   <Input
@@ -755,7 +770,7 @@ const PartnerMenu = () => {
                     onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
                   />
                 </div>
-              </>
+              </div>
             )}
           </div>
 
