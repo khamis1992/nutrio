@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -10,14 +10,17 @@ import {
   Target, 
   Dumbbell, 
   Scale, 
-  Flame,
   ArrowRight,
   ArrowLeft,
   Check,
   User,
   Ruler,
-  Activity
+  Activity,
+  Loader2
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
+import { useToast } from "@/hooks/use-toast";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
@@ -33,9 +36,77 @@ interface OnboardingData {
   activityLevel: ActivityLevel | null;
 }
 
+// Calculate BMR using Mifflin-St Jeor equation
+const calculateBMR = (gender: Gender, weight: number, height: number, age: number): number => {
+  if (gender === "male") {
+    return 10 * weight + 6.25 * height - 5 * age + 5;
+  } else {
+    return 10 * weight + 6.25 * height - 5 * age - 161;
+  }
+};
+
+// Calculate TDEE based on activity level
+const calculateTDEE = (bmr: number, activityLevel: ActivityLevel): number => {
+  const multipliers: Record<ActivityLevel, number> = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    active: 1.725,
+    very_active: 1.9,
+  };
+  return Math.round(bmr * multipliers[activityLevel]);
+};
+
+// Adjust calories based on goal
+const calculateTargetCalories = (tdee: number, goal: Goal): number => {
+  switch (goal) {
+    case "lose":
+      return Math.round(tdee * 0.8); // 20% deficit
+    case "gain":
+      return Math.round(tdee * 1.15); // 15% surplus
+    case "maintain":
+    default:
+      return tdee;
+  }
+};
+
+// Calculate macro targets
+const calculateMacros = (calories: number, goal: Goal) => {
+  let proteinRatio: number, carbsRatio: number, fatRatio: number;
+  
+  switch (goal) {
+    case "lose":
+      proteinRatio = 0.35;
+      carbsRatio = 0.35;
+      fatRatio = 0.30;
+      break;
+    case "gain":
+      proteinRatio = 0.30;
+      carbsRatio = 0.45;
+      fatRatio = 0.25;
+      break;
+    case "maintain":
+    default:
+      proteinRatio = 0.30;
+      carbsRatio = 0.40;
+      fatRatio = 0.30;
+  }
+
+  return {
+    protein: Math.round((calories * proteinRatio) / 4), // 4 cal per gram
+    carbs: Math.round((calories * carbsRatio) / 4), // 4 cal per gram
+    fat: Math.round((calories * fatRatio) / 9), // 9 cal per gram
+  };
+};
+
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, updateProfile } = useProfile();
+  const { toast } = useToast();
+  
   const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
   const [data, setData] = useState<OnboardingData>({
     goal: null,
     gender: null,
@@ -48,12 +119,76 @@ const Onboarding = () => {
 
   const totalSteps = 4;
 
-  const handleNext = () => {
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
+
+  // Redirect if onboarding already completed
+  useEffect(() => {
+    if (profile?.onboarding_completed) {
+      navigate("/dashboard");
+    }
+  }, [profile, navigate]);
+
+  const handleNext = async () => {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      // Complete onboarding
+      // Complete onboarding and save to database
+      await completeOnboarding();
+    }
+  };
+
+  const completeOnboarding = async () => {
+    if (!data.goal || !data.gender || !data.activityLevel) return;
+
+    setSaving(true);
+    try {
+      const age = parseInt(data.age);
+      const height = parseFloat(data.height);
+      const weight = parseFloat(data.weight);
+      const targetWeight = parseFloat(data.targetWeight) || weight;
+
+      // Calculate nutrition targets
+      const bmr = calculateBMR(data.gender, weight, height, age);
+      const tdee = calculateTDEE(bmr, data.activityLevel);
+      const dailyCalories = calculateTargetCalories(tdee, data.goal);
+      const macros = calculateMacros(dailyCalories, data.goal);
+
+      const { error } = await updateProfile({
+        gender: data.gender,
+        age,
+        height_cm: height,
+        current_weight_kg: weight,
+        target_weight_kg: targetWeight,
+        health_goal: data.goal,
+        activity_level: data.activityLevel,
+        daily_calorie_target: dailyCalories,
+        protein_target_g: macros.protein,
+        carbs_target_g: macros.carbs,
+        fat_target_g: macros.fat,
+        onboarding_completed: true,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile saved!",
+        description: `Your daily target is ${dailyCalories} calories.`,
+      });
+      
       navigate("/dashboard");
+    } catch (err) {
+      toast({
+        title: "Error saving profile",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -109,6 +244,14 @@ const Onboarding = () => {
     { id: "active" as ActivityLevel, title: "Very Active", description: "Hard exercise 6-7 days/week" },
     { id: "very_active" as ActivityLevel, title: "Extra Active", description: "Very hard exercise & physical job" },
   ];
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-hero flex flex-col">
@@ -248,6 +391,8 @@ const Onboarding = () => {
                         value={data.age}
                         onChange={(e) => setData({ ...data, age: e.target.value })}
                         className="h-12"
+                        min={13}
+                        max={120}
                       />
                     </div>
                     <div className="space-y-2">
@@ -262,6 +407,8 @@ const Onboarding = () => {
                         value={data.height}
                         onChange={(e) => setData({ ...data, height: e.target.value })}
                         className="h-12"
+                        min={100}
+                        max={250}
                       />
                     </div>
                   </div>
@@ -279,6 +426,8 @@ const Onboarding = () => {
                         value={data.weight}
                         onChange={(e) => setData({ ...data, weight: e.target.value })}
                         className="h-12"
+                        min={30}
+                        max={300}
                       />
                     </div>
                     <div className="space-y-2">
@@ -293,6 +442,8 @@ const Onboarding = () => {
                         value={data.targetWeight}
                         onChange={(e) => setData({ ...data, targetWeight: e.target.value })}
                         className="h-12"
+                        min={30}
+                        max={300}
                       />
                     </div>
                   </div>
@@ -353,7 +504,7 @@ const Onboarding = () => {
           <Button 
             variant="ghost" 
             onClick={handleBack}
-            disabled={step === 1}
+            disabled={step === 1 || saving}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -361,10 +512,19 @@ const Onboarding = () => {
           <Button 
             variant="gradient"
             onClick={handleNext}
-            disabled={!canProceed()}
+            disabled={!canProceed() || saving}
           >
-            {step === totalSteps ? "Complete Setup" : "Continue"}
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                {step === totalSteps ? "Complete Setup" : "Continue"}
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
         </div>
       </footer>
