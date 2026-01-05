@@ -2,13 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { 
   Salad, 
   Utensils,
   Calendar,
   TrendingUp,
-  Search,
   Loader2,
   ChevronLeft,
   User,
@@ -17,6 +15,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RestaurantCard } from "@/components/RestaurantCard";
+import { RestaurantSearch } from "@/components/RestaurantSearch";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 
 interface Restaurant {
@@ -123,15 +122,12 @@ const Meals = () => {
       <main className="container mx-auto px-4 py-4 space-y-4 pb-24">
         {/* Search and Filter Bar */}
         <div className="flex gap-2 animate-fade-in">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search restaurants..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <RestaurantSearch
+            restaurants={restaurants}
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search restaurants..."
+          />
           <Button
             variant={showFavoritesOnly ? "default" : "outline"}
             size="icon"
