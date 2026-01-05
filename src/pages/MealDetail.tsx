@@ -156,53 +156,28 @@ const MealDetail = () => {
 
     setScheduling(true);
     try {
-      // Check if a meal is already scheduled for this slot
-      const { data: existingSchedule } = await supabase
-        .from("meal_schedules")
-        .select("id, meal_id")
-        .eq("user_id", user.id)
-        .eq("scheduled_date", format(selectedDate, "yyyy-MM-dd"))
-        .eq("meal_type", selectedMealType)
-        .maybeSingle();
-
-      if (existingSchedule) {
-        // Update existing schedule with the new meal
-        const { error } = await supabase
-          .from("meal_schedules")
-          .update({ meal_id: meal.id })
-          .eq("id", existingSchedule.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "Meal updated!",
-          description: `${meal.name} replaced the previous ${selectedMealType} for ${format(selectedDate, "MMM d")}`,
-        });
-      } else {
-        // Increment meal usage first (only for new schedules)
-        const usageSuccess = await incrementMealUsage();
-        if (!usageSuccess) {
-          throw new Error("Failed to update meal quota");
-        }
-
-        const { error } = await supabase
-          .from("meal_schedules")
-          .insert({
-            user_id: user.id,
-            meal_id: meal.id,
-            scheduled_date: format(selectedDate, "yyyy-MM-dd"),
-            meal_type: selectedMealType,
-          });
-
-        if (error) throw error;
-
-        toast({
-          title: "Meal scheduled!",
-          description: `${meal.name} scheduled for ${format(selectedDate, "MMM d")} (${selectedMealType})`,
-        });
+      // Increment meal usage first
+      const usageSuccess = await incrementMealUsage();
+      if (!usageSuccess) {
+        throw new Error("Failed to update meal quota");
       }
 
+      const { error } = await supabase
+        .from("meal_schedules")
+        .insert({
+          user_id: user.id,
+          meal_id: meal.id,
+          scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+          meal_type: selectedMealType,
+        });
+
+      if (error) throw error;
+
       setSuccess(true);
+      toast({
+        title: "Meal scheduled!",
+        description: `${meal.name} added to ${selectedMealType} on ${format(selectedDate, "MMM d")}`,
+      });
 
       // Navigate to schedule after brief animation
       setTimeout(() => {
