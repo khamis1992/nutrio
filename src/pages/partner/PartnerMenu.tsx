@@ -108,6 +108,7 @@ const PartnerMenu = () => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [dietTags, setDietTags] = useState<DietTag[]>([]);
@@ -356,6 +357,66 @@ const PartnerMenu = () => {
     }
   };
 
+  const handleImageUploaded = async (imageUrl: string) => {
+    if (!imageUrl) return;
+
+    setAnalyzing(true);
+    try {
+      const availableTagNames = dietTags.map((t) => t.name);
+      
+      const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
+        body: { imageUrl, availableTags: availableTagNames },
+      });
+
+      if (error) throw error;
+
+      if (data?.mealDetails) {
+        const details = data.mealDetails;
+        
+        // Update form data with AI suggestions
+        setFormData((prev) => ({
+          ...prev,
+          name: details.name || prev.name,
+          description: details.description || prev.description,
+          price: details.suggested_price || prev.price,
+          calories: details.calories || prev.calories,
+          protein_g: details.protein_g || prev.protein_g,
+          carbs_g: details.carbs_g || prev.carbs_g,
+          fat_g: details.fat_g || prev.fat_g,
+          fiber_g: details.fiber_g || prev.fiber_g,
+          prep_time_minutes: details.prep_time_minutes || prev.prep_time_minutes,
+        }));
+
+        // Map diet tag names to IDs
+        if (details.diet_tags && Array.isArray(details.diet_tags)) {
+          const matchedTagIds = dietTags
+            .filter((tag) =>
+              details.diet_tags.some(
+                (aiTag: string) => aiTag.toLowerCase() === tag.name.toLowerCase()
+              )
+            )
+            .map((tag) => tag.id);
+          setSelectedTags(matchedTagIds);
+        }
+
+        toast({
+          title: "AI has auto-filled the meal details",
+          description: "Review and adjust the values before saving.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error analyzing meal image:", error);
+      const errorMessage = error?.message || "Could not analyze image. Please fill in details manually.";
+      toast({
+        title: "Analysis failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -578,6 +639,8 @@ const PartnerMenu = () => {
               currentImageUrl={formData.image_url}
               onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
               mealId={editingMeal?.id}
+              onImageUploaded={handleImageUploaded}
+              isAnalyzing={analyzing}
             />
 
             {/* Diet Tags */}
