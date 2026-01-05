@@ -20,7 +20,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Salad,
   User,
   Target,
   Utensils,
@@ -35,8 +34,6 @@ import {
   Beef,
   Wheat,
   Droplets,
-  Calendar,
-  TrendingUp,
   LogOut,
   Trash2,
   Lock,
@@ -48,6 +45,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import {
   calculateNutritionTargets,
@@ -865,33 +863,7 @@ const Profile = () => {
         </Tabs>
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-around items-center h-16">
-            {[
-              { icon: Salad, label: "Home", active: false, to: "/dashboard" },
-              { icon: Utensils, label: "Meals", active: false, to: "/meals" },
-              { icon: Calendar, label: "Schedule", active: false, to: "/schedule" },
-              { icon: TrendingUp, label: "Progress", active: false, to: "/progress" },
-              { icon: User, label: "Profile", active: true, to: "/profile" },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors ${
-                  item.active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <item.icon className={`w-5 h-5 ${item.active ? "fill-primary/20" : ""}`} />
-                <span className="text-xs font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </nav>
+      <CustomerNavigation />
     </div>
   );
 };

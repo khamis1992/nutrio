@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { 
   ArrowLeft, 
   ChevronLeft, 
@@ -16,11 +17,7 @@ import {
   Flame,
   Beef,
   Trash2,
-  Home,
-  UtensilsCrossed,
-  CalendarDays,
-  TrendingUp,
-  User
+  UtensilsCrossed
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from "date-fns";
 
@@ -407,50 +404,7 @@ const Schedule = () => {
         )}
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-        <div className="flex items-center justify-around py-2">
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/dashboard")}
-          >
-            <Home className="h-5 w-5" />
-            <span className="text-xs">Home</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/meals")}
-          >
-            <UtensilsCrossed className="h-5 w-5" />
-            <span className="text-xs">Meals</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2 text-primary"
-          >
-            <CalendarDays className="h-5 w-5" />
-            <span className="text-xs">Schedule</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/progress")}
-          >
-            <TrendingUp className="h-5 w-5" />
-            <span className="text-xs">Progress</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/profile")}
-          >
-            <User className="h-5 w-5" />
-            <span className="text-xs">Profile</span>
-          </Button>
-        </div>
-      </div>
+      <CustomerNavigation />
     </div>
   );
 };
