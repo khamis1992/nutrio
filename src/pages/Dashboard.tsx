@@ -20,7 +20,10 @@ import {
   Loader2,
   Receipt,
   Plus,
-  Crown
+  Crown,
+  Settings,
+  Gift,
+  MapPin
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -439,6 +442,62 @@ const Dashboard = () => {
                 <div>
                   <p className="font-semibold text-sm">Plans</p>
                   <p className="text-xs text-muted-foreground">Upgrade</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* More Actions */}
+        <div className="grid grid-cols-4 gap-3 animate-fade-in stagger-1">
+          <Link to="/settings">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center">
+                  <Settings className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Settings</p>
+                  <p className="text-xs text-muted-foreground">Preferences</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/referral">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
+                  <Gift className="w-5 h-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Refer</p>
+                  <p className="text-xs text-muted-foreground">Earn $10</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/addresses">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Addresses</p>
+                  <p className="text-xs text-muted-foreground">Delivery</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/tracking">
+            <Card variant="interactive" className="h-full">
+              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                  <Utensils className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Tracking</p>
+                  <p className="text-xs text-muted-foreground">Live orders</p>
                 </div>
               </CardContent>
             </Card>
