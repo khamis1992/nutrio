@@ -34,13 +34,16 @@ interface Restaurant {
   is_active: boolean;
 }
 
-interface Order {
+interface ScheduledMeal {
   id: string;
-  status: string;
-  total_price: number;
-  delivery_date: string;
-  meal_type: string | null;
+  scheduled_date: string;
+  meal_type: string;
+  is_completed: boolean;
   created_at: string;
+  meal: {
+    name: string;
+    price: number;
+  };
 }
 
 interface Stats {
@@ -57,7 +60,7 @@ const PartnerDashboard = () => {
 
   const [loading, setLoading] = useState(true);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [recentSchedules, setRecentSchedules] = useState<ScheduledMeal[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalMeals: 0,
     activeOrders: 0,
@@ -95,33 +98,76 @@ const PartnerDashboard = () => {
       setRestaurant(restaurantData);
 
       // Fetch meals count
-      const { count: mealsCount } = await supabase
+      const { data: mealsData, count: mealsCount } = await supabase
         .from("meals")
-        .select("*", { count: "exact", head: true })
+        .select("id, price", { count: "exact" })
         .eq("restaurant_id", restaurantData.id);
 
-      // Fetch orders for this restaurant
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("restaurant_id", restaurantData.id)
+      const mealIds = mealsData?.map((m) => m.id) || [];
+      const mealPrices = mealsData?.reduce((acc, m) => {
+        acc[m.id] = m.price;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      if (mealIds.length === 0) {
+        setStats({
+          totalMeals: 0,
+          activeOrders: 0,
+          todayOrders: 0,
+          totalRevenue: 0,
+        });
+        setRecentSchedules([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch scheduled meals for this restaurant's meals
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("meal_schedules")
+        .select(`
+          id,
+          scheduled_date,
+          meal_type,
+          is_completed,
+          created_at,
+          meals:meal_id (
+            name,
+            price
+          )
+        `)
+        .in("meal_id", mealIds)
         .order("created_at", { ascending: false })
         .limit(10);
 
-      if (ordersError) throw ordersError;
+      if (schedulesError) throw schedulesError;
 
-      setRecentOrders(ordersData || []);
+      const transformedSchedules: ScheduledMeal[] = (schedulesData || []).map((s: any) => ({
+        id: s.id,
+        scheduled_date: s.scheduled_date,
+        meal_type: s.meal_type,
+        is_completed: s.is_completed || false,
+        created_at: s.created_at,
+        meal: s.meals,
+      }));
+
+      setRecentSchedules(transformedSchedules);
+
+      // Fetch all schedules for stats (not limited)
+      const { data: allSchedules } = await supabase
+        .from("meal_schedules")
+        .select("id, scheduled_date, is_completed, meal_id")
+        .in("meal_id", mealIds);
 
       // Calculate stats
       const today = new Date().toISOString().split("T")[0];
-      const activeOrders = ordersData?.filter(
-        (o) => ["pending", "confirmed", "preparing"].includes(o.status || "")
+      const activeOrders = allSchedules?.filter(
+        (s) => !s.is_completed && s.scheduled_date >= today
       ).length || 0;
-      const todayOrders = ordersData?.filter(
-        (o) => o.created_at.startsWith(today)
+      const todayOrders = allSchedules?.filter(
+        (s) => s.scheduled_date === today
       ).length || 0;
-      const totalRevenue = ordersData?.reduce(
-        (sum, o) => sum + parseFloat(o.total_price?.toString() || "0"),
+      const totalRevenue = allSchedules?.reduce(
+        (sum, s) => sum + (mealPrices[s.meal_id] || 0),
         0
       ) || 0;
 
@@ -148,21 +194,21 @@ const PartnerDashboard = () => {
     navigate("/");
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-amber-500/10 text-amber-600 border-amber-500/20";
-      case "confirmed":
-        return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-      case "preparing":
-        return "bg-purple-500/10 text-purple-600 border-purple-500/20";
-      case "delivered":
-        return "bg-green-500/10 text-green-600 border-green-500/20";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive border-destructive/20";
-      default:
-        return "bg-muted text-muted-foreground";
+  const getStatusColor = (isCompleted: boolean, scheduledDate: string) => {
+    const today = new Date().toISOString().split("T")[0];
+    if (isCompleted) {
+      return "bg-green-500/10 text-green-600 border-green-500/20";
+    } else if (scheduledDate < today) {
+      return "bg-amber-500/10 text-amber-600 border-amber-500/20";
     }
+    return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+  };
+
+  const getStatusLabel = (isCompleted: boolean, scheduledDate: string) => {
+    const today = new Date().toISOString().split("T")[0];
+    if (isCompleted) return "Completed";
+    if (scheduledDate < today) return "Overdue";
+    return "Pending";
   };
 
   if (loading) {
@@ -347,15 +393,15 @@ const PartnerDashboard = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentOrders.length === 0 ? (
+            {recentSchedules.length === 0 ? (
               <div className="text-center py-8">
                 <ShoppingBag className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
                 <p className="text-muted-foreground">No orders yet</p>
               </div>
             ) : (
-              recentOrders.slice(0, 5).map((order) => (
+              recentSchedules.slice(0, 5).map((schedule) => (
                 <div
-                  key={order.id}
+                  key={schedule.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                 >
                   <div className="flex items-center gap-3">
@@ -364,20 +410,20 @@ const PartnerDashboard = () => {
                     </div>
                     <div>
                       <p className="font-medium text-sm">
-                        Order #{order.id.slice(0, 8)}
+                        {schedule.meal?.name || "Unknown Meal"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(order.created_at).toLocaleDateString()} •{" "}
-                        {order.meal_type || "Delivery"}
+                        {new Date(schedule.scheduled_date).toLocaleDateString()} •{" "}
+                        {schedule.meal_type}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant="outline" className={getStatusColor(order.status || "pending")}>
-                      {order.status}
+                    <Badge variant="outline" className={getStatusColor(schedule.is_completed, schedule.scheduled_date)}>
+                      {getStatusLabel(schedule.is_completed, schedule.scheduled_date)}
                     </Badge>
                     <p className="text-sm font-medium mt-1">
-                      ${parseFloat(order.total_price?.toString() || "0").toFixed(2)}
+                      ${parseFloat(schedule.meal?.price?.toString() || "0").toFixed(2)}
                     </p>
                   </div>
                 </div>
