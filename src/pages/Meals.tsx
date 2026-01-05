@@ -394,7 +394,8 @@ const Meals = () => {
             </Card>
           ) : (
             filteredMeals.map((meal) => (
-              <Card key={meal.id} variant="interactive">
+              <Link key={meal.id} to={`/meals/${meal.id}`}>
+                <Card variant="interactive">
                 <CardContent className="p-4">
                   <div className="flex gap-4">
                     <div className="w-24 h-24 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0">
@@ -454,6 +455,7 @@ const Meals = () => {
                   </div>
                 </CardContent>
               </Card>
+              </Link>
             ))
           )}
         </div>

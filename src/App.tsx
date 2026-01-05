@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Meals from "./pages/Meals";
+import MealDetail from "./pages/MealDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Meals />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/meals/:id" 
+              element={
+                <ProtectedRoute>
+                  <MealDetail />
                 </ProtectedRoute>
               } 
             />
