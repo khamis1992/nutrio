@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -12,90 +12,132 @@ import {
   Droplets,
   Calendar,
   TrendingUp,
-  Plus,
-  Filter,
   ChevronRight,
   Star,
   Clock,
   Utensils,
-  LogOut,
   User,
-  Bell
+  Bell,
+  LogOut,
+  Loader2
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data
-const mockMeals = [
-  {
-    id: 1,
-    name: "Grilled Chicken Bowl",
-    restaurant: "Green Kitchen",
-    image: "🥗",
-    calories: 485,
-    protein: 42,
-    carbs: 35,
-    fat: 18,
-    price: 12.99,
-    dietTags: ["High Protein", "Low Carb"],
-    rating: 4.8,
-    prepTime: 15
-  },
-  {
-    id: 2,
-    name: "Salmon Avocado Salad",
-    restaurant: "Fresh & Fit",
-    image: "🥙",
-    calories: 520,
-    protein: 38,
-    carbs: 22,
-    fat: 28,
-    price: 15.99,
-    dietTags: ["Keto", "Omega-3"],
-    rating: 4.9,
-    prepTime: 12
-  },
-  {
-    id: 3,
-    name: "Veggie Buddha Bowl",
-    restaurant: "Plant Power",
-    image: "🥦",
-    calories: 380,
-    protein: 18,
-    carbs: 52,
-    fat: 12,
-    price: 10.99,
-    dietTags: ["Vegan", "High Fiber"],
-    rating: 4.7,
-    prepTime: 10
-  },
-  {
-    id: 4,
-    name: "Turkey Quinoa Wrap",
-    restaurant: "Green Kitchen",
-    image: "🌯",
-    calories: 420,
-    protein: 35,
-    carbs: 42,
-    fat: 14,
-    price: 11.99,
-    dietTags: ["Balanced", "Lean"],
-    rating: 4.6,
-    prepTime: 8
-  },
-];
+interface Meal {
+  id: string;
+  name: string;
+  restaurant_name: string;
+  image_url: string | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  price: number;
+  rating: number;
+  prep_time_minutes: number;
+  diet_tags: string[];
+}
 
 const Dashboard = () => {
-  const [selectedFilter, setSelectedFilter] = useState("All");
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
+  const { toast } = useToast();
   
-  // Mock user data
-  const userStats = {
-    dailyCalories: 1850,
-    consumedCalories: 1120,
-    protein: { target: 150, consumed: 95 },
-    carbs: { target: 180, consumed: 110 },
-    fat: { target: 60, consumed: 35 },
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [mealsLoading, setMealsLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState("All");
+
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (!profileLoading && profile && !profile.onboarding_completed) {
+      navigate("/onboarding");
+    }
+  }, [profile, profileLoading, navigate]);
+
+  // Fetch meals
+  useEffect(() => {
+    const fetchMeals = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("meals")
+          .select(`
+            id,
+            name,
+            image_url,
+            calories,
+            protein_g,
+            carbs_g,
+            fat_g,
+            price,
+            rating,
+            prep_time_minutes,
+            restaurants (name)
+          `)
+          .eq("is_available", true)
+          .limit(10);
+
+        if (error) throw error;
+
+        // Transform data
+        const transformedMeals: Meal[] = (data || []).map((meal: any) => ({
+          id: meal.id,
+          name: meal.name,
+          restaurant_name: meal.restaurants?.name || "Unknown",
+          image_url: meal.image_url,
+          calories: meal.calories,
+          protein_g: meal.protein_g,
+          carbs_g: meal.carbs_g,
+          fat_g: meal.fat_g,
+          price: parseFloat(meal.price),
+          rating: parseFloat(meal.rating) || 0,
+          prep_time_minutes: meal.prep_time_minutes || 15,
+          diet_tags: [], // TODO: Fetch from meal_diet_tags
+        }));
+
+        setMeals(transformedMeals);
+      } catch (err) {
+        console.error("Error fetching meals:", err);
+      } finally {
+        setMealsLoading(false);
+      }
+    };
+
+    fetchMeals();
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed out",
+      description: "You have been successfully signed out.",
+    });
+    navigate("/");
   };
 
   const filters = ["All", "High Protein", "Low Carb", "Keto", "Vegan"];
+
+  // Calculate consumed values (placeholder - would come from progress_logs)
+  const userStats = {
+    dailyCalories: profile?.daily_calorie_target || 2000,
+    consumedCalories: 0, // Would be calculated from today's logged meals
+    protein: { target: profile?.protein_target_g || 150, consumed: 0 },
+    carbs: { target: profile?.carbs_target_g || 200, consumed: 0 },
+    fat: { target: profile?.fat_target_g || 65, consumed: 0 },
+  };
+
+  const userName = profile?.full_name?.split(" ")[0] || "there";
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,18 +150,16 @@ const Dashboard = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Good morning,</p>
-              <p className="font-semibold">Alex</p>
+              <p className="font-semibold">{userName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="icon" size="icon">
               <Bell className="w-5 h-5" />
             </Button>
-            <Link to="/profile">
-              <Button variant="icon" size="icon">
-                <User className="w-5 h-5" />
-              </Button>
-            </Link>
+            <Button variant="icon" size="icon" onClick={handleSignOut}>
+              <LogOut className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -262,49 +302,73 @@ const Dashboard = () => {
 
           {/* Meal Cards */}
           <div className="grid gap-4">
-            {mockMeals.map((meal) => (
-              <Card key={meal.id} variant="interactive">
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl">
-                      {meal.image}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold truncate">{meal.name}</h3>
-                          <p className="text-sm text-muted-foreground">{meal.restaurant}</p>
-                        </div>
-                        <p className="font-bold text-primary">${meal.price}</p>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Flame className="w-3 h-3" />
-                          {meal.calories} kcal
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {meal.prepTime} min
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-warning text-warning" />
-                          {meal.rating}
-                        </span>
-                      </div>
-
-                      <div className="flex gap-1.5 mt-2">
-                        {meal.dietTags.map((tag) => (
-                          <Badge key={tag} variant="diet" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+            {mealsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : meals.length === 0 ? (
+              <Card variant="default">
+                <CardContent className="p-8 text-center">
+                  <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-semibold mb-2">No meals available yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Partner restaurants will add meals soon. Check back later!
+                  </p>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              meals.map((meal) => (
+                <Card key={meal.id} variant="interactive">
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
+                        {meal.image_url ? (
+                          <img 
+                            src={meal.image_url} 
+                            alt={meal.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          "🍽️"
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold truncate">{meal.name}</h3>
+                            <p className="text-sm text-muted-foreground">{meal.restaurant_name}</p>
+                          </div>
+                          <p className="font-bold text-primary">${meal.price.toFixed(2)}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Flame className="w-3 h-3" />
+                            {meal.calories} kcal
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {meal.prep_time_minutes} min
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-warning text-warning" />
+                            {meal.rating.toFixed(1)}
+                          </span>
+                        </div>
+
+                        <div className="flex gap-1.5 mt-2">
+                          {meal.diet_tags.slice(0, 2).map((tag) => (
+                            <Badge key={tag} variant="diet" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </section>
       </main>
