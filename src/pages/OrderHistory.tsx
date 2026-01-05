@@ -75,7 +75,7 @@ const OrderHistory = () => {
   const [reordering, setReordering] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!profile?.onboarding_completed) {
+    if (profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
