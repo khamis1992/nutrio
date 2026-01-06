@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_applications: {
+        Row: {
+          application_note: string | null
+          applied_at: string
+          created_at: string
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["affiliate_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_note?: string | null
+          applied_at?: string
+          created_at?: string
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["affiliate_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_note?: string | null
+          applied_at?: string
+          created_at?: string
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["affiliate_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       affiliate_commissions: {
         Row: {
           commission_amount: number
@@ -1569,6 +1608,7 @@ export type Database = {
         Args: { subscription_id: string }
         Returns: boolean
       }
+      is_approved_affiliate: { Args: { _user_id: string }; Returns: boolean }
       reset_weekly_meal_quotas: { Args: never; Returns: undefined }
     }
     Enums: {
@@ -1578,6 +1618,7 @@ export type Database = {
         | "moderate"
         | "active"
         | "very_active"
+      affiliate_status: "pending" | "approved" | "rejected"
       app_role: "user" | "partner" | "admin"
       approval_status: "pending" | "approved" | "rejected"
       discount_type: "percentage" | "fixed"
@@ -1727,6 +1768,7 @@ export const Constants = {
         "active",
         "very_active",
       ],
+      affiliate_status: ["pending", "approved", "rejected"],
       app_role: ["user", "partner", "admin"],
       approval_status: ["pending", "approved", "rejected"],
       discount_type: ["percentage", "fixed"],

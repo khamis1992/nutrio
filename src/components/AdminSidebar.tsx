@@ -42,6 +42,7 @@ const navItems = [
   { icon: Store, label: "Restaurants", to: "/admin/restaurants" },
   { icon: Sparkles, label: "Featured", to: "/admin/featured" },
   { icon: Users, label: "Users", to: "/admin/users" },
+  { icon: UserCheck, label: "Affiliate Apps", to: "/admin/affiliate-applications" },
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
   { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
   { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
