@@ -61,6 +61,18 @@ interface PremiumAnalyticsPrices {
   yearly: number;
 }
 
+interface VipSettings {
+  vip_price: number;
+  vip_benefits: {
+    priority_delivery: boolean;
+    exclusive_meals: boolean;
+    personal_coaching: boolean;
+    free_delivery: boolean;
+    early_access: boolean;
+    dedicated_support: boolean;
+  };
+}
+
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,6 +120,18 @@ export default function AdminSettings() {
     yearly: 249.99,
   });
 
+  const [vipSettings, setVipSettings] = useState<VipSettings>({
+    vip_price: 199.99,
+    vip_benefits: {
+      priority_delivery: true,
+      exclusive_meals: true,
+      personal_coaching: true,
+      free_delivery: true,
+      early_access: true,
+      dedicated_support: true,
+    },
+  });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -144,6 +168,9 @@ export default function AdminSettings() {
           case "premium_analytics_prices":
             setPremiumAnalyticsPrices(value as unknown as PremiumAnalyticsPrices);
             break;
+          case "vip_settings":
+            setVipSettings(value as unknown as VipSettings);
+            break;
         }
       });
     } catch (error) {
@@ -165,6 +192,7 @@ export default function AdminSettings() {
         { key: "featured_listing_prices", value: featuredPrices as Json },
         { key: "delivery_fees", value: deliveryFees as Json },
         { key: "premium_analytics_prices", value: premiumAnalyticsPrices as Json },
+        { key: "vip_settings", value: vipSettings as unknown as Json },
       ];
 
       for (const update of updates) {
@@ -301,6 +329,50 @@ export default function AdminSettings() {
                     setSubscriptionPlans({ ...subscriptionPlans, family_price: Number(e.target.value) })
                   }
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* VIP Subscription Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-violet-500" />
+                VIP Subscription Tier
+              </CardTitle>
+              <CardDescription>Configure VIP Elite subscription pricing and benefits</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="vip-price">VIP Elite Price ($/week)</Label>
+                <Input
+                  id="vip-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={vipSettings.vip_price}
+                  onChange={(e) =>
+                    setVipSettings({ ...vipSettings, vip_price: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <Separator />
+              <p className="text-sm font-medium">VIP Benefits</p>
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(vipSettings.vip_benefits).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between">
+                    <Label className="capitalize">{key.replace(/_/g, ' ')}</Label>
+                    <Switch
+                      checked={value}
+                      onCheckedChange={(checked) =>
+                        setVipSettings({
+                          ...vipSettings,
+                          vip_benefits: { ...vipSettings.vip_benefits, [key]: checked }
+                        })
+                      }
+                    />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

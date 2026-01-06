@@ -24,7 +24,8 @@ import {
   Settings,
   Gift,
   MapPin,
-  Truck
+  Truck,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -54,7 +55,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { subscription, hasActiveSubscription, isPaused, remainingMeals, isUnlimited, loading: subscriptionLoading } = useSubscription();
+  const { subscription, hasActiveSubscription, isPaused, remainingMeals, isUnlimited, isVip, loading: subscriptionLoading } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   
@@ -233,21 +234,43 @@ const Dashboard = () => {
 
         {/* Subscription Status Card */}
         {hasActiveSubscription ? (
-          <Card variant="stat" className="animate-fade-in border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
+          <Card variant="stat" className={`animate-fade-in ${
+            isVip 
+              ? "border-violet-500/50 bg-gradient-to-r from-violet-500/10 to-purple-500/10" 
+              : "border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10"
+          }`}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Crown className="w-7 h-7 text-primary" />
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                    isVip ? "bg-gradient-to-br from-violet-500/30 to-purple-500/30" : "bg-primary/20"
+                  }`}>
+                    {isVip ? (
+                      <Sparkles className="w-7 h-7 text-violet-500" />
+                    ) : (
+                      <Crown className="w-7 h-7 text-primary" />
+                    )}
                   </div>
                   <div>
-                    <p className="font-semibold capitalize">{subscription?.plan} Plan</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold capitalize">{subscription?.plan} Plan</p>
+                      {isVip && (
+                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white">
+                          VIP
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {isUnlimited 
                         ? "Unlimited meals this week" 
                         : `${remainingMeals} of ${subscription?.meals_per_week} meals remaining`
                       }
                     </p>
+                    {isVip && (
+                      <p className="text-xs text-violet-500 dark:text-violet-400 mt-1">
+                        ✨ Priority delivery • Exclusive meals • Personal coaching
+                      </p>
+                    )}
                   </div>
                 </div>
                 {!isUnlimited && subscription && (
@@ -267,7 +290,7 @@ const Dashboard = () => {
                           cy="32"
                           r="28"
                           fill="none"
-                          stroke="hsl(var(--primary))"
+                          stroke={isVip ? "hsl(262, 83%, 58%)" : "hsl(var(--primary))"}
                           strokeWidth="6"
                           strokeLinecap="round"
                           strokeDasharray={`${(remainingMeals / subscription.meals_per_week) * 175.9} 175.9`}
