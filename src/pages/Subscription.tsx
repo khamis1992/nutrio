@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Crown, Zap, Star, ArrowLeft, Loader2 } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -257,7 +258,7 @@ export default function Subscription() {
 
                 <CardContent className="pb-4">
                   <div className="mb-4">
-                    <span className="text-4xl font-bold">${plan.price}</span>
+                    <span className="text-4xl font-bold">{formatCurrency(plan.price)}</span>
                     <span className="text-muted-foreground">/{plan.period}</span>
                   </div>
                   
@@ -317,7 +318,7 @@ export default function Subscription() {
             <div className="bg-muted/50 rounded-lg p-4 mb-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-medium">{selectedPlan.name} Plan</span>
-                <span className="font-bold">${selectedPlan.price}/week</span>
+                <span className="font-bold">{formatCurrency(selectedPlan.price)}/week</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 {selectedPlan.mealsPerWeek === 0 ? "Unlimited meals" : `${selectedPlan.mealsPerWeek} meals per week`}
