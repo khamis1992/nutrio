@@ -38,7 +38,11 @@ import {
   AlertCircle,
   Send,
   User,
-  Filter
+  Filter,
+  Paperclip,
+  Image,
+  FileText,
+  ExternalLink
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -67,6 +71,16 @@ interface TicketMessage {
   created_at: string;
 }
 
+interface TicketAttachment {
+  id: string;
+  ticket_id: string;
+  message_id: string | null;
+  file_name: string;
+  file_url: string;
+  file_type: string | null;
+  created_at: string;
+}
+
 export default function AdminSupport() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +89,7 @@ export default function AdminSupport() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[]>([]);
+  const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [stats, setStats] = useState({
@@ -94,6 +109,7 @@ export default function AdminSupport() {
   useEffect(() => {
     if (selectedTicket) {
       fetchMessages(selectedTicket.id);
+      fetchAttachments(selectedTicket.id);
     }
   }, [selectedTicket]);
 
@@ -164,6 +180,28 @@ export default function AdminSupport() {
       console.error("Error fetching messages:", error);
     }
   };
+
+  const fetchAttachments = async (ticketId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("ticket_attachments")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setAttachments((data as TicketAttachment[]) || []);
+    } catch (error) {
+      console.error("Error fetching attachments:", error);
+    }
+  };
+
+  const getFileIcon = (type: string | null) => {
+    if (type?.startsWith("image/")) return <Image className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const isImage = (type: string | null) => type?.startsWith("image/");
 
   const handleStatusChange = async (ticketId: string, newStatus: string) => {
     try {
@@ -518,6 +556,40 @@ export default function AdminSupport() {
                     </span>
                   </div>
                   <p className="text-sm">{selectedTicket.description}</p>
+                  
+                  {/* Ticket-level attachments */}
+                  {attachments.filter(a => !a.message_id).length > 0 && (
+                    <div className="pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
+                        <Paperclip className="h-3 w-3" /> Attachments
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {attachments.filter(a => !a.message_id).map(att => (
+                          <a
+                            key={att.id}
+                            href={att.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                          >
+                            {isImage(att.file_type) ? (
+                              <img 
+                                src={att.file_url} 
+                                alt={att.file_name}
+                                className="w-full h-24 object-cover rounded border hover:opacity-80 transition-opacity"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 p-2 bg-background rounded border hover:bg-accent transition-colors">
+                                {getFileIcon(att.file_type)}
+                                <span className="text-xs truncate flex-1">{att.file_name}</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </div>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Messages */}
@@ -545,6 +617,35 @@ export default function AdminSupport() {
                               }`}
                             >
                               <p className="text-sm">{msg.message}</p>
+                              {/* Message attachments */}
+                              {attachments.filter(a => a.message_id === msg.id).length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {attachments.filter(a => a.message_id === msg.id).map(att => (
+                                    <a
+                                      key={att.id}
+                                      href={att.file_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block"
+                                    >
+                                      {isImage(att.file_type) ? (
+                                        <img 
+                                          src={att.file_url} 
+                                          alt={att.file_name}
+                                          className="max-w-full max-h-32 rounded border hover:opacity-80 transition-opacity"
+                                        />
+                                      ) : (
+                                        <div className={`flex items-center gap-1 text-xs hover:underline ${
+                                          msg.is_admin_reply ? 'text-primary-foreground/80' : 'text-primary'
+                                        }`}>
+                                          {getFileIcon(att.file_type)}
+                                          {att.file_name}
+                                        </div>
+                                      )}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                               <p className={`text-xs mt-1 ${
                                 msg.is_admin_reply ? 'text-primary-foreground/70' : 'text-muted-foreground'
                               }`}>
