@@ -10,6 +10,7 @@ import {
   Clock,
   DollarSign,
   BarChart3,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,8 @@ interface Stats {
   totalMeals: number;
   todayOrders: number;
   weeklyRevenue: number;
+  pendingPayouts: number;
+  pendingPayoutsAmount: number;
 }
 
 interface DailyData {
@@ -61,6 +64,8 @@ const AdminDashboard = () => {
     totalMeals: 0,
     todayOrders: 0,
     weeklyRevenue: 0,
+    pendingPayouts: 0,
+    pendingPayoutsAmount: 0,
   });
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -82,6 +87,7 @@ const AdminDashboard = () => {
       schedulesRes,
       mealsRes,
       todaySchedulesRes,
+      pendingPayoutsRes,
     ] = await Promise.all([
       supabase.from("restaurants").select("*", { count: "exact", head: true }),
       supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
@@ -90,7 +96,13 @@ const AdminDashboard = () => {
       supabase.from("meal_schedules").select("*", { count: "exact", head: true }),
       supabase.from("meals").select("*", { count: "exact", head: true }),
       supabase.from("meal_schedules").select("*", { count: "exact", head: true }).eq("scheduled_date", today),
+      supabase.from("payouts").select("amount").eq("status", "pending"),
     ]);
+
+    // Calculate pending payouts amount
+    const pendingPayoutsAmount = (pendingPayoutsRes.data || []).reduce(
+      (sum, p) => sum + Number(p.amount), 0
+    );
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -182,6 +194,8 @@ const AdminDashboard = () => {
       totalMeals: mealsRes.count || 0,
       todayOrders: todaySchedulesRes.count || 0,
       weeklyRevenue,
+      pendingPayouts: pendingPayoutsRes.data?.length || 0,
+      pendingPayoutsAmount,
     });
   };
 
@@ -189,6 +203,7 @@ const AdminDashboard = () => {
     { icon: Store, label: "Restaurants", to: "/admin/restaurants", count: stats.pendingApprovals, color: "text-primary" },
     { icon: Users, label: "Users", to: "/admin/users", color: "text-blue-500" },
     { icon: ShoppingBag, label: "Orders", to: "/admin/orders", color: "text-green-500" },
+    { icon: Wallet, label: "Payouts", to: "/admin/payouts", count: stats.pendingPayouts, color: "text-amber-500" },
     { icon: BarChart3, label: "Analytics", to: "/admin/analytics", color: "text-purple-500" },
   ];
 
@@ -273,6 +288,32 @@ const AdminDashboard = () => {
                   </div>
                   <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
                     Review Now
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Pending Payouts Alert */}
+        {stats.pendingPayouts > 0 && (
+          <Link to="/admin/payouts">
+            <Card className="border-green-500/30 bg-green-500/5 hover:border-green-500/50 transition-colors cursor-pointer">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                      <Wallet className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Pending Partner Payouts</p>
+                      <p className="text-sm text-muted-foreground">
+                        {stats.pendingPayouts} payout{stats.pendingPayouts > 1 ? "s" : ""} worth ${stats.pendingPayoutsAmount.toFixed(2)} awaiting processing
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                    Process Now
                   </Badge>
                 </div>
               </CardContent>
