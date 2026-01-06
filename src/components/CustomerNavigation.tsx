@@ -1,11 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
-import { Salad, Utensils, Calendar, TrendingUp, User } from "lucide-react";
+import { Salad, Utensils, Calendar, Users, User } from "lucide-react";
 
 const navItems = [
   { icon: Salad, label: "Home", to: "/dashboard" },
   { icon: Utensils, label: "Restaurants", to: "/meals" },
   { icon: Calendar, label: "Schedule", to: "/schedule" },
-  { icon: TrendingUp, label: "Progress", to: "/progress" },
+  { icon: Users, label: "Affiliate", to: "/affiliate" },
   { icon: User, label: "Profile", to: "/profile" },
 ];
 
