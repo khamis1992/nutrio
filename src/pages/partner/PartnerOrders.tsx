@@ -6,23 +6,43 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Clock,
   CheckCircle,
   Calendar,
   User,
   Utensils,
   Package,
+  ChefHat,
+  Truck,
+  CircleDot,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 
+type OrderStatus = "pending" | "confirmed" | "preparing" | "delivered";
+
+const ORDER_STATUSES: { value: OrderStatus; label: string; icon: React.ReactNode; color: string }[] = [
+  { value: "pending", label: "Pending", icon: <CircleDot className="h-4 w-4" />, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  { value: "confirmed", label: "Confirmed", icon: <CheckCircle className="h-4 w-4" />, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  { value: "preparing", label: "Preparing", icon: <ChefHat className="h-4 w-4" />, color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  { value: "delivered", label: "Delivered", icon: <Truck className="h-4 w-4" />, color: "bg-green-500/10 text-green-600 border-green-500/20" },
+];
+
 interface ScheduledMeal {
   id: string;
   scheduled_date: string;
   meal_type: string;
   is_completed: boolean;
+  order_status: OrderStatus;
   created_at: string;
   user_id: string;
   meal: {
@@ -122,6 +142,7 @@ const PartnerOrders = () => {
           scheduled_date,
           meal_type,
           is_completed,
+          order_status,
           created_at,
           user_id,
           meals:meal_id (
@@ -162,6 +183,7 @@ const PartnerOrders = () => {
         scheduled_date: s.scheduled_date,
         meal_type: s.meal_type,
         is_completed: s.is_completed || false,
+        order_status: (s.order_status || "pending") as OrderStatus,
         created_at: s.created_at,
         user_id: s.user_id,
         meal: s.meals,
@@ -181,28 +203,38 @@ const PartnerOrders = () => {
     }
   };
 
-  const markAsCompleted = async (scheduleId: string) => {
+  const updateOrderStatus = async (scheduleId: string, newStatus: OrderStatus) => {
     try {
+      const isCompleted = newStatus === "delivered";
+      
       const { error } = await supabase
         .from("meal_schedules")
-        .update({ is_completed: true })
+        .update({ 
+          order_status: newStatus,
+          is_completed: isCompleted 
+        })
         .eq("id", scheduleId);
 
       if (error) throw error;
 
       setScheduledMeals((prev) =>
-        prev.map((s) => (s.id === scheduleId ? { ...s, is_completed: true } : s))
+        prev.map((s) => 
+          s.id === scheduleId 
+            ? { ...s, order_status: newStatus, is_completed: isCompleted } 
+            : s
+        )
       );
 
+      const statusConfig = ORDER_STATUSES.find(s => s.value === newStatus);
       toast({
-        title: "Order completed",
-        description: "The order has been marked as completed",
+        title: "Status updated",
+        description: `Order marked as ${statusConfig?.label || newStatus}`,
       });
     } catch (error) {
       console.error("Error updating order:", error);
       toast({
         title: "Error",
-        description: "Failed to update order",
+        description: "Failed to update order status",
         variant: "destructive",
       });
     }
@@ -230,7 +262,11 @@ const PartnerOrders = () => {
     );
   }
 
-  const renderSchedules = (schedulesList: ScheduledMeal[], showCompleteButton = false) => {
+  const getStatusConfig = (status: OrderStatus) => {
+    return ORDER_STATUSES.find(s => s.value === status) || ORDER_STATUSES[0];
+  };
+
+  const renderSchedules = (schedulesList: ScheduledMeal[], showStatusControl = false) => {
     if (schedulesList.length === 0) {
       return (
         <Card>
@@ -242,76 +278,95 @@ const PartnerOrders = () => {
       );
     }
 
-    return schedulesList.map((schedule) => (
-      <Card key={schedule.id}>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            {/* Meal Image */}
-            <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-3xl overflow-hidden shrink-0">
-              {schedule.meal?.image_url ? (
-                <img
-                  src={schedule.meal.image_url}
-                  alt={schedule.meal.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                "🍽️"
-              )}
-            </div>
+    return schedulesList.map((schedule) => {
+      const statusConfig = getStatusConfig(schedule.order_status);
+      const isOverdue = schedule.scheduled_date < today && !schedule.is_completed;
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div>
-                  <p className="font-semibold truncate">{schedule.meal?.name || "Unknown Meal"}</p>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <User className="h-3 w-3" />
-                    <span>{schedule.profile?.full_name || "Customer"}</span>
+      return (
+        <Card key={schedule.id}>
+          <CardContent className="p-4">
+            <div className="flex gap-4">
+              {/* Meal Image */}
+              <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-3xl overflow-hidden shrink-0">
+                {schedule.meal?.image_url ? (
+                  <img
+                    src={schedule.meal.image_url}
+                    alt={schedule.meal.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  "🍽️"
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="font-semibold truncate">{schedule.meal?.name || "Unknown Meal"}</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                      <User className="h-3 w-3" />
+                      <span>{schedule.profile?.full_name || "Customer"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isOverdue && (
+                      <Badge variant="destructive" className="text-xs">
+                        Overdue
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className={statusConfig.color}>
+                      <span className="flex items-center gap-1">
+                        {statusConfig.icon}
+                        {statusConfig.label}
+                      </span>
+                    </Badge>
                   </div>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={
-                    schedule.is_completed
-                      ? "bg-green-500/10 text-green-600 border-green-500/20"
-                      : schedule.scheduled_date < today
-                      ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                      : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                  }
-                >
-                  {schedule.is_completed ? "Completed" : schedule.scheduled_date < today ? "Overdue" : "Pending"}
-                </Badge>
-              </div>
 
-              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(schedule.scheduled_date).toLocaleDateString()}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Utensils className="h-3 w-3" />
-                  {schedule.meal_type}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {schedule.meal?.calories} kcal
-                </span>
-              </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(schedule.scheduled_date).toLocaleDateString()}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Utensils className="h-3 w-3" />
+                    {schedule.meal_type}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {schedule.meal?.calories} kcal
+                  </span>
+                </div>
 
-              {showCompleteButton && !schedule.is_completed && (
-                <Button
-                  size="sm"
-                  onClick={() => markAsCompleted(schedule.id)}
-                  className="gap-2"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Mark as Completed
-                </Button>
-              )}
+                {showStatusControl && !schedule.is_completed && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Update status:</span>
+                    <Select
+                      value={schedule.order_status}
+                      onValueChange={(value) => updateOrderStatus(schedule.id, value as OrderStatus)}
+                    >
+                      <SelectTrigger className="w-[160px] h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ORDER_STATUSES.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            <span className="flex items-center gap-2">
+                              {status.icon}
+                              {status.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    ));
+          </CardContent>
+        </Card>
+      );
+    });
   };
 
   return (

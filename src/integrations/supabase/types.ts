@@ -114,6 +114,7 @@ export type Database = {
           is_completed: boolean | null
           meal_id: string
           meal_type: string
+          order_status: string
           scheduled_date: string
           user_id: string
         }
@@ -123,6 +124,7 @@ export type Database = {
           is_completed?: boolean | null
           meal_id: string
           meal_type: string
+          order_status?: string
           scheduled_date: string
           user_id: string
         }
@@ -132,6 +134,7 @@ export type Database = {
           is_completed?: boolean | null
           meal_id?: string
           meal_type?: string
+          order_status?: string
           scheduled_date?: string
           user_id?: string
         }
