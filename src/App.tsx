@@ -41,8 +41,10 @@ import PartnerProfile from "./pages/partner/PartnerProfile";
 import PartnerReviews from "./pages/partner/PartnerReviews";
 import PartnerPayouts from "./pages/partner/PartnerPayouts";
 import PartnerOnboarding from "./pages/partner/PartnerOnboarding";
+import PartnerBoost from "./pages/partner/PartnerBoost";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRestaurants from "./pages/admin/AdminRestaurants";
+import AdminFeatured from "./pages/admin/AdminFeatured";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
@@ -302,6 +304,14 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/partner/boost" 
+              element={
+                <ProtectedRoute>
+                  <PartnerBoost />
+                </ProtectedRoute>
+              } 
+            />
             {/* Admin Portal Routes */}
             <Route 
               path="/admin" 
@@ -316,6 +326,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminRestaurants />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/featured" 
+              element={
+                <ProtectedRoute>
+                  <AdminFeatured />
                 </ProtectedRoute>
               } 
             />

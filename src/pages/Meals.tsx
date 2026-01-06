@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { RestaurantSearch } from "@/components/RestaurantSearch";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 
 interface Restaurant {
@@ -36,6 +37,7 @@ const Meals = () => {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
   const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
+  const { isFeatured } = useFeaturedRestaurants();
 
   // Fetch restaurants
   useEffect(() => {
@@ -271,6 +273,7 @@ const Meals = () => {
                 restaurant={restaurant}
                 isFavorite={isFavorite(restaurant.id)}
                 onToggleFavorite={toggleFavorite}
+                isFeatured={isFeatured(restaurant.id)}
               />
             ))
           )}

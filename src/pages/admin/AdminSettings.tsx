@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2 } from "lucide-react";
+import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -39,6 +39,13 @@ interface NotificationSettings {
   sms_enabled: boolean;
 }
 
+interface FeaturedListingPrices {
+  [key: string]: number;
+  weekly: number;
+  biweekly: number;
+  monthly: number;
+}
+
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,6 +72,12 @@ export default function AdminSettings() {
     email_enabled: true,
     push_enabled: true,
     sms_enabled: false,
+  });
+
+  const [featuredPrices, setFeaturedPrices] = useState<FeaturedListingPrices>({
+    weekly: 49,
+    biweekly: 89,
+    monthly: 149,
   });
 
   useEffect(() => {
@@ -94,6 +107,9 @@ export default function AdminSettings() {
           case "notifications":
             setNotifications(value as unknown as NotificationSettings);
             break;
+          case "featured_listing_prices":
+            setFeaturedPrices(value as unknown as FeaturedListingPrices);
+            break;
         }
       });
     } catch (error) {
@@ -112,6 +128,7 @@ export default function AdminSettings() {
         { key: "features", value: features as Json },
         { key: "subscription_plans", value: subscriptionPlans as Json },
         { key: "notifications", value: notifications as Json },
+        { key: "featured_listing_prices", value: featuredPrices as Json },
       ];
 
       for (const update of updates) {
@@ -246,6 +263,58 @@ export default function AdminSettings() {
                   value={subscriptionPlans.family_price}
                   onChange={(e) =>
                     setSubscriptionPlans({ ...subscriptionPlans, family_price: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Featured Listing Pricing */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Featured Listing Pricing
+              </CardTitle>
+              <CardDescription>Configure prices for restaurant boost packages</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="weekly-price">Weekly Boost ($)</Label>
+                <Input
+                  id="weekly-price"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={featuredPrices.weekly}
+                  onChange={(e) =>
+                    setFeaturedPrices({ ...featuredPrices, weekly: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="biweekly-price">Bi-Weekly Boost ($)</Label>
+                <Input
+                  id="biweekly-price"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={featuredPrices.biweekly}
+                  onChange={(e) =>
+                    setFeaturedPrices({ ...featuredPrices, biweekly: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="monthly-price">Monthly Boost ($)</Label>
+                <Input
+                  id="monthly-price"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={featuredPrices.monthly}
+                  onChange={(e) =>
+                    setFeaturedPrices({ ...featuredPrices, monthly: Number(e.target.value) })
                   }
                 />
               </div>

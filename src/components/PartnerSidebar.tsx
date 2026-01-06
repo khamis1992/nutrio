@@ -40,6 +40,11 @@ const navItems = [
   { icon: Settings, label: "Settings", to: "/partner/settings" },
 ];
 
+// Import Sparkles for boost icon
+import { Sparkles } from "lucide-react";
+
+const boostItem = { icon: Sparkles, label: "Boost", to: "/partner/boost" };
+
 export function PartnerSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,6 +96,20 @@ export function PartnerSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {/* Boost item with highlight */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(boostItem.to)}
+                  tooltip={boostItem.label}
+                  className="text-primary"
+                >
+                  <Link to={boostItem.to}>
+                    <boostItem.icon className="h-4 w-4" />
+                    <span>{boostItem.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

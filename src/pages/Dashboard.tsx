@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
@@ -60,6 +61,7 @@ const Dashboard = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurantsLoading, setRestaurantsLoading] = useState(true);
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
+  const { featuredRestaurants, isFeatured } = useFeaturedRestaurants();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
@@ -598,6 +600,7 @@ const Dashboard = () => {
                   restaurant={restaurant}
                   isFavorite={isFavorite(restaurant.id)}
                   onToggleFavorite={toggleFavorite}
+                  isFeatured={isFeatured(restaurant.id)}
                 />
               ))
             )}

@@ -77,6 +77,53 @@ export type Database = {
         }
         Relationships: []
       }
+      featured_listings: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          package_type: string
+          payment_reference: string | null
+          price_paid: number
+          restaurant_id: string
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          package_type: string
+          payment_reference?: string | null
+          price_paid: number
+          restaurant_id: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          package_type?: string
+          payment_reference?: string | null
+          price_paid?: number
+          restaurant_id?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "featured_listings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meal_diet_tags: {
         Row: {
           diet_tag_id: string
