@@ -1,6 +1,14 @@
 import { ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Shield } from "lucide-react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { Shield, Home } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +24,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -82,14 +91,28 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
           <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
             <div className="px-4 h-14 flex items-center gap-4">
               <SidebarTrigger />
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-destructive" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">{title}</p>
-                  {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-                </div>
+              <div className="flex flex-col gap-1">
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to="/admin" className="flex items-center gap-1">
+                          <Home className="w-3.5 h-3.5" />
+                          <span>Admin</span>
+                        </Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    {location.pathname !== "/admin" && (
+                      <>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                          <BreadcrumbPage>{title}</BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </>
+                    )}
+                  </BreadcrumbList>
+                </Breadcrumb>
+                {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
               </div>
             </div>
           </header>
