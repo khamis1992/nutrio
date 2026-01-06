@@ -1,12 +1,12 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Shield } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminNavigation } from "@/components/AdminNavigation";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayoutProps) {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -57,11 +57,6 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -78,35 +73,34 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-        <div className="container max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-destructive" />
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
+            <div className="px-4 h-14 flex items-center gap-4">
+              <SidebarTrigger />
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-destructive" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{title}</p>
+                  {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold">{title}</p>
-              {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          </header>
+
+          <main className="flex-1 p-6">
+            <div className="max-w-6xl mx-auto">
+              {children}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
-              View as Customer
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
+          </main>
         </div>
-      </header>
-
-      <main className="container max-w-6xl mx-auto px-4 py-6">
-        {children}
-      </main>
-
-      <AdminNavigation />
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }
