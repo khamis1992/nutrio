@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Utensils, Clock, Mail, Smartphone, Tag, Check, X, Crown, Pause, Play, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Bell, Utensils, Clock, Mail, Smartphone, Tag, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -570,6 +570,23 @@ const Settings = () => {
                 No dietary tags available
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Support */}
+        <Card 
+          className="cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => navigate("/support")}
+        >
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">Help & Support</p>
+                <p className="text-sm text-muted-foreground">Get help or submit a support ticket</p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
           </CardContent>
         </Card>
       </div>
