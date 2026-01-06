@@ -18,13 +18,17 @@ import {
   Check,
   Loader2,
   Leaf,
-  Crown
+  Crown,
+  Truck,
+  Zap
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useDeliveryFees } from "@/hooks/useDeliveryFees";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/currency";
 
 interface MealDetail {
   id: string;
@@ -58,12 +62,14 @@ const MealDetail = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
+  const { settings: deliverySettings, calculateDeliveryFee, loading: deliveryLoading } = useDeliveryFees();
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedMealType, setSelectedMealType] = useState<string>("lunch");
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<"standard" | "express">("standard");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   useEffect(() => {
@@ -132,6 +138,9 @@ const MealDetail = () => {
 
   const [success, setSuccess] = useState(false);
 
+  // Calculate delivery fee
+  const deliveryFeeResult = calculateDeliveryFee(selectedDeliveryType, 0); // For subscriptions, typically meal cost is covered
+
   const handleAddToSchedule = async () => {
     if (!user || !meal || !selectedDate) return;
 
@@ -169,6 +178,8 @@ const MealDetail = () => {
           meal_id: meal.id,
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           meal_type: selectedMealType,
+          delivery_type: deliveryFeeResult.type,
+          delivery_fee: deliveryFeeResult.fee,
         });
 
       if (error) throw error;
@@ -205,7 +216,7 @@ const MealDetail = () => {
     fat: Math.round((meal.fat_g * 9 / totalMacroCalories) * 100) || 0,
   } : { protein: 0, carbs: 0, fat: 0 };
 
-  if (loading || subscriptionLoading) {
+  if (loading || subscriptionLoading || deliveryLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -487,6 +498,64 @@ const MealDetail = () => {
                         <span className="text-xs">{type.label}</span>
                       </Button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Delivery Type Selection */}
+                {deliverySettings.enabled && (
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">Delivery Option</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        variant={selectedDeliveryType === "standard" ? "default" : "outline"}
+                        className="flex flex-col h-auto py-3 relative"
+                        onClick={() => setSelectedDeliveryType("standard")}
+                      >
+                        <Truck className="w-5 h-5 mb-1" />
+                        <span className="text-sm font-medium">Standard</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatCurrency(deliverySettings.standard)}
+                        </span>
+                      </Button>
+                      <Button
+                        variant={selectedDeliveryType === "express" ? "default" : "outline"}
+                        className="flex flex-col h-auto py-3 relative"
+                        onClick={() => setSelectedDeliveryType("express")}
+                      >
+                        <Zap className="w-5 h-5 mb-1" />
+                        <span className="text-sm font-medium">Express</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatCurrency(deliverySettings.express)}
+                        </span>
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Free delivery on orders over {formatCurrency(deliverySettings.free_threshold)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Order Summary */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Meal</span>
+                    <span className="text-primary font-medium">Included in plan</span>
+                  </div>
+                  {deliverySettings.enabled && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {deliveryFeeResult.type === "express" ? "Express" : "Standard"} Delivery
+                      </span>
+                      <span className={deliveryFeeResult.fee === 0 ? "text-primary font-medium" : ""}>
+                        {deliveryFeeResult.fee === 0 ? "Free" : formatCurrency(deliveryFeeResult.fee)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t pt-2 flex justify-between font-medium">
+                    <span>Total</span>
+                    <span>
+                      {deliveryFeeResult.fee === 0 ? "Free" : formatCurrency(deliveryFeeResult.fee)}
+                    </span>
                   </div>
                 </div>
               </div>

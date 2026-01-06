@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,9 @@ import {
   CircleDot,
   MapPin,
   Store,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Zap,
+  DollarSign
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -34,6 +37,8 @@ interface ScheduledMealDetail {
   is_completed: boolean;
   order_status: string;
   created_at: string;
+  delivery_type: string | null;
+  delivery_fee: number | null;
   meal: {
     id: string;
     name: string;
@@ -153,7 +158,9 @@ const OrderDetail = () => {
           is_completed,
           order_status,
           created_at,
-          meal_id
+          meal_id,
+          delivery_type,
+          delivery_fee
         `)
         .eq("id", id)
         .eq("user_id", user.id)
@@ -198,6 +205,8 @@ const OrderDetail = () => {
         is_completed: data.is_completed,
         order_status: data.order_status || "pending",
         created_at: data.created_at,
+        delivery_type: data.delivery_type,
+        delivery_fee: data.delivery_fee,
         meal: mealData ? {
           ...mealData,
           diet_tags: mealData.meal_diet_tags?.map((mdt: any) => mdt.diet_tags).filter(Boolean) || [],
@@ -469,6 +478,41 @@ const OrderDetail = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Delivery & Payment Info */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Delivery & Payment</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                {order.delivery_type === "express" ? (
+                  <Zap className="h-5 w-5 text-primary" />
+                ) : (
+                  <Truck className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium">Delivery Type</p>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {order.delivery_type === "free" ? "Free Delivery" : `${order.delivery_type || "Standard"} Delivery`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Delivery Fee</p>
+                <p className="text-sm text-muted-foreground">
+                  {order.delivery_fee === 0 || !order.delivery_fee ? "Free" : formatCurrency(order.delivery_fee)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Subscription Badge */}
         <Card className="border-primary/30 bg-primary/5">

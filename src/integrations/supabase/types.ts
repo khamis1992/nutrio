@@ -157,6 +157,8 @@ export type Database = {
       meal_schedules: {
         Row: {
           created_at: string
+          delivery_fee: number | null
+          delivery_type: string | null
           id: string
           is_completed: boolean | null
           meal_id: string
@@ -167,6 +169,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_fee?: number | null
+          delivery_type?: string | null
           id?: string
           is_completed?: boolean | null
           meal_id: string
@@ -177,6 +181,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_fee?: number | null
+          delivery_type?: string | null
           id?: string
           is_completed?: boolean | null
           meal_id?: string
