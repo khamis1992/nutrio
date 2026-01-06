@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles } from "lucide-react";
+import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -46,6 +46,14 @@ interface FeaturedListingPrices {
   monthly: number;
 }
 
+interface DeliveryFeeSettings {
+  [key: string]: number | boolean;
+  standard: number;
+  express: number;
+  free_threshold: number;
+  enabled: boolean;
+}
+
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,6 +88,13 @@ export default function AdminSettings() {
     monthly: 149,
   });
 
+  const [deliveryFees, setDeliveryFees] = useState<DeliveryFeeSettings>({
+    standard: 3.99,
+    express: 6.99,
+    free_threshold: 50,
+    enabled: true,
+  });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -110,6 +125,9 @@ export default function AdminSettings() {
           case "featured_listing_prices":
             setFeaturedPrices(value as unknown as FeaturedListingPrices);
             break;
+          case "delivery_fees":
+            setDeliveryFees(value as unknown as DeliveryFeeSettings);
+            break;
         }
       });
     } catch (error) {
@@ -129,6 +147,7 @@ export default function AdminSettings() {
         { key: "subscription_plans", value: subscriptionPlans as Json },
         { key: "notifications", value: notifications as Json },
         { key: "featured_listing_prices", value: featuredPrices as Json },
+        { key: "delivery_fees", value: deliveryFees as Json },
       ];
 
       for (const update of updates) {
@@ -381,6 +400,74 @@ export default function AdminSettings() {
                     setFeatures({ ...features, delivery_tracking: checked })
                   }
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Delivery Fee Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" />
+                Delivery Fee Settings
+              </CardTitle>
+              <CardDescription>Configure delivery fees for customer orders</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Enable Delivery Fees</Label>
+                  <p className="text-sm text-muted-foreground">Charge customers for delivery</p>
+                </div>
+                <Switch
+                  checked={deliveryFees.enabled}
+                  onCheckedChange={(checked) =>
+                    setDeliveryFees({ ...deliveryFees, enabled: checked })
+                  }
+                />
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Label htmlFor="standard-delivery">Standard Delivery ($)</Label>
+                <Input
+                  id="standard-delivery"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliveryFees.standard}
+                  onChange={(e) =>
+                    setDeliveryFees({ ...deliveryFees, standard: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="express-delivery">Express Delivery ($)</Label>
+                <Input
+                  id="express-delivery"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliveryFees.express}
+                  onChange={(e) =>
+                    setDeliveryFees({ ...deliveryFees, express: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="free-threshold">Free Delivery Threshold ($)</Label>
+                <Input
+                  id="free-threshold"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={deliveryFees.free_threshold}
+                  onChange={(e) =>
+                    setDeliveryFees({ ...deliveryFees, free_threshold: Number(e.target.value) })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Orders over this amount get free delivery
+                </p>
               </div>
             </CardContent>
           </Card>
