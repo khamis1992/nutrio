@@ -1,29 +1,18 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { LogoUpload } from "@/components/LogoUpload";
-import {
-  Store,
-  UtensilsCrossed,
-  Package,
-  Settings,
-  ArrowLeft,
-  Save,
-  Mail,
-  Phone,
-  MapPin,
-  Loader2,
-} from "lucide-react";
+import { Save, Mail, Phone, MapPin, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { PartnerNavigation } from "@/components/PartnerNavigation";
+import { PartnerLayout } from "@/components/PartnerLayout";
+import { useNavigate } from "react-router-dom";
 
 interface Restaurant {
   id: string;
@@ -137,41 +126,24 @@ const PartnerSettings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
+      <PartnerLayout title="Settings">
+        <div className="space-y-4">
           <Skeleton className="h-64 w-full" />
         </div>
-      </div>
+      </PartnerLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/partner")}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-semibold">Restaurant Settings</h1>
-            </div>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save
-            </Button>
-          </div>
+    <PartnerLayout title="Settings" subtitle="Restaurant settings">
+      <div className="space-y-6 max-w-2xl">
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Save
+          </Button>
         </div>
-      </header>
 
-      <main className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Basic Info */}
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
@@ -205,7 +177,6 @@ const PartnerSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Contact Info */}
         <Card>
           <CardHeader>
             <CardTitle>Contact Information</CardTitle>
@@ -213,10 +184,7 @@ const PartnerSettings = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Address
-              </Label>
+              <Label className="flex items-center gap-2"><MapPin className="h-4 w-4" />Address</Label>
               <Input
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -225,10 +193,7 @@ const PartnerSettings = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                Phone Number
-              </Label>
+              <Label className="flex items-center gap-2"><Phone className="h-4 w-4" />Phone Number</Label>
               <Input
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -237,10 +202,7 @@ const PartnerSettings = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Email Address
-              </Label>
+              <Label className="flex items-center gap-2"><Mail className="h-4 w-4" />Email Address</Label>
               <Input
                 type="email"
                 value={formData.email}
@@ -251,7 +213,6 @@ const PartnerSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Availability */}
         <Card>
           <CardHeader>
             <CardTitle>Availability</CardTitle>
@@ -261,23 +222,17 @@ const PartnerSettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Restaurant Active</Label>
-                <p className="text-sm text-muted-foreground">
-                  When disabled, your restaurant won't appear in search results
-                </p>
+                <p className="text-sm text-muted-foreground">When disabled, your restaurant won't appear in search results</p>
               </div>
               <Switch
                 checked={formData.is_active}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, is_active: checked })
-                }
+                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               />
             </div>
           </CardContent>
         </Card>
-      </main>
-
-      <PartnerNavigation />
-    </div>
+      </div>
+    </PartnerLayout>
   );
 };
 

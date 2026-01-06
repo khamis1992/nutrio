@@ -13,9 +13,6 @@ import {
   Clock,
   ChevronRight,
   Plus,
-  Settings,
-  Bell,
-  LogOut,
   Star,
   Package,
   BarChart3,
@@ -26,8 +23,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { RoleIndicator } from "@/components/RoleIndicator";
-import { PartnerNavigation } from "@/components/PartnerNavigation";
+import { PartnerLayout } from "@/components/PartnerLayout";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 
 interface Restaurant {
@@ -63,7 +59,7 @@ interface Stats {
 
 const PartnerDashboard = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -266,11 +262,6 @@ const PartnerDashboard = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
-
   const getStatusColor = (isCompleted: boolean, scheduledDate: string) => {
     const today = new Date().toISOString().split("T")[0];
     if (isCompleted) {
@@ -290,8 +281,8 @@ const PartnerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <PartnerLayout title="Dashboard">
+        <div className="space-y-6">
           <Skeleton className="h-16 w-full" />
           <div className="grid grid-cols-2 gap-4">
             <Skeleton className="h-24" />
@@ -301,7 +292,7 @@ const PartnerDashboard = () => {
           </div>
           <Skeleton className="h-64" />
         </div>
-      </div>
+      </PartnerLayout>
     );
   }
 
@@ -330,55 +321,45 @@ const PartnerDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              {restaurant.logo_url ? (
-                <img
-                  src={restaurant.logo_url}
-                  alt={restaurant.name}
-                  className="w-full h-full object-cover rounded-xl"
-                />
-              ) : (
-                <Store className="w-5 h-5 text-primary" />
+    <PartnerLayout title="Dashboard">
+      <div className="space-y-6">
+        {/* Restaurant Info Header */}
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            {restaurant.logo_url ? (
+              <img
+                src={restaurant.logo_url}
+                alt={restaurant.name}
+                className="w-full h-full object-cover rounded-xl"
+              />
+            ) : (
+              <Store className="w-6 h-6 text-primary" />
+            )}
+          </div>
+          <div>
+            <h2 className="font-semibold text-lg">{restaurant.name}</h2>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={restaurant.is_active ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {restaurant.is_active ? "Active" : "Inactive"}
+              </Badge>
+              {restaurant.rating > 0 && (
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                  {restaurant.rating.toFixed(1)}
+                </span>
               )}
             </div>
-            <div>
-              <p className="font-semibold">{restaurant.name}</p>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant={restaurant.is_active ? "default" : "secondary"}
-                  className="text-xs"
-                >
-                  {restaurant.is_active ? "Active" : "Inactive"}
-                </Badge>
-                {restaurant.rating > 0 && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                    {restaurant.rating.toFixed(1)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <RoleIndicator role="partner" />
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="w-5 h-5" />
-            </Button>
           </div>
         </div>
-      </header>
 
-      <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Platform Announcements */}
         <AnnouncementsBanner audience="partners" />
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
@@ -485,7 +466,7 @@ const PartnerDashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           <Link to="/partner/menu">
             <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
               <CardContent className="pt-4 text-center">
@@ -526,11 +507,11 @@ const PartnerDashboard = () => {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/partner/settings">
+          <Link to="/partner/profile">
             <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
               <CardContent className="pt-4 text-center">
-                <Settings className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                <p className="font-medium text-sm">Settings</p>
+                <User className="h-6 w-6 mx-auto mb-2 text-gray-500" />
+                <p className="font-medium text-sm">Profile</p>
               </CardContent>
             </Card>
           </Link>
@@ -538,22 +519,25 @@ const PartnerDashboard = () => {
 
         {/* Recent Orders */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Recent Orders</CardTitle>
-              <Link to="/partner/orders">
-                <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/partner/orders" className="flex items-center gap-1">
                   View All
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {recentSchedules.length === 0 ? (
               <div className="text-center py-8">
-                <ShoppingBag className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                 <p className="text-muted-foreground">No orders yet</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Orders will appear here when customers schedule your meals
+                </p>
               </div>
             ) : (
               recentSchedules.slice(0, 5).map((schedule) => (
@@ -562,36 +546,26 @@ const PartnerDashboard = () => {
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center">
-                      <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+                    <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center text-xl">
+                      🍽️
                     </div>
                     <div>
-                      <p className="font-medium text-sm">
-                        {schedule.meal?.name || "Unknown Meal"}
-                      </p>
+                      <p className="font-medium">{schedule.meal?.name || "Unknown Meal"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(schedule.scheduled_date).toLocaleDateString()} •{" "}
-                        {schedule.meal_type}
+                        {new Date(schedule.scheduled_date).toLocaleDateString()} • {schedule.meal_type}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="outline" className={getStatusColor(schedule.is_completed, schedule.scheduled_date)}>
-                      {getStatusLabel(schedule.is_completed, schedule.scheduled_date)}
-                    </Badge>
-                    <p className="text-sm font-medium mt-1">
-                      ${parseFloat(schedule.meal?.price?.toString() || "0").toFixed(2)}
-                    </p>
-                  </div>
+                  <Badge variant="outline" className={getStatusColor(schedule.is_completed, schedule.scheduled_date)}>
+                    {getStatusLabel(schedule.is_completed, schedule.scheduled_date)}
+                  </Badge>
                 </div>
               ))
             )}
           </CardContent>
         </Card>
-      </main>
-
-      <PartnerNavigation />
-    </div>
+      </div>
+    </PartnerLayout>
   );
 };
 
