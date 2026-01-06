@@ -47,6 +47,7 @@ interface MealDetail {
   fiber_g: number | null;
   rating: number;
   prep_time_minutes: number;
+  is_vip_exclusive: boolean;
   restaurant: {
     name: string;
     address: string | null;
@@ -106,6 +107,7 @@ const MealDetail = () => {
             fiber_g,
             rating,
             prep_time_minutes,
+            is_vip_exclusive,
             restaurants (name, address),
             meal_diet_tags (
               diet_tags (name)
@@ -129,6 +131,7 @@ const MealDetail = () => {
             fiber_g: data.fiber_g ? parseFloat(String(data.fiber_g)) : null,
             rating: parseFloat(String(data.rating)) || 0,
             prep_time_minutes: data.prep_time_minutes || 15,
+            is_vip_exclusive: data.is_vip_exclusive || false,
             restaurant: {
               name: (data.restaurants as any)?.name || "Unknown",
               address: (data.restaurants as any)?.address || null,
@@ -318,9 +321,16 @@ const MealDetail = () => {
                   {meal.restaurant.name}
                 </p>
               </div>
-              <Badge variant="secondary" className="bg-primary/10 text-primary">
-                Included in plan
-              </Badge>
+              {meal.is_vip_exclusive ? (
+                <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white">
+                  <Crown className="w-3 h-3 mr-1" />
+                  VIP Exclusive
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-primary/10 text-primary">
+                  Included in plan
+                </Badge>
+              )}
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">

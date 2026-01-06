@@ -259,6 +259,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_available: boolean | null
+          is_vip_exclusive: boolean | null
           name: string
           order_count: number | null
           prep_time_minutes: number | null
@@ -278,6 +279,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          is_vip_exclusive?: boolean | null
           name: string
           order_count?: number | null
           prep_time_minutes?: number | null
@@ -297,6 +299,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          is_vip_exclusive?: boolean | null
           name?: string
           order_count?: number | null
           prep_time_minutes?: number | null
