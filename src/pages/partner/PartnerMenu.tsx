@@ -39,6 +39,7 @@ import {
   Sparkles,
   CheckCircle2,
   Package,
+  Crown,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,6 +62,7 @@ interface Meal {
   image_url: string | null;
   prep_time_minutes: number | null;
   is_available: boolean;
+  is_vip_exclusive: boolean;
   rating: number;
   order_count: number;
   diet_tags?: string[];
@@ -84,6 +86,7 @@ const mealSchema = z.object({
   prep_time_minutes: z.number().min(1).optional(),
   image_url: z.string().url().optional().or(z.literal("")),
   is_available: z.boolean(),
+  is_vip_exclusive: z.boolean(),
 });
 
 type MealFormData = z.infer<typeof mealSchema>;
@@ -100,6 +103,7 @@ const emptyMeal: MealFormData = {
   prep_time_minutes: 15,
   image_url: "",
   is_available: true,
+  is_vip_exclusive: false,
 };
 
 const PartnerMenu = () => {
@@ -206,6 +210,7 @@ const PartnerMenu = () => {
       prep_time_minutes: meal.prep_time_minutes || 15,
       image_url: meal.image_url || "",
       is_available: meal.is_available,
+      is_vip_exclusive: meal.is_vip_exclusive,
     });
     setFormErrors({});
 
@@ -250,6 +255,7 @@ const PartnerMenu = () => {
         prep_time_minutes: formData.prep_time_minutes || 15,
         image_url: formData.image_url?.trim() || null,
         is_available: formData.is_available,
+        is_vip_exclusive: formData.is_vip_exclusive,
       };
 
       let mealId = editingMeal?.id;
@@ -472,9 +478,17 @@ const PartnerMenu = () => {
                       />
                     )}
                     <div className="flex-1">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h3 className="font-semibold">{meal.name}</h3>
+                          <h3 className="font-semibold flex items-center gap-2">
+                            {meal.name}
+                            {meal.is_vip_exclusive && (
+                              <Badge variant="outline" className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/50 text-amber-600">
+                                <Crown className="h-3 w-3 mr-1" />
+                                VIP
+                              </Badge>
+                            )}
+                          </h3>
                           {meal.description && (
                             <p className="text-sm text-muted-foreground line-clamp-2">
                               {meal.description}
@@ -695,6 +709,21 @@ const PartnerMenu = () => {
                 </div>
               </div>
             )}
+
+            {/* VIP Exclusive */}
+            <div className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-yellow-500/5">
+              <div className="flex items-center gap-3">
+                <Crown className="h-5 w-5 text-amber-500" />
+                <div>
+                  <Label>VIP Exclusive</Label>
+                  <p className="text-xs text-muted-foreground">Only VIP subscribers can order this meal</p>
+                </div>
+              </div>
+              <Switch
+                checked={formData.is_vip_exclusive}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_vip_exclusive: checked })}
+              />
+            </div>
 
             {/* Availability */}
             <div className="flex items-center justify-between">

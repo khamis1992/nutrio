@@ -48,6 +48,7 @@ interface Meal {
   rating: number;
   prep_time_minutes: number;
   diet_tags: string[];
+  is_vip_exclusive: boolean;
 }
 
 const RestaurantDetail = () => {
@@ -100,6 +101,7 @@ const RestaurantDetail = () => {
             fat_g,
             rating,
             prep_time_minutes,
+            is_vip_exclusive,
             meal_diet_tags (
               diet_tags (id, name)
             )
@@ -120,6 +122,7 @@ const RestaurantDetail = () => {
           rating: parseFloat(meal.rating) || 0,
           prep_time_minutes: meal.prep_time_minutes || 15,
           diet_tags: meal.meal_diet_tags?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
+          is_vip_exclusive: meal.is_vip_exclusive || false,
         }));
 
         setMeals(transformedMeals);
@@ -405,9 +408,16 @@ const RestaurantDetail = () => {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
-                      <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs">
-                        Included
-                      </Badge>
+                      {meal.is_vip_exclusive ? (
+                        <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white text-xs">
+                          <Crown className="w-3 h-3 mr-1" />
+                          VIP Only
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs">
+                          Included
+                        </Badge>
+                      )}
                       <div className="absolute bottom-0 left-0 right-0 p-3">
                         <h4 className="font-semibold text-sm line-clamp-2 mb-1">{meal.name}</h4>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -448,9 +458,16 @@ const RestaurantDetail = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="font-semibold truncate">{meal.name}</h4>
-                            <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-xs">
-                              Included
-                            </Badge>
+                            {meal.is_vip_exclusive ? (
+                              <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white shrink-0 text-xs">
+                                <Crown className="w-3 h-3 mr-1" />
+                                VIP Only
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-xs">
+                                Included
+                              </Badge>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
