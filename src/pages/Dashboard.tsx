@@ -37,6 +37,7 @@ import { RestaurantCard } from "@/components/RestaurantCard";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 
 interface Restaurant {
   id: string;
@@ -225,6 +226,9 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 pb-24">
+        {/* Platform Announcements */}
+        <AnnouncementsBanner />
+
         {/* Subscription Status Card */}
         {hasActiveSubscription ? (
           <Card variant="stat" className="animate-fade-in border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
