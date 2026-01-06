@@ -53,6 +53,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminExports from "./pages/admin/AdminExports";
 import AdminPayouts from "./pages/admin/AdminPayouts";
+import AdminAffiliatePayouts from "./pages/admin/AdminAffiliatePayouts";
 import AdminDietTags from "./pages/admin/AdminDietTags";
 import AdminPromotions from "./pages/admin/AdminPromotions";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
@@ -399,6 +400,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminPayouts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/affiliate-payouts" 
+              element={
+                <ProtectedRoute>
+                  <AdminAffiliatePayouts />
                 </ProtectedRoute>
               } 
             />

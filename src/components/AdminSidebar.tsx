@@ -15,7 +15,8 @@ import {
   Bell,
   Megaphone,
   LogOut,
-  Sparkles
+  Sparkles,
+  UserCheck
 } from "lucide-react";
 import {
   Sidebar,
@@ -43,6 +44,7 @@ const navItems = [
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
   { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
   { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
+  { icon: UserCheck, label: "Affiliate Payouts", to: "/admin/affiliate-payouts" },
   { icon: Tag, label: "Diet Tags", to: "/admin/diet-tags" },
   { icon: Ticket, label: "Promotions", to: "/admin/promotions" },
   { icon: Megaphone, label: "Announcements", to: "/admin/announcements" },
