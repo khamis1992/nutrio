@@ -54,6 +54,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminExports from "./pages/admin/AdminExports";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import AdminAffiliatePayouts from "./pages/admin/AdminAffiliatePayouts";
+import AdminMilestones from "./pages/admin/AdminMilestones";
 import AdminDietTags from "./pages/admin/AdminDietTags";
 import AdminPromotions from "./pages/admin/AdminPromotions";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
@@ -408,6 +409,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminAffiliatePayouts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/milestones" 
+              element={
+                <ProtectedRoute>
+                  <AdminMilestones />
                 </ProtectedRoute>
               } 
             />
