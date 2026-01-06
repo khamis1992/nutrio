@@ -14,7 +14,8 @@ import {
   Headphones, 
   Bell,
   Megaphone,
-  LogOut
+  LogOut,
+  Sparkles
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,6 +38,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const navItems = [
   { icon: Shield, label: "Dashboard", to: "/admin" },
   { icon: Store, label: "Restaurants", to: "/admin/restaurants" },
+  { icon: Sparkles, label: "Featured", to: "/admin/featured" },
   { icon: Users, label: "Users", to: "/admin/users" },
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
   { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
