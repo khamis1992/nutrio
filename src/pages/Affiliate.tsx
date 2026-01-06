@@ -39,17 +39,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAffiliateProgram } from "@/hooks/useAffiliateProgram";
+import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { useProfile } from "@/hooks/useProfile";
 import { formatCurrency } from "@/lib/currency";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AffiliateLeaderboard } from "@/components/AffiliateLeaderboard";
 import { ReferralMilestones } from "@/components/ReferralMilestones";
+import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard";
 
 export default function Affiliate() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const { profile } = useProfile();
+  const { isApprovedAffiliate, loading: applicationLoading } = useAffiliateApplication();
   const { 
     settings, 
     stats, 
@@ -129,6 +132,28 @@ export default function Affiliate() {
     ? Math.min((stats.tier1Referrals / nextTierInfo.minReferrals) * 100, 100)
     : 100;
 
+  // Not approved - show application card
+  if (!isApprovedAffiliate && !applicationLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
+          <div className="container max-w-2xl mx-auto px-4 py-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-xl font-semibold">Affiliate Program</h1>
+            </div>
+          </div>
+        </header>
+        <div className="container max-w-2xl mx-auto px-4 py-6">
+          <AffiliateApplicationCard />
+        </div>
+        <CustomerNavigation />
+      </div>
+    );
+  }
+
   if (!settings.enabled) {
     return (
       <div className="min-h-screen bg-background pb-24">
@@ -151,11 +176,12 @@ export default function Affiliate() {
             </CardContent>
           </Card>
         </div>
+        <CustomerNavigation />
       </div>
     );
   }
 
-  if (loading) {
+  if (loading || applicationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

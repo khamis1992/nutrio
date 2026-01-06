@@ -46,6 +46,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard";
 import { supabase } from "@/integrations/supabase/client";
 import {
   calculateNutritionTargets,
@@ -387,6 +388,9 @@ const Profile = () => {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-4">
+            {/* Affiliate Application Card */}
+            <AffiliateApplicationCard />
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Personal Information</CardTitle>
