@@ -545,19 +545,34 @@ const Dashboard = () => {
             </Card>
           </Link>
           {platformSettings.features.referral_program && (
-            <Link to="/referral">
-              <Card variant="interactive" className="h-full">
-                <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                  <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
-                    <Gift className="w-5 h-5 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Refer</p>
-                    <p className="text-xs text-muted-foreground">Earn $10</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <>
+              <Link to="/referral">
+                <Card variant="interactive" className="h-full">
+                  <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                    <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
+                      <Gift className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Refer</p>
+                      <p className="text-xs text-muted-foreground">Earn $10</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to="/affiliate">
+                <Card variant="interactive" className="h-full border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+                  <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-violet-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Affiliate</p>
+                      <p className="text-xs text-muted-foreground">Earn more</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            </>
           )}
           <Link to="/addresses">
             <Card variant="interactive" className="h-full">
