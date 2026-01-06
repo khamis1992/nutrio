@@ -1,13 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { Shield, Store, Users, ShoppingBag, BarChart3, CreditCard } from "lucide-react";
+import { Shield, Store, Users, ShoppingBag, BarChart3, CreditCard, Settings } from "lucide-react";
 
 const navItems = [
   { icon: Shield, label: "Dashboard", to: "/admin" },
   { icon: Store, label: "Restaurants", to: "/admin/restaurants" },
   { icon: Users, label: "Users", to: "/admin/users" },
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
-  { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
+  { icon: CreditCard, label: "Subs", to: "/admin/subscriptions" },
   { icon: BarChart3, label: "Analytics", to: "/admin/analytics" },
+  { icon: Settings, label: "Settings", to: "/admin/settings" },
 ];
 
 export function AdminNavigation() {
