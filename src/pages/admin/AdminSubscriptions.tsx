@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Search, CreditCard, Calendar, User, Edit, XCircle, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/currency";
 
 interface SubscriptionData {
   id: string;
@@ -244,7 +245,7 @@ export default function AdminSubscriptions() {
               <CreditCard className="h-4 w-4 text-primary" />
               <span className="text-sm text-muted-foreground">Monthly Revenue</span>
             </div>
-            <p className="text-2xl font-bold">${stats.revenue.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(stats.revenue)}</p>
           </CardContent>
         </Card>
       </div>
@@ -291,7 +292,7 @@ export default function AdminSubscriptions() {
                       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CreditCard className="h-3 w-3" />
-                          ${subscription.price}/month
+                          {formatCurrency(subscription.price)}/month
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />

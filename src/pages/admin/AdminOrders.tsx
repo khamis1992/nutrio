@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
+import { formatCurrency } from "@/lib/currency";
 
 interface OrderData {
   id: string;
@@ -212,7 +213,7 @@ const AdminOrders = () => {
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="secondary">{order.meal_type}</Badge>
                           <span className="text-sm font-medium">
-                            ${order.meal.price.toFixed(2)}
+                            {formatCurrency(order.meal.price)}
                           </span>
                         </div>
                       </div>

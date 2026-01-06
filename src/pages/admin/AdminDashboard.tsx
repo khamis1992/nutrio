@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
+import { formatCurrency } from "@/lib/currency";
 import {
   LineChart,
   Line,
@@ -261,7 +262,7 @@ const AdminDashboard = () => {
                   <DollarSign className="h-5 w-5 text-purple-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">${stats.weeklyRevenue.toFixed(0)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats.weeklyRevenue)}</p>
                   <p className="text-xs text-muted-foreground">Weekly Revenue</p>
                 </div>
               </div>
