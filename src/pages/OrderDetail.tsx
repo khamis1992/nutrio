@@ -30,6 +30,17 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+interface ScheduleAddon {
+  id: string;
+  addon_id: string;
+  quantity: number;
+  unit_price: number;
+  addon: {
+    name: string;
+    category: string;
+  };
+}
+
 interface ScheduledMealDetail {
   id: string;
   scheduled_date: string;
@@ -39,6 +50,8 @@ interface ScheduledMealDetail {
   created_at: string;
   delivery_type: string | null;
   delivery_fee: number | null;
+  addons_total: number | null;
+  addons: ScheduleAddon[];
   meal: {
     id: string;
     name: string;
@@ -160,7 +173,8 @@ const OrderDetail = () => {
           created_at,
           meal_id,
           delivery_type,
-          delivery_fee
+          delivery_fee,
+          addons_total
         `)
         .eq("id", id)
         .eq("user_id", user.id)
@@ -198,6 +212,18 @@ const OrderDetail = () => {
 
       if (mealError) throw mealError;
 
+      // Fetch schedule add-ons
+      const { data: addonsData } = await supabase
+        .from("schedule_addons")
+        .select(`
+          id,
+          addon_id,
+          quantity,
+          unit_price,
+          addon:meal_addons (name, category)
+        `)
+        .eq("schedule_id", data.id);
+
       const transformed: ScheduledMealDetail = {
         id: data.id,
         scheduled_date: data.scheduled_date,
@@ -207,6 +233,14 @@ const OrderDetail = () => {
         created_at: data.created_at,
         delivery_type: data.delivery_type,
         delivery_fee: data.delivery_fee,
+        addons_total: data.addons_total || 0,
+        addons: (addonsData || []).map((a: any) => ({
+          id: a.id,
+          addon_id: a.addon_id,
+          quantity: a.quantity,
+          unit_price: a.unit_price,
+          addon: a.addon,
+        })),
         meal: mealData ? {
           ...mealData,
           diet_tags: mealData.meal_diet_tags?.map((mdt: any) => mdt.diet_tags).filter(Boolean) || [],

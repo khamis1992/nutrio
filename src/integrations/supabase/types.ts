@@ -124,6 +124,50 @@ export type Database = {
           },
         ]
       }
+      meal_addons: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_available: boolean
+          meal_id: string
+          name: string
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_available?: boolean
+          meal_id: string
+          name: string
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_available?: boolean
+          meal_id?: string
+          name?: string
+          price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_addons_meal_id_fkey"
+            columns: ["meal_id"]
+            isOneToOne: false
+            referencedRelation: "meals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meal_diet_tags: {
         Row: {
           diet_tag_id: string
@@ -156,6 +200,7 @@ export type Database = {
       }
       meal_schedules: {
         Row: {
+          addons_total: number | null
           created_at: string
           delivery_fee: number | null
           delivery_type: string | null
@@ -168,6 +213,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          addons_total?: number | null
           created_at?: string
           delivery_fee?: number | null
           delivery_type?: string | null
@@ -180,6 +226,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          addons_total?: number | null
           created_at?: string
           delivery_fee?: number | null
           delivery_type?: string | null
@@ -885,6 +932,48 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_addons: {
+        Row: {
+          addon_id: string
+          created_at: string
+          id: string
+          quantity: number
+          schedule_id: string
+          unit_price: number
+        }
+        Insert: {
+          addon_id: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          schedule_id: string
+          unit_price: number
+        }
+        Update: {
+          addon_id?: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          schedule_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "meal_addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_addons_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "meal_schedules"
             referencedColumns: ["id"]
           },
         ]

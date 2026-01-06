@@ -38,6 +38,7 @@ import {
   Tag,
   Sparkles,
   CheckCircle2,
+  Package,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +46,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PartnerLayout } from "@/components/PartnerLayout";
+import { MealAddonsManager } from "@/components/MealAddonsManager";
 
 interface Meal {
   id: string;
@@ -119,6 +121,8 @@ const PartnerMenu = () => {
   const [formData, setFormData] = useState<MealFormData>(emptyMeal);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [addonsDialogOpen, setAddonsDialogOpen] = useState(false);
+  const [selectedMealForAddons, setSelectedMealForAddons] = useState<Meal | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -507,6 +511,17 @@ const PartnerMenu = () => {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => {
+                            setSelectedMealForAddons(meal);
+                            setAddonsDialogOpen(true);
+                          }}
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          Add-ons
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => toggleAvailability(meal)}
                         >
                           {meal.is_available ? "Hide" : "Show"}
@@ -722,6 +737,16 @@ const PartnerMenu = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add-ons Manager */}
+      {selectedMealForAddons && (
+        <MealAddonsManager
+          mealId={selectedMealForAddons.id}
+          mealName={selectedMealForAddons.name}
+          open={addonsDialogOpen}
+          onOpenChange={setAddonsDialogOpen}
+        />
+      )}
     </PartnerLayout>
   );
 };
