@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          commission_amount: number
+          commission_rate: number
+          created_at: string
+          id: string
+          order_amount: number
+          order_id: string | null
+          paid_at: string | null
+          source_user_id: string
+          status: string
+          tier: number
+          user_id: string
+        }
+        Insert: {
+          commission_amount: number
+          commission_rate: number
+          created_at?: string
+          id?: string
+          order_amount?: number
+          order_id?: string | null
+          paid_at?: string | null
+          source_user_id: string
+          status?: string
+          tier: number
+          user_id: string
+        }
+        Update: {
+          commission_amount?: number
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          order_amount?: number
+          order_id?: string | null
+          paid_at?: string | null
+          source_user_id?: string
+          status?: string
+          tier?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_payouts: {
+        Row: {
+          amount: number
+          id: string
+          notes: string | null
+          payout_details: Json | null
+          payout_method: string | null
+          processed_at: string | null
+          requested_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          id?: string
+          notes?: string | null
+          payout_details?: Json | null
+          payout_method?: string | null
+          processed_at?: string | null
+          requested_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          id?: string
+          notes?: string | null
+          payout_details?: Json | null
+          payout_method?: string | null
+          processed_at?: string | null
+          requested_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           created_at: string
@@ -628,6 +714,8 @@ export type Database = {
       profiles: {
         Row: {
           activity_level: Database["public"]["Enums"]["activity_level"] | null
+          affiliate_balance: number | null
+          affiliate_tier: string | null
           age: number | null
           avatar_url: string | null
           carbs_target_g: number | null
@@ -646,11 +734,17 @@ export type Database = {
           referral_rewards_earned: number | null
           referred_by: string | null
           target_weight_kg: number | null
+          tier1_referrer_id: string | null
+          tier2_referrer_id: string | null
+          tier3_referrer_id: string | null
+          total_affiliate_earnings: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           activity_level?: Database["public"]["Enums"]["activity_level"] | null
+          affiliate_balance?: number | null
+          affiliate_tier?: string | null
           age?: number | null
           avatar_url?: string | null
           carbs_target_g?: number | null
@@ -669,11 +763,17 @@ export type Database = {
           referral_rewards_earned?: number | null
           referred_by?: string | null
           target_weight_kg?: number | null
+          tier1_referrer_id?: string | null
+          tier2_referrer_id?: string | null
+          tier3_referrer_id?: string | null
+          total_affiliate_earnings?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           activity_level?: Database["public"]["Enums"]["activity_level"] | null
+          affiliate_balance?: number | null
+          affiliate_tier?: string | null
           age?: number | null
           avatar_url?: string | null
           carbs_target_g?: number | null
@@ -692,6 +792,10 @@ export type Database = {
           referral_rewards_earned?: number | null
           referred_by?: string | null
           target_weight_kg?: number | null
+          tier1_referrer_id?: string | null
+          tier2_referrer_id?: string | null
+          tier3_referrer_id?: string | null
+          total_affiliate_earnings?: number | null
           updated_at?: string
           user_id?: string
         }

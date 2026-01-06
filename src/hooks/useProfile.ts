@@ -19,6 +19,12 @@ interface Profile {
   carbs_target_g: number | null;
   fat_target_g: number | null;
   onboarding_completed: boolean;
+  referral_code: string | null;
+  referral_rewards_earned: number | null;
+  referred_by: string | null;
+  affiliate_balance: number | null;
+  total_affiliate_earnings: number | null;
+  affiliate_tier: string | null;
   created_at: string;
   updated_at: string;
 }
