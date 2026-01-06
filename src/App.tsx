@@ -47,6 +47,7 @@ import AdminDietTags from "./pages/admin/AdminDietTags";
 import AdminPromotions from "./pages/admin/AdminPromotions";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -186,6 +187,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Addresses />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/support" 
+              element={
+                <ProtectedRoute>
+                  <Support />
                 </ProtectedRoute>
               } 
             />
