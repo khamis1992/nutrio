@@ -13,6 +13,7 @@ import {
   Ticket, 
   Headphones, 
   Bell,
+  Megaphone,
   LogOut
 } from "lucide-react";
 import {
@@ -42,6 +43,7 @@ const navItems = [
   { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
   { icon: Tag, label: "Diet Tags", to: "/admin/diet-tags" },
   { icon: Ticket, label: "Promotions", to: "/admin/promotions" },
+  { icon: Megaphone, label: "Announcements", to: "/admin/announcements" },
   { icon: Bell, label: "Notifications", to: "/admin/notifications" },
   { icon: Headphones, label: "Support", to: "/admin/support" },
   { icon: BarChart3, label: "Analytics", to: "/admin/analytics" },
