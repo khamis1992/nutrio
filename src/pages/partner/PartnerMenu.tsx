@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,14 +27,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Store,
   UtensilsCrossed,
   Plus,
   Edit2,
   Trash2,
-  Package,
-  Settings,
-  ArrowLeft,
   Flame,
   Clock,
   DollarSign,
@@ -48,7 +44,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
-import { PartnerNavigation } from "@/components/PartnerNavigation";
+import { PartnerLayout } from "@/components/PartnerLayout";
 
 interface Meal {
   id: string;
@@ -427,37 +423,26 @@ const PartnerMenu = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
+      <PartnerLayout title="Menu">
+        <div className="space-y-4">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
         </div>
-      </div>
+      </PartnerLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/partner")}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-semibold">Menu Management</h1>
-            </div>
-            <Button onClick={openAddDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Meal
-            </Button>
-          </div>
+    <PartnerLayout title="Menu" subtitle="Manage your restaurant's menu items">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Menu Items ({meals.length})</h2>
+          <Button onClick={openAddDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Meal
+          </Button>
         </div>
-      </header>
 
-      <main className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
         {meals.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -470,309 +455,244 @@ const PartnerMenu = () => {
             </CardContent>
           </Card>
         ) : (
-          meals.map((meal) => (
-            <Card key={meal.id} className={!meal.is_available ? "opacity-60" : ""}>
-              <CardContent className="p-4">
-                <div className="flex gap-4">
-                  {meal.image_url && (
-                    <img
-                      src={meal.image_url}
-                      alt={meal.name}
-                      className="w-20 h-20 rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold">{meal.name}</h3>
-                        {meal.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {meal.description}
-                          </p>
+          <div className="space-y-4">
+            {meals.map((meal) => (
+              <Card key={meal.id} className={!meal.is_available ? "opacity-60" : ""}>
+                <CardContent className="p-4">
+                  <div className="flex gap-4">
+                    {meal.image_url && (
+                      <img
+                        src={meal.image_url}
+                        alt={meal.name}
+                        className="w-20 h-20 rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold">{meal.name}</h3>
+                          {meal.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {meal.description}
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={meal.is_available ? "default" : "secondary"}>
+                          {meal.is_available ? "Available" : "Hidden"}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          ${meal.price.toFixed(2)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Flame className="h-3 w-3" />
+                          {meal.calories} kcal
+                        </span>
+                        {meal.prep_time_minutes && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {meal.prep_time_minutes} min
+                          </span>
                         )}
                       </div>
-                      <Badge variant={meal.is_available ? "default" : "secondary"}>
-                        {meal.is_available ? "Available" : "Hidden"}
-                      </Badge>
-                    </div>
 
-                    <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {parseFloat(meal.price.toString()).toFixed(2)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Flame className="h-3 w-3" />
-                        {meal.calories} kcal
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {meal.prep_time_minutes || 15} min
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(meal)}
-                      >
-                        <Edit2 className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleAvailability(meal)}
-                      >
-                        {meal.is_available ? "Hide" : "Show"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => confirmDelete(meal)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <div className="flex gap-2 mt-3">
+                        <Button size="sm" variant="outline" onClick={() => openEditDialog(meal)}>
+                          <Edit2 className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleAvailability(meal)}
+                        >
+                          {meal.is_available ? "Hide" : "Show"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => confirmDelete(meal)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
-      </main>
+      </div>
 
-      {/* Add/Edit Dialog */}
+      {/* Add/Edit Meal Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingMeal ? "Edit Meal" : "Add New Meal"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Image Upload - First Step */}
+            {/* Image Upload */}
             <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Meal Image
+              </Label>
               <MealImageUpload
-                currentImageUrl={formData.image_url}
-                onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
-                mealId={editingMeal?.id}
-                onImageUploaded={handleImageUploaded}
-                isAnalyzing={analyzing}
+                currentImageUrl={formData.image_url || null}
+                onImageUploaded={(url) => {
+                  setFormData({ ...formData, image_url: url || "" });
+                  if (url) handleImageUploaded(url);
+                }}
               />
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-muted/50 p-2 rounded-md">
-                <Sparkles className="h-3 w-3 text-primary" />
-                Upload a photo and AI will auto-fill all meal details for you
-              </p>
+              {analyzing && (
+                <div className="flex items-center gap-2 text-sm text-primary animate-pulse">
+                  <Sparkles className="h-4 w-4" />
+                  AI is analyzing your image...
+                </div>
+              )}
+              {analysisComplete && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Details auto-filled! Review below.
+                </div>
+              )}
             </div>
 
-            {analyzing ? (
-              /* Skeleton Loading State */
-              <div className="space-y-4 animate-pulse">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary animate-spin" />
-                    <span className="text-sm text-primary font-medium">AI is analyzing your meal...</span>
-                  </div>
+            {/* Basic Info */}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Grilled Chicken Salad"
+              />
+              {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="A healthy and delicious meal..."
+                rows={2}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">Price ($) *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price || ""}
+                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                />
+                {formErrors.price && <p className="text-xs text-destructive">{formErrors.price}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prep_time">Prep Time (min)</Label>
+                <Input
+                  id="prep_time"
+                  type="number"
+                  value={formData.prep_time_minutes || ""}
+                  onChange={(e) => setFormData({ ...formData, prep_time_minutes: parseInt(e.target.value) || 15 })}
+                />
+              </div>
+            </div>
+
+            {/* Nutrition */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Flame className="h-4 w-4" />
+                Nutrition Information
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Calories *</Label>
+                  <Input
+                    type="number"
+                    value={formData.calories || ""}
+                    onChange={(e) => setFormData({ ...formData, calories: parseInt(e.target.value) || 0 })}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-10 w-full" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Protein (g)</Label>
+                  <Input
+                    type="number"
+                    value={formData.protein_g || ""}
+                    onChange={(e) => setFormData({ ...formData, protein_g: parseFloat(e.target.value) || 0 })}
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-16 w-full" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Carbs (g)</Label>
+                  <Input
+                    type="number"
+                    value={formData.carbs_g || ""}
+                    onChange={(e) => setFormData({ ...formData, carbs_g: parseFloat(e.target.value) || 0 })}
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-14" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-14" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-14" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-10" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-14" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-16" />
-                  <div className="grid grid-cols-2 gap-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <Skeleton key={i} className="h-6 w-full" />
-                    ))}
-                  </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Fat (g)</Label>
+                  <Input
+                    type="number"
+                    value={formData.fat_g || ""}
+                    onChange={(e) => setFormData({ ...formData, fat_g: parseFloat(e.target.value) || 0 })}
+                  />
                 </div>
               </div>
-            ) : (
-              /* Actual Form Fields */
-              <div className={analysisComplete ? "animate-success-pop" : ""}>
-                {/* Success Banner */}
-                {analysisComplete && (
-                  <div className="mb-4 p-3 rounded-lg bg-success/10 border border-success/30 flex items-center gap-2 animate-success-glow">
-                    <CheckCircle2 className="h-5 w-5 text-success" />
-                    <span className="text-sm font-medium text-success">
-                      AI analysis complete! Review the details below.
-                    </span>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label>Name *</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Grilled Chicken Salad"
-                    className={formErrors.name ? "border-destructive" : ""}
-                  />
-                  {formErrors.name && (
-                    <p className="text-sm text-destructive">{formErrors.name}</p>
-                  )}
-                </div>
+            </div>
 
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Fresh greens with grilled chicken..."
-                    rows={2}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Price ($) *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.price || ""}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                      className={formErrors.price ? "border-destructive" : ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Calories *</Label>
-                    <Input
-                      type="number"
-                      value={formData.calories || ""}
-                      onChange={(e) => setFormData({ ...formData, calories: parseInt(e.target.value) || 0 })}
-                      className={formErrors.calories ? "border-destructive" : ""}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label>Protein (g)</Label>
-                    <Input
-                      type="number"
-                      value={formData.protein_g || ""}
-                      onChange={(e) => setFormData({ ...formData, protein_g: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Carbs (g)</Label>
-                    <Input
-                      type="number"
-                      value={formData.carbs_g || ""}
-                      onChange={(e) => setFormData({ ...formData, carbs_g: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Fat (g)</Label>
-                    <Input
-                      type="number"
-                      value={formData.fat_g || ""}
-                      onChange={(e) => setFormData({ ...formData, fat_g: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Fiber (g)</Label>
-                    <Input
-                      type="number"
-                      value={formData.fiber_g || ""}
-                      onChange={(e) => setFormData({ ...formData, fiber_g: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Prep Time (min)</Label>
-                    <Input
-                      type="number"
-                      value={formData.prep_time_minutes || ""}
-                      onChange={(e) => setFormData({ ...formData, prep_time_minutes: parseInt(e.target.value) || 15 })}
-                    />
-                  </div>
-                </div>
-
-                {/* Diet Tags */}
-                <div className="space-y-3">
-                  <Label className="flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    Diet Tags
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
-                    {dietTags.map((tag) => (
-                      <div
-                        key={tag.id}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`tag-${tag.id}`}
-                          checked={selectedTags.includes(tag.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedTags([...selectedTags, tag.id]);
-                            } else {
-                              setSelectedTags(selectedTags.filter((t) => t !== tag.id));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`tag-${tag.id}`}
-                          className="text-sm cursor-pointer"
-                        >
-                          {tag.name}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label>Available for ordering</Label>
-                  <Switch
-                    checked={formData.is_available}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
-                  />
+            {/* Diet Tags */}
+            {dietTags.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Diet Tags
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {dietTags.map((tag) => (
+                    <div key={tag.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={tag.id}
+                        checked={selectedTags.includes(tag.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedTags([...selectedTags, tag.id]);
+                          } else {
+                            setSelectedTags(selectedTags.filter((t) => t !== tag.id));
+                          }
+                        }}
+                      />
+                      <label htmlFor={tag.id} className="text-sm cursor-pointer">
+                        {tag.name}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
+
+            {/* Availability */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Available</Label>
+                <p className="text-xs text-muted-foreground">Show this meal to customers</p>
+              </div>
+              <Switch
+                checked={formData.is_available}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
+              />
+            </div>
           </div>
 
           <DialogFooter>
@@ -797,18 +717,13 @@ const PartnerMenu = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <PartnerNavigation />
-    </div>
+    </PartnerLayout>
   );
 };
 

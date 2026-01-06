@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft,
   Clock,
   CheckCircle,
   Calendar,
@@ -17,7 +16,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { PartnerNavigation } from "@/components/PartnerNavigation";
+import { PartnerLayout } from "@/components/PartnerLayout";
 
 interface ScheduledMeal {
   id: string;
@@ -221,13 +220,13 @@ const PartnerOrders = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container max-w-4xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-16 w-full" />
+      <PartnerLayout title="Orders">
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-full" />
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
         </div>
-      </div>
+      </PartnerLayout>
     );
   }
 
@@ -316,62 +315,41 @@ const PartnerOrders = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/partner")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold">Orders</h1>
-              <p className="text-sm text-muted-foreground">
-                {upcomingOrders.length} upcoming • {pastOrders.length} overdue
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <PartnerLayout title="Orders" subtitle={`${upcomingOrders.length} upcoming • ${pastOrders.length} overdue`}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-3 w-full mb-6">
+          <TabsTrigger value="upcoming" className="relative">
+            Upcoming
+            {upcomingOrders.length > 0 && (
+              <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {upcomingOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="overdue" className="relative">
+            Overdue
+            {pastOrders.length > 0 && (
+              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {pastOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+        </TabsList>
 
-      <main className="container max-w-4xl mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full mb-6">
-            <TabsTrigger value="upcoming" className="relative">
-              Upcoming
-              {upcomingOrders.length > 0 && (
-                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {upcomingOrders.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="overdue" className="relative">
-              Overdue
-              {pastOrders.length > 0 && (
-                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {pastOrders.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
+        <TabsContent value="upcoming" className="space-y-4">
+          {renderSchedules(upcomingOrders, true)}
+        </TabsContent>
 
-          <TabsContent value="upcoming" className="space-y-4">
-            {renderSchedules(upcomingOrders, true)}
-          </TabsContent>
+        <TabsContent value="overdue" className="space-y-4">
+          {renderSchedules(pastOrders, true)}
+        </TabsContent>
 
-          <TabsContent value="overdue" className="space-y-4">
-            {renderSchedules(pastOrders, true)}
-          </TabsContent>
-
-          <TabsContent value="completed" className="space-y-4">
-            {renderSchedules(completedOrders)}
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      <PartnerNavigation />
-    </div>
+        <TabsContent value="completed" className="space-y-4">
+          {renderSchedules(completedOrders)}
+        </TabsContent>
+      </Tabs>
+    </PartnerLayout>
   );
 };
 
