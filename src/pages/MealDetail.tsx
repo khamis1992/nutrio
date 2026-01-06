@@ -20,13 +20,18 @@ import {
   Leaf,
   Crown,
   Truck,
-  Zap
+  Zap,
+  Package,
+  Plus,
+  Minus
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useDeliveryFees } from "@/hooks/useDeliveryFees";
+import { useMealAddons } from "@/hooks/useMealAddons";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
 
@@ -63,6 +68,16 @@ const MealDetail = () => {
   const { toast } = useToast();
   const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
   const { settings: deliverySettings, calculateDeliveryFee, loading: deliveryLoading } = useDeliveryFees();
+  const { 
+    addons, 
+    loading: addonsLoading, 
+    selectedAddons, 
+    toggleAddon, 
+    getSelectedAddonsTotal, 
+    getSelectedAddonsList,
+    groupedAddons,
+    hasAddons 
+  } = useMealAddons(id);
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,8 +153,10 @@ const MealDetail = () => {
 
   const [success, setSuccess] = useState(false);
 
-  // Calculate delivery fee
-  const deliveryFeeResult = calculateDeliveryFee(selectedDeliveryType, 0); // For subscriptions, typically meal cost is covered
+  // Calculate totals
+  const addonsTotal = getSelectedAddonsTotal();
+  const deliveryFeeResult = calculateDeliveryFee(selectedDeliveryType, addonsTotal);
+  const orderTotal = addonsTotal + deliveryFeeResult.fee;
 
   const handleAddToSchedule = async () => {
     if (!user || !meal || !selectedDate) return;
@@ -171,7 +188,7 @@ const MealDetail = () => {
         throw new Error("Failed to update meal quota");
       }
 
-      const { error } = await supabase
+      const { data: scheduleData, error } = await supabase
         .from("meal_schedules")
         .insert({
           user_id: user.id,
@@ -180,9 +197,25 @@ const MealDetail = () => {
           meal_type: selectedMealType,
           delivery_type: deliveryFeeResult.type,
           delivery_fee: deliveryFeeResult.fee,
-        });
+          addons_total: addonsTotal,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Insert selected add-ons
+      const selectedAddonsList = getSelectedAddonsList();
+      if (selectedAddonsList.length > 0 && scheduleData) {
+        const addonInserts = selectedAddonsList.map(({ addon, quantity }) => ({
+          schedule_id: scheduleData.id,
+          addon_id: addon.id,
+          quantity,
+          unit_price: addon.price,
+        }));
+
+        await supabase.from("schedule_addons").insert(addonInserts);
+      }
 
       setSuccess(true);
       toast({
@@ -216,7 +249,7 @@ const MealDetail = () => {
     fat: Math.round((meal.fat_g * 9 / totalMacroCalories) * 100) || 0,
   } : { protein: 0, carbs: 0, fat: 0 };
 
-  if (loading || subscriptionLoading || deliveryLoading) {
+  if (loading || subscriptionLoading || deliveryLoading || addonsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -535,12 +568,65 @@ const MealDetail = () => {
                   </div>
                 )}
 
+                {/* Add-ons Selection */}
+                {hasAddons && (
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                      <Package className="w-4 h-4" />
+                      Add-ons (Optional)
+                    </label>
+                    <div className="space-y-3">
+                      {Object.entries(groupedAddons).map(([category, categoryAddons]) => (
+                        <div key={category}>
+                          <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
+                            {category.replace(/_/g, " ")}
+                          </p>
+                          <div className="space-y-2">
+                            {categoryAddons.map((addon) => (
+                              <div
+                                key={addon.id}
+                                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                  selectedAddons.has(addon.id)
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border hover:border-primary/50"
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Checkbox
+                                    checked={selectedAddons.has(addon.id)}
+                                    onCheckedChange={() => toggleAddon(addon.id)}
+                                  />
+                                  <div>
+                                    <p className="text-sm font-medium">{addon.name}</p>
+                                    {addon.description && (
+                                      <p className="text-xs text-muted-foreground">{addon.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="text-sm font-medium text-primary">
+                                  +{formatCurrency(addon.price)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Order Summary */}
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Meal</span>
                     <span className="text-primary font-medium">Included in plan</span>
                   </div>
+                  {addonsTotal > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Add-ons ({selectedAddons.size})</span>
+                      <span>{formatCurrency(addonsTotal)}</span>
+                    </div>
+                  )}
                   {deliverySettings.enabled && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
@@ -554,7 +640,7 @@ const MealDetail = () => {
                   <div className="border-t pt-2 flex justify-between font-medium">
                     <span>Total</span>
                     <span>
-                      {deliveryFeeResult.fee === 0 ? "Free" : formatCurrency(deliveryFeeResult.fee)}
+                      {orderTotal === 0 ? "Free" : formatCurrency(orderTotal)}
                     </span>
                   </div>
                 </div>
