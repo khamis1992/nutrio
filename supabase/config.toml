@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.analyze-meal-image]
 verify_jwt = false
+
+[functions.send-commission-notification]
+verify_jwt = false
