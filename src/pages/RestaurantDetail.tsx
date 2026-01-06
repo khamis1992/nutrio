@@ -18,12 +18,16 @@ import {
   Mail,
   Crown,
   LayoutGrid,
-  List
+  List,
+  Percent
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useVipDiscount } from "@/hooks/useVipDiscount";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { MealFilters, MealFiltersState, defaultFilters } from "@/components/MealFilters";
+import { VipDiscountIndicator } from "@/components/VipPriceBadge";
+import { formatCurrency } from "@/lib/currency";
 
 interface Restaurant {
   id: string;
@@ -49,6 +53,7 @@ interface Meal {
   prep_time_minutes: number;
   diet_tags: string[];
   is_vip_exclusive: boolean;
+  price: number;
 }
 
 const RestaurantDetail = () => {
@@ -61,6 +66,7 @@ const RestaurantDetail = () => {
   const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const [filters, setFilters] = useState<MealFiltersState>(defaultFilters);
   const { hasActiveSubscription, subscription, remainingMeals, isUnlimited } = useSubscription();
+  const { isVip, discountPercent, calculateDiscountedPrice } = useVipDiscount();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,6 +108,7 @@ const RestaurantDetail = () => {
             rating,
             prep_time_minutes,
             is_vip_exclusive,
+            price,
             meal_diet_tags (
               diet_tags (id, name)
             )
@@ -123,6 +130,7 @@ const RestaurantDetail = () => {
           prep_time_minutes: meal.prep_time_minutes || 15,
           diet_tags: meal.meal_diet_tags?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
           is_vip_exclusive: meal.is_vip_exclusive || false,
+          price: parseFloat(meal.price) || 0,
         }));
 
         setMeals(transformedMeals);
@@ -358,7 +366,12 @@ const RestaurantDetail = () => {
         {/* Meals Section */}
         <section className="space-y-4 animate-fade-in stagger-2">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Menu ({filteredMeals.length})</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="font-semibold">Menu ({filteredMeals.length})</h3>
+              {isVip && discountPercent > 0 && (
+                <VipDiscountIndicator discountPercent={discountPercent} />
+              )}
+            </div>
             <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
@@ -392,123 +405,158 @@ const RestaurantDetail = () => {
           ) : viewMode === "gallery" ? (
             /* Gallery View */
             <div className="grid grid-cols-2 gap-4">
-              {filteredMeals.map((meal) => (
-                <Link key={meal.id} to={`/meals/${meal.id}`}>
-                  <Card variant="interactive" className="overflow-hidden h-full">
-                    <div className="aspect-square relative bg-muted">
-                      {meal.image_url ? (
-                        <img 
-                          src={meal.image_url} 
-                          alt={meal.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-muted to-muted-foreground/10">
-                          🍽️
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
-                      {meal.is_vip_exclusive ? (
-                        <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white text-xs">
-                          <Crown className="w-3 h-3 mr-1" />
-                          VIP Only
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs">
-                          Included
-                        </Badge>
-                      )}
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <h4 className="font-semibold text-sm line-clamp-2 mb-1">{meal.name}</h4>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Flame className="w-3 h-3" />
-                            {meal.calories}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Star className="w-3 h-3 fill-warning text-warning" />
-                            {meal.rating.toFixed(1)}
-                          </span>
+              {filteredMeals.map((meal) => {
+                const priceInfo = calculateDiscountedPrice(meal.price);
+                return (
+                  <Link key={meal.id} to={`/meals/${meal.id}`}>
+                    <Card variant="interactive" className="overflow-hidden h-full">
+                      <div className="aspect-square relative bg-muted">
+                        {meal.image_url ? (
+                          <img 
+                            src={meal.image_url} 
+                            alt={meal.name}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-muted to-muted-foreground/10">
+                            🍽️
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
+                        {meal.is_vip_exclusive ? (
+                          <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white text-xs">
+                            <Crown className="w-3 h-3 mr-1" />
+                            VIP Only
+                          </Badge>
+                        ) : priceInfo.hasDiscount ? (
+                          <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-violet-500 to-purple-500 border-0 text-white text-xs">
+                            <Percent className="w-3 h-3 mr-1" />
+                            -{priceInfo.discountPercent}%
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs">
+                            Included
+                          </Badge>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <h4 className="font-semibold text-sm line-clamp-2 mb-1">{meal.name}</h4>
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Flame className="w-3 h-3" />
+                                {meal.calories}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-warning text-warning" />
+                                {meal.rating.toFixed(1)}
+                              </span>
+                            </div>
+                            {priceInfo.hasDiscount && (
+                              <span className="font-semibold text-violet-500">
+                                {formatCurrency(priceInfo.discountedPrice)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           ) : (
             /* List View */
             <div className="grid gap-4">
-              {filteredMeals.map((meal) => (
-                <Link key={meal.id} to={`/meals/${meal.id}`}>
-                  <Card variant="interactive">
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
-                          {meal.image_url ? (
-                            <img 
-                              src={meal.image_url} 
-                              alt={meal.name}
-                              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            "🍽️"
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-semibold truncate">{meal.name}</h4>
-                            {meal.is_vip_exclusive ? (
-                              <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white shrink-0 text-xs">
-                                <Crown className="w-3 h-3 mr-1" />
-                                VIP Only
-                              </Badge>
+              {filteredMeals.map((meal) => {
+                const priceInfo = calculateDiscountedPrice(meal.price);
+                return (
+                  <Link key={meal.id} to={`/meals/${meal.id}`}>
+                    <Card variant="interactive">
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
+                            {meal.image_url ? (
+                              <img 
+                                src={meal.image_url} 
+                                alt={meal.name}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              />
                             ) : (
-                              <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-xs">
-                                Included
-                              </Badge>
+                              "🍽️"
                             )}
                           </div>
-                          
-                          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <Flame className="w-3 h-3" />
-                              {meal.calories} kcal
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Beef className="w-3 h-3" />
-                              {meal.protein_g}g protein
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {meal.prep_time_minutes} min
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Star className="w-3 h-3 fill-warning text-warning" />
-                              {meal.rating.toFixed(1)}
-                            </span>
-                          </div>
-
-                          {meal.diet_tags.length > 0 && (
-                            <div className="flex gap-1.5 mt-2 flex-wrap">
-                              {meal.diet_tags.slice(0, 3).map((tag) => (
-                                <Badge key={tag} variant="diet" className="text-xs">
-                                  {tag}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="font-semibold truncate">{meal.name}</h4>
+                              {meal.is_vip_exclusive ? (
+                                <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white shrink-0 text-xs">
+                                  <Crown className="w-3 h-3 mr-1" />
+                                  VIP Only
                                 </Badge>
-                              ))}
-                              {meal.diet_tags.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{meal.diet_tags.length - 3}
+                              ) : priceInfo.hasDiscount ? (
+                                <Badge variant="outline" className="bg-gradient-to-r from-violet-500 to-purple-500 border-0 text-white shrink-0 text-xs">
+                                  <Percent className="w-3 h-3 mr-1" />
+                                  -{priceInfo.discountPercent}%
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-xs">
+                                  Included
                                 </Badge>
                               )}
                             </div>
-                          )}
+                            
+                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Flame className="w-3 h-3" />
+                                {meal.calories} kcal
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Beef className="w-3 h-3" />
+                                {meal.protein_g}g protein
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {meal.prep_time_minutes} min
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-warning text-warning" />
+                                {meal.rating.toFixed(1)}
+                              </span>
+                            </div>
+
+                            {/* VIP Price Display */}
+                            {priceInfo.hasDiscount && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="line-through text-xs text-muted-foreground">
+                                  {formatCurrency(priceInfo.originalPrice)}
+                                </span>
+                                <span className="font-semibold text-sm text-violet-500">
+                                  {formatCurrency(priceInfo.discountedPrice)}
+                                </span>
+                              </div>
+                            )}
+
+                            {meal.diet_tags.length > 0 && (
+                              <div className="flex gap-1.5 mt-2 flex-wrap">
+                                {meal.diet_tags.slice(0, 3).map((tag) => (
+                                  <Badge key={tag} variant="diet" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                {meal.diet_tags.length > 3 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{meal.diet_tags.length - 3}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>

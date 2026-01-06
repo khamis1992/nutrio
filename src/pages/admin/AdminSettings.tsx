@@ -63,6 +63,7 @@ interface PremiumAnalyticsPrices {
 
 interface VipSettings {
   vip_price: number;
+  vip_discount_percent: number;
   vip_benefits: {
     priority_delivery: boolean;
     exclusive_meals: boolean;
@@ -70,6 +71,7 @@ interface VipSettings {
     free_delivery: boolean;
     early_access: boolean;
     dedicated_support: boolean;
+    meal_discounts: boolean;
   };
 }
 
@@ -122,6 +124,7 @@ export default function AdminSettings() {
 
   const [vipSettings, setVipSettings] = useState<VipSettings>({
     vip_price: 199.99,
+    vip_discount_percent: 15,
     vip_benefits: {
       priority_delivery: true,
       exclusive_meals: true,
@@ -129,6 +132,7 @@ export default function AdminSettings() {
       free_delivery: true,
       early_access: true,
       dedicated_support: true,
+      meal_discounts: true,
     },
   });
 
@@ -355,6 +359,21 @@ export default function AdminSettings() {
                     setVipSettings({ ...vipSettings, vip_price: Number(e.target.value) })
                   }
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vip-discount">VIP Meal Discount (%)</Label>
+                <Input
+                  id="vip-discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={vipSettings.vip_discount_percent}
+                  onChange={(e) =>
+                    setVipSettings({ ...vipSettings, vip_discount_percent: Number(e.target.value) })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">Discount applied to all meals for VIP subscribers</p>
               </div>
               <Separator />
               <p className="text-sm font-medium">VIP Benefits</p>
