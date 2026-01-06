@@ -386,7 +386,7 @@ const Index = () => {
               </div>
               <span className="font-bold">NUTRIO</span>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex flex-wrap items-center justify-center gap-6">
               <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 About
               </Link>
@@ -395,6 +395,12 @@ const Index = () => {
               </Link>
               <Link to="/partner/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Partner Portal
+              </Link>
+              <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Privacy Policy
+              </Link>
+              <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Terms of Service
               </Link>
               <p className="text-sm text-muted-foreground">
                 © 2026 NUTRIO. All rights reserved.
