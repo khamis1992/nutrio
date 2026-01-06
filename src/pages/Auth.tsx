@@ -8,6 +8,7 @@ import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2 } from "lucid
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -249,13 +250,7 @@ const Auth = () => {
 
               {isLogin && (
                 <div className="flex justify-end">
-                  <button 
-                    type="button"
-                    className="text-sm text-primary hover:underline"
-                    disabled={loading}
-                  >
-                    Forgot password?
-                  </button>
+                  <ForgotPasswordDialog />
                 </div>
               )}
 
