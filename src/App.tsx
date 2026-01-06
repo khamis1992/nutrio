@@ -44,6 +44,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminExports from "./pages/admin/AdminExports";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import AdminDietTags from "./pages/admin/AdminDietTags";
+import AdminPromotions from "./pages/admin/AdminPromotions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -346,6 +347,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminDietTags />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/promotions" 
+              element={
+                <ProtectedRoute>
+                  <AdminPromotions />
                 </ProtectedRoute>
               } 
             />
