@@ -64,6 +64,7 @@ const PartnerOrders = () => {
 
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string>("");
   const [scheduledMeals, setScheduledMeals] = useState<ScheduledMeal[]>([]);
   const [activeTab, setActiveTab] = useState("upcoming");
 
@@ -106,7 +107,7 @@ const PartnerOrders = () => {
       // Get partner's restaurant
       const { data: restaurant, error: restaurantError } = await supabase
         .from("restaurants")
-        .select("id")
+        .select("id, name")
         .eq("owner_id", user.id)
         .maybeSingle();
 
@@ -117,6 +118,7 @@ const PartnerOrders = () => {
       }
 
       setRestaurantId(restaurant.id);
+      setRestaurantName(restaurant.name);
 
       // Get all meal IDs for this restaurant
       const { data: meals, error: mealsError } = await supabase
@@ -203,7 +205,7 @@ const PartnerOrders = () => {
     }
   };
 
-  const updateOrderStatus = async (scheduleId: string, newStatus: OrderStatus) => {
+  const updateOrderStatus = async (scheduleId: string, newStatus: OrderStatus, schedule: ScheduledMeal) => {
     try {
       const isCompleted = newStatus === "delivered";
       
@@ -217,6 +219,30 @@ const PartnerOrders = () => {
 
       if (error) throw error;
 
+      // Create notification for the customer
+      const statusConfig = ORDER_STATUSES.find(s => s.value === newStatus);
+      const notificationTitle = getNotificationTitle(newStatus);
+      const notificationMessage = getNotificationMessage(newStatus, schedule.meal?.name || "Your meal", restaurantName);
+
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert({
+          user_id: schedule.user_id,
+          type: "order_update",
+          title: notificationTitle,
+          message: notificationMessage,
+          metadata: {
+            schedule_id: scheduleId,
+            meal_name: schedule.meal?.name,
+            restaurant_name: restaurantName,
+            new_status: newStatus,
+          },
+        });
+
+      if (notifError) {
+        console.error("Error creating notification:", notifError);
+      }
+
       setScheduledMeals((prev) =>
         prev.map((s) => 
           s.id === scheduleId 
@@ -225,7 +251,6 @@ const PartnerOrders = () => {
         )
       );
 
-      const statusConfig = ORDER_STATUSES.find(s => s.value === newStatus);
       toast({
         title: "Status updated",
         description: `Order marked as ${statusConfig?.label || newStatus}`,
@@ -237,6 +262,32 @@ const PartnerOrders = () => {
         description: "Failed to update order status",
         variant: "destructive",
       });
+    }
+  };
+
+  const getNotificationTitle = (status: OrderStatus): string => {
+    switch (status) {
+      case "confirmed":
+        return "Order Confirmed! ✓";
+      case "preparing":
+        return "Your meal is being prepared 👨‍🍳";
+      case "delivered":
+        return "Order Delivered! 🎉";
+      default:
+        return "Order Update";
+    }
+  };
+
+  const getNotificationMessage = (status: OrderStatus, mealName: string, restaurant: string): string => {
+    switch (status) {
+      case "confirmed":
+        return `${restaurant} has confirmed your order for ${mealName}. It will be prepared soon!`;
+      case "preparing":
+        return `${restaurant} is now preparing your ${mealName}. It will be ready shortly!`;
+      case "delivered":
+        return `Your ${mealName} from ${restaurant} has been delivered. Enjoy your meal!`;
+      default:
+        return `Your order for ${mealName} has been updated to ${status}.`;
     }
   };
 
@@ -343,7 +394,7 @@ const PartnerOrders = () => {
                     <span className="text-sm text-muted-foreground">Update status:</span>
                     <Select
                       value={schedule.order_status}
-                      onValueChange={(value) => updateOrderStatus(schedule.id, value as OrderStatus)}
+                      onValueChange={(value) => updateOrderStatus(schedule.id, value as OrderStatus, schedule)}
                     >
                       <SelectTrigger className="w-[160px] h-9">
                         <SelectValue />
