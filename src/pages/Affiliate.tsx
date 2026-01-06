@@ -42,6 +42,7 @@ import { useAffiliateProgram } from "@/hooks/useAffiliateProgram";
 import { useProfile } from "@/hooks/useProfile";
 import { formatCurrency } from "@/lib/currency";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { AffiliateLeaderboard } from "@/components/AffiliateLeaderboard";
 
 export default function Affiliate() {
   const navigate = useNavigate();
@@ -297,6 +298,9 @@ export default function Affiliate() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Leaderboard */}
+        <AffiliateLeaderboard />
 
         {/* Tabs for detailed views */}
         <Tabs defaultValue="commissions" className="w-full">
