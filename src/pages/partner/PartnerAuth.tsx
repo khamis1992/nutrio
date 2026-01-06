@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Loader2, Store, ArrowLeft, Upload, X, Image } from "lucide-react";
 import { z } from "zod";
 import { Link } from "react-router-dom";
+import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
 
 const signUpSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -434,6 +435,11 @@ export default function PartnerAuth() {
               </div>
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password}</p>
+              )}
+              {isLogin && (
+                <div className="flex justify-end mt-1">
+                  <ForgotPasswordDialog redirectTo={`${window.location.origin}/reset-password`} />
+                </div>
               )}
             </div>
 
