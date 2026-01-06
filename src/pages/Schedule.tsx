@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,8 @@ import {
   Flame,
   Beef,
   Trash2,
-  UtensilsCrossed
+  UtensilsCrossed,
+  AlertTriangle
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from "date-fns";
 
@@ -43,6 +45,7 @@ const Schedule = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
+  const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -57,8 +60,12 @@ const Schedule = () => {
   }, [profile, navigate]);
 
   useEffect(() => {
-    fetchSchedules();
-  }, [user, currentWeekStart]);
+    if (settings.features.meal_scheduling) {
+      fetchSchedules();
+    } else if (!settingsLoading) {
+      setLoading(false);
+    }
+  }, [user, currentWeekStart, settings.features.meal_scheduling, settingsLoading]);
 
   const fetchSchedules = async () => {
     if (!user) return;
@@ -205,6 +212,44 @@ const Schedule = () => {
 
   const weekDays = getWeekDays();
   const today = new Date();
+
+  // Show disabled state if feature is turned off
+  if (!settingsLoading && !settings.features.meal_scheduling) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="flex items-center justify-between p-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/dashboard")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-semibold">Meal Schedule</h1>
+            <div className="w-10" />
+          </div>
+        </div>
+        <div className="container max-w-2xl mx-auto px-4 py-12">
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Meal Scheduling Unavailable</h2>
+              <p className="text-muted-foreground mb-6">
+                Meal scheduling is currently disabled. Please check back later.
+              </p>
+              <Button onClick={() => navigate("/dashboard")}>
+                Return to Dashboard
+              </Button>
+            </div>
+          </Card>
+        </div>
+        <CustomerNavigation />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

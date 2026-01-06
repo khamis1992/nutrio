@@ -23,11 +23,13 @@ import {
   Crown,
   Settings,
   Gift,
-  MapPin
+  MapPin,
+  Truck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
@@ -51,6 +53,7 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
   const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, loading: subscriptionLoading } = useSubscription();
+  const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -393,7 +396,9 @@ const Dashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-5 gap-3 animate-fade-in stagger-1">
+        <div className={`grid gap-3 animate-fade-in stagger-1 ${
+          platformSettings.features.meal_scheduling ? 'grid-cols-5' : 'grid-cols-4'
+        }`}>
           <Link to="/favorites">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
@@ -412,19 +417,21 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/schedule">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Schedule</p>
-                  <p className="text-xs text-muted-foreground">Plan week</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          {platformSettings.features.meal_scheduling && (
+            <Link to="/schedule">
+              <Card variant="interactive" className="h-full">
+                <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Schedule</p>
+                    <p className="text-xs text-muted-foreground">Plan week</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
           <Link to="/progress">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
@@ -467,7 +474,13 @@ const Dashboard = () => {
         </div>
 
         {/* More Actions */}
-        <div className="grid grid-cols-4 gap-3 animate-fade-in stagger-1">
+        <div className={`grid gap-3 animate-fade-in stagger-1 ${
+          [platformSettings.features.referral_program, platformSettings.features.delivery_tracking].filter(Boolean).length === 2 
+            ? 'grid-cols-4' 
+            : [platformSettings.features.referral_program, platformSettings.features.delivery_tracking].filter(Boolean).length === 1
+              ? 'grid-cols-3'
+              : 'grid-cols-2'
+        }`}>
           <Link to="/settings">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
@@ -481,19 +494,21 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/referral">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
-                  <Gift className="w-5 h-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Refer</p>
-                  <p className="text-xs text-muted-foreground">Earn $10</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          {platformSettings.features.referral_program && (
+            <Link to="/referral">
+              <Card variant="interactive" className="h-full">
+                <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                  <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
+                    <Gift className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Refer</p>
+                    <p className="text-xs text-muted-foreground">Earn $10</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
           <Link to="/addresses">
             <Card variant="interactive" className="h-full">
               <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
@@ -507,19 +522,21 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/tracking">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                  <Utensils className="w-5 h-5 text-purple-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Tracking</p>
-                  <p className="text-xs text-muted-foreground">Live orders</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          {platformSettings.features.delivery_tracking && (
+            <Link to="/tracking">
+              <Card variant="interactive" className="h-full">
+                <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
+                  <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                    <Truck className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Tracking</p>
+                    <p className="text-xs text-muted-foreground">Live orders</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
         </div>
 
         {/* Browse Restaurants Section */}
