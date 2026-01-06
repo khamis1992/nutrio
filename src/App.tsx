@@ -30,6 +30,7 @@ import Favorites from "./pages/Favorites";
 import Settings from "./pages/Settings";
 import Referral from "./pages/Referral";
 import Affiliate from "./pages/Affiliate";
+import ReferralTracking from "./pages/ReferralTracking";
 import Addresses from "./pages/Addresses";
 import PartnerAuth from "./pages/partner/PartnerAuth";
 import PartnerDashboard from "./pages/partner/PartnerDashboard";
@@ -214,6 +215,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Affiliate />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/affiliate/tracking" 
+              element={
+                <ProtectedRoute>
+                  <ReferralTracking />
                 </ProtectedRoute>
               } 
             />
