@@ -45,6 +45,7 @@ import AdminExports from "./pages/admin/AdminExports";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import AdminDietTags from "./pages/admin/AdminDietTags";
 import AdminPromotions from "./pages/admin/AdminPromotions";
+import AdminSupport from "./pages/admin/AdminSupport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -355,6 +356,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminPromotions />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/support" 
+              element={
+                <ProtectedRoute>
+                  <AdminSupport />
                 </ProtectedRoute>
               } 
             />
