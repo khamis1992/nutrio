@@ -359,6 +359,17 @@ export default function Affiliate() {
           </TabsContent>
 
           <TabsContent value="network" className="mt-4 space-y-3">
+            {network.length > 0 && (
+              <Button 
+                variant="outline" 
+                className="w-full mb-3"
+                onClick={() => navigate("/affiliate/tracking")}
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                View Detailed Referral Stats
+                <ChevronRight className="w-4 h-4 ml-auto" />
+              </Button>
+            )}
             {network.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center">
