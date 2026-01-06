@@ -41,6 +41,7 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminExports from "./pages/admin/AdminExports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -319,6 +320,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminSettings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/exports" 
+              element={
+                <ProtectedRoute>
+                  <AdminExports />
                 </ProtectedRoute>
               } 
             />
