@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-payout-notification]
 verify_jwt = false
+
+[functions.send-milestone-notification]
+verify_jwt = false
