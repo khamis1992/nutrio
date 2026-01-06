@@ -11,6 +11,7 @@ export interface Subscription {
   meals_per_week: number;
   meals_used_this_week: number;
   week_start_date: string;
+  tier: 'standard' | 'vip';
 }
 
 interface UseSubscriptionReturn {
@@ -20,6 +21,7 @@ interface UseSubscriptionReturn {
   isPaused: boolean;
   remainingMeals: number;
   isUnlimited: boolean;
+  isVip: boolean;
   canOrderMeal: boolean;
   incrementMealUsage: () => Promise<boolean>;
   pauseSubscription: () => Promise<boolean>;
@@ -43,7 +45,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
       // Fetch active or paused subscription
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("id, plan, status, start_date, end_date, meals_per_week, meals_used_this_week, week_start_date")
+        .select("id, plan, status, start_date, end_date, meals_per_week, meals_used_this_week, week_start_date, tier")
         .eq("user_id", user.id)
         .in("status", ["active", "pending"])
         .order("created_at", { ascending: false })
@@ -62,6 +64,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
           meals_per_week: data.meals_per_week || 5,
           meals_used_this_week: data.meals_used_this_week || 0,
           week_start_date: data.week_start_date || new Date().toISOString().split('T')[0],
+          tier: (data.tier as 'standard' | 'vip') || 'standard',
         });
       } else {
         setSubscription(null);
@@ -80,6 +83,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
   const hasActiveSubscription = subscription?.status === "active";
   const isPaused = subscription?.status === "pending";
+  const isVip = subscription?.tier === "vip";
   
   // 0 means unlimited
   const isUnlimited = subscription?.meals_per_week === 0;
@@ -157,6 +161,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     isPaused,
     remainingMeals,
     isUnlimited,
+    isVip,
     canOrderMeal,
     incrementMealUsage,
     pauseSubscription,

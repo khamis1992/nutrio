@@ -1038,6 +1038,7 @@ export type Database = {
           start_date: string
           status: Database["public"]["Enums"]["subscription_status"] | null
           stripe_subscription_id: string | null
+          tier: string | null
           updated_at: string
           user_id: string
           week_start_date: string | null
@@ -1054,6 +1055,7 @@ export type Database = {
           start_date: string
           status?: Database["public"]["Enums"]["subscription_status"] | null
           stripe_subscription_id?: string | null
+          tier?: string | null
           updated_at?: string
           user_id: string
           week_start_date?: string | null
@@ -1070,6 +1072,7 @@ export type Database = {
           start_date?: string
           status?: Database["public"]["Enums"]["subscription_status"] | null
           stripe_subscription_id?: string | null
+          tier?: string | null
           updated_at?: string
           user_id?: string
           week_start_date?: string | null

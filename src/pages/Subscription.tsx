@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Crown, Zap, Star, ArrowLeft, Loader2 } from "lucide-react";
+import { Check, Crown, Zap, Star, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,15 +23,32 @@ interface SubscriptionPricing {
   basic_price: number;
   premium_price: number;
   family_price: number;
+  vip_price: number;
 }
 
-const getPlans = (pricing: SubscriptionPricing) => [
+interface PlanType {
+  id: string;
+  name: string;
+  price: number;
+  period: string;
+  mealsPerWeek: number;
+  tier: 'standard' | 'vip';
+  description: string;
+  icon: typeof Star;
+  features: string[];
+  popular: boolean;
+  isVip: boolean;
+  color: string;
+}
+
+const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
   {
     id: "basic",
     name: "Basic",
     price: pricing.basic_price,
     period: "week",
     mealsPerWeek: 5,
+    tier: 'standard',
     description: "Perfect for getting started with healthy eating",
     icon: Star,
     features: [
@@ -42,6 +59,7 @@ const getPlans = (pricing: SubscriptionPricing) => [
       "Weekly meal planning",
     ],
     popular: false,
+    isVip: false,
     color: "from-slate-500 to-slate-600",
   },
   {
@@ -50,6 +68,7 @@ const getPlans = (pricing: SubscriptionPricing) => [
     price: pricing.premium_price,
     period: "week",
     mealsPerWeek: 14,
+    tier: 'standard',
     description: "Most popular choice for health enthusiasts",
     icon: Zap,
     features: [
@@ -62,6 +81,7 @@ const getPlans = (pricing: SubscriptionPricing) => [
       "Exclusive recipes",
     ],
     popular: true,
+    isVip: false,
     color: "from-primary to-primary/80",
   },
   {
@@ -69,7 +89,8 @@ const getPlans = (pricing: SubscriptionPricing) => [
     name: "Premium",
     price: pricing.family_price,
     period: "week",
-    mealsPerWeek: 0, // 0 = unlimited
+    mealsPerWeek: 0,
+    tier: 'standard',
     description: "Ultimate plan for serious fitness goals",
     icon: Crown,
     features: [
@@ -80,11 +101,36 @@ const getPlans = (pricing: SubscriptionPricing) => [
       "AI-powered meal recommendations",
       "Weekly dietitian sessions",
       "Personalized meal prep guides",
-      "Priority delivery",
       "Family sharing (up to 4)",
     ],
     popular: false,
+    isVip: false,
     color: "from-amber-500 to-amber-600",
+  },
+  {
+    id: "vip",
+    name: "VIP Elite",
+    price: pricing.vip_price,
+    period: "week",
+    mealsPerWeek: 0,
+    tier: 'vip',
+    description: "Exclusive tier for the ultimate health experience",
+    icon: Sparkles,
+    features: [
+      "Everything in Premium",
+      "🚀 Priority delivery (always first)",
+      "🌟 Exclusive VIP-only meals",
+      "👨‍⚕️ Personal nutrition coach",
+      "📱 1-on-1 weekly coaching calls",
+      "🏷️ Free delivery on all orders",
+      "⚡ Early access to new restaurants",
+      "💎 Dedicated VIP support line",
+      "🎁 Monthly wellness perks & gifts",
+      "👥 Family sharing (up to 6)",
+    ],
+    popular: false,
+    isVip: true,
+    color: "from-violet-500 to-purple-600",
   },
 ];
 
@@ -97,6 +143,7 @@ export default function Subscription() {
     basic_price: 49.99,
     premium_price: 99.99,
     family_price: 149.99,
+    vip_price: 199.99,
   });
   const [selectedPlan, setSelectedPlan] = useState<ReturnType<typeof getPlans>[0] | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -111,20 +158,28 @@ export default function Subscription() {
   useEffect(() => {
     const fetchPricing = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch both subscription_plans and vip_settings
+        const { data: subscriptionData } = await supabase
           .from("platform_settings")
           .select("value")
           .eq("key", "subscription_plans")
           .single();
 
-        if (!error && data?.value) {
-          const value = data.value as Record<string, unknown>;
-          setPricing({
-            basic_price: (value.basic_price as number) || 49.99,
-            premium_price: (value.premium_price as number) || 99.99,
-            family_price: (value.family_price as number) || 149.99,
-          });
-        }
+        const { data: vipData } = await supabase
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "vip_settings")
+          .single();
+
+        const subscriptionValue = subscriptionData?.value as Record<string, unknown> | null;
+        const vipValue = vipData?.value as Record<string, unknown> | null;
+
+        setPricing({
+          basic_price: (subscriptionValue?.basic_price as number) || 49.99,
+          premium_price: (subscriptionValue?.premium_price as number) || 99.99,
+          family_price: (subscriptionValue?.family_price as number) || 149.99,
+          vip_price: (vipValue?.vip_price as number) || 199.99,
+        });
       } catch (error) {
         console.error("Error fetching pricing:", error);
       } finally {
@@ -160,6 +215,7 @@ export default function Subscription() {
       basic: "weekly",
       pro: "weekly",
       premium: "weekly",
+      vip: "weekly",
     };
 
     const { error } = await supabase.from("subscriptions").insert({
@@ -173,6 +229,7 @@ export default function Subscription() {
       meals_per_week: selectedPlan.mealsPerWeek,
       meals_used_this_week: 0,
       week_start_date: startDate.toISOString().split('T')[0],
+      tier: selectedPlan.tier,
     });
 
     setIsProcessing(false);
@@ -228,7 +285,7 @@ export default function Subscription() {
         </div>
 
         {/* Plans Grid */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
           {plans.map((plan) => {
             const Icon = plan.icon;
             return (
@@ -237,12 +294,20 @@ export default function Subscription() {
                 className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
                   plan.popular
                     ? "border-primary shadow-lg scale-105 z-10"
+                    : plan.isVip
+                    ? "border-violet-500 shadow-lg shadow-violet-500/20"
                     : "hover:scale-102"
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg">
                     Most Popular
+                  </div>
+                )}
+                {plan.isVip && (
+                  <div className="absolute top-0 right-0 bg-gradient-to-r from-violet-500 to-purple-600 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    VIP Elite
                   </div>
                 )}
 
@@ -262,8 +327,8 @@ export default function Subscription() {
                     <span className="text-muted-foreground">/{plan.period}</span>
                   </div>
                   
-                  <div className="mb-6 p-3 bg-primary/10 rounded-lg">
-                    <p className="text-sm font-medium text-primary">
+                  <div className={`mb-6 p-3 rounded-lg ${plan.isVip ? 'bg-violet-500/10' : 'bg-primary/10'}`}>
+                    <p className={`text-sm font-medium ${plan.isVip ? 'text-violet-600 dark:text-violet-400' : 'text-primary'}`}>
                       {plan.mealsPerWeek === 0 ? "♾️ Unlimited meals" : `🍽️ ${plan.mealsPerWeek} meals per week`}
                     </p>
                   </div>
@@ -271,7 +336,7 @@ export default function Subscription() {
                   <ul className="space-y-3">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3">
-                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                        <Check className={`h-5 w-5 shrink-0 mt-0.5 ${plan.isVip ? 'text-violet-500' : 'text-primary'}`} />
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
@@ -280,12 +345,12 @@ export default function Subscription() {
 
                 <CardFooter>
                   <Button
-                    className="w-full"
-                    variant={plan.popular ? "default" : "outline"}
+                    className={`w-full ${plan.isVip ? 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700' : ''}`}
+                    variant={plan.popular || plan.isVip ? "default" : "outline"}
                     size="lg"
                     onClick={() => handleSelectPlan(plan)}
                   >
-                    Get Started
+                    {plan.isVip ? "Go VIP" : "Get Started"}
                   </Button>
                 </CardFooter>
               </Card>
