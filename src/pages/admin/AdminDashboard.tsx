@@ -11,6 +11,7 @@ import {
   DollarSign,
   BarChart3,
   Wallet,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +25,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  AreaChart,
+  Area,
 } from "recharts";
 
 interface Stats {
@@ -37,12 +40,20 @@ interface Stats {
   weeklyRevenue: number;
   pendingPayouts: number;
   pendingPayoutsAmount: number;
+  totalCommissionsPaid: number;
+  pendingAffiliatePayouts: number;
 }
 
 interface DailyData {
   date: string;
   orders: number;
   revenue: number;
+}
+
+interface CommissionData {
+  date: string;
+  amount: number;
+  count: number;
 }
 
 interface RecentActivity {
@@ -67,8 +78,11 @@ const AdminDashboard = () => {
     weeklyRevenue: 0,
     pendingPayouts: 0,
     pendingPayoutsAmount: 0,
+    totalCommissionsPaid: 0,
+    pendingAffiliatePayouts: 0,
   });
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [commissionData, setCommissionData] = useState<CommissionData[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
   useEffect(() => {
@@ -79,6 +93,8 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     const today = new Date().toISOString().split("T")[0];
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const [
       restaurantsRes,
@@ -89,6 +105,8 @@ const AdminDashboard = () => {
       mealsRes,
       todaySchedulesRes,
       pendingPayoutsRes,
+      commissionsRes,
+      pendingAffiliatePayoutsRes,
     ] = await Promise.all([
       supabase.from("restaurants").select("*", { count: "exact", head: true }),
       supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
@@ -98,12 +116,46 @@ const AdminDashboard = () => {
       supabase.from("meals").select("*", { count: "exact", head: true }),
       supabase.from("meal_schedules").select("*", { count: "exact", head: true }).eq("scheduled_date", today),
       supabase.from("payouts").select("amount").eq("status", "pending"),
+      supabase.from("affiliate_commissions").select("commission_amount, created_at, status").gte("created_at", thirtyDaysAgo.toISOString()),
+      supabase.from("affiliate_payouts").select("amount").eq("status", "pending"),
     ]);
 
     // Calculate pending payouts amount
     const pendingPayoutsAmount = (pendingPayoutsRes.data || []).reduce(
       (sum, p) => sum + Number(p.amount), 0
     );
+
+    // Calculate total commissions paid
+    const totalCommissionsPaid = (commissionsRes.data || [])
+      .filter((c) => c.status === "paid")
+      .reduce((sum, c) => sum + Number(c.commission_amount), 0);
+
+    // Calculate pending affiliate payouts
+    const pendingAffiliatePayouts = pendingAffiliatePayoutsRes.data?.length || 0;
+
+    // Process commission data for chart (last 30 days)
+    const commissionMap: Record<string, { amount: number; count: number }> = {};
+    (commissionsRes.data || []).forEach((c) => {
+      const dateStr = new Date(c.created_at).toISOString().split("T")[0];
+      if (!commissionMap[dateStr]) {
+        commissionMap[dateStr] = { amount: 0, count: 0 };
+      }
+      commissionMap[dateStr].amount += Number(c.commission_amount);
+      commissionMap[dateStr].count++;
+    });
+
+    const last30Days: CommissionData[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      last30Days.push({
+        date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        amount: commissionMap[dateStr]?.amount || 0,
+        count: commissionMap[dateStr]?.count || 0,
+      });
+    }
+    setCommissionData(last30Days);
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
@@ -197,6 +249,8 @@ const AdminDashboard = () => {
       weeklyRevenue,
       pendingPayouts: pendingPayoutsRes.data?.length || 0,
       pendingPayoutsAmount,
+      totalCommissionsPaid,
+      pendingAffiliatePayouts,
     });
   };
 
@@ -205,6 +259,7 @@ const AdminDashboard = () => {
     { icon: Users, label: "Users", to: "/admin/users", color: "text-blue-500" },
     { icon: ShoppingBag, label: "Orders", to: "/admin/orders", color: "text-green-500" },
     { icon: Wallet, label: "Payouts", to: "/admin/payouts", count: stats.pendingPayouts, color: "text-amber-500" },
+    { icon: UserCheck, label: "Affiliates", to: "/admin/affiliate-payouts", count: stats.pendingAffiliatePayouts, color: "text-cyan-500" },
     { icon: BarChart3, label: "Analytics", to: "/admin/analytics", color: "text-purple-500" },
   ];
 
@@ -322,10 +377,36 @@ const AdminDashboard = () => {
           </Link>
         )}
 
-        {/* Charts and Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Affiliate Payouts Alert */}
+        {stats.pendingAffiliatePayouts > 0 && (
+          <Link to="/admin/affiliate-payouts">
+            <Card className="border-cyan-500/30 bg-cyan-500/5 hover:border-cyan-500/50 transition-colors cursor-pointer">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                      <UserCheck className="h-5 w-5 text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Pending Affiliate Payouts</p>
+                      <p className="text-sm text-muted-foreground">
+                        {stats.pendingAffiliatePayouts} affiliate payout{stats.pendingAffiliatePayouts > 1 ? "s" : ""} awaiting approval
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20">
+                    Review Now
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Orders Chart */}
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -358,6 +439,62 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Commission Analytics Chart */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-cyan-500" />
+                  Affiliate Commissions (30 Days)
+                </CardTitle>
+                <Badge variant="outline" className="bg-cyan-500/10 text-cyan-600 border-cyan-500/20">
+                  {formatCurrency(stats.totalCommissionsPaid)} paid
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={commissionData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      className="text-xs" 
+                      tick={{ fontSize: 10 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis className="text-xs" tickFormatter={(value) => `$${value}`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--background))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                      }}
+                      formatter={(value: number) => [formatCurrency(value), "Commissions"]}
+                    />
+                    <defs>
+                      <linearGradient id="commissionGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <Area
+                      type="monotone"
+                      dataKey="amount"
+                      stroke="#06b6d4"
+                      strokeWidth={2}
+                      fill="url(#commissionGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Activity Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* Recent Activity */}
           <Card>
@@ -393,7 +530,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Navigation */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {navItems.map((item) => (
             <Link key={item.to} to={item.to}>
               <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
