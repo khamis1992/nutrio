@@ -29,6 +29,9 @@ interface Payout {
   payout_method: string;
   processed_at: string | null;
   created_at: string;
+  commission_rate: number;
+  total_order_value: number;
+  commission_deducted: number;
 }
 
 interface PayoutSummary {
@@ -36,6 +39,7 @@ interface PayoutSummary {
   pendingAmount: number;
   lastPayout: number;
   thisMonthEarnings: number;
+  totalCommission: number;
 }
 
 const PartnerPayouts = () => {
@@ -50,6 +54,7 @@ const PartnerPayouts = () => {
     pendingAmount: 0,
     lastPayout: 0,
     thisMonthEarnings: 0,
+    totalCommission: 0,
   });
 
   useEffect(() => {
@@ -88,6 +93,7 @@ const PartnerPayouts = () => {
         pendingAmount: pending.reduce((sum, p) => sum + p.amount, 0),
         lastPayout: completed.length > 0 ? completed[0].amount : 0,
         thisMonthEarnings: thisMonthPayouts.reduce((sum, p) => sum + p.amount, 0),
+        totalCommission: (data || []).reduce((sum, p) => sum + (p.commission_deducted || 0), 0),
       });
     } catch (error) {
       console.error("Error fetching payouts:", error);
@@ -237,31 +243,51 @@ const PartnerPayouts = () => {
               payouts.map((payout) => (
                 <div
                   key={payout.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
+                  className="p-4 rounded-lg bg-muted/50 space-y-3"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center">
-                      {getStatusIcon(payout.status)}
-                    </div>
-                    <div>
-                      <p className="font-semibold">${payout.amount.toFixed(2)}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>
-                          {new Date(payout.period_start).toLocaleDateString()} -{" "}
-                          {new Date(payout.period_end).toLocaleDateString()}
-                        </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center">
+                        {getStatusIcon(payout.status)}
+                      </div>
+                      <div>
+                        <p className="font-semibold">${payout.amount.toFixed(2)}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            {new Date(payout.period_start).toLocaleDateString()} -{" "}
+                            {new Date(payout.period_end).toLocaleDateString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <Badge variant="outline" className={getStatusColor(payout.status)}>
+                        {payout.status}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {payout.order_count} orders
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="outline" className={getStatusColor(payout.status)}>
-                      {payout.status}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {payout.order_count} orders
-                    </p>
-                  </div>
+                  
+                  {/* Commission breakdown */}
+                  {payout.total_order_value > 0 && (
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Total Orders</p>
+                        <p className="font-medium">${payout.total_order_value.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Commission ({payout.commission_rate.toFixed(1)}%)</p>
+                        <p className="font-medium text-destructive">-${payout.commission_deducted.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Your Earnings</p>
+                        <p className="font-medium text-green-600">${payout.amount.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
