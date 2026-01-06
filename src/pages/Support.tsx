@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Loader2, Send } from "lucide-react";
+import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Loader2, Send, Paperclip, X, Image, FileText } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -37,6 +37,16 @@ interface TicketMessage {
   is_admin_reply: boolean;
   created_at: string;
   sender_id: string;
+}
+
+interface TicketAttachment {
+  id: string;
+  ticket_id: string;
+  message_id: string | null;
+  file_name: string;
+  file_url: string;
+  file_type: string | null;
+  created_at: string;
 }
 
 const statusConfig: Record<TicketStatus, { label: string; icon: React.ReactNode; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -67,6 +77,11 @@ export default function Support() {
     description: "",
     category: "general",
   });
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [messageAttachments, setMessageAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ["user-support-tickets"],
@@ -98,46 +113,135 @@ export default function Support() {
     enabled: !!selectedTicket,
   });
 
+  const { data: ticketAttachments } = useQuery({
+    queryKey: ["ticket-attachments", selectedTicket?.id],
+    queryFn: async () => {
+      if (!selectedTicket) return [];
+      const { data, error } = await supabase
+        .from("ticket_attachments")
+        .select("*")
+        .eq("ticket_id", selectedTicket.id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as TicketAttachment[];
+    },
+    enabled: !!selectedTicket,
+  });
+
+  const uploadFiles = async (files: File[], ticketId: string, messageId?: string) => {
+    const uploadedAttachments = [];
+    for (const file of files) {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${ticketId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("ticket-attachments")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from("ticket-attachments")
+        .getPublicUrl(filePath);
+      
+      uploadedAttachments.push({
+        ticket_id: ticketId,
+        message_id: messageId || null,
+        file_name: file.name,
+        file_url: publicUrl,
+        file_size: file.size,
+        file_type: file.type,
+        uploaded_by: user!.id,
+      });
+    }
+    if (uploadedAttachments.length > 0) {
+      const { error } = await supabase.from("ticket_attachments").insert(uploadedAttachments);
+      if (error) throw error;
+    }
+  };
+
   const createTicketMutation = useMutation({
     mutationFn: async (ticket: typeof newTicket) => {
-      const { error } = await supabase.from("support_tickets").insert({
+      setUploading(true);
+      const { data, error } = await supabase.from("support_tickets").insert({
         user_id: user!.id,
         subject: ticket.subject,
         description: ticket.description,
         category: ticket.category,
-      });
+      }).select().single();
       if (error) throw error;
+      
+      if (attachments.length > 0) {
+        await uploadFiles(attachments, data.id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-support-tickets"] });
       setIsCreateOpen(false);
       setNewTicket({ subject: "", description: "", category: "general" });
+      setAttachments([]);
+      setUploading(false);
       toast.success("Support ticket created successfully");
     },
     onError: () => {
+      setUploading(false);
       toast.error("Failed to create ticket");
     },
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
-      const { error } = await supabase.from("ticket_messages").insert({
+      setUploading(true);
+      const { data, error } = await supabase.from("ticket_messages").insert({
         ticket_id: selectedTicket!.id,
         sender_id: user!.id,
         message,
         is_admin_reply: false,
-      });
+      }).select().single();
       if (error) throw error;
+      
+      if (messageAttachments.length > 0) {
+        await uploadFiles(messageAttachments, selectedTicket!.id, data.id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket-messages", selectedTicket?.id] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", selectedTicket?.id] });
       setNewMessage("");
+      setMessageAttachments([]);
+      setUploading(false);
       toast.success("Message sent");
     },
     onError: () => {
+      setUploading(false);
       toast.error("Failed to send message");
     },
   });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, isMessage: boolean) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024); // 10MB limit
+    if (validFiles.length !== files.length) {
+      toast.error("Some files exceeded 10MB limit");
+    }
+    if (isMessage) {
+      setMessageAttachments(prev => [...prev, ...validFiles]);
+    } else {
+      setAttachments(prev => [...prev, ...validFiles]);
+    }
+    e.target.value = "";
+  };
+
+  const removeAttachment = (index: number, isMessage: boolean) => {
+    if (isMessage) {
+      setMessageAttachments(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setAttachments(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const getFileIcon = (type: string | null) => {
+    if (type?.startsWith("image/")) return <Image className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  };
 
   const handleCreateTicket = (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,12 +316,45 @@ export default function Support() {
                     rows={4}
                   />
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Attachments</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => handleFileSelect(e, false)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full mt-1"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="w-4 h-4 mr-2" />
+                    Add Screenshots/Files
+                  </Button>
+                  {attachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {attachments.map((file, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded px-2 py-1">
+                          {getFileIcon(file.type)}
+                          <span className="flex-1 truncate">{file.name}</span>
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeAttachment(i, false)}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createTicketMutation.isPending}>
-                    {createTicketMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Button type="submit" disabled={createTicketMutation.isPending || uploading}>
+                    {(createTicketMutation.isPending || uploading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Submit Ticket
                   </Button>
                 </div>
@@ -318,32 +455,67 @@ export default function Support() {
                               {msg.is_admin_reply ? "Support Team" : "You"}
                             </p>
                             <p className="text-sm">{msg.message}</p>
+                            {ticketAttachments?.filter(a => a.message_id === msg.id).map(att => (
+                              <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline mt-1">
+                                {getFileIcon(att.file_type)}
+                                {att.file_name}
+                              </a>
+                            ))}
                             <p className="text-xs text-muted-foreground mt-2">
                               {format(new Date(msg.created_at), "MMM d, h:mm a")}
                             </p>
                           </div>
                         ))
                       )}
+                      {ticketAttachments?.filter(a => !a.message_id).map(att => (
+                        <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                          {getFileIcon(att.file_type)}
+                          {att.file_name}
+                        </a>
+                      ))}
                     </div>
                   </ScrollArea>
                   {selectedTicket.status !== "closed" && (
                     <>
                       <Separator />
-                      <form onSubmit={handleSendMessage} className="p-4 flex gap-2">
-                        <Input
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          placeholder="Type your message..."
-                          disabled={sendMessageMutation.isPending}
-                        />
-                        <Button type="submit" size="icon" disabled={sendMessageMutation.isPending || !newMessage.trim()}>
-                          {sendMessageMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </form>
+                      <div className="p-4 space-y-2">
+                        {messageAttachments.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {messageAttachments.map((file, i) => (
+                              <Badge key={i} variant="secondary" className="gap-1">
+                                {file.name.length > 15 ? file.name.substring(0, 15) + "..." : file.name}
+                                <X className="w-3 h-3 cursor-pointer" onClick={() => removeAttachment(i, true)} />
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <form onSubmit={handleSendMessage} className="flex gap-2">
+                          <input
+                            ref={messageFileInputRef}
+                            type="file"
+                            multiple
+                            accept="image/*,.pdf,.doc,.docx,.txt"
+                            className="hidden"
+                            onChange={(e) => handleFileSelect(e, true)}
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={() => messageFileInputRef.current?.click()}>
+                            <Paperclip className="w-4 h-4" />
+                          </Button>
+                          <Input
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type your message..."
+                            disabled={sendMessageMutation.isPending || uploading}
+                          />
+                          <Button type="submit" size="icon" disabled={sendMessageMutation.isPending || uploading || !newMessage.trim()}>
+                            {(sendMessageMutation.isPending || uploading) ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </form>
+                      </div>
                     </>
                   )}
                 </Card>
