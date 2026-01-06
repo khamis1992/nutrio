@@ -290,11 +290,14 @@ export type Database = {
       }
       orders: {
         Row: {
+          commission_amount: number | null
+          commission_rate: number | null
           created_at: string
           delivery_date: string
           id: string
           meal_type: string | null
           notes: string | null
+          partner_earnings: number | null
           restaurant_id: string | null
           status: Database["public"]["Enums"]["order_status"] | null
           total_price: number
@@ -302,11 +305,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          commission_amount?: number | null
+          commission_rate?: number | null
           created_at?: string
           delivery_date: string
           id?: string
           meal_type?: string | null
           notes?: string | null
+          partner_earnings?: number | null
           restaurant_id?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
           total_price: number
@@ -314,11 +320,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          commission_amount?: number | null
+          commission_rate?: number | null
           created_at?: string
           delivery_date?: string
           id?: string
           meal_type?: string | null
           notes?: string | null
+          partner_earnings?: number | null
           restaurant_id?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
           total_price?: number
@@ -338,6 +347,8 @@ export type Database = {
       payouts: {
         Row: {
           amount: number
+          commission_deducted: number | null
+          commission_rate: number | null
           created_at: string
           id: string
           order_count: number
@@ -348,10 +359,13 @@ export type Database = {
           processed_at: string | null
           restaurant_id: string
           status: string
+          total_order_value: number | null
           updated_at: string
         }
         Insert: {
           amount: number
+          commission_deducted?: number | null
+          commission_rate?: number | null
           created_at?: string
           id?: string
           order_count?: number
@@ -362,10 +376,13 @@ export type Database = {
           processed_at?: string | null
           restaurant_id: string
           status?: string
+          total_order_value?: number | null
           updated_at?: string
         }
         Update: {
           amount?: number
+          commission_deducted?: number | null
+          commission_rate?: number | null
           created_at?: string
           id?: string
           order_count?: number
@@ -376,6 +393,7 @@ export type Database = {
           processed_at?: string | null
           restaurant_id?: string
           status?: string
+          total_order_value?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -854,6 +872,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_partner_payout: {
+        Args: {
+          p_period_end: string
+          p_period_start: string
+          p_restaurant_id: string
+        }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
