@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,8 @@ import {
   Paperclip,
   Image,
   FileText,
-  ExternalLink
+  ExternalLink,
+  X
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -91,7 +92,9 @@ export default function AdminSupport() {
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [stats, setStats] = useState({
     total: 0,
     open: 0,
@@ -262,24 +265,62 @@ export default function AdminSupport() {
     }
   };
 
+  const uploadFiles = async (files: File[], ticketId: string, messageId: string) => {
+    const uploadedAttachments = [];
+    for (const file of files) {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${ticketId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("ticket-attachments")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from("ticket-attachments")
+        .getPublicUrl(filePath);
+      
+      uploadedAttachments.push({
+        ticket_id: ticketId,
+        message_id: messageId,
+        file_name: file.name,
+        file_url: publicUrl,
+        file_size: file.size,
+        file_type: file.type,
+        uploaded_by: user!.id,
+      });
+    }
+    if (uploadedAttachments.length > 0) {
+      const { error } = await supabase.from("ticket_attachments").insert(uploadedAttachments);
+      if (error) throw error;
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedTicket || !user) return;
+    if ((!newMessage.trim() && replyAttachments.length === 0) || !selectedTicket || !user) return;
 
     setSendingMessage(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("ticket_messages")
         .insert({
           ticket_id: selectedTicket.id,
           sender_id: user.id,
-          message: newMessage.trim(),
+          message: newMessage.trim() || "(attachment)",
           is_admin_reply: true,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      if (replyAttachments.length > 0) {
+        await uploadFiles(replyAttachments, selectedTicket.id, data.id);
+      }
+
       setNewMessage("");
+      setReplyAttachments([]);
       fetchMessages(selectedTicket.id);
+      fetchAttachments(selectedTicket.id);
       
       // Auto-update status to in_progress if it was open
       if (selectedTicket.status === 'open') {
@@ -295,6 +336,20 @@ export default function AdminSupport() {
     } finally {
       setSendingMessage(false);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024);
+    if (validFiles.length !== files.length) {
+      toast({ title: "Warning", description: "Some files exceeded 10MB limit", variant: "destructive" });
+    }
+    setReplyAttachments(prev => [...prev, ...validFiles]);
+    e.target.value = "";
+  };
+
+  const removeAttachment = (index: number) => {
+    setReplyAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const getStatusBadge = (status: string) => {
@@ -661,20 +716,50 @@ export default function AdminSupport() {
 
                 {/* Reply Input */}
                 {selectedTicket.status !== 'closed' && (
-                  <div className="flex gap-2">
-                    <Textarea
-                      placeholder="Type your reply..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      className="min-h-[80px]"
-                    />
-                    <Button 
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim() || sendingMessage}
-                      className="self-end"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                  <div className="space-y-2">
+                    {replyAttachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {replyAttachments.map((file, i) => (
+                          <Badge key={i} variant="secondary" className="gap-1">
+                            {file.type.startsWith("image/") ? <Image className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                            {file.name.length > 20 ? file.name.substring(0, 20) + "..." : file.name}
+                            <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => removeAttachment(i)} />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.doc,.docx,.txt"
+                        className="hidden"
+                        onChange={handleFileSelect}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={sendingMessage}
+                      >
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <Textarea
+                        placeholder="Type your reply..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        className="min-h-[80px]"
+                      />
+                      <Button 
+                        onClick={handleSendMessage}
+                        disabled={(!newMessage.trim() && replyAttachments.length === 0) || sendingMessage}
+                        className="self-end"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
 
