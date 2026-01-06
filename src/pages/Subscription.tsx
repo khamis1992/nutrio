@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Crown, Zap, Star, ArrowLeft } from "lucide-react";
+import { Check, Crown, Zap, Star, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +18,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const plans = [
+interface SubscriptionPricing {
+  basic_price: number;
+  premium_price: number;
+  family_price: number;
+}
+
+const getPlans = (pricing: SubscriptionPricing) => [
   {
     id: "basic",
     name: "Basic",
-    price: 29,
+    price: pricing.basic_price,
     period: "week",
     mealsPerWeek: 5,
     description: "Perfect for getting started with healthy eating",
@@ -40,7 +46,7 @@ const plans = [
   {
     id: "pro",
     name: "Pro",
-    price: 79,
+    price: pricing.premium_price,
     period: "week",
     mealsPerWeek: 14,
     description: "Most popular choice for health enthusiasts",
@@ -60,7 +66,7 @@ const plans = [
   {
     id: "premium",
     name: "Premium",
-    price: 149,
+    price: pricing.family_price,
     period: "week",
     mealsPerWeek: 0, // 0 = unlimited
     description: "Ultimate plan for serious fitness goals",
@@ -85,7 +91,13 @@ export default function Subscription() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<typeof plans[0] | null>(null);
+  const [loadingPricing, setLoadingPricing] = useState(true);
+  const [pricing, setPricing] = useState<SubscriptionPricing>({
+    basic_price: 49.99,
+    premium_price: 99.99,
+    family_price: 149.99,
+  });
+  const [selectedPlan, setSelectedPlan] = useState<ReturnType<typeof getPlans>[0] | null>(null);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardDetails, setCardDetails] = useState({
@@ -94,6 +106,35 @@ export default function Subscription() {
     cvc: "",
     name: "",
   });
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "subscription_plans")
+          .single();
+
+        if (!error && data?.value) {
+          const value = data.value as Record<string, unknown>;
+          setPricing({
+            basic_price: (value.basic_price as number) || 49.99,
+            premium_price: (value.premium_price as number) || 99.99,
+            family_price: (value.family_price as number) || 149.99,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching pricing:", error);
+      } finally {
+        setLoadingPricing(false);
+      }
+    };
+
+    fetchPricing();
+  }, []);
+
+  const plans = getPlans(pricing);
 
   const handleSelectPlan = (plan: typeof plans[0]) => {
     setSelectedPlan(plan);
@@ -151,6 +192,14 @@ export default function Subscription() {
     }
   };
 
+  if (loadingPricing) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -163,8 +212,7 @@ export default function Subscription() {
         </div>
       </header>
 
-      <main className="container px-4 py-8 md:py-12">
-        {/* Hero */}
+      <main className="container px-4 py-8 md:py-12">{/* Hero */}
         <div className="mx-auto max-w-3xl text-center mb-12">
           <Badge variant="secondary" className="mb-4">
             🎉 Demo Mode - No Real Charges
