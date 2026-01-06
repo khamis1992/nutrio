@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.send-affiliate-welcome]
 verify_jwt = false
+
+[functions.send-affiliate-status-notification]
+verify_jwt = false

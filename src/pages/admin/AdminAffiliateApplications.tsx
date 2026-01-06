@@ -120,9 +120,22 @@ export default function AdminAffiliateApplications() {
         .eq("id", application.user_id)
         .is("referral_code", null);
 
+      // Send approval email notification
+      try {
+        await supabase.functions.invoke("send-affiliate-status-notification", {
+          body: {
+            user_id: application.user_id,
+            status: "approved",
+          },
+        });
+      } catch (emailError) {
+        console.error("Error sending approval email:", emailError);
+        // Don't fail the approval if email fails
+      }
+
       toast({
         title: "Application Approved",
-        description: "The user has been approved as an affiliate.",
+        description: "The user has been approved as an affiliate and notified via email.",
       });
 
       fetchApplications();
@@ -154,9 +167,23 @@ export default function AdminAffiliateApplications() {
 
       if (error) throw error;
 
+      // Send rejection email notification
+      try {
+        await supabase.functions.invoke("send-affiliate-status-notification", {
+          body: {
+            user_id: selectedApplication.user_id,
+            status: "rejected",
+            rejection_reason: rejectionReason || undefined,
+          },
+        });
+      } catch (emailError) {
+        console.error("Error sending rejection email:", emailError);
+        // Don't fail the rejection if email fails
+      }
+
       toast({
         title: "Application Rejected",
-        description: "The application has been rejected.",
+        description: "The application has been rejected and the user notified.",
       });
 
       setRejectDialogOpen(false);
