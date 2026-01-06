@@ -547,6 +547,108 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_usage: {
+        Row: {
+          discount_applied: number
+          id: string
+          order_id: string | null
+          promotion_id: string
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          discount_applied: number
+          id?: string
+          order_id?: string | null
+          promotion_id: string
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          discount_applied?: number
+          id?: string
+          order_id?: string | null
+          promotion_id?: string
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_usage_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_usage_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          id: string
+          is_active: boolean | null
+          max_discount_amount: number | null
+          max_uses: number | null
+          max_uses_per_user: number | null
+          min_order_amount: number | null
+          name: string
+          updated_at: string
+          uses_count: number | null
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type?: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          id?: string
+          is_active?: boolean | null
+          max_discount_amount?: number | null
+          max_uses?: number | null
+          max_uses_per_user?: number | null
+          min_order_amount?: number | null
+          name: string
+          updated_at?: string
+          uses_count?: number | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_type?: Database["public"]["Enums"]["discount_type"]
+          discount_value?: number
+          id?: string
+          is_active?: boolean | null
+          max_discount_amount?: number | null
+          max_uses?: number | null
+          max_uses_per_user?: number | null
+          min_order_amount?: number | null
+          name?: string
+          updated_at?: string
+          uses_count?: number | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           completed_at: string | null
@@ -906,6 +1008,7 @@ export type Database = {
         | "very_active"
       app_role: "user" | "partner" | "admin"
       approval_status: "pending" | "approved" | "rejected"
+      discount_type: "percentage" | "fixed"
       gender_type: "male" | "female"
       health_goal: "lose" | "gain" | "maintain"
       order_status:
@@ -1052,6 +1155,7 @@ export const Constants = {
       ],
       app_role: ["user", "partner", "admin"],
       approval_status: ["pending", "approved", "rejected"],
+      discount_type: ["percentage", "fixed"],
       gender_type: ["male", "female"],
       health_goal: ["lose", "gain", "maintain"],
       order_status: [
