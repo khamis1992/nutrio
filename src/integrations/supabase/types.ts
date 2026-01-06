@@ -578,6 +578,50 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_analytics_purchases: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          package_type: string
+          partner_id: string
+          payment_reference: string | null
+          price_paid: number
+          restaurant_id: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          package_type: string
+          partner_id: string
+          payment_reference?: string | null
+          price_paid: number
+          restaurant_id: string
+          starts_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          package_type?: string
+          partner_id?: string
+          payment_reference?: string | null
+          price_paid?: number
+          restaurant_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_analytics_purchases_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           activity_level: Database["public"]["Enums"]["activity_level"] | null
@@ -840,6 +884,7 @@ export type Database = {
           name: string
           owner_id: string | null
           phone: string | null
+          premium_analytics_until: string | null
           rating: number | null
           total_orders: number | null
           updated_at: string
@@ -858,6 +903,7 @@ export type Database = {
           name: string
           owner_id?: string | null
           phone?: string | null
+          premium_analytics_until?: string | null
           rating?: number | null
           total_orders?: number | null
           updated_at?: string
@@ -876,6 +922,7 @@ export type Database = {
           name?: string
           owner_id?: string | null
           phone?: string | null
+          premium_analytics_until?: string | null
           rating?: number | null
           total_orders?: number | null
           updated_at?: string
