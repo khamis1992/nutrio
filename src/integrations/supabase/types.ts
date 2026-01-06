@@ -945,6 +945,42 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_milestones: {
+        Row: {
+          bonus_amount: number
+          bonus_type: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          referral_count: number
+          updated_at: string
+        }
+        Insert: {
+          bonus_amount: number
+          bonus_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          referral_count: number
+          updated_at?: string
+        }
+        Update: {
+          bonus_amount?: number
+          bonus_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          referral_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           completed_at: string | null
@@ -1416,6 +1452,41 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_milestone_achievements: {
+        Row: {
+          achieved_at: string
+          bonus_credited: boolean
+          credited_at: string | null
+          id: string
+          milestone_id: string
+          user_id: string
+        }
+        Insert: {
+          achieved_at?: string
+          bonus_credited?: boolean
+          credited_at?: string | null
+          id?: string
+          milestone_id: string
+          user_id: string
+        }
+        Update: {
+          achieved_at?: string
+          bonus_credited?: boolean
+          credited_at?: string | null
+          id?: string
+          milestone_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_milestone_achievements_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "referral_milestones"
             referencedColumns: ["id"]
           },
         ]
