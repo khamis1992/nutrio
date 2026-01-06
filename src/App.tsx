@@ -42,6 +42,7 @@ import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminExports from "./pages/admin/AdminExports";
+import AdminPayouts from "./pages/admin/AdminPayouts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -328,6 +329,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminExports />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/payouts" 
+              element={
+                <ProtectedRoute>
+                  <AdminPayouts />
                 </ProtectedRoute>
               } 
             />

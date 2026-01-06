@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Shield, Store, Users, ShoppingBag, BarChart3, CreditCard, Settings, Download } from "lucide-react";
+import { Shield, Store, Users, ShoppingBag, BarChart3, CreditCard, Settings, Download, Wallet } from "lucide-react";
 
 const navItems = [
   { icon: Shield, label: "Dashboard", to: "/admin" },
@@ -7,6 +7,7 @@ const navItems = [
   { icon: Users, label: "Users", to: "/admin/users" },
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
   { icon: CreditCard, label: "Subs", to: "/admin/subscriptions" },
+  { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
   { icon: BarChart3, label: "Analytics", to: "/admin/analytics" },
   { icon: Download, label: "Export", to: "/admin/exports" },
   { icon: Settings, label: "Settings", to: "/admin/settings" },
