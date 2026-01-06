@@ -326,7 +326,11 @@ const OrderHistory = () => {
       const StatusIcon = statusInfo.icon;
 
       return (
-        <Card key={schedule.id} className="overflow-hidden">
+        <Card 
+          key={schedule.id} 
+          className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate(`/orders/${schedule.id}`)}
+        >
           <CardContent className="p-4">
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
