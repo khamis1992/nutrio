@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-monthly-affiliate-report]
 verify_jwt = false
+
+[functions.send-tier-upgrade-notification]
+verify_jwt = false
