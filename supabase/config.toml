@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.send-milestone-notification]
 verify_jwt = false
+
+[functions.send-monthly-affiliate-report]
+verify_jwt = false
