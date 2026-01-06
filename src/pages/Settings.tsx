@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Utensils, Clock, Mail, Smartphone, Tag, Check, X } from "lucide-react";
+import { ArrowLeft, Bell, Utensils, Clock, Mail, Smartphone, Tag, Check, X, Crown, Pause, Play, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -8,8 +8,21 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/useSubscription";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { supabase } from "@/integrations/supabase/client";
 
 interface NotificationPreferences {
@@ -34,9 +47,12 @@ const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { subscription, hasActiveSubscription, isPaused, pauseSubscription, resumeSubscription, refetch: refetchSubscription } = useSubscription();
+  const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pausingSubscription, setPausingSubscription] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
   const [dietTags, setDietTags] = useState<DietTag[]>([]);
   const [userDietPreferences, setUserDietPreferences] = useState<string[]>([]);
@@ -229,6 +245,133 @@ const Settings = () => {
       </header>
 
       <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Subscription Management */}
+        {(subscription && platformSettings.features.subscription_pause) && (
+          <Card className={isPaused ? "border-amber-500/30 bg-amber-500/5" : ""}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                Subscription
+              </CardTitle>
+              <CardDescription>
+                Manage your subscription settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium capitalize">{subscription.plan} Plan</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isPaused ? (
+                      <span className="flex items-center gap-1 text-amber-600">
+                        <Pause className="h-3 w-3" />
+                        Subscription paused
+                      </span>
+                    ) : (
+                      `Renews on ${new Date(subscription.end_date).toLocaleDateString()}`
+                    )}
+                  </p>
+                </div>
+                <Badge variant={isPaused ? "outline" : "default"} className={isPaused ? "border-amber-500 text-amber-600" : ""}>
+                  {isPaused ? "Paused" : "Active"}
+                </Badge>
+              </div>
+
+              {isPaused ? (
+                <div className="p-3 bg-amber-500/10 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-600">Subscription Paused</p>
+                      <p className="text-sm text-muted-foreground">
+                        You won't be charged and can't order meals while paused. Resume anytime to continue.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex gap-2">
+                {isPaused ? (
+                  <Button 
+                    onClick={async () => {
+                      setPausingSubscription(true);
+                      const success = await resumeSubscription();
+                      setPausingSubscription(false);
+                      if (success) {
+                        toast({
+                          title: "Subscription Resumed",
+                          description: "Your subscription is now active again.",
+                        });
+                      } else {
+                        toast({
+                          title: "Error",
+                          description: "Failed to resume subscription. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    disabled={pausingSubscription}
+                    className="flex-1"
+                  >
+                    {pausingSubscription ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4 mr-2" />
+                    )}
+                    Resume Subscription
+                  </Button>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="flex-1">
+                        <Pause className="h-4 w-4 mr-2" />
+                        Pause Subscription
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Pause your subscription?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          While paused, you won't be charged and won't be able to order meals.
+                          You can resume your subscription at any time.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            setPausingSubscription(true);
+                            const success = await pauseSubscription();
+                            setPausingSubscription(false);
+                            if (success) {
+                              toast({
+                                title: "Subscription Paused",
+                                description: "Your subscription has been paused. Resume anytime.",
+                              });
+                            } else {
+                              toast({
+                                title: "Error",
+                                description: "Failed to pause subscription. Please try again.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          Pause Subscription
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+                <Button variant="ghost" onClick={() => navigate("/subscription")}>
+                  Change Plan
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Notification Preferences */}
         <Card>
           <CardHeader>
