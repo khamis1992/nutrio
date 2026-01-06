@@ -46,6 +46,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/currency";
 
 interface Payout {
   id: string;
@@ -313,7 +314,7 @@ export default function AdminPayouts() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pending Payouts</p>
-                  <p className="text-2xl font-bold">${stats.totalPending.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats.totalPending)}</p>
                   <p className="text-xs text-muted-foreground">{stats.pendingCount} payouts</p>
                 </div>
               </div>
@@ -328,7 +329,7 @@ export default function AdminPayouts() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Processed</p>
-                  <p className="text-2xl font-bold">${stats.totalProcessed.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats.totalProcessed)}</p>
                   <p className="text-xs text-muted-foreground">{stats.processedCount} payouts</p>
                 </div>
               </div>
@@ -344,7 +345,7 @@ export default function AdminPayouts() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Commission</p>
                   <p className="text-2xl font-bold">
-                    ${payouts.reduce((sum, p) => sum + Number(p.commission_deducted || 0), 0).toFixed(2)}
+                    {formatCurrency(payouts.reduce((sum, p) => sum + Number(p.commission_deducted || 0), 0))}
                   </p>
                   <p className="text-xs text-muted-foreground">Platform earnings</p>
                 </div>
@@ -361,7 +362,7 @@ export default function AdminPayouts() {
                 <div>
                   <p className="text-sm text-muted-foreground">Total Order Value</p>
                   <p className="text-2xl font-bold">
-                    ${payouts.reduce((sum, p) => sum + Number(p.total_order_value || 0), 0).toFixed(2)}
+                    {formatCurrency(payouts.reduce((sum, p) => sum + Number(p.total_order_value || 0), 0))}
                   </p>
                   <p className="text-xs text-muted-foreground">Gross revenue</p>
                 </div>
@@ -441,14 +442,14 @@ export default function AdminPayouts() {
                         </TableCell>
                         <TableCell className="text-right">{payout.order_count}</TableCell>
                         <TableCell className="text-right">
-                          ${Number(payout.total_order_value || 0).toFixed(2)}
+                          {formatCurrency(payout.total_order_value || 0)}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          -${Number(payout.commission_deducted || 0).toFixed(2)}
+                          -{formatCurrency(payout.commission_deducted || 0)}
                           <span className="text-xs ml-1">({payout.commission_rate || 0}%)</span>
                         </TableCell>
                         <TableCell className="text-right font-semibold text-green-600">
-                          ${Number(payout.amount).toFixed(2)}
+                          {formatCurrency(payout.amount)}
                         </TableCell>
                         <TableCell>{getStatusBadge(payout.status)}</TableCell>
                         <TableCell>
@@ -524,7 +525,7 @@ export default function AdminPayouts() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount:</span>
-                <span className="font-bold text-green-600">${Number(selectedPayout.amount).toFixed(2)}</span>
+                <span className="font-bold text-green-600">{formatCurrency(selectedPayout.amount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Period:</span>

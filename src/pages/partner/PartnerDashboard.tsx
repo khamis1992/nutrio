@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
+import { formatCurrency } from "@/lib/currency";
 
 interface Restaurant {
   id: string;
@@ -409,7 +410,7 @@ const PartnerDashboard = () => {
                   <DollarSign className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">${stats.totalRevenue.toFixed(0)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
                   <p className="text-xs text-muted-foreground">Revenue</p>
                 </div>
               </div>
@@ -427,7 +428,7 @@ const PartnerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">This Week's Revenue</p>
-                  <p className="text-3xl font-bold">${stats.weeklyRevenue.toFixed(2)}</p>
+                  <p className="text-3xl font-bold">{formatCurrency(stats.weeklyRevenue)}</p>
                 </div>
               </div>
               {stats.lastWeekRevenue > 0 && (
@@ -457,7 +458,7 @@ const PartnerDashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-semibold">
-                  ${stats.weeklyOrders > 0 ? (stats.weeklyRevenue / stats.weeklyOrders).toFixed(2) : '0.00'}
+                  {stats.weeklyOrders > 0 ? formatCurrency(stats.weeklyRevenue / stats.weeklyOrders) : formatCurrency(0)}
                 </p>
                 <p className="text-xs text-muted-foreground">Avg. order value</p>
               </div>

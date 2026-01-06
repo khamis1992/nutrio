@@ -54,6 +54,7 @@ import {
   Calendar
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatCurrency, CURRENCY } from "@/lib/currency";
 
 interface Promotion {
   id: string;
@@ -394,13 +395,13 @@ export default function AdminPromotions() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="percentage">Percentage (%)</SelectItem>
-                        <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                        <SelectItem value="fixed">Fixed Amount ({CURRENCY.symbol})</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="discount_value">
-                      Discount Value * {formData.discount_type === 'percentage' ? '(%)' : '($)'}
+                      Discount Value * {formData.discount_type === 'percentage' ? '(%)' : `(${CURRENCY.symbol})`}
                     </Label>
                     <Input
                       id="discount_value"
@@ -416,7 +417,7 @@ export default function AdminPromotions() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="min_order_amount">Minimum Order Amount ($)</Label>
+                    <Label htmlFor="min_order_amount">Minimum Order Amount ({CURRENCY.symbol})</Label>
                     <Input
                       id="min_order_amount"
                       type="number"
@@ -427,7 +428,7 @@ export default function AdminPromotions() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="max_discount_amount">Max Discount Amount ($)</Label>
+                    <Label htmlFor="max_discount_amount">Max Discount Amount ({CURRENCY.symbol})</Label>
                     <Input
                       id="max_discount_amount"
                       type="number"
@@ -542,7 +543,7 @@ export default function AdminPromotions() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.totalDiscount.toFixed(2)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(stats.totalDiscount)}</div>
             </CardContent>
           </Card>
         </div>

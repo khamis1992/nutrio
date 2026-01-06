@@ -27,6 +27,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { formatCurrency } from "@/lib/currency";
 
 interface DailyData {
   date: string;
@@ -217,7 +218,7 @@ const PartnerAnalytics = () => {
                   <DollarSign className="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">${totalStats.totalRevenue.toFixed(0)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalStats.totalRevenue)}</p>
                   <p className="text-xs text-muted-foreground">Total Revenue</p>
                 </div>
               </div>
@@ -231,7 +232,7 @@ const PartnerAnalytics = () => {
                   <TrendingUp className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">${totalStats.avgOrderValue.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalStats.avgOrderValue)}</p>
                   <p className="text-xs text-muted-foreground">Avg Order Value</p>
                 </div>
               </div>
@@ -332,7 +333,7 @@ const PartnerAnalytics = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">{meal.orders} orders</p>
-                      <p className="text-xs text-muted-foreground">${meal.revenue.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">{formatCurrency(meal.revenue)}</p>
                     </div>
                   </div>
                 ))
