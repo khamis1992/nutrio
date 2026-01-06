@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { PartnerNavigation } from "@/components/PartnerNavigation";
+import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 
 interface Restaurant {
   id: string;
@@ -373,6 +374,9 @@ const PartnerDashboard = () => {
       </header>
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Platform Announcements */}
+        <AnnouncementsBanner audience="partners" />
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
           <Card>

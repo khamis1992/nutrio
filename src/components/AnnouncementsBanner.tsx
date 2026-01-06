@@ -37,7 +37,11 @@ const typeConfig: Record<string, { icon: React.ReactNode; className: string; bad
   },
 };
 
-export function AnnouncementsBanner() {
+interface AnnouncementsBannerProps {
+  audience?: "customers" | "partners";
+}
+
+export function AnnouncementsBanner({ audience = "customers" }: AnnouncementsBannerProps) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
@@ -47,7 +51,7 @@ export function AnnouncementsBanner() {
         .from("announcements")
         .select("id, title, message, type, starts_at, ends_at")
         .eq("is_active", true)
-        .or("target_audience.eq.all,target_audience.eq.customers")
+        .or(`target_audience.eq.all,target_audience.eq.${audience}`)
         .lte("starts_at", new Date().toISOString())
         .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`)
         .order("created_at", { ascending: false });
