@@ -45,6 +45,7 @@ import AdminExports from "./pages/admin/AdminExports";
 import AdminPayouts from "./pages/admin/AdminPayouts";
 import AdminDietTags from "./pages/admin/AdminDietTags";
 import AdminPromotions from "./pages/admin/AdminPromotions";
+import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import Support from "./pages/Support";
@@ -366,6 +367,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminPromotions />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/announcements" 
+              element={
+                <ProtectedRoute>
+                  <AdminAnnouncements />
                 </ProtectedRoute>
               } 
             />
