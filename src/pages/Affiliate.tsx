@@ -43,6 +43,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { formatCurrency } from "@/lib/currency";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AffiliateLeaderboard } from "@/components/AffiliateLeaderboard";
+import { ReferralMilestones } from "@/components/ReferralMilestones";
 
 export default function Affiliate() {
   const navigate = useNavigate();
@@ -298,6 +299,9 @@ export default function Affiliate() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Milestone Bonuses */}
+        <ReferralMilestones />
 
         {/* Leaderboard */}
         <AffiliateLeaderboard />
