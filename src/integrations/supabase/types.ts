@@ -1454,6 +1454,35 @@ export type Database = {
         }
         Returns: string
       }
+      get_affiliate_leaderboard_earnings: {
+        Args: { limit_count?: number }
+        Returns: {
+          affiliate_tier: string
+          avatar_url: string
+          full_name: string
+          id: string
+          referral_count: number
+          total_affiliate_earnings: number
+        }[]
+      }
+      get_affiliate_leaderboard_referrals: {
+        Args: { limit_count?: number }
+        Returns: {
+          affiliate_tier: string
+          avatar_url: string
+          full_name: string
+          id: string
+          referral_count: number
+          total_affiliate_earnings: number
+        }[]
+      }
+      get_user_affiliate_rank: {
+        Args: { user_uuid: string }
+        Returns: {
+          earnings: number
+          referrals: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
