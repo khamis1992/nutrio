@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown } from "lucide-react";
+import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -75,6 +75,18 @@ interface VipSettings {
   };
 }
 
+interface AffiliateSettings {
+  enabled: boolean;
+  tier1_commission: number;
+  tier2_commission: number;
+  tier3_commission: number;
+  min_payout_threshold: number;
+  bonus_first_referral: number;
+  bonus_milestone_10: number;
+  bonus_milestone_25: number;
+  bonus_milestone_50: number;
+}
+
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -136,6 +148,18 @@ export default function AdminSettings() {
     },
   });
 
+  const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings>({
+    enabled: true,
+    tier1_commission: 10,
+    tier2_commission: 5,
+    tier3_commission: 2,
+    min_payout_threshold: 25,
+    bonus_first_referral: 5,
+    bonus_milestone_10: 20,
+    bonus_milestone_25: 50,
+    bonus_milestone_50: 100,
+  });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -175,6 +199,9 @@ export default function AdminSettings() {
           case "vip_settings":
             setVipSettings(value as unknown as VipSettings);
             break;
+          case "affiliate_settings":
+            setAffiliateSettings(value as unknown as AffiliateSettings);
+            break;
         }
       });
     } catch (error) {
@@ -197,6 +224,7 @@ export default function AdminSettings() {
         { key: "delivery_fees", value: deliveryFees as Json },
         { key: "premium_analytics_prices", value: premiumAnalyticsPrices as Json },
         { key: "vip_settings", value: vipSettings as unknown as Json },
+        { key: "affiliate_settings", value: affiliateSettings as unknown as Json },
       ];
 
       for (const update of updates) {
@@ -632,7 +660,81 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
-          {/* Notification Settings */}
+          {/* Affiliate/MLM Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-violet-500" />
+                Affiliate Program Settings
+              </CardTitle>
+              <CardDescription>Configure multi-tier affiliate commissions</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Enable Affiliate Program</Label>
+                  <p className="text-sm text-muted-foreground">Allow users to earn commissions</p>
+                </div>
+                <Switch
+                  checked={affiliateSettings.enabled}
+                  onCheckedChange={(checked) =>
+                    setAffiliateSettings({ ...affiliateSettings, enabled: checked })
+                  }
+                />
+              </div>
+              <Separator />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Tier 1 (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={affiliateSettings.tier1_commission}
+                    onChange={(e) =>
+                      setAffiliateSettings({ ...affiliateSettings, tier1_commission: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tier 2 (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={affiliateSettings.tier2_commission}
+                    onChange={(e) =>
+                      setAffiliateSettings({ ...affiliateSettings, tier2_commission: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tier 3 (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={affiliateSettings.tier3_commission}
+                    onChange={(e) =>
+                      setAffiliateSettings({ ...affiliateSettings, tier3_commission: Number(e.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Min Payout Threshold ($)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={affiliateSettings.min_payout_threshold}
+                  onChange={(e) =>
+                    setAffiliateSettings({ ...affiliateSettings, min_payout_threshold: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

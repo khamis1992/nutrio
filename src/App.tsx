@@ -29,6 +29,7 @@ import Notifications from "./pages/Notifications";
 import Favorites from "./pages/Favorites";
 import Settings from "./pages/Settings";
 import Referral from "./pages/Referral";
+import Affiliate from "./pages/Affiliate";
 import Addresses from "./pages/Addresses";
 import PartnerAuth from "./pages/partner/PartnerAuth";
 import PartnerDashboard from "./pages/partner/PartnerDashboard";
@@ -207,6 +208,14 @@ const App = () => (
               } 
             />
             <Route 
+              path="/affiliate" 
+              element={
+                <ProtectedRoute>
+                  <Affiliate />
+                </ProtectedRoute>
+              } 
+            />
+            <Route
               path="/addresses" 
               element={
                 <ProtectedRoute>
