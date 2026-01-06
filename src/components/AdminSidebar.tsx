@@ -16,7 +16,8 @@ import {
   Megaphone,
   LogOut,
   Sparkles,
-  UserCheck
+  UserCheck,
+  Trophy
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,7 @@ const navItems = [
   { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
   { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
   { icon: UserCheck, label: "Affiliate Payouts", to: "/admin/affiliate-payouts" },
+  { icon: Trophy, label: "Milestones", to: "/admin/milestones" },
   { icon: Tag, label: "Diet Tags", to: "/admin/diet-tags" },
   { icon: Ticket, label: "Promotions", to: "/admin/promotions" },
   { icon: Megaphone, label: "Announcements", to: "/admin/announcements" },
