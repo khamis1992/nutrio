@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Gift, Users, Copy, Share2, Check, Trophy, Clock, UserPlus } from "lucide-react";
+import { ArrowLeft, Gift, Users, Copy, Share2, Check, Trophy, Clock, UserPlus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { supabase } from "@/integrations/supabase/client";
-
 interface ReferralStats {
   totalInvites: number;
   completedReferrals: number;
@@ -32,6 +32,7 @@ const Referral = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { settings, loading: settingsLoading } = usePlatformSettings();
   
   const [loading, setLoading] = useState(true);
   const [referralCode, setReferralCode] = useState<string | null>(null);
@@ -45,10 +46,12 @@ const Referral = () => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && settings.features.referral_program) {
       fetchReferralData();
+    } else if (user && !settingsLoading) {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, settings.features.referral_program, settingsLoading]);
 
   const fetchReferralData = async () => {
     if (!user) return;
@@ -169,13 +172,51 @@ const Referral = () => {
     }
   };
 
-  if (loading) {
+  if (loading || settingsLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // Show disabled state if feature is turned off
+  if (!settings.features.referral_program) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
+          <div className="container max-w-2xl mx-auto px-4 py-4">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => navigate(-1)}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-xl font-semibold">Refer Friends</h1>
+            </div>
+          </div>
+        </header>
+        <div className="container max-w-2xl mx-auto px-4 py-12">
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="pt-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Referral Program Unavailable</h2>
+              <p className="text-muted-foreground mb-6">
+                The referral program is currently disabled. Please check back later.
+              </p>
+              <Button onClick={() => navigate("/dashboard")}>
+                Return to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

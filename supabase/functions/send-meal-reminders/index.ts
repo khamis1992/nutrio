@@ -20,6 +20,12 @@ interface MealSchedule {
   };
 }
 
+interface NotificationSettings {
+  push_enabled: boolean;
+  email_enabled: boolean;
+  sms_enabled: boolean;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -34,6 +40,32 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // Check if push notifications are enabled in platform settings
+    const { data: settingsData, error: settingsError } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "notifications")
+      .single();
+
+    if (settingsError) {
+      console.error("Error fetching notification settings:", settingsError);
+    }
+
+    const notificationSettings = settingsData?.value as NotificationSettings | null;
+    
+    // If push notifications are disabled, skip sending reminders
+    if (notificationSettings && !notificationSettings.push_enabled) {
+      console.log("Push notifications are disabled in platform settings. Skipping meal reminders.");
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Push notifications are disabled", 
+          count: 0 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Get today's date
     const today = new Date().toISOString().split("T")[0];
@@ -73,8 +105,50 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get user notification preferences to filter out users who disabled meal reminders
+    const userIds = [...new Set(schedules.map(s => s.user_id))];
+    const { data: userPrefs, error: prefsError } = await supabase
+      .from("notification_preferences")
+      .select("user_id, meal_reminders, push_notifications")
+      .in("user_id", userIds);
+
+    if (prefsError) {
+      console.error("Error fetching user preferences:", prefsError);
+    }
+
+    // Create a map of user preferences
+    const userPrefsMap = new Map<string, { meal_reminders: boolean; push_notifications: boolean }>();
+    userPrefs?.forEach(pref => {
+      userPrefsMap.set(pref.user_id, {
+        meal_reminders: pref.meal_reminders ?? true,
+        push_notifications: pref.push_notifications ?? true,
+      });
+    });
+
+    // Filter schedules to only include users who have reminders enabled
+    const filteredSchedules = schedules.filter(schedule => {
+      const prefs = userPrefsMap.get(schedule.user_id);
+      // If no preferences exist, default to enabled
+      if (!prefs) return true;
+      // Only include if both meal reminders and push notifications are enabled
+      return prefs.meal_reminders && prefs.push_notifications;
+    });
+
+    console.log(`After filtering by user preferences: ${filteredSchedules.length} schedules remain`);
+
+    if (filteredSchedules.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "No meals to remind (all users have reminders disabled)", 
+          count: 0 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Group schedules by user_id
-    const userSchedules = schedules.reduce((acc: Record<string, MealSchedule[]>, schedule: any) => {
+    const userSchedules = filteredSchedules.reduce((acc: Record<string, MealSchedule[]>, schedule: any) => {
       const userId = schedule.user_id;
       if (!acc[userId]) {
         acc[userId] = [];

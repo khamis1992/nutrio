@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,8 @@ import {
   Clock,
   MapPin,
   Phone,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react";
 
 interface OrderItem {
@@ -86,6 +88,7 @@ const getEstimatedTime = (status: string, deliveryDate: string) => {
 export default function DeliveryTracking() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { settings, loading: settingsLoading } = usePlatformSettings();
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,36 +121,40 @@ export default function DeliveryTracking() {
   };
 
   useEffect(() => {
-    fetchActiveOrders();
+    if (settings.features.delivery_tracking) {
+      fetchActiveOrders();
 
-    // Set up realtime subscription for order updates
-    const channel = supabase
-      .channel('order-tracking')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `user_id=eq.${user?.id}`,
-        },
-        () => {
-          fetchActiveOrders();
-        }
-      )
-      .subscribe();
+      // Set up realtime subscription for order updates
+      const channel = supabase
+        .channel('order-tracking')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'orders',
+            filter: `user_id=eq.${user?.id}`,
+          },
+          () => {
+            fetchActiveOrders();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } else if (!settingsLoading) {
+      setLoading(false);
+    }
+  }, [user, settings.features.delivery_tracking, settingsLoading]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     fetchActiveOrders();
   };
 
-  if (loading) {
+  if (loading || settingsLoading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
@@ -162,6 +169,45 @@ export default function DeliveryTracking() {
           {[1, 2].map(i => (
             <Skeleton key={i} className="h-64 w-full rounded-xl" />
           ))}
+        </main>
+      </div>
+    );
+  }
+
+  // Show disabled state if feature is turned off
+  if (!settings.features.delivery_tracking) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate(-1)}
+                className="rounded-full"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-xl font-bold">Track Orders</h1>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-12">
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="pt-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Delivery Tracking Unavailable</h2>
+              <p className="text-muted-foreground mb-6">
+                Real-time delivery tracking is currently disabled. Please check back later.
+              </p>
+              <Button onClick={() => navigate("/dashboard")}>
+                Return to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
         </main>
       </div>
     );
