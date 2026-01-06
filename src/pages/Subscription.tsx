@@ -120,6 +120,7 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
       "Everything in Premium",
       "🚀 Priority delivery (always first)",
       "🌟 Exclusive VIP-only meals",
+      "💰 15% discount on all meals",
       "👨‍⚕️ Personal nutrition coach",
       "📱 1-on-1 weekly coaching calls",
       "🏷️ Free delivery on all orders",
