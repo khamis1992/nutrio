@@ -40,6 +40,7 @@ import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
+import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
 
 interface Restaurant {
   id: string;
@@ -445,7 +446,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Affiliate Earnings Widget */}
+        {platformSettings.features.referral_program && <AffiliateEarningsWidget />}
         <div className={`grid gap-3 animate-fade-in stagger-1 ${
           platformSettings.features.meal_scheduling ? 'grid-cols-5' : 'grid-cols-4'
         }`}>
