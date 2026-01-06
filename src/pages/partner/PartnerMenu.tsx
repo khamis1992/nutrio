@@ -545,10 +545,9 @@ const PartnerMenu = () => {
               </Label>
               <MealImageUpload
                 currentImageUrl={formData.image_url || null}
-                onImageUploaded={(url) => {
-                  setFormData({ ...formData, image_url: url || "" });
-                  if (url) handleImageUploaded(url);
-                }}
+                onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
+                onImageUploaded={(url) => handleImageUploaded(url)}
+                isAnalyzing={analyzing}
               />
               {analyzing && (
                 <div className="flex items-center gap-2 text-sm text-primary animate-pulse">
