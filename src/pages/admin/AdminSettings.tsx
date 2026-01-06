@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck } from "lucide-react";
+import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
@@ -54,6 +54,13 @@ interface DeliveryFeeSettings {
   enabled: boolean;
 }
 
+interface PremiumAnalyticsPrices {
+  [key: string]: number;
+  monthly: number;
+  quarterly: number;
+  yearly: number;
+}
+
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,6 +102,12 @@ export default function AdminSettings() {
     enabled: true,
   });
 
+  const [premiumAnalyticsPrices, setPremiumAnalyticsPrices] = useState<PremiumAnalyticsPrices>({
+    monthly: 29.99,
+    quarterly: 74.99,
+    yearly: 249.99,
+  });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -128,6 +141,9 @@ export default function AdminSettings() {
           case "delivery_fees":
             setDeliveryFees(value as unknown as DeliveryFeeSettings);
             break;
+          case "premium_analytics_prices":
+            setPremiumAnalyticsPrices(value as unknown as PremiumAnalyticsPrices);
+            break;
         }
       });
     } catch (error) {
@@ -148,6 +164,7 @@ export default function AdminSettings() {
         { key: "notifications", value: notifications as Json },
         { key: "featured_listing_prices", value: featuredPrices as Json },
         { key: "delivery_fees", value: deliveryFees as Json },
+        { key: "premium_analytics_prices", value: premiumAnalyticsPrices as Json },
       ];
 
       for (const update of updates) {
@@ -468,6 +485,58 @@ export default function AdminSettings() {
                 <p className="text-xs text-muted-foreground">
                   Orders over this amount get free delivery
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Premium Analytics Pricing */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                Premium Analytics Pricing
+              </CardTitle>
+              <CardDescription>Configure pricing for partner premium analytics</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="analytics-monthly">Monthly Price ($)</Label>
+                <Input
+                  id="analytics-monthly"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={premiumAnalyticsPrices.monthly}
+                  onChange={(e) =>
+                    setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, monthly: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="analytics-quarterly">Quarterly Price ($)</Label>
+                <Input
+                  id="analytics-quarterly"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={premiumAnalyticsPrices.quarterly}
+                  onChange={(e) =>
+                    setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, quarterly: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="analytics-yearly">Yearly Price ($)</Label>
+                <Input
+                  id="analytics-yearly"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={premiumAnalyticsPrices.yearly}
+                  onChange={(e) =>
+                    setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, yearly: Number(e.target.value) })
+                  }
+                />
               </div>
             </CardContent>
           </Card>
