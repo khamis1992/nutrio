@@ -17,10 +17,13 @@ interface UseSubscriptionReturn {
   subscription: Subscription | null;
   loading: boolean;
   hasActiveSubscription: boolean;
+  isPaused: boolean;
   remainingMeals: number;
   isUnlimited: boolean;
   canOrderMeal: boolean;
   incrementMealUsage: () => Promise<boolean>;
+  pauseSubscription: () => Promise<boolean>;
+  resumeSubscription: () => Promise<boolean>;
   refetch: () => Promise<void>;
 }
 
@@ -37,11 +40,12 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
 
     try {
+      // Fetch active or paused subscription
       const { data, error } = await supabase
         .from("subscriptions")
         .select("id, plan, status, start_date, end_date, meals_per_week, meals_used_this_week, week_start_date")
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "pending"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -75,6 +79,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   }, [fetchSubscription]);
 
   const hasActiveSubscription = subscription?.status === "active";
+  const isPaused = subscription?.status === "pending";
   
   // 0 means unlimited
   const isUnlimited = subscription?.meals_per_week === 0;
@@ -107,14 +112,55 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
   };
 
+  const pauseSubscription = async (): Promise<boolean> => {
+    if (!subscription || !hasActiveSubscription) return false;
+
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ status: "pending" })
+        .eq("id", subscription.id);
+
+      if (error) throw error;
+
+      await fetchSubscription();
+      return true;
+    } catch (err) {
+      console.error("Error pausing subscription:", err);
+      return false;
+    }
+  };
+
+  const resumeSubscription = async (): Promise<boolean> => {
+    if (!subscription || !isPaused) return false;
+
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ status: "active" })
+        .eq("id", subscription.id);
+
+      if (error) throw error;
+
+      await fetchSubscription();
+      return true;
+    } catch (err) {
+      console.error("Error resuming subscription:", err);
+      return false;
+    }
+  };
+
   return {
     subscription,
     loading,
     hasActiveSubscription,
+    isPaused,
     remainingMeals,
     isUnlimited,
     canOrderMeal,
     incrementMealUsage,
+    pauseSubscription,
+    resumeSubscription,
     refetch: fetchSubscription,
   };
 };

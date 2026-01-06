@@ -52,7 +52,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, loading: subscriptionLoading } = useSubscription();
+  const { subscription, hasActiveSubscription, isPaused, remainingMeals, isUnlimited, loading: subscriptionLoading } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   
@@ -280,6 +280,27 @@ const Dashboard = () => {
                   className="h-2 mt-4"
                 />
               )}
+            </CardContent>
+          </Card>
+        ) : isPaused ? (
+          <Card variant="stat" className="animate-fade-in border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-amber-500/10">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <Crown className="w-7 h-7 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold capitalize">{subscription?.plan} Plan - Paused</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your subscription is paused. Resume to order meals.
+                    </p>
+                  </div>
+                </div>
+                <Button onClick={() => navigate("/settings")}>
+                  Resume
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
