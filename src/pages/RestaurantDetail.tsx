@@ -23,6 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { MealFilters, MealFiltersState, defaultFilters } from "@/components/MealFilters";
 
 interface Restaurant {
   id: string;
@@ -57,6 +58,7 @@ const RestaurantDetail = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
+  const [filters, setFilters] = useState<MealFiltersState>(defaultFilters);
   const { hasActiveSubscription, subscription, remainingMeals, isUnlimited } = useSubscription();
 
   useEffect(() => {
@@ -132,12 +134,72 @@ const RestaurantDetail = () => {
     fetchData();
   }, [id, navigate]);
 
+  // Get all unique diet tags from meals
+  const availableTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    meals.forEach(meal => {
+      meal.diet_tags.forEach(tag => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet).sort();
+  }, [meals]);
+
+  // Calculate max values for filters
+  const maxValues = useMemo(() => ({
+    calories: Math.max(...meals.map(m => m.calories), 500),
+    protein: Math.max(...meals.map(m => m.protein_g), 50),
+    carbs: Math.max(...meals.map(m => m.carbs_g), 100),
+    fat: Math.max(...meals.map(m => m.fat_g), 50),
+  }), [meals]);
+
+  // Initialize filters with max values when meals load
+  useEffect(() => {
+    if (meals.length > 0) {
+      setFilters(prev => ({
+        ...prev,
+        caloriesRange: [0, maxValues.calories],
+        proteinRange: [0, maxValues.protein],
+        carbsRange: [0, maxValues.carbs],
+        fatRange: [0, maxValues.fat],
+      }));
+    }
+  }, [maxValues]);
+
   const filteredMeals = useMemo(() => {
-    if (!searchQuery) return meals;
-    return meals.filter(meal => 
-      meal.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [meals, searchQuery]);
+    return meals.filter(meal => {
+      // Search filter
+      if (searchQuery && !meal.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+
+      // Diet tags filter
+      if (filters.dietTags.length > 0) {
+        const hasMatchingTag = filters.dietTags.some(tag => meal.diet_tags.includes(tag));
+        if (!hasMatchingTag) return false;
+      }
+
+      // Calories filter
+      if (meal.calories < filters.caloriesRange[0] || meal.calories > filters.caloriesRange[1]) {
+        return false;
+      }
+
+      // Protein filter
+      if (meal.protein_g < filters.proteinRange[0] || meal.protein_g > filters.proteinRange[1]) {
+        return false;
+      }
+
+      // Carbs filter
+      if (meal.carbs_g < filters.carbsRange[0] || meal.carbs_g > filters.carbsRange[1]) {
+        return false;
+      }
+
+      // Fat filter
+      if (meal.fat_g < filters.fatRange[0] || meal.fat_g > filters.fatRange[1]) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [meals, searchQuery, filters]);
 
   if (loading) {
     return (
@@ -268,14 +330,25 @@ const RestaurantDetail = () => {
           </Card>
         )}
 
-        {/* Search */}
-        <div className="relative animate-fade-in stagger-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search meals..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+        {/* Search and Filters */}
+        <div className="flex gap-3 animate-fade-in stagger-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search meals..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <MealFilters
+            availableTags={availableTags}
+            filters={filters}
+            onFiltersChange={setFilters}
+            maxCalories={maxValues.calories}
+            maxProtein={maxValues.protein}
+            maxCarbs={maxValues.carbs}
+            maxFat={maxValues.fat}
           />
         </div>
 
