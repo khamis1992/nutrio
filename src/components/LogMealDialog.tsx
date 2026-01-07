@@ -211,20 +211,22 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
         if (error) throw error;
 
-        if (data?.success && data?.mealDetails) {
-          // Create a single detected food item from the AI response
-          const detected: DetectedFood = {
-            name: data.mealDetails.name,
-            calories: data.mealDetails.calories,
-            protein_g: data.mealDetails.protein_g,
-            carbs_g: data.mealDetails.carbs_g,
-            fat_g: data.mealDetails.fat_g,
+        if (data?.success && data?.detectedItems && data.detectedItems.length > 0) {
+          // Map detected items to our format
+          const detected: DetectedFood[] = data.detectedItems.map((item: any) => ({
+            name: item.name,
+            calories: item.calories,
+            protein_g: item.protein_g,
+            carbs_g: item.carbs_g,
+            fat_g: item.fat_g,
             selected: true,
-          };
-          setDetectedFoods([detected]);
+          }));
+          setDetectedFoods(detected);
           setScanMode("results");
         } else if (data?.error) {
           throw new Error(data.error);
+        } else {
+          throw new Error("No food items detected");
         }
       } catch (err) {
         console.error("Error scanning meal:", err);
