@@ -284,10 +284,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="browse">Browse</TabsTrigger>
-            <TabsTrigger value="scan">AI Scan</TabsTrigger>
-            <TabsTrigger value="manual">Manual</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="browse">Browse Meals</TabsTrigger>
+            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
           </TabsList>
 
           <TabsContent value="browse" className="space-y-4 mt-4">
@@ -354,142 +353,98 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
             </div>
           </TabsContent>
 
-          <TabsContent value="scan" className="space-y-4 mt-4">
+          <TabsContent value="manual" className="space-y-4 mt-4">
+            {/* AI Scan Section */}
             {scanMode === "idle" && (
-              <div className="flex flex-col items-center gap-4">
-                <div 
-                  className="w-full aspect-square rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/10 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                    <Camera className="w-8 h-8 text-primary" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">Tap to scan your meal</p>
-                  <p className="text-xs text-muted-foreground mt-1">AI will detect food & calories</p>
+              <div 
+                className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-primary" />
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">Scan with AI</p>
+                  <p className="text-xs text-muted-foreground">Take a photo to auto-detect calories</p>
+                </div>
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
             )}
 
             {scanMode === "scanning" && (
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative w-full aspect-square rounded-2xl overflow-hidden">
-                  {scanImage && (
-                    <img 
-                      src={scanImage} 
-                      alt="Scanning" 
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-3 animate-pulse">
-                      <Sparkles className="w-8 h-8 text-primary" />
-                    </div>
-                    <p className="text-sm font-medium">Scanning food...</p>
-                    <Loader2 className="w-5 h-5 animate-spin text-primary mt-2" />
-                  </div>
-                  {/* Scanning frame overlay */}
-                  <div className="absolute inset-4 border-2 border-primary/50 rounded-xl pointer-events-none">
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-primary rounded-tl-lg" />
-                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-primary rounded-tr-lg" />
-                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-primary rounded-bl-lg" />
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-primary rounded-br-lg" />
-                  </div>
+              <div className="relative rounded-xl overflow-hidden">
+                {scanImage && (
+                  <img 
+                    src={scanImage} 
+                    alt="Scanning" 
+                    className="w-full h-40 object-cover"
+                  />
+                )}
+                <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center gap-3">
+                  <Sparkles className="w-5 h-5 text-primary animate-pulse" />
+                  <span className="text-sm font-medium">Scanning food...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 </div>
               </div>
             )}
 
             {scanMode === "results" && (
-              <div className="flex flex-col gap-4">
-                <div className="relative w-full aspect-video rounded-xl overflow-hidden">
-                  {scanImage && (
-                    <img 
-                      src={scanImage} 
-                      alt="Meal" 
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm h-8 w-8"
-                    onClick={resetScan}
-                  >
-                    <X className="w-4 h-4" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Detected Items</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={resetScan} className="h-7 text-xs">
+                    <X className="w-3 h-3 mr-1" />
+                    Clear
                   </Button>
                 </div>
-
-                <p className="text-sm text-muted-foreground text-center">
-                  Detected items - tap to select/deselect
-                </p>
-
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-2 max-h-32 overflow-y-auto">
                   {detectedFoods.map((food, index) => (
-                    <Card
+                    <div
                       key={index}
-                      variant="interactive"
-                      className={`cursor-pointer transition-all ${
+                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
                         food.selected 
-                          ? "ring-2 ring-primary bg-primary/5" 
-                          : "opacity-60"
+                          ? "bg-primary/10 ring-1 ring-primary/30" 
+                          : "bg-muted/50 opacity-60"
                       }`}
                       onClick={() => toggleFoodSelection(index)}
                     >
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            food.selected ? "bg-primary text-primary-foreground" : "bg-muted"
-                          }`}>
-                            {food.selected ? (
-                              <Check className="w-5 h-5" />
-                            ) : (
-                              <span className="text-lg">🍽️</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{food.name}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span className="text-primary font-semibold">{food.calories} kcal</span>
-                              <span>P:{Math.round(food.protein_g)}g</span>
-                              <span>C:{Math.round(food.carbs_g)}g</span>
-                              <span>F:{Math.round(food.fat_g)}g</span>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                        food.selected ? "bg-primary text-primary-foreground" : "bg-muted"
+                      }`}>
+                        {food.selected ? <Check className="w-3 h-3" /> : null}
+                      </div>
+                      <span className="flex-1 text-sm font-medium truncate">{food.name}</span>
+                      <span className="text-xs text-primary font-semibold">{food.calories} kcal</span>
+                    </div>
                   ))}
                 </div>
-
-                <Button
-                  onClick={handleConfirmFoods}
-                  disabled={logging || detectedFoods.filter(f => f.selected).length === 0}
-                  className="w-full"
-                >
-                  {logging ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Logging...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Confirm Ingredients
-                    </>
-                  )}
-                </Button>
               </div>
             )}
-          </TabsContent>
 
-          <TabsContent value="manual" className="space-y-4 mt-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {scanMode === "results" ? "or edit manually" : "or enter manually"}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="meal-name">Meal Name (optional)</Label>
@@ -558,14 +513,19 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
             </div>
 
             <Button
-              onClick={handleManualLog}
-              disabled={logging}
+              onClick={scanMode === "results" ? handleConfirmFoods : handleManualLog}
+              disabled={logging || (scanMode === "results" && detectedFoods.filter(f => f.selected).length === 0)}
               className="w-full"
             >
               {logging ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Logging...
+                </>
+              ) : scanMode === "results" ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Confirm & Log ({detectedFoods.filter(f => f.selected).reduce((sum, f) => sum + f.calories, 0)} kcal)
                 </>
               ) : (
                 <>
