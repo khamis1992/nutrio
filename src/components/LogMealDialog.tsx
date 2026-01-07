@@ -83,10 +83,19 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const fetchMealHistory = async () => {
     setLoadingHistory(true);
     try {
+      const {
+        data: { user: authedUser },
+      } = await supabase.auth.getUser();
+
+      if (!authedUser) {
+        setMealHistory([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("meal_history")
-        .select("*")
-        .eq("user_id", userId)
+        .select("id, name, calories, protein_g, carbs_g, fat_g, logged_at")
+        .eq("user_id", authedUser.id)
         .order("logged_at", { ascending: false })
         .limit(10);
 
@@ -94,31 +103,64 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       setMealHistory(data || []);
     } catch (err) {
       console.error("Error fetching meal history:", err);
+      toast({
+        title: "Couldn't load recent meals",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoadingHistory(false);
     }
   };
 
-  const saveMealToHistory = async (name: string, calories: number, protein: number, carbs: number, fat: number) => {
+  const saveMealToHistory = async (
+    name: string,
+    calories: number,
+    protein: number,
+    carbs: number,
+    fat: number
+  ) => {
     try {
+      const {
+        data: { user: authedUser },
+      } = await supabase.auth.getUser();
+
+      if (!authedUser) {
+        toast({
+          title: "Session expired",
+          description: "Please sign in again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase.from("meal_history").insert({
-        user_id: userId,
+        user_id: authedUser.id,
         name: name || `Meal (${calories} kcal)`,
         calories,
         protein_g: protein,
         carbs_g: carbs,
         fat_g: fat,
       });
-      
+
       if (error) {
         console.error("Error saving to meal history:", error);
-      } else {
-        console.log("Meal saved to history:", name);
-        // Refresh the history list after saving
-        await fetchMealHistory();
+        toast({
+          title: "Couldn't save to Recent Meals",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
       }
+
+      await fetchMealHistory();
     } catch (err) {
       console.error("Error saving to meal history:", err);
+      toast({
+        title: "Couldn't save to Recent Meals",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -375,7 +417,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
             </div>
 
             {/* Recent Meals Section */}
-            {!searchQuery && mealHistory.length > 0 && (
+            {!searchQuery && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                   <History className="w-4 h-4" />
@@ -386,6 +428,10 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="w-4 h-4 animate-spin text-primary" />
                     </div>
+                  ) : mealHistory.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4 text-sm">
+                      No recent meals yet.
+                    </p>
                   ) : (
                     mealHistory.slice(0, 5).map((item) => (
                       <Card
