@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { 
   Salad, 
-  Flame, 
   Beef, 
   Wheat, 
   Droplets,
@@ -41,6 +40,7 @@ import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
+import CalorieProgressRing from "@/components/CalorieProgressRing";
 
 interface Restaurant {
   id: string;
@@ -356,48 +356,16 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Daily Summary Card */}
+        {/* Daily Calorie Target Card */}
         <Card variant="stat" className="animate-fade-in">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Today's Progress</p>
-                <p className="text-2xl font-bold">
-                  {userStats.consumedCalories} 
-                  <span className="text-base font-normal text-muted-foreground">
-                    /{userStats.dailyCalories} kcal
-                  </span>
-                </p>
-              </div>
-              <div className="w-16 h-16 relative">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="28"
-                    fill="none"
-                    stroke="hsl(var(--muted))"
-                    strokeWidth="6"
-                  />
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="28"
-                    fill="none"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                    strokeDasharray={`${(userStats.consumedCalories / userStats.dailyCalories) * 175.9} 175.9`}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Flame className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </div>
+          <CardContent className="p-6">
+            <CalorieProgressRing 
+              consumed={userStats.consumedCalories} 
+              target={userStats.dailyCalories} 
+            />
 
             {/* Macros */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
                   <Beef className="w-4 h-4 text-destructive" />
@@ -438,7 +406,7 @@ const Dashboard = () => {
             {/* Log Meal Button */}
             <Button 
               onClick={() => setLogMealOpen(true)} 
-              className="w-full mt-4"
+              className="w-full mt-5"
             >
               <Plus className="w-4 h-4 mr-2" />
               Log Meal
