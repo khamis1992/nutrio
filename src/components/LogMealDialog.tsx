@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets } from "lucide-react";
+import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, Sparkles } from "lucide-react";
 
 interface Meal {
   id: string;
@@ -17,6 +17,15 @@ interface Meal {
   carbs_g: number;
   fat_g: number;
   image_url: string | null;
+}
+
+interface DetectedFood {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  selected: boolean;
 }
 
 interface LogMealDialogProps {
@@ -43,6 +52,12 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     carbs: "",
     fat: "",
   });
+
+  // AI Scan state
+  const [scanMode, setScanMode] = useState<"idle" | "scanning" | "results">("idle");
+  const [scanImage, setScanImage] = useState<string | null>(null);
+  const [detectedFoods, setDetectedFoods] = useState<DetectedFood[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const searchMeals = async (query: string) => {
     if (!query.trim()) {
@@ -129,6 +144,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       setSearchQuery("");
       setMeals([]);
       setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "" });
+      resetScan();
     } catch (err) {
       console.error("Error logging meal:", err);
       toast({
@@ -168,6 +184,93 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     logMeal(calories, protein, carbs, fat);
   };
 
+  const resetScan = () => {
+    setScanMode("idle");
+    setScanImage(null);
+    setDetectedFoods([]);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setScanImage(base64);
+      setScanMode("scanning");
+      
+      try {
+        const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
+          body: { 
+            imageUrl: base64,
+            mode: "quick_scan" 
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.success && data?.mealDetails) {
+          // Create a single detected food item from the AI response
+          const detected: DetectedFood = {
+            name: data.mealDetails.name,
+            calories: data.mealDetails.calories,
+            protein_g: data.mealDetails.protein_g,
+            carbs_g: data.mealDetails.carbs_g,
+            fat_g: data.mealDetails.fat_g,
+            selected: true,
+          };
+          setDetectedFoods([detected]);
+          setScanMode("results");
+        } else if (data?.error) {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        console.error("Error scanning meal:", err);
+        toast({
+          title: "Scan failed",
+          description: "Could not analyze the image. Try again or enter manually.",
+          variant: "destructive",
+        });
+        resetScan();
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const toggleFoodSelection = (index: number) => {
+    setDetectedFoods(prev => 
+      prev.map((food, i) => 
+        i === index ? { ...food, selected: !food.selected } : food
+      )
+    );
+  };
+
+  const handleConfirmFoods = () => {
+    const selectedFoods = detectedFoods.filter(f => f.selected);
+    if (selectedFoods.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one food item.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const totals = selectedFoods.reduce(
+      (acc, food) => ({
+        calories: acc.calories + food.calories,
+        protein: acc.protein + food.protein_g,
+        carbs: acc.carbs + food.carbs_g,
+        fat: acc.fat + food.fat_g,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+
+    logMeal(totals.calories, Math.round(totals.protein), Math.round(totals.carbs), Math.round(totals.fat));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -179,9 +282,10 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="browse">Browse Meals</TabsTrigger>
-            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="browse">Browse</TabsTrigger>
+            <TabsTrigger value="scan">AI Scan</TabsTrigger>
+            <TabsTrigger value="manual">Manual</TabsTrigger>
           </TabsList>
 
           <TabsContent value="browse" className="space-y-4 mt-4">
@@ -246,6 +350,141 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 ))
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="scan" className="space-y-4 mt-4">
+            {scanMode === "idle" && (
+              <div className="flex flex-col items-center gap-4">
+                <div 
+                  className="w-full aspect-square rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/10 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                    <Camera className="w-8 h-8 text-primary" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">Tap to scan your meal</p>
+                  <p className="text-xs text-muted-foreground mt-1">AI will detect food & calories</p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </div>
+            )}
+
+            {scanMode === "scanning" && (
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative w-full aspect-square rounded-2xl overflow-hidden">
+                  {scanImage && (
+                    <img 
+                      src={scanImage} 
+                      alt="Scanning" 
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-3 animate-pulse">
+                      <Sparkles className="w-8 h-8 text-primary" />
+                    </div>
+                    <p className="text-sm font-medium">Scanning food...</p>
+                    <Loader2 className="w-5 h-5 animate-spin text-primary mt-2" />
+                  </div>
+                  {/* Scanning frame overlay */}
+                  <div className="absolute inset-4 border-2 border-primary/50 rounded-xl pointer-events-none">
+                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-primary rounded-tl-lg" />
+                    <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-primary rounded-tr-lg" />
+                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-primary rounded-bl-lg" />
+                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-primary rounded-br-lg" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {scanMode === "results" && (
+              <div className="flex flex-col gap-4">
+                <div className="relative w-full aspect-video rounded-xl overflow-hidden">
+                  {scanImage && (
+                    <img 
+                      src={scanImage} 
+                      alt="Meal" 
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm h-8 w-8"
+                    onClick={resetScan}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <p className="text-sm text-muted-foreground text-center">
+                  Detected items - tap to select/deselect
+                </p>
+
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {detectedFoods.map((food, index) => (
+                    <Card
+                      key={index}
+                      variant="interactive"
+                      className={`cursor-pointer transition-all ${
+                        food.selected 
+                          ? "ring-2 ring-primary bg-primary/5" 
+                          : "opacity-60"
+                      }`}
+                      onClick={() => toggleFoodSelection(index)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            food.selected ? "bg-primary text-primary-foreground" : "bg-muted"
+                          }`}>
+                            {food.selected ? (
+                              <Check className="w-5 h-5" />
+                            ) : (
+                              <span className="text-lg">🍽️</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{food.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="text-primary font-semibold">{food.calories} kcal</span>
+                              <span>P:{Math.round(food.protein_g)}g</span>
+                              <span>C:{Math.round(food.carbs_g)}g</span>
+                              <span>F:{Math.round(food.fat_g)}g</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={handleConfirmFoods}
+                  disabled={logging || detectedFoods.filter(f => f.selected).length === 0}
+                  className="w-full"
+                >
+                  {logging ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Logging...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Confirm Ingredients
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="manual" className="space-y-4 mt-4">
