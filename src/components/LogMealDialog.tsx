@@ -101,7 +101,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
   const saveMealToHistory = async (name: string, calories: number, protein: number, carbs: number, fat: number) => {
     try {
-      await supabase.from("meal_history").insert({
+      const { error } = await supabase.from("meal_history").insert({
         user_id: userId,
         name: name || `Meal (${calories} kcal)`,
         calories,
@@ -109,6 +109,14 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         carbs_g: carbs,
         fat_g: fat,
       });
+      
+      if (error) {
+        console.error("Error saving to meal history:", error);
+      } else {
+        console.log("Meal saved to history:", name);
+        // Refresh the history list after saving
+        await fetchMealHistory();
+      }
     } catch (err) {
       console.error("Error saving to meal history:", err);
     }
@@ -200,9 +208,6 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       setMeals([]);
       setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "" });
       resetScan();
-      
-      // Refresh history for next time
-      fetchMealHistory();
     } catch (err) {
       console.error("Error logging meal:", err);
       toast({
