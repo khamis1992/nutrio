@@ -36,6 +36,8 @@ import {
   Droplets,
   Plus,
   Calendar,
+  History,
+  RotateCcw,
 } from "lucide-react";
 import { format, subDays, parseISO, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
@@ -52,6 +54,16 @@ interface ProgressLog {
   notes: string | null;
 }
 
+interface MealHistoryItem {
+  id: string;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  logged_at: string;
+}
+
 const Progress = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -62,6 +74,8 @@ const Progress = () => {
   const [todayWeight, setTodayWeight] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"weight" | "nutrition">("weight");
+  const [mealHistory, setMealHistory] = useState<MealHistoryItem[]>([]);
+  const [relogging, setRelogging] = useState(false);
 
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {
@@ -71,7 +85,91 @@ const Progress = () => {
 
   useEffect(() => {
     fetchLogs();
+    fetchMealHistory();
   }, [user]);
+
+  const fetchMealHistory = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from("meal_history")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("logged_at", { ascending: false })
+      .limit(5);
+    
+    if (!error && data) {
+      setMealHistory(data);
+    }
+  };
+
+  const handleRelogMeal = async (meal: MealHistoryItem) => {
+    if (!user) return;
+    
+    setRelogging(true);
+    const today = format(new Date(), "yyyy-MM-dd");
+    
+    // Check if there's an existing log for today
+    const existingLog = logs.find((log) => log.log_date === today);
+    
+    if (existingLog) {
+      const { error } = await supabase
+        .from("progress_logs")
+        .update({
+          calories_consumed: (existingLog.calories_consumed || 0) + meal.calories,
+          protein_consumed_g: (existingLog.protein_consumed_g || 0) + meal.protein_g,
+          carbs_consumed_g: (existingLog.carbs_consumed_g || 0) + meal.carbs_g,
+          fat_consumed_g: (existingLog.fat_consumed_g || 0) + meal.fat_g,
+        })
+        .eq("id", existingLog.id);
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to log meal",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Meal Logged!",
+          description: `${meal.name} added to today's nutrition`,
+        });
+        fetchLogs();
+      }
+    } else {
+      const { error } = await supabase.from("progress_logs").insert({
+        user_id: user.id,
+        log_date: today,
+        calories_consumed: meal.calories,
+        protein_consumed_g: meal.protein_g,
+        carbs_consumed_g: meal.carbs_g,
+        fat_consumed_g: meal.fat_g,
+      });
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to log meal",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Meal Logged!",
+          description: `${meal.name} added to today's nutrition`,
+        });
+        fetchLogs();
+      }
+    }
+    
+    // Update meal history timestamp
+    await supabase
+      .from("meal_history")
+      .update({ logged_at: new Date().toISOString() })
+      .eq("id", meal.id);
+    
+    fetchMealHistory();
+    setRelogging(false);
+  };
 
   const fetchLogs = async () => {
     if (!user) return;
@@ -480,6 +578,41 @@ const Progress = () => {
                   </div>
                 )}
               </Card>
+
+              {/* Recent Meals - Quick Re-log */}
+              {mealHistory.length > 0 && (
+                <Card className="p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <History className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Recent Meals</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {mealHistory.map((meal) => (
+                      <div
+                        key={meal.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{meal.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {meal.calories} kcal • P: {meal.protein_g}g • C: {meal.carbs_g}g • F: {meal.fat_g}g
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRelogMeal(meal)}
+                          disabled={relogging}
+                          className="ml-2 shrink-0"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Re-log
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
 
               {/* Macro Chart */}
               <Card className="p-4">
