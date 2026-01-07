@@ -323,6 +323,42 @@ export type Database = {
           },
         ]
       }
+      meal_history: {
+        Row: {
+          calories: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          id: string
+          logged_at: string
+          name: string
+          protein_g: number
+          user_id: string
+        }
+        Insert: {
+          calories: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          id?: string
+          logged_at?: string
+          name: string
+          protein_g?: number
+          user_id: string
+        }
+        Update: {
+          calories?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          id?: string
+          logged_at?: string
+          name?: string
+          protein_g?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       meal_schedules: {
         Row: {
           addons_total: number | null

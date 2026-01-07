@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, Sparkles } from "lucide-react";
+import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, Sparkles, History, RotateCcw } from "lucide-react";
 
 interface Meal {
   id: string;
@@ -26,6 +26,16 @@ interface DetectedFood {
   carbs_g: number;
   fat_g: number;
   selected: boolean;
+}
+
+interface MealHistoryItem {
+  id: string;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  logged_at: string;
 }
 
 interface LogMealDialogProps {
@@ -58,6 +68,51 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const [scanImage, setScanImage] = useState<string | null>(null);
   const [detectedFoods, setDetectedFoods] = useState<DetectedFood[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Meal history state
+  const [mealHistory, setMealHistory] = useState<MealHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Fetch recent meal history
+  useEffect(() => {
+    if (open && userId) {
+      fetchMealHistory();
+    }
+  }, [open, userId]);
+
+  const fetchMealHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const { data, error } = await supabase
+        .from("meal_history")
+        .select("*")
+        .eq("user_id", userId)
+        .order("logged_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setMealHistory(data || []);
+    } catch (err) {
+      console.error("Error fetching meal history:", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const saveMealToHistory = async (name: string, calories: number, protein: number, carbs: number, fat: number) => {
+    try {
+      await supabase.from("meal_history").insert({
+        user_id: userId,
+        name: name || `Meal (${calories} kcal)`,
+        calories,
+        protein_g: protein,
+        carbs_g: carbs,
+        fat_g: fat,
+      });
+    } catch (err) {
+      console.error("Error saving to meal history:", err);
+    }
+  };
 
   const searchMeals = async (query: string) => {
     if (!query.trim()) {
@@ -145,6 +200,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       setMeals([]);
       setManualEntry({ name: "", calories: "", protein: "", carbs: "", fat: "" });
       resetScan();
+      
+      // Refresh history for next time
+      fetchMealHistory();
     } catch (err) {
       console.error("Error logging meal:", err);
       toast({
@@ -157,7 +215,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     }
   };
 
-  const handleMealSelect = (meal: Meal) => {
+  const handleMealSelect = async (meal: Meal) => {
+    await saveMealToHistory(meal.name, meal.calories, Math.round(meal.protein_g), Math.round(meal.carbs_g), Math.round(meal.fat_g));
     logMeal(
       meal.calories,
       Math.round(meal.protein_g),
@@ -166,7 +225,11 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     );
   };
 
-  const handleManualLog = () => {
+  const handleHistorySelect = (item: MealHistoryItem) => {
+    logMeal(item.calories, item.protein_g, item.carbs_g, item.fat_g);
+  };
+
+  const handleManualLog = async () => {
     const calories = parseInt(manualEntry.calories) || 0;
     const protein = parseInt(manualEntry.protein) || 0;
     const carbs = parseInt(manualEntry.carbs) || 0;
@@ -181,6 +244,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       return;
     }
 
+    await saveMealToHistory(manualEntry.name, calories, protein, carbs, fat);
     logMeal(calories, protein, carbs, fat);
   };
 
@@ -249,7 +313,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     );
   };
 
-  const handleConfirmFoods = () => {
+  const handleConfirmFoods = async () => {
     const selectedFoods = detectedFoods.filter(f => f.selected);
     if (selectedFoods.length === 0) {
       toast({
@@ -269,6 +333,11 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       }),
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
+
+    // Save each detected food to history
+    for (const food of selectedFoods) {
+      await saveMealToHistory(food.name, food.calories, Math.round(food.protein_g), Math.round(food.carbs_g), Math.round(food.fat_g));
+    }
 
     logMeal(totals.calories, Math.round(totals.protein), Math.round(totals.carbs), Math.round(totals.fat));
   };
@@ -300,14 +369,68 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-2">
+            {/* Recent Meals Section */}
+            {!searchQuery && mealHistory.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <History className="w-4 h-4" />
+                  Recent Meals
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {loadingHistory ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    mealHistory.slice(0, 5).map((item) => (
+                      <Card
+                        key={item.id}
+                        variant="interactive"
+                        className="cursor-pointer"
+                        onClick={() => !logging && handleHistorySelect(item)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <RotateCcw className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate text-sm">{item.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Flame className="w-3 h-3" />
+                                  {item.calories} kcal
+                                </span>
+                                <span>P: {item.protein_g}g</span>
+                              </div>
+                            </div>
+                            {logging ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            ) : (
+                              <Plus className="w-4 h-4 text-primary" />
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Search Results */}
+            <div className="max-h-48 overflow-y-auto space-y-2">
               {searching ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 </div>
-              ) : meals.length === 0 ? (
+              ) : meals.length === 0 && searchQuery ? (
                 <p className="text-center text-muted-foreground py-8 text-sm">
-                  {searchQuery ? "No meals found" : "Search for a meal to log"}
+                  No meals found
+                </p>
+              ) : meals.length === 0 && !mealHistory.length ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">
+                  Search for a meal to log
                 </p>
               ) : (
                 meals.map((meal) => (
