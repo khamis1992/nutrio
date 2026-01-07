@@ -1592,6 +1592,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_restaurant_contact: {
+        Args: { restaurant_owner_id: string }
+        Returns: boolean
+      }
       generate_partner_payout: {
         Args: {
           p_period_end: string
