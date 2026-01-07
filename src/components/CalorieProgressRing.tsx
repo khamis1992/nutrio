@@ -1,4 +1,5 @@
 import { Flame } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface CalorieProgressRingProps {
   consumed: number;
@@ -9,6 +10,16 @@ const CalorieProgressRing = ({ consumed, target }: CalorieProgressRingProps) => 
   const totalSegments = 40;
   const progress = Math.min(consumed / target, 1);
   const filledSegments = Math.round(progress * totalSegments);
+  const [animatedSegments, setAnimatedSegments] = useState(0);
+
+  useEffect(() => {
+    // Reset and animate when values change
+    setAnimatedSegments(0);
+    const timer = setTimeout(() => {
+      setAnimatedSegments(filledSegments);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [filledSegments]);
   
   const segments = [];
   const radius = 90;
@@ -20,7 +31,7 @@ const CalorieProgressRing = ({ consumed, target }: CalorieProgressRingProps) => 
   for (let i = 0; i < totalSegments; i++) {
     const startAngle = i * (360 / totalSegments) - 90; // Start from top
     const endAngle = startAngle + segmentArc;
-    const isFilled = i < filledSegments;
+    
     
     // Convert to radians
     const startRad = (startAngle * Math.PI) / 180;
@@ -49,17 +60,20 @@ const CalorieProgressRing = ({ consumed, target }: CalorieProgressRingProps) => 
       Z
     `;
     
+    const isFilled = i < animatedSegments;
+    
     segments.push(
       <path
         key={i}
         d={path}
-        className={`transition-all duration-300 ${
+        className={`transition-all duration-500 ${
           isFilled 
             ? 'fill-warning' 
             : 'fill-muted'
         }`}
         style={{
           opacity: isFilled ? 1 - (i * 0.015) : 0.5,
+          transitionDelay: isFilled ? `${i * 25}ms` : '0ms',
         }}
       />
     );
