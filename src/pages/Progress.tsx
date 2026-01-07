@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { format, subDays, parseISO, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import CalorieProgressRing from "@/components/CalorieProgressRing";
 
 interface ProgressLog {
   id: string;
@@ -180,6 +181,12 @@ const Progress = () => {
   const avgFat = thisWeekLogs.length > 0
     ? Math.round(thisWeekLogs.reduce((sum, log) => sum + (log.fat_consumed_g || 0), 0) / thisWeekLogs.length)
     : 0;
+
+  // Today's calories for the ring
+  const today = format(new Date(), "yyyy-MM-dd");
+  const todayLog = logs.find((log) => log.log_date === today);
+  const todayCalories = todayLog?.calories_consumed || 0;
+  const dailyCalorieTarget = profile?.daily_calorie_target || 2000;
 
   // Chart data
   const weightChartData = weightLogs.map((log) => ({
@@ -387,6 +394,14 @@ const Progress = () => {
             </>
           ) : (
             <>
+              {/* Calorie Progress Ring */}
+              <Card className="p-6">
+                <CalorieProgressRing 
+                  consumed={todayCalories} 
+                  target={dailyCalorieTarget} 
+                />
+              </Card>
+
               {/* Weekly Nutrition Summary */}
               <Card className="p-4">
                 <h3 className="font-semibold mb-4">This Week's Averages</h3>
