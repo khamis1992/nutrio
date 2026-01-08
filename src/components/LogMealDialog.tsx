@@ -81,21 +81,14 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   }, [open, userId]);
 
   const fetchMealHistory = async () => {
+    if (!userId) return;
+
     setLoadingHistory(true);
     try {
-      const {
-        data: { user: authedUser },
-      } = await supabase.auth.getUser();
-
-      if (!authedUser) {
-        setMealHistory([]);
-        return;
-      }
-
       const { data, error } = await supabase
         .from("meal_history")
         .select("id, name, calories, protein_g, carbs_g, fat_g, logged_at")
-        .eq("user_id", authedUser.id)
+        .eq("user_id", userId)
         .order("logged_at", { ascending: false })
         .limit(10);
 
@@ -120,22 +113,11 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     carbs: number,
     fat: number
   ) => {
+    if (!userId) return;
+
     try {
-      const {
-        data: { user: authedUser },
-      } = await supabase.auth.getUser();
-
-      if (!authedUser) {
-        toast({
-          title: "Session expired",
-          description: "Please sign in again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const { error } = await supabase.from("meal_history").insert({
-        user_id: authedUser.id,
+        user_id: userId,
         name: name || `Meal (${calories} kcal)`,
         calories,
         protein_g: protein,
@@ -193,10 +175,19 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     searchMeals(value);
   };
 
-  const logMeal = async (calories: number, protein: number, carbs: number, fat: number) => {
+  const logMeal = async (params: {
+    name?: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    saveToHistory?: boolean;
+  }) => {
+    const { name, calories, protein, carbs, fat, saveToHistory = true } = params;
+
     setLogging(true);
-    const today = new Date().toISOString().split('T')[0];
-    
+    const today = new Date().toISOString().split("T")[0];
+
     try {
       // First check if there's an existing log for today
       const { data: existingLog, error: fetchError } = await supabase
@@ -223,28 +214,30 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         if (updateError) throw updateError;
       } else {
         // Create new log for today
-        const { error: insertError } = await supabase
-          .from("progress_logs")
-          .insert({
-            user_id: userId,
-            log_date: today,
-            calories_consumed: calories,
-            protein_consumed_g: protein,
-            carbs_consumed_g: carbs,
-            fat_consumed_g: fat,
-          });
+        const { error: insertError } = await supabase.from("progress_logs").insert({
+          user_id: userId,
+          log_date: today,
+          calories_consumed: calories,
+          protein_consumed_g: protein,
+          carbs_consumed_g: carbs,
+          fat_consumed_g: fat,
+        });
 
         if (insertError) throw insertError;
+      }
+
+      if (saveToHistory) {
+        await saveMealToHistory(name || "", calories, protein, carbs, fat);
       }
 
       toast({
         title: "Meal logged!",
         description: `Added ${calories} kcal to today's progress.`,
       });
-      
+
       onMealLogged();
       onOpenChange(false);
-      
+
       // Reset form
       setSearchQuery("");
       setMeals([]);
@@ -262,21 +255,28 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     }
   };
 
-  const handleMealSelect = async (meal: Meal) => {
-    await saveMealToHistory(meal.name, meal.calories, Math.round(meal.protein_g), Math.round(meal.carbs_g), Math.round(meal.fat_g));
-    logMeal(
-      meal.calories,
-      Math.round(meal.protein_g),
-      Math.round(meal.carbs_g),
-      Math.round(meal.fat_g)
-    );
+  const handleMealSelect = (meal: Meal) => {
+    logMeal({
+      name: meal.name,
+      calories: meal.calories,
+      protein: Math.round(meal.protein_g),
+      carbs: Math.round(meal.carbs_g),
+      fat: Math.round(meal.fat_g),
+    });
   };
 
   const handleHistorySelect = (item: MealHistoryItem) => {
-    logMeal(item.calories, item.protein_g, item.carbs_g, item.fat_g);
+    logMeal({
+      name: item.name,
+      calories: item.calories,
+      protein: item.protein_g,
+      carbs: item.carbs_g,
+      fat: item.fat_g,
+      saveToHistory: false,
+    });
   };
 
-  const handleManualLog = async () => {
+  const handleManualLog = () => {
     const calories = parseInt(manualEntry.calories) || 0;
     const protein = parseInt(manualEntry.protein) || 0;
     const carbs = parseInt(manualEntry.carbs) || 0;
@@ -291,8 +291,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       return;
     }
 
-    await saveMealToHistory(manualEntry.name, calories, protein, carbs, fat);
-    logMeal(calories, protein, carbs, fat);
+    logMeal({ name: manualEntry.name, calories, protein, carbs, fat });
   };
 
   const resetScan = () => {
@@ -361,7 +360,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   const handleConfirmFoods = async () => {
-    const selectedFoods = detectedFoods.filter(f => f.selected);
+    const selectedFoods = detectedFoods.filter((f) => f.selected);
     if (selectedFoods.length === 0) {
       toast({
         title: "No items selected",
@@ -383,10 +382,23 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
     // Save each detected food to history
     for (const food of selectedFoods) {
-      await saveMealToHistory(food.name, food.calories, Math.round(food.protein_g), Math.round(food.carbs_g), Math.round(food.fat_g));
+      await saveMealToHistory(
+        food.name,
+        food.calories,
+        Math.round(food.protein_g),
+        Math.round(food.carbs_g),
+        Math.round(food.fat_g)
+      );
     }
 
-    logMeal(totals.calories, Math.round(totals.protein), Math.round(totals.carbs), Math.round(totals.fat));
+    logMeal({
+      name: selectedFoods.length === 1 ? selectedFoods[0].name : `${selectedFoods.length} items`,
+      calories: totals.calories,
+      protein: Math.round(totals.protein),
+      carbs: Math.round(totals.carbs),
+      fat: Math.round(totals.fat),
+      saveToHistory: false,
+    });
   };
 
   return (
