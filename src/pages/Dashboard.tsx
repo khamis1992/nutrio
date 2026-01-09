@@ -16,7 +16,9 @@ import {
   Plus,
   Sparkles,
   Crown,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  Flame,
+  Target,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -52,7 +54,7 @@ const Dashboard = () => {
   const { subscription, hasActiveSubscription, isPaused, remainingMeals, isUnlimited, isVip, loading: subscriptionLoading } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
-  
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurantsLoading, setRestaurantsLoading] = useState(true);
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
@@ -93,9 +95,9 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchTodayProgress = async () => {
       if (!user) return;
-      
+
       const today = new Date().toISOString().split('T')[0];
-      
+
       try {
         const { data, error } = await supabase
           .from("progress_logs")
@@ -186,6 +188,10 @@ const Dashboard = () => {
   };
 
   const userName = profile?.full_name?.split(" ")[0] || "there";
+  const caloriePercent = Math.min((userStats.consumedCalories / userStats.dailyCalories) * 100, 100);
+  const proteinPercent = Math.min((userStats.protein.consumed / userStats.protein.target) * 100, 100);
+  const carbsPercent = Math.min((userStats.carbs.consumed / userStats.carbs.target) * 100, 100);
+  const fatPercent = Math.min((userStats.fat.consumed / userStats.fat.target) * 100, 100);
 
   if (profileLoading || subscriptionLoading) {
     return (
@@ -197,7 +203,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
+      {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -233,180 +239,191 @@ const Dashboard = () => {
         {/* Platform Announcements */}
         <AnnouncementsBanner />
 
-        {/* Subscription Status Card */}
-        {hasActiveSubscription ? (
-          <Card variant="stat" className={`animate-fade-in ${
-            isVip 
-              ? "border-violet-500/50 bg-gradient-to-r from-violet-500/10 to-purple-500/10" 
-              : "border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10"
-          }`}>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                    isVip ? "bg-gradient-to-br from-violet-500/30 to-purple-500/30" : "bg-primary/20"
-                  }`}>
-                    {isVip ? (
-                      <Sparkles className="w-7 h-7 text-violet-500" />
-                    ) : (
-                      <Crown className="w-7 h-7 text-primary" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold capitalize">{subscription?.plan} Plan</p>
-                      {isVip && (
-                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white">
-                          VIP
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {isUnlimited 
-                        ? "Unlimited meals this week" 
-                        : `${remainingMeals} of ${subscription?.meals_per_week} meals remaining`
-                      }
-                    </p>
-                    {isVip && (
-                      <p className="text-xs text-violet-500 dark:text-violet-400 mt-1">
-                        ✨ Priority delivery • Exclusive meals • Personal coaching
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {!isUnlimited && subscription && (
-                  <div className="text-right">
-                    <div className="w-16 h-16 relative">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="28"
-                          fill="none"
-                          stroke="hsl(var(--muted))"
-                          strokeWidth="6"
-                        />
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="28"
-                          fill="none"
-                          stroke={isVip ? "hsl(262, 83%, 58%)" : "hsl(var(--primary))"}
-                          strokeWidth="6"
-                          strokeLinecap="round"
-                          strokeDasharray={`${(remainingMeals / subscription.meals_per_week) * 175.9} 175.9`}
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-lg font-bold">{remainingMeals}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {!isUnlimited && subscription && (
-                <Progress 
-                  value={(remainingMeals / subscription.meals_per_week) * 100} 
-                  className="h-2 mt-4"
-                />
-              )}
-            </CardContent>
-          </Card>
-        ) : isPaused ? (
-          <Card variant="stat" className="animate-fade-in border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-amber-500/10">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                    <Crown className="w-7 h-7 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold capitalize">{subscription?.plan} Plan - Paused</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your subscription is paused. Resume to order meals.
-                    </p>
-                  </div>
-                </div>
-                <Button onClick={() => navigate("/settings")}>
-                  Resume
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card variant="stat" className="animate-fade-in border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-amber-500/10">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                    <Crown className="w-7 h-7 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">No Active Subscription</p>
-                    <p className="text-sm text-muted-foreground">
-                      Subscribe to start ordering healthy meals
-                    </p>
-                  </div>
-                </div>
-                <Button onClick={() => navigate("/subscription")}>
-                  Subscribe
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Daily Calorie Target Card */}
-        <Card variant="stat" className="animate-fade-in">
+        {/* PRIMARY METRICS CARD - The hero of the dashboard */}
+        <Card className={`overflow-hidden ${
+          isVip
+            ? "border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-purple-500/5"
+            : "border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5"
+        }`}>
           <CardContent className="p-6">
-            <CalorieProgressRing 
-              consumed={userStats.consumedCalories} 
-              target={userStats.dailyCalories} 
-            />
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                  isVip
+                    ? "bg-gradient-to-br from-violet-500 to-purple-600"
+                    : "bg-gradient-to-br from-primary to-accent"
+                }`}>
+                  {isVip ? (
+                    <Sparkles className="w-6 h-6 text-white" />
+                  ) : (
+                    <Flame className="w-6 h-6 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Today's Progress</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {hasActiveSubscription
+                      ? isUnlimited
+                        ? "Unlimited meals this week"
+                        : `${remainingMeals} meals remaining`
+                      : "No active subscription"
+                  }
+                  </p>
+                </div>
+              </div>
 
-            {/* Macros */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <Beef className="w-4 h-4 text-destructive" />
-                  <span className="text-xs text-muted-foreground">Protein</span>
+              {/* Calorie large display */}
+              <div className="text-right">
+                <div className="text-4xl font-bold tabular-nums">
+                  {Math.round(userStats.consumedCalories)}
                 </div>
-                <Progress 
-                  value={(userStats.protein.consumed / userStats.protein.target) * 100} 
-                  className="h-1.5"
-                />
-                <p className="text-xs font-medium">{userStats.protein.consumed}g / {userStats.protein.target}g</p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <Wheat className="w-4 h-4 text-warning" />
-                  <span className="text-xs text-muted-foreground">Carbs</span>
+                <div className="text-sm text-muted-foreground">
+                  of {userStats.dailyCalories} kcal
                 </div>
-                <Progress 
-                  value={(userStats.carbs.consumed / userStats.carbs.target) * 100} 
-                  variant="warning"
-                  className="h-1.5"
-                />
-                <p className="text-xs font-medium">{userStats.carbs.consumed}g / {userStats.carbs.target}g</p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <Droplets className="w-4 h-4 text-accent" />
-                  <span className="text-xs text-muted-foreground">Fat</span>
-                </div>
-                <Progress 
-                  value={(userStats.fat.consumed / userStats.fat.target) * 100} 
-                  variant="accent"
-                  className="h-1.5"
-                />
-                <p className="text-xs font-medium">{userStats.fat.consumed}g / {userStats.fat.target}g</p>
               </div>
             </div>
 
-            {/* Log Meal Button */}
-            <Button 
-              onClick={() => setLogMealOpen(true)} 
-              className="w-full mt-5"
+            {/* Quick stats row */}
+            <div className="grid grid-cols-4 gap-3">
+              {/* Calories */}
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <div className="relative w-16 h-16 mx-auto mb-2">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r="28"
+                      fill="none"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="6"
+                    />
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r="28"
+                      fill="none"
+                      stroke={isVip ? "hsl(262, 83%, 58%)" : "hsl(var(--primary))"}
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(caloriePercent / 100) * 175.9} 175.9`}
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Flame className={`w-5 h-5 ${
+                      caloriePercent >= 100 ? "text-success" :
+                      caloriePercent >= 75 ? "text-warning" :
+                      "text-muted-foreground"
+                    }`} />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Calories</p>
+                <p className="text-sm font-semibold tabular-nums">{Math.round(caloriePercent)}%</p>
+              </div>
+
+              {/* Protein */}
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <div className="w-12 h-12 mx-auto mb-2 relative">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="5"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      stroke="hsl(var(--destructive))"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(proteinPercent / 100) * 125.6} 125.6`}
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Beef className="w-4 h-4 text-destructive" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Protein</p>
+                <p className="text-sm font-semibold tabular-nums">{userStats.protein.consumed}g</p>
+              </div>
+
+              {/* Carbs */}
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <div className="w-12 h-12 mx-auto mb-2 relative">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="5"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      stroke="hsl(var(--warning))"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(carbsPercent / 100) * 125.6} 125.6`}
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Wheat className="w-4 h-4 text-warning" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Carbs</p>
+                <p className="text-sm font-semibold tabular-nums">{userStats.carbs.consumed}g</p>
+              </div>
+
+              {/* Fat */}
+              <div className="text-center p-3 rounded-xl bg-background/50">
+                <div className="w-12 h-12 mx-auto mb-2 relative">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="5"
+                    />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      fill="none"
+                      stroke="hsl(var(--accent))"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(fatPercent / 100) * 125.6} 125.6`}
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Droplets className="w-4 h-4 text-accent" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Fat</p>
+                <p className="text-sm font-semibold tabular-nums">{userStats.fat.consumed}g</p>
+              </div>
+            </div>
+
+            {/* Quick action button */}
+            <Button
+              onClick={() => setLogMealOpen(true)}
+              className="w-full mt-4"
+              size="lg"
             >
               <Plus className="w-4 h-4 mr-2" />
               Log Meal
@@ -414,16 +431,56 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
+        {/* QUICK ACTIONS ROW */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link to="/schedule" className="group">
+            <Card className="hover:shadow-md transition-all cursor-pointer border-primary/20 hover:border-primary/40">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Target className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Schedule</p>
+                    <p className="text-xs text-muted-foreground">Plan your meals</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link to="/meals" className="group">
+            <Card className="hover:shadow-md transition-all cursor-pointer border-primary/20 hover:border-primary/40">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Utensils className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Order Food</p>
+                    <p className="text-xs text-muted-foreground">Browse restaurants</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
         {/* Affiliate Earnings Widget */}
         {platformSettings.features.referral_program && <AffiliateEarningsWidget />}
 
-        {/* Browse Restaurants Section */}
-        <section className="space-y-4 animate-fade-in stagger-2">
+        {/* RESTAURANTS SECTION */}
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Browse Restaurants</h2>
+            <div>
+              <h2 className="text-lg font-bold">Featured Restaurants</h2>
+              <p className="text-sm text-muted-foreground">Top-rated places near you</p>
+            </div>
             <Link to="/meals">
               <Button variant="ghost" size="sm" className="text-primary">
-                View All <ChevronRight className="w-4 h-4" />
+                View All <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </div>
