@@ -3,28 +3,20 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Salad, 
-  Beef, 
-  Wheat, 
+import {
+  Salad,
+  Beef,
+  Wheat,
   Droplets,
-  Calendar,
-  TrendingUp,
   ChevronRight,
   Utensils,
-  Heart,
-  User,
   Bell,
   LogOut,
   Loader2,
-  Receipt,
   Plus,
+  Sparkles,
   Crown,
-  Settings,
-  Gift,
-  MapPin,
-  Truck,
-  Sparkles
+  Menu as MenuIcon
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -40,6 +32,7 @@ import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
+import { SideDrawer } from "@/components/SideDrawer";
 import CalorieProgressRing from "@/components/CalorieProgressRing";
 
 interface Restaurant {
@@ -73,6 +66,7 @@ const Dashboard = () => {
   });
   const [progressKey, setProgressKey] = useState(0);
   const [hasRestaurant, setHasRestaurant] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Check if user has a restaurant (for role switcher)
   useEffect(() => {
@@ -207,9 +201,15 @@ const Dashboard = () => {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-              <Salad className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <SideDrawer
+              open={drawerOpen}
+              onOpenChange={setDrawerOpen}
+              trigger={
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <MenuIcon className="w-6 h-6" />
+                </Button>
+              }
+            />
             <div>
               <p className="text-sm text-muted-foreground">Good morning,</p>
               <p className="font-semibold">{userName}</p>
@@ -416,163 +416,6 @@ const Dashboard = () => {
 
         {/* Affiliate Earnings Widget */}
         {platformSettings.features.referral_program && <AffiliateEarningsWidget />}
-        <div className={`grid gap-3 animate-fade-in stagger-1 ${
-          platformSettings.features.meal_scheduling ? 'grid-cols-5' : 'grid-cols-4'
-        }`}>
-          <Link to="/favorites">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center relative">
-                  <Heart className="w-5 h-5 text-destructive fill-destructive" />
-                  {favoriteIds.size > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium">
-                      {favoriteIds.size}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Favorites</p>
-                  <p className="text-xs text-muted-foreground">{favoriteIds.size} saved</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          {platformSettings.features.meal_scheduling && (
-            <Link to="/schedule">
-              <Card variant="interactive" className="h-full">
-                <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Schedule</p>
-                    <p className="text-xs text-muted-foreground">Plan week</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )}
-          <Link to="/progress">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-accent" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Progress</p>
-                  <p className="text-xs text-muted-foreground">Analytics</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/orders">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-warning/10 flex items-center justify-center">
-                  <Receipt className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Orders</p>
-                  <p className="text-xs text-muted-foreground">History</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/subscription">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Plans</p>
-                  <p className="text-xs text-muted-foreground">Upgrade</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-
-        {/* More Actions */}
-        <div className={`grid gap-3 animate-fade-in stagger-1 ${
-          [platformSettings.features.referral_program, platformSettings.features.delivery_tracking].filter(Boolean).length === 2 
-            ? 'grid-cols-4' 
-            : [platformSettings.features.referral_program, platformSettings.features.delivery_tracking].filter(Boolean).length === 1
-              ? 'grid-cols-3'
-              : 'grid-cols-2'
-        }`}>
-          <Link to="/settings">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Settings</p>
-                  <p className="text-xs text-muted-foreground">Preferences</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          {platformSettings.features.referral_program && (
-            <>
-              <Link to="/referral">
-                <Card variant="interactive" className="h-full">
-                  <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                    <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
-                      <Gift className="w-5 h-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">Refer</p>
-                      <p className="text-xs text-muted-foreground">Earn $10</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-              <Link to="/affiliate">
-                <Card variant="interactive" className="h-full border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
-                  <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-violet-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">Affiliate</p>
-                      <p className="text-xs text-muted-foreground">Earn more</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </>
-          )}
-          <Link to="/addresses">
-            <Card variant="interactive" className="h-full">
-              <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">Addresses</p>
-                  <p className="text-xs text-muted-foreground">Delivery</p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          {platformSettings.features.delivery_tracking && (
-            <Link to="/tracking">
-              <Card variant="interactive" className="h-full">
-                <CardContent className="p-4 flex flex-col items-center gap-2 text-center">
-                  <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <Truck className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Tracking</p>
-                    <p className="text-xs text-muted-foreground">Live orders</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )}
-        </div>
 
         {/* Browse Restaurants Section */}
         <section className="space-y-4 animate-fade-in stagger-2">

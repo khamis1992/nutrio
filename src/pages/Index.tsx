@@ -279,8 +279,8 @@ const Index = () => {
                 <h3 className="text-xl font-bold mb-2">Weekly Plan</h3>
                 <p className="text-muted-foreground text-sm mb-6">Perfect for trying out</p>
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">$29</span>
-                  <span className="text-muted-foreground">/week</span>
+                  <span className="text-4xl font-bold">106</span>
+                  <span className="text-muted-foreground"> QAR/week</span>
                 </div>
                 <ul className="space-y-3 mb-8">
                   {[
@@ -306,8 +306,8 @@ const Index = () => {
                 <h3 className="text-xl font-bold mb-2">Monthly Plan</h3>
                 <p className="text-muted-foreground text-sm mb-6">Best value for results</p>
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">$89</span>
-                  <span className="text-muted-foreground">/month</span>
+                  <span className="text-4xl font-bold">324</span>
+                  <span className="text-muted-foreground"> QAR/month</span>
                   <Badge variant="success" className="ml-2">Save 23%</Badge>
                 </div>
                 <ul className="space-y-3 mb-8">

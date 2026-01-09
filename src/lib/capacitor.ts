@@ -20,6 +20,11 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { listenerFunc } from '@capacitor/core';
 
+// Dynamic import for biometric auth (only available in native)
+const BiometricAuth = Capacitor.isNativePlatform()
+  ? require('capacitor-biometric-auth').BiometricAuth
+  : null;
+
 // ========================================
 // PLATFORM DETECTION
 // ========================================
@@ -467,6 +472,114 @@ export const localNotifications = {
 };
 
 // ========================================
+// BIOMETRIC AUTHENTICATION
+// ========================================
+
+export const biometricAuth = {
+  /**
+   * Check if biometric authentication is available
+   */
+  isAvailable: async (): Promise<boolean> => {
+    if (!isNative) return false;
+    try {
+      const { available } = await BiometricAuth.isAvailable();
+      return available;
+    } catch (error) {
+      console.error('Error checking biometric availability:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Get biometric type (fingerprint, face, etc.)
+   */
+  getBiometricType: async (): Promise<string | null> => {
+    if (!isNative) return null;
+    try {
+      const { biometricType } = await BiometricAuth.isAvailable();
+      return biometricType || null;
+    } catch (error) {
+      console.error('Error getting biometric type:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Authenticate user with biometrics
+   * @param reason - Reason shown to user (e.g., "Please authenticate to login")
+   */
+  authenticate: async (reason: string = 'Please authenticate'): Promise<boolean> => {
+    if (!isNative) return false;
+    try {
+      const { success } = await BiometricAuth.authenticate({
+        reason,
+        title: 'Biometric Authentication',
+        subtitle: 'Use your fingerprint or face to continue',
+        description: reason,
+      });
+      return success;
+    } catch (error: any) {
+      console.error('Biometric authentication error:', error);
+      // User cancelled or authentication failed
+      return false;
+    }
+  },
+
+  /**
+   * Check if biometric credentials are stored
+   */
+  hasCredentials: async (): Promise<boolean> => {
+    if (!isNative) return false;
+    try {
+      // Check if we have stored credentials flag
+      const hasStored = localStorage.getItem('biometric_enabled') === 'true';
+      return hasStored;
+    } catch (error) {
+      return false;
+    }
+  },
+
+  /**
+   * Enable biometric login for current user
+   */
+  enableBiometric: async (email: string) => {
+    if (!isNative) return;
+    try {
+      // Store that this user has enabled biometric
+      localStorage.setItem('biometric_enabled', 'true');
+      localStorage.setItem('biometric_email', email);
+      await haptics.success();
+    } catch (error) {
+      console.error('Error enabling biometric:', error);
+    }
+  },
+
+  /**
+   * Disable biometric login
+   */
+  disableBiometric: async () => {
+    if (!isNative) return;
+    try {
+      localStorage.removeItem('biometric_enabled');
+      localStorage.removeItem('biometric_email');
+    } catch (error) {
+      console.error('Error disabling biometric:', error);
+    }
+  },
+
+  /**
+   * Get stored email for biometric login
+   */
+  getStoredEmail: (): string | null => {
+    try {
+      return localStorage.getItem('biometric_email');
+    } catch (error) {
+      return null;
+    }
+  },
+};
+
+// ========================================
 // HELPER FUNCTIONS
 // ========================================
 
@@ -521,6 +634,7 @@ export default {
   app,
   pushNotifications,
   localNotifications,
+  biometricAuth,
   initializeNativeApp,
   hapticFeedback,
 };

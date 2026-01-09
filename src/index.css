@@ -398,3 +398,43 @@ html {
     -webkit-appearance: none;
   }
 }
+
+/* ========================================
+   SIDE DRAWER STYLES
+   ======================================== */
+
+/* Drawer slide-in animation from right */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-content {
+  animation: slideInRight 280ms ease-out;
+}
+
+/* Drawer item touch feedback */
+.drawer-item {
+  position: relative;
+  transition: all 150ms ease-out;
+}
+
+.drawer-item:active {
+  transform: scale(0.98);
+  background-color: hsl(var(--accent) / 0.1);
+}
+
+/* Drawer overlay styling */
+.drawer-overlay {
+  background-color: rgba(0, 0, 0, 0.4);
+  animation: fadeIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
