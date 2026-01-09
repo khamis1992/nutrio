@@ -1,0 +1,28 @@
+project_id = "fimhnpinpswlhzifcfnv"
+
+[functions.send-meal-reminders]
+verify_jwt = false
+
+[functions.analyze-meal-image]
+verify_jwt = false
+
+[functions.send-commission-notification]
+verify_jwt = false
+
+[functions.send-payout-notification]
+verify_jwt = false
+
+[functions.send-milestone-notification]
+verify_jwt = false
+
+[functions.send-monthly-affiliate-report]
+verify_jwt = false
+
+[functions.send-tier-upgrade-notification]
+verify_jwt = false
+
+[functions.send-affiliate-welcome]
+verify_jwt = false
+
+[functions.send-affiliate-status-notification]
+verify_jwt = false

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(brainstorming)",
+      "Bash(npm install:*)",
+      "Bash(npx cap init:*)",
+      "Bash(del capacitor.config.ts)",
+      "Bash(npm run build:*)",
+      "Bash(npx cap add:*)",
+      "Bash(npx cap sync)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
