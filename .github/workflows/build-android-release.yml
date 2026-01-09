@@ -39,6 +39,15 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Install @capacitor/android
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Copy web assets to android
+        run: npx cap copy android
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
