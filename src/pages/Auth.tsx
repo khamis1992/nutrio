@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2, Fingerprint } from "lucide-react";
+import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { biometricAuth, isNative } from "@/lib/capacitor";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
@@ -29,40 +28,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [checkingRole, setCheckingRole] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricType, setBiometricType] = useState<string>("");
-  const [biometricLoading, setBiometricLoading] = useState(false);
-  const [enableBiometric, setEnableBiometric] = useState(false);
-
-  // Check biometric availability on mount
-  useEffect(() => {
-    const checkBiometric = async () => {
-      if (!isNative) return;
-
-      try {
-        const available = await biometricAuth.isAvailable();
-        setBiometricAvailable(available);
-
-        if (available) {
-          const type = await biometricAuth.getBiometricType();
-          setBiometricType(type || "biometric");
-
-          // Check if user has previously enabled biometric
-          const hasCredentials = await biometricAuth.hasCredentials();
-          if (hasCredentials) {
-            const storedEmail = biometricAuth.getStoredEmail();
-            if (storedEmail) {
-              setEmail(storedEmail);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error checking biometric:", error);
-      }
-    };
-
-    checkBiometric();
-  }, []);
 
   // Redirect if already authenticated - check for partner role
   useEffect(() => {
@@ -120,74 +85,6 @@ const Auth = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleBiometricLogin = async () => {
-    if (!biometricAvailable) return;
-
-    setBiometricLoading(true);
-
-    try {
-      // Check if we have stored credentials
-      const storedEmail = biometricAuth.getStoredEmail();
-      if (!storedEmail) {
-        toast({
-          title: "Biometric not set up",
-          description: "Please log in with your password first and enable biometric login.",
-          variant: "destructive",
-        });
-        setBiometricLoading(false);
-        return;
-      }
-
-      // Authenticate with biometrics
-      const success = await biometricAuth.authenticate("Sign in to NUTRIO");
-
-      if (success) {
-        // Get stored password (in a real app, you'd store this securely)
-        // For now, we'll prompt for password if not stored
-        const storedPassword = localStorage.getItem(`biometric_password_${storedEmail}`);
-
-        if (!storedPassword) {
-          toast({
-            title: "Password required",
-            description: "Please enter your password to complete biometric setup.",
-            variant: "destructive",
-          });
-          setBiometricLoading(false);
-          return;
-        }
-
-        // Sign in with stored credentials
-        const { error } = await signIn(storedEmail, storedPassword);
-
-        if (error) {
-          // Clear invalid stored credentials
-          localStorage.removeItem(`biometric_password_${storedEmail}`);
-          await biometricAuth.disableBiometric();
-
-          toast({
-            title: "Authentication failed",
-            description: "Please sign in with your password.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Welcome back!",
-            description: `Signed in with ${biometricType}`,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Biometric login error:", error);
-      toast({
-        title: "Biometric authentication failed",
-        description: "Please try again or use your password.",
-        variant: "destructive",
-      });
-    } finally {
-      setBiometricLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -209,21 +106,10 @@ const Auth = () => {
             variant: "destructive",
           });
         } else {
-          // Enable biometric if checkbox is checked
-          if (enableBiometric && biometricAvailable) {
-            await biometricAuth.enableBiometric(email);
-            // Store password securely for biometric login (in real app, use secure storage)
-            localStorage.setItem(`biometric_password_${email}`, password);
-            toast({
-              title: "Welcome back!",
-              description: `You have successfully signed in. ${biometricType} login enabled!`,
-            });
-          } else {
-            toast({
-              title: "Welcome back!",
-              description: "You have successfully signed in.",
-            });
-          }
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully signed in.",
+          });
         }
       } else {
         const { error } = await signUp(email, password, name);
@@ -288,36 +174,6 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            {/* Biometric Login Button */}
-            {isLogin && biometricAvailable && (
-              <div className="mb-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-12 gap-2"
-                  onClick={handleBiometricLogin}
-                  disabled={biometricLoading}
-                >
-                  {biometricLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    <>
-                      <Fingerprint className="w-5 h-5" />
-                      Sign in with {biometricType}
-                    </>
-                  )}
-                </Button>
-                <div className="flex items-center justify-center mt-3">
-                  <div className="h-px bg-border flex-1" />
-                  <span className="px-3 text-xs text-muted-foreground uppercase">or</span>
-                  <div className="h-px bg-border flex-1" />
-                </div>
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <div className="space-y-2">
@@ -391,26 +247,6 @@ const Auth = () => {
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
               </div>
-
-              {/* Enable Biometric Checkbox */}
-              {isLogin && biometricAvailable && (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="enable-biometric"
-                    checked={enableBiometric}
-                    onChange={(e) => setEnableBiometric(e.target.checked)}
-                    className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    disabled={loading}
-                  />
-                  <Label
-                    htmlFor="enable-biometric"
-                    className="text-sm font-normal cursor-pointer select-none"
-                  >
-                    Enable {biometricType} login for faster access
-                  </Label>
-                </div>
-              )}
 
               {isLogin && (
                 <div className="flex justify-end">
