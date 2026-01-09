@@ -39,11 +39,8 @@ jobs:
       - name: Build web app
         run: npm run build
 
-      - name: Install @capacitor/cli
-        run: npm install -D @capacitor/cli
-
-      - name: Sync Capacitor
-        run: npx cap sync android
+      - name: Update Capacitor Android project
+        run: npx @capacitor/cli sync android
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
