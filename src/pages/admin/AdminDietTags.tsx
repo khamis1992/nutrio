@@ -242,17 +242,17 @@ export default function AdminDietTags() {
     <AdminLayout title="Diet Tags" subtitle="Manage dietary preferences and restrictions">
       <div className="space-y-6">
         {/* Header Actions */}
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+          <div className="relative flex-1 w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search diet tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 min-h-[44px]"
             />
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto min-h-[44px]">
             <Plus className="h-4 w-4 mr-2" />
             Add Diet Tag
           </Button>

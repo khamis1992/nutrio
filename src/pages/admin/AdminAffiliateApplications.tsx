@@ -284,26 +284,26 @@ export default function AdminAffiliateApplications() {
         </div>
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search by name or user ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 min-h-[44px]"
           />
         </div>
 
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="pending">
+          <TabsList className="grid grid-cols-3 w-full gap-1">
+            <TabsTrigger value="pending" className="min-h-[44px]">
               Pending ({counts.pending})
             </TabsTrigger>
-            <TabsTrigger value="approved">
+            <TabsTrigger value="approved" className="min-h-[44px]">
               Approved ({counts.approved})
             </TabsTrigger>
-            <TabsTrigger value="rejected">
+            <TabsTrigger value="rejected" className="min-h-[44px]">
               Rejected ({counts.rejected})
             </TabsTrigger>
           </TabsList>
@@ -319,8 +319,8 @@ export default function AdminAffiliateApplications() {
             ) : (
               filteredApplications.map((application) => (
                 <Card key={application.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
                       <div className="flex items-start gap-3 flex-1">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <User className="w-5 h-5 text-primary" />
@@ -350,13 +350,14 @@ export default function AdminAffiliateApplications() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                         {application.status === "pending" && (
                           <>
                             <Button
                               size="sm"
                               onClick={() => handleApprove(application)}
                               disabled={processingId === application.id}
+                              className="w-full sm:w-auto min-h-[44px]"
                             >
                               {processingId === application.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -372,6 +373,7 @@ export default function AdminAffiliateApplications() {
                               variant="destructive"
                               onClick={() => openRejectDialog(application)}
                               disabled={processingId === application.id}
+                              className="w-full sm:w-auto min-h-[44px]"
                             >
                               <X className="w-4 h-4 mr-1" />
                               Reject

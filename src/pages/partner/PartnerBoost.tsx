@@ -206,9 +206,9 @@ export default function PartnerBoost() {
         {/* Active Boost Status */}
         {activeListing && (
           <Card className="border-primary/50 bg-primary/5">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center gap-3 sm:gap-4">
                   <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center">
                     <Crown className="w-7 h-7 text-primary" />
                   </div>
@@ -232,7 +232,7 @@ export default function PartnerBoost() {
         )}
 
         {/* Pricing Cards */}
-        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
           {packages.map((pkg) => (
             <Card
               key={pkg.type}
@@ -307,7 +307,7 @@ export default function PartnerBoost() {
             <CardTitle>Why Boost Your Restaurant?</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Sparkles className="w-5 h-5 text-primary" />

@@ -344,7 +344,7 @@ export default function AdminPromotions() {
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="code">Promo Code *</Label>
                     <div className="flex gap-2">
@@ -353,9 +353,9 @@ export default function AdminPromotions() {
                         value={formData.code}
                         onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
                         placeholder="SAVE20"
-                        className="uppercase"
+                        className="uppercase h-12 sm:h-10 min-h-[44px]"
                       />
-                      <Button type="button" variant="outline" onClick={generateCode}>
+                      <Button type="button" variant="outline" onClick={generateCode} className="min-h-[44px]">
                         Generate
                       </Button>
                     </div>
@@ -367,6 +367,7 @@ export default function AdminPromotions() {
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Summer Sale 20% Off"
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -378,19 +379,20 @@ export default function AdminPromotions() {
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Get 20% off on all orders this summer"
+                    className="min-h-[100px] sm:min-h-[120px]"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>Discount Type *</Label>
                     <Select
                       value={formData.discount_type}
-                      onValueChange={(value: 'percentage' | 'fixed') => 
+                      onValueChange={(value: 'percentage' | 'fixed') =>
                         setFormData(prev => ({ ...prev, discount_type: value }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -406,25 +408,29 @@ export default function AdminPromotions() {
                     <Input
                       id="discount_value"
                       type="number"
+                      inputMode={formData.discount_type === 'percentage' ? "numeric" : "decimal"}
                       min="0"
                       max={formData.discount_type === 'percentage' ? 100 : undefined}
                       value={formData.discount_value}
                       onChange={(e) => setFormData(prev => ({ ...prev, discount_value: e.target.value }))}
                       placeholder={formData.discount_type === 'percentage' ? "20" : "10.00"}
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="min_order_amount">Minimum Order Amount ({CURRENCY.symbol})</Label>
                     <Input
                       id="min_order_amount"
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       value={formData.min_order_amount}
                       onChange={(e) => setFormData(prev => ({ ...prev, min_order_amount: e.target.value }))}
                       placeholder="0"
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -432,24 +438,28 @@ export default function AdminPromotions() {
                     <Input
                       id="max_discount_amount"
                       type="number"
+                      inputMode="decimal"
                       min="0"
                       value={formData.max_discount_amount}
                       onChange={(e) => setFormData(prev => ({ ...prev, max_discount_amount: e.target.value }))}
                       placeholder="No limit"
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="max_uses">Total Usage Limit</Label>
                     <Input
                       id="max_uses"
                       type="number"
+                      inputMode="numeric"
                       min="1"
                       value={formData.max_uses}
                       onChange={(e) => setFormData(prev => ({ ...prev, max_uses: e.target.value }))}
                       placeholder="Unlimited"
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -457,15 +467,17 @@ export default function AdminPromotions() {
                     <Input
                       id="max_uses_per_user"
                       type="number"
+                      inputMode="numeric"
                       min="1"
                       value={formData.max_uses_per_user}
                       onChange={(e) => setFormData(prev => ({ ...prev, max_uses_per_user: e.target.value }))}
                       placeholder="1"
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="valid_from">Valid From *</Label>
                     <Input
@@ -473,6 +485,7 @@ export default function AdminPromotions() {
                       type="datetime-local"
                       value={formData.valid_from}
                       onChange={(e) => setFormData(prev => ({ ...prev, valid_from: e.target.value }))}
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                   <div className="space-y-2">
@@ -482,6 +495,7 @@ export default function AdminPromotions() {
                       type="datetime-local"
                       value={formData.valid_until}
                       onChange={(e) => setFormData(prev => ({ ...prev, valid_until: e.target.value }))}
+                      className="h-12 sm:h-10 min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -549,16 +563,14 @@ export default function AdminPromotions() {
         </div>
 
         {/* Search */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by code or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+        <div className="relative flex-1 w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by code or name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 min-h-[44px]"
+          />
         </div>
 
         {/* Promotions Table */}

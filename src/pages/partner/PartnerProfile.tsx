@@ -72,20 +72,20 @@ const PartnerProfile = () => {
               <User className="h-5 w-5" />Personal Information
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
+          <CardContent className="space-y-4 sm:space-y-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Avatar className="h-16 sm:h-20 w-16 sm:w-20">
                 <AvatarImage src={profile.avatar_url || undefined} />
-                <AvatarFallback className="text-xl">{profile.full_name?.charAt(0) || user?.email?.charAt(0) || "P"}</AvatarFallback>
+                <AvatarFallback className="text-lg sm:text-xl">{profile.full_name?.charAt(0) || user?.email?.charAt(0) || "P"}</AvatarFallback>
               </Avatar>
-              <div>
-                <p className="font-medium">{profile.full_name || "Partner"}</p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{profile.full_name || "Partner"}</p>
+                <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
             <div className="space-y-2">
               <Label>Full Name</Label>
-              <Input value={profile.full_name || ""} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} placeholder="Your full name" />
+              <Input value={profile.full_name || ""} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} placeholder="Your full name" className="h-12 sm:h-10 min-h-[44px]" />
             </div>
           </CardContent>
         </Card>
@@ -110,15 +110,16 @@ const PartnerProfile = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Restaurant Name</Label>
-                  <Input value={restaurant.name} onChange={(e) => setRestaurant({ ...restaurant, name: e.target.value })} placeholder="Restaurant name" />
+                  <Input value={restaurant.name} onChange={(e) => setRestaurant({ ...restaurant, name: e.target.value })} placeholder="Restaurant name" className="h-12 sm:h-10 min-h-[44px]" />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
-                  <Textarea 
-                    value={restaurant.description || ""} 
-                    onChange={(e) => setRestaurant({ ...restaurant, description: e.target.value })} 
-                    rows={4} 
+                  <Textarea
+                    value={restaurant.description || ""}
+                    onChange={(e) => setRestaurant({ ...restaurant, description: e.target.value })}
+                    rows={4}
                     placeholder="Describe your restaurant, cuisine, specialties..."
+                    className="min-h-[100px] sm:min-h-[120px]"
                   />
                 </div>
               </div>
@@ -132,22 +133,22 @@ const PartnerProfile = () => {
                   <Label>Address</Label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input value={restaurant.address || ""} onChange={(e) => setRestaurant({ ...restaurant, address: e.target.value })} className="pl-10" placeholder="Full address" />
+                    <Input value={restaurant.address || ""} onChange={(e) => setRestaurant({ ...restaurant, address: e.target.value })} className="pl-10 h-12 sm:h-10 min-h-[44px]" placeholder="Full address" />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label>Phone</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input value={restaurant.phone || ""} onChange={(e) => setRestaurant({ ...restaurant, phone: e.target.value })} className="pl-10" placeholder="+1 (555) 000-0000" />
+                      <Input type="tel" inputMode="tel" value={restaurant.phone || ""} onChange={(e) => setRestaurant({ ...restaurant, phone: e.target.value })} className="pl-10 h-12 sm:h-10 min-h-[44px]" placeholder="+1 (555) 000-0000" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input type="email" value={restaurant.email || ""} onChange={(e) => setRestaurant({ ...restaurant, email: e.target.value })} className="pl-10" placeholder="restaurant@example.com" />
+                      <Input type="email" inputMode="email" value={restaurant.email || ""} onChange={(e) => setRestaurant({ ...restaurant, email: e.target.value })} className="pl-10 h-12 sm:h-10 min-h-[44px]" placeholder="restaurant@example.com" />
                     </div>
                   </div>
                 </div>

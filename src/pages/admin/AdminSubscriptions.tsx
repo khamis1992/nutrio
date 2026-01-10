@@ -211,7 +211,7 @@ export default function AdminSubscriptions() {
 
   return (
     <AdminLayout title="Subscription Management" subtitle="View and manage all user subscriptions">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
@@ -250,22 +250,22 @@ export default function AdminSubscriptions() {
         </Card>
       </div>
 
-      <div className="relative mb-4">
+      <div className="relative mb-4 flex-1 w-full">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search by name, plan, or ID..."
-          className="pl-10"
+          className="pl-10 min-h-[44px]"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
-          <TabsTrigger value="active">Active ({stats.active})</TabsTrigger>
-          <TabsTrigger value="cancelled">Cancelled ({stats.cancelled})</TabsTrigger>
-          <TabsTrigger value="expired">Expired</TabsTrigger>
+        <TabsList className="flex overflow-x-auto gap-1 w-full sm:w-auto mb-4">
+          <TabsTrigger value="all" className="whitespace-nowrap min-h-[44px]">All ({stats.total})</TabsTrigger>
+          <TabsTrigger value="active" className="whitespace-nowrap min-h-[44px]">Active ({stats.active})</TabsTrigger>
+          <TabsTrigger value="cancelled" className="whitespace-nowrap min-h-[44px]">Cancelled ({stats.cancelled})</TabsTrigger>
+          <TabsTrigger value="expired" className="whitespace-nowrap min-h-[44px]">Expired</TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
@@ -278,10 +278,10 @@ export default function AdminSubscriptions() {
           ) : (
             filteredSubscriptions.map((subscription) => (
               <Card key={subscription.id}>
-                <CardContent className="py-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <CardContent className="py-3 sm:py-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
                           {subscription.profile?.full_name || "Unknown User"}
@@ -289,7 +289,7 @@ export default function AdminSubscriptions() {
                         {getStatusBadge(subscription.status)}
                         {getPlanBadge(subscription.plan)}
                       </div>
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CreditCard className="h-3 w-3" />
                           {formatCurrency(subscription.price)}/month
@@ -309,11 +309,12 @@ export default function AdminSubscriptions() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditClick(subscription)}
+                        className="w-full sm:w-auto min-h-[44px]"
                       >
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
@@ -323,6 +324,7 @@ export default function AdminSubscriptions() {
                           variant="destructive"
                           size="sm"
                           onClick={() => handleCancelClick(subscription)}
+                          className="w-full sm:w-auto min-h-[44px]"
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Cancel
@@ -349,7 +351,7 @@ export default function AdminSubscriptions() {
             <div className="space-y-2">
               <Label>Plan</Label>
               <Select value={editPlan} onValueChange={setEditPlan}>
-                <SelectTrigger>
+                <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -361,7 +363,7 @@ export default function AdminSubscriptions() {
             <div className="space-y-2">
               <Label>Meals per Week</Label>
               <Select value={editMealsPerWeek} onValueChange={setEditMealsPerWeek}>
-                <SelectTrigger>
+                <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -376,13 +378,12 @@ export default function AdminSubscriptions() {
             </div>
             <div className="flex items-center justify-between">
               <Label>Auto-renew</Label>
-              <Select 
-                value={editAutoRenew ? "yes" : "no"} 
+              <Select
+                value={editAutoRenew ? "yes" : "no"}
                 onValueChange={(v) => setEditAutoRenew(v === "yes")}
               >
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="w-24 h-12 sm:h-10 min-h-[44px]">
                   <SelectValue />
-                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="yes">Yes</SelectItem>
                   <SelectItem value="no">No</SelectItem>

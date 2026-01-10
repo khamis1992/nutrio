@@ -130,20 +130,20 @@ const AdminOrders = () => {
   return (
     <AdminLayout title="Order Management" subtitle={`${orders.length} total orders`}>
       <div className="space-y-4">
-        <div className="relative">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by meal, restaurant, or customer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 min-h-[44px]"
           />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="today" className="relative">
+          <TabsList className="flex overflow-x-auto gap-1 w-full sm:w-auto">
+            <TabsTrigger value="all" className="whitespace-nowrap min-h-[44px]">All</TabsTrigger>
+            <TabsTrigger value="today" className="relative whitespace-nowrap min-h-[44px]">
               Today
               {todayCount > 0 && (
                 <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
@@ -151,8 +151,8 @@ const AdminOrders = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="upcoming" className="whitespace-nowrap min-h-[44px]">Upcoming</TabsTrigger>
+            <TabsTrigger value="completed" className="whitespace-nowrap min-h-[44px]">Completed</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="space-y-4 mt-4">
@@ -166,36 +166,47 @@ const AdminOrders = () => {
             ) : (
               filteredOrders.map((order) => (
                 <Card key={order.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex flex-wrap gap-2 mb-2">
                           <p className="font-semibold">{order.meal.name}</p>
                           <Badge
                             variant="outline"
                             className={
                               order.is_completed
-                                ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                ? "bg-green-500/10 text-green-600 border-green-500/20 text-xs sm:text-sm"
                                 : order.scheduled_date < today
-                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs sm:text-sm"
+                                : "bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs sm:text-sm"
                             }
                           >
                             {order.is_completed ? (
                               <>
                                 <CheckCircle className="h-3 w-3 mr-1" />
-                                Completed
+                                <span className="hidden sm:inline">Completed</span>
+                                <span className="sm:hidden">Done</span>
                               </>
                             ) : (
                               <>
                                 <Clock className="h-3 w-3 mr-1" />
-                                {order.scheduled_date < today ? "Overdue" : "Pending"}
+                                {order.scheduled_date < today ? (
+                                  <>
+                                    <span className="hidden sm:inline">Overdue</span>
+                                    <span className="sm:hidden">Late</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="hidden sm:inline">Pending</span>
+                                    <span className="sm:hidden">Wait</span>
+                                  </>
+                                )}
                               </>
                             )}
                           </Badge>
                         </div>
 
-                        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap gap-2 sm:gap-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Store className="h-3 w-3" />
                             {order.meal.restaurant.name}

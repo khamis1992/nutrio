@@ -305,14 +305,14 @@ export default function AdminAnnouncements() {
     <AdminLayout title="Announcements" subtitle="Manage platform-wide announcements">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+          <div className="relative flex-1 w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search announcements..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 min-h-[44px]"
             />
           </div>
           <Button
@@ -321,6 +321,7 @@ export default function AdminAnnouncements() {
               setFormData(defaultFormData);
               setDialogOpen(true);
             }}
+            className="w-full sm:w-auto min-h-[44px]"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Announcement
@@ -479,6 +480,7 @@ export default function AdminAnnouncements() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Announcement title"
+                className="h-12 sm:h-10 min-h-[44px]"
               />
             </div>
             <div className="space-y-2">
@@ -489,16 +491,17 @@ export default function AdminAnnouncements() {
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 placeholder="Announcement message..."
                 rows={4}
+                className="min-h-[100px] sm:min-h-[120px]"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Type</Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -515,7 +518,7 @@ export default function AdminAnnouncements() {
                   value={formData.target_audience}
                   onValueChange={(value) => setFormData({ ...formData, target_audience: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 sm:h-10 min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -526,7 +529,7 @@ export default function AdminAnnouncements() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="starts_at">Start Date *</Label>
                 <Input
@@ -534,6 +537,7 @@ export default function AdminAnnouncements() {
                   type="datetime-local"
                   value={formData.starts_at}
                   onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -543,6 +547,7 @@ export default function AdminAnnouncements() {
                   type="datetime-local"
                   value={formData.ends_at}
                   onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </div>

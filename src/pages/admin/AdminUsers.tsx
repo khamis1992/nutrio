@@ -236,18 +236,18 @@ const AdminUsers = () => {
   return (
     <AdminLayout title="User Management" subtitle={`${users.length} users`}>
       <div className="space-y-4">
-        <div className="flex gap-3">
-          <div className="relative flex-1">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+          <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 min-h-[44px]"
             />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-full sm:w-32 min-h-[44px]">
               <SelectValue placeholder="Role" />
             </SelectTrigger>
             <SelectContent>

@@ -442,18 +442,18 @@ export default function AdminSupport() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+          <div className="relative flex-1 w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search tickets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 min-h-[44px]"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px] min-h-[44px]">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -466,7 +466,7 @@ export default function AdminSupport() {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px] min-h-[44px]">
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
@@ -674,7 +674,7 @@ export default function AdminSupport() {
                                   : 'bg-muted'
                               }`}
                             >
-                              <p className="text-sm">{msg.message}</p>
+                              <p className="text-xs sm:text-sm">{msg.message}</p>
                               {/* Message attachments */}
                               {attachments.filter(a => a.message_id === msg.id).length > 0 && (
                                 <div className="mt-2 space-y-1">

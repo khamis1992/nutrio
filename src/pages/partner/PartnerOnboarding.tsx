@@ -172,9 +172,9 @@ const PartnerOnboarding = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30">
-      <div className="container max-w-2xl mx-auto px-4 py-8">
+      <div className="container max-w-2xl mx-auto px-4 py-6 sm:py-8">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Store className="h-8 w-8 text-primary" />
           </div>
@@ -185,9 +185,9 @@ const PartnerOnboarding = () => {
         </div>
 
         {/* Progress */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <Progress value={progress} className="h-2" />
-          <div className="flex justify-between mt-4">
+          <div className="flex justify-between mt-3 sm:mt-4">
             {steps.map((step) => (
               <div
                 key={step.id}
@@ -206,7 +206,7 @@ const PartnerOnboarding = () => {
                 >
                   {step.id < currentStep ? <Check className="h-4 w-4" /> : step.id}
                 </div>
-                <span className="text-xs mt-1 hidden sm:block">{step.title}</span>
+                <span className="text-xs sm:text-sm mt-1">{step.title}</span>
               </div>
             ))}
           </div>
@@ -218,7 +218,7 @@ const PartnerOnboarding = () => {
             <CardTitle>{steps[currentStep - 1].title}</CardTitle>
             <CardDescription>{steps[currentStep - 1].description}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6">
             {currentStep === 1 && (
               <>
                 <div className="space-y-2">
@@ -230,7 +230,7 @@ const PartnerOnboarding = () => {
                       value={data.name}
                       onChange={(e) => updateData("name", e.target.value)}
                       placeholder="Your restaurant name"
-                      className="pl-10"
+                      className="h-12 sm:h-10 min-h-[44px] pl-10"
                     />
                   </div>
                 </div>
@@ -243,6 +243,7 @@ const PartnerOnboarding = () => {
                     onChange={(e) => updateData("description", e.target.value)}
                     placeholder="Tell customers about your restaurant, cuisine type, specialties..."
                     rows={4}
+                    className="min-h-[100px] sm:min-h-[120px]"
                   />
                   <p className="text-xs text-muted-foreground">
                     Minimum 10 characters ({data.description.length}/10)
@@ -262,7 +263,7 @@ const PartnerOnboarding = () => {
                       value={data.address}
                       onChange={(e) => updateData("address", e.target.value)}
                       placeholder="Full restaurant address"
-                      className="pl-10"
+                      className="h-12 sm:h-10 min-h-[44px] pl-10"
                     />
                   </div>
                 </div>
@@ -273,10 +274,12 @@ const PartnerOnboarding = () => {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="phone"
+                      type="tel"
+                      inputMode="tel"
                       value={data.phone}
                       onChange={(e) => updateData("phone", e.target.value)}
                       placeholder="+1234567890"
-                      className="pl-10"
+                      className="h-12 sm:h-10 min-h-[44px] pl-10"
                     />
                   </div>
                 </div>
@@ -288,10 +291,11 @@ const PartnerOnboarding = () => {
                     <Input
                       id="email"
                       type="email"
+                      inputMode="email"
                       value={data.email}
                       onChange={(e) => updateData("email", e.target.value)}
                       placeholder="contact@restaurant.com"
-                      className="pl-10"
+                      className="h-12 sm:h-10 min-h-[44px] pl-10"
                     />
                   </div>
                 </div>
@@ -300,13 +304,13 @@ const PartnerOnboarding = () => {
 
             {currentStep === 3 && (
               <div className="space-y-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center">
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-6 sm:p-8 text-center">
                   {data.logoPreview ? (
                     <div className="space-y-4">
                       <img
                         src={data.logoPreview}
                         alt="Logo preview"
-                        className="w-32 h-32 object-cover rounded-xl mx-auto"
+                        className="w-24 sm:w-32 h-24 sm:h-32 object-cover rounded-xl mx-auto"
                       />
                       <Button
                         variant="outline"
@@ -314,13 +318,14 @@ const PartnerOnboarding = () => {
                           updateData("logoFile", null);
                           updateData("logoPreview", null);
                         }}
+                        className="min-h-[44px]"
                       >
                         Remove Logo
                       </Button>
                     </div>
                   ) : (
                     <label className="cursor-pointer block">
-                      <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
                         <Upload className="h-8 w-8 text-muted-foreground" />
                       </div>
                       <p className="font-medium">Upload your logo</p>
@@ -343,21 +348,21 @@ const PartnerOnboarding = () => {
             )}
 
             {currentStep === 4 && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-xl">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/50 rounded-xl">
                   {data.logoPreview ? (
                     <img
                       src={data.logoPreview}
                       alt="Logo"
-                      className="w-16 h-16 object-cover rounded-xl"
+                      className="w-14 sm:w-16 h-14 sm:h-16 object-cover rounded-xl shrink-0"
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <div className="w-14 sm:w-16 h-14 sm:h-16 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                       <Store className="h-8 w-8 text-primary" />
                     </div>
                   )}
-                  <div>
-                    <h3 className="font-semibold text-lg">{data.name}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-base sm:text-lg">{data.name}</h3>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {data.description}
                     </p>
@@ -366,22 +371,22 @@ const PartnerOnboarding = () => {
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{data.address}</span>
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="break-all">{data.address}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span>{data.phone}</span>
                   </div>
                   {data.email && (
                     <div className="flex items-center gap-3 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{data.email}</span>
+                      <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="break-all">{data.email}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div className="p-3 sm:p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                   <p className="text-sm text-amber-600">
                     <strong>Note:</strong> Your restaurant will be reviewed by our team before
                     appearing on the platform. This usually takes 1-2 business days.
@@ -391,11 +396,12 @@ const PartnerOnboarding = () => {
             )}
 
             {/* Navigation */}
-            <div className="flex justify-between pt-4">
+            <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-4 pt-4">
               <Button
                 variant="outline"
                 onClick={() => setCurrentStep((prev) => prev - 1)}
                 disabled={currentStep === 1}
+                className="w-full sm:w-auto min-h-[44px]"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
@@ -405,12 +411,13 @@ const PartnerOnboarding = () => {
                 <Button
                   onClick={() => setCurrentStep((prev) => prev + 1)}
                   disabled={!canProceed()}
+                  className="w-full sm:w-auto min-h-[44px]"
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               ) : (
-                <Button onClick={handleSubmit} disabled={submitting}>
+                <Button onClick={handleSubmit} disabled={submitting} className="w-full sm:w-auto min-h-[44px]">
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

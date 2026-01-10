@@ -289,12 +289,14 @@ export default function AdminSettings() {
                 <Input
                   id="restaurant-commission"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   max="100"
                   value={commissionRates.restaurant}
                   onChange={(e) =>
                     setCommissionRates({ ...commissionRates, restaurant: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -302,12 +304,14 @@ export default function AdminSettings() {
                 <Input
                   id="delivery-commission"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   max="100"
                   value={commissionRates.delivery}
                   onChange={(e) =>
                     setCommissionRates({ ...commissionRates, delivery: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </CardContent>
@@ -328,12 +332,14 @@ export default function AdminSettings() {
                 <Input
                   id="basic-price"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={subscriptionPlans.basic_price}
                   onChange={(e) =>
                     setSubscriptionPlans({ ...subscriptionPlans, basic_price: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -341,12 +347,14 @@ export default function AdminSettings() {
                 <Input
                   id="premium-price"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={subscriptionPlans.premium_price}
                   onChange={(e) =>
                     setSubscriptionPlans({ ...subscriptionPlans, premium_price: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -354,12 +362,14 @@ export default function AdminSettings() {
                 <Input
                   id="family-price"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={subscriptionPlans.family_price}
                   onChange={(e) =>
                     setSubscriptionPlans({ ...subscriptionPlans, family_price: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </CardContent>
@@ -380,12 +390,14 @@ export default function AdminSettings() {
                 <Input
                   id="vip-price"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={vipSettings.vip_price}
                   onChange={(e) =>
                     setVipSettings({ ...vipSettings, vip_price: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -393,6 +405,7 @@ export default function AdminSettings() {
                 <Input
                   id="vip-discount"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   max="100"
                   step="1"
@@ -400,6 +413,7 @@ export default function AdminSettings() {
                   onChange={(e) =>
                     setVipSettings({ ...vipSettings, vip_discount_percent: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
                 <p className="text-xs text-muted-foreground">Discount applied to all meals for VIP subscribers</p>
               </div>
@@ -439,12 +453,14 @@ export default function AdminSettings() {
                 <Input
                   id="weekly-price"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="1"
                   value={featuredPrices.weekly}
                   onChange={(e) =>
                     setFeaturedPrices({ ...featuredPrices, weekly: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -452,12 +468,14 @@ export default function AdminSettings() {
                 <Input
                   id="biweekly-price"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="1"
                   value={featuredPrices.biweekly}
                   onChange={(e) =>
                     setFeaturedPrices({ ...featuredPrices, biweekly: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -465,12 +483,14 @@ export default function AdminSettings() {
                 <Input
                   id="monthly-price"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="1"
                   value={featuredPrices.monthly}
                   onChange={(e) =>
                     setFeaturedPrices({ ...featuredPrices, monthly: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </CardContent>
@@ -568,12 +588,14 @@ export default function AdminSettings() {
                 <Input
                   id="standard-delivery"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={deliveryFees.standard}
                   onChange={(e) =>
                     setDeliveryFees({ ...deliveryFees, standard: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -581,12 +603,14 @@ export default function AdminSettings() {
                 <Input
                   id="express-delivery"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={deliveryFees.express}
                   onChange={(e) =>
                     setDeliveryFees({ ...deliveryFees, express: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -594,12 +618,14 @@ export default function AdminSettings() {
                 <Input
                   id="free-threshold"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="1"
                   value={deliveryFees.free_threshold}
                   onChange={(e) =>
                     setDeliveryFees({ ...deliveryFees, free_threshold: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
                 <p className="text-xs text-muted-foreground">
                   Orders over this amount get free delivery
@@ -623,12 +649,14 @@ export default function AdminSettings() {
                 <Input
                   id="analytics-monthly"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={premiumAnalyticsPrices.monthly}
                   onChange={(e) =>
                     setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, monthly: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -636,12 +664,14 @@ export default function AdminSettings() {
                 <Input
                   id="analytics-quarterly"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={premiumAnalyticsPrices.quarterly}
                   onChange={(e) =>
                     setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, quarterly: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
               <div className="space-y-2">
@@ -649,12 +679,14 @@ export default function AdminSettings() {
                 <Input
                   id="analytics-yearly"
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   value={premiumAnalyticsPrices.yearly}
                   onChange={(e) =>
                     setPremiumAnalyticsPrices({ ...premiumAnalyticsPrices, yearly: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </CardContent>
@@ -688,36 +720,42 @@ export default function AdminSettings() {
                   <Label>Tier 1 (%)</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="100"
                     value={affiliateSettings.tier1_commission}
                     onChange={(e) =>
                       setAffiliateSettings({ ...affiliateSettings, tier1_commission: Number(e.target.value) })
                     }
+                    className="h-12 sm:h-10 min-h-[44px]"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Tier 2 (%)</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="100"
                     value={affiliateSettings.tier2_commission}
                     onChange={(e) =>
                       setAffiliateSettings({ ...affiliateSettings, tier2_commission: Number(e.target.value) })
                     }
+                    className="h-12 sm:h-10 min-h-[44px]"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Tier 3 (%)</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="100"
                     value={affiliateSettings.tier3_commission}
                     onChange={(e) =>
                       setAffiliateSettings({ ...affiliateSettings, tier3_commission: Number(e.target.value) })
                     }
+                    className="h-12 sm:h-10 min-h-[44px]"
                   />
                 </div>
               </div>
@@ -725,11 +763,13 @@ export default function AdminSettings() {
                 <Label>Min Payout Threshold ($)</Label>
                 <Input
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   value={affiliateSettings.min_payout_threshold}
                   onChange={(e) =>
                     setAffiliateSettings({ ...affiliateSettings, min_payout_threshold: Number(e.target.value) })
                   }
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </CardContent>

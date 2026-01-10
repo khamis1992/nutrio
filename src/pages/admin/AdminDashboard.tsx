@@ -267,10 +267,10 @@ const AdminDashboard = () => {
     <AdminLayout title="Admin Dashboard" subtitle="Platform Management">
       <div className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Store className="h-5 w-5 text-primary" />
                 </div>
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
 
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Users className="h-5 w-5 text-blue-500" />
                 </div>
@@ -298,7 +298,7 @@ const AdminDashboard = () => {
 
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
                   <ShoppingBag className="h-5 w-5 text-green-500" />
                 </div>
@@ -312,7 +312,7 @@ const AdminDashboard = () => {
 
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <DollarSign className="h-5 w-5 text-purple-500" />
                 </div>
@@ -418,8 +418,8 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
+                    <YAxis className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",
@@ -458,13 +458,13 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={commissionData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="date" 
-                      className="text-xs" 
-                      tick={{ fontSize: 10 }}
+                    <XAxis
+                      dataKey="date"
+                      className="text-xs"
+                      tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }}
                       interval="preserveStartEnd"
                     />
-                    <YAxis className="text-xs" tickFormatter={(value) => `$${value}`} />
+                    <YAxis className="text-xs" tickFormatter={(value) => `$${value}`} tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",

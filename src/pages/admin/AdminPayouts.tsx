@@ -372,17 +372,17 @@ export default function AdminPayouts() {
         </div>
 
         {/* Actions Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+          <div className="relative flex-1 w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by restaurant or partner..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 min-h-[44px]"
             />
           </div>
-          <Button onClick={() => setGenerateDialogOpen(true)}>
+          <Button onClick={() => setGenerateDialogOpen(true)} className="w-full sm:w-auto min-h-[44px]">
             <FileText className="h-4 w-4 mr-2" />
             Generate Payout
           </Button>
@@ -392,11 +392,11 @@ export default function AdminPayouts() {
         <Card>
           <CardHeader>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="all">All ({payouts.length})</TabsTrigger>
-                <TabsTrigger value="pending">Pending ({stats.pendingCount})</TabsTrigger>
-                <TabsTrigger value="processed">Processed ({stats.processedCount})</TabsTrigger>
-                <TabsTrigger value="rejected">
+              <TabsList className="flex overflow-x-auto gap-1 w-full sm:w-auto">
+                <TabsTrigger value="all" className="whitespace-nowrap min-h-[44px]">All ({payouts.length})</TabsTrigger>
+                <TabsTrigger value="pending" className="whitespace-nowrap min-h-[44px]">Pending ({stats.pendingCount})</TabsTrigger>
+                <TabsTrigger value="processed" className="whitespace-nowrap min-h-[44px]">Processed ({stats.processedCount})</TabsTrigger>
+                <TabsTrigger value="rejected" className="whitespace-nowrap min-h-[44px]">
                   Rejected ({payouts.filter(p => p.status === "rejected").length})
                 </TabsTrigger>
               </TabsList>
@@ -435,16 +435,16 @@ export default function AdminPayouts() {
                         </TableCell>
                         <TableCell>{payout.partner?.full_name || "Unknown"}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
+                          <div className="flex items-center gap-1 text-xs sm:text-sm">
                             <Calendar className="h-3 w-3 text-muted-foreground" />
                             {format(new Date(payout.period_start), "MMM d")} - {format(new Date(payout.period_end), "MMM d, yyyy")}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">{payout.order_count}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right text-xs sm:text-sm">{payout.order_count}</TableCell>
+                        <TableCell className="text-right text-xs sm:text-sm">
                           {formatCurrency(payout.total_order_value || 0)}
                         </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
+                        <TableCell className="text-right text-muted-foreground text-xs sm:text-sm">
                           -{formatCurrency(payout.commission_deducted || 0)}
                           <span className="text-xs ml-1">({payout.commission_rate || 0}%)</span>
                         </TableCell>

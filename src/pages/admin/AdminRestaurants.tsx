@@ -181,8 +181,8 @@ const AdminRestaurants = () => {
 
     return list.map((restaurant) => (
       <Card key={restaurant.id}>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex gap-3 sm:gap-4">
             <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center overflow-hidden shrink-0">
               {restaurant.logo_url ? (
                 <img
@@ -214,11 +214,11 @@ const AdminRestaurants = () => {
                 </p>
               )}
 
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-muted-foreground mb-3">
                 {restaurant.address && (
                   <span className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    {restaurant.address}
+                    <span className="break-all">{restaurant.address}</span>
                   </span>
                 )}
                 {restaurant.phone && (
@@ -230,7 +230,7 @@ const AdminRestaurants = () => {
                 {restaurant.email && (
                   <span className="flex items-center gap-1">
                     <Mail className="h-3 w-3" />
-                    {restaurant.email}
+                    <span className="break-all">{restaurant.email}</span>
                   </span>
                 )}
               </div>
@@ -241,13 +241,14 @@ const AdminRestaurants = () => {
               </div>
 
               {showActions && (
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     size="sm"
                     onClick={() => {
                       setSelectedRestaurant(restaurant);
                       setActionType("approve");
                     }}
+                    className="w-full sm:w-auto min-h-[44px]"
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
                     Approve
@@ -255,7 +256,7 @@ const AdminRestaurants = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive w-full sm:w-auto min-h-[44px]"
                     onClick={() => {
                       setSelectedRestaurant(restaurant);
                       setActionType("reject");

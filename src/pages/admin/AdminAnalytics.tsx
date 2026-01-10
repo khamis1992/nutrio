@@ -276,8 +276,8 @@ const AdminAnalytics = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} />
-                    <YAxis className="text-xs" />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
+                    <YAxis className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",
@@ -306,8 +306,8 @@ const AdminAnalytics = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} />
-                    <YAxis className="text-xs" />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
+                    <YAxis className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",

@@ -293,22 +293,20 @@ export default function AdminAffiliatePayouts() {
         </div>
 
         {/* Search and Filters */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or method..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+        <div className="relative flex-1 w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or method..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 min-h-[44px]"
+          />
         </div>
 
         {/* Tabs and Table */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="pending" className="gap-2">
+          <TabsList className="flex overflow-x-auto gap-1 w-full sm:w-auto">
+            <TabsTrigger value="pending" className="gap-2 whitespace-nowrap min-h-[44px]">
               <Clock className="h-4 w-4" />
               Pending
               {stats.pendingCount > 0 && (
@@ -317,15 +315,15 @@ export default function AdminAffiliatePayouts() {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approved" className="gap-2">
+            <TabsTrigger value="approved" className="gap-2 whitespace-nowrap min-h-[44px]">
               <CheckCircle className="h-4 w-4" />
               Approved
             </TabsTrigger>
-            <TabsTrigger value="rejected" className="gap-2">
+            <TabsTrigger value="rejected" className="gap-2 whitespace-nowrap min-h-[44px]">
               <XCircle className="h-4 w-4" />
               Rejected
             </TabsTrigger>
-            <TabsTrigger value="all" className="gap-2">
+            <TabsTrigger value="all" className="gap-2 whitespace-nowrap min-h-[44px]">
               <Wallet className="h-4 w-4" />
               All
             </TabsTrigger>
@@ -358,7 +356,7 @@ export default function AdminAffiliatePayouts() {
                       <TableRow key={payout.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">
+                            <p className="font-medium text-xs sm:text-sm">
                               {payout.user_profile?.full_name || "Unknown User"}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -367,12 +365,12 @@ export default function AdminAffiliatePayouts() {
                           </div>
                         </TableCell>
                         <TableCell>{getTierBadge(payout.user_profile?.affiliate_tier || null)}</TableCell>
-                        <TableCell className="font-semibold">
+                        <TableCell className="font-semibold text-xs sm:text-sm">
                           {formatCurrency(payout.amount)}
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="capitalize">{payout.payout_method.replace("_", " ")}</p>
+                            <p className="capitalize text-xs sm:text-sm">{payout.payout_method.replace("_", " ")}</p>
                             {payout.payout_details?.email && (
                               <p className="text-xs text-muted-foreground">
                                 {payout.payout_details.email}
@@ -391,11 +389,11 @@ export default function AdminAffiliatePayouts() {
                         <TableCell>{getStatusBadge(payout.status)}</TableCell>
                         <TableCell className="text-right">
                           {payout.status === "pending" ? (
-                            <div className="flex justify-end gap-2">
+                            <div className="flex flex-col sm:flex-row justify-end gap-2">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="min-h-[44px] min-w-[44px] text-green-600 border-green-500/30 hover:bg-green-500/10"
+                                className="w-full sm:w-auto min-h-[44px] text-green-600 border-green-500/30 hover:bg-green-500/10"
                                 onClick={() => {
                                   setSelectedPayout(payout);
                                   setActionType("approve");
@@ -407,7 +405,7 @@ export default function AdminAffiliatePayouts() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="min-h-[44px] min-w-[44px] text-red-600 border-red-500/30 hover:bg-red-500/10"
+                                className="w-full sm:w-auto min-h-[44px] text-red-600 border-red-500/30 hover:bg-red-500/10"
                                 onClick={() => {
                                   setSelectedPayout(payout);
                                   setActionType("reject");
@@ -509,6 +507,7 @@ export default function AdminAffiliatePayouts() {
                     }
                     value={actionNotes}
                     onChange={(e) => setActionNotes(e.target.value)}
+                    className="min-h-[100px] sm:min-h-[120px]"
                   />
                 </div>
               </div>

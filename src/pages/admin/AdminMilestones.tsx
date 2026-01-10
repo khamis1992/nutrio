@@ -421,6 +421,7 @@ export default function AdminMilestones() {
                 placeholder="e.g., Rising Star"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="h-12 sm:h-10 min-h-[44px]"
               />
             </div>
 
@@ -431,18 +432,21 @@ export default function AdminMilestones() {
                 placeholder="e.g., Earn $25 bonus for reaching 10 referrals"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="min-h-[100px] sm:min-h-[120px]"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="referral_count">Referrals Required</Label>
                 <Input
                   id="referral_count"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   value={formData.referral_count}
                   onChange={(e) => setFormData({ ...formData, referral_count: parseInt(e.target.value) || 0 })}
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
 
@@ -451,10 +455,12 @@ export default function AdminMilestones() {
                 <Input
                   id="bonus_amount"
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   step={0.01}
                   value={formData.bonus_amount}
                   onChange={(e) => setFormData({ ...formData, bonus_amount: parseFloat(e.target.value) || 0 })}
+                  className="h-12 sm:h-10 min-h-[44px]"
                 />
               </div>
             </div>
