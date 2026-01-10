@@ -208,7 +208,7 @@ const ResetPassword = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 -m-2 text-muted-foreground hover:text-foreground transition-colors"
                     disabled={loading}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -217,7 +217,7 @@ const ResetPassword = () => {
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
-                <ul className="text-xs text-muted-foreground space-y-1 mt-2">
+                <ul className="text-xs text-muted-foreground space-y-1 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
                   <li className={password.length >= 8 ? "text-primary" : ""}>• At least 8 characters</li>
                   <li className={/[A-Z]/.test(password) ? "text-primary" : ""}>• One uppercase letter</li>
                   <li className={/[a-z]/.test(password) ? "text-primary" : ""}>• One lowercase letter</li>
@@ -244,7 +244,7 @@ const ResetPassword = () => {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 -m-2 text-muted-foreground hover:text-foreground transition-colors"
                     disabled={loading}
                   >
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

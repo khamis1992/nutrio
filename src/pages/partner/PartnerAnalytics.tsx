@@ -279,12 +279,12 @@ const PartnerAnalytics = () => {
               <CardTitle className="text-lg">Revenue (Last 7 Days)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48 sm:h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} />
+                    <YAxis className="text-xs" tick={{ fontSize: 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",
@@ -297,7 +297,7 @@ const PartnerAnalytics = () => {
                       dataKey="revenue"
                       stroke="hsl(var(--primary))"
                       strokeWidth={2}
-                      dot={{ fill: "hsl(var(--primary))" }}
+                      dot={{ fill: "hsl(var(--primary))", r: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -311,12 +311,12 @@ const PartnerAnalytics = () => {
               <CardTitle className="text-lg">Orders (Last 7 Days)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48 sm:h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" />
-                    <YAxis className="text-xs" />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} />
+                    <YAxis className="text-xs" tick={{ fontSize: 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",
@@ -368,18 +368,20 @@ const PartnerAnalytics = () => {
                 {mealTypeDistribution.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">No data yet</p>
                 ) : (
-                  <div className="h-48">
+                  <div className="h-40 sm:h-48">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={mealTypeDistribution}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
+                          innerRadius={30}
+                          outerRadius={50}
                           paddingAngle={5}
                           dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }) => window.innerWidth >= 640 ? `${name} ${(percent * 100).toFixed(0)}%` : `${(percent * 100).toFixed(0)}%`}
+                          labelLine={false}
+                          fontSize={window.innerWidth < 640 ? 10 : 12}
                         >
                           {mealTypeDistribution.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

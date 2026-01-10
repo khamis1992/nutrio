@@ -385,11 +385,11 @@ const Settings = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Push Notifications */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Smartphone className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="push">Push Notifications</Label>
+            <div className="flex items-center justify-between min-h-[44px]">
+              <div className="flex items-center gap-3 flex-1">
+                <Smartphone className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <Label htmlFor="push" className="cursor-pointer">Push Notifications</Label>
                   <p className="text-sm text-muted-foreground">
                     Receive push notifications on your device
                   </p>
@@ -404,11 +404,11 @@ const Settings = () => {
             </div>
 
             {/* Email Notifications */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="email">Email Notifications</Label>
+            <div className="flex items-center justify-between min-h-[44px]">
+              <div className="flex items-center gap-3 flex-1">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <Label htmlFor="email" className="cursor-pointer">Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">
                     Receive important updates via email
                   </p>
@@ -423,11 +423,11 @@ const Settings = () => {
             </div>
 
             {/* Meal Reminders */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Utensils className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="reminders">Meal Reminders</Label>
+            <div className="flex items-center justify-between min-h-[44px]">
+              <div className="flex items-center gap-3 flex-1">
+                <Utensils className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <Label htmlFor="reminders" className="cursor-pointer">Meal Reminders</Label>
                   <p className="text-sm text-muted-foreground">
                     Get reminded about scheduled meals
                   </p>
@@ -443,11 +443,11 @@ const Settings = () => {
 
             {/* Reminder Time */}
             {notificationPrefs?.meal_reminders && (
-              <div className="flex items-center justify-between pl-7">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <Label>Reminder Time</Label>
+              <div className="flex items-center justify-between pl-7 min-h-[44px]">
+                <div className="flex items-center gap-3 flex-1">
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1">
+                    <Label htmlFor="reminder-time" className="cursor-pointer">Reminder Time</Label>
                     <p className="text-sm text-muted-foreground">
                       When to send meal reminders
                     </p>
@@ -458,7 +458,7 @@ const Settings = () => {
                   onValueChange={(value) => updateNotificationPref("reminder_time", value)}
                   disabled={saving}
                 >
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-32 min-h-[44px]" id="reminder-time">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -473,11 +473,11 @@ const Settings = () => {
             )}
 
             {/* Order Updates */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="orders">Order Updates</Label>
+            <div className="flex items-center justify-between min-h-[44px]">
+              <div className="flex items-center gap-3 flex-1">
+                <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <Label htmlFor="orders" className="cursor-pointer">Order Updates</Label>
                   <p className="text-sm text-muted-foreground">
                     Updates about your order status
                   </p>
@@ -492,11 +492,11 @@ const Settings = () => {
             </div>
 
             {/* Weekly Summary */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="weekly">Weekly Summary</Label>
+            <div className="flex items-center justify-between min-h-[44px]">
+              <div className="flex items-center gap-3 flex-1">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <Label htmlFor="weekly" className="cursor-pointer">Weekly Summary</Label>
                   <p className="text-sm text-muted-foreground">
                     Weekly progress and nutrition report
                   </p>
@@ -511,11 +511,11 @@ const Settings = () => {
             </div>
 
             {/* Promotional Emails */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Tag className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="promo">Promotional Emails</Label>
+            <div className="flex items-center justify-between min-h-[44px]">
+              <div className="flex items-center gap-3 flex-1">
+                <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <Label htmlFor="promo" className="cursor-pointer">Promotional Emails</Label>
                   <p className="text-sm text-muted-foreground">
                     Deals, offers, and new features
                   </p>

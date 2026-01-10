@@ -222,8 +222,8 @@ const Favorites = () => {
                 ) : (
                   restaurants.map((restaurant) => (
                     <Card key={restaurant.id} className="overflow-hidden">
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex gap-3 sm:gap-4">
                           <Link to={`/restaurants/${restaurant.id}`} className="shrink-0">
                             <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
                               {restaurant.logo_url ? (

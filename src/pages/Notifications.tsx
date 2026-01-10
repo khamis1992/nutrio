@@ -264,7 +264,7 @@ export default function Notifications() {
                       : ""
                   }`}
                 >
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 sm:p-4">
                     <div className="flex gap-4">
                       <div
                         className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}

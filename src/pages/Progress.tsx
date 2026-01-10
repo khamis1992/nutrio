@@ -417,7 +417,7 @@ const Progress = () => {
           <div className="flex gap-2 p-1 bg-muted rounded-lg">
             <Button
               variant={activeTab === "weight" ? "default" : "ghost"}
-              className="flex-1"
+              className="flex-1 min-h-[44px]"
               onClick={() => setActiveTab("weight")}
             >
               <Scale className="h-4 w-4 mr-2" />
@@ -425,7 +425,7 @@ const Progress = () => {
             </Button>
             <Button
               variant={activeTab === "nutrition" ? "default" : "ghost"}
-              className="flex-1"
+              className="flex-1 min-h-[44px]"
               onClick={() => setActiveTab("nutrition")}
             >
               <Flame className="h-4 w-4 mr-2" />
@@ -439,7 +439,7 @@ const Progress = () => {
               <Card className="p-4">
                 <h3 className="font-semibold mb-4">Weight Trend</h3>
                 {weightChartData.length > 1 ? (
-                  <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                  <ChartContainer config={chartConfig} className="h-48 sm:h-56 md:h-[200px] w-full">
                     <AreaChart data={weightChartData}>
                       <defs>
                         <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
@@ -451,14 +451,15 @@ const Progress = () => {
                         dataKey="date"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
+                        interval="preserveStartEnd"
                       />
                       <YAxis
                         domain={["dataMin - 2", "dataMax + 2"]}
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 12 }}
-                        width={40}
+                        tick={{ fontSize: 10 }}
+                        width={35}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       {targetWeight > 0 && (
@@ -481,7 +482,7 @@ const Progress = () => {
                     </AreaChart>
                   </ChartContainer>
                 ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  <div className="h-48 sm:h-56 md:h-[200px] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">Log more weights to see trends</p>
@@ -531,7 +532,7 @@ const Progress = () => {
               <Card className="p-4">
                 <h3 className="font-semibold mb-4">Calorie Trend</h3>
                 {nutritionChartData.length > 1 ? (
-                  <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                  <ChartContainer config={chartConfig} className="h-48 sm:h-56 md:h-[200px] w-full">
                     <AreaChart data={nutritionChartData}>
                       <defs>
                         <linearGradient id="calorieGradient" x1="0" y1="0" x2="0" y2="1">
@@ -543,13 +544,14 @@ const Progress = () => {
                         dataKey="date"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
+                        interval="preserveStartEnd"
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 12 }}
-                        width={50}
+                        tick={{ fontSize: 10 }}
+                        width={40}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Line
@@ -570,7 +572,7 @@ const Progress = () => {
                     </AreaChart>
                   </ChartContainer>
                 ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  <div className="h-48 sm:h-56 md:h-[200px] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">Complete meals to track nutrition</p>
@@ -618,19 +620,19 @@ const Progress = () => {
               <Card className="p-4">
                 <h3 className="font-semibold mb-4">Macros (Last 7 Days)</h3>
                 {macroChartData.length > 0 ? (
-                  <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                  <ChartContainer config={chartConfig} className="h-48 sm:h-56 md:h-[200px] w-full">
                     <BarChart data={macroChartData}>
                       <XAxis
                         dataKey="date"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 10 }}
                       />
                       <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 12 }}
-                        width={40}
+                        tick={{ fontSize: 10 }}
+                        width={35}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar
@@ -654,7 +656,7 @@ const Progress = () => {
                     </BarChart>
                   </ChartContainer>
                 ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  <div className="h-48 sm:h-56 md:h-[200px] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">No macro data available yet</p>

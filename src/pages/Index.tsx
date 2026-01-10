@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Utensils, 
-  Target, 
-  TrendingUp, 
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Utensils,
+  Target,
+  TrendingUp,
   Calendar,
   ChefHat,
   Salad,
@@ -14,23 +16,49 @@ import {
   ArrowRight,
   Check,
   Star,
-  Store
+  Store,
+  Menu,
+  X
 } from "lucide-react";
 import heroFood from "@/assets/hero-food.jpg";
 
 const Index = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { href: "#features", label: "Features" },
+    { href: "#how-it-works", label: "How it Works" },
+    { href: "#pricing", label: "Pricing" },
+    { to: "/faq", label: "FAQ" },
+    { to: "/about", label: "About" },
+    { to: "/contact", label: "Contact" },
+    { to: "/partner/auth", label: "For Restaurants" },
+  ];
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith("#")) {
+      e.preventDefault();
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+        setMobileMenuOpen(false);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen gradient-hero">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
             <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center">
               <Salad className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold text-foreground">NUTRIO</span>
           </Link>
-          
+
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">How it Works</a>
@@ -41,13 +69,96 @@ const Index = () => {
             <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">For Restaurants</Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Desktop CTA Buttons */}
+          <div className="hidden md:flex items-center gap-3">
             <Link to="/auth">
               <Button variant="ghost" size="sm">Log in</Button>
             </Link>
             <Link to="/onboarding">
               <Button variant="gradient" size="sm">Get Started</Button>
             </Link>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="flex md:hidden items-center gap-2">
+            <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="ghost" size="sm" className="text-sm">Log in</Button>
+            </Link>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-11 w-11 touch-manipulation">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[280px] sm:w-[320px] p-0">
+                <div className="flex flex-col h-full">
+                  {/* Mobile Menu Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-border">
+                    <Link
+                      to="/"
+                      className="flex items-center gap-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
+                        <Salad className="w-4 h-4 text-primary-foreground" />
+                      </div>
+                      <span className="text-lg font-bold">NUTRIO</span>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="h-9 w-9 touch-manipulation"
+                    >
+                      <X className="h-5 w-5" />
+                      <span className="sr-only">Close menu</span>
+                    </Button>
+                  </div>
+
+                  {/* Mobile Menu Links */}
+                  <nav className="flex-1 overflow-y-auto py-6 px-4">
+                    <div className="space-y-1">
+                      {navLinks.map((link) => (
+                        link.href ? (
+                          <a
+                            key={link.label}
+                            href={link.href}
+                            onClick={(e) => handleNavClick(e, link.href)}
+                            className="flex items-center px-4 py-4 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors touch-manipulation min-h-[48px]"
+                          >
+                            {link.label}
+                          </a>
+                        ) : (
+                          <Link
+                            key={link.label}
+                            to={link.to!}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center px-4 py-4 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors touch-manipulation min-h-[48px]"
+                          >
+                            {link.label}
+                          </Link>
+                        )
+                      ))}
+                    </div>
+                  </nav>
+
+                  {/* Mobile Menu Footer CTA */}
+                  <div className="p-6 border-t border-border bg-muted/30">
+                    <Link
+                      to="/onboarding"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block"
+                    >
+                      <Button variant="gradient" size="lg" className="w-full min-h-[48px]">
+                        Get Started
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </nav>

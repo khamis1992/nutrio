@@ -272,12 +272,12 @@ const AdminAnalytics = () => {
               <CardTitle className="text-lg">Revenue Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48 sm:h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
-                    <YAxis className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                    <YAxis className="text-xs" tick={{ fontSize: 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",
@@ -290,6 +290,7 @@ const AdminAnalytics = () => {
                       dataKey="revenue"
                       stroke="hsl(var(--primary))"
                       strokeWidth={2}
+                      dot={{ r: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -302,12 +303,12 @@ const AdminAnalytics = () => {
               <CardTitle className="text-lg">Daily Orders</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48 sm:h-56 md:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
-                    <YAxis className="text-xs" tick={{ fontSize: window.innerWidth < 640 ? 12 : 10 }} />
+                    <XAxis dataKey="date" className="text-xs" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                    <YAxis className="text-xs" tick={{ fontSize: 10 }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--background))",
@@ -362,18 +363,20 @@ const AdminAnalytics = () => {
               {mealTypeData.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">No data yet</p>
               ) : (
-                <div className="h-48">
+                <div className="h-40 sm:h-48">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={mealTypeData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
+                        innerRadius={30}
+                        outerRadius={50}
                         paddingAngle={5}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => window.innerWidth >= 640 ? `${name} ${(percent * 100).toFixed(0)}%` : `${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                        fontSize={window.innerWidth < 640 ? 10 : 12}
                       >
                         {mealTypeData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

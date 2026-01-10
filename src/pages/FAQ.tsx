@@ -172,15 +172,15 @@ const FAQ = () => {
               </h2>
               <Accordion type="single" collapsible className="space-y-2">
                 {category.questions.map((item, questionIndex) => (
-                  <AccordionItem 
-                    key={questionIndex} 
+                  <AccordionItem
+                    key={questionIndex}
                     value={`${categoryIndex}-${questionIndex}`}
-                    className="border rounded-lg px-4 bg-card"
+                    className="border rounded-lg px-3 sm:px-4 py-2 bg-card"
                   >
-                    <AccordionTrigger className="text-left hover:no-underline">
+                    <AccordionTrigger className="text-left hover:no-underline py-3">
                       {item.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                    <AccordionContent className="text-muted-foreground leading-relaxed pb-4">
                       {item.answer}
                     </AccordionContent>
                   </AccordionItem>

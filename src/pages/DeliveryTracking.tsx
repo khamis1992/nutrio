@@ -302,22 +302,22 @@ export default function DeliveryTracking() {
 
                   {/* Progress Timeline */}
                   <div className="relative">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-1 sm:gap-2">
                       {statusSteps.slice(0, 4).map((step, index) => {
                         const StepIcon = step.icon;
                         const isCompleted = index <= currentStep;
                         const isCurrent = index === currentStep;
-                        
+
                         return (
-                          <div 
-                            key={step.key} 
-                            className="flex flex-col items-center relative z-10"
+                          <div
+                            key={step.key}
+                            className="flex flex-col items-center relative z-10 flex-1 min-w-0"
                           >
-                            <div 
+                            <div
                               className={`
-                                h-10 w-10 rounded-full flex items-center justify-center transition-all
-                                ${isCompleted 
-                                  ? 'bg-primary text-primary-foreground' 
+                                h-10 w-10 rounded-full flex items-center justify-center transition-all shrink-0
+                                ${isCompleted
+                                  ? 'bg-primary text-primary-foreground'
                                   : 'bg-muted text-muted-foreground'
                                 }
                                 ${isCurrent ? 'ring-4 ring-primary/20' : ''}
@@ -325,9 +325,9 @@ export default function DeliveryTracking() {
                             >
                               <StepIcon className="h-5 w-5" />
                             </div>
-                            <span 
+                            <span
                               className={`
-                                text-xs mt-2 text-center max-w-[60px]
+                                text-[10px] sm:text-xs mt-2 text-center
                                 ${isCompleted ? 'text-foreground font-medium' : 'text-muted-foreground'}
                               `}
                             >

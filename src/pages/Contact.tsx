@@ -143,7 +143,7 @@ const Contact = () => {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Your Name</Label>
                         <Input
@@ -152,6 +152,7 @@ const Contact = () => {
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           required
+                          className="min-h-[44px]"
                         />
                       </div>
                       <div className="space-y-2">
@@ -163,6 +164,7 @@ const Contact = () => {
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
+                          className="min-h-[44px]"
                         />
                       </div>
                     </div>
@@ -175,6 +177,7 @@ const Contact = () => {
                         value={formData.subject}
                         onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                         required
+                        className="min-h-[44px]"
                       />
                     </div>
 

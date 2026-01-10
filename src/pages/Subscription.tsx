@@ -324,7 +324,7 @@ export default function Subscription() {
 
                 <CardContent className="pb-4">
                   <div className="mb-4">
-                    <span className="text-4xl font-bold">{formatCurrency(plan.price)}</span>
+                    <span className="text-3xl sm:text-4xl font-bold">{formatCurrency(plan.price)}</span>
                     <span className="text-muted-foreground">/{plan.period}</span>
                   </div>
                   

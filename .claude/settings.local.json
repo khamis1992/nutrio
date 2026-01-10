@@ -34,7 +34,10 @@
       "Bash(npm uninstall:*)",
       "WebSearch",
       "Bash(npx @capacitor/cli sync:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(email)",
+      "Bash(numeric)",
+      "Bash(decimal\"\n   - Responsive textarea: min-h-[100px] sm:min-h-[120px]\n   - Grid stacking: grid-cols-1 sm:grid-cols-2\n   - Pages: PartnerProfile, PartnerOnboarding, AdminSettings,\n     AdminSubscriptions, AdminAffiliatePayouts, AdminMilestones,\n     AdminAnnouncements, AdminPromotions\n\n5. **Search/Filter Bars** \\(10 pages\\)\n   - Stacked layout: flex-col sm:flex-row\n   - Full width search on mobile: w-full sm:w-auto\n   - Proper spacing: gap-3 sm:gap-4\n   - 44px minimum touch targets\n   - Pages: AdminOrders, AdminUsers, AdminPayouts, AdminAffiliatePayouts,\n     AdminAffiliateApplications, AdminDietTags, AdminAnnouncements,\n     AdminPromotions, AdminSupport, AdminSubscriptions\n\n6. **Tabs Mobile Optimization** \\(4 pages\\)\n   - Horizontal scroll for 4+ tabs: overflow-x-auto\n   - Grid layout for 2-3 tabs: grid-cols-2 sm:grid-cols-3\n   - Prevent text wrap: whitespace-nowrap\n   - Minimum 44px height for touch targets\n   - Pages: AdminOrders, AdminSubscriptions, AdminPayouts,\n     AdminAffiliatePayouts\n\n7. **Badge/Label Overlap** \\(7 pages\\)\n   - Flex wrap prevents overlap: flex flex-wrap items-center gap-2\n   - Proper spacing between badges and content\n   - Pages: AdminOrders, AdminSubscriptions, AdminAffiliatePayouts,\n     AdminAffiliateApplications, AdminAnnouncements, AdminPromotions,\n     AdminSupport\n\n**Benefits:**\n- ✅ Buttons stack properly on mobile\n- ✅ Better spacing prevents cramped layouts\n- ✅ Text scales appropriately for mobile screens\n- ✅ Form inputs are easier to use on mobile\n- ✅ Search bars stack vertically on mobile\n- ✅ Tabs scroll horizontally on mobile\n- ✅ Badges don''t overlap with content\n- ✅ All touch targets meet WCAG standards\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

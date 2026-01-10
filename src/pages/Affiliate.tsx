@@ -517,7 +517,7 @@ export default function Affiliate() {
 
       {/* Payout Dialog */}
       <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Request Payout</DialogTitle>
             <DialogDescription>
