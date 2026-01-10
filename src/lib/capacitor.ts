@@ -18,6 +18,7 @@ import { App } from '@capacitor/app';
 import { Device } from '@capacitor/device';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import type { listenerFunc } from '@capacitor/core';
 
 // ========================================
@@ -467,6 +468,122 @@ export const localNotifications = {
 };
 
 // ========================================
+// BIOMETRIC AUTHENTICATION
+// ========================================
+
+export const biometricAuth = {
+  /**
+   * Check if biometric authentication is available
+   */
+  isAvailable: async (): Promise<boolean> => {
+    if (!isNative) return false;
+    try {
+      const result = await NativeBiometric.isAvailable();
+      return result.isAvailable;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Get the type of biometric authentication available
+   */
+  getBiometricType: async (): Promise<string> => {
+    if (!isNative) return '';
+    try {
+      const result = await NativeBiometric.isAvailable();
+      if (result.biometryType === 'face') return 'Face ID';
+      if (result.biometryType === 'touch') return 'Touch ID';
+      if (result.biometryType === 'fingerprint') return 'Fingerprint';
+      return 'Biometric';
+    } catch {
+      return '';
+    }
+  },
+
+  /**
+   * Authenticate user with biometrics
+   */
+  authenticate: async (): Promise<boolean> => {
+    if (!isNative) return false;
+    try {
+      const verified = await NativeBiometric.verifyIdentity({
+        reason: 'Please authenticate to continue',
+        title: 'Biometric Authentication',
+        subtitle: 'Unlock with your biometrics',
+        description: 'Scan your fingerprint or face to continue',
+      });
+      return verified;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Set credentials for biometric login (stores email/password securely)
+   */
+  setCredentials: async (email: string, password: string): Promise<void> => {
+    if (!isNative) return;
+    try {
+      await NativeBiometric.setCredentials({
+        username: email,
+        password: password,
+        server: 'com.nutriofuel.app',
+      });
+    } catch (error) {
+      console.error('Error setting biometric credentials:', error);
+    }
+  },
+
+  /**
+   * Get stored credentials for biometric login
+   */
+  getCredentials: async (): Promise<{ username: string; password: string } | null> => {
+    if (!isNative) return null;
+    try {
+      const credentials = await NativeBiometric.getCredentials({
+        server: 'com.nutriofuel.app',
+      });
+      return {
+        username: credentials.username,
+        password: credentials.password,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Delete stored credentials
+   */
+  deleteCredentials: async (): Promise<void> => {
+    if (!isNative) return;
+    try {
+      await NativeBiometric.deleteCredentials({
+        server: 'com.nutriofuel.app',
+      });
+    } catch (error) {
+      console.error('Error deleting biometric credentials:', error);
+    }
+  },
+
+  /**
+   * Check if credentials are stored
+   */
+  hasCredentials: async (): Promise<boolean> => {
+    if (!isNative) return false;
+    try {
+      const credentials = await NativeBiometric.getCredentials({
+        server: 'com.nutriofuel.app',
+      });
+      return !!credentials.username;
+    } catch {
+      return false;
+    }
+  },
+};
+
+// ========================================
 // HELPER FUNCTIONS
 // ========================================
 
@@ -521,6 +638,7 @@ export default {
   app,
   pushNotifications,
   localNotifications,
+  biometricAuth,
   initializeNativeApp,
   hapticFeedback,
 };

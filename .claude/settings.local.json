@@ -31,7 +31,9 @@
       "mcp__plugin_playwright_playwright__browser_console_messages",
       "Skill(frontend-design)",
       "Bash(gh run list:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "WebSearch",
+      "Bash(npx @capacitor/cli sync:*)"
     ]
   }
 }
