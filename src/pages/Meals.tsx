@@ -182,7 +182,7 @@ const Meals = () => {
           </div>
         </div>
 
-        <div className={`animate-fade-in stagger-1 ${viewMode === "gallery" ? "grid grid-cols-2 gap-4" : "grid gap-4"}`}>
+        <div className={`animate-fade-in stagger-1 ${viewMode === "gallery" ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "grid gap-4"}`}>
           {loading ? (
             <div className={`flex items-center justify-center py-20 ${viewMode === "gallery" ? "col-span-2" : ""}`}>
               <Loader2 className="w-8 h-8 animate-spin text-primary" />

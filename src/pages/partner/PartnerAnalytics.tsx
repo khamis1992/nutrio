@@ -190,7 +190,7 @@ const PartnerAnalytics = () => {
     return (
       <PartnerLayout title="Analytics">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
@@ -215,7 +215,7 @@ const PartnerAnalytics = () => {
 
         <TabsContent value="basic" className="space-y-6">
           {/* Summary Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">

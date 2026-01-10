@@ -367,7 +367,7 @@ const Profile = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-4 sm:grid-cols-4 w-full">
             <TabsTrigger value="profile" className="text-xs sm:text-sm">
               <User className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Profile</span>
@@ -408,7 +408,7 @@ const Profile = () => {
 
                 <div className="space-y-2">
                   <Label>Gender</Label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
                     {(["male", "female"] as Gender[]).map((g) => (
                       <Card
                         key={g}
@@ -458,7 +458,7 @@ const Profile = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="currentWeight">Current Weight (kg)</Label>
                     <Input
@@ -689,7 +689,7 @@ const Profile = () => {
                     No dietary preferences available yet.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {dietTags.map((tag) => {
                       const isSelected = selectedTags.includes(tag.id);
                       return (

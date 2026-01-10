@@ -280,7 +280,7 @@ const AdminRestaurants = () => {
   return (
     <AdminLayout title="Manage Restaurants" subtitle={`${pendingRestaurants.length} pending approval`}>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full mb-6">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-3 w-full mb-6">
           <TabsTrigger value="pending" className="relative">
             Pending
             {pendingRestaurants.length > 0 && (
@@ -313,7 +313,7 @@ const AdminRestaurants = () => {
           setActionType(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {actionType === "approve" ? "Approve Restaurant" : "Reject Restaurant"}

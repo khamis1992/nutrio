@@ -331,7 +331,7 @@ const AdminUsers = () => {
         )}
 
         <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Role</DialogTitle>
               <DialogDescription>

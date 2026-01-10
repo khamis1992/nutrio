@@ -423,7 +423,7 @@ const PartnerOrders = () => {
   return (
     <PartnerLayout title="Orders" subtitle={`${upcomingOrders.length} upcoming • ${pastOrders.length} overdue`}>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full mb-6">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-3 w-full mb-6">
           <TabsTrigger value="upcoming" className="relative">
             Upcoming
             {upcomingOrders.length > 0 && (

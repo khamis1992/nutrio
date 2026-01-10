@@ -423,7 +423,7 @@ const Schedule = () => {
                 {/* Day Summary */}
                 {dayMeals.length > 0 && (
                   <div className="mt-4 pt-3 border-t border-border">
-                    <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                       <div>
                         <p className="text-xs text-muted-foreground">Calories</p>
                         <p className="text-sm font-semibold text-orange-500">{totals.calories}</p>

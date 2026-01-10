@@ -373,6 +373,7 @@ export default function AdminAnnouncements() {
         {/* Announcements Table */}
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             {loading ? (
               <div className="p-8 text-center text-muted-foreground">
                 Loading announcements...
@@ -429,6 +430,7 @@ export default function AdminAnnouncements() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => handleEdit(announcement)}
                           >
                             <Edit2 className="w-4 h-4" />
@@ -436,6 +438,7 @@ export default function AdminAnnouncements() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => {
                               setSelectedAnnouncement(announcement);
                               setDeleteDialogOpen(true);
@@ -449,6 +452,7 @@ export default function AdminAnnouncements() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -456,7 +460,7 @@ export default function AdminAnnouncements() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedAnnouncement ? "Edit Announcement" : "Create Announcement"}

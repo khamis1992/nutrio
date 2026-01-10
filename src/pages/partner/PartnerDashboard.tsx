@@ -285,7 +285,7 @@ const PartnerDashboard = () => {
       <PartnerLayout title="Dashboard">
         <div className="space-y-6">
           <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-4">
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
@@ -360,7 +360,7 @@ const PartnerDashboard = () => {
         <AnnouncementsBanner audience="partners" />
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
@@ -467,7 +467,7 @@ const PartnerDashboard = () => {
         </Card>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           <Link to="/partner/menu">
             <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
               <CardContent className="pt-4 text-center">

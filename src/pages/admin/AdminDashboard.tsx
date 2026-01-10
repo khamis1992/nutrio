@@ -267,7 +267,7 @@ const AdminDashboard = () => {
     <AdminLayout title="Admin Dashboard" subtitle="Platform Management">
       <div className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
@@ -556,7 +556,7 @@ const AdminDashboard = () => {
             <CardTitle className="text-lg">Platform Overview</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold">{stats.totalRestaurants}</p>
                 <p className="text-sm text-muted-foreground">Total Restaurants</p>

@@ -615,7 +615,7 @@ const PartnerMenu = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">Price ($) *</Label>
                 <Input
@@ -644,7 +644,7 @@ const PartnerMenu = () => {
                 <Flame className="h-4 w-4" />
                 Nutrition Information
               </Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Calories *</Label>
                   <Input
@@ -687,7 +687,7 @@ const PartnerMenu = () => {
                   <Tag className="h-4 w-4" />
                   Diet Tags
                 </Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {dietTags.map((tag) => (
                     <div key={tag.id} className="flex items-center space-x-2">
                       <Checkbox

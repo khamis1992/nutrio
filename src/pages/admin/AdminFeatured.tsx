@@ -239,6 +239,7 @@ export default function AdminFeatured() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             {listings.length === 0 ? (
               <div className="text-center py-12">
                 <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -280,6 +281,7 @@ export default function AdminFeatured() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="min-h-[44px] min-w-[44px]"
                                 onClick={() => updateStatus(listing.id, "active")}
                               >
                                 <CheckCircle className="h-4 w-4 mr-1" />
@@ -288,6 +290,7 @@ export default function AdminFeatured() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="min-h-[44px] min-w-[44px]"
                                 onClick={() => updateStatus(listing.id, "cancelled")}
                               >
                                 <XCircle className="h-4 w-4 mr-1" />
@@ -299,6 +302,7 @@ export default function AdminFeatured() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="min-h-[44px] min-w-[44px]"
                               onClick={() => updateStatus(listing.id, "cancelled")}
                             >
                               <XCircle className="h-4 w-4 mr-1" />
@@ -311,6 +315,7 @@ export default function AdminFeatured() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

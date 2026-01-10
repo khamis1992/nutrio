@@ -273,7 +273,7 @@ export default function AdminSettings() {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
           {/* Commission Rates */}
           <Card>
             <CardHeader>
@@ -405,7 +405,7 @@ export default function AdminSettings() {
               </div>
               <Separator />
               <p className="text-sm font-medium">VIP Benefits</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {Object.entries(vipSettings.vip_benefits).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between">
                     <Label className="capitalize">{key.replace(/_/g, ' ')}</Label>
@@ -683,7 +683,7 @@ export default function AdminSettings() {
                 />
               </div>
               <Separator />
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Tier 1 (%)</Label>
                   <Input

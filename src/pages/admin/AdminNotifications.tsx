@@ -318,7 +318,7 @@ export default function AdminNotifications() {
                 New Announcement
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingAnnouncement ? "Edit Announcement" : "Create Announcement"}
@@ -425,6 +425,7 @@ export default function AdminNotifications() {
         {/* Announcements Table */}
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -492,6 +493,7 @@ export default function AdminNotifications() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => handleEdit(announcement)}
                           >
                             <Edit className="h-4 w-4" />
@@ -499,6 +501,7 @@ export default function AdminNotifications() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => handleDelete(announcement.id)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -510,6 +513,7 @@ export default function AdminNotifications() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

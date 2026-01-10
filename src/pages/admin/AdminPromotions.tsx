@@ -337,7 +337,7 @@ export default function AdminPromotions() {
                 Create Promotion
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingPromotion ? "Edit Promotion" : "Create New Promotion"}
@@ -564,6 +564,7 @@ export default function AdminPromotions() {
         {/* Promotions Table */}
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -600,7 +601,7 @@ export default function AdminPromotions() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => copyCode(promotion.code)}
                           >
                             <Copy className="h-3 w-3" />
@@ -619,8 +620,8 @@ export default function AdminPromotions() {
                       </TableCell>
                       <TableCell>
                         <span className="font-medium">
-                          {promotion.discount_type === 'percentage' 
-                            ? `${promotion.discount_value}%` 
+                          {promotion.discount_type === 'percentage'
+                            ? `${promotion.discount_value}%`
                             : `$${promotion.discount_value}`}
                         </span>
                         {promotion.min_order_amount > 0 && (
@@ -652,6 +653,7 @@ export default function AdminPromotions() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => handleEdit(promotion)}
                           >
                             <Edit className="h-4 w-4" />
@@ -659,6 +661,7 @@ export default function AdminPromotions() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => setDeletePromotion(promotion)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -670,6 +673,7 @@ export default function AdminPromotions() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
 

@@ -322,6 +322,7 @@ export default function AdminMilestones() {
             </Button>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -372,6 +373,7 @@ export default function AdminMilestones() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => handleOpenDialog(milestone)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -379,7 +381,7 @@ export default function AdminMilestones() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-destructive hover:text-destructive"
+                            className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                             onClick={() => {
                               setSelectedMilestone(milestone);
                               setDeleteDialogOpen(true);
@@ -394,13 +396,14 @@ export default function AdminMilestones() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedMilestone ? "Edit Milestone" : "Add New Milestone"}

@@ -333,6 +333,7 @@ export default function AdminAffiliatePayouts() {
 
           <TabsContent value={activeTab} className="mt-4">
             <Card>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -394,7 +395,7 @@ export default function AdminAffiliatePayouts() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-green-600 border-green-500/30 hover:bg-green-500/10"
+                                className="min-h-[44px] min-w-[44px] text-green-600 border-green-500/30 hover:bg-green-500/10"
                                 onClick={() => {
                                   setSelectedPayout(payout);
                                   setActionType("approve");
@@ -406,7 +407,7 @@ export default function AdminAffiliatePayouts() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-red-600 border-red-500/30 hover:bg-red-500/10"
+                                className="min-h-[44px] min-w-[44px] text-red-600 border-red-500/30 hover:bg-red-500/10"
                                 onClick={() => {
                                   setSelectedPayout(payout);
                                   setActionType("reject");
@@ -429,6 +430,7 @@ export default function AdminAffiliatePayouts() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           </TabsContent>
         </Tabs>
@@ -442,7 +444,7 @@ export default function AdminAffiliatePayouts() {
             setActionNotes("");
           }}
         >
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {actionType === "approve" ? "Approve Payout" : "Reject Payout"}

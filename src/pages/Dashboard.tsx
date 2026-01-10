@@ -285,7 +285,7 @@ const Dashboard = () => {
             </div>
 
             {/* Quick stats row */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* Calories */}
               <div className="text-center p-3 rounded-xl bg-background/50">
                 <div className="relative w-16 h-16 mx-auto mb-2">
@@ -432,7 +432,7 @@ const Dashboard = () => {
         </Card>
 
         {/* QUICK ACTIONS ROW */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link to="/schedule" className="group">
             <Card className="hover:shadow-md transition-all cursor-pointer border-primary/20 hover:border-primary/40">
               <CardContent className="p-4">

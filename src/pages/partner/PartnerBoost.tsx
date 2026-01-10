@@ -232,7 +232,7 @@ export default function PartnerBoost() {
         )}
 
         {/* Pricing Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
           {packages.map((pkg) => (
             <Card
               key={pkg.type}
@@ -307,7 +307,7 @@ export default function PartnerBoost() {
             <CardTitle>Why Boost Your Restaurant?</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Sparkles className="w-5 h-5 text-primary" />

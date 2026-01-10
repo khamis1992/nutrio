@@ -316,6 +316,7 @@ export default function AdminDietTags() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             {filteredTags.length === 0 ? (
               <div className="text-center py-12">
                 <Tag className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -366,6 +367,7 @@ export default function AdminDietTags() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="min-h-[44px] min-w-[44px]"
                             onClick={() => openEditDialog(tag)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -373,7 +375,7 @@ export default function AdminDietTags() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-destructive hover:text-destructive"
+                            className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                             onClick={() => openDeleteDialog(tag)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -384,6 +386,7 @@ export default function AdminDietTags() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -411,7 +414,7 @@ export default function AdminDietTags() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {isCreating ? "Create Diet Tag" : "Edit Diet Tag"}

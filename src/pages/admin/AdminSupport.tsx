@@ -482,6 +482,7 @@ export default function AdminSupport() {
         {/* Tickets Table */}
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -530,11 +531,11 @@ export default function AdminSupport() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Select 
-                          value={ticket.priority} 
+                        <Select
+                          value={ticket.priority}
                           onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => handlePriorityChange(ticket.id, value)}
                         >
-                          <SelectTrigger className="w-[100px] h-8">
+                          <SelectTrigger className="w-[100px] h-9 min-h-[44px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -546,11 +547,11 @@ export default function AdminSupport() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Select 
-                          value={ticket.status} 
+                        <Select
+                          value={ticket.status}
                           onValueChange={(value) => handleStatusChange(ticket.id, value)}
                         >
-                          <SelectTrigger className="w-[120px] h-8">
+                          <SelectTrigger className="w-[120px] h-9 min-h-[44px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -567,9 +568,10 @@ export default function AdminSupport() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
+                          className="min-h-[44px] min-w-[44px]"
                           onClick={() => setSelectedTicket(ticket)}
                         >
                           View
@@ -580,12 +582,13 @@ export default function AdminSupport() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
 
         {/* Ticket Detail Dialog */}
         <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh]">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
                 <span>{selectedTicket?.subject}</span>
