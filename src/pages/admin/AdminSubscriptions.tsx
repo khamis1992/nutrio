@@ -384,6 +384,7 @@ export default function AdminSubscriptions() {
               >
                 <SelectTrigger className="w-24 h-12 sm:h-10 min-h-[44px]">
                   <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="yes">Yes</SelectItem>
                   <SelectItem value="no">No</SelectItem>

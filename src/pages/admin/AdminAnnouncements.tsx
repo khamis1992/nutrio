@@ -453,8 +453,8 @@ export default function AdminAnnouncements() {
                   ))}
                 </TableBody>
               </Table>
-              </div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>

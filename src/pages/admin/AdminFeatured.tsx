@@ -315,8 +315,8 @@ export default function AdminFeatured() {
                   ))}
                 </TableBody>
               </Table>
-              </div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>

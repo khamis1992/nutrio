@@ -386,8 +386,8 @@ export default function AdminDietTags() {
                   ))}
                 </TableBody>
               </Table>
-              </div>
             )}
+            </div>
           </CardContent>
         </Card>
 
