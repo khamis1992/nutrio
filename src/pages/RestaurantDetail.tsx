@@ -256,15 +256,15 @@ const RestaurantDetail = () => {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-xl">{restaurant.name}</h2>
+                <h2 className="font-bold text-lg sm:text-xl">{restaurant.name}</h2>
                 {restaurant.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
                     {restaurant.description}
                   </p>
                 )}
-                <div className="flex items-center gap-4 mt-2 text-sm">
+                <div className="flex items-center gap-3 sm:gap-4 mt-2 text-xs sm:text-sm">
                   <span className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-warning text-warning" />
+                    <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-warning text-warning" />
                     {restaurant.rating.toFixed(1)}
                   </span>
                   <span className="text-muted-foreground">
@@ -278,21 +278,21 @@ const RestaurantDetail = () => {
             {(restaurant.address || restaurant.phone || restaurant.email) && (
               <div className="mt-4 pt-4 border-t border-border space-y-2">
                 {restaurant.address && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{restaurant.address}</span>
+                  <div className="flex items-start gap-2 text-xs sm:text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="break-words leading-relaxed">{restaurant.address}</span>
                   </div>
                 )}
                 {restaurant.phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    <span>{restaurant.phone}</span>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                    <Phone className="w-4 h-4 shrink-0" />
+                    <span className="break-all">{restaurant.phone}</span>
                   </div>
                 )}
                 {restaurant.email && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="w-4 h-4" />
-                    <span>{restaurant.email}</span>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                    <Mail className="w-4 h-4 shrink-0" />
+                    <span className="break-all">{restaurant.email}</span>
                   </div>
                 )}
               </div>
@@ -303,17 +303,17 @@ const RestaurantDetail = () => {
         {/* Subscription Status Banner */}
         {hasActiveSubscription ? (
           <Card className="animate-fade-in border-primary/50 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Crown className="w-5 h-5 text-primary" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
-                  <div>
-                    <p className="font-medium capitalize">{subscription?.plan} Plan</p>
-                    <p className="text-sm text-muted-foreground">
-                      {isUnlimited 
-                        ? "Unlimited meals included" 
+                  <div className="min-w-0">
+                    <p className="font-medium capitalize text-sm sm:text-base">{subscription?.plan} Plan</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {isUnlimited
+                        ? "Unlimited meals included"
                         : `${remainingMeals} meals remaining this week`
                       }
                     </p>
@@ -324,16 +324,16 @@ const RestaurantDetail = () => {
           </Card>
         ) : (
           <Card className="animate-fade-in border-amber-500/50 bg-amber-500/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-amber-500" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium">Subscribe to order meals</p>
-                  <p className="text-sm text-muted-foreground">All meals are included in your subscription</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">Subscribe to order meals</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">All meals are included in your subscription</p>
                 </div>
-                <Button size="sm" onClick={() => navigate("/subscription")}>
+                <Button size="sm" onClick={() => navigate("/subscription")} className="shrink-0 text-xs sm:text-sm">
                   Subscribe
                 </Button>
               </div>
@@ -342,8 +342,8 @@ const RestaurantDetail = () => {
         )}
 
         {/* Search and Filters */}
-        <div className="flex gap-3 animate-fade-in stagger-1">
-          <div className="relative flex-1">
+        <div className="flex gap-2 sm:gap-3 animate-fade-in stagger-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search meals..."
@@ -365,46 +365,46 @@ const RestaurantDetail = () => {
 
         {/* Meals Section */}
         <section className="space-y-4 animate-fade-in stagger-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h3 className="font-semibold">Menu ({filteredMeals.length})</h3>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <h3 className="font-semibold text-sm sm:text-base">Menu ({filteredMeals.length})</h3>
               {isVip && discountPercent > 0 && (
                 <VipDiscountIndicator discountPercent={discountPercent} />
               )}
             </div>
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-1 shrink-0">
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7 sm:h-8 sm:w-8"
                 onClick={() => setViewMode("list")}
               >
-                <List className="w-4 h-4" />
+                <List className="w-3 h-3 sm:w-4 sm:h-4" />
               </Button>
               <Button
                 variant={viewMode === "gallery" ? "secondary" : "ghost"}
                 size="icon"
-                className="h-8 w-8"
+                className="h-7 w-7 sm:h-8 sm:w-8"
                 onClick={() => setViewMode("gallery")}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className="w-3 h-3 sm:w-4 sm:h-4" />
               </Button>
             </div>
           </div>
           
           {filteredMeals.length === 0 ? (
             <Card variant="default">
-              <CardContent className="p-8 text-center">
-                <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold mb-2">No meals found</h3>
-                <p className="text-sm text-muted-foreground">
+              <CardContent className="p-6 sm:p-8 text-center">
+                <Utensils className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-semibold text-sm sm:text-base mb-2">No meals found</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {searchQuery ? "Try a different search term" : "This restaurant hasn't added any meals yet"}
                 </p>
               </CardContent>
             </Card>
           ) : viewMode === "gallery" ? (
             /* Gallery View */
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {filteredMeals.map((meal) => {
                 const priceInfo = calculateDiscountedPrice(meal.price);
                 return (
@@ -412,47 +412,47 @@ const RestaurantDetail = () => {
                     <Card variant="interactive" className="overflow-hidden h-full">
                       <div className="aspect-square relative bg-muted">
                         {meal.image_url ? (
-                          <img 
-                            src={meal.image_url} 
+                          <img
+                            src={meal.image_url}
                             alt={meal.name}
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-muted to-muted-foreground/10">
+                          <div className="w-full h-full flex items-center justify-center text-5xl sm:text-6xl bg-gradient-to-br from-muted to-muted-foreground/10">
                             🍽️
                           </div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent" />
                         {meal.is_vip_exclusive ? (
-                          <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white text-xs">
-                            <Crown className="w-3 h-3 mr-1" />
+                          <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white text-[10px] sm:text-xs">
+                            <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                             VIP Only
                           </Badge>
                         ) : priceInfo.hasDiscount ? (
-                          <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-violet-500 to-purple-500 border-0 text-white text-xs">
-                            <Percent className="w-3 h-3 mr-1" />
+                          <Badge variant="outline" className="absolute top-2 right-2 bg-gradient-to-r from-violet-500 to-purple-500 border-0 text-white text-[10px] sm:text-xs">
+                            <Percent className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                             -{priceInfo.discountPercent}%
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs">
+                          <Badge variant="secondary" className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-[10px] sm:text-xs">
                             Included
                           </Badge>
                         )}
-                        <div className="absolute bottom-0 left-0 right-0 p-3">
-                          <h4 className="font-semibold text-sm line-clamp-2 mb-1">{meal.name}</h4>
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Flame className="w-3 h-3" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                          <h4 className="font-semibold text-xs sm:text-sm line-clamp-2 mb-1">{meal.name}</h4>
+                          <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                            <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
+                              <span className="flex items-center gap-0.5 sm:gap-1">
+                                <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 {meal.calories}
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-warning text-warning" />
+                              <span className="flex items-center gap-0.5 sm:gap-1">
+                                <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-warning text-warning" />
                                 {meal.rating.toFixed(1)}
                               </span>
                             </div>
                             {priceInfo.hasDiscount && (
-                              <span className="font-semibold text-violet-500">
+                              <span className="font-semibold text-violet-500 text-[10px] sm:text-xs">
                                 {formatCurrency(priceInfo.discountedPrice)}
                               </span>
                             )}
@@ -466,18 +466,18 @@ const RestaurantDetail = () => {
             </div>
           ) : (
             /* List View */
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               {filteredMeals.map((meal) => {
                 const priceInfo = calculateDiscountedPrice(meal.price);
                 return (
                   <Link key={meal.id} to={`/meals/${meal.id}`}>
                     <Card variant="interactive">
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex gap-3 sm:gap-4">
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl bg-muted flex items-center justify-center text-4xl sm:text-5xl overflow-hidden shrink-0 shadow-md border border-border/50">
                             {meal.image_url ? (
-                              <img 
-                                src={meal.image_url} 
+                              <img
+                                src={meal.image_url}
                                 alt={meal.name}
                                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                               />
@@ -486,65 +486,65 @@ const RestaurantDetail = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <h4 className="font-semibold truncate">{meal.name}</h4>
+                            <div className="flex items-start justify-between gap-1.5 sm:gap-2">
+                              <h4 className="font-semibold text-sm sm:text-base truncate">{meal.name}</h4>
                               {meal.is_vip_exclusive ? (
-                                <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white shrink-0 text-xs">
-                                  <Crown className="w-3 h-3 mr-1" />
+                                <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white shrink-0 text-[10px] sm:text-xs">
+                                  <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                                   VIP Only
                                 </Badge>
                               ) : priceInfo.hasDiscount ? (
-                                <Badge variant="outline" className="bg-gradient-to-r from-violet-500 to-purple-500 border-0 text-white shrink-0 text-xs">
-                                  <Percent className="w-3 h-3 mr-1" />
+                                <Badge variant="outline" className="bg-gradient-to-r from-violet-500 to-purple-500 border-0 text-white shrink-0 text-[10px] sm:text-xs">
+                                  <Percent className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                                   -{priceInfo.discountPercent}%
                                 </Badge>
                               ) : (
-                                <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-xs">
+                                <Badge variant="secondary" className="bg-primary/10 text-primary shrink-0 text-[10px] sm:text-xs">
                                   Included
                                 </Badge>
                               )}
                             </div>
-                            
-                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                              <span className="flex items-center gap-1">
-                                <Flame className="w-3 h-3" />
+
+                            <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-0.5 sm:gap-1">
+                                <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 {meal.calories} kcal
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Beef className="w-3 h-3" />
+                              <span className="flex items-center gap-0.5 sm:gap-1">
+                                <Beef className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 {meal.protein_g}g protein
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
+                              <span className="flex items-center gap-0.5 sm:gap-1">
+                                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 {meal.prep_time_minutes} min
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-warning text-warning" />
+                              <span className="flex items-center gap-0.5 sm:gap-1">
+                                <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-warning text-warning" />
                                 {meal.rating.toFixed(1)}
                               </span>
                             </div>
 
                             {/* VIP Price Display */}
                             {priceInfo.hasDiscount && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <span className="line-through text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
+                                <span className="line-through text-[10px] sm:text-xs text-muted-foreground">
                                   {formatCurrency(priceInfo.originalPrice)}
                                 </span>
-                                <span className="font-semibold text-sm text-violet-500">
+                                <span className="font-semibold text-xs sm:text-sm text-violet-500">
                                   {formatCurrency(priceInfo.discountedPrice)}
                                 </span>
                               </div>
                             )}
 
                             {meal.diet_tags.length > 0 && (
-                              <div className="flex gap-1.5 mt-2 flex-wrap">
+                              <div className="flex gap-1 sm:gap-1.5 mt-1.5 sm:mt-2 flex-wrap">
                                 {meal.diet_tags.slice(0, 3).map((tag) => (
-                                  <Badge key={tag} variant="diet" className="text-xs">
+                                  <Badge key={tag} variant="diet" className="text-[10px] sm:text-xs">
                                     {tag}
                                   </Badge>
                                 ))}
                                 {meal.diet_tags.length > 3 && (
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge variant="secondary" className="text-[10px] sm:text-xs">
                                     +{meal.diet_tags.length - 3}
                                   </Badge>
                                 )}
