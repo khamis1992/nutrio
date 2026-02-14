@@ -60,6 +60,19 @@ const Auth = () => {
       
       setCheckingRole(true);
       try {
+        // Check if user is an admin
+        const { data: adminRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (adminRole) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+
         // Check if user has a restaurant (is a partner)
         const { data: restaurant } = await supabase
           .from("restaurants")
@@ -68,10 +81,8 @@ const Auth = () => {
           .maybeSingle();
         
         if (restaurant) {
-          // User is a partner, redirect to partner dashboard
           navigate("/partner", { replace: true });
         } else {
-          // Regular user, check onboarding or go to dashboard
           const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";
           navigate(from, { replace: true });
         }
