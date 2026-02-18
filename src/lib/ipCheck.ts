@@ -17,11 +17,9 @@ export interface IPLocationResponse {
  */
 export const checkIPLocation = async (): Promise<IPLocationResponse> => {
   try {
-    // In a real implementation, this would call your Edge Function
-    // For now, we'll simulate the check
     const { data: { session } } = await supabase.auth.getSession();
     
-    const response = await fetch('/functions/v1/check-ip-location', {
+    const response = await fetch('https://loepcagitrijlfksawfm.supabase.co/functions/v1/check-ip-location', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -54,11 +52,9 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
  */
 export const logUserIP = async (action: 'signup' | 'login', userId?: string) => {
   try {
-    // In a real implementation, this would call your Edge Function
-    // For now, we'll simulate the logging
     const { data: { session } } = await supabase.auth.getSession();
     
-    await fetch('/functions/v1/log-user-ip', {
+    await fetch('https://loepcagitrijlfksawfm.supabase.co/functions/v1/log-user-ip', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
