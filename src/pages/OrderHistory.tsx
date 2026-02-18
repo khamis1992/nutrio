@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,24 +88,99 @@ const OrderHistory = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [scheduledMeals, setScheduledMeals] = useState<ScheduledMeal[]>([]);
-  const [loading, setLoading] = useState(true);
   const [reordering, setReordering] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("scheduled");
+
+  // Pagination for orders
+  const {
+    data: orders,
+    loading: ordersLoading,
+    hasMore: ordersHasMore,
+    loadMore: loadMoreOrders,
+    refresh: refreshOrders,
+    page: ordersPage,
+  } = usePagination<any>("orders", {
+    pageSize: 10,
+    orderBy: "created_at",
+    orderDirection: "desc",
+    filters: user ? { user_id: user.id } : {},
+    select: `
+      id,
+      created_at,
+      delivery_date,
+      status,
+      meal_type,
+      notes,
+      restaurant:restaurants (
+        id,
+        name,
+        logo_url
+      ),
+      order_items (
+        id,
+        quantity,
+        meal:meals (
+          id,
+          name,
+          image_url,
+          calories
+        )
+      )
+    `,
+  });
+
+  // Pagination for scheduled meals
+  const {
+    data: scheduledMealsData,
+    loading: scheduledLoading,
+    hasMore: scheduledHasMore,
+    loadMore: loadMoreScheduled,
+    refresh: refreshScheduled,
+  } = usePagination<any>("meal_schedules", {
+    pageSize: 10,
+    orderBy: "scheduled_date",
+    orderDirection: "desc",
+    filters: user ? { user_id: user.id } : {},
+    select: `
+      id,
+      scheduled_date,
+      meal_type,
+      is_completed,
+      order_status,
+      created_at,
+      meals:meal_id (
+        id,
+        name,
+        image_url,
+        calories,
+        restaurant:restaurants (
+          id,
+          name,
+          logo_url
+        )
+      )
+    `,
+  });
+
+  // Transform scheduled meals data
+  const scheduledMeals: ScheduledMeal[] = scheduledMealsData.map((item: any) => ({
+    id: item.id,
+    scheduled_date: item.scheduled_date,
+    meal_type: item.meal_type,
+    is_completed: item.is_completed,
+    order_status: item.order_status || "pending",
+    created_at: item.created_at,
+    meal: item.meals,
+  }));
+
+  // Combined loading state
+  const loading = ordersLoading || scheduledLoading;
 
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      fetchOrders();
-      fetchScheduledMeals();
-    }
-  }, [user]);
 
   // Real-time subscription for scheduled meals status updates
   useEffect(() => {
@@ -119,15 +195,9 @@ const OrderHistory = () => {
           schema: 'public',
           table: 'meal_schedules',
         },
-        (payload) => {
-          // Update the scheduled meal in state when status changes
-          setScheduledMeals((prev) =>
-            prev.map((meal) =>
-              meal.id === payload.new.id
-                ? { ...meal, order_status: payload.new.order_status, is_completed: payload.new.is_completed }
-                : meal
-            )
-          );
+        () => {
+          // Refresh the list when an update occurs
+          refreshScheduled();
         }
       )
       .subscribe();
@@ -135,110 +205,19 @@ const OrderHistory = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
-
-  const fetchOrders = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select(`
-        id,
-        created_at,
-        delivery_date,
-        status,
-        meal_type,
-        notes,
-        restaurant:restaurants (
-          id,
-          name,
-          logo_url
-        ),
-        order_items (
-          id,
-          quantity,
-          meal:meals (
-            id,
-            name,
-            image_url,
-            calories
-          )
-        )
-      `)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching orders:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load order history",
-        variant: "destructive",
-      });
-    } else {
-      setOrders(data as unknown as Order[]);
-    }
-  };
-
-  const fetchScheduledMeals = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("meal_schedules")
-        .select(`
-          id,
-          scheduled_date,
-          meal_type,
-          is_completed,
-          order_status,
-          created_at,
-          meals:meal_id (
-            id,
-            name,
-            image_url,
-            calories,
-            restaurant:restaurants (
-              id,
-              name,
-              logo_url
-            )
-          )
-        `)
-        .eq("user_id", user.id)
-        .order("scheduled_date", { ascending: false });
-
-      if (error) throw error;
-
-      const transformed: ScheduledMeal[] = (data || []).map((item: any) => ({
-        id: item.id,
-        scheduled_date: item.scheduled_date,
-        meal_type: item.meal_type,
-        is_completed: item.is_completed,
-        order_status: item.order_status || "pending",
-        created_at: item.created_at,
-        meal: item.meals,
-      }));
-
-      setScheduledMeals(transformed);
-    } catch (error) {
-      console.error("Error fetching scheduled meals:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user, refreshScheduled]);
 
   const handleReorder = async (order: Order) => {
     if (!user) return;
     
     setReordering(order.id);
-    
+
     try {
       // Create new order with same items (subscription-based, no price)
       const tomorrow = new Date();
+      tomorrow.setHours(0, 0, 0, 0);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
+
       const { data: newOrder, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -278,7 +257,7 @@ const OrderHistory = () => {
       });
 
       // Refresh orders
-      fetchOrders();
+      refreshOrders();
     } catch (error) {
       console.error("Error reordering:", error);
       toast({
@@ -299,8 +278,10 @@ const OrderHistory = () => {
     return items.reduce((sum, item) => sum + ((item.meal?.calories || 0) * item.quantity), 0);
   };
 
-  const today = new Date().toISOString().split("T")[0];
-  const upcomingMeals = scheduledMeals.filter(m => !m.is_completed && m.scheduled_date >= today);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = format(today, "yyyy-MM-dd");
+  const upcomingMeals = scheduledMeals.filter(m => !m.is_completed && m.scheduled_date >= todayStr);
   const completedMeals = scheduledMeals.filter(m => m.is_completed);
 
   const renderScheduledMeals = (meals: ScheduledMeal[]) => {
@@ -427,10 +408,38 @@ const OrderHistory = () => {
 
             <TabsContent value="scheduled" className="space-y-4">
               {renderScheduledMeals(upcomingMeals)}
+              {scheduledHasMore && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={loadMoreScheduled}
+                  disabled={scheduledLoading}
+                >
+                  {scheduledLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    "Load More"
+                  )}
+                </Button>
+              )}
             </TabsContent>
 
             <TabsContent value="completed" className="space-y-4">
               {renderScheduledMeals(completedMeals)}
+              {scheduledHasMore && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={loadMoreScheduled}
+                  disabled={scheduledLoading}
+                >
+                  {scheduledLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    "Load More"
+                  )}
+                </Button>
+              )}
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">
@@ -555,6 +564,20 @@ const OrderHistory = () => {
                     </Card>
                   );
                 })
+              )}
+              {ordersHasMore && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={loadMoreOrders}
+                  disabled={ordersLoading}
+                >
+                  {ordersLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    `Load More (${ordersPage * 10}+ orders)`
+                  )}
+                </Button>
               )}
             </TabsContent>
           </Tabs>

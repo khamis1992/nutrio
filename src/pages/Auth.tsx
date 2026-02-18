@@ -53,11 +53,11 @@ const Auth = () => {
     checkBiometric();
   }, []);
 
-  // Redirect if already authenticated - check for partner role
+  // Redirect if already authenticated - check for partner/driver role
   useEffect(() => {
     const checkUserRole = async () => {
       if (!user) return;
-      
+
       setCheckingRole(true);
       try {
         // Check if user is an admin
@@ -73,13 +73,29 @@ const Auth = () => {
           return;
         }
 
+        // Check if user is a driver
+        const { data: driver } = await supabase
+          .from("drivers")
+          .select("id, approval_status")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (driver) {
+          if (driver.approval_status === "approved") {
+            navigate("/driver", { replace: true });
+          } else {
+            navigate("/driver/onboarding", { replace: true });
+          }
+          return;
+        }
+
         // Check if user has a restaurant (is a partner)
         const { data: restaurant } = await supabase
           .from("restaurants")
           .select("id")
           .eq("owner_id", user.id)
           .maybeSingle();
-        
+
         if (restaurant) {
           navigate("/partner", { replace: true });
         } else {

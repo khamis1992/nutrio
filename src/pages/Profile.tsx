@@ -41,6 +41,8 @@ import {
   RefreshCw,
   Receipt,
   Crown,
+  Wallet,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -742,6 +744,40 @@ const Profile = () => {
                     <div>
                       <p className="font-semibold">Subscription Plans</p>
                       <p className="text-sm text-muted-foreground">Manage your plan & billing</p>
+                    </div>
+                  </div>
+                  <ArrowLeft className="w-5 h-5 text-muted-foreground rotate-180" />
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/wallet">
+              <Card variant="interactive">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
+                      <Wallet className="w-5 h-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Wallet</p>
+                      <p className="text-sm text-muted-foreground">Top-up & manage balance</p>
+                    </div>
+                  </div>
+                  <ArrowLeft className="w-5 h-5 text-muted-foreground rotate-180" />
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link to="/invoices">
+              <Card variant="interactive">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Invoice History</p>
+                      <p className="text-sm text-muted-foreground">View & download invoices</p>
                     </div>
                   </div>
                   <ArrowLeft className="w-5 h-5 text-muted-foreground rotate-180" />

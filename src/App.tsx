@@ -1,70 +1,107 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NativeRouteRedirect } from "@/components/NativeRouteRedirect";
+import { Loader2 } from "lucide-react";
+
+// Critical first-render pages (eager loaded)
 import Index from "./pages/Index";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import Privacy from "./pages/Privacy";
-import Terms from "./pages/Terms";
-import FAQ from "./pages/FAQ";
 import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
-import Dashboard from "./pages/Dashboard";
-import Meals from "./pages/Meals";
-import RestaurantDetail from "./pages/RestaurantDetail";
-import MealDetail from "./pages/MealDetail";
-import Schedule from "./pages/Schedule";
-import Progress from "./pages/Progress";
-import Profile from "./pages/Profile";
-import OrderHistory from "./pages/OrderHistory";
-import OrderDetail from "./pages/OrderDetail";
-import DeliveryTracking from "./pages/DeliveryTracking";
-import Subscription from "./pages/Subscription";
-import Notifications from "./pages/Notifications";
-import Favorites from "./pages/Favorites";
-import Settings from "./pages/Settings";
-import Referral from "./pages/Referral";
-import Affiliate from "./pages/Affiliate";
-import ReferralTracking from "./pages/ReferralTracking";
-import Addresses from "./pages/Addresses";
-import PartnerAuth from "./pages/partner/PartnerAuth";
-import PartnerDashboard from "./pages/partner/PartnerDashboard";
-import PartnerMenu from "./pages/partner/PartnerMenu";
-import PartnerOrders from "./pages/partner/PartnerOrders";
-import PartnerSettings from "./pages/partner/PartnerSettings";
-import PartnerAnalytics from "./pages/partner/PartnerAnalytics";
-import PartnerNotifications from "./pages/partner/PartnerNotifications";
-import PartnerProfile from "./pages/partner/PartnerProfile";
-import PartnerReviews from "./pages/partner/PartnerReviews";
-import PartnerPayouts from "./pages/partner/PartnerPayouts";
-import PartnerOnboarding from "./pages/partner/PartnerOnboarding";
-import PartnerBoost from "./pages/partner/PartnerBoost";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminRestaurants from "./pages/admin/AdminRestaurants";
-import AdminFeatured from "./pages/admin/AdminFeatured";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminOrders from "./pages/admin/AdminOrders";
-import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminSettings from "./pages/admin/AdminSettings";
-import AdminExports from "./pages/admin/AdminExports";
-import AdminPayouts from "./pages/admin/AdminPayouts";
-import AdminAffiliatePayouts from "./pages/admin/AdminAffiliatePayouts";
-import AdminAffiliateApplications from "./pages/admin/AdminAffiliateApplications";
-import AdminMilestones from "./pages/admin/AdminMilestones";
-import AdminDietTags from "./pages/admin/AdminDietTags";
-import AdminPromotions from "./pages/admin/AdminPromotions";
-import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
-import AdminSupport from "./pages/admin/AdminSupport";
-import AdminNotifications from "./pages/admin/AdminNotifications";
-import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
+
+// Lazy loaded pages - split by feature area
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+
+// Customer pages
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Meals = lazy(() => import("./pages/Meals"));
+const RestaurantDetail = lazy(() => import("./pages/RestaurantDetail"));
+const MealDetail = lazy(() => import("./pages/MealDetail"));
+const Schedule = lazy(() => import("./pages/Schedule"));
+const Progress = lazy(() => import("./pages/Progress"));
+const Profile = lazy(() => import("./pages/Profile"));
+const OrderHistory = lazy(() => import("./pages/OrderHistory"));
+const OrderDetail = lazy(() => import("./pages/OrderDetail"));
+const DeliveryTracking = lazy(() => import("./pages/DeliveryTracking"));
+const Subscription = lazy(() => import("./pages/Subscription"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Favorites = lazy(() => import("./pages/Favorites"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Referral = lazy(() => import("./pages/Referral"));
+const Affiliate = lazy(() => import("./pages/Affiliate"));
+const ReferralTracking = lazy(() => import("./pages/ReferralTracking"));
+const Addresses = lazy(() => import("./pages/Addresses"));
+const Support = lazy(() => import("./pages/Support"));
+const Wallet = lazy(() => import("./pages/Wallet"));
+const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
+
+// Partner pages
+const PartnerAuth = lazy(() => import("./pages/partner/PartnerAuth"));
+const PartnerDashboard = lazy(() => import("./pages/partner/PartnerDashboard"));
+const PartnerMenu = lazy(() => import("./pages/partner/PartnerMenu"));
+const PartnerOrders = lazy(() => import("./pages/partner/PartnerOrders"));
+const PartnerSettings = lazy(() => import("./pages/partner/PartnerSettings"));
+const PartnerAnalytics = lazy(() => import("./pages/partner/PartnerAnalytics"));
+const PartnerNotifications = lazy(() => import("./pages/partner/PartnerNotifications"));
+const PartnerProfile = lazy(() => import("./pages/partner/PartnerProfile"));
+const PartnerReviews = lazy(() => import("./pages/partner/PartnerReviews"));
+const PartnerPayouts = lazy(() => import("./pages/partner/PartnerPayouts"));
+const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding"));
+const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
+
+// Admin pages
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminRestaurants = lazy(() => import("./pages/admin/AdminRestaurants"));
+const AdminFeatured = lazy(() => import("./pages/admin/AdminFeatured"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const AdminSubscriptions = lazy(() => import("./pages/admin/AdminSubscriptions"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const AdminExports = lazy(() => import("./pages/admin/AdminExports"));
+const AdminPayouts = lazy(() => import("./pages/admin/AdminPayouts"));
+const AdminAffiliatePayouts = lazy(() => import("./pages/admin/AdminAffiliatePayouts"));
+const AdminAffiliateApplications = lazy(() => import("./pages/admin/AdminAffiliateApplications"));
+const AdminMilestones = lazy(() => import("./pages/admin/AdminMilestones"));
+const AdminDietTags = lazy(() => import("./pages/admin/AdminDietTags"));
+const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions"));
+const AdminAnnouncements = lazy(() => import("./pages/admin/AdminAnnouncements"));
+const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
+const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications"));
+const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
+
+// Driver pages
+const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
+const DriverOnboarding = lazy(() => import("./pages/driver/DriverOnboarding"));
+const DriverDashboard = lazy(() => import("./pages/driver/DriverDashboard"));
+const DriverOrders = lazy(() => import("./pages/driver/DriverOrders"));
+const DriverOrderDetail = lazy(() => import("./pages/driver/DriverOrderDetail"));
+const DriverHistory = lazy(() => import("./pages/driver/DriverHistory"));
+const DriverEarnings = lazy(() => import("./pages/driver/DriverEarnings"));
+const DriverPayouts = lazy(() => import("./pages/driver/DriverPayouts"));
+const DriverProfile = lazy(() => import("./pages/driver/DriverProfile"));
+const DriverSettings = lazy(() => import("./pages/driver/DriverSettings"));
+const DriverSupport = lazy(() => import("./pages/driver/DriverSupport"));
+const DriverNotifications = lazy(() => import("./pages/driver/DriverNotifications"));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -75,7 +112,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
+          <AnalyticsProvider>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
             <Route
               path="/"
               element={
@@ -188,7 +227,23 @@ const App = () => (
               } 
             />
             <Route 
-              path="/notifications" 
+              path="/wallet" 
+              element={
+                <ProtectedRoute>
+                  <Wallet />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/invoices" 
+              element={
+                <ProtectedRoute>
+                  <InvoiceHistory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/notifications"
               element={
                 <ProtectedRoute>
                   <Notifications />
@@ -486,8 +541,108 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/admin/drivers" 
+              element={
+                <ProtectedRoute>
+                  <AdminDrivers />
+                </ProtectedRoute>
+              } 
+            />
+            {/* Driver Portal Routes */}
+            <Route path="/driver/auth" element={<DriverAuth />} />
+            <Route 
+              path="/driver/onboarding" 
+              element={
+                <ProtectedRoute>
+                  <DriverOnboarding />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver" 
+              element={
+                <ProtectedRoute>
+                  <DriverDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/orders" 
+              element={
+                <ProtectedRoute>
+                  <DriverOrders />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/orders/:id" 
+              element={
+                <ProtectedRoute>
+                  <DriverOrderDetail />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/history" 
+              element={
+                <ProtectedRoute>
+                  <DriverHistory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/earnings" 
+              element={
+                <ProtectedRoute>
+                  <DriverEarnings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/payouts" 
+              element={
+                <ProtectedRoute>
+                  <DriverPayouts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/profile" 
+              element={
+                <ProtectedRoute>
+                  <DriverProfile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/settings" 
+              element={
+                <ProtectedRoute>
+                  <DriverSettings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/support" 
+              element={
+                <ProtectedRoute>
+                  <DriverSupport />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/driver/notifications" 
+              element={
+                <ProtectedRoute>
+                  <DriverNotifications />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
+          </AnalyticsProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

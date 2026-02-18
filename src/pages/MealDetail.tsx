@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,27 +68,46 @@ const mealTypes = [
 const MealDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
   const { settings: deliverySettings, calculateDeliveryFee, loading: deliveryLoading } = useDeliveryFees();
-  const { 
-    addons, 
-    loading: addonsLoading, 
-    selectedAddons, 
-    toggleAddon, 
-    getSelectedAddonsTotal, 
+  const {
+    addons,
+    loading: addonsLoading,
+    selectedAddons,
+    toggleAddon,
+    getSelectedAddonsTotal,
     getSelectedAddonsList,
     groupedAddons,
-    hasAddons 
+    hasAddons
   } = useMealAddons(id);
   const { isVip, calculateDiscountedPrice } = useVipDiscount();
+
+  // Get initial date and meal type from navigation state
+  const navigationState = location.state as { scheduledDate?: string; mealType?: string } | null;
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedMealType, setSelectedMealType] = useState<string>("lunch");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // If we have a scheduled date from navigation, use it
+    if (navigationState?.scheduledDate) {
+      const scheduledDate = new Date(navigationState.scheduledDate + 'T00:00:00');
+      if (!isNaN(scheduledDate.getTime())) {
+        return scheduledDate;
+      }
+    }
+    return today;
+  });
+  const [selectedMealType, setSelectedMealType] = useState<string>(() => {
+    // If we have a meal type from navigation, use it
+    return navigationState?.mealType || "lunch";
+  });
   const [selectedDeliveryType, setSelectedDeliveryType] = useState<"standard" | "express">("standard");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -197,12 +216,19 @@ const MealDetail = () => {
         throw new Error("Failed to update meal quota");
       }
 
+      // Normalize date to midnight local time to avoid timezone issues
+      const normalizedDate = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate()
+      );
+
       const { data: scheduleData, error } = await supabase
         .from("meal_schedules")
         .insert({
           user_id: user.id,
           meal_id: meal.id,
-          scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+          scheduled_date: format(normalizedDate, "yyyy-MM-dd"),
           meal_type: selectedMealType,
           delivery_type: deliveryFeeResult.type,
           delivery_fee: deliveryFeeResult.fee,
@@ -538,10 +564,18 @@ const MealDetail = () => {
                         mode="single"
                         selected={selectedDate}
                         onSelect={(date) => {
-                          setSelectedDate(date);
+                          if (date) {
+                            // Ensure date is set to midnight local time
+                            const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                            setSelectedDate(normalizedDate);
+                          }
                           setDatePickerOpen(false);
                         }}
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        disabled={(date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }}
                         initialFocus
                       />
                     </PopoverContent>

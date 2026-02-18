@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -15,44 +16,68 @@ import {
 import {
   Clock,
   CheckCircle,
-  Calendar,
   User,
-  Utensils,
   Package,
   ChefHat,
   Truck,
   CircleDot,
+  MapPin,
+  Phone,
+  Utensils,
+  Flame,
+  Info,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 
-type OrderStatus = "pending" | "confirmed" | "preparing" | "delivered";
+type OrderStatus = "pending" | "confirmed" | "preparing" | "delivered" | "cancelled";
 
 const ORDER_STATUSES: { value: OrderStatus; label: string; icon: React.ReactNode; color: string }[] = [
   { value: "pending", label: "Pending", icon: <CircleDot className="h-4 w-4" />, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
   { value: "confirmed", label: "Confirmed", icon: <CheckCircle className="h-4 w-4" />, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
   { value: "preparing", label: "Preparing", icon: <ChefHat className="h-4 w-4" />, color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  { value: "delivered", label: "Delivered", icon: <Truck className="h-4 w-4" />, color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  { value: "delivered", label: "Delivered", icon: <CheckCircle className="h-4 w-4" />, color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  { value: "cancelled", label: "Cancelled", icon: <CircleDot className="h-4 w-4" />, color: "bg-red-500/10 text-red-600 border-red-500/20" },
 ];
 
-interface ScheduledMeal {
+interface ScheduleAddon {
   id: string;
+  addon_name: string;
+  quantity: number;
+}
+
+interface Order {
+  id: string;
+  order_status: OrderStatus;
   scheduled_date: string;
   meal_type: string;
-  is_completed: boolean;
-  order_status: OrderStatus;
+  delivery_type: string;
+  delivery_fee: number | null;
+  addons_total: number | null;
   created_at: string;
-  user_id: string;
   meal: {
     id: string;
     name: string;
     image_url: string | null;
     calories: number;
     price: number;
-  };
-  profile: {
+  } | null;
+  customer: {
+    full_name: string | null;
+    phone: string | null;
+  } | null;
+  delivery_address: {
+    address_line1: string;
+    address_line2: string | null;
+    city: string;
+    phone: string | null;
+    delivery_instructions: string | null;
+  } | null;
+  addons: ScheduleAddon[];
+  driver: {
+    id: string;
     full_name: string | null;
   } | null;
 }
@@ -64,13 +89,13 @@ const PartnerOrders = () => {
 
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [restaurantName, setRestaurantName] = useState<string>("");
-  const [scheduledMeals, setScheduledMeals] = useState<ScheduledMeal[]>([]);
-  const [activeTab, setActiveTab] = useState("upcoming");
+  const [restaurantName, setRestaurantName] = useState("");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [activeTab, setActiveTab] = useState("active");
 
   useEffect(() => {
     if (user) {
-      fetchScheduledMeals();
+      fetchOrders();
     }
   }, [user]);
 
@@ -88,7 +113,7 @@ const PartnerOrders = () => {
           table: "meal_schedules",
         },
         () => {
-          fetchScheduledMeals();
+          fetchOrders();
         }
       )
       .subscribe();
@@ -98,7 +123,7 @@ const PartnerOrders = () => {
     };
   }, [restaurantId]);
 
-  const fetchScheduledMeals = async () => {
+  const fetchOrders = async () => {
     if (!user) return;
 
     try {
@@ -131,20 +156,22 @@ const PartnerOrders = () => {
       const mealIds = meals?.map((m) => m.id) || [];
 
       if (mealIds.length === 0) {
-        setScheduledMeals([]);
+        setOrders([]);
         setLoading(false);
         return;
       }
 
-      // Fetch scheduled meals for these meal IDs
+      // Fetch meal schedules (orders) for these meals
       const { data: schedules, error: schedulesError } = await supabase
         .from("meal_schedules")
         .select(`
           id,
           scheduled_date,
           meal_type,
-          is_completed,
           order_status,
+          delivery_type,
+          delivery_fee,
+          addons_total,
           created_at,
           user_id,
           meals:meal_id (
@@ -156,45 +183,114 @@ const PartnerOrders = () => {
           )
         `)
         .in("meal_id", mealIds)
-        .order("scheduled_date", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (schedulesError) throw schedulesError;
 
-      // Fetch user profiles for the scheduled meals
-      const userIds = [...new Set((schedules || []).map((s) => s.user_id))];
+      // Get user info from auth
+      const userIds = [...new Set((schedules || []).map((s: any) => s.user_id))];
       
-      let profilesMap: Record<string, { full_name: string | null }> = {};
+      let profilesMap: Record<string, any> = {};
+      let addressesMap: Record<string, any> = {};
       
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", userIds);
+        // Fetch default addresses
+        const { data: addresses } = await supabase
+          .from("user_addresses")
+          .select("user_id, address_line1, address_line2, city, phone, delivery_instructions, is_default")
+          .in("user_id", userIds)
+          .eq("is_default", true);
         
-        if (profiles) {
-          profilesMap = profiles.reduce((acc, p) => {
-            acc[p.user_id] = { full_name: p.full_name };
+        if (addresses) {
+          addressesMap = addresses.reduce((acc: any, a: any) => {
+            acc[a.user_id] = a;
             return acc;
-          }, {} as Record<string, { full_name: string | null }>);
+          }, {} as Record<string, any>);
+        }
+      }
+
+      // Fetch addons for each schedule
+      const scheduleIds = (schedules || []).map((s: any) => s.id);
+      let addonsMap: Record<string, ScheduleAddon[]> = {};
+      
+      if (scheduleIds.length > 0) {
+        const { data: addonsData } = await supabase
+          .from("schedule_addons")
+          .select(`
+            schedule_id,
+            quantity,
+            addon:meal_addons (name)
+          `)
+          .in("schedule_id", scheduleIds);
+        
+        if (addonsData) {
+          addonsMap = (addonsData as any[]).reduce((acc: any, a: any) => {
+            if (!acc[a.schedule_id]) acc[a.schedule_id] = [];
+            acc[a.schedule_id].push({
+              id: `${a.schedule_id}-${a.addon?.name}`,
+              addon_name: a.addon?.name || "Add-on",
+              quantity: a.quantity,
+            });
+            return acc;
+          }, {});
+        }
+      }
+
+      // Fetch driver assignments
+      let driversMap: Record<string, any> = {};
+      if (scheduleIds.length > 0) {
+        const { data: deliveries } = await supabase
+          .from("deliveries")
+          .select(`
+            schedule_id,
+            driver_id,
+            driver:drivers (
+              id,
+              user_id
+            )
+          `)
+          .in("schedule_id", scheduleIds)
+          .not("driver_id", "is", null);
+        
+        if (deliveries) {
+          driversMap = (deliveries as any[]).reduce((acc: any, d: any) => {
+            if (d.driver_id) {
+              acc[d.schedule_id] = {
+                id: d.driver_id,
+                full_name: null, // Will fetch separately if needed
+              };
+            }
+            return acc;
+          }, {});
         }
       }
 
       // Transform data
-      const transformedSchedules: ScheduledMeal[] = (schedules || []).map((s: any) => ({
+      const transformedOrders: Order[] = (schedules || []).map((s: any) => ({
         id: s.id,
+        order_status: (s.order_status || "pending") as OrderStatus,
         scheduled_date: s.scheduled_date,
         meal_type: s.meal_type,
-        is_completed: s.is_completed || false,
-        order_status: (s.order_status || "pending") as OrderStatus,
+        delivery_type: s.delivery_type || "standard",
+        delivery_fee: s.delivery_fee,
+        addons_total: s.addons_total || 0,
         created_at: s.created_at,
-        user_id: s.user_id,
         meal: s.meals,
-        profile: profilesMap[s.user_id] || null,
+        customer: null, // Simplified for now
+        delivery_address: addressesMap[s.user_id] ? {
+          address_line1: addressesMap[s.user_id].address_line1,
+          address_line2: addressesMap[s.user_id].address_line2,
+          city: addressesMap[s.user_id].city,
+          phone: addressesMap[s.user_id].phone,
+          delivery_instructions: addressesMap[s.user_id].delivery_instructions,
+        } : null,
+        addons: addonsMap[s.id] || [],
+        driver: driversMap[s.id] || null,
       }));
 
-      setScheduledMeals(transformedSchedules);
+      setOrders(transformedOrders);
     } catch (error) {
-      console.error("Error fetching scheduled meals:", error);
+      console.error("Error fetching orders:", error);
       toast({
         title: "Error",
         description: "Failed to load orders",
@@ -205,56 +301,26 @@ const PartnerOrders = () => {
     }
   };
 
-  const updateOrderStatus = async (scheduleId: string, newStatus: OrderStatus, schedule: ScheduledMeal) => {
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      const isCompleted = newStatus === "delivered";
-      
       const { error } = await supabase
         .from("meal_schedules")
-        .update({ 
-          order_status: newStatus,
-          is_completed: isCompleted 
-        })
-        .eq("id", scheduleId);
+        .update({ order_status: newStatus })
+        .eq("id", orderId);
 
       if (error) throw error;
 
-      // Create notification for the customer
-      const statusConfig = ORDER_STATUSES.find(s => s.value === newStatus);
-      const notificationTitle = getNotificationTitle(newStatus);
-      const notificationMessage = getNotificationMessage(newStatus, schedule.meal?.name || "Your meal", restaurantName);
-
-      const { error: notifError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: schedule.user_id,
-          type: "order_update",
-          title: notificationTitle,
-          message: notificationMessage,
-          metadata: {
-            schedule_id: scheduleId,
-            meal_name: schedule.meal?.name,
-            restaurant_name: restaurantName,
-            new_status: newStatus,
-          },
-        });
-
-      if (notifError) {
-        console.error("Error creating notification:", notifError);
-      }
-
-      setScheduledMeals((prev) =>
-        prev.map((s) => 
-          s.id === scheduleId 
-            ? { ...s, order_status: newStatus, is_completed: isCompleted } 
-            : s
-        )
-      );
-
       toast({
         title: "Status updated",
-        description: `Order marked as ${statusConfig?.label || newStatus}`,
+        description: `Order marked as ${newStatus}`,
       });
+
+      // Update local state
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, order_status: newStatus } : o
+        )
+      );
     } catch (error) {
       console.error("Error updating order:", error);
       toast({
@@ -265,40 +331,12 @@ const PartnerOrders = () => {
     }
   };
 
-  const getNotificationTitle = (status: OrderStatus): string => {
-    switch (status) {
-      case "confirmed":
-        return "Order Confirmed! ✓";
-      case "preparing":
-        return "Your meal is being prepared 👨‍🍳";
-      case "delivered":
-        return "Order Delivered! 🎉";
-      default:
-        return "Order Update";
-    }
-  };
-
-  const getNotificationMessage = (status: OrderStatus, mealName: string, restaurant: string): string => {
-    switch (status) {
-      case "confirmed":
-        return `${restaurant} has confirmed your order for ${mealName}. It will be prepared soon!`;
-      case "preparing":
-        return `${restaurant} is now preparing your ${mealName}. It will be ready shortly!`;
-      case "delivered":
-        return `Your ${mealName} from ${restaurant} has been delivered. Enjoy your meal!`;
-      default:
-        return `Your order for ${mealName} has been updated to ${status}.`;
-    }
-  };
-
-  const today = new Date().toISOString().split("T")[0];
-  
-  const upcomingOrders = scheduledMeals.filter(
-    (s) => !s.is_completed && s.scheduled_date >= today
+  const activeOrders = orders.filter((o) => 
+    o.order_status !== "delivered" && o.order_status !== "cancelled"
   );
-  const completedOrders = scheduledMeals.filter((s) => s.is_completed);
-  const pastOrders = scheduledMeals.filter(
-    (s) => !s.is_completed && s.scheduled_date < today
+  
+  const completedOrders = orders.filter((o) => 
+    o.order_status === "delivered"
   );
 
   if (loading) {
@@ -317,8 +355,8 @@ const PartnerOrders = () => {
     return ORDER_STATUSES.find(s => s.value === status) || ORDER_STATUSES[0];
   };
 
-  const renderSchedules = (schedulesList: ScheduledMeal[], showStatusControl = false) => {
-    if (schedulesList.length === 0) {
+  const renderOrders = (ordersList: Order[], showStatusControl = false) => {
+    if (ordersList.length === 0) {
       return (
         <Card>
           <CardContent className="py-12 text-center">
@@ -329,91 +367,124 @@ const PartnerOrders = () => {
       );
     }
 
-    return schedulesList.map((schedule) => {
-      const statusConfig = getStatusConfig(schedule.order_status);
-      const isOverdue = schedule.scheduled_date < today && !schedule.is_completed;
+    return ordersList.map((order) => {
+      const statusConfig = getStatusConfig(order.order_status);
 
       return (
-        <Card key={schedule.id}>
+        <Card key={order.id}>
           <CardContent className="p-4">
-            <div className="flex gap-4">
-              {/* Meal Image */}
-              <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-3xl overflow-hidden shrink-0">
-                {schedule.meal?.image_url ? (
-                  <img
-                    src={schedule.meal.image_url}
-                    alt={schedule.meal.name}
+            {/* Order Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">Order #{order.id.slice(0, 8)}</p>
+                  <Badge variant="outline" className={statusConfig.color}>
+                    <span className="flex items-center gap-1">
+                      {statusConfig.icon}
+                      {statusConfig.label}
+                    </span>
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <Clock className="h-3 w-3 inline mr-1" />
+                  {new Date(order.created_at).toLocaleDateString()} • {order.meal_type}
+                </p>
+              </div>
+              {order.driver && (
+                <div className="text-right">
+                  <Badge className="bg-green-500/10 text-green-600">
+                    <Truck className="h-3 w-3 mr-1" />
+                    Driver Assigned
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <Separator className="my-3" />
+
+            {/* Meal Details */}
+            <div className="flex gap-3 mb-4">
+              <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                {order.meal?.image_url ? (
+                  <img 
+                    src={order.meal.image_url} 
+                    alt={order.meal.name}
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  "🍽️"
+                  <Utensils className="h-6 w-6 text-muted-foreground" />
                 )}
               </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <p className="font-semibold truncate">{schedule.meal?.name || "Unknown Meal"}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                      <User className="h-3 w-3" />
-                      <span>{schedule.profile?.full_name || "Customer"}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isOverdue && (
-                      <Badge variant="destructive" className="text-xs">
-                        Overdue
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className={statusConfig.color}>
-                      <span className="flex items-center gap-1">
-                        {statusConfig.icon}
-                        {statusConfig.label}
-                      </span>
-                    </Badge>
-                  </div>
+              <div className="flex-1">
+                <p className="font-medium">{order.meal?.name || "Meal"}</p>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Flame className="h-3 w-3" />
+                    {order.meal?.calories || 0} kcal
+                  </span>
+                  {order.addons.length > 0 && (
+                    <span>+{order.addons.length} add-ons</span>
+                  )}
                 </div>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(schedule.scheduled_date).toLocaleDateString()}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Utensils className="h-3 w-3" />
-                    {schedule.meal_type}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {schedule.meal?.calories} kcal
-                  </span>
-                </div>
-
-                {showStatusControl && !schedule.is_completed && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Update status:</span>
-                    <Select
-                      value={schedule.order_status}
-                      onValueChange={(value) => updateOrderStatus(schedule.id, value as OrderStatus, schedule)}
-                    >
-                      <SelectTrigger className="w-[160px] h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ORDER_STATUSES.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            <span className="flex items-center gap-2">
-                              {status.icon}
-                              {status.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                {order.addons.length > 0 && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {order.addons.map(a => `${a.addon_name} x${a.quantity}`).join(", ")}
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Delivery Address */}
+            {order.delivery_address && (
+              <div className="bg-muted/50 rounded-lg p-3 mb-3">
+                <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Delivery Address
+                </p>
+                <p className="text-sm">
+                  {order.delivery_address.address_line1}
+                  {order.delivery_address.address_line2 && `, ${order.delivery_address.address_line2}`}
+                  {order.delivery_address.city && `, ${order.delivery_address.city}`}
+                </p>
+                {order.delivery_address.phone && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                    <Phone className="h-3 w-3" />
+                    {order.delivery_address.phone}
+                  </p>
+                )}
+                {order.delivery_address.delivery_instructions && (
+                  <p className="text-sm text-amber-600 mt-2 flex items-start gap-1">
+                    <Info className="h-3 w-3 mt-0.5" />
+                    {order.delivery_address.delivery_instructions}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Status Control */}
+            {showStatusControl && (
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t">
+                <span className="text-sm text-muted-foreground">Update status:</span>
+                <Select
+                  value={order.order_status}
+                  onValueChange={(value) => updateOrderStatus(order.id, value as OrderStatus)}
+                >
+                  <SelectTrigger className="w-[180px] h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORDER_STATUSES.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        <span className="flex items-center gap-2">
+                          {status.icon}
+                          {status.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </CardContent>
         </Card>
       );
@@ -421,38 +492,26 @@ const PartnerOrders = () => {
   };
 
   return (
-    <PartnerLayout title="Orders" subtitle={`${upcomingOrders.length} upcoming • ${pastOrders.length} overdue`}>
+    <PartnerLayout title="Orders" subtitle={`${activeOrders.length} active • ${completedOrders.length} completed`}>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 sm:grid-cols-3 w-full mb-6">
-          <TabsTrigger value="upcoming" className="relative">
-            Upcoming
-            {upcomingOrders.length > 0 && (
+        <TabsList className="grid grid-cols-2 w-full mb-6">
+          <TabsTrigger value="active" className="relative">
+            Active
+            {activeOrders.length > 0 && (
               <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                {upcomingOrders.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="overdue" className="relative">
-            Overdue
-            {pastOrders.length > 0 && (
-              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                {pastOrders.length}
+                {activeOrders.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="upcoming" className="space-y-4">
-          {renderSchedules(upcomingOrders, true)}
-        </TabsContent>
-
-        <TabsContent value="overdue" className="space-y-4">
-          {renderSchedules(pastOrders, true)}
+        <TabsContent value="active" className="space-y-4">
+          {renderOrders(activeOrders, true)}
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4">
-          {renderSchedules(completedOrders)}
+          {renderOrders(completedOrders)}
         </TabsContent>
       </Tabs>
     </PartnerLayout>

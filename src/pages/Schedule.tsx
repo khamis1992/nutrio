@@ -21,7 +21,7 @@ import {
   UtensilsCrossed,
   AlertTriangle
 } from "lucide-react";
-import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks } from "date-fns";
+import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO } from "date-fns";
 
 interface ScheduledMeal {
   id: string;
@@ -47,9 +47,11 @@ const Schedule = () => {
   const { profile } = useProfile();
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => 
-    startOfWeek(new Date(), { weekStartsOn: 1 })
-  );
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return startOfWeek(now, { weekStartsOn: 1 });
+  });
   const [schedules, setSchedules] = useState<ScheduledMeal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -195,9 +197,11 @@ const Schedule = () => {
   };
 
   const getMealsForDay = (date: Date) => {
-    return schedules.filter(s => 
-      isSameDay(new Date(s.scheduled_date), date)
-    );
+    return schedules.filter(s => {
+      // Parse the date string properly to avoid timezone issues
+      const scheduleDate = parseISO(s.scheduled_date);
+      return isSameDay(scheduleDate, date);
+    });
   };
 
   const getDayTotals = (date: Date) => {
@@ -212,6 +216,7 @@ const Schedule = () => {
 
   const weekDays = getWeekDays();
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   // Show disabled state if feature is turned off
   if (!settingsLoading && !settings.features.meal_scheduling) {
@@ -286,10 +291,14 @@ const Schedule = () => {
             <p className="font-medium">
               {format(currentWeekStart, "MMM d")} - {format(addDays(currentWeekStart, 6), "MMM d, yyyy")}
             </p>
-            <Button 
-              variant="link" 
+            <Button
+              variant="link"
               className="text-xs text-muted-foreground p-0 h-auto"
-              onClick={() => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+              onClick={() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                setCurrentWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
+              }}
             >
               Go to today
             </Button>
@@ -367,19 +376,29 @@ const Schedule = () => {
                             {mealType}
                           </p>
                           {typeMeals.map(schedule => (
-                            <div 
+                            <div
                               key={schedule.id}
-                              className={`flex items-center gap-3 p-2 rounded-lg bg-muted/50 ${
+                              className={`flex items-center gap-3 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted/70 transition-colors ${
                                 schedule.is_completed ? 'opacity-60' : ''
                               }`}
+                              onClick={() => {
+                                const state = {
+                                  scheduledDate: schedule.scheduled_date,
+                                  mealType: schedule.meal_type
+                                };
+                                navigate(`/meals/${schedule.meal.id}`, { state });
+                              }}
                             >
                               <Checkbox
                                 checked={schedule.is_completed}
-                                onCheckedChange={() => toggleMealCompletion(schedule.id, schedule.is_completed)}
+                                onCheckedChange={(e) => {
+                                  e.stopPropagation();
+                                  toggleMealCompletion(schedule.id, schedule.is_completed);
+                                }}
                               />
                               {schedule.meal?.image_url && (
-                                <img 
-                                  src={schedule.meal.image_url} 
+                                <img
+                                  src={schedule.meal.image_url}
                                   alt={schedule.meal.name}
                                   className="w-12 h-12 rounded-lg object-cover"
                                 />
@@ -408,7 +427,10 @@ const Schedule = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={() => deleteMeal(schedule.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteMeal(schedule.id);
+                                }}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

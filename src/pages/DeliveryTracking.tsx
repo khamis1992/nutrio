@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,8 +63,10 @@ const getStatusIndex = (status: string) => {
 };
 
 const getEstimatedTime = (status: string, deliveryDate: string) => {
-  const today = new Date().toISOString().split('T')[0];
-  const isToday = deliveryDate === today;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = format(today, "yyyy-MM-dd");
+  const isToday = deliveryDate === todayStr;
   
   if (!isToday) {
     return `Scheduled for ${new Date(deliveryDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`;

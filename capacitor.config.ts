@@ -1,10 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.nutriofuel.app',
-  appName: 'Nutrio Fuel',
+  appId: 'com.nutrio.app',
+  appName: 'Nutrio',
   webDir: 'dist',
-  bundledWebRuntime: false,
   server: {
     // In development, you can proxy to your Vite dev server
     // In production, it serves the built files

@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -17,7 +18,16 @@ export default defineConfig(({ mode }) => ({
       ignored: ['!**/node_modules/**', '!**/dist/**'],
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(), 
+    mode === "development" && componentTagger(),
+    // Sentry plugin for source maps (only in production)
+    mode === 'production' && sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+    }),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -28,8 +38,8 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     // Target modern browsers for better performance
     target: 'esnext',
-    // Enable sourcemaps for debugging
-    sourcemap: mode === 'development',
+    // Enable sourcemaps for error tracking (Sentry needs these)
+    sourcemap: true,
     // Optimize for mobile
     minify: 'terser',
     terserOptions: {

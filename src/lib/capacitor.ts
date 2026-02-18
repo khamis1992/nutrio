@@ -528,7 +528,7 @@ export const biometricAuth = {
       await NativeBiometric.setCredentials({
         username: email,
         password: password,
-        server: 'com.nutriofuel.app',
+        server: 'com.nutrio.app',
       });
     } catch (error) {
       console.error('Error setting biometric credentials:', error);
@@ -542,7 +542,7 @@ export const biometricAuth = {
     if (!isNative) return null;
     try {
       const credentials = await NativeBiometric.getCredentials({
-        server: 'com.nutriofuel.app',
+        server: 'com.nutrio.app',
       });
       return {
         username: credentials.username,
@@ -560,7 +560,7 @@ export const biometricAuth = {
     if (!isNative) return;
     try {
       await NativeBiometric.deleteCredentials({
-        server: 'com.nutriofuel.app',
+        server: 'com.nutrio.app',
       });
     } catch (error) {
       console.error('Error deleting biometric credentials:', error);
@@ -574,7 +574,7 @@ export const biometricAuth = {
     if (!isNative) return false;
     try {
       const credentials = await NativeBiometric.getCredentials({
-        server: 'com.nutriofuel.app',
+        server: 'com.nutrio.app',
       });
       return !!credentials.username;
     } catch {

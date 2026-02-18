@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { format } from "date-fns";
 import {
   Salad,
   Beef,
@@ -96,14 +97,16 @@ const Dashboard = () => {
     const fetchTodayProgress = async () => {
       if (!user) return;
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = format(today, "yyyy-MM-dd");
 
       try {
         const { data, error } = await supabase
           .from("progress_logs")
           .select("calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
           .eq("user_id", user.id)
-          .eq("log_date", today)
+          .eq("log_date", todayStr)
           .maybeSingle();
 
         if (error) throw error;

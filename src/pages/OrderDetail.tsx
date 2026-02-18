@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ArrowLeft, 
   Calendar,
@@ -26,7 +27,10 @@ import {
   Store,
   UtensilsCrossed,
   Zap,
-  DollarSign
+  DollarSign,
+  User,
+  Navigation,
+  Phone
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -41,6 +45,26 @@ interface ScheduleAddon {
   };
 }
 
+interface DeliveryInfo {
+  id: string;
+  status: string;
+  pickup_address: string;
+  delivery_address: string;
+  driver: {
+    id: string;
+    vehicle_type: string;
+    user_id: string;
+    profile: {
+      full_name: string | null;
+    } | null;
+  } | null;
+  claimed_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  delivery_fee: number;
+  tip_amount: number;
+}
+
 interface ScheduledMealDetail {
   id: string;
   scheduled_date: string;
@@ -52,6 +76,7 @@ interface ScheduledMealDetail {
   delivery_fee: number | null;
   addons_total: number | null;
   addons: ScheduleAddon[];
+  delivery: DeliveryInfo | null;
   meal: {
     id: string;
     name: string;
@@ -93,11 +118,23 @@ const statusConfig: Record<string, { label: string; icon: React.ElementType; col
     color: "text-purple-600",
     bgColor: "bg-purple-500/10 border-purple-500/20" 
   },
-  out_for_delivery: { 
-    label: "Out for Delivery", 
+  driver_assigned: { 
+    label: "Driver Assigned", 
+    icon: User, 
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-500/10 border-indigo-500/20" 
+  },
+  picked_up: { 
+    label: "Picked Up", 
     icon: Truck, 
     color: "text-orange-600",
     bgColor: "bg-orange-500/10 border-orange-500/20" 
+  },
+  out_for_delivery: { 
+    label: "Out for Delivery", 
+    icon: Truck, 
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-500/10 border-cyan-500/20" 
   },
   delivered: { 
     label: "Delivered", 
@@ -113,7 +150,15 @@ const statusConfig: Record<string, { label: string; icon: React.ElementType; col
   },
 };
 
-const statusOrder = ["pending", "confirmed", "preparing", "out_for_delivery", "delivered"];
+const deliveryStatusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+  pending: { label: "Looking for Driver", color: "text-amber-600", bgColor: "bg-amber-500/10" },
+  claimed: { label: "Driver Assigned", color: "text-blue-600", bgColor: "bg-blue-500/10" },
+  picked_up: { label: "Picked Up", color: "text-purple-600", bgColor: "bg-purple-500/10" },
+  on_the_way: { label: "On the Way", color: "text-cyan-600", bgColor: "bg-cyan-500/10" },
+  delivered: { label: "Delivered", color: "text-green-600", bgColor: "bg-green-500/10" },
+};
+
+const statusOrder = ["pending", "confirmed", "preparing", "driver_assigned", "picked_up", "out_for_delivery", "delivered"];
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -224,6 +269,60 @@ const OrderDetail = () => {
         `)
         .eq("schedule_id", data.id);
 
+      // Fetch delivery info if exists
+      const { data: deliveryData } = await supabase
+        .from("deliveries")
+        .select(`
+          id,
+          status,
+          pickup_address,
+          delivery_address,
+          claimed_at,
+          picked_up_at,
+          delivered_at,
+          delivery_fee,
+          tip_amount,
+          driver:driver_id (
+            id,
+            vehicle_type,
+            user_id
+          )
+        `)
+        .eq("schedule_id", data.id)
+        .maybeSingle();
+
+      let deliveryInfo: DeliveryInfo | null = null;
+      if (deliveryData) {
+        // Fetch driver profile if driver exists
+        let driverProfile = null;
+        if (deliveryData.driver?.user_id) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", deliveryData.driver.user_id)
+            .maybeSingle();
+          driverProfile = profileData;
+        }
+
+        deliveryInfo = {
+          id: deliveryData.id,
+          status: deliveryData.status,
+          pickup_address: deliveryData.pickup_address,
+          delivery_address: deliveryData.delivery_address,
+          claimed_at: deliveryData.claimed_at,
+          picked_up_at: deliveryData.picked_up_at,
+          delivered_at: deliveryData.delivered_at,
+          delivery_fee: deliveryData.delivery_fee || 0,
+          tip_amount: deliveryData.tip_amount || 0,
+          driver: deliveryData.driver ? {
+            id: deliveryData.driver.id,
+            vehicle_type: deliveryData.driver.vehicle_type,
+            user_id: deliveryData.driver.user_id,
+            profile: driverProfile,
+          } : null,
+        };
+      }
+
       const transformed: ScheduledMealDetail = {
         id: data.id,
         scheduled_date: data.scheduled_date,
@@ -234,6 +333,7 @@ const OrderDetail = () => {
         delivery_type: data.delivery_type,
         delivery_fee: data.delivery_fee,
         addons_total: data.addons_total || 0,
+        delivery: deliveryInfo,
         addons: (addonsData || []).map((a: any) => ({
           id: a.id,
           addon_id: a.addon_id,
@@ -266,6 +366,11 @@ const OrderDetail = () => {
     return statusOrder.indexOf(order.order_status);
   };
 
+  const openMaps = (address: string) => {
+    const encoded = encodeURIComponent(address);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encoded}`, "_blank");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -281,6 +386,8 @@ const OrderDetail = () => {
   const statusInfo = getStatusInfo(order.order_status);
   const StatusIcon = statusInfo.icon;
   const currentStatusIndex = getCurrentStatusIndex();
+  const hasDelivery = order.delivery !== null;
+  const deliveryStatus = order.delivery ? deliveryStatusConfig[order.delivery.status] : null;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -316,6 +423,8 @@ const OrderDetail = () => {
                     ? "Your order has been delivered!"
                     : order.order_status === "cancelled"
                     ? "This order was cancelled"
+                    : hasDelivery 
+                    ? "Your order is being delivered"
                     : "Your order is being processed"
                   }
                 </p>
@@ -323,6 +432,113 @@ const OrderDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Delivery Tracking Card */}
+        {hasDelivery && order.delivery && (
+          <Card className="border-green-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Truck className="h-4 w-4 text-green-600" />
+                Delivery Tracking
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Delivery Status */}
+              <div className={`p-3 rounded-lg ${deliveryStatus?.bgColor || "bg-muted"}`}>
+                <p className={`font-medium ${deliveryStatus?.color || "text-foreground"}`}>
+                  {deliveryStatus?.label || "Processing"}
+                </p>
+                {order.delivery.status === "on_the_way" && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Your driver is on the way with your order!
+                  </p>
+                )}
+              </div>
+
+              {/* Driver Info */}
+              {order.delivery.driver && (
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <User className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">
+                      {order.delivery.driver.profile?.full_name || "Your Driver"}
+                    </p>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {order.delivery.driver.vehicle_type}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Timeline */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <div className={`w-2 h-2 rounded-full ${order.delivery.status !== "pending" ? "bg-green-500" : "bg-amber-500"}`} />
+                  <span className={order.delivery.status !== "pending" ? "text-muted-foreground" : "font-medium"}>
+                    Driver Assigned
+                  </span>
+                  {order.delivery.claimed_at && (
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {format(new Date(order.delivery.claimed_at), "h:mm a")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className={`w-2 h-2 rounded-full ${["picked_up", "on_the_way", "delivered"].includes(order.delivery.status) ? "bg-green-500" : "bg-muted"}`} />
+                  <span className={["picked_up", "on_the_way", "delivered"].includes(order.delivery.status) ? "text-muted-foreground" : ""}>
+                    Picked Up from Restaurant
+                  </span>
+                  {order.delivery.picked_up_at && (
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {format(new Date(order.delivery.picked_up_at), "h:mm a")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <div className={`w-2 h-2 rounded-full ${order.delivery.status === "delivered" ? "bg-green-500" : "bg-muted"}`} />
+                  <span className={order.delivery.status === "delivered" ? "text-muted-foreground" : ""}>
+                    Delivered
+                  </span>
+                  {order.delivery.delivered_at && (
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {format(new Date(order.delivery.delivered_at), "h:mm a")}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Addresses */}
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Store className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Pickup</p>
+                    <p className="text-sm text-muted-foreground">{order.delivery.pickup_address}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Delivery</p>
+                    <p className="text-sm text-muted-foreground">{order.delivery.delivery_address}</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="mt-1 h-8 px-2"
+                      onClick={() => openMaps(order.delivery!.delivery_address)}
+                    >
+                      <Navigation className="h-3 w-3 mr-1" />
+                      Track on Map
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Status Timeline */}
         {order.order_status !== "cancelled" && (
@@ -545,6 +761,19 @@ const OrderDetail = () => {
                 </p>
               </div>
             </div>
+            {hasDelivery && order.delivery && order.delivery.tip_amount > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Driver Tip</p>
+                  <p className="text-sm text-green-600">
+                    {formatCurrency(order.delivery.tip_amount)}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
