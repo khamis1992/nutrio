@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { checkIPLocation } from "@/lib/ipCheck";
 
 interface AuthContextType {
   user: User | null;
@@ -32,9 +32,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+// Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -73,8 +73,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+const signIn = async (email: string, password: string) => {
     try {
+      // Check IP location before login
+      const ipCheck = await checkIPLocation();
+      
+      if (!ipCheck.allowed) {
+        let message = "Access is only allowed from Qatar.";
+        if (ipCheck.blocked) {
+          message = "Your IP address has been blocked.";
+        } else if (ipCheck.reason) {
+          message = ipCheck.reason;
+        }
+        
+        return { error: new Error(message) };
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

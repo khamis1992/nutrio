@@ -81,6 +81,7 @@ const AdminAnnouncements = lazy(() => import("./pages/admin/AdminAnnouncements")
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications"));
 const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
+const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -541,14 +542,22 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin/drivers" 
-              element={
-                <ProtectedRoute>
-                  <AdminDrivers />
-                </ProtectedRoute>
-              } 
-            />
+<Route 
+  path="/admin/drivers" 
+  element={
+    <ProtectedRoute>
+      <AdminDrivers />
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+  path="/admin/ip-management" 
+  element={
+    <ProtectedRoute>
+      <AdminIPManagement />
+    </ProtectedRoute>
+  } 
+/>
             {/* Driver Portal Routes */}
             <Route path="/driver/auth" element={<DriverAuth />} />
             <Route 

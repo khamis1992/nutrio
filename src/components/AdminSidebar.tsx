@@ -56,6 +56,7 @@ const navItems = [
   { icon: BarChart3, label: "Analytics", to: "/admin/analytics" },
   { icon: Download, label: "Exports", to: "/admin/exports" },
   { icon: Settings, label: "Settings", to: "/admin/settings" },
+  { icon: Shield, label: "IP Management", to: "/admin/ip-management" },
 ];
 
 export function AdminSidebar() {

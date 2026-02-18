@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2, Fingerprint } from "lucide-react";
+import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2, Fingerprint, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
 import { biometricAuth, isNative } from "@/lib/capacitor";
 import { z } from "zod";
+import { checkIPLocation } from "@/lib/ipCheck";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
@@ -200,7 +201,7 @@ const Auth = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -232,6 +233,26 @@ const Auth = () => {
           });
         }
       } else {
+        // Check IP location before signup
+        const ipCheck = await checkIPLocation();
+        
+        if (!ipCheck.allowed) {
+          let message = "Signups are only allowed from Qatar.";
+          if (ipCheck.blocked) {
+            message = "Your IP address has been blocked.";
+          } else if (ipCheck.reason) {
+            message = ipCheck.reason;
+          }
+          
+          toast({
+            title: "Signup blocked",
+            description: message,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         const { error } = await signUp(email, password, name);
         if (error) {
           let message = error.message;
