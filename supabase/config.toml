@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.send-affiliate-status-notification]
 verify_jwt = false
+
+[functions.check-ip-location]
+verify_jwt = false
+
+[functions.log-user-ip]
+verify_jwt = false

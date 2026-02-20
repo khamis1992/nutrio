@@ -374,9 +374,9 @@ const MealDetail = () => {
                 <Clock className="w-4 h-4" />
                 {meal.prep_time_minutes} min
               </span>
-              <span className="flex items-center gap-1">
+<span className="flex items-center gap-1">
                 <Flame className="w-4 h-4 text-destructive" />
-                {meal.calories} kcal
+                {meal.calories} cal
               </span>
             </div>
 

@@ -5,13 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -33,7 +26,6 @@ import {
   Bike,
   Car,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -58,7 +50,6 @@ interface Driver {
 }
 
 export default function AdminDrivers() {
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -94,10 +85,34 @@ export default function AdminDrivers() {
 
       if (error) throw error;
 
-      // For now, use driver data without profile
+      // Fetch profiles for drivers
+      const userIds = [...new Set((data || []).map((d) => d.user_id).filter(Boolean))];
+      
+      let profilesMap: Record<string, { full_name: string | null; email: string }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, email")
+          .in("user_id", userIds);
+
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+        } else if (profiles) {
+          profilesMap = profiles.reduce((acc, p) => {
+            acc[p.user_id] = { 
+              full_name: p.full_name, 
+              email: p.email || ""
+            };
+            return acc;
+          }, {} as Record<string, { full_name: string | null; email: string }>);
+        }
+      }
+
+      // Merge driver data with profiles
       const transformed: Driver[] = (data || []).map((d) => ({
         ...d,
-        profile: null,
+        profile: profilesMap[d.user_id] || null,
       }));
 
       setDrivers(transformed);

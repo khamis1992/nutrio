@@ -118,7 +118,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     try {
       const { error } = await supabase.from("meal_history").insert({
         user_id: userId,
-        name: name || `Meal (${calories} kcal)`,
+        name: name || `Meal (${calories} cal)`,
         calories,
         protein_g: protein,
         carbs_g: carbs,
@@ -232,7 +232,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
       toast({
         title: "Meal logged!",
-        description: `Added ${calories} kcal to today's progress.`,
+        description: `Added ${calories} cal to today's progress.`,
       });
 
       onMealLogged();
@@ -460,9 +460,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                             <div className="flex-1 min-w-0">
                               <p className="font-medium truncate text-sm">{item.name}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
+<span className="flex items-center gap-1">
                                   <Flame className="w-3 h-3" />
-                                  {item.calories} kcal
+                                  {item.calories} cal
                                 </span>
                                 <span>P: {item.protein_g}g</span>
                               </div>
@@ -519,9 +519,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{meal.name}</p>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
+<span className="flex items-center gap-1">
                               <Flame className="w-3 h-3" />
-                              {meal.calories} kcal
+                              {meal.calories} cal
                             </span>
                             <span>P: {Math.round(meal.protein_g)}g</span>
                           </div>
@@ -603,7 +603,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                         {food.selected ? <Check className="w-3 h-3" /> : null}
                       </div>
                       <span className="flex-1 text-sm font-medium truncate">{food.name}</span>
-                      <span className="text-xs text-primary font-semibold">{food.calories} kcal</span>
+                      <span className="text-xs text-primary font-semibold">{food.calories} cal</span>
                     </div>
                   ))}
                 </div>
@@ -711,7 +711,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
               ) : scanMode === "results" ? (
                 <>
                   <Check className="w-4 h-4 mr-2" />
-                  Confirm & Log ({detectedFoods.filter(f => f.selected).reduce((sum, f) => sum + f.calories, 0)} kcal)
+                  Confirm & Log ({detectedFoods.filter(f => f.selected).reduce((sum, f) => sum + f.calories, 0)} cal)
                 </>
               ) : (
                 <>

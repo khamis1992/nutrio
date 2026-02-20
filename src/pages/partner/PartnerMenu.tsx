@@ -505,9 +505,9 @@ const PartnerMenu = () => {
                           <DollarSign className="h-3 w-3" />
                           ${meal.price.toFixed(2)}
                         </span>
-                        <span className="flex items-center gap-1">
+<span className="flex items-center gap-1">
                           <Flame className="h-3 w-3" />
-                          {meal.calories} kcal
+                          {meal.calories} cal
                         </span>
                         {meal.prep_time_minutes && (
                           <span className="flex items-center gap-1">

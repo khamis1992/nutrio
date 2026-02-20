@@ -140,8 +140,8 @@ export const MealFilters = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Calories</Label>
-              <span className="text-sm text-muted-foreground">
-                {localFilters.caloriesRange[0]} - {localFilters.caloriesRange[1]} kcal
+<span className="text-sm text-muted-foreground">
+                {localFilters.caloriesRange[0]} - {localFilters.caloriesRange[1]} cal
               </span>
             </div>
             <Slider

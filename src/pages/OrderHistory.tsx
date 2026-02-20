@@ -355,7 +355,7 @@ const OrderHistory = () => {
                 </span>
                 <span className="flex items-center gap-1">
                   <Flame className="h-3 w-3" />
-                  {schedule.meal?.calories || 0} kcal
+                  {schedule.meal?.calories || 0} cal
                 </span>
               </div>
               <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
@@ -536,7 +536,7 @@ const OrderHistory = () => {
                             </span>
                             <span className="flex items-center gap-1">
                               <Flame className="h-3 w-3" />
-                              {totalCalories} kcal
+                              {totalCalories} cal
                             </span>
                           </div>
                           <Badge variant="secondary" className="bg-primary/10 text-primary">

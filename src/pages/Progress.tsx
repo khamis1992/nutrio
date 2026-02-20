@@ -508,7 +508,7 @@ const Progress = () => {
                   <div className="p-3 rounded-lg bg-orange-500/10">
                     <Flame className="h-5 w-5 mx-auto mb-1 text-orange-500" />
                     <p className="text-lg font-bold">{avgCalories}</p>
-                    <p className="text-xs text-muted-foreground">kcal</p>
+                    <p className="text-xs text-muted-foreground">cal</p>
                   </div>
                   <div className="p-3 rounded-lg bg-red-500/10">
                     <Beef className="h-5 w-5 mx-auto mb-1 text-red-500" />
@@ -596,8 +596,8 @@ const Progress = () => {
                       >
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{meal.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {meal.calories} kcal • P: {meal.protein_g}g • C: {meal.carbs_g}g • F: {meal.fat_g}g
+<p className="text-sm text-muted-foreground">
+                            {meal.calories} cal • P: {meal.protein_g}g • C: {meal.carbs_g}g • F: {meal.fat_g}g
                           </p>
                         </div>
                         <Button

@@ -180,7 +180,7 @@ const Profile = () => {
 
     toast({
       title: "Targets recalculated",
-      description: `New daily target: ${targets.dailyCalories} kcal`,
+      description: `New daily target: ${targets.dailyCalories} cal`,
     });
   };
 
@@ -587,7 +587,7 @@ const Profile = () => {
                       <Flame className="w-4 h-4 text-destructive" />
                       Daily Calories
                     </Label>
-                    <span className="font-bold">{dailyCalories} kcal</span>
+                    <span className="font-bold">{dailyCalories} cal</span>
                   </div>
                   <Slider
                     value={[dailyCalories]}

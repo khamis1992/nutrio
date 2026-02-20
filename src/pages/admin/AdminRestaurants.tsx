@@ -1,17 +1,34 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Search,
   Store,
   MapPin,
   Phone,
@@ -20,11 +37,19 @@ import {
   XCircle,
   Clock,
   Calendar,
+  MoreHorizontal,
+  Eye,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Utensils,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/AdminLayout";
+import { format } from "date-fns";
 
 interface Restaurant {
   id: string;
@@ -34,6 +59,8 @@ interface Restaurant {
   address: string | null;
   phone: string | null;
   email: string | null;
+  cuisine_type: string | null;
+  website: string | null;
   approval_status: "pending" | "approved" | "rejected";
   is_active: boolean;
   created_at: string;
@@ -44,100 +71,211 @@ interface Restaurant {
 }
 
 const AdminRestaurants = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
-
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRestaurants, setSelectedRestaurants] = useState<Set<string>>(new Set());
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [cuisineFilter, setCuisineFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<"created_at" | "name">("created_at");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchRestaurants();
-    }
-  }, [user]);
+    fetchRestaurants();
+  }, []);
 
   const fetchRestaurants = async () => {
-    const { data, error } = await supabase
-      .from("restaurants")
-      .select("*")
-      .order("created_at", { ascending: false });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error fetching restaurants:", error);
-      return;
-    }
+      if (error) throw error;
 
-    const ownerIds = [...new Set((data || []).map((r) => r.owner_id).filter(Boolean))];
-    let ownersMap: Record<string, { full_name: string | null; email: string | null }> = {};
+      // Fetch owner profiles
+      const ownerIds = [...new Set((data || []).map((r) => r.owner_id).filter(Boolean))];
+      let ownersMap: Record<string, { full_name: string | null; email: string | null }> = {};
 
-    if (ownerIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("user_id", ownerIds);
+      if (ownerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", ownerIds);
 
-      if (profiles) {
-        ownersMap = profiles.reduce((acc, p) => {
-          acc[p.user_id] = { full_name: p.full_name, email: null };
-          return acc;
-        }, {} as Record<string, { full_name: string | null; email: string | null }>);
+        if (profiles) {
+          ownersMap = profiles.reduce((acc, p) => {
+            acc[p.user_id] = { full_name: p.full_name, email: null };
+            return acc;
+          }, {} as Record<string, { full_name: string | null; email: string | null }>);
+        }
       }
+
+      const restaurantsWithOwners = (data || []).map((r) => ({
+        ...r,
+        owner: r.owner_id ? ownersMap[r.owner_id] || null : null,
+      }));
+
+      setRestaurants(restaurantsWithOwners);
+    } catch (error) {
+      console.error("Error fetching restaurants:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load restaurants. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    const restaurantsWithOwners = (data || []).map((r) => ({
-      ...r,
-      owner: r.owner_id ? ownersMap[r.owner_id] || null : null,
-    }));
-
-    setRestaurants(restaurantsWithOwners);
   };
 
-  const handleAction = async () => {
-    if (!selectedRestaurant || !actionType) return;
-
+  const handleApprove = async (restaurant: Restaurant) => {
     try {
       setProcessing(true);
-      const newStatus = actionType === "approve" ? "approved" : "rejected";
-
       const { error } = await supabase
         .from("restaurants")
-        .update({ 
-          approval_status: newStatus,
-          is_active: actionType === "approve" 
-        })
-        .eq("id", selectedRestaurant.id);
+        .update({ approval_status: "approved", is_active: true })
+        .eq("id", restaurant.id);
 
       if (error) throw error;
 
       setRestaurants((prev) =>
         prev.map((r) =>
-          r.id === selectedRestaurant.id
-            ? { ...r, approval_status: newStatus, is_active: actionType === "approve" }
-            : r
+          r.id === restaurant.id ? { ...r, approval_status: "approved", is_active: true } : r
         )
       );
 
       toast({
-        title: actionType === "approve" ? "Restaurant Approved" : "Restaurant Rejected",
-        description: `${selectedRestaurant.name} has been ${newStatus}`,
+        title: "Restaurant Approved",
+        description: `${restaurant.name} has been approved and is now visible to customers.`,
       });
-
-      setSelectedRestaurant(null);
-      setActionType(null);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error approving restaurant:", error);
       toast({
         title: "Error",
-        description: "Failed to update restaurant status",
+        description: "Failed to approve restaurant.",
         variant: "destructive",
       });
     } finally {
       setProcessing(false);
     }
   };
+
+  const handleReject = async (restaurant: Restaurant) => {
+    try {
+      setProcessing(true);
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ approval_status: "rejected", is_active: false })
+        .eq("id", restaurant.id);
+
+      if (error) throw error;
+
+      setRestaurants((prev) =>
+        prev.map((r) =>
+          r.id === restaurant.id ? { ...r, approval_status: "rejected", is_active: false } : r
+        )
+      );
+
+      toast({
+        title: "Restaurant Rejected",
+        description: `${restaurant.name} has been rejected.`,
+      });
+    } catch (error) {
+      console.error("Error rejecting restaurant:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reject restaurant.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const toggleRestaurantSelection = (restaurantId: string) => {
+    setSelectedRestaurants((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(restaurantId)) {
+        newSet.delete(restaurantId);
+      } else {
+        newSet.add(restaurantId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllRestaurants = () => {
+    if (selectedRestaurants.size === filteredRestaurants.length) {
+      setSelectedRestaurants(new Set());
+    } else {
+      setSelectedRestaurants(new Set(filteredRestaurants.map((r) => r.id)));
+    }
+  };
+
+  const handleSort = (field: "created_at" | "name") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const exportToCSV = () => {
+    const headers = ["Name", "Cuisine", "Owner", "Status", "Address", "Phone", "Email", "Created At"];
+    const rows = filteredRestaurants.map((r) => [
+      r.name,
+      r.cuisine_type || "N/A",
+      r.owner?.full_name || "N/A",
+      r.approval_status,
+      r.address || "N/A",
+      r.phone || "N/A",
+      r.email || "N/A",
+      format(new Date(r.created_at), "yyyy-MM-dd"),
+    ]);
+    
+    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `restaurants-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({ title: "Export Complete", description: `${rows.length} restaurants exported to CSV.` });
+  };
+
+  // Get unique cuisine types
+  const cuisineTypes = [...new Set(restaurants.map((r) => r.cuisine_type).filter(Boolean))];
+
+  const filteredRestaurants = restaurants
+    .filter((r) => {
+      const matchesSearch =
+        !searchQuery ||
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.address && r.address.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (r.owner?.full_name && r.owner.full_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (r.email && r.email.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesTab = activeTab === "all" || r.approval_status === activeTab;
+      const matchesCuisine = cuisineFilter === "all" || r.cuisine_type === cuisineFilter;
+      return matchesSearch && matchesTab && matchesCuisine;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortField === "created_at") {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortField === "name") {
+        comparison = a.name.localeCompare(b.name);
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -150,14 +288,14 @@ const AdminRestaurants = () => {
         );
       case "approved":
         return (
-          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
             <CheckCircle className="h-3 w-3 mr-1" />
             Approved
           </Badge>
         );
       case "rejected":
         return (
-          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
+          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
             <XCircle className="h-3 w-3 mr-1" />
             Rejected
           </Badge>
@@ -167,188 +305,475 @@ const AdminRestaurants = () => {
     }
   };
 
-  const renderRestaurantList = (list: Restaurant[], showActions: boolean = false) => {
-    if (list.length === 0) {
-      return (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Store className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-            <p className="text-muted-foreground">No restaurants found</p>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    return list.map((restaurant) => (
-      <Card key={restaurant.id}>
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex gap-3 sm:gap-4">
-            <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center overflow-hidden shrink-0">
-              {restaurant.logo_url ? (
-                <img
-                  src={restaurant.logo_url}
-                  alt={restaurant.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Store className="h-6 w-6 text-muted-foreground" />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div>
-                  <h3 className="font-semibold">{restaurant.name}</h3>
-                  {restaurant.owner?.full_name && (
-                    <p className="text-sm text-muted-foreground">
-                      Owner: {restaurant.owner.full_name}
-                    </p>
-                  )}
-                </div>
-                {getStatusBadge(restaurant.approval_status)}
-              </div>
-
-              {restaurant.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                  {restaurant.description}
-                </p>
-              )}
-
-              <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-muted-foreground mb-3">
-                {restaurant.address && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    <span className="break-all">{restaurant.address}</span>
-                  </span>
-                )}
-                {restaurant.phone && (
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {restaurant.phone}
-                  </span>
-                )}
-                {restaurant.email && (
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    <span className="break-all">{restaurant.email}</span>
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                <Calendar className="h-3 w-3" />
-                Registered: {new Date(restaurant.created_at).toLocaleDateString()}
-              </div>
-
-              {showActions && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedRestaurant(restaurant);
-                      setActionType("approve");
-                    }}
-                    className="w-full sm:w-auto min-h-[44px]"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive hover:text-destructive w-full sm:w-auto min-h-[44px]"
-                    onClick={() => {
-                      setSelectedRestaurant(restaurant);
-                      setActionType("reject");
-                    }}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    ));
+  // Calculate stats
+  const stats = {
+    total: restaurants.length,
+    pending: restaurants.filter((r) => r.approval_status === "pending").length,
+    approved: restaurants.filter((r) => r.approval_status === "approved").length,
+    rejected: restaurants.filter((r) => r.approval_status === "rejected").length,
   };
 
-  const pendingRestaurants = restaurants.filter((r) => r.approval_status === "pending");
-  const approvedRestaurants = restaurants.filter((r) => r.approval_status === "approved");
-  const rejectedRestaurants = restaurants.filter((r) => r.approval_status === "rejected");
-
   return (
-    <AdminLayout title="Manage Restaurants" subtitle={`${pendingRestaurants.length} pending approval`}>
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 sm:grid-cols-3 w-full mb-6">
-          <TabsTrigger value="pending" className="relative">
-            Pending
-            {pendingRestaurants.length > 0 && (
-              <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                {pendingRestaurants.length}
-              </Badge>
+    <AdminLayout title="Manage Restaurants" subtitle={`${stats.pending} pending approval`}>
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Store className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total Restaurants</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.pending}</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.approved}</p>
+                  <p className="text-xs text-muted-foreground">Approved</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+                  <XCircle className="h-5 w-5 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stats.rejected}</p>
+                  <p className="text-xs text-muted-foreground">Rejected</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: "all", label: "All", count: stats.total },
+            { value: "pending", label: "Pending", count: stats.pending },
+            { value: "approved", label: "Approved", count: stats.approved },
+            { value: "rejected", label: "Rejected", count: stats.rejected },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === tab.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {tab.count}
+                </Badge>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search restaurants by name, address, owner, or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <select
+                  value={cuisineFilter}
+                  onChange={(e) => setCuisineFilter(e.target.value)}
+                  className="px-3 py-2 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="all">All Cuisines</option>
+                  {cuisineTypes.map((cuisine) => (
+                    <option key={cuisine} value={cuisine}>
+                      {cuisine}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="outline" onClick={exportToCSV} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Export
+                </Button>
+                <Button variant="outline" size="icon" onClick={fetchRestaurants} disabled={loading}>
+                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bulk Actions */}
+        {selectedRestaurants.size > 0 && (
+          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
+            <span className="text-sm text-primary font-medium">
+              {selectedRestaurants.size} restaurant{selectedRestaurants.size > 1 ? "s" : ""} selected
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                Approve Selected
+              </Button>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200">
+                Reject Selected
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Restaurants Table */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">Restaurants</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10 pl-6">
+                    <Checkbox
+                      checked={selectedRestaurants.size === filteredRestaurants.length && filteredRestaurants.length > 0}
+                      onCheckedChange={selectAllRestaurants}
+                    />
+                  </TableHead>
+                  <TableHead>Restaurant</TableHead>
+                  <TableHead>Cuisine</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>
+                    <button onClick={() => handleSort("created_at")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                      Registered
+                      {sortField === "created_at" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <p className="text-muted-foreground text-sm">Loading restaurants...</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredRestaurants.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                          <Store className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-muted-foreground">No restaurants found</p>
+                        <p className="text-muted-foreground/70 text-sm">Try adjusting your filters</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRestaurants.map((restaurant) => (
+                    <TableRow key={restaurant.id} className="hover:bg-muted/50 transition-colors">
+                      <TableCell className="pl-6">
+                        <Checkbox
+                          checked={selectedRestaurants.has(restaurant.id)}
+                          onCheckedChange={() => toggleRestaurantSelection(restaurant.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                            {restaurant.logo_url ? (
+                              <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Store className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium">{restaurant.name}</p>
+                            {restaurant.address && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                <span className="truncate max-w-[200px]">{restaurant.address}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {restaurant.cuisine_type ? (
+                          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                            <Utensils className="w-3 h-3 mr-1" />
+                            {restaurant.cuisine_type}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">{restaurant.owner?.full_name || "Unknown"}</p>
+                          {restaurant.email && (
+                            <p className="text-xs text-muted-foreground">{restaurant.email}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(restaurant.approval_status)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(restaurant.created_at), "MMM d, yyyy")}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {restaurant.approval_status === "pending" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                onClick={() => handleApprove(restaurant)}
+                                disabled={processing}
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                onClick={() => handleReject(restaurant)}
+                                disabled={processing}
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedRestaurant(restaurant);
+                                  setIsDetailOpen(true);
+                                }}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              {restaurant.website && (
+                                <DropdownMenuItem onClick={() => window.open(restaurant.website!, "_blank")}>
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Visit Website
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              {restaurant.approval_status !== "approved" && (
+                                <DropdownMenuItem
+                                  onClick={() => handleApprove(restaurant)}
+                                  className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Approve
+                                </DropdownMenuItem>
+                              )}
+                              {restaurant.approval_status !== "rejected" && (
+                                <DropdownMenuItem
+                                  onClick={() => handleReject(restaurant)}
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Reject
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Restaurant Detail Sheet */}
+        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <SheetContent className="w-full sm:max-w-xl">
+            {selectedRestaurant && (
+              <>
+                <SheetHeader className="pb-6 border-b">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                      {selectedRestaurant.logo_url ? (
+                        <img
+                          src={selectedRestaurant.logo_url}
+                          alt={selectedRestaurant.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Store className="w-8 h-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div>
+                      <SheetTitle className="text-xl">{selectedRestaurant.name}</SheetTitle>
+                      <SheetDescription>
+                        {getStatusBadge(selectedRestaurant.approval_status)}
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+
+                <div className="mt-6 space-y-6">
+                  {/* Description */}
+                  {selectedRestaurant.description && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                          About
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">{selectedRestaurant.description}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Contact Info */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        Contact Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {selectedRestaurant.address && (
+                        <div className="flex items-start gap-3">
+                          <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium">Address</p>
+                            <p className="text-sm text-muted-foreground">{selectedRestaurant.address}</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedRestaurant.phone && (
+                        <div className="flex items-start gap-3">
+                          <Phone className="w-4 h-4 text-muted-foreground mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium">Phone</p>
+                            <p className="text-sm text-muted-foreground">{selectedRestaurant.phone}</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedRestaurant.email && (
+                        <div className="flex items-start gap-3">
+                          <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium">Email</p>
+                            <p className="text-sm text-muted-foreground">{selectedRestaurant.email}</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Owner Info */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        Owner Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Utensils className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{selectedRestaurant.owner?.full_name || "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Registered {format(new Date(selectedRestaurant.created_at), "MMM d, yyyy")}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Actions */}
+                  {selectedRestaurant.approval_status === "pending" && (
+                    <div className="flex gap-2">
+                      <Button
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => {
+                          handleApprove(selectedRestaurant);
+                          setIsDetailOpen(false);
+                        }}
+                        disabled={processing}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Approve Restaurant
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => {
+                          handleReject(selectedRestaurant);
+                          setIsDetailOpen(false);
+                        }}
+                        disabled={processing}
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          {renderRestaurantList(pendingRestaurants, true)}
-        </TabsContent>
-
-        <TabsContent value="approved" className="space-y-4">
-          {renderRestaurantList(approvedRestaurants)}
-        </TabsContent>
-
-        <TabsContent value="rejected" className="space-y-4">
-          {renderRestaurantList(rejectedRestaurants)}
-        </TabsContent>
-      </Tabs>
-
-      <Dialog
-        open={!!selectedRestaurant && !!actionType}
-        onOpenChange={() => {
-          setSelectedRestaurant(null);
-          setActionType(null);
-        }}
-      >
-        <DialogContent className="max-w-[95vw] sm:max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === "approve" ? "Approve Restaurant" : "Reject Restaurant"}
-            </DialogTitle>
-            <DialogDescription>
-              {actionType === "approve"
-                ? `Are you sure you want to approve "${selectedRestaurant?.name}"? It will become visible to customers.`
-                : `Are you sure you want to reject "${selectedRestaurant?.name}"? The owner will be notified.`}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedRestaurant(null);
-                setActionType(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAction}
-              disabled={processing}
-              variant={actionType === "reject" ? "destructive" : "default"}
-            >
-              {processing
-                ? "Processing..."
-                : actionType === "approve"
-                ? "Approve"
-                : "Reject"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetContent>
+        </Sheet>
+      </div>
     </AdminLayout>
   );
 };

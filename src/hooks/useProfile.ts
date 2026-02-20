@@ -25,6 +25,7 @@ interface Profile {
   affiliate_balance: number | null;
   total_affiliate_earnings: number | null;
   affiliate_tier: string | null;
+  streak_days: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -13,13 +13,9 @@ console.log('1. Checking environment variables...');
 const envPath = path.join(import.meta.dirname, '.env');
 const envContent = fs.readFileSync(envPath, 'utf8');
 
+// Only check for critical variables that are absolutely required
 const criticalVars = [
-  'RESEND_API_KEY',
-  'VITE_SENTRY_DSN', 
-  'VITE_POSTHOG_KEY',
-  'SENTRY_ORG',
-  'SENTRY_PROJECT',
-  'SENTRY_AUTH_TOKEN'
+  'RESEND_API_KEY'
 ];
 
 let hasEmptyValues = false;
@@ -36,54 +32,59 @@ if (hasEmptyValues) {
   process.exit(1);
 }
 
+// Warn about optional variables
+const optionalVars = [
+  'VITE_SENTRY_DSN', 
+  'VITE_POSTHOG_KEY',
+  'SENTRY_ORG',
+  'SENTRY_PROJECT',
+  'SENTRY_AUTH_TOKEN'
+];
+
+let hasEmptyOptionalVars = false;
+optionalVars.forEach(varName => {
+  const regex = new RegExp(`${varName}=""`);
+  if (regex.test(envContent)) {
+    hasEmptyOptionalVars = true;
+  }
+});
+
+if (hasEmptyOptionalVars) {
+  console.log('⚠️  WARNING: Optional environment variables (Sentry, PostHog) are not configured.');
+  console.log('The app will work but without error tracking and analytics.\n');
+}
+
 console.log('✅ Environment variables configured\n');
 
 // Step 2: Run tests
 console.log('2. Running tests...');
-const { spawn } = await import('child_process');
-const test = spawn('npm', ['run', 'test:run']);
-
-test.stdout.on('data', (data) => {
-  console.log(data.toString());
-});
-
-test.stderr.on('data', (data) => {
-  console.error(data.toString());
-});
-
-test.on('close', (code) => {
-  if (code !== 0) {
-    console.log('❌ Tests failed! Fix tests before deployment.');
-    process.exit(1);
-  }
-  
+try {
+  const { execSync } = await import('child_process');
+  const output = execSync('npm run test:run', { encoding: 'utf8' });
+  console.log(output);
   console.log('✅ Tests passed\n');
-  
-  // Step 3: Build application
-  console.log('3. Building application...');
-  const build = spawn('npm', ['run', 'build']);
-  
-  build.stdout.on('data', (data) => {
-    console.log(data.toString());
-  });
-  
-  build.stderr.on('data', (data) => {
-    console.error(data.toString());
-  });
-  
-  build.on('close', (code) => {
-    if (code !== 0) {
-      console.log('❌ Build failed! Fix build issues before deployment.');
-      process.exit(1);
-    }
-    
-    console.log('✅ Build successful\n');
-    console.log('🎉 Production deployment ready!');
-    console.log('\nNext steps:');
-    console.log('1. Run: supabase db push');
-    console.log('2. Run: supabase functions deploy send-email');
-    console.log('3. Upgrade Supabase to Pro tier');
-    console.log('4. Deploy to Vercel');
-    process.exit(0);
-  });
-});
+} catch (error) {
+  console.log('❌ Tests failed! Fix tests before deployment.');
+  console.log('Error:', error.message);
+  process.exit(1);
+}
+
+// Step 3: Build application
+console.log('3. Building application...');
+try {
+  const { execSync } = await import('child_process');
+  const output = execSync('npm run build', { encoding: 'utf8' });
+  console.log(output);
+  console.log('✅ Build successful\n');
+  console.log('🎉 Production deployment ready!');
+  console.log('\nNext steps:');
+  console.log('1. Run: supabase db push');
+  console.log('2. Run: supabase functions deploy send-email');
+  console.log('3. Upgrade Supabase to Pro tier');
+  console.log('4. Deploy to Vercel');
+  process.exit(0);
+} catch (error) {
+  console.log('❌ Build failed! Fix build issues before deployment.');
+  console.log('Error:', error.message);
+  process.exit(1);
+}

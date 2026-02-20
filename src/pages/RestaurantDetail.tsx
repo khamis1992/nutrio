@@ -105,16 +105,9 @@ const RestaurantDetail = () => {
             protein_g,
             carbs_g,
             fat_g,
-            rating,
-            prep_time_minutes,
-            is_vip_exclusive,
-            price,
-            meal_diet_tags (
-              diet_tags (id, name)
-            )
+            price
           `)
-          .eq("restaurant_id", id)
-          .eq("is_available", true);
+          .eq("restaurant_id", id);
 
         if (mealsError) throw mealsError;
 
@@ -122,14 +115,14 @@ const RestaurantDetail = () => {
           id: meal.id,
           name: meal.name,
           image_url: meal.image_url,
-          calories: meal.calories,
-          protein_g: parseFloat(meal.protein_g),
-          carbs_g: parseFloat(meal.carbs_g),
-          fat_g: parseFloat(meal.fat_g),
-          rating: parseFloat(meal.rating) || 0,
-          prep_time_minutes: meal.prep_time_minutes || 15,
-          diet_tags: meal.meal_diet_tags?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
-          is_vip_exclusive: meal.is_vip_exclusive || false,
+          calories: meal.calories || 0,
+          protein_g: parseFloat(meal.protein_g) || 0,
+          carbs_g: parseFloat(meal.carbs_g) || 0,
+          fat_g: parseFloat(meal.fat_g) || 0,
+          rating: 0,
+          prep_time_minutes: 15,
+          diet_tags: [],
+          is_vip_exclusive: false,
           price: parseFloat(meal.price) || 0,
         }));
 
@@ -506,9 +499,9 @@ const RestaurantDetail = () => {
                             </div>
 
                             <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
-                              <span className="flex items-center gap-0.5 sm:gap-1">
+<span className="flex items-center gap-0.5 sm:gap-1">
                                 <Flame className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                {meal.calories} kcal
+                                {meal.calories} cal
                               </span>
                               <span className="flex items-center gap-0.5 sm:gap-1">
                                 <Beef className="w-2.5 h-2.5 sm:w-3 sm:h-3" />

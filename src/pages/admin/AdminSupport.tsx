@@ -126,13 +126,17 @@ export default function AdminSupport() {
       if (error) throw error;
 
       // Fetch user profiles for tickets
-      const userIds = [...new Set(ticketsData?.map(t => t.user_id) || [])];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("user_id", userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+      const userIds = [...new Set((ticketsData || []).map(t => t.user_id).filter(Boolean))];
+      
+      let profileMap = new Map();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", userIds);
+        
+        profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+      }
 
       const ticketsWithUsers = ticketsData?.map(ticket => ({
         ...ticket,

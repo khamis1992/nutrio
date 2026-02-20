@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Json } from "@/integrations/supabase/types";
+
 
 interface CommissionRates {
   [key: string]: number;
@@ -216,15 +216,15 @@ export default function AdminSettings() {
     setSaving(true);
     try {
       const updates = [
-        { key: "commission_rates", value: commissionRates as Json },
-        { key: "features", value: features as Json },
-        { key: "subscription_plans", value: subscriptionPlans as Json },
-        { key: "notifications", value: notifications as Json },
-        { key: "featured_listing_prices", value: featuredPrices as Json },
-        { key: "delivery_fees", value: deliveryFees as Json },
-        { key: "premium_analytics_prices", value: premiumAnalyticsPrices as Json },
-        { key: "vip_settings", value: vipSettings as unknown as Json },
-        { key: "affiliate_settings", value: affiliateSettings as unknown as Json },
+        { key: "commission_rates", value: commissionRates },
+        { key: "features", value: features },
+        { key: "subscription_plans", value: subscriptionPlans },
+        { key: "notifications", value: notifications },
+        { key: "featured_listing_prices", value: featuredPrices },
+        { key: "delivery_fees", value: deliveryFees },
+        { key: "premium_analytics_prices", value: premiumAnalyticsPrices },
+        { key: "vip_settings", value: vipSettings },
+        { key: "affiliate_settings", value: affiliateSettings },
       ];
 
       for (const update of updates) {
@@ -328,7 +328,7 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="basic-price">Basic Plan Price ($)</Label>
+                <Label htmlFor="basic-price">Basic Plan Price (QAR)</Label>
                 <Input
                   id="basic-price"
                   type="number"
@@ -343,7 +343,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="premium-price">Premium Plan Price ($)</Label>
+                <Label htmlFor="premium-price">Premium Plan Price (QAR)</Label>
                 <Input
                   id="premium-price"
                   type="number"
@@ -358,7 +358,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="family-price">Family Plan Price ($)</Label>
+                <Label htmlFor="family-price">Family Plan Price (QAR)</Label>
                 <Input
                   id="family-price"
                   type="number"
@@ -386,7 +386,7 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="vip-price">VIP Elite Price ($/week)</Label>
+                <Label htmlFor="vip-price">VIP Elite Price (QAR/week)</Label>
                 <Input
                   id="vip-price"
                   type="number"
@@ -449,7 +449,7 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="weekly-price">Weekly Boost ($)</Label>
+                <Label htmlFor="weekly-price">Weekly Boost (QAR)</Label>
                 <Input
                   id="weekly-price"
                   type="number"
@@ -464,7 +464,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="biweekly-price">Bi-Weekly Boost ($)</Label>
+                <Label htmlFor="biweekly-price">Bi-Weekly Boost (QAR)</Label>
                 <Input
                   id="biweekly-price"
                   type="number"
@@ -479,7 +479,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="monthly-price">Monthly Boost ($)</Label>
+                <Label htmlFor="monthly-price">Monthly Boost (QAR)</Label>
                 <Input
                   id="monthly-price"
                   type="number"
@@ -584,7 +584,7 @@ export default function AdminSettings() {
               </div>
               <Separator />
               <div className="space-y-2">
-                <Label htmlFor="standard-delivery">Standard Delivery ($)</Label>
+                <Label htmlFor="standard-delivery">Standard Delivery (QAR)</Label>
                 <Input
                   id="standard-delivery"
                   type="number"
@@ -599,7 +599,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="express-delivery">Express Delivery ($)</Label>
+                <Label htmlFor="express-delivery">Express Delivery (QAR)</Label>
                 <Input
                   id="express-delivery"
                   type="number"
@@ -614,7 +614,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="free-threshold">Free Delivery Threshold ($)</Label>
+                <Label htmlFor="free-threshold">Free Delivery Threshold (QAR)</Label>
                 <Input
                   id="free-threshold"
                   type="number"
@@ -645,7 +645,7 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="analytics-monthly">Monthly Price ($)</Label>
+                <Label htmlFor="analytics-monthly">Monthly Price (QAR)</Label>
                 <Input
                   id="analytics-monthly"
                   type="number"
@@ -660,7 +660,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="analytics-quarterly">Quarterly Price ($)</Label>
+                <Label htmlFor="analytics-quarterly">Quarterly Price (QAR)</Label>
                 <Input
                   id="analytics-quarterly"
                   type="number"
@@ -675,7 +675,7 @@ export default function AdminSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="analytics-yearly">Yearly Price ($)</Label>
+                <Label htmlFor="analytics-yearly">Yearly Price (QAR)</Label>
                 <Input
                   id="analytics-yearly"
                   type="number"
@@ -760,7 +760,7 @@ export default function AdminSettings() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Min Payout Threshold ($)</Label>
+                <Label>Min Payout Threshold (QAR)</Label>
                 <Input
                   type="number"
                   inputMode="numeric"

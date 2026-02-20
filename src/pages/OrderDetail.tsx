@@ -634,7 +634,7 @@ const OrderDetail = () => {
                 <div className="text-center p-2 rounded-lg bg-muted/50">
                   <Flame className="h-4 w-4 mx-auto mb-1 text-orange-500" />
                   <p className="text-sm font-semibold">{order.meal.calories}</p>
-                  <p className="text-xs text-muted-foreground">kcal</p>
+                  <p className="text-xs text-muted-foreground">cal</p>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted/50">
                   <Beef className="h-4 w-4 mx-auto mb-1 text-red-500" />

@@ -75,33 +75,61 @@ const Schedule = () => {
     setLoading(true);
     const weekEnd = addDays(currentWeekStart, 6);
     
-    const { data, error } = await supabase
+    // Fetch schedules
+    const { data: schedulesData, error: schedulesError } = await supabase
       .from("meal_schedules")
       .select(`
         id,
         scheduled_date,
         meal_type,
         is_completed,
-        meal:meals (
-          id,
-          name,
-          calories,
-          protein_g,
-          carbs_g,
-          fat_g,
-          image_url
-        )
+        meal_id
       `)
       .eq("user_id", user.id)
       .gte("scheduled_date", format(currentWeekStart, "yyyy-MM-dd"))
       .lte("scheduled_date", format(weekEnd, "yyyy-MM-dd"))
       .order("scheduled_date", { ascending: true });
 
-    if (error) {
-      console.error("Error fetching schedules:", error);
-    } else {
-      setSchedules(data as unknown as ScheduledMeal[]);
+    if (schedulesError) {
+      console.error("Error fetching schedules:", schedulesError);
+      setLoading(false);
+      return;
     }
+
+    // Fetch meal details separately
+    const mealIds = (schedulesData || []).map((s: any) => s.meal_id).filter(Boolean);
+    let mealsMap: Record<string, any> = {};
+    
+    if (mealIds.length > 0) {
+      const { data: mealsData } = await supabase
+        .from("meals")
+        .select("id, name, calories, protein_g, carbs_g, fat_g, image_url")
+        .in("id", mealIds);
+      
+      mealsMap = (mealsData || []).reduce((acc: Record<string, any>, meal: any) => {
+        acc[meal.id] = meal;
+        return acc;
+      }, {});
+    }
+
+    // Merge schedules with meal data
+    const mergedSchedules: ScheduledMeal[] = (schedulesData || []).map((schedule: any) => ({
+      id: schedule.id,
+      scheduled_date: schedule.scheduled_date,
+      meal_type: schedule.meal_type,
+      is_completed: schedule.is_completed,
+      meal: mealsMap[schedule.meal_id] || {
+        id: schedule.meal_id,
+        name: "Unknown Meal",
+        calories: 0,
+        protein_g: 0,
+        carbs_g: 0,
+        fat_g: 0,
+        image_url: null
+      }
+    }));
+
+    setSchedules(mergedSchedules);
     setLoading(false);
   };
 
@@ -346,7 +374,7 @@ const Schedule = () => {
                   {dayMeals.length > 0 && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Flame className="h-3 w-3 text-orange-500" />
-                      <span>{totals.calories} kcal</span>
+                      <span>{totals.calories} cal</span>
                     </div>
                   )}
                 </div>

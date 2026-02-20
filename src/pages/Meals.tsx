@@ -3,21 +3,23 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
+  Salad, 
+  Utensils,
+  Calendar,
+  TrendingUp,
   Loader2,
   ChevronLeft,
+  User,
   Store,
   Heart,
   LayoutGrid,
   List,
   Star
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { RestaurantSearch } from "@/components/RestaurantSearch";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
-import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 
 interface Restaurant {
   id: string;
@@ -37,13 +39,12 @@ const Meals = () => {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
   const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
-  const { isFeatured } = useFeaturedRestaurants();
 
   // Fetch restaurants
   useEffect(() => {
     const fetchRestaurants = async () => {
       try {
-        // Fetch approved restaurants with meal counts
+        // Fetch approved restaurants
         const { data: restaurantsData, error: restaurantsError } = await supabase
           .from("restaurants")
           .select(`
@@ -52,13 +53,28 @@ const Meals = () => {
             description,
             logo_url,
             rating,
-            total_orders,
-            meals!inner (id)
+            total_orders
           `)
           .eq("approval_status", "approved")
           .eq("is_active", true);
 
         if (restaurantsError) throw restaurantsError;
+
+        // Get meal counts separately
+        const restaurantIds = (restaurantsData || []).map((r: any) => r.id);
+        let mealCounts: Record<string, number> = {};
+        
+        if (restaurantIds.length > 0) {
+          const { data: mealsData } = await supabase
+            .from("meals")
+            .select("restaurant_id")
+            .in("restaurant_id", restaurantIds);
+          
+          mealCounts = (mealsData || []).reduce((acc: Record<string, number>, meal: any) => {
+            acc[meal.restaurant_id] = (acc[meal.restaurant_id] || 0) + 1;
+            return acc;
+          }, {});
+        }
 
         // Transform data with meal counts
         const transformedRestaurants: Restaurant[] = (restaurantsData || []).map((restaurant: any) => ({
@@ -68,7 +84,7 @@ const Meals = () => {
           logo_url: restaurant.logo_url,
           rating: parseFloat(restaurant.rating) || 0,
           total_orders: restaurant.total_orders || 0,
-          meal_count: restaurant.meals?.length || 0,
+          meal_count: mealCounts[restaurant.id] || 0,
         }));
 
         // Sort by rating
@@ -182,7 +198,7 @@ const Meals = () => {
           </div>
         </div>
 
-        <div className={`animate-fade-in stagger-1 ${viewMode === "gallery" ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "grid gap-4"}`}>
+        <div className={`animate-fade-in stagger-1 ${viewMode === "gallery" ? "grid grid-cols-2 gap-4" : "grid gap-4"}`}>
           {loading ? (
             <div className={`flex items-center justify-center py-20 ${viewMode === "gallery" ? "col-span-2" : ""}`}>
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -273,14 +289,39 @@ const Meals = () => {
                 restaurant={restaurant}
                 isFavorite={isFavorite(restaurant.id)}
                 onToggleFavorite={toggleFavorite}
-                isFeatured={isFeatured(restaurant.id)}
               />
             ))
           )}
         </div>
       </main>
 
-      <CustomerNavigation />
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-around items-center h-16">
+            {[
+              { icon: Salad, label: "Home", active: false, to: "/dashboard" },
+              { icon: Utensils, label: "Restaurants", active: true, to: "/meals" },
+              { icon: Calendar, label: "Schedule", active: false, to: "/schedule" },
+              { icon: TrendingUp, label: "Progress", active: false, to: "/progress" },
+              { icon: User, label: "Profile", active: false, to: "/profile" },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                to={item.to}
+                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors ${
+                  item.active 
+                    ? "text-primary" 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <item.icon className={`w-5 h-5 ${item.active ? "fill-primary/20" : ""}`} />
+                <span className="text-xs font-medium">{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </nav>
     </div>
   );
 };

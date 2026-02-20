@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ interface BlockedIP {
 
 interface UserIPLog {
   id: string;
+  user_id: string;
   ip_address: string;
   country_code: string | null;
   country_name: string | null;
@@ -27,10 +29,6 @@ interface UserIPLog {
   action: string;
   user_agent: string | null;
   created_at: string;
-  user?: {
-    full_name: string | null;
-    email: string;
-  };
 }
 
 export default function AdminIPManagement() {
@@ -55,26 +53,39 @@ export default function AdminIPManagement() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (blockedError) throw blockedError;
-      setBlockedIPs(blockedData || []);
+      if (blockedError) {
+        console.error("Error fetching blocked IPs:", blockedError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch blocked IPs: " + blockedError.message,
+          variant: "destructive",
+        });
+      } else {
+        setBlockedIPs(blockedData || []);
+      }
 
-      // Fetch user IP logs with user info
+      // Fetch user IP logs
       const { data: logData, error: logError } = await supabase
         .from("user_ip_logs")
-        .select(`
-          *,
-          user:users(full_name, email)
-        `)
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (logError) throw logError;
-      setUserIPLogs(logData || []);
-    } catch (error) {
+      if (logError) {
+        console.error("Error fetching IP logs:", logError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch IP logs: " + logError.message,
+          variant: "destructive",
+        });
+      } else {
+        setUserIPLogs(logData || []);
+      }
+    } catch (error: any) {
       console.error("Error fetching data:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch IP data",
+        description: "Failed to fetch IP data: " + error.message,
         variant: "destructive",
       });
     } finally {
@@ -110,11 +121,11 @@ export default function AdminIPManagement() {
       setNewIP("");
       setReason("");
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error blocking IP:", error);
       toast({
         title: "Error",
-        description: "Failed to block IP address",
+        description: "Failed to block IP address: " + error.message,
         variant: "destructive",
       });
     }
@@ -135,17 +146,18 @@ export default function AdminIPManagement() {
       });
 
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error unblocking IP:", error);
       toast({
         title: "Error",
-        description: "Failed to unblock IP address",
+        description: "Failed to unblock IP address: " + error.message,
         variant: "destructive",
       });
     }
   };
 
   return (
+    <AdminLayout title="IP Management" subtitle="Manage blocked IP addresses and view user IP logs">
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">IP Management</h1>
@@ -287,7 +299,7 @@ export default function AdminIPManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
+                    <TableHead>User ID</TableHead>
                     <TableHead>IP Address</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Action</TableHead>
@@ -298,13 +310,8 @@ export default function AdminIPManagement() {
                   {userIPLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">
-                            {log.user?.full_name || "Unknown User"}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {log.user?.email || "No email"}
-                          </div>
+                        <div className="font-mono text-xs">
+                          {log.user_id.substring(0, 8)}...
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
@@ -333,5 +340,6 @@ export default function AdminIPManagement() {
         </CardContent>
       </Card>
     </div>
+    </AdminLayout>
   );
 }

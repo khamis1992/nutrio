@@ -141,8 +141,8 @@ export default function DriverDashboard() {
         .filter((d: any) => d.meal_schedule?.user_id)
         .map((d: any) => d.meal_schedule.user_id);
       
-      let profilesMap: Record<string, { full_name: string }> = {};
-      let addressesMap: Record<string, { phone: string | null }> = {};
+      const profilesMap: Record<string, { full_name: string }> = {};
+      const addressesMap: Record<string, { phone: string | null }> = {};
       
       if (userIds.length > 0) {
         const uniqueUserIds = [...new Set(userIds)];
@@ -227,7 +227,7 @@ export default function DriverDashboard() {
         const d = data as any;
         
         // Fetch customer info if meal_schedule exists
-        let customerInfo = { name: "Customer", phone: null as string | null };
+        const customerInfo = { name: "Customer", phone: null as string | null };
         if (d.meal_schedule?.user_id) {
           const [{ data: profile }, { data: address }] = await Promise.all([
             supabase

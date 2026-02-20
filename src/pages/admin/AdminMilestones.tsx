@@ -347,7 +347,9 @@ export default function AdminMilestones() {
                         <div>
                           <p className="font-medium">{milestone.name}</p>
                           {milestone.description && (
-                            <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {milestone.description.replace(/\$/g, "QAR ")}
+                            </p>
                           )}
                         </div>
                       </TableCell>
@@ -429,7 +431,7 @@ export default function AdminMilestones() {
               <Label htmlFor="description">Description (Optional)</Label>
               <Textarea
                 id="description"
-                placeholder="e.g., Earn $25 bonus for reaching 10 referrals"
+                placeholder="e.g., Earn QAR 25 bonus for reaching 10 referrals"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="min-h-[100px] sm:min-h-[120px]"
@@ -451,7 +453,7 @@ export default function AdminMilestones() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="bonus_amount">Bonus Amount ($)</Label>
+                <Label htmlFor="bonus_amount">Bonus Amount (QAR)</Label>
                 <Input
                   id="bonus_amount"
                   type="number"

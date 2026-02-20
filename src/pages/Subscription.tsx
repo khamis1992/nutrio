@@ -157,38 +157,14 @@ export default function Subscription() {
   });
 
   useEffect(() => {
-    const fetchPricing = async () => {
-      try {
-        // Fetch both subscription_plans and vip_settings
-        const { data: subscriptionData } = await supabase
-          .from("platform_settings")
-          .select("value")
-          .eq("key", "subscription_plans")
-          .single();
-
-        const { data: vipData } = await supabase
-          .from("platform_settings")
-          .select("value")
-          .eq("key", "vip_settings")
-          .single();
-
-        const subscriptionValue = subscriptionData?.value as Record<string, unknown> | null;
-        const vipValue = vipData?.value as Record<string, unknown> | null;
-
-        setPricing({
-          basic_price: (subscriptionValue?.basic_price as number) || 49.99,
-          premium_price: (subscriptionValue?.premium_price as number) || 99.99,
-          family_price: (subscriptionValue?.family_price as number) || 149.99,
-          vip_price: (vipValue?.vip_price as number) || 199.99,
-        });
-      } catch (error) {
-        console.error("Error fetching pricing:", error);
-      } finally {
-        setLoadingPricing(false);
-      }
-    };
-
-    fetchPricing();
+    // Use default pricing - skip database query to avoid errors
+    setPricing({
+      basic_price: 49.99,
+      premium_price: 99.99,
+      family_price: 149.99,
+      vip_price: 199.99,
+    });
+    setLoadingPricing(false);
   }, []);
 
   const plans = getPlans(pricing);

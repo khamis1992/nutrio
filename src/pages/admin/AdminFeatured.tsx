@@ -13,12 +13,30 @@ import {
   Calendar,
   CheckCircle,
   XCircle,
-  Clock
+  Plus,
+  Search
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/currency";
-import { format } from "date-fns";
+import { format, addDays, addMonths } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface FeaturedListing {
   id: string;
@@ -39,6 +57,11 @@ interface Stats {
   thisMonthRevenue: number;
 }
 
+interface Restaurant {
+  id: string;
+  name: string;
+}
+
 export default function AdminFeatured() {
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState<FeaturedListing[]>([]);
@@ -48,10 +71,50 @@ export default function AdminFeatured() {
     totalListings: 0,
     thisMonthRevenue: 0,
   });
+  
+  // Add listing dialog state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [filteredRestaurants, setFilteredRestaurants] = useState<Restaurant[]>([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState("");
+  const [selectedPackage, setSelectedPackage] = useState("weekly");
+  const [customPrice, setCustomPrice] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [restaurantSearch, setRestaurantSearch] = useState("");
 
   useEffect(() => {
     fetchData();
+    fetchRestaurants();
   }, []);
+  
+  const fetchRestaurants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("id, name")
+        .eq("approval_status", "approved")
+        .order("name");
+      
+      if (error) throw error;
+      setRestaurants(data || []);
+      setFilteredRestaurants(data || []);
+    } catch (err) {
+      console.error("Error fetching restaurants:", err);
+    }
+  };
+
+  // Filter restaurants based on search
+  useEffect(() => {
+    if (!restaurantSearch.trim()) {
+      setFilteredRestaurants(restaurants);
+    } else {
+      const query = restaurantSearch.toLowerCase();
+      const filtered = restaurants.filter((r) =>
+        r.name.toLowerCase().includes(query)
+      );
+      setFilteredRestaurants(filtered);
+    }
+  }, [restaurantSearch, restaurants]);
 
   const fetchData = async () => {
     try {
@@ -134,6 +197,58 @@ export default function AdminFeatured() {
       toast.error("Failed to update listing status");
     }
   };
+  
+  const handleAddListing = async () => {
+    if (!selectedRestaurant || !selectedPackage) {
+      toast.error("Please select a restaurant and package type");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Calculate price based on package
+      const prices: Record<string, number> = {
+        weekly: 49,
+        biweekly: 89,
+        monthly: 149
+      };
+      const price = customPrice ? parseFloat(customPrice) : prices[selectedPackage];
+      
+      // Calculate dates
+      const startsAt = new Date();
+      const endsAt = selectedPackage === "weekly" 
+        ? addDays(startsAt, 7)
+        : selectedPackage === "biweekly"
+        ? addDays(startsAt, 14)
+        : addMonths(startsAt, 1);
+      
+      const { error } = await supabase
+        .from("featured_listings")
+        .insert({
+          restaurant_id: selectedRestaurant,
+          package_type: selectedPackage,
+          price_paid: price,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          status: "active"
+        });
+      
+      if (error) throw error;
+      
+      toast.success("Featured listing created successfully");
+      setShowAddDialog(false);
+      setSelectedRestaurant("");
+      setSelectedPackage("weekly");
+      setCustomPrice("");
+      fetchData();
+    } catch (err) {
+      console.error("Error creating listing:", err);
+      toast.error("Failed to create featured listing");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const getStatusBadge = (listing: FeaturedListing) => {
     const now = new Date();
@@ -164,14 +279,20 @@ export default function AdminFeatured() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            Featured Listings
-          </h1>
-          <p className="text-muted-foreground">
-            Manage restaurant featured listings and view revenue
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-primary" />
+              Featured Listings
+            </h1>
+            <p className="text-muted-foreground">
+              Manage restaurant featured listings and view revenue
+            </p>
+          </div>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Featured Listing
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -319,6 +440,88 @@ export default function AdminFeatured() {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Add Featured Listing Dialog */}
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Add Featured Listing</DialogTitle>
+              <DialogDescription>
+                Create a new featured listing for a restaurant
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Restaurant</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search restaurants..."
+                    value={restaurantSearch}
+                    onChange={(e) => setRestaurantSearch(e.target.value)}
+                    className="pl-10 mb-2"
+                  />
+                </div>
+                <Select value={selectedRestaurant} onValueChange={setSelectedRestaurant}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={filteredRestaurants.length === 0 ? "No restaurants found" : `Select a restaurant (${filteredRestaurants.length} available)`} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {filteredRestaurants.length === 0 ? (
+                      <SelectItem value="" disabled>
+                        No restaurants match your search
+                      </SelectItem>
+                    ) : (
+                      filteredRestaurants.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Package Type</Label>
+                <Select value={selectedPackage} onValueChange={setSelectedPackage}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select package" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">Weekly (QAR 49)</SelectItem>
+                    <SelectItem value="biweekly">Bi-Weekly (QAR 89)</SelectItem>
+                    <SelectItem value="monthly">Monthly (QAR 149)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Custom Price (optional)</Label>
+                <input
+                  type="number"
+                  placeholder="Leave empty for default price"
+                  value={customPrice}
+                  onChange={(e) => setCustomPrice(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddListing} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Add Listing
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

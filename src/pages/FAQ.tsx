@@ -33,7 +33,7 @@ const FAQ = () => {
       questions: [
         {
           question: "What subscription plans do you offer?",
-          answer: "We offer two flexible plans: Weekly ($29/week) for those who want to try our service, and Monthly ($89/month) which offers better value with a 23% savings. Both plans include access to all partner restaurants and personalized meal planning."
+          answer: "We offer two flexible plans: Weekly (QAR 29/week) for those who want to try our service, and Monthly (QAR 89/month) which offers better value with a 23% savings. Both plans include access to all partner restaurants and personalized meal planning."
         },
         {
           question: "Can I cancel my subscription anytime?",

@@ -26,7 +26,7 @@ interface Referral {
   referred_name?: string;
 }
 
-const REWARD_PER_REFERRAL = 10; // $10 credit per successful referral
+const REWARD_PER_REFERRAL = 10; // QAR 10 credit per successful referral
 
 const Referral = () => {
   const navigate = useNavigate();

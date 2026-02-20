@@ -12,14 +12,11 @@ import {
   Beef,
   Clock,
   Utensils,
-  Loader2,
-  Trash2,
-  Home,
   UtensilsCrossed,
-  CalendarDays,
-  TrendingUp,
-  User
+  Loader2,
+  Trash2
 } from "lucide-react";
+import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -76,64 +73,65 @@ const Favorites = () => {
     setLoading(true);
     
     try {
-      // Fetch favorite restaurants
+      // Fetch favorite restaurant IDs
       const { data: favData, error: favError } = await supabase
         .from("user_favorite_restaurants")
-        .select(`
-          restaurant:restaurants (
-            id,
-            name,
-            description,
-            logo_url,
-            rating,
-            total_orders,
-            meals (id)
-          )
-        `)
+        .select("restaurant_id")
         .eq("user_id", user.id);
 
       if (favError) throw favError;
 
-      const transformedRestaurants: FavoriteRestaurant[] = (favData || [])
-        .filter((f: any) => f.restaurant)
-        .map((f: any) => ({
-          id: f.restaurant.id,
-          name: f.restaurant.name,
-          description: f.restaurant.description,
-          logo_url: f.restaurant.logo_url,
-          rating: parseFloat(f.restaurant.rating) || 0,
-          total_orders: f.restaurant.total_orders || 0,
-          meal_count: f.restaurant.meals?.length || 0,
-        }));
-
-      setRestaurants(transformedRestaurants);
-
-      // For now, we'll show meals from favorite restaurants
-      // In a full implementation, you might have a separate meal favorites table
-      const restaurantIds = transformedRestaurants.map(r => r.id);
+      const restaurantIds = (favData || []).map((f: any) => f.restaurant_id);
       
       if (restaurantIds.length > 0) {
+        // Fetch restaurant details separately
+        const { data: restaurantsData, error: restaurantsError } = await supabase
+          .from("restaurants")
+          .select("id, name, description, logo_url, rating, total_orders")
+          .in("id", restaurantIds);
+
+        if (restaurantsError) throw restaurantsError;
+
+        // Get meal counts for each restaurant
+        const { data: mealsCountData } = await supabase
+          .from("meals")
+          .select("restaurant_id")
+          .in("restaurant_id", restaurantIds);
+
+        const mealCounts: Record<string, number> = {};
+        (mealsCountData || []).forEach((meal: any) => {
+          mealCounts[meal.restaurant_id] = (mealCounts[meal.restaurant_id] || 0) + 1;
+        });
+
+        const transformedRestaurants: FavoriteRestaurant[] = (restaurantsData || [])
+          .map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            logo_url: r.logo_url,
+            rating: parseFloat(r.rating) || 0,
+            total_orders: r.total_orders || 0,
+            meal_count: mealCounts[r.id] || 0,
+          }));
+
+        setRestaurants(transformedRestaurants);
+
+        // Fetch meals from favorite restaurants
         const { data: mealsData, error: mealsError } = await supabase
           .from("meals")
-          .select(`
-            id,
-            name,
-            image_url,
-            calories,
-            protein_g,
-            rating,
-            prep_time_minutes,
-            restaurants (name),
-            meal_diet_tags (
-              diet_tags (name)
-            )
-          `)
+          .select("id, name, image_url, calories, protein_g, rating, prep_time_minutes, restaurant_id")
           .in("restaurant_id", restaurantIds)
           .eq("is_available", true)
           .order("rating", { ascending: false })
           .limit(10);
 
         if (mealsError) throw mealsError;
+
+        // Get restaurant names for meals
+        const restaurantMap: Record<string, string> = {};
+        (restaurantsData || []).forEach((r: any) => {
+          restaurantMap[r.id] = r.name;
+        });
 
         const transformedMeals: FavoriteMeal[] = (mealsData || []).map((m: any) => ({
           id: m.id,
@@ -143,12 +141,13 @@ const Favorites = () => {
           protein_g: parseFloat(m.protein_g),
           rating: parseFloat(m.rating) || 0,
           prep_time_minutes: m.prep_time_minutes || 15,
-          restaurant_name: m.restaurants?.name || "Unknown",
-          diet_tags: m.meal_diet_tags?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
+          restaurant_name: restaurantMap[m.restaurant_id] || "Unknown",
+          diet_tags: [], // Simplified - diet tags would need separate fetch
         }));
 
         setMeals(transformedMeals);
       } else {
+        setRestaurants([]);
         setMeals([]);
       }
     } catch (err) {
@@ -310,7 +309,7 @@ const Favorites = () => {
                               <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                                 <span className="flex items-center gap-1">
                                   <Flame className="w-3 h-3" />
-                                  {meal.calories} kcal
+                                  {meal.calories} cal
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Beef className="w-3 h-3" />
@@ -351,51 +350,7 @@ const Favorites = () => {
         </Tabs>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-        <div className="flex items-center justify-around py-2">
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/dashboard")}
-          >
-            <Home className="h-5 w-5" />
-            <span className="text-xs">Home</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/meals")}
-          >
-            <UtensilsCrossed className="h-5 w-5" />
-            <span className="text-xs">Meals</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/schedule")}
-          >
-            <CalendarDays className="h-5 w-5" />
-            <span className="text-xs">Schedule</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/progress")}
-          >
-            <TrendingUp className="h-5 w-5" />
-            <span className="text-xs">Progress</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="flex flex-col items-center gap-1 h-auto py-2"
-            onClick={() => navigate("/profile")}
-          >
-            <User className="h-5 w-5" />
-            <span className="text-xs">Profile</span>
-          </Button>
-        </div>
-      </div>
+      <CustomerNavigation />
     </div>
   );
 };

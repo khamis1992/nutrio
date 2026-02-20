@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { AdaptiveGoalsSettings } from "@/components/AdaptiveGoalsSettings";
 import { supabase } from "@/integrations/supabase/client";
 
 interface NotificationPreferences {
@@ -371,6 +372,9 @@ const Settings = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Adaptive Goals Settings */}
+        <AdaptiveGoalsSettings />
 
         {/* Notification Preferences */}
         <Card>

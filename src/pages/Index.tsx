@@ -238,7 +238,7 @@ const Index = () => {
                     </div>
                     <div>
                       <p className="text-sm font-semibold">Daily Goal</p>
-                      <p className="text-xs text-muted-foreground">1,850 kcal</p>
+                      <p className="text-xs text-muted-foreground">1,850 cal</p>
                     </div>
                   </div>
                 </CardContent>

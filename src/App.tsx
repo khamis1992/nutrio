@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -77,7 +77,6 @@ const AdminAffiliateApplications = lazy(() => import("./pages/admin/AdminAffilia
 const AdminMilestones = lazy(() => import("./pages/admin/AdminMilestones"));
 const AdminDietTags = lazy(() => import("./pages/admin/AdminDietTags"));
 const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions"));
-const AdminAnnouncements = lazy(() => import("./pages/admin/AdminAnnouncements"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications"));
 const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
@@ -520,11 +519,7 @@ const App = () => (
             />
             <Route 
               path="/admin/announcements" 
-              element={
-                <ProtectedRoute>
-                  <AdminAnnouncements />
-                </ProtectedRoute>
-              } 
+              element={<Navigate to="/admin/notifications" replace />} 
             />
             <Route 
               path="/admin/support" 

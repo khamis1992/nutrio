@@ -190,7 +190,7 @@ const PartnerOrders = () => {
       // Get user info from auth
       const userIds = [...new Set((schedules || []).map((s: any) => s.user_id))];
       
-      let profilesMap: Record<string, any> = {};
+      const profilesMap: Record<string, any> = {};
       let addressesMap: Record<string, any> = {};
       
       if (userIds.length > 0) {
@@ -420,7 +420,7 @@ const PartnerOrders = () => {
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Flame className="h-3 w-3" />
-                    {order.meal?.calories || 0} kcal
+                    {order.meal?.calories || 0} cal
                   </span>
                   {order.addons.length > 0 && (
                     <span>+{order.addons.length} add-ons</span>

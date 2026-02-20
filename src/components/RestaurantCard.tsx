@@ -1,8 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Star, ChevronRight, Heart, Sparkles } from "lucide-react";
+import { Star, ChevronRight, Heart } from "lucide-react";
 
 interface Restaurant {
   id: string;
@@ -18,10 +17,9 @@ interface RestaurantCardProps {
   restaurant: Restaurant;
   isFavorite: boolean;
   onToggleFavorite: (id: string, name: string) => void;
-  isFeatured?: boolean;
 }
 
-export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, isFeatured = false }: RestaurantCardProps) {
+export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite }: RestaurantCardProps) {
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -30,13 +28,10 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, isFea
 
   return (
     <Link to={`/restaurants/${restaurant.id}`}>
-      <Card 
-        variant="interactive" 
-        className={isFeatured ? "border-primary/50 bg-gradient-to-r from-primary/5 to-transparent ring-1 ring-primary/20" : ""}
-      >
+      <Card variant="interactive">
         <CardContent className="p-4">
           <div className="flex gap-4">
-            <div className={`w-24 h-24 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0 shadow-md border ${isFeatured ? "border-primary/50" : "border-border/50"}`}>
+            <div className="w-24 h-24 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0 shadow-md border border-border/50">
               {restaurant.logo_url ? (
                 <img 
                   src={restaurant.logo_url} 
@@ -50,15 +45,7 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, isFea
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{restaurant.name}</h3>
-                    {isFeatured && (
-                      <Badge variant="default" className="bg-primary/90 text-primary-foreground text-xs shrink-0">
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Featured
-                      </Badge>
-                    )}
-                  </div>
+                  <h3 className="font-semibold truncate">{restaurant.name}</h3>
                   {restaurant.description && (
                     <p className="text-sm text-muted-foreground line-clamp-1">
                       {restaurant.description}
@@ -103,3 +90,5 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, isFea
     </Link>
   );
 }
+
+export default RestaurantCard;
