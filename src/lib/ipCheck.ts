@@ -1,5 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-
 export interface IPLocationResponse {
   allowed: boolean;
   blocked: boolean;
@@ -17,18 +15,15 @@ export interface IPLocationResponse {
  */
 export const checkIPLocation = async (): Promise<IPLocationResponse> => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
     const response = await fetch('https://loepcagitrijlfksawfm.supabase.co/functions/v1/check-ip-location', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token || ''}`
+        'Content-Type': 'application/json'
       }
     });
 
     if (!response.ok) {
-      throw new Error('Failed to check IP location');
+      throw new Error(`Failed to check IP location: ${response.status} ${response.statusText}`);
     }
 
     const data: IPLocationResponse = await response.json();
@@ -52,13 +47,10 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
  */
 export const logUserIP = async (action: 'signup' | 'login', userId?: string) => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
     await fetch('https://loepcagitrijlfksawfm.supabase.co/functions/v1/log-user-ip', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token || ''}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ action, userId })
     });
