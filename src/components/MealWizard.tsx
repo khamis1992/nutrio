@@ -121,6 +121,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   };
 
   const fetchRestaurantMeals = async (restaurantId: string) => {
+    console.log("Fetching meals for restaurant:", restaurantId);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -141,7 +142,14 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
         .eq("available", true)
         .order("name", { ascending: true });
 
-      if (error) throw error;
+      console.log("Meals query result:", { data, error });
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      
+      console.log(`Found ${data?.length || 0} meals`);
       setMeals(data || []);
     } catch (err) {
       console.error("Error fetching meals:", err);
