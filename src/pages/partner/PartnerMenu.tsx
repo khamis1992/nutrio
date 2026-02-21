@@ -840,10 +840,11 @@ const PartnerMenu = () => {
           <DialogHeader>
             <DialogTitle>Manage Add-ons: {selectedMealForAddons?.name}</DialogTitle>
           </DialogHeader>
-          {selectedMealForAddons && (
+          {selectedMealForAddons && restaurantId && (
             <MealAddonsManager
               mealId={selectedMealForAddons.id}
               mealName={selectedMealForAddons.name}
+              restaurantId={restaurantId}
               open={addonsDialogOpen}
               onOpenChange={setAddonsDialogOpen}
             />
