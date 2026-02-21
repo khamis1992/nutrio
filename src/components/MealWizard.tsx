@@ -72,6 +72,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   const fetchMeals = async () => {
     setLoading(true);
     try {
+      console.log("Fetching meals...");
       const { data, error } = await supabase
         .from("meals")
         .select(`
@@ -89,6 +90,9 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
         .eq("available", true)
         .order("name", { ascending: true });
 
+      console.log("Meals data:", data);
+      console.log("Meals error:", error);
+
       if (error) throw error;
 
       const processedMeals = (data || []).map((meal: any) => ({
@@ -97,6 +101,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
         diet_tags: [],
       }));
 
+      console.log("Processed meals:", processedMeals);
       setMeals(processedMeals);
     } catch (err) {
       console.error("Error fetching meals:", err);
