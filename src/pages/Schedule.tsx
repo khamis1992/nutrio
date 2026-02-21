@@ -322,6 +322,8 @@ const Schedule = () => {
                 today.setHours(0, 0, 0, 0);
                 setSelectedDate(today);
               }
+              
+              // Show wizard (will use selectedDate state)
               setShowWizard(true);
             }}
           >
@@ -608,10 +610,10 @@ const Schedule = () => {
 
       {/* Meal Wizard */}
       <AnimatePresence>
-        {showWizard && user && selectedDate && (
+        {showWizard && user && (
           <MealWizard
             userId={user.id}
-            selectedDate={selectedDate}
+            selectedDate={selectedDate || new Date()}
             onComplete={() => {
               setShowWizard(false);
               fetchSchedules();
