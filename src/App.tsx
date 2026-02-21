@@ -60,6 +60,7 @@ const PartnerReviews = lazy(() => import("./pages/partner/PartnerReviews"));
 const PartnerPayouts = lazy(() => import("./pages/partner/PartnerPayouts"));
 const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding"));
 const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
+const PartnerAddons = lazy(() => import("./pages/partner/PartnerAddons"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -333,7 +334,15 @@ const App = () => (
               } 
             />
             <Route 
-              path="/partner/orders" 
+              path="/partner/addons" 
+              element={
+                <ProtectedRoute>
+                  <PartnerAddons />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/orders"
               element={
                 <ProtectedRoute>
                   <PartnerOrders />
