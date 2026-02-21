@@ -51,6 +51,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useUserOrders } from "@/hooks/useUserOrders";
+import { OrderHistoryCard } from "@/components/admin/OrderHistoryCard";
+import { OrderStatistics } from "@/components/admin/OrderStatistics";
 
 type UserRole = "user" | "admin" | "gym_owner" | "staff" | "restaurant" | "driver";
 type UserStatus = "active" | "blocked" | "suspended";
@@ -97,6 +100,7 @@ const AdminUsers = () => {
   const [sortField, setSortField] = useState<"created_at" | "last_sign_in_at" | "full_name">("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "orders">("overview");
 
   useEffect(() => {
     fetchData();
@@ -726,85 +730,153 @@ const AdminUsers = () => {
 
         {/* User Detail Sheet */}
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full sm:max-w-xl">
+          <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
             {selectedUser && (
-              <>
-                <SheetHeader className="pb-6 border-b">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden">
-                      {selectedUser.avatar_url ? (
-                        <img
-                          src={selectedUser.avatar_url}
-                          alt={selectedUser.full_name || ""}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-8 h-8 text-primary" />
-                      )}
-                    </div>
-                    <div>
-                      <SheetTitle className="text-xl">
-                        {selectedUser.full_name || "Unnamed User"}
-                      </SheetTitle>
-                      <SheetDescription className="text-muted-foreground">
-                        {selectedUser.email}
-                      </SheetDescription>
-                      <div className="flex gap-2 mt-2">
-                        {selectedUser.roles.map((role) => (
-                          <Badge
-                            key={role}
-                            variant="outline"
-                            className={`text-xs capitalize ${getRoleBadge(role)}`}
-                          >
-                            {role.replace("_", " ")}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+              <UserDetailSheet
+                user={selectedUser}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
+    </AdminLayout>
+  );
+};
+
+// Separate component to handle user detail sheet with hooks
+const UserDetailSheet = ({ 
+  user, 
+  activeTab, 
+  setActiveTab 
+}: { 
+  user: UserData; 
+  activeTab: "overview" | "orders";
+  setActiveTab: (tab: "overview" | "orders") => void;
+}) => {
+  const { toast } = useToast();
+  const { 
+    orders, 
+    stats, 
+    loading: ordersLoading, 
+    filters, 
+    updateFilters, 
+    clearFilters 
+  } = useUserOrders(user.user_id);
+
+  return (
+    <>
+      <SheetHeader className="pb-4 border-b">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden">
+            {user.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={user.full_name || ""}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User className="w-8 h-8 text-primary" />
+            )}
+          </div>
+          <div>
+            <SheetTitle className="text-xl">
+              {user.full_name || "Unnamed User"}
+            </SheetTitle>
+            <SheetDescription className="text-muted-foreground">
+              {user.email}
+            </SheetDescription>
+            <div className="flex gap-2 mt-2">
+              {user.roles.map((role) => (
+                <Badge
+                  key={role}
+                  variant="outline"
+                  className={`text-xs capitalize ${getRoleBadge(role)}`}
+                >
+                  {role.replace("_", " ")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SheetHeader>
+
+      {/* Tabs */}
+      <div className="flex border-b mt-4">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "overview"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "orders"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Orders ({stats?.total_orders || 0})
+        </button>
+      </div>
+
+      <div className="mt-6 space-y-6 pb-20">
+        {activeTab === "orders" ? (
+          <>
+            <OrderStatistics stats={stats} />
+            <OrderHistoryCard
+              orders={orders}
+              stats={stats}
+              loading={ordersLoading}
+              filters={filters}
+              onFilterChange={updateFilters}
+              onClearFilters={clearFilters}
+            />
+          </>
+        ) : (
+          <>
+            {/* Account Info */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                  Account Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">User ID</p>
+                    <code className="text-sm font-mono">{user.user_id.substring(0, 16)}...</code>
                   </div>
-                </SheetHeader>
-
-                <SheetDescription className="sr-only">
-                  User details and management options for {selectedUser.full_name || "Unnamed User"}
-                </SheetDescription>
-
-                <div className="mt-6 space-y-6">
-                  {/* Account Info */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Account Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">User ID</p>
-                          <code className="text-sm font-mono">{selectedUser.user_id.substring(0, 16)}...</code>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Status</p>
-                          <Badge className={getStatusBadge(selectedUser.status)}>
-                            {selectedUser.status}
-                          </Badge>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Created</p>
-                          <p className="text-sm">
-                            {format(new Date(selectedUser.created_at), "MMM d, yyyy HH:mm")}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Last Sign In</p>
-                          <p className="text-sm">
-                            {selectedUser.last_sign_in_at
-                              ? format(new Date(selectedUser.last_sign_in_at), "MMM d, yyyy HH:mm")
-                              : "Never"}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <Badge className={getStatusBadge(user.status)}>
+                      {user.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Created</p>
+                    <p className="text-sm">
+                      {format(new Date(user.created_at), "MMM d, yyyy HH:mm")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Sign In</p>
+                    <p className="text-sm">
+                      {user.last_sign_in_at
+                        ? format(new Date(user.last_sign_in_at), "MMM d, yyyy HH:mm")
+                        : "Never"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
                   {/* IP Management */}
                   <Card>
