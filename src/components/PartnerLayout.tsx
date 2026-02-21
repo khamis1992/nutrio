@@ -45,7 +45,7 @@ export function PartnerLayout({ children, title = "Partner", subtitle }: Partner
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "partner")
+        .eq("role", "restaurant")
         .maybeSingle();
 
       const { data: restaurantData } = await supabase

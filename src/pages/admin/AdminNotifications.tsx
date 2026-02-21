@@ -233,8 +233,8 @@ export default function AdminNotifications() {
         const { data: partnerRoles } = await supabase
           .from("user_roles")
           .select("user_id")
-          .eq("role", "partner");
-        
+          .eq("role", "restaurant");
+
         if (partnerRoles && partnerRoles.length > 0) {
           const notifications = partnerRoles.map((r) => ({
             user_id: r.user_id,

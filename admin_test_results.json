@@ -1,0 +1,53 @@
+{
+  "login_success": true,
+  "admin_access": true,
+  "stats": {},
+  "navigation": [
+    {
+      "href": "/admin",
+      "text": "Dashboard"
+    },
+    {
+      "href": "/admin/restaurants",
+      "text": "Restaurants"
+    },
+    {
+      "href": "/admin/featured",
+      "text": "Featured"
+    },
+    {
+      "href": "/admin/users",
+      "text": "Users"
+    },
+    {
+      "href": "/admin/affiliate-applications",
+      "text": "Affiliate Apps"
+    },
+    {
+      "href": "/admin/orders",
+      "text": "Orders"
+    },
+    {
+      "href": "/admin/subscriptions",
+      "text": "Subscriptions"
+    },
+    {
+      "href": "/admin/payouts",
+      "text": "Payouts"
+    },
+    {
+      "href": "/admin/affiliate-payouts",
+      "text": "Affiliate Payouts"
+    },
+    {
+      "href": "/admin/milestones",
+      "text": "Milestones"
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "test_01_start.png",
+    "test_02_after_login.png",
+    "test_04_final.png"
+  ]
+}

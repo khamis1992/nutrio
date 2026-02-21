@@ -356,13 +356,13 @@ const PartnerOnboarding = () => {
         .from("user_roles")
         .select("id")
         .eq("user_id", user.id)
-        .eq("role", "partner")
+        .eq("role", "restaurant")
         .maybeSingle();
 
       if (!existingRole) {
         await supabase.from("user_roles").insert({
           user_id: user.id,
-          role: "partner",
+          role: "restaurant",
         });
       }
 

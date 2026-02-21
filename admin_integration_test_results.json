@@ -1,0 +1,117 @@
+{
+  "page_load": false,
+  "authentication": "login_required",
+  "dashboard_elements": [
+    "users",
+    "orders",
+    "settings",
+    "content"
+  ],
+  "navigation_portals": [],
+  "database_connection": true,
+  "api_calls": [
+    {
+      "url": "http://localhost:8080/admin/",
+      "method": "GET",
+      "resource_type": "document"
+    },
+    {
+      "url": "http://localhost:8080/admin/",
+      "status": 200,
+      "type": "response"
+    },
+    {
+      "url": "http://localhost:8080/@vite/client",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/main.tsx?t=1771454119979",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/main.tsx?t=1771454119979",
+      "status": 200,
+      "type": "response"
+    },
+    {
+      "url": "http://localhost:8080/@vite/client",
+      "status": 200,
+      "type": "response"
+    },
+    {
+      "url": "http://localhost:8080/@react-refresh",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=bb276a5c",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/node_modules/.vite/deps/react.js?v=bb276a5c",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=bb276a5c",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/App.tsx?t=1771454119979",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/index.css?t=1771454119979",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/lib/capacitor.ts",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/lib/sentry.ts",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/lib/analytics.ts",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/src/components/SentryErrorBoundary.tsx",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/node_modules/vite/dist/client/env.mjs",
+      "method": "GET",
+      "resource_type": "script"
+    },
+    {
+      "url": "http://localhost:8080/@react-refresh",
+      "status": 200,
+      "type": "response"
+    },
+    {
+      "url": "http://localhost:8080/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=bb276a5c",
+      "status": 200,
+      "type": "response"
+    },
+    {
+      "url": "http://localhost:8080/node_modules/.vite/deps/chunk-QCHXOAYK.js?v=bb276a5c",
+      "method": "GET",
+      "resource_type": "script"
+    }
+  ],
+  "errors": [
+    "'charmap' codec can't encode characters in position 16-17: character maps to <undefined>"
+  ]
+}
