@@ -168,7 +168,7 @@ const AdminUsers = () => {
           id: profile.id,
           user_id: profile.user_id,
           full_name: profile.full_name,
-          email: "",
+          email: profile.email || "",
           avatar_url: profile.avatar_url,
           created_at: profile.created_at,
           last_sign_in_at: null,
