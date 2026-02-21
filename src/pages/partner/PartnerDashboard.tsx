@@ -34,6 +34,7 @@ interface Restaurant {
   rating: number;
   total_orders: number;
   is_active: boolean;
+  payout_rate: number; // Partner earns this amount per meal prepared
 }
 
 interface ScheduledMeal {
@@ -44,7 +45,7 @@ interface ScheduledMeal {
   created_at: string;
   meal: {
     name: string;
-    price: number;
+    // price: REMOVED - Meals are included in subscription
   };
 }
 
@@ -130,17 +131,16 @@ const PartnerDashboard = () => {
 
       setRestaurant(restaurantData);
 
-      // Fetch meals count
+      // Get payout rate from restaurant
+      const payoutRate = restaurantData.payout_rate || 0;
+
+      // Fetch meals count (price removed - meals are subscription-based)
       const { data: mealsData, count: mealsCount } = await supabase
         .from("meals")
-        .select("id, price", { count: "exact" })
+        .select("id", { count: "exact" })
         .eq("restaurant_id", restaurantData.id);
 
       const mealIds = mealsData?.map((m) => m.id) || [];
-      const mealPrices = mealsData?.reduce((acc, m) => {
-        acc[m.id] = m.price;
-        return acc;
-      }, {} as Record<string, number>) || {};
 
       if (mealIds.length === 0) {
         setStats({
@@ -167,8 +167,7 @@ const PartnerDashboard = () => {
           is_completed,
           created_at,
           meals:meal_id (
-            name,
-            price
+            name
           )
         `)
         .in("meal_id", mealIds)
@@ -218,29 +217,22 @@ const PartnerDashboard = () => {
       const todayOrders = allSchedules?.filter(
         (s) => s.scheduled_date === todayStr
       ).length || 0;
-      const totalRevenue = allSchedules?.reduce(
-        (sum, s) => sum + (mealPrices[s.meal_id] || 0),
-        0
-      ) || 0;
+      
+      // Revenue calculation: meals_prepared × payout_rate (subscription model)
+      const totalRevenue = (allSchedules?.length || 0) * payoutRate;
 
       // This week's revenue and orders
       const thisWeekSchedules = allSchedules?.filter(
         (s) => s.scheduled_date >= thisMondayStr && s.scheduled_date <= todayStr
       ) || [];
-      const weeklyRevenue = thisWeekSchedules.reduce(
-        (sum, s) => sum + (mealPrices[s.meal_id] || 0),
-        0
-      );
+      const weeklyRevenue = thisWeekSchedules.length * payoutRate;
       const weeklyOrders = thisWeekSchedules.length;
 
       // Last week's revenue
       const lastWeekSchedules = allSchedules?.filter(
         (s) => s.scheduled_date >= lastMondayStr && s.scheduled_date <= lastSundayStr
       ) || [];
-      const lastWeekRevenue = lastWeekSchedules.reduce(
-        (sum, s) => sum + (mealPrices[s.meal_id] || 0),
-        0
-      );
+      const lastWeekRevenue = lastWeekSchedules.length * payoutRate;
 
       setStats({
         totalMeals: mealsCount || 0,

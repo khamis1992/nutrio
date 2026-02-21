@@ -46,13 +46,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { MealAddonsManager } from "@/components/MealAddonsManager";
-import { formatCurrency } from "@/lib/currency";
+// import { formatCurrency } from "@/lib/currency"; // REMOVED: Meals don't have prices in subscription model
 
 interface Meal {
   id: string;
   name: string;
   description: string | null;
-  price: number;
+  price: number | null;  // DEPRECATED: Meals are included in subscription
   calories: number;
   protein_g: number;
   carbs_g: number;
@@ -105,7 +105,7 @@ interface AIAnalysisResponse {
 const mealSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   description: z.string().max(500).optional(),
-  price: z.number().min(0.01, "Price must be greater than 0"),
+  // price: REMOVED - Meals are included in subscription, restaurants don't set prices
   calories: z.number().min(1, "Calories required"),
   protein_g: z.number().min(0),
   carbs_g: z.number().min(0),
@@ -122,7 +122,7 @@ type MealFormData = z.infer<typeof mealSchema>;
 const emptyMeal: MealFormData = {
   name: "",
   description: "",
-  price: 0,
+  // price: REMOVED - Meals are included in subscription
   calories: 0,
   protein_g: 0,
   carbs_g: 0,
@@ -229,7 +229,7 @@ const PartnerMenu = () => {
     setFormData({
       name: meal.name,
       description: meal.description || "",
-      price: meal.price,
+      // price: REMOVED - Meals are included in subscription
       calories: meal.calories,
       protein_g: meal.protein_g,
       carbs_g: meal.carbs_g,
@@ -304,7 +304,7 @@ const PartnerMenu = () => {
           ...prev,
           name: details.name || prev.name,
           description: details.description || prev.description,
-          price: details.suggested_price || prev.price,
+          // price: REMOVED - Meals are included in subscription
           calories: details.calories || prev.calories,
           protein_g: details.protein_g || prev.protein_g,
           carbs_g: details.carbs_g || prev.carbs_g,
@@ -370,7 +370,7 @@ const PartnerMenu = () => {
         restaurant_id: restaurantId,
         name: formData.name,
         description: formData.description || null,
-        price: formData.price,
+        price: null, // DEPRECATED: Meals are included in subscription
         calories: formData.calories,
         protein_g: formData.protein_g,
         carbs_g: formData.carbs_g,
@@ -548,9 +548,7 @@ const PartnerMenu = () => {
                         {meal.description || "No description"}
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-sm">
-                        <span className="text-sm">
-                          {formatCurrency(meal.price)}
-                        </span>
+                        {/* Price REMOVED: Meals are included in subscription */}
                         <span className="flex items-center gap-1">
                           <Flame className="h-3 w-3" />
                           {meal.calories} cal
@@ -662,45 +660,25 @@ const PartnerMenu = () => {
               />
             </div>
 
-            {/* Price & Calories Row */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="price">
-                  Price (QAR) <span className="text-destructive">*</span>
-                </Label>
+            {/* Calories Row - Price REMOVED: Meals are included in subscription */}
+            <div className="space-y-2">
+              <Label htmlFor="calories">
+                Calories <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <Flame className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="price"
+                  id="calories"
                   type="number"
-                  step="0.01"
                   min="0"
-                  value={formData.price || ""}
-                  onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
-                  className={formErrors.price ? "border-destructive" : ""}
+                  value={formData.calories || ""}
+                  onChange={(e) => handleInputChange("calories", parseInt(e.target.value) || 0)}
+                  className={`pl-9 ${formErrors.calories ? "border-destructive" : ""}`}
                 />
-                {formErrors.price && (
-                  <p className="text-sm text-destructive">{formErrors.price}</p>
-                )}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="calories">
-                  Calories <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <Flame className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="calories"
-                    type="number"
-                    min="0"
-                    value={formData.calories || ""}
-                    onChange={(e) => handleInputChange("calories", parseInt(e.target.value) || 0)}
-                    className={`pl-9 ${formErrors.calories ? "border-destructive" : ""}`}
-                  />
-                </div>
-                {formErrors.calories && (
-                  <p className="text-sm text-destructive">{formErrors.calories}</p>
-                )}
-              </div>
+              {formErrors.calories && (
+                <p className="text-sm text-destructive">{formErrors.calories}</p>
+              )}
             </div>
 
             {/* Macros Row */}
