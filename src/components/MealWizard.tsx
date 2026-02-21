@@ -293,7 +293,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
       </motion.div>
 
       {/* Content */}
-      <div className="p-4 pb-32">
+      <div className="h-[calc(100vh-200px)] overflow-y-auto p-4 pb-32">
         {/* Step Header */}
         <motion.div
           key={currentStep}
@@ -350,6 +350,14 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        ) : meals.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+              <ChefHat className="h-10 w-10 text-muted-foreground/50" />
+            </div>
+            <p className="text-muted-foreground">No meals available</p>
+            <p className="text-xs text-muted-foreground mt-1">Try refreshing the page</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
