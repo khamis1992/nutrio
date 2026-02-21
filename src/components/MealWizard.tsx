@@ -29,8 +29,10 @@ interface Meal {
   carbs_g: number;
   fat_g: number;
   image_url: string | null;
-  is_vip_exclusive: boolean;
-  diet_tags: string[];
+  available: boolean;
+  meal_type: string | null;
+  is_vip_exclusive?: boolean;
+  diet_tags?: string[];
 }
 
 interface MealWizardProps {
@@ -81,17 +83,18 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           carbs_g,
           fat_g,
           image_url,
-          is_vip_exclusive,
-          diet_tags
+          available,
+          meal_type
         `)
-        .eq("is_active", true)
+        .eq("available", true)
         .order("name", { ascending: true });
 
       if (error) throw error;
 
       const processedMeals = (data || []).map((meal: any) => ({
         ...meal,
-        diet_tags: meal.diet_tags || [],
+        is_vip_exclusive: false,
+        diet_tags: [],
       }));
 
       setMeals(processedMeals);
@@ -399,7 +402,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-sm truncate">{meal.name}</h3>
-                        {meal.is_vip_exclusive && (
+                        {meal.is_vip_exclusive === true && (
                           <Badge className="shrink-0 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px]">
                             <Sparkles className="h-2.5 w-2.5 mr-0.5" />
                             VIP
@@ -424,7 +427,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                         </span>
                       </div>
 
-                      {meal.diet_tags.length > 0 && (
+                      {meal.diet_tags && meal.diet_tags.length > 0 && (
                         <div className="flex gap-1 mt-2 flex-wrap">
                           {meal.diet_tags.slice(0, 2).map((tag) => (
                             <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded-full">
