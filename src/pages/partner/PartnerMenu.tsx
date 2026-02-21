@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,10 +33,8 @@ import {
   Trash2,
   Flame,
   Clock,
-  DollarSign,
   ImageIcon,
   Tag,
-  Sparkles,
   CheckCircle2,
   Package,
   Crown,
@@ -48,6 +46,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { MealAddonsManager } from "@/components/MealAddonsManager";
+import { formatCurrency } from "@/lib/currency";
 
 interface Meal {
   id: string;
@@ -72,6 +71,35 @@ interface DietTag {
   id: string;
   name: string;
   description: string | null;
+}
+
+// AI Meal Analysis Types
+interface AIMealDetails {
+  name: string;
+  description: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number;
+  prep_time_minutes: number;
+  suggested_price: number;
+  diet_tags: string[];
+}
+
+interface DetectedFoodItem {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+interface AIAnalysisResponse {
+  success: boolean;
+  mealDetails?: AIMealDetails;
+  detectedItems?: DetectedFoodItem[];
+  error?: string;
 }
 
 const mealSchema = z.object({
@@ -201,12 +229,12 @@ const PartnerMenu = () => {
     setFormData({
       name: meal.name,
       description: meal.description || "",
-      price: parseFloat(meal.price.toString()),
+      price: meal.price,
       calories: meal.calories,
-      protein_g: parseFloat(meal.protein_g.toString()),
-      carbs_g: parseFloat(meal.carbs_g.toString()),
-      fat_g: parseFloat(meal.fat_g.toString()),
-      fiber_g: meal.fiber_g ? parseFloat(meal.fiber_g.toString()) : 0,
+      protein_g: meal.protein_g,
+      carbs_g: meal.carbs_g,
+      fat_g: meal.fat_g,
+      fiber_g: meal.fiber_g || 0,
       prep_time_minutes: meal.prep_time_minutes || 15,
       image_url: meal.image_url || "",
       is_available: meal.is_available,
@@ -214,157 +242,43 @@ const PartnerMenu = () => {
     });
     setFormErrors({});
 
-    // Fetch existing diet tags for this meal
-    const { data: mealTags } = await supabase
+    // Fetch diet tags for this meal
+    const { data } = await supabase
       .from("meal_diet_tags")
       .select("diet_tag_id")
       .eq("meal_id", meal.id);
 
-    setSelectedTags(mealTags?.map((t) => t.diet_tag_id) || []);
+    setSelectedTags(data?.map((t) => t.diet_tag_id) || []);
     setDialogOpen(true);
   };
 
-  const handleSubmit = async () => {
-    if (!restaurantId) return;
-
-    const result = mealSchema.safeParse(formData);
-    if (!result.success) {
-      const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0].toString()] = err.message;
-        }
-      });
-      setFormErrors(errors);
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const mealData = {
-        restaurant_id: restaurantId,
-        name: formData.name.trim(),
-        description: formData.description?.trim() || null,
-        price: formData.price,
-        calories: formData.calories,
-        protein_g: formData.protein_g,
-        carbs_g: formData.carbs_g,
-        fat_g: formData.fat_g,
-        fiber_g: formData.fiber_g || null,
-        prep_time_minutes: formData.prep_time_minutes || 15,
-        image_url: formData.image_url?.trim() || null,
-        is_available: formData.is_available,
-        is_vip_exclusive: formData.is_vip_exclusive,
-      };
-
-      let mealId = editingMeal?.id;
-
-      if (editingMeal) {
-        const { error } = await supabase
-          .from("meals")
-          .update(mealData)
-          .eq("id", editingMeal.id);
-
-        if (error) throw error;
-      } else {
-        const { data: newMeal, error } = await supabase
-          .from("meals")
-          .insert(mealData)
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        mealId = newMeal.id;
-      }
-
-      // Update diet tags
-      if (mealId) {
-        // Remove existing tags
-        await supabase
-          .from("meal_diet_tags")
-          .delete()
-          .eq("meal_id", mealId);
-
-        // Add new tags
-        if (selectedTags.length > 0) {
-          const tagInserts = selectedTags.map((tagId) => ({
-            meal_id: mealId!,
-            diet_tag_id: tagId,
-          }));
-
-          await supabase.from("meal_diet_tags").insert(tagInserts);
-        }
-      }
-
-      toast({ title: editingMeal ? "Meal updated" : "Meal added" });
-
-      setDialogOpen(false);
-      fetchMeals();
-    } catch (error) {
-      console.error("Error saving meal:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save meal",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const confirmDelete = (meal: Meal) => {
+  const openDeleteDialog = (meal: Meal) => {
     setMealToDelete(meal);
     setDeleteDialogOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!mealToDelete) return;
-
-    try {
-      const { error } = await supabase
-        .from("meals")
-        .delete()
-        .eq("id", mealToDelete.id);
-
-      if (error) throw error;
-
-      toast({ title: "Meal deleted" });
-      setDeleteDialogOpen(false);
-      setMealToDelete(null);
-      fetchMeals();
-    } catch (error) {
-      console.error("Error deleting meal:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete meal",
-        variant: "destructive",
+  const handleInputChange = (field: keyof MealFormData, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
       });
     }
   };
 
-  const toggleAvailability = async (meal: Meal) => {
-    try {
-      const { error } = await supabase
-        .from("meals")
-        .update({ is_available: !meal.is_available })
-        .eq("id", meal.id);
+  const handleTagToggle = (tagId: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
 
-      if (error) throw error;
-
-      setMeals((prev) =>
-        prev.map((m) =>
-          m.id === meal.id ? { ...m, is_available: !m.is_available } : m
-        )
-      );
-
-      toast({
-        title: meal.is_available ? "Meal hidden" : "Meal visible",
-        description: `${meal.name} is now ${meal.is_available ? "unavailable" : "available"}`,
-      });
-    } catch (error) {
-      console.error("Error toggling availability:", error);
-    }
+  const handleImageChange = (url: string | null) => {
+    setFormData((prev) => ({ ...prev, image_url: url || "" }));
   };
 
   const handleImageUploaded = async (imageUrl: string) => {
@@ -380,8 +294,10 @@ const PartnerMenu = () => {
 
       if (error) throw error;
 
-      if (data?.mealDetails) {
-        const details = data.mealDetails;
+      const response = data as AIAnalysisResponse;
+
+      if (response?.mealDetails) {
+        const details = response.mealDetails;
         
         // Update form data with AI suggestions
         setFormData((prev) => ({
@@ -431,6 +347,146 @@ const PartnerMenu = () => {
     }
   };
 
+  const validateForm = (): boolean => {
+    const result = mealSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const path = err.path[0] as string;
+        errors[path] = err.message;
+      });
+      setFormErrors(errors);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm() || !restaurantId) return;
+
+    setSaving(true);
+    try {
+      const mealData = {
+        restaurant_id: restaurantId,
+        name: formData.name,
+        description: formData.description || null,
+        price: formData.price,
+        calories: formData.calories,
+        protein_g: formData.protein_g,
+        carbs_g: formData.carbs_g,
+        fat_g: formData.fat_g,
+        fiber_g: formData.fiber_g || null,
+        prep_time_minutes: formData.prep_time_minutes || null,
+        image_url: formData.image_url || null,
+        is_available: formData.is_available,
+        is_vip_exclusive: formData.is_vip_exclusive,
+      };
+
+      if (editingMeal) {
+        // Update existing meal
+        const { error } = await supabase
+          .from("meals")
+          .update(mealData)
+          .eq("id", editingMeal.id);
+
+        if (error) throw error;
+
+        // Update diet tags
+        await supabase.from("meal_diet_tags").delete().eq("meal_id", editingMeal.id);
+
+        if (selectedTags.length > 0) {
+          await supabase.from("meal_diet_tags").insert(
+            selectedTags.map((tagId) => ({
+              meal_id: editingMeal.id,
+              diet_tag_id: tagId,
+            }))
+          );
+        }
+
+        toast({ title: "Meal updated successfully" });
+      } else {
+        // Create new meal
+        const { data, error } = await supabase
+          .from("meals")
+          .insert(mealData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Add diet tags
+        if (selectedTags.length > 0 && data) {
+          await supabase.from("meal_diet_tags").insert(
+            selectedTags.map((tagId) => ({
+              meal_id: data.id,
+              diet_tag_id: tagId,
+            }))
+          );
+        }
+
+        toast({ title: "Meal created successfully" });
+      }
+
+      setDialogOpen(false);
+      fetchMeals();
+    } catch (error: any) {
+      console.error("Error saving meal:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save meal",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!mealToDelete) return;
+
+    try {
+      const { error } = await supabase.from("meals").delete().eq("id", mealToDelete.id);
+
+      if (error) throw error;
+
+      toast({ title: "Meal deleted successfully" });
+      setDeleteDialogOpen(false);
+      setMealToDelete(null);
+      fetchMeals();
+    } catch (error: any) {
+      console.error("Error deleting meal:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete meal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleAvailability = async (meal: Meal) => {
+    try {
+      const { error } = await supabase
+        .from("meals")
+        .update({ is_available: !meal.is_available })
+        .eq("id", meal.id);
+
+      if (error) throw error;
+
+      setMeals((prev) =>
+        prev.map((m) =>
+          m.id === meal.id ? { ...m, is_available: !m.is_available } : m
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling availability:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update availability",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <PartnerLayout title="Menu">
@@ -447,108 +503,105 @@ const PartnerMenu = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Menu Items ({meals.length})</h2>
-          <Button onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Meal
+          <Button onClick={openAddDialog} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add New Meal
           </Button>
         </div>
 
         {meals.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center">
-              <UtensilsCrossed className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-muted-foreground mb-4">No meals in your menu yet</p>
-              <Button onClick={openAddDialog}>
-                <Plus className="h-4 w-4 mr-2" />
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <UtensilsCrossed className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">No meals added yet</p>
+              <Button onClick={openAddDialog} variant="outline" className="gap-2">
+                <Plus className="h-4 w-4" />
                 Add Your First Meal
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {meals.map((meal) => (
-              <Card key={meal.id} className={!meal.is_available ? "opacity-60" : ""}>
+              <Card key={meal.id} className={!meal.is_available ? "opacity-60" : undefined}>
                 <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    {meal.image_url && (
-                      <img
-                        src={meal.image_url}
-                        alt={meal.name}
-                        className="w-20 h-20 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
+                  <div className="flex items-start gap-4">
+                    <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {meal.image_url ? (
+                        <img
+                          src={meal.image_url}
+                          alt={meal.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold flex items-center gap-2">
-                            {meal.name}
-                            {meal.is_vip_exclusive && (
-                              <Badge variant="outline" className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border-amber-500/50 text-amber-600">
-                                <Crown className="h-3 w-3 mr-1" />
-                                VIP
-                              </Badge>
-                            )}
-                          </h3>
-                          {meal.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {meal.description}
-                            </p>
-                          )}
-                        </div>
-                        <Badge variant={meal.is_available ? "default" : "secondary"}>
-                          {meal.is_available ? "Available" : "Hidden"}
-                        </Badge>
+                        <h3 className="font-semibold truncate">{meal.name}</h3>
+                        {meal.is_vip_exclusive && (
+                          <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                        )}
                       </div>
-
-                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" />
-                          ${meal.price.toFixed(2)}
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {meal.description || "No description"}
+                      </p>
+                      <div className="flex items-center gap-4 mt-2 text-sm">
+                        <span className="text-sm">
+                          {formatCurrency(meal.price)}
                         </span>
-<span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1">
                           <Flame className="h-3 w-3" />
                           {meal.calories} cal
                         </span>
                         {meal.prep_time_minutes && (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {meal.prep_time_minutes} min
+                            {meal.prep_time_minutes}m
                           </span>
                         )}
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="flex gap-2 mt-3">
-                        <Button size="sm" variant="outline" onClick={() => openEditDialog(meal)}>
-                          <Edit2 className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedMealForAddons(meal);
-                            setAddonsDialogOpen(true);
-                          }}
-                        >
-                          <Package className="h-4 w-4 mr-1" />
-                          Add-ons
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleAvailability(meal)}
-                        >
-                          {meal.is_available ? "Hide" : "Show"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => confirmDelete(meal)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={meal.is_available}
+                        onCheckedChange={() => toggleAvailability(meal)}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {meal.is_available ? "Available" : "Unavailable"}
+                      </span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedMealForAddons(meal);
+                          setAddonsDialogOpen(true);
+                        }}
+                        title="Manage Add-ons"
+                      >
+                        <Package className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(meal)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openDeleteDialog(meal)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -558,183 +611,208 @@ const PartnerMenu = () => {
         )}
       </div>
 
-      {/* Add/Edit Meal Dialog */}
+      {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingMeal ? "Edit Meal" : "Add New Meal"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {editingMeal ? "Edit Meal" : "Add New Meal"}
+              {analysisComplete && (
+                <CheckCircle2 className="h-5 w-5 text-green-500 animate-in fade-in zoom-in" />
+              )}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             {/* Image Upload */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Meal Image
-              </Label>
-              <MealImageUpload
-                currentImageUrl={formData.image_url || null}
-                onImageChange={(url) => setFormData({ ...formData, image_url: url || "" })}
-                onImageUploaded={(url) => handleImageUploaded(url)}
-                isAnalyzing={analyzing}
-              />
-              {analyzing && (
-                <div className="flex items-center gap-2 text-sm text-primary animate-pulse">
-                  <Sparkles className="h-4 w-4" />
-                  AI is analyzing your image...
-                </div>
-              )}
-              {analysisComplete && (
-                <div className="flex items-center gap-2 text-sm text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Details auto-filled! Review below.
-                </div>
-              )}
-            </div>
+            <MealImageUpload
+              currentImageUrl={formData.image_url}
+              onImageChange={handleImageChange}
+              mealId={editingMeal?.id}
+              onImageUploaded={handleImageUploaded}
+              isAnalyzing={analyzing}
+            />
 
-            {/* Basic Info */}
+            {/* Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">
+                Meal Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Grilled Chicken Salad"
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder="e.g., Grilled Salmon Salad"
+                className={formErrors.name ? "border-destructive" : ""}
               />
-              {formErrors.name && <p className="text-xs text-destructive">{formErrors.name}</p>}
+              {formErrors.name && (
+                <p className="text-sm text-destructive">{formErrors.name}</p>
+              )}
             </div>
 
+            {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="A healthy and delicious meal..."
-                rows={2}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Describe the meal, ingredients, flavors..."
+                rows={3}
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Price & Calories Row */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="price">Price ($) *</Label>
+                <Label htmlFor="price">
+                  Price (QAR) <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="price"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={formData.price || ""}
-                  onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
+                  className={formErrors.price ? "border-destructive" : ""}
                 />
-                {formErrors.price && <p className="text-xs text-destructive">{formErrors.price}</p>}
+                {formErrors.price && (
+                  <p className="text-sm text-destructive">{formErrors.price}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calories">
+                  Calories <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Flame className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="calories"
+                    type="number"
+                    min="0"
+                    value={formData.calories || ""}
+                    onChange={(e) => handleInputChange("calories", parseInt(e.target.value) || 0)}
+                    className={`pl-9 ${formErrors.calories ? "border-destructive" : ""}`}
+                  />
+                </div>
+                {formErrors.calories && (
+                  <p className="text-sm text-destructive">{formErrors.calories}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Macros Row */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="protein">Protein (g)</Label>
+                <Input
+                  id="protein"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.protein_g || ""}
+                  onChange={(e) => handleInputChange("protein_g", parseFloat(e.target.value) || 0)}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="prep_time">Prep Time (min)</Label>
+                <Label htmlFor="carbs">Carbs (g)</Label>
                 <Input
-                  id="prep_time"
+                  id="carbs"
                   type="number"
-                  value={formData.prep_time_minutes || ""}
-                  onChange={(e) => setFormData({ ...formData, prep_time_minutes: parseInt(e.target.value) || 15 })}
+                  min="0"
+                  step="0.1"
+                  value={formData.carbs_g || ""}
+                  onChange={(e) => handleInputChange("carbs_g", parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fat">Fat (g)</Label>
+                <Input
+                  id="fat"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.fat_g || ""}
+                  onChange={(e) => handleInputChange("fat_g", parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fiber">Fiber (g)</Label>
+                <Input
+                  id="fiber"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={formData.fiber_g || ""}
+                  onChange={(e) => handleInputChange("fiber_g", parseFloat(e.target.value) || 0)}
                 />
               </div>
             </div>
 
-            {/* Nutrition */}
+            {/* Prep Time */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Flame className="h-4 w-4" />
-                Nutrition Information
-              </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Calories *</Label>
-                  <Input
-                    type="number"
-                    value={formData.calories || ""}
-                    onChange={(e) => setFormData({ ...formData, calories: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Protein (g)</Label>
-                  <Input
-                    type="number"
-                    value={formData.protein_g || ""}
-                    onChange={(e) => setFormData({ ...formData, protein_g: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Carbs (g)</Label>
-                  <Input
-                    type="number"
-                    value={formData.carbs_g || ""}
-                    onChange={(e) => setFormData({ ...formData, carbs_g: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Fat (g)</Label>
-                  <Input
-                    type="number"
-                    value={formData.fat_g || ""}
-                    onChange={(e) => setFormData({ ...formData, fat_g: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
+              <Label htmlFor="prep_time">Preparation Time (minutes)</Label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="prep_time"
+                  type="number"
+                  min="1"
+                  value={formData.prep_time_minutes || ""}
+                  onChange={(e) => handleInputChange("prep_time_minutes", parseInt(e.target.value) || undefined)}
+                  className="pl-9"
+                />
               </div>
             </div>
 
             {/* Diet Tags */}
-            {dietTags.length > 0 && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Tag className="h-4 w-4" />
-                  Diet Tags
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {dietTags.map((tag) => (
-                    <div key={tag.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={tag.id}
-                        checked={selectedTags.includes(tag.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedTags([...selectedTags, tag.id]);
-                          } else {
-                            setSelectedTags(selectedTags.filter((t) => t !== tag.id));
-                          }
-                        }}
-                      />
-                      <label htmlFor={tag.id} className="text-sm cursor-pointer">
-                        {tag.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Diet Tags
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {dietTags.map((tag) => (
+                  <label
+                    key={tag.id}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                      selectedTags.includes(tag.id)
+                        ? "bg-primary/10 border-primary"
+                        : "bg-muted/50 border-border hover:bg-muted"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={selectedTags.includes(tag.id)}
+                      onCheckedChange={() => handleTagToggle(tag.id)}
+                      className="sr-only"
+                    />
+                    <span className="text-sm">{tag.name}</span>
+                  </label>
+                ))}
               </div>
-            )}
-
-            {/* VIP Exclusive */}
-            <div className="flex items-center justify-between p-3 rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/5 to-yellow-500/5">
-              <div className="flex items-center gap-3">
-                <Crown className="h-5 w-5 text-amber-500" />
-                <div>
-                  <Label>VIP Exclusive</Label>
-                  <p className="text-xs text-muted-foreground">Only VIP subscribers can order this meal</p>
-                </div>
-              </div>
-              <Switch
-                checked={formData.is_vip_exclusive}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_vip_exclusive: checked })}
-              />
             </div>
 
-            {/* Availability */}
-            <div className="flex items-center justify-between">
-              <div>
+            {/* Availability & VIP */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={formData.is_available}
+                  onCheckedChange={(checked) => handleInputChange("is_available", checked)}
+                />
                 <Label>Available</Label>
-                <p className="text-xs text-muted-foreground">Show this meal to customers</p>
               </div>
-              <Switch
-                checked={formData.is_available}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
-              />
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={formData.is_vip_exclusive}
+                  onCheckedChange={(checked) => handleInputChange("is_vip_exclusive", checked)}
+                />
+                <Label className="flex items-center gap-1">
+                  <Crown className="h-4 w-4 text-yellow-500" />
+                  VIP Exclusive
+                </Label>
+              </div>
             </div>
           </div>
 
@@ -742,8 +820,15 @@ const PartnerMenu = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving ? "Saving..." : editingMeal ? "Update" : "Add Meal"}
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Saving...
+                </>
+              ) : (
+                <>{editingMeal ? "Update" : "Create"} Meal</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -753,29 +838,40 @@ const PartnerMenu = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Meal</AlertDialogTitle>
+            <AlertDialogTitle>Delete Meal?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{mealToDelete?.name}"? This action cannot be undone.
+              This will permanently delete "{mealToDelete?.name}". This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add-ons Manager */}
-      {selectedMealForAddons && (
-        <MealAddonsManager
-          mealId={selectedMealForAddons.id}
-          mealName={selectedMealForAddons.name}
-          open={addonsDialogOpen}
-          onOpenChange={setAddonsDialogOpen}
-        />
-      )}
+      {/* Add-ons Dialog */}
+      <Dialog open={addonsDialogOpen} onOpenChange={setAddonsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Add-ons: {selectedMealForAddons?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedMealForAddons && (
+            <MealAddonsManager
+              mealId={selectedMealForAddons.id}
+              mealName={selectedMealForAddons.name}
+              open={addonsDialogOpen}
+              onOpenChange={setAddonsDialogOpen}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </PartnerLayout>
   );
 };
