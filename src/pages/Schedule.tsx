@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import MealWizard from "@/components/MealWizard";
 
 interface ScheduledMeal {
   id: string;
@@ -77,6 +78,7 @@ const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [schedules, setSchedules] = useState<ScheduledMeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {
@@ -310,7 +312,19 @@ const Schedule = () => {
             <ChefHat className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-semibold">Meal Schedule</h1>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => navigate("/meals")}>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              // If no date selected, default to today
+              if (!selectedDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                setSelectedDate(today);
+              }
+              setShowWizard(true);
+            }}
+          >
             <Plus className="h-5 w-5" />
           </Button>
         </div>
@@ -448,7 +462,7 @@ const Schedule = () => {
                   </div>
                   <p className="text-muted-foreground mb-4">No meals scheduled for this day</p>
                   <Button 
-                    onClick={() => navigate("/meals")}
+                    onClick={() => setShowWizard(true)}
                     className="rounded-full px-6"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -591,6 +605,25 @@ const Schedule = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Meal Wizard */}
+      <AnimatePresence>
+        {showWizard && user && selectedDate && (
+          <MealWizard
+            userId={user.id}
+            selectedDate={selectedDate}
+            onComplete={() => {
+              setShowWizard(false);
+              fetchSchedules();
+              toast({
+                title: "Success",
+                description: "Your meals have been scheduled!",
+              });
+            }}
+            onCancel={() => setShowWizard(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <CustomerNavigation />
     </div>
