@@ -82,9 +82,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           fat_g,
           image_url,
           is_vip_exclusive,
-          meal_diet_tags (
-            diet_tags (name)
-          )
+          diet_tags
         `)
         .eq("is_active", true)
         .order("name", { ascending: true });
@@ -93,7 +91,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
 
       const processedMeals = (data || []).map((meal: any) => ({
         ...meal,
-        diet_tags: meal.meal_diet_tags?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
+        diet_tags: meal.diet_tags || [],
       }));
 
       setMeals(processedMeals);
