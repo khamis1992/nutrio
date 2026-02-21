@@ -32,7 +32,7 @@ interface PlanType {
   price: number;
   period: string;
   mealsPerWeek: number;
-  tier: 'standard' | 'vip';
+  tier: 'basic' | 'standard' | 'premium' | 'vip';
   description: string;
   icon: typeof Star;
   features: string[];
@@ -48,7 +48,7 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
     price: pricing.basic_price,
     period: "week",
     mealsPerWeek: 5,
-    tier: 'standard',
+    tier: 'basic',
     description: "Perfect for getting started with healthy eating",
     icon: Star,
     features: [
@@ -63,16 +63,16 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
     color: "from-slate-500 to-slate-600",
   },
   {
-    id: "pro",
-    name: "Pro",
+    id: "standard",
+    name: "Standard",
     price: pricing.premium_price,
     period: "week",
-    mealsPerWeek: 14,
+    mealsPerWeek: 10,
     tier: 'standard',
     description: "Most popular choice for health enthusiasts",
     icon: Zap,
     features: [
-      "14 meals per week",
+      "10 meals per week",
       "Advanced nutrition analytics",
       "Priority support",
       "Access to all restaurants",
@@ -89,14 +89,14 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
     name: "Premium",
     price: pricing.family_price,
     period: "week",
-    mealsPerWeek: 0,
-    tier: 'standard',
+    mealsPerWeek: 15,
+    tier: 'premium',
     description: "Ultimate plan for serious fitness goals",
     icon: Crown,
     features: [
-      "Unlimited meals",
+      "15 meals per week",
       "Real-time nutrition coaching",
-      "24/7 VIP support",
+      "24/7 priority support",
       "All restaurants + premium partners",
       "AI-powered meal recommendations",
       "Weekly dietitian sessions",
@@ -109,18 +109,18 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
   },
   {
     id: "vip",
-    name: "VIP Elite",
+    name: "VIP",
     price: pricing.vip_price,
     period: "week",
     mealsPerWeek: 0,
     tier: 'vip',
-    description: "Exclusive tier for the ultimate health experience",
+    description: "Unlimited meals for the ultimate experience",
     icon: Sparkles,
     features: [
+      "♾️ Unlimited meals per week",
       "Everything in Premium",
       "🚀 Priority delivery (always first)",
       "🌟 Exclusive VIP-only meals",
-      "💰 15% discount on all meals",
       "👨‍⚕️ Personal nutrition coach",
       "📱 1-on-1 weekly coaching calls",
       "🏷️ Free delivery on all orders",
@@ -190,7 +190,7 @@ export default function Subscription() {
     // Map plan id to subscription plan enum
     const planMapping: Record<string, "weekly" | "monthly"> = {
       basic: "weekly",
-      pro: "weekly",
+      standard: "weekly",
       premium: "weekly",
       vip: "weekly",
     };

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +20,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -63,6 +72,7 @@ interface Restaurant {
   website: string | null;
   approval_status: "pending" | "approved" | "rejected";
   is_active: boolean;
+  payout_rate: number | null;
   created_at: string;
   owner: {
     full_name: string | null;
@@ -83,6 +93,9 @@ const AdminRestaurants = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [restaurantToApprove, setRestaurantToApprove] = useState<Restaurant | null>(null);
+  const [payoutRate, setPayoutRate] = useState<string>("25.00");
 
   useEffect(() => {
     fetchRestaurants();
@@ -134,25 +147,54 @@ const AdminRestaurants = () => {
     }
   };
 
-  const handleApprove = async (restaurant: Restaurant) => {
+  const openApproveDialog = (restaurant: Restaurant) => {
+    setRestaurantToApprove(restaurant);
+    setPayoutRate(restaurant.payout_rate?.toString() || "25.00");
+    setApproveDialogOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!restaurantToApprove) return;
+
     try {
       setProcessing(true);
+      const rate = parseFloat(payoutRate);
+      
+      if (isNaN(rate) || rate <= 0) {
+        toast({
+          title: "Invalid Payout Rate",
+          description: "Please enter a valid payout rate greater than 0.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from("restaurants")
-        .update({ approval_status: "approved", is_active: true })
-        .eq("id", restaurant.id);
+        .update({ 
+          approval_status: "approved", 
+          is_active: true,
+          payout_rate: rate,
+          payout_rate_set_at: new Date().toISOString(),
+        })
+        .eq("id", restaurantToApprove.id);
 
       if (error) throw error;
 
       setRestaurants((prev) =>
         prev.map((r) =>
-          r.id === restaurant.id ? { ...r, approval_status: "approved", is_active: true } : r
+          r.id === restaurantToApprove.id 
+            ? { ...r, approval_status: "approved", is_active: true, payout_rate: rate } 
+            : r
         )
       );
 
+      setApproveDialogOpen(false);
+      setRestaurantToApprove(null);
+
       toast({
         title: "Restaurant Approved",
-        description: `${restaurant.name} has been approved and is now visible to customers.`,
+        description: `${restaurantToApprove.name} has been approved with a payout rate of ${rate} QAR per meal.`,
       });
     } catch (error) {
       console.error("Error approving restaurant:", error);
@@ -569,7 +611,7 @@ const AdminRestaurants = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                                onClick={() => handleApprove(restaurant)}
+                                  onClick={() => openApproveDialog(restaurant)}
                                 disabled={processing}
                               >
                                 <CheckCircle className="w-4 h-4" />
@@ -610,7 +652,7 @@ const AdminRestaurants = () => {
                               <DropdownMenuSeparator />
                               {restaurant.approval_status !== "approved" && (
                                 <DropdownMenuItem
-                                  onClick={() => handleApprove(restaurant)}
+                                onClick={() => openApproveDialog(restaurant)}
                                   className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10"
                                 >
                                   <CheckCircle className="w-4 h-4 mr-2" />
@@ -746,7 +788,7 @@ const AdminRestaurants = () => {
                       <Button
                         className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                         onClick={() => {
-                          handleApprove(selectedRestaurant);
+                          openApproveDialog(selectedRestaurant);
                           setIsDetailOpen(false);
                         }}
                         disabled={processing}
@@ -773,6 +815,64 @@ const AdminRestaurants = () => {
             )}
           </SheetContent>
         </Sheet>
+
+        {/* Approval Dialog with Payout Rate */}
+        <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Approve Restaurant</DialogTitle>
+              <DialogDescription>
+                Set the payout rate for {restaurantToApprove?.name}. This is the fixed amount the restaurant will receive per meal prepared.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="payout-rate">Payout Rate (QAR per meal) *</Label>
+                <Input
+                  id="payout-rate"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={payoutRate}
+                  onChange={(e) => setPayoutRate(e.target.value)}
+                  placeholder="25.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Default is 25 QAR. This can be adjusted later.
+                </p>
+              </div>
+
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <p className="text-sm">
+                  <strong>Restaurant:</strong> {restaurantToApprove?.name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {restaurantToApprove?.address}
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleApprove} disabled={processing}>
+                {processing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Approving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Approve Restaurant
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

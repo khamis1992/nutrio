@@ -11,7 +11,7 @@ export interface Subscription {
   meals_per_week: number;
   meals_used_this_week: number;
   week_start_date: string;
-  tier: 'standard' | 'vip';
+  tier: 'basic' | 'standard' | 'premium' | 'vip';
 }
 
 interface UseSubscriptionReturn {
@@ -61,10 +61,10 @@ export const useSubscription = (): UseSubscriptionReturn => {
           status: data.status,
           start_date: data.start_date,
           end_date: data.end_date,
-          meals_per_week: data.meals_per_week || 5,
-          meals_used_this_week: data.meals_used_this_week || 0,
+          meals_per_week: data.meals_per_week ?? 5,
+          meals_used_this_week: data.meals_used_this_week ?? 0,
           week_start_date: data.week_start_date || new Date().toISOString().split('T')[0],
-          tier: (data.tier as 'standard' | 'vip') || 'standard',
+          tier: (data.tier as 'basic' | 'standard' | 'premium' | 'vip') || 'basic',
         });
       } else {
         setSubscription(null);
@@ -85,12 +85,12 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const isPaused = subscription?.status === "pending";
   const isVip = subscription?.tier === "vip";
   
-  // 0 means unlimited
-  const isUnlimited = subscription?.meals_per_week === 0;
+  // VIP tier gets unlimited meals (meals_per_week = 0)
+  const isUnlimited = subscription?.tier === "vip" || subscription?.meals_per_week === 0;
   
   const remainingMeals = isUnlimited 
     ? Infinity 
-    : (subscription?.meals_per_week || 0) - (subscription?.meals_used_this_week || 0);
+    : Math.max(0, (subscription?.meals_per_week || 0) - (subscription?.meals_used_this_week || 0));
   
   const canOrderMeal = hasActiveSubscription && (isUnlimited || remainingMeals > 0);
 

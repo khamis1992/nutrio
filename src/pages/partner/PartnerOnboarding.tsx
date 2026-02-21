@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+
 import {
   Store,
   MapPin,
@@ -16,27 +19,108 @@ import {
   ChevronLeft,
   Check,
   Loader2,
+  UtensilsCrossed,
+  Building2,
+  Camera,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+// Available cuisine types
+const CUISINE_TYPES = [
+  "Qatari",
+  "Arabic",
+  "Mediterranean",
+  "Indian",
+  "Asian",
+  "Italian",
+  "American",
+  "Healthy",
+  "Organic",
+  "Fusion",
+  "Other",
+];
+
+// Available dietary tags
+const DIETARY_TAGS = [
+  "Keto",
+  "Vegan",
+  "Vegetarian",
+  "Gluten-Free",
+  "Dairy-Free",
+  "Low-Carb",
+  "High-Protein",
+  "Paleo",
+  "Halal",
+];
+
+// Days of the week
+const DAYS_OF_WEEK = [
+  { key: "monday", label: "Monday" },
+  { key: "tuesday", label: "Tuesday" },
+  { key: "wednesday", label: "Wednesday" },
+  { key: "thursday", label: "Thursday" },
+  { key: "friday", label: "Friday" },
+  { key: "saturday", label: "Saturday" },
+  { key: "sunday", label: "Sunday" },
+];
+
+interface OperatingHours {
+  is_open: boolean;
+  open: string;
+  close: string;
+}
+
 interface RestaurantData {
+  // Step 1: Restaurant Info
   name: string;
   description: string;
+  cuisine_types: string[];
+  dietary_tags: string[];
+
+  // Step 2: Contact & Location
   address: string;
   phone: string;
   email: string;
+  website: string;
+  operating_hours: Record<string, OperatingHours>;
+
+  // Step 3: Branding
   logoFile: File | null;
   logoPreview: string | null;
+  photos: File[];
+  photoPreviews: string[];
+
+  // Step 4: Operations
+  avg_prep_time_minutes: number;
+  max_meals_per_day: number;
+  bank_name: string;
+  bank_account_name: string;
+  bank_account_number: string;
+  bank_iban: string;
+
+  // Step 5: Terms
+  terms_accepted: boolean;
 }
 
 const steps = [
-  { id: 1, title: "Restaurant Info", description: "Basic details about your restaurant" },
-  { id: 2, title: "Contact & Location", description: "How customers can reach you" },
-  { id: 3, title: "Logo Upload", description: "Add your restaurant's branding" },
-  { id: 4, title: "Review & Submit", description: "Confirm your information" },
+  { id: 1, title: "Restaurant Info", description: "Basic details and cuisine type" },
+  { id: 2, title: "Contact & Hours", description: "Location and operating hours" },
+  { id: 3, title: "Branding", description: "Logo and photos" },
+  { id: 4, title: "Operations", description: "Prep time, capacity & banking" },
+  { id: 5, title: "Review & Submit", description: "Confirm and accept terms" },
 ];
+
+const defaultOperatingHours: Record<string, OperatingHours> = {
+  monday: { is_open: true, open: "09:00", close: "22:00" },
+  tuesday: { is_open: true, open: "09:00", close: "22:00" },
+  wednesday: { is_open: true, open: "09:00", close: "22:00" },
+  thursday: { is_open: true, open: "09:00", close: "22:00" },
+  friday: { is_open: true, open: "09:00", close: "22:00" },
+  saturday: { is_open: true, open: "09:00", close: "22:00" },
+  sunday: { is_open: true, open: "09:00", close: "22:00" },
+};
 
 const PartnerOnboarding = () => {
   const navigate = useNavigate();
@@ -48,15 +132,59 @@ const PartnerOnboarding = () => {
   const [data, setData] = useState<RestaurantData>({
     name: "",
     description: "",
+    cuisine_types: [],
+    dietary_tags: [],
     address: "",
     phone: "",
     email: user?.email || "",
+    website: "",
+    operating_hours: defaultOperatingHours,
     logoFile: null,
     logoPreview: null,
+    photos: [],
+    photoPreviews: [],
+    avg_prep_time_minutes: 30,
+    max_meals_per_day: 50,
+    bank_name: "",
+    bank_account_name: "",
+    bank_account_number: "",
+    bank_iban: "",
+    terms_accepted: false,
   });
 
   const updateData = (field: keyof RestaurantData, value: any) => {
     setData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleCuisineType = (type: string) => {
+    setData((prev) => ({
+      ...prev,
+      cuisine_types: prev.cuisine_types.includes(type)
+        ? prev.cuisine_types.filter((t) => t !== type)
+        : [...prev.cuisine_types, type],
+    }));
+  };
+
+  const toggleDietaryTag = (tag: string) => {
+    setData((prev) => ({
+      ...prev,
+      dietary_tags: prev.dietary_tags.includes(tag)
+        ? prev.dietary_tags.filter((t) => t !== tag)
+        : [...prev.dietary_tags, tag],
+    }));
+  };
+
+  const updateOperatingHours = (day: string, field: keyof OperatingHours, value: any) => {
+    setData((prev) => ({
+      ...prev,
+      operating_hours: {
+        ...prev.operating_hours,
+        [day]: {
+          ...prev.operating_hours[day],
+          [field]: value,
+        },
+      },
+    }));
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,16 +203,58 @@ const PartnerOnboarding = () => {
     }
   };
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: `${file.name} must be less than 5MB`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    });
+
+    const newPreviews = validFiles.map((file) => URL.createObjectURL(file));
+    updateData("photos", [...data.photos, ...validFiles]);
+    updateData("photoPreviews", [...data.photoPreviews, ...newPreviews]);
+  };
+
+  const removePhoto = (index: number) => {
+    updateData(
+      "photos",
+      data.photos.filter((_, i) => i !== index)
+    );
+    updateData(
+      "photoPreviews",
+      data.photoPreviews.filter((_, i) => i !== index)
+    );
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return data.name.trim().length >= 2 && data.description.trim().length >= 10;
+        return (
+          data.name.trim().length >= 2 &&
+          data.description.trim().length >= 10 &&
+          data.cuisine_types.length > 0
+        );
       case 2:
         return data.address.trim().length >= 5 && data.phone.trim().length >= 5;
       case 3:
-        return true; // Logo is optional
+        return true; // Logo and photos are optional
       case 4:
-        return true;
+        return (
+          data.avg_prep_time_minutes > 0 &&
+          data.max_meals_per_day > 0 &&
+          data.bank_name.trim().length > 0 &&
+          data.bank_account_name.trim().length > 0 &&
+          data.bank_account_number.trim().length > 0
+        );
+      case 5:
+        return data.terms_accepted;
       default:
         return false;
     }
@@ -97,11 +267,12 @@ const PartnerOnboarding = () => {
       setSubmitting(true);
 
       let logoUrl: string | null = null;
+      const photoUrls: string[] = [];
 
       // Upload logo if provided
       if (data.logoFile) {
         const fileExt = data.logoFile.name.split(".").pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+        const fileName = `${user.id}-logo-${Date.now()}.${fileExt}`;
         const filePath = `logos/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
@@ -117,6 +288,25 @@ const PartnerOnboarding = () => {
         logoUrl = urlData.publicUrl;
       }
 
+      // Upload photos
+      for (const photo of data.photos) {
+        const fileExt = photo.name.split(".").pop();
+        const fileName = `${user.id}-photo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+        const filePath = `photos/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("restaurant-photos")
+          .upload(filePath, photo);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("restaurant-photos")
+          .getPublicUrl(filePath);
+
+        photoUrls.push(urlData.publicUrl);
+      }
+
       // Create restaurant
       const { data: restaurant, error: restaurantError } = await supabase
         .from("restaurants")
@@ -129,11 +319,37 @@ const PartnerOnboarding = () => {
           email: data.email,
           logo_url: logoUrl,
           approval_status: "pending",
+          cuisine_types: data.cuisine_types,
+          operating_hours: data.operating_hours,
+          avg_prep_time_minutes: data.avg_prep_time_minutes,
+          max_meals_per_day: data.max_meals_per_day,
         })
         .select()
         .single();
 
       if (restaurantError) throw restaurantError;
+
+      // Create restaurant details
+      const { error: detailsError } = await supabase
+        .from("restaurant_details")
+        .insert({
+          restaurant_id: restaurant.id,
+          cuisine_type: data.cuisine_types,
+          dietary_tags: data.dietary_tags,
+          website_url: data.website,
+          operating_hours: data.operating_hours,
+          avg_prep_time_minutes: data.avg_prep_time_minutes,
+          max_meals_per_day: data.max_meals_per_day,
+          bank_name: data.bank_name,
+          bank_account_name: data.bank_account_name,
+          bank_account_number: data.bank_account_number,
+          bank_iban: data.bank_iban,
+          onboarding_completed: true,
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString(),
+        });
+
+      if (detailsError) throw detailsError;
 
       // Add partner role if not already present
       const { data: existingRole } = await supabase
@@ -206,7 +422,7 @@ const PartnerOnboarding = () => {
                 >
                   {step.id < currentStep ? <Check className="h-4 w-4" /> : step.id}
                 </div>
-                <span className="text-xs sm:text-sm mt-1">{step.title}</span>
+                <span className="text-xs sm:text-sm mt-1 text-center max-w-[80px]">{step.title}</span>
               </div>
             ))}
           </div>
@@ -249,6 +465,38 @@ const PartnerOnboarding = () => {
                     Minimum 10 characters ({data.description.length}/10)
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Cuisine Types *</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {CUISINE_TYPES.map((type) => (
+                      <Badge
+                        key={type}
+                        variant={data.cuisine_types.includes(type) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleCuisineType(type)}
+                      >
+                        {type}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Dietary Tags (Optional)</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {DIETARY_TAGS.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant={data.dietary_tags.includes(tag) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleDietaryTag(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
 
@@ -278,7 +526,7 @@ const PartnerOnboarding = () => {
                       inputMode="tel"
                       value={data.phone}
                       onChange={(e) => updateData("phone", e.target.value)}
-                      placeholder="+1234567890"
+                      placeholder="+974 1234 5678"
                       className="h-12 sm:h-10 min-h-[44px] pl-10"
                     />
                   </div>
@@ -299,55 +547,237 @@ const PartnerOnboarding = () => {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="website">Website (Optional)</Label>
+                  <Input
+                    id="website"
+                    value={data.website}
+                    onChange={(e) => updateData("website", e.target.value)}
+                    placeholder="https://your-restaurant.com"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Operating Hours</Label>
+                  {DAYS_OF_WEEK.map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={data.operating_hours[key]?.is_open}
+                        onCheckedChange={(checked) =>
+                          updateOperatingHours(key, "is_open", checked)
+                        }
+                      />
+                      <span className="w-24 text-sm">{label}</span>
+                      {data.operating_hours[key]?.is_open ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            type="time"
+                            value={data.operating_hours[key]?.open}
+                            onChange={(e) =>
+                              updateOperatingHours(key, "open", e.target.value)
+                            }
+                            className="w-24"
+                          />
+                          <span className="text-muted-foreground">to</span>
+                          <Input
+                            type="time"
+                            value={data.operating_hours[key]?.close}
+                            onChange={(e) =>
+                              updateOperatingHours(key, "close", e.target.value)
+                            }
+                            className="w-24"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Closed</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </>
             )}
 
             {currentStep === 3 && (
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-6 sm:p-8 text-center">
-                  {data.logoPreview ? (
-                    <div className="space-y-4">
-                      <img
-                        src={data.logoPreview}
-                        alt="Logo preview"
-                        className="w-24 sm:w-32 h-24 sm:h-32 object-cover rounded-xl mx-auto"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          updateData("logoFile", null);
-                          updateData("logoPreview", null);
-                        }}
-                        className="min-h-[44px]"
-                      >
-                        Remove Logo
-                      </Button>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer block">
-                      <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
+              <div className="space-y-6">
+                {/* Logo Upload */}
+                <div className="space-y-2">
+                  <Label>Restaurant Logo</Label>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-6 sm:p-8 text-center">
+                    {data.logoPreview ? (
+                      <div className="space-y-4">
+                        <img
+                          src={data.logoPreview}
+                          alt="Logo preview"
+                          className="w-24 sm:w-32 h-24 sm:h-32 object-cover rounded-xl mx-auto"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            updateData("logoFile", null);
+                            updateData("logoPreview", null);
+                          }}
+                          className="min-h-[44px]"
+                        >
+                          Remove Logo
+                        </Button>
                       </div>
-                      <p className="font-medium">Upload your logo</p>
+                    ) : (
+                      <label className="cursor-pointer block">
+                        <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
+                          <Upload className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <p className="font-medium">Upload your logo</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          PNG, JPG up to 5MB
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Photos Upload */}
+                <div className="space-y-2">
+                  <Label>Restaurant Photos</Label>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-6 text-center">
+                    <label className="cursor-pointer block">
+                      <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
+                        <Camera className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <p className="font-medium">Upload photos</p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        PNG, JPG up to 5MB
+                        Show your kitchen, dishes, or dining area
                       </p>
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={handleLogoChange}
+                        multiple
+                        onChange={handlePhotoUpload}
                         className="hidden"
                       />
                     </label>
+                  </div>
+
+                  {/* Photo Previews */}
+                  {data.photoPreviews.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                      {data.photoPreviews.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={preview}
+                            alt={`Photo ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
+                          <button
+                            onClick={() => removePhoto(index)}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-white rounded-full text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Logo is optional but helps customers recognize your restaurant
-                </p>
               </div>
             )}
 
             {currentStep === 4 && (
+              <>
+                <div className="space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <UtensilsCrossed className="h-5 w-5" />
+                    Operations
+                  </h3>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="prep_time">Average Prep Time (minutes) *</Label>
+                    <Input
+                      id="prep_time"
+                      type="number"
+                      min={5}
+                      max={180}
+                      value={data.avg_prep_time_minutes}
+                      onChange={(e) =>
+                        updateData("avg_prep_time_minutes", parseInt(e.target.value) || 30)
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="capacity">Max Meals Per Day *</Label>
+                    <Input
+                      id="capacity"
+                      type="number"
+                      min={1}
+                      max={1000}
+                      value={data.max_meals_per_day}
+                      onChange={(e) =>
+                        updateData("max_meals_per_day", parseInt(e.target.value) || 50)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Banking Information
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Required for receiving weekly payouts
+                  </p>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_name">Bank Name *</Label>
+                    <Input
+                      id="bank_name"
+                      value={data.bank_name}
+                      onChange={(e) => updateData("bank_name", e.target.value)}
+                      placeholder="e.g., Qatar National Bank"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="account_name">Account Holder Name *</Label>
+                    <Input
+                      id="account_name"
+                      value={data.bank_account_name}
+                      onChange={(e) => updateData("bank_account_name", e.target.value)}
+                      placeholder="Full name as on bank account"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="account_number">Account Number *</Label>
+                    <Input
+                      id="account_number"
+                      value={data.bank_account_number}
+                      onChange={(e) => updateData("bank_account_number", e.target.value)}
+                      placeholder="Bank account number"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="iban">IBAN (Optional)</Label>
+                    <Input
+                      id="iban"
+                      value={data.bank_iban}
+                      onChange={(e) => updateData("bank_iban", e.target.value)}
+                      placeholder="QA00XXXXXXXXXXXXXXXXXXXXXXXX"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {currentStep === 5 && (
               <div className="space-y-4 sm:space-y-6">
                 <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-muted/50 rounded-xl">
                   {data.logoPreview ? (
@@ -386,11 +816,57 @@ const PartnerOnboarding = () => {
                   )}
                 </div>
 
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Cuisine Types:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {data.cuisine_types.map((type) => (
+                      <Badge key={type} variant="secondary" className="text-xs">
+                        {type}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Operations:</p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>• Average prep time: {data.avg_prep_time_minutes} minutes</p>
+                    <p>• Max meals per day: {data.max_meals_per_day}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Bank Account:</p>
+                  <p className="text-sm text-muted-foreground">
+                    {data.bank_name} - {data.bank_account_name}
+                  </p>
+                </div>
+
                 <div className="p-3 sm:p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                   <p className="text-sm text-amber-600">
                     <strong>Note:</strong> Your restaurant will be reviewed by our team before
                     appearing on the platform. This usually takes 1-2 business days.
                   </p>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 border rounded-lg">
+                  <Checkbox
+                    id="terms"
+                    checked={data.terms_accepted}
+                    onCheckedChange={(checked) =>
+                      updateData("terms_accepted", checked === true)
+                    }
+                    className="mt-1"
+                  />
+                  <div>
+                    <Label htmlFor="terms" className="cursor-pointer">
+                      I agree to the terms and conditions *
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      By submitting, you agree to our partner terms, commission structure,
+                      and platform policies.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -407,7 +883,7 @@ const PartnerOnboarding = () => {
                 Back
               </Button>
 
-              {currentStep < 4 ? (
+              {currentStep < 5 ? (
                 <Button
                   onClick={() => setCurrentStep((prev) => prev + 1)}
                   disabled={!canProceed()}

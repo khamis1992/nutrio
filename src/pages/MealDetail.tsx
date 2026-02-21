@@ -21,9 +21,7 @@ import {
   Crown,
   Truck,
   Zap,
-  Package,
-  Plus,
-  Minus
+  Package
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,10 +30,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useDeliveryFees } from "@/hooks/useDeliveryFees";
 import { useMealAddons } from "@/hooks/useMealAddons";
-import { useVipDiscount } from "@/hooks/useVipDiscount";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
-import { VipPriceBadge } from "@/components/VipPriceBadge";
 
 interface MealDetail {
   id: string;
@@ -74,7 +70,6 @@ const MealDetail = () => {
   const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
   const { settings: deliverySettings, calculateDeliveryFee, loading: deliveryLoading } = useDeliveryFees();
   const {
-    addons,
     loading: addonsLoading,
     selectedAddons,
     toggleAddon,
@@ -83,7 +78,6 @@ const MealDetail = () => {
     groupedAddons,
     hasAddons
   } = useMealAddons(id);
-  const { isVip, calculateDiscountedPrice } = useVipDiscount();
 
   // Get initial date and meal type from navigation state
   const navigationState = location.state as { scheduledDate?: string; mealType?: string } | null;
@@ -380,23 +374,7 @@ const MealDetail = () => {
               </span>
             </div>
 
-            {/* VIP Discount Price Display */}
-            {(() => {
-              const priceInfo = calculateDiscountedPrice(meal.price);
-              return priceInfo.hasDiscount && (
-                <div className="mb-4">
-                  <VipPriceBadge
-                    originalPrice={priceInfo.originalPrice}
-                    discountedPrice={priceInfo.discountedPrice}
-                    discountPercent={priceInfo.discountPercent}
-                    hasDiscount={priceInfo.hasDiscount}
-                    size="lg"
-                  />
-                </div>
-              );
-            })()}
-
-            {meal.diet_tags.length > 0 && (
+{meal.diet_tags.length > 0 && (
               <div className="flex gap-2 flex-wrap">
                 {meal.diet_tags.map((tag) => (
                   <Badge key={tag} variant="diet">
