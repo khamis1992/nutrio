@@ -47,6 +47,7 @@ import {
   Users,
   RefreshCw,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,6 +55,7 @@ import { format } from "date-fns";
 import { useUserOrders } from "@/hooks/useUserOrders";
 import { OrderHistoryCard } from "@/components/admin/OrderHistoryCard";
 import { OrderStatistics } from "@/components/admin/OrderStatistics";
+import { ChangePasswordDialog } from "@/components/admin/ChangePasswordDialog";
 
 type UserRole = "user" | "admin" | "gym_owner" | "staff" | "restaurant" | "driver";
 type UserStatus = "active" | "blocked" | "suspended";
@@ -101,6 +103,7 @@ const AdminUsers = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "orders">("overview");
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -109,8 +112,6 @@ const AdminUsers = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Use fallback method which queries profiles directly
-      // (auth admin API requires service role key and won't work client-side)
       await fetchUsersFallback();
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -211,17 +212,10 @@ const AdminUsers = () => {
         )
       );
 
-      toast({
-        title: "IP Blocked",
-        description: `IP ${ipAddress} has been blocked successfully.`,
-      });
+      toast({ title: "IP Blocked", description: `${ipAddress} has been blocked.` });
     } catch (error) {
       console.error("Error blocking IP:", error);
-      toast({
-        title: "Error",
-        description: "Failed to block IP address.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to block IP", variant: "destructive" });
     }
   };
 
@@ -229,7 +223,7 @@ const AdminUsers = () => {
     try {
       const { error } = await supabase
         .from("blocked_ips")
-        .update({ is_active: false })
+        .delete()
         .eq("ip_address", ipAddress);
 
       if (error) throw error;
@@ -246,19 +240,42 @@ const AdminUsers = () => {
         )
       );
 
-      toast({
-        title: "IP Unblocked",
-        description: `IP ${ipAddress} has been unblocked.`,
-      });
+      toast({ title: "IP Unblocked", description: `${ipAddress} has been unblocked.` });
     } catch (error) {
       console.error("Error unblocking IP:", error);
-      toast({
-        title: "Error",
-        description: "Failed to unblock IP address.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to unblock IP", variant: "destructive" });
     }
   };
+
+  const getRoleBadge = (role: UserRole) => {
+    switch (role) {
+      case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
+      case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+      case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+      case "staff": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+    }
+  };
+
+  const getStatusBadge = (status: UserStatus) => {
+    switch (status) {
+      case "active": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+      case "blocked": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "suspended": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === "all" || user.roles.includes(roleFilter);
+    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers((prev) => {
@@ -285,144 +302,83 @@ const AdminUsers = () => {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection("desc");
+      setSortDirection("asc");
     }
   };
 
-  const exportToCSV = () => {
-    const headers = ["Name", "Email", "Roles", "Status", "Latest IP", "Created At", "Last Sign In"];
-    const rows = filteredUsers.map((u) => [
-      u.full_name || "Unnamed",
-      u.email,
-      u.roles.join(", "),
-      u.status,
-      u.latest_ip || "N/A",
-      format(new Date(u.created_at), "yyyy-MM-dd HH:mm"),
-      u.last_sign_in_at ? format(new Date(u.last_sign_in_at), "yyyy-MM-dd HH:mm") : "Never",
-    ]);
-    
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `users-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-    toast({ title: "Export Complete", description: `${rows.length} users exported to CSV.` });
-  };
-
-  const filteredUsers = users
-    .filter((u) => {
-      const matchesSearch =
-        !searchQuery ||
-        u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.latest_ip?.includes(searchQuery);
-      const matchesRole = roleFilter === "all" || u.roles.includes(roleFilter);
-      const matchesStatus = statusFilter === "all" || u.status === statusFilter;
-      return matchesSearch && matchesRole && matchesStatus;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      if (sortField === "created_at") {
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else if (sortField === "last_sign_in_at") {
-        const aTime = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
-        const bTime = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
-        comparison = aTime - bTime;
-      } else if (sortField === "full_name") {
-        comparison = (a.full_name || "").localeCompare(b.full_name || "");
-      }
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-
-  const getRoleBadge = (role: UserRole) => {
-    const styles = {
-      admin: "bg-red-500/10 text-red-600 border-red-500/20",
-      restaurant: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-      driver: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-      gym_owner: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-      staff: "bg-orange-500/10 text-orange-600 border-orange-500/20",
-      user: "bg-slate-500/10 text-slate-600 border-slate-500/20",
-    };
-    return styles[role] || styles.user;
-  };
-
-  const getStatusBadge = (status: UserStatus) => {
-    const styles = {
-      active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-      blocked: "bg-red-500/10 text-red-600 border-red-500/20",
-      suspended: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    };
-    return styles[status];
-  };
-
-  // Calculate stats
-  const stats = {
-    totalUsers: users.length,
-    activeToday: users.filter((u) => u.last_sign_in_at && new Date(u.last_sign_in_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length,
-    blockedIPs: blockedIPs.size,
-    newThisWeek: users.filter((u) => new Date(u.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length,
-  };
-
   return (
-    <AdminLayout title="User Management" subtitle={`${users.length} total users`}>
+    <AdminLayout>
       <div className="space-y-6">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage users, roles, and permissions
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Users className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                  <p className="text-xs text-muted-foreground">Total Users</p>
+                  <p className="text-2xl font-bold">{users.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Users</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-emerald-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-500/10 rounded-lg">
+                  <Activity className="w-6 h-6 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.activeToday}</p>
-                  <p className="text-xs text-muted-foreground">Active Today</p>
+                  <p className="text-2xl font-bold">
+                    {users.filter((u) => u.last_sign_in_at && new Date(u.last_sign_in_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Active Today</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <ShieldAlert className="h-5 w-5 text-red-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-red-500/10 rounded-lg">
+                  <ShieldAlert className="w-6 h-6 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.blockedIPs}</p>
-                  <p className="text-xs text-muted-foreground">Blocked IPs</p>
+                  <p className="text-2xl font-bold">{blockedIPs.size}</p>
+                  <p className="text-sm text-muted-foreground">Blocked IPs</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
           <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-500/10 rounded-lg">
+                  <Shield className="w-6 h-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.newThisWeek}</p>
-                  <p className="text-xs text-muted-foreground">New This Week</p>
+                  <p className="text-2xl font-bold">
+                    {users.filter((u) => u.roles.includes("admin")).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Admins</p>
                 </div>
               </div>
             </CardContent>
@@ -430,76 +386,17 @@ const AdminUsers = () => {
         </div>
 
         {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, email, or IP address..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as UserRole | "all")}
-                  className="px-3 py-2 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="all">All Roles</option>
-                  <option value="admin">Admin</option>
-                  <option value="restaurant">Restaurant</option>
-                  <option value="driver">Driver</option>
-                  <option value="user">User</option>
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as UserStatus | "all")}
-                  className="px-3 py-2 border border-input rounded-md text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="blocked">Blocked</option>
-                </select>
-                <Button
-                  variant="outline"
-                  onClick={exportToCSV}
-                  className="gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={fetchData}
-                  disabled={loading}
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bulk Actions */}
-        {selectedUsers.size > 0 && (
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-primary font-medium">
-              {selectedUsers.size} user{selectedUsers.size > 1 ? "s" : ""} selected
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                Block Selected IPs
-              </Button>
-              <Button variant="outline" size="sm">
-                Export Selected
-              </Button>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
-        )}
+        </div>
 
         {/* Users Table */}
         <Card>
@@ -607,39 +504,33 @@ const AdminUsers = () => {
                             </Badge>
                           ))}
                           {userData.roles.length > 2 && (
-                            <Badge variant="outline" className="text-xs border-border">
+                            <Badge variant="outline" className="text-xs">
                               +{userData.roles.length - 2}
                             </Badge>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`text-xs capitalize border ${getStatusBadge(userData.status)}`}
-                        >
+                        <Badge className={getStatusBadge(userData.status)}>
                           {userData.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          {userData.last_sign_in_at ? (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="w-3 h-3" />
+                        {userData.last_sign_in_at ? (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">
                               {format(new Date(userData.last_sign_in_at), "MMM d, HH:mm")}
                             </span>
-                          ) : (
-                            <span className="text-muted-foreground/70">Never</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground/70">
-                          Joined {format(new Date(userData.created_at), "MMM yyyy")}
-                        </p>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Never</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {userData.latest_ip ? (
                           <div className="flex items-center gap-2">
-                            <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                            <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
                               {userData.latest_ip}
                             </code>
                             {userData.is_blocked_ip ? (
@@ -687,8 +578,6 @@ const AdminUsers = () => {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                setSelectedUser(userData);
-                                setIsDetailOpen(true);
                                 toast({
                                   title: "Manage Roles",
                                   description: "Role management feature coming soon",
@@ -732,10 +621,14 @@ const AdminUsers = () => {
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
           <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
             {selectedUser && (
-              <UserDetailSheet
+              <UserDetailContent
                 user={selectedUser}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
+                handleBlockIP={handleBlockIP}
+                handleUnblockIP={handleUnblockIP}
+                isPasswordDialogOpen={isPasswordDialogOpen}
+                setIsPasswordDialogOpen={setIsPasswordDialogOpen}
               />
             )}
           </SheetContent>
@@ -745,25 +638,46 @@ const AdminUsers = () => {
   );
 };
 
-// Separate component to handle user detail sheet with hooks
-const UserDetailSheet = ({ 
-  user, 
-  activeTab, 
-  setActiveTab 
-}: { 
-  user: UserData; 
+// Separate component for user details with orders
+const UserDetailContent = ({
+  user,
+  activeTab,
+  setActiveTab,
+  handleBlockIP,
+  handleUnblockIP,
+  isPasswordDialogOpen,
+  setIsPasswordDialogOpen,
+}: {
+  user: UserData;
   activeTab: "overview" | "orders";
   setActiveTab: (tab: "overview" | "orders") => void;
+  handleBlockIP: (ip: string, name: string) => Promise<void>;
+  handleUnblockIP: (ip: string) => Promise<void>;
+  isPasswordDialogOpen: boolean;
+  setIsPasswordDialogOpen: (open: boolean) => void;
 }) => {
   const { toast } = useToast();
-  const { 
-    orders, 
-    stats, 
-    loading: ordersLoading, 
-    filters, 
-    updateFilters, 
-    clearFilters 
-  } = useUserOrders(user.user_id);
+  const { orders, stats, loading: ordersLoading, filters, updateFilters, clearFilters } = useUserOrders(user.user_id);
+
+  const getRoleBadge = (role: UserRole) => {
+    switch (role) {
+      case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
+      case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+      case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+      case "staff": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+    }
+  };
+
+  const getStatusBadge = (status: UserStatus) => {
+    switch (status) {
+      case "active": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+      case "blocked": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "suspended": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+    }
+  };
 
   return (
     <>
@@ -771,29 +685,17 @@ const UserDetailSheet = ({
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden">
             {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt={user.full_name || ""}
-                className="w-full h-full object-cover"
-              />
+              <img src={user.avatar_url} alt={user.full_name || ""} className="w-full h-full object-cover" />
             ) : (
               <User className="w-8 h-8 text-primary" />
             )}
           </div>
           <div>
-            <SheetTitle className="text-xl">
-              {user.full_name || "Unnamed User"}
-            </SheetTitle>
-            <SheetDescription className="text-muted-foreground">
-              {user.email}
-            </SheetDescription>
+            <SheetTitle className="text-xl">{user.full_name || "Unnamed User"}</SheetTitle>
+            <SheetDescription className="text-muted-foreground">{user.email}</SheetDescription>
             <div className="flex gap-2 mt-2">
               {user.roles.map((role) => (
-                <Badge
-                  key={role}
-                  variant="outline"
-                  className={`text-xs capitalize ${getRoleBadge(role)}`}
-                >
+                <Badge key={role} variant="outline" className={`text-xs capitalize ${getRoleBadge(role)}`}>
                   {role.replace("_", " ")}
                 </Badge>
               ))}
@@ -802,14 +704,16 @@ const UserDetailSheet = ({
         </div>
       </SheetHeader>
 
+      <SheetDescription className="sr-only">
+        User details and management options for {user.full_name || "Unnamed User"}
+      </SheetDescription>
+
       {/* Tabs */}
       <div className="flex border-b mt-4">
         <button
           onClick={() => setActiveTab("overview")}
           className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "overview"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+            activeTab === "overview" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           Overview
@@ -817,9 +721,7 @@ const UserDetailSheet = ({
         <button
           onClick={() => setActiveTab("orders")}
           className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "orders"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+            activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           Orders ({stats?.total_orders || 0})
@@ -840,190 +742,214 @@ const UserDetailSheet = ({
             />
           </>
         ) : (
-          <>
-            {/* Account Info */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                  Account Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">User ID</p>
-                    <code className="text-sm font-mono">{user.user_id.substring(0, 16)}...</code>
+          <OverviewContent
+            user={user}
+            handleBlockIP={handleBlockIP}
+            handleUnblockIP={handleUnblockIP}
+            setActiveTab={setActiveTab}
+            setIsPasswordDialogOpen={setIsPasswordDialogOpen}
+            toast={toast}
+          />
+        )}
+      </div>
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog
+        userId={user.user_id}
+        userEmail={user.email}
+        userName={user.full_name || ""}
+        isOpen={isPasswordDialogOpen}
+        onClose={() => setIsPasswordDialogOpen(false)}
+      />
+    </>
+  );
+};
+
+const OverviewContent = ({
+  user,
+  handleBlockIP,
+  handleUnblockIP,
+  setActiveTab,
+  setIsPasswordDialogOpen,
+  toast,
+}: {
+  user: UserData;
+  handleBlockIP: (ip: string, name: string) => Promise<void>;
+  handleUnblockIP: (ip: string) => Promise<void>;
+  setActiveTab: (tab: "overview" | "orders") => void;
+  setIsPasswordDialogOpen: (open: boolean) => void;
+  toast: any;
+}) => {
+  const getRoleBadge = (role: UserRole) => {
+    switch (role) {
+      case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
+      case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+      case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+      case "staff": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+    }
+  };
+
+  const getStatusBadge = (status: UserStatus) => {
+    switch (status) {
+      case "active": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+      case "blocked": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "suspended": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      default: return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+    }
+  };
+
+  return (
+    <>
+      {/* Account Info */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+            Account Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">User ID</p>
+              <code className="text-sm font-mono">{user.user_id.substring(0, 16)}...</code>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Status</p>
+              <Badge className={getStatusBadge(user.status)}>{user.status}</Badge>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Created</p>
+              <p className="text-sm">{format(new Date(user.created_at), "MMM d, yyyy HH:mm")}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Last Sign In</p>
+              <p className="text-sm">
+                {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), "MMM d, yyyy HH:mm") : "Never"}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* IP Management */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+            IP Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {user.latest_ip ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Status</p>
-                    <Badge className={getStatusBadge(user.status)}>
-                      {user.status}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Created</p>
-                    <p className="text-sm">
-                      {format(new Date(user.created_at), "MMM d, yyyy HH:mm")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Last Sign In</p>
-                    <p className="text-sm">
-                      {user.last_sign_in_at
-                        ? format(new Date(user.last_sign_in_at), "MMM d, yyyy HH:mm")
-                        : "Never"}
-                    </p>
+                    <code className="text-sm font-mono font-semibold">{user.latest_ip}</code>
+                    <p className="text-xs text-muted-foreground">Current IP Address</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                {user.is_blocked_ip ? (
+                  <Button
+                    size="sm"
+                    onClick={() => handleUnblockIP(user.latest_ip!)}
+                    className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20"
+                  >
+                    <Unlock className="w-4 h-4 mr-1" />
+                    Unblock
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => handleBlockIP(user.latest_ip!, user.full_name || "Unknown")}
+                    variant="destructive"
+                    className="bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500/20"
+                  >
+                    <Ban className="w-4 h-4 mr-1" />
+                    Block
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {user.is_blocked_ip
+                  ? "This IP is currently blocked from accessing the platform."
+                  : "This IP has full access to the platform."}
+              </p>
 
-                  {/* IP Management */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        IP Management
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {selectedUser.latest_ip ? (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                <MapPin className="w-5 h-5 text-primary" />
-                              </div>
-                              <div>
-                                <code className="text-sm font-mono font-semibold">{selectedUser.latest_ip}</code>
-                                <p className="text-xs text-muted-foreground">Current IP Address</p>
-                              </div>
-                            </div>
-                            {selectedUser.is_blocked_ip ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleUnblockIP(selectedUser.latest_ip!)}
-                                className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20"
-                              >
-                                <Unlock className="w-4 h-4 mr-1" />
-                                Unblock
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() => handleBlockIP(selectedUser.latest_ip!, selectedUser.full_name || "Unknown")}
-                                variant="destructive"
-                                className="bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500/20"
-                              >
-                                <Ban className="w-4 h-4 mr-1" />
-                                Block
-                              </Button>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedUser.is_blocked_ip
-                              ? "This IP is currently blocked from accessing the platform."
-                              : "This IP has full access to the platform."}
-                          </p>
-
-                          {/* IP History */}
-                          {selectedUser.ip_logs.length > 0 && (
-                            <div className="mt-4">
-                              <h4 className="text-sm font-medium mb-2">IP History</h4>
-                              <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {selectedUser.ip_logs.slice(0, 10).map((log, idx) => (
-                                  <div key={idx} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <code className="font-mono text-primary">{log.ip_address}</code>
-                                      {log.country_name && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {log.city ? `${log.city}, ` : ""}{log.country_name}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">
-                                      {format(new Date(log.created_at), "MMM d, HH:mm")}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+              {user.ip_logs.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium mb-2">IP History</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {user.ip_logs.slice(0, 10).map((log, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                        <div className="flex items-center gap-2">
+                          <code className="font-mono text-primary">{log.ip_address}</code>
+                          {log.country_name && (
+                            <span className="text-xs text-muted-foreground">
+                              {log.city ? `${log.city}, ` : ""}{log.country_name}
+                            </span>
                           )}
                         </div>
-                      ) : (
-                        <p className="text-muted-foreground">No IP address recorded for this user.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Quick Actions */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Quick Actions
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button 
-                          variant="outline" 
-                          className="justify-start"
-                          onClick={() => {
-                            window.location.href = `mailto:${selectedUser.email}`;
-                          }}
-                        >
-                          <Mail className="w-4 h-4 mr-2" />
-                          Send Email
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          className="justify-start"
-                          onClick={() => {
-                            toast({
-                              title: "Edit Roles",
-                              description: `Role management for ${selectedUser.full_name || selectedUser.email} - Feature coming soon`,
-                            });
-                          }}
-                        >
-                          <Shield className="w-4 h-4 mr-2" />
-                          Edit Roles
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          className="justify-start"
-                          onClick={() => {
-                            toast({
-                              title: "View Orders",
-                              description: `Order history for ${selectedUser.full_name || selectedUser.email} - Feature coming soon`,
-                            });
-                          }}
-                        >
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          View Orders
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="justify-start text-red-600 border-red-200 hover:bg-red-50"
-                          onClick={() => {
-                            toast({
-                              title: "Suspend User",
-                              description: `User suspension for ${selectedUser.full_name || selectedUser.email} - Feature coming soon`,
-                              variant: "destructive",
-                            });
-                          }}
-                        >
-                          <Ban className="w-4 h-4 mr-2" />
-                          Suspend User
-                        </Button>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(log.created_at), "MMM d, HH:mm")}
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
+                    ))}
+                  </div>
                 </div>
-              </>
-            )}
-          </SheetContent>
-        </Sheet>
-      </div>
-    </AdminLayout>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No IP address recorded for this user.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+            Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" className="justify-start" onClick={() => window.location.href = `mailto:${user.email}`}>
+              <Mail className="w-4 h-4 mr-2" />
+              Send Email
+            </Button>
+            <Button 
+              variant="outline" 
+              className="justify-start"
+              onClick={() => toast({ title: "Edit Roles", description: "Role management feature coming soon" })}
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Edit Roles
+            </Button>
+            <Button variant="outline" className="justify-start" onClick={() => setActiveTab("orders")}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              View Orders
+            </Button>
+            <Button variant="outline" className="justify-start" onClick={() => setIsPasswordDialogOpen(true)}>
+              <Lock className="w-4 h-4 mr-2" />
+              Change Password
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start text-red-600 border-red-200 hover:bg-red-50 col-span-2"
+              onClick={() => toast({ title: "Suspend User", description: "User suspension feature coming soon", variant: "destructive" })}
+            >
+              <Ban className="w-4 h-4 mr-2" />
+              Suspend User
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 };
 
