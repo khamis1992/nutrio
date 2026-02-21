@@ -73,7 +73,6 @@ const MealDetail = () => {
     loading: addonsLoading,
     selectedAddons,
     toggleAddon,
-    getSelectedAddonsTotal,
     getSelectedAddonsList,
     groupedAddons,
     hasAddons
@@ -175,10 +174,8 @@ const MealDetail = () => {
 
   const [success, setSuccess] = useState(false);
 
-  // Calculate totals
-  const addonsTotal = getSelectedAddonsTotal();
-  const deliveryFeeResult = calculateDeliveryFee(selectedDeliveryType, addonsTotal);
-  const orderTotal = addonsTotal + deliveryFeeResult.fee;
+  // Calculate delivery fee (add-ons are included in subscription)
+  const deliveryFeeResult = calculateDeliveryFee(selectedDeliveryType, 0);
 
   const handleAddToSchedule = async () => {
     if (!user || !meal || !selectedDate) return;
@@ -226,21 +223,21 @@ const MealDetail = () => {
           meal_type: selectedMealType,
           delivery_type: deliveryFeeResult.type,
           delivery_fee: deliveryFeeResult.fee,
-          addons_total: addonsTotal,
+          addons_total: 0,
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Insert selected add-ons
+      // Insert selected add-ons (included in subscription, no charge)
       const selectedAddonsList = getSelectedAddonsList();
       if (selectedAddonsList.length > 0 && scheduleData) {
         const addonInserts = selectedAddonsList.map(({ addon, quantity }) => ({
           schedule_id: scheduleData.id,
           addon_id: addon.id,
           quantity,
-          unit_price: addon.price,
+          unit_price: 0,
         }));
 
         await supabase.from("schedule_addons").insert(addonInserts);
@@ -647,9 +644,7 @@ const MealDetail = () => {
                                     )}
                                   </div>
                                 </div>
-                                <span className="text-sm font-medium text-primary">
-                                  +{formatCurrency(addon.price)}
-                                </span>
+
                               </div>
                             ))}
                           </div>
@@ -659,16 +654,16 @@ const MealDetail = () => {
                   </div>
                 )}
 
-                {/* Order Summary */}
+                {/* Order Summary - Pure Subscription Model */}
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Meal</span>
                     <span className="text-primary font-medium">Included in plan</span>
                   </div>
-                  {addonsTotal > 0 && (
+                  {selectedAddons.size > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Add-ons ({selectedAddons.size})</span>
-                      <span>{formatCurrency(addonsTotal)}</span>
+                      <span className="text-primary font-medium">Included</span>
                     </div>
                   )}
                   {deliverySettings.enabled && (
@@ -683,9 +678,7 @@ const MealDetail = () => {
                   )}
                   <div className="border-t pt-2 flex justify-between font-medium">
                     <span>Total</span>
-                    <span>
-                      {orderTotal === 0 ? "Free" : formatCurrency(orderTotal)}
-                    </span>
+                    <span className="text-primary">Included in subscription</span>
                   </div>
                 </div>
               </div>
