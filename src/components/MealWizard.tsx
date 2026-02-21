@@ -14,9 +14,12 @@ import {
   X,
   Flame,
   Beef,
-  Sparkles,
   ChefHat,
-  ArrowRight
+  ArrowRight,
+  Store,
+  MapPin,
+  Star,
+  ChevronRight
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -30,9 +33,17 @@ interface Meal {
   fat_g: number;
   image_url: string | null;
   available: boolean;
-  meal_type: string | null;
-  is_vip_exclusive?: boolean;
-  diet_tags?: string[];
+  restaurant_id: string;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  description: string | null;
+  address: string | null;
+  logo_url: string | null;
+  rating: number;
+  cuisine_type: string | null;
 }
 
 interface MealWizardProps {
@@ -52,13 +63,15 @@ const STEPS = [
 const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardProps) => {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMeals, setSelectedMeals] = useState<Record<string, Meal[]>>({
-    breakfast: [],
-    lunch: [],
-    dinner: [],
-    snack: [],
+  const [selectedMeals, setSelectedMeals] = useState<Record<string, Meal & { restaurant: Restaurant }>>({
+    breakfast: null as any,
+    lunch: null as any,
+    dinner: null as any,
+    snack: null as any,
   });
   const [scheduling, setScheduling] = useState(false);
 
@@ -66,13 +79,50 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   const CurrentIcon = currentStepData.icon;
 
   useEffect(() => {
-    fetchMeals();
-  }, [currentStep]);
+    fetchRestaurants();
+  }, []);
 
-  const fetchMeals = async () => {
+  useEffect(() => {
+    if (selectedRestaurant) {
+      fetchRestaurantMeals(selectedRestaurant.id);
+    }
+  }, [selectedRestaurant]);
+
+  const fetchRestaurants = async () => {
     setLoading(true);
     try {
-      console.log("Fetching meals...");
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select(`
+          id,
+          name,
+          description,
+          address,
+          logo_url,
+          rating,
+          cuisine_type
+        `)
+        .eq("approval_status", "approved")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      setRestaurants(data || []);
+    } catch (err) {
+      console.error("Error fetching restaurants:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load restaurants",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRestaurantMeals = async (restaurantId: string) => {
+    setLoading(true);
+    try {
       const { data, error } = await supabase
         .from("meals")
         .select(`
@@ -85,24 +135,14 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           fat_g,
           image_url,
           available,
-          meal_type
+          restaurant_id
         `)
+        .eq("restaurant_id", restaurantId)
         .eq("available", true)
         .order("name", { ascending: true });
 
-      console.log("Meals data:", data);
-      console.log("Meals error:", error);
-
       if (error) throw error;
-
-      const processedMeals = (data || []).map((meal: any) => ({
-        ...meal,
-        is_vip_exclusive: false,
-        diet_tags: [],
-      }));
-
-      console.log("Processed meals:", processedMeals);
-      setMeals(processedMeals);
+      setMeals(data || []);
     } catch (err) {
       console.error("Error fetching meals:", err);
       toast({
@@ -115,39 +155,37 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     }
   };
 
-  const toggleMealSelection = (meal: Meal) => {
+  const selectMeal = (meal: Meal) => {
     const stepKey = STEPS[currentStep].id;
-    setSelectedMeals(prev => {
-      const currentSelection = prev[stepKey];
-      const isSelected = currentSelection.some(m => m.id === meal.id);
-      
-      if (isSelected) {
-        return {
-          ...prev,
-          [stepKey]: currentSelection.filter(m => m.id !== meal.id),
-        };
-      } else {
-        return {
-          ...prev,
-          [stepKey]: [...currentSelection, meal],
-        };
-      }
+    setSelectedMeals(prev => ({
+      ...prev,
+      [stepKey]: { ...meal, restaurant: selectedRestaurant! }
+    }));
+    
+    toast({
+      title: `${currentStepData.label} selected`,
+      description: `${meal.name} from ${selectedRestaurant?.name}`,
     });
   };
 
   const isMealSelected = (mealId: string) => {
     const stepKey = STEPS[currentStep].id;
-    return selectedMeals[stepKey].some(m => m.id === mealId);
+    return selectedMeals[stepKey]?.id === mealId;
   };
 
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) {
+      setSelectedRestaurant(null);
+      setMeals([]);
       setCurrentStep(prev => prev + 1);
     }
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
+    if (selectedRestaurant) {
+      setSelectedRestaurant(null);
+      setMeals([]);
+    } else if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     }
   };
@@ -156,15 +194,15 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     setScheduling(true);
     
     try {
-      const allSelectedMeals = Object.entries(selectedMeals).flatMap(([mealType, meals]) =>
-        meals.map(meal => ({
+      const allSelectedMeals = Object.entries(selectedMeals)
+        .filter(([_, meal]) => meal !== null)
+        .map(([mealType, meal]) => ({
           user_id: userId,
           meal_id: meal.id,
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           meal_type: mealType,
           is_completed: false,
-        }))
-      );
+        }));
 
       if (allSelectedMeals.length === 0) {
         toast({
@@ -201,12 +239,12 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   };
 
   const getTotalSelectedMeals = () => {
-    return Object.values(selectedMeals).reduce((sum, meals) => sum + meals.length, 0);
+    return Object.values(selectedMeals).filter(meal => meal !== null).length;
   };
 
-  const getStepSelectedCount = (stepIndex: number) => {
+  const getStepSelected = (stepIndex: number) => {
     const stepKey = STEPS[stepIndex].id;
-    return selectedMeals[stepKey].length;
+    return selectedMeals[stepKey];
   };
 
   return (
@@ -244,8 +282,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             {STEPS.map((step, index) => {
               const StepIcon = step.icon;
               const isActive = index === currentStep;
-              const isCompleted = index < currentStep;
-              const count = getStepSelectedCount(index);
+              const hasSelection = getStepSelected(index) !== null;
+              const isDone = index < currentStep || hasSelection;
               
               return (
                 <motion.button
@@ -253,28 +291,25 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: index * 0.1 }}
-                  onClick={() => setCurrentStep(index)}
+                  onClick={() => {
+                    if (index <= currentStep) {
+                      setSelectedRestaurant(null);
+                      setMeals([]);
+                      setCurrentStep(index);
+                    }
+                  }}
                   className={`relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                     isActive 
                       ? `${step.color} text-white shadow-lg shadow-${step.color}/30 scale-110` 
-                      : isCompleted
+                      : isDone
                       ? `${step.color} text-white`
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {isCompleted ? (
+                  {isDone ? (
                     <Check className="h-5 w-5" />
                   ) : (
                     <StepIcon className="h-5 w-5" />
-                  )}
-                  
-                  {/* Selection Count Badge */}
-                  {count > 0 && (
-                    <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                      isActive || isCompleted ? 'bg-white text-black' : 'bg-primary text-primary-foreground'
-                    }`}>
-                      {count}
-                    </span>
                   )}
                 </motion.button>
               );
@@ -318,143 +353,228 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           </div>
         </motion.div>
 
-        {/* Selected Meals for This Step */}
-        {selectedMeals[currentStepData.id].length > 0 && (
+        {/* Selected Meal for This Step */}
+        {getStepSelected(currentStep) && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-4"
           >
-            <p className="text-sm font-medium text-muted-foreground mb-2">
-              Selected ({selectedMeals[currentStepData.id].length})
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {selectedMeals[currentStepData.id].map((meal) => (
-                <motion.div
-                  key={meal.id}
-                  layout
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm"
-                >
-                  <span className="truncate max-w-[150px]">{meal.name}</span>
-                  <button
-                    onClick={() => toggleMealSelection(meal)}
-                    className="hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </motion.div>
-              ))}
+            <p className="text-sm font-medium text-muted-foreground mb-2">Selected for {currentStepData.label}</p>
+            <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-xl">
+              <Check className="h-4 w-4" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">{getStepSelected(currentStep)?.name}</p>
+                <p className="text-xs opacity-80">from {getStepSelected(currentStep)?.restaurant.name}</p>
+              </div>
+              <button
+                onClick={() => {
+                  const stepKey = STEPS[currentStep].id;
+                  setSelectedMeals(prev => ({ ...prev, [stepKey]: null as any }));
+                }}
+                className="hover:text-destructive"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </motion.div>
         )}
 
-        {/* Meals Grid */}
+        {/* Loading State */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
-        ) : meals.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-              <ChefHat className="h-10 w-10 text-muted-foreground/50" />
+        ) : selectedRestaurant ? (
+          /* Restaurant Meals View */
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            {/* Back to Restaurants Button */}
+            <Button
+              variant="ghost"
+              className="mb-4"
+              onClick={() => {
+                setSelectedRestaurant(null);
+                setMeals([]);
+              }}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to Restaurants
+            </Button>
+
+            {/* Restaurant Header */}
+            <div className="flex items-center gap-3 mb-4 p-3 bg-muted rounded-xl">
+              {selectedRestaurant.logo_url ? (
+                <img
+                  src={selectedRestaurant.logo_url}
+                  alt={selectedRestaurant.name}
+                  className="w-12 h-12 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Store className="h-6 w-6 text-primary" />
+                </div>
+              )}
+              <div>
+                <h3 className="font-semibold">{selectedRestaurant.name}</h3>
+                <p className="text-xs text-muted-foreground">{selectedRestaurant.cuisine_type || 'Various cuisine'}</p>
+              </div>
             </div>
-            <p className="text-muted-foreground">No meals available</p>
-            <p className="text-xs text-muted-foreground mt-1">Try refreshing the page</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <AnimatePresence mode="popLayout">
-              {meals.map((meal, index) => (
-                <motion.div
-                  key={meal.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.03 }}
-                  onClick={() => toggleMealSelection(meal)}
-                  className={`group cursor-pointer relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
-                    isMealSelected(meal.id)
-                      ? `border-primary bg-primary/5 shadow-lg shadow-primary/10`
-                      : 'border-border bg-card hover:border-primary/30'
-                  }`}
-                >
-                  <div className="flex gap-3 p-3">
-                    {/* Image */}
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-muted">
-                      {meal.image_url ? (
-                        <img
-                          src={meal.image_url}
-                          alt={meal.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl">
-                          🍽️
+
+            {/* Meals List */}
+            {meals.length === 0 ? (
+              <div className="text-center py-12">
+                <ChefHat className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">No meals available from this restaurant</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {meals.map((meal, index) => (
+                    <motion.div
+                      key={meal.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => selectMeal(meal)}
+                      className={`group cursor-pointer relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
+                        isMealSelected(meal.id)
+                          ? 'border-primary bg-primary/5 shadow-lg'
+                          : 'border-border bg-card hover:border-primary/30'
+                      }`}
+                    >
+                      <div className="flex gap-3 p-3">
+                        {/* Image */}
+                        <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-muted">
+                          {meal.image_url ? (
+                            <img
+                              src={meal.image_url}
+                              alt={meal.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl">
+                              🍽️
+                            </div>
+                          )}
+                          
+                          {isMealSelected(meal.id) && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="absolute inset-0 bg-primary/60 flex items-center justify-center"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                                <Check className="h-5 w-5 text-primary" />
+                              </div>
+                            </motion.div>
+                          )}
                         </div>
-                      )}
-                      
-                      {/* Selection Indicator */}
-                      {isMealSelected(meal.id) && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute inset-0 bg-primary/60 flex items-center justify-center"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                            <Check className="h-5 w-5 text-primary" />
-                          </div>
-                        </motion.div>
-                      )}
-                    </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-sm truncate">{meal.name}</h3>
-                        {meal.is_vip_exclusive === true && (
-                          <Badge className="shrink-0 bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[10px]">
-                            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                            VIP
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      {meal.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                          {meal.description}
-                        </p>
-                      )}
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm truncate">{meal.name}</h3>
+                          
+                          {meal.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                              {meal.description}
+                            </p>
+                          )}
 
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-0.5">
-                          <Flame className="h-3 w-3 text-orange-500" />
-                          {meal.calories}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <Beef className="h-3 w-3 text-red-500" />
-                          {meal.protein_g}g
-                        </span>
-                      </div>
-
-                      {meal.diet_tags && meal.diet_tags.length > 0 && (
-                        <div className="flex gap-1 mt-2 flex-wrap">
-                          {meal.diet_tags.slice(0, 2).map((tag) => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded-full">
-                              {tag}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-0.5">
+                              <Flame className="h-3 w-3 text-orange-500" />
+                              {meal.calories} cal
                             </span>
-                          ))}
+                            <span className="flex items-center gap-0.5">
+                              <Beef className="h-3 w-3 text-red-500" />
+                              {meal.protein_g}g protein
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          /* Restaurants List View */
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <h3 className="text-lg font-semibold mb-3">Choose a Restaurant</h3>
+            
+            {restaurants.length === 0 ? (
+              <div className="text-center py-12">
+                <Store className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">No restaurants available</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {restaurants.map((restaurant, index) => (
+                    <motion.div
+                      key={restaurant.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => setSelectedRestaurant(restaurant)}
+                      className="group cursor-pointer relative overflow-hidden rounded-2xl border-2 border-border bg-card hover:border-primary/50 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-4 p-4">
+                        {/* Logo */}
+                        {restaurant.logo_url ? (
+                          <img
+                            src={restaurant.logo_url}
+                            alt={restaurant.name}
+                            className="w-16 h-16 rounded-xl object-cover"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                            <Store className="h-8 w-8 text-primary" />
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-lg">{restaurant.name}</h3>
+                            {restaurant.rating > 0 && (
+                              <div className="flex items-center gap-0.5 text-amber-500">
+                                <Star className="h-3 w-3 fill-current" />
+                                <span className="text-xs font-medium">{restaurant.rating.toFixed(1)}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {restaurant.cuisine_type && (
+                            <Badge variant="secondary" className="mt-1 text-xs">
+                              {restaurant.cuisine_type}
+                            </Badge>
+                          )}
+
+                          {restaurant.address && (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {restaurant.address}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Arrow */}
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </motion.div>
         )}
       </div>
 
@@ -465,14 +585,14 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
         className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border"
       >
         <div className="flex items-center gap-3">
-          {currentStep > 0 && (
+          {(currentStep > 0 || selectedRestaurant) && (
             <Button
               variant="outline"
               className="rounded-xl px-6"
               onClick={handleBack}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
-              Back
+              {selectedRestaurant ? 'Restaurants' : 'Back'}
             </Button>
           )}
           
@@ -480,7 +600,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             {getTotalSelectedMeals() > 0 && (
               <div className="text-center mb-2">
                 <span className="text-sm text-muted-foreground">
-                  {getTotalSelectedMeals()} meal{getTotalSelectedMeals() > 1 ? 's' : ''} selected
+                  {getTotalSelectedMeals()} of 4 meals selected
                 </span>
               </div>
             )}
@@ -489,6 +609,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               <Button 
                 className="w-full rounded-xl h-12 text-base font-semibold"
                 onClick={handleNext}
+                disabled={!getStepSelected(currentStep)}
               >
                 Continue
                 <ArrowRight className="h-4 w-4 ml-2" />
