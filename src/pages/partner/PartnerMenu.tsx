@@ -425,10 +425,23 @@ const PartnerMenu = () => {
         }
 
         toast({ title: "Meal created successfully" });
+        
+        // Show add-ons dialog for the newly created meal
+        if (data) {
+          const newMeal: Meal = {
+            ...data,
+            price: null,
+            diet_tags: selectedTags.length > 0 ? selectedTags : undefined,
+          };
+          setSelectedMealForAddons(newMeal);
+          setAddonsDialogOpen(true);
+        }
       }
 
-      setDialogOpen(false);
-      fetchMeals();
+      if (editingMeal) {
+        setDialogOpen(false);
+        fetchMeals();
+      }
     } catch (error: any) {
       console.error("Error saving meal:", error);
       toast({
@@ -792,6 +805,24 @@ const PartnerMenu = () => {
                 </Label>
               </div>
             </div>
+
+            {/* Manage Add-ons Button (for editing existing meals) */}
+            {editingMeal && (
+              <div className="pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setSelectedMealForAddons(editingMeal);
+                    setAddonsDialogOpen(true);
+                  }}
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Manage Add-ons
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
