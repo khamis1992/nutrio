@@ -155,6 +155,10 @@ const PartnerMenu = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [addonsDialogOpen, setAddonsDialogOpen] = useState(false);
   const [selectedMealForAddons, setSelectedMealForAddons] = useState<Meal | null>(null);
+  
+  // Add-on selection state
+  const [libraryAddons, setLibraryAddons] = useState<{id: string, name: string, price: number, category: string}[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -216,11 +220,25 @@ const PartnerMenu = () => {
     }
   };
 
+  const fetchLibraryAddons = async () => {
+    if (!restaurantId) return;
+    const { data } = await supabase
+      .from("restaurant_addons")
+      .select("id, name, price, category")
+      .eq("restaurant_id", restaurantId)
+      .eq("is_available", true)
+      .order("category")
+      .order("name");
+    setLibraryAddons(data || []);
+  };
+
   const openAddDialog = () => {
     setEditingMeal(null);
     setFormData(emptyMeal);
     setFormErrors({});
     setSelectedTags([]);
+    setSelectedAddons([]);
+    fetchLibraryAddons();
     setDialogOpen(true);
   };
 
@@ -422,6 +440,21 @@ const PartnerMenu = () => {
               diet_tag_id: tagId,
             }))
           );
+        }
+
+        // Add selected add-ons from library
+        if (selectedAddons.length > 0 && data) {
+          await supabase.from("meal_addons").insert(
+            selectedAddons.map((addonId) => ({
+              meal_id: data.id,
+              restaurant_addon_id: addonId,
+            }))
+          );
+          
+          // Increment usage count for each addon
+          for (const addonId of selectedAddons) {
+            await supabase.rpc("increment_addon_usage", { addon_id: addonId });
+          }
         }
 
         toast({ title: "Meal created successfully" });
@@ -784,6 +817,50 @@ const PartnerMenu = () => {
                 ))}
               </div>
             </div>
+
+            {/* Add-ons Selection */}
+            {libraryAddons.length > 0 && (
+              <div className="space-y-3 pt-4 border-t">
+                <Label className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Add-ons
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (Select from your library)
+                  </span>
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {libraryAddons.map((addon) => (
+                    <label
+                      key={addon.id}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                        selectedAddons.includes(addon.id)
+                          ? "bg-primary/10 border-primary"
+                          : "bg-muted/50 border-border hover:bg-muted"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selectedAddons.includes(addon.id)}
+                        onCheckedChange={() => {
+                          setSelectedAddons(prev => 
+                            prev.includes(addon.id)
+                              ? prev.filter(id => id !== addon.id)
+                              : [...prev, addon.id]
+                          );
+                        }}
+                        className="sr-only"
+                      />
+                      <span className="text-sm">{addon.name}</span>
+                      <span className="text-xs text-muted-foreground">+{addon.price} QAR</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedAddons.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No add-ons selected. You can add them later from the menu.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Availability & VIP */}
             <div className="flex items-center gap-6">
