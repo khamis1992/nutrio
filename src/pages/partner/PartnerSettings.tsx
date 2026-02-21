@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { LogoUpload } from "@/components/LogoUpload";
-import { Save, Mail, Phone, MapPin, Loader2 } from "lucide-react";
+import { Save, Mail, Phone, MapPin, Loader2, DollarSign } from "lucide-react";
+import { formatCurrency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ interface Restaurant {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  payout_rate: number; // Admin-set rate: partner earns this per meal prepared
 }
 
 const PartnerSettings = () => {
@@ -174,6 +176,31 @@ const PartnerSettings = () => {
               onLogoChange={(url) => setFormData({ ...formData, logo_url: url || "" })}
               restaurantId={restaurant?.id}
             />
+          </CardContent>
+        </Card>
+
+        {/* Payout Rate Information - Subscription Model */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Your Payout Rate
+            </CardTitle>
+            <CardDescription>
+              You earn this amount for each meal you prepare as part of the subscription service
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold">
+                {restaurant?.payout_rate ? formatCurrency(restaurant.payout_rate) : "QAR 0.00"}
+              </span>
+              <span className="text-muted-foreground">per meal</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              This rate is set by the platform administrator and applies to all meals you prepare.
+              Your weekly earnings = Meals Prepared × Payout Rate.
+            </p>
           </CardContent>
         </Card>
 
