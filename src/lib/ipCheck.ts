@@ -23,7 +23,14 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to check IP location: ${response.status} ${response.statusText}`);
+      // If function returns error, allow access (fail open for reliability)
+      console.warn(`IP check failed with status ${response.status}, allowing access`);
+      return {
+        allowed: true,
+        blocked: false,
+        ip: 'unknown',
+        reason: 'Location check unavailable',
+      };
     }
 
     const data: IPLocationResponse = await response.json();

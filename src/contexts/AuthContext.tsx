@@ -75,18 +75,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 const signIn = async (email: string, password: string) => {
     try {
-      // Check IP location before login
-      const ipCheck = await checkIPLocation();
-      
-      if (!ipCheck.allowed) {
-        let message = "Access is only allowed from Qatar.";
-        if (ipCheck.blocked) {
-          message = "Your IP address has been blocked.";
-        } else if (ipCheck.reason) {
-          message = ipCheck.reason;
-        }
+      // Check IP location before login (optional, don't block if check fails)
+      try {
+        const ipCheck = await checkIPLocation();
         
-        return { error: new Error(message) };
+        if (!ipCheck.allowed && ipCheck.blocked) {
+          // Only block if explicitly blocked
+          return { error: new Error("Your IP address has been blocked.") };
+        }
+      } catch (ipError) {
+        // If IP check fails, log but don't block login
+        console.warn("IP location check failed, allowing login:", ipError);
       }
 
       const { error } = await supabase.auth.signInWithPassword({
