@@ -83,7 +83,7 @@ interface AIMealDetails {
   fat_g: number;
   fiber_g: number;
   prep_time_minutes: number;
-  suggested_price: number;
+  // suggested_price: REMOVED - Pricing is set by platform, not suggested by AI
   diet_tags: string[];
 }
 
