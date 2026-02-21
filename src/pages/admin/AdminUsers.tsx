@@ -681,7 +681,16 @@ const AdminUsers = () => {
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(userData);
+                                setIsDetailOpen(true);
+                                toast({
+                                  title: "Manage Roles",
+                                  description: "Role management feature coming soon",
+                                });
+                              }}
+                            >
                               <Shield className="w-4 h-4 mr-2" />
                               Manage Roles
                             </DropdownMenuItem>
@@ -754,6 +763,10 @@ const AdminUsers = () => {
                     </div>
                   </div>
                 </SheetHeader>
+
+                <SheetDescription className="sr-only">
+                  User details and management options for {selectedUser.full_name || "Unnamed User"}
+                </SheetDescription>
 
                 <div className="mt-6 space-y-6">
                   {/* Account Info */}
@@ -879,21 +892,52 @@ const AdminUsers = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" className="justify-start">
+                        <Button 
+                          variant="outline" 
+                          className="justify-start"
+                          onClick={() => {
+                            window.location.href = `mailto:${selectedUser.email}`;
+                          }}
+                        >
                           <Mail className="w-4 h-4 mr-2" />
                           Send Email
                         </Button>
-                        <Button variant="outline" className="justify-start">
+                        <Button 
+                          variant="outline" 
+                          className="justify-start"
+                          onClick={() => {
+                            toast({
+                              title: "Edit Roles",
+                              description: `Role management for ${selectedUser.full_name || selectedUser.email} - Feature coming soon`,
+                            });
+                          }}
+                        >
                           <Shield className="w-4 h-4 mr-2" />
                           Edit Roles
                         </Button>
-                        <Button variant="outline" className="justify-start">
+                        <Button 
+                          variant="outline" 
+                          className="justify-start"
+                          onClick={() => {
+                            toast({
+                              title: "View Orders",
+                              description: `Order history for ${selectedUser.full_name || selectedUser.email} - Feature coming soon`,
+                            });
+                          }}
+                        >
                           <ExternalLink className="w-4 h-4 mr-2" />
                           View Orders
                         </Button>
                         <Button
                           variant="outline"
                           className="justify-start text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => {
+                            toast({
+                              title: "Suspend User",
+                              description: `User suspension for ${selectedUser.full_name || selectedUser.email} - Feature coming soon`,
+                              variant: "destructive",
+                            });
+                          }}
                         >
                           <Ban className="w-4 h-4 mr-2" />
                           Suspend User
