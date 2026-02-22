@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/Logo";
+import { formatCurrency } from "@/lib/currency";
 import {
   Utensils,
   Target,
@@ -18,12 +19,152 @@ import {
   Star,
   Store,
   Menu,
-  X
+  X,
+  Zap,
+  Crown,
+  Sparkles
 } from "lucide-react";
 import heroFood from "@/assets/hero-food.jpg";
+import { supabase } from "@/integrations/supabase/client";
+
+interface SubscriptionPricing {
+  basic_price: number;
+  premium_price: number;
+  family_price: number;
+  vip_price: number;
+}
+
+interface PlanType {
+  id: string;
+  name: string;
+  price: number;
+  period: string;
+  mealsPerWeek: number;
+  description: string;
+  features: string[];
+  popular: boolean;
+  isVip: boolean;
+  icon: typeof Star;
+}
+
+const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
+  {
+    id: "basic",
+    name: "Basic",
+    price: pricing.basic_price,
+    period: "week",
+    mealsPerWeek: 5,
+    description: "Perfect for getting started with healthy eating",
+    icon: Star,
+    features: [
+      "5 meals per week",
+      "Basic nutrition tracking",
+      "Email support",
+      "Access to 50+ restaurants",
+      "Weekly meal planning",
+    ],
+    popular: false,
+    isVip: false,
+  },
+  {
+    id: "standard",
+    name: "Standard",
+    price: pricing.premium_price,
+    period: "week",
+    mealsPerWeek: 10,
+    description: "Most popular choice for health enthusiasts",
+    icon: Zap,
+    features: [
+      "10 meals per week",
+      "Advanced nutrition analytics",
+      "Priority support",
+      "Access to all restaurants",
+      "Custom meal planning",
+      "Dietitian consultations",
+    ],
+    popular: true,
+    isVip: false,
+  },
+  {
+    id: "premium",
+    name: "Premium",
+    price: pricing.family_price,
+    period: "week",
+    mealsPerWeek: 15,
+    description: "Ultimate plan for serious fitness goals",
+    icon: Crown,
+    features: [
+      "15 meals per week",
+      "Real-time nutrition coaching",
+      "24/7 priority support",
+      "All restaurants + premium partners",
+      "AI-powered meal recommendations",
+      "Family sharing (up to 4)",
+    ],
+    popular: false,
+    isVip: false,
+  },
+  {
+    id: "vip",
+    name: "VIP",
+    price: pricing.vip_price,
+    period: "week",
+    mealsPerWeek: 0,
+    description: "Unlimited meals for the ultimate experience",
+    icon: Sparkles,
+    features: [
+      "♾️ Unlimited meals per week",
+      "Everything in Premium",
+      "🚀 Priority delivery (always first)",
+      "🌟 Exclusive VIP-only meals",
+      "👨‍⚕️ Personal nutrition coach",
+      "💎 Dedicated VIP support line",
+    ],
+    popular: false,
+    isVip: true,
+  },
+];
 
 const Index = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [plans, setPlans] = useState<PlanType[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "subscription_plans")
+          .single();
+
+        if (error) throw error;
+
+        const pricing = (data?.value as unknown as SubscriptionPricing) || {
+          basic_price: 49.99,
+          premium_price: 99.99,
+          family_price: 149.99,
+          vip_price: 199.99,
+        };
+
+        setPlans(getPlans(pricing));
+      } catch (error) {
+        console.error("Error fetching pricing:", error);
+        // Use default pricing on error
+        setPlans(getPlans({
+          basic_price: 49.99,
+          premium_price: 99.99,
+          family_price: 149.99,
+          vip_price: 199.99,
+        }));
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
 
   const navLinks = [
     { href: "#features", label: "Features" },
@@ -376,62 +517,75 @@ const Index = () => {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            {/* Weekly Plan */}
-            <Card variant="interactive" className="animate-scale-in">
-              <CardContent className="p-8">
-                <h3 className="text-xl font-bold mb-2">Weekly Plan</h3>
-                <p className="text-muted-foreground text-sm mb-6">Perfect for trying out</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold">106</span>
-                  <span className="text-muted-foreground"> QAR/week</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {[
-                    "Personalized meal plan",
-                    "Access to all partner restaurants",
-                    "Basic nutrition tracking",
-                    "Email support"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-success" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full">Choose Weekly</Button>
-              </CardContent>
-            </Card>
-
-            {/* Monthly Plan */}
-            <Card variant="elevated" className="border-2 border-primary animate-scale-in stagger-1">
-              <CardContent className="p-8 relative">
-                <Badge className="absolute -top-3 right-6">Most Popular</Badge>
-                <h3 className="text-xl font-bold mb-2">Monthly Plan</h3>
-                <p className="text-muted-foreground text-sm mb-6">Best value for results</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold">324</span>
-                  <span className="text-muted-foreground"> QAR/month</span>
-                  <Badge variant="success" className="ml-2">Save 23%</Badge>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {[
-                    "Everything in Weekly",
-                    "Advanced progress analytics",
-                    "Priority meal scheduling",
-                    "24/7 priority support",
-                    "Free delivery on all orders"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-success" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="gradient" className="w-full">Choose Monthly</Button>
-              </CardContent>
-            </Card>
-          </div>
+          {loadingPlans ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+              {plans.map((plan, index) => {
+                const Icon = plan.icon;
+                return (
+                  <Card 
+                    key={plan.id}
+                    variant={plan.popular || plan.isVip ? "elevated" : "interactive"}
+                    className={`animate-scale-in ${plan.popular ? 'border-2 border-primary scale-105 z-10' : plan.isVip ? 'border-2 border-violet-500 shadow-lg shadow-violet-500/20' : ''}`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <CardContent className="p-6 relative">
+                      {plan.popular && (
+                        <Badge className="absolute -top-3 right-4">Most Popular</Badge>
+                      )}
+                      {plan.isVip && (
+                        <Badge className="absolute -top-3 right-4 bg-gradient-to-r from-violet-500 to-purple-600">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          VIP
+                        </Badge>
+                      )}
+                      
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${plan.isVip ? 'bg-gradient-to-r from-violet-500 to-purple-600' : 'bg-primary/10'}`}>
+                          <Icon className={`w-5 h-5 ${plan.isVip ? 'text-white' : 'text-primary'}`} />
+                        </div>
+                        <h3 className="text-lg font-bold">{plan.name}</h3>
+                      </div>
+                      
+                      <p className="text-muted-foreground text-sm mb-4">{plan.description}</p>
+                      
+                      <div className="mb-4">
+                        <span className="text-3xl font-bold">{formatCurrency(plan.price)}</span>
+                        <span className="text-muted-foreground">/{plan.period}</span>
+                      </div>
+                      
+                      <div className={`mb-4 p-2 rounded-lg ${plan.isVip ? 'bg-violet-500/10' : 'bg-primary/10'}`}>
+                        <p className={`text-sm font-medium ${plan.isVip ? 'text-violet-600' : 'text-primary'}`}>
+                          {plan.mealsPerWeek === 0 ? "♾️ Unlimited meals" : `🍽️ ${plan.mealsPerWeek} meals/week`}
+                        </p>
+                      </div>
+                      
+                      <ul className="space-y-2 mb-6">
+                        {plan.features.slice(0, 4).map((feature, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <Check className={`w-4 h-4 shrink-0 mt-0.5 ${plan.isVip ? 'text-violet-500' : 'text-success'}`} />
+                            <span className="text-muted-foreground">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Link to="/subscription" className="block">
+                        <Button 
+                          variant={plan.popular || plan.isVip ? "gradient" : "outline"} 
+                          className={`w-full ${plan.isVip ? 'bg-gradient-to-r from-violet-500 to-purple-600' : ''}`}
+                        >
+                          {plan.isVip ? 'Go VIP' : 'Get Started'}
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
