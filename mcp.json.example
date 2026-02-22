@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {
+        "UPSTASH_REDIS_REST_URL": "your-upstash-redis-url",
+        "UPSTASH_REDIS_REST_TOKEN": "your-upstash-redis-token"
+      }
+    }
+  }
+}
