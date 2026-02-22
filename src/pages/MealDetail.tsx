@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useDeliveryFees } from "@/hooks/useDeliveryFees";
 import { useMealAddons } from "@/hooks/useMealAddons";
+import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
 
@@ -67,7 +68,7 @@ const MealDetail = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
+  const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, isVip, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
   const { settings: deliverySettings, calculateDeliveryFee, loading: deliveryLoading } = useDeliveryFees();
   const {
     loading: addonsLoading,
@@ -402,29 +403,14 @@ const MealDetail = () => {
             </CardContent>
           </Card>
         ) : (
-          <Card className="animate-fade-in border-primary/50 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Crown className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium capitalize">{subscription?.plan} Plan</p>
-                    <p className="text-sm text-muted-foreground">
-                      {isUnlimited 
-                        ? "Unlimited meals" 
-                        : `${remainingMeals} of ${subscription?.meals_per_week} meals remaining`
-                      }
-                    </p>
-                  </div>
-                </div>
-                {!canOrderMeal && !isUnlimited && (
-                  <Badge variant="destructive">Limit reached</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <MealsRemainingWidget
+            remainingMeals={remainingMeals}
+            totalMeals={subscription?.meals_per_week || 0}
+            isUnlimited={isUnlimited}
+            isVip={isVip}
+            variant="banner"
+            className="animate-fade-in"
+          />
         )}
 
         {/* Description */}

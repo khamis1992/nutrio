@@ -23,6 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 import { MealFilters, MealFiltersState, defaultFilters } from "@/components/MealFilters";
 
 interface Restaurant {
@@ -61,7 +62,7 @@ const RestaurantDetail = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const [filters, setFilters] = useState<MealFiltersState>(defaultFilters);
-  const { hasActiveSubscription, subscription, remainingMeals, isUnlimited } = useSubscription();
+  const { hasActiveSubscription, subscription, remainingMeals, isUnlimited, isVip } = useSubscription();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -290,26 +291,14 @@ const RestaurantDetail = () => {
 
         {/* Subscription Status Banner */}
         {hasActiveSubscription ? (
-          <Card className="animate-fade-in border-primary/50 bg-primary/5">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium capitalize text-sm sm:text-base">{subscription?.plan} Plan</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      {isUnlimited
-                        ? "Unlimited meals included"
-                        : `${remainingMeals} meals remaining this week`
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <MealsRemainingWidget
+            remainingMeals={remainingMeals}
+            totalMeals={subscription?.meals_per_week || 0}
+            isUnlimited={isUnlimited}
+            isVip={isVip}
+            variant="banner"
+            className="animate-fade-in"
+          />
         ) : (
           <Card className="animate-fade-in border-amber-500/50 bg-amber-500/10">
             <CardContent className="p-3 sm:p-4">

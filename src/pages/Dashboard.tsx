@@ -37,6 +37,7 @@ import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { WeightPredictionChart } from "@/components/WeightPredictionChart";
 import { SideDrawer } from "@/components/SideDrawer";
+import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 
 interface Restaurant {
   id: string;
@@ -52,7 +53,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { hasActiveSubscription, remainingMeals, isUnlimited, isVip } = useSubscription();
+  const { hasActiveSubscription, remainingMeals, isUnlimited, isVip, subscription } = useSubscription();
   const { settings: platformSettings } = usePlatformSettings();
   const { 
     recommendation, 
@@ -344,13 +345,13 @@ const Dashboard = () => {
                 </div>
                 
                 {hasActiveSubscription && (
-                  <Badge className={`${
-                    isVip 
-                      ? "bg-violet-500/20 text-violet-100 border-violet-400/30" 
-                      : "bg-primary/20 text-primary-foreground border-primary/30"
-                  } backdrop-blur-sm`}>
-                    {isUnlimited ? "∞ Unlimited" : `${remainingMeals} meals left`}
-                  </Badge>
+                  <MealsRemainingWidget
+                    remainingMeals={remainingMeals}
+                    totalMeals={subscription?.meals_per_week || 0}
+                    isUnlimited={isUnlimited}
+                    isVip={isVip}
+                    variant="compact"
+                  />
                 )}
               </div>
             </div>
@@ -538,6 +539,17 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Meals Remaining Widget - Prominent Display */}
+        {hasActiveSubscription && (
+          <MealsRemainingWidget
+            remainingMeals={remainingMeals}
+            totalMeals={subscription?.meals_per_week || 0}
+            isUnlimited={isUnlimited}
+            isVip={isVip}
+            variant="full"
+          />
+        )}
 
         {/* ENHANCED QUICK ACTIONS GRID */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
