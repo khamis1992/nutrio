@@ -20,17 +20,20 @@ serve(async (req) => {
       );
     }
 
-    const MOONSHOT_API_KEY = Deno.env.get("MOONSHOT_API_KEY");
-    if (!MOONSHOT_API_KEY) {
-      console.error("MOONSHOT_API_KEY not configured");
-      return createFallbackResponse(mode, "MOONSHOT_API_KEY not configured");
+    // Use OpenAI-compatible API key (supports gemini-2.5-flash with vision)
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY not configured");
+      return createFallbackResponse(mode, "OPENAI_API_KEY not configured");
     }
 
     // Fetch image and convert to base64
     let imageBase64: string;
     let mimeType = "image/jpeg";
     try {
-      const imgResponse = await fetch(imageUrl);
+      const imgResponse = await fetch(imageUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; NutrioBot/1.0)" }
+      });
       if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.status}`);
       const contentType = imgResponse.headers.get("content-type");
       if (contentType) mimeType = contentType.split(";")[0].trim();
@@ -52,16 +55,16 @@ serve(async (req) => {
       ? "Analyze this food image and list the visible food items with estimated nutrition values. Available diet tags: " + (availableTags?.join(", ") || "none") + ". Respond with JSON in this exact format: {\"items\": [{\"name\": \"Food Name\", \"calories\": 100, \"protein_g\": 10, \"carbs_g\": 15, \"fat_g\": 5}]}"
       : "Analyze this meal image and provide detailed information. Available diet tags to choose from: " + (availableTags?.join(", ") || "vegetarian, vegan, keto, gluten-free, dairy-free, low-carb, high-protein") + ". Respond with JSON in this exact format: {\"name\": \"Meal Name\", \"description\": \"Brief description\", \"calories\": 450, \"protein_g\": 25, \"carbs_g\": 40, \"fat_g\": 18, \"fiber_g\": 8, \"prep_time_minutes\": 20, \"suggested_price\": 35, \"diet_tags\": [\"high-protein\", \"gluten-free\"]}";
 
-    console.log("Calling Moonshot AI (Kimi) with model kimi-k2.5...");
+    console.log("Calling gemini-2.5-flash (vision) via OpenAI-compatible API...");
 
-    const response = await fetch("https://api.moonshot.ai/v1/chat/completions", {
+    const response = await fetch("https://api.manus.im/api/llm-proxy/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${MOONSHOT_API_KEY}`,
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "kimi-k2.5",
+        model: "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -79,19 +82,19 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Moonshot AI error:", response.status, errText);
-      return createFallbackResponse(mode, `Moonshot API error ${response.status}: ${errText}`);
+      console.error("Vision AI error:", response.status, errText);
+      return createFallbackResponse(mode, `Vision API error ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      console.error("No content from Moonshot AI response");
+      console.error("No content from Vision AI response");
       return createFallbackResponse(mode);
     }
 
-    console.log("Moonshot AI response received, parsing...");
+    console.log("Vision AI response received, parsing...");
 
     // Parse JSON from content (may be wrapped in ```json blocks)
     try {
