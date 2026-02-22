@@ -49,14 +49,8 @@ serve(async (req) => {
       : "You are a nutrition expert. Analyze the meal image and provide detailed nutritional information. Always respond with valid JSON only, no markdown. Always respond in English.";
 
     const userPrompt = mode === "quick_scan"
-      ? `Analyze this food image and list the visible food items with estimated nutrition values. Available diet tags: ${availableTags?.join(", ") || "none"}.
-
-Respond with JSON in this exact format:
-{"items": [{"name": "Food Name", "calories": 100, "protein_g": 10, "carbs_g": 15, "fat_g": 5}]}`
-      : `Analyze this meal image and provide detailed information. Available diet tags to choose from: ${availableTags?.join(", ") || "vegetarian, vegan, keto, gluten-free, dairy-free, low-carb, high-protein"}.
-
-Respond with JSON in this exact format:
-{"name": "Meal Name", "description": "Brief description of the meal and visible ingredients", "calories": 450, "protein_g": 25, "carbs_g": 40, "fat_g": 18, "fiber_g": 8, "prep_time_minutes": 20, "suggested_price": 35, "diet_tags": ["high-protein", "gluten-free"]}`;
+      ? "Analyze this food image and list the visible food items with estimated nutrition values. Available diet tags: " + (availableTags?.join(", ") || "none") + ". Respond with JSON in this exact format: {\"items\": [{\"name\": \"Food Name\", \"calories\": 100, \"protein_g\": 10, \"carbs_g\": 15, \"fat_g\": 5}]}"
+      : "Analyze this meal image and provide detailed information. Available diet tags to choose from: " + (availableTags?.join(", ") || "vegetarian, vegan, keto, gluten-free, dairy-free, low-carb, high-protein") + ". Respond with JSON in this exact format: {\"name\": \"Meal Name\", \"description\": \"Brief description\", \"calories\": 450, \"protein_g\": 25, \"carbs_g\": 40, \"fat_g\": 18, \"fiber_g\": 8, \"prep_time_minutes\": 20, \"suggested_price\": 35, \"diet_tags\": [\"high-protein\", \"gluten-free\"]}";
 
     console.log("Calling Moonshot AI (Kimi) with model kimi-k2.5...");
 
