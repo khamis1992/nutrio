@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,6 +99,8 @@ interface AIAnalysisResponse {
   mealDetails?: AIMealDetails;
   detectedItems?: DetectedFoodItem[];
   error?: string;
+  note?: string;
+  provider?: string;
 }
 
 const mealSchema = z.object({
@@ -134,7 +135,7 @@ const emptyMeal: MealFormData = {
   is_vip_exclusive: false,
 };
 
-const PartnerMenu = () => {
+export default function PartnerMenu() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -306,23 +307,40 @@ const PartnerMenu = () => {
     try {
       const availableTagNames = dietTags.map((t) => t.name);
       
+      console.log("Calling analyze-meal-image with imageUrl:", imageUrl);
+      
       const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
         body: { imageUrl, availableTags: availableTagNames },
       });
 
-      if (error) throw error;
+      console.log("AI response:", data);
+
+      if (error) {
+        console.error("Function error:", error);
+        throw error;
+      }
 
       const response = data as AIAnalysisResponse;
 
       if (response?.mealDetails) {
         const details = response.mealDetails;
         
+        // Check if we got meaningful data or just empty fallback
+        const hasMeaningfulData = details.name || details.calories > 0 || details.description;
+        
+        if (!hasMeaningfulData) {
+          toast({
+            title: "AI Analysis",
+            description: response.note || "Could not analyze image. Please fill in details manually.",
+          });
+          return;
+        }
+        
         // Update form data with AI suggestions
         setFormData((prev) => ({
           ...prev,
           name: details.name || prev.name,
           description: details.description || prev.description,
-          // price: REMOVED - Meals are included in subscription
           calories: details.calories || prev.calories,
           protein_g: details.protein_g || prev.protein_g,
           carbs_g: details.carbs_g || prev.carbs_g,
@@ -342,6 +360,11 @@ const PartnerMenu = () => {
             .map((tag) => tag.id);
           setSelectedTags(matchedTagIds);
         }
+        
+        toast({
+          title: "AI Analysis Complete",
+          description: "Meal details have been auto-filled. Please review and adjust as needed.",
+        });
 
         // Trigger success animation
         setAnalysisComplete(true);
@@ -961,6 +984,4 @@ const PartnerMenu = () => {
       </Dialog>
     </PartnerLayout>
   );
-};
-
-export default PartnerMenu;
+}

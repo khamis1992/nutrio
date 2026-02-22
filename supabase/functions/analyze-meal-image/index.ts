@@ -20,265 +20,192 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const ZHIPU_API_KEY = Deno.env.get("ZHIPU_API_KEY");
+    if (!ZHIPU_API_KEY) {
+      console.log("ZHIPU_API_KEY not configured, returning fallback");
+      return createFallbackResponse(mode);
     }
 
-    // Quick scan mode for user meal logging - returns multiple detected food items
-    if (mode === "quick_scan") {
-      console.log("Quick scan mode - detecting multiple food items");
+    // Use API key directly
+    const token = ZHIPU_API_KEY;
+
+    // Try to call Zhipu AI with vision capabilities
+    let response;
+    try {
+      const systemPrompt = mode === "quick_scan" 
+        ? "You are a nutrition expert. Analyze the food image and identify visible food items with estimated nutrition values."
+        : "You are a nutrition expert. Analyze the meal image and provide detailed nutritional information. Always respond in English.";
       
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: `You are a professional nutritionist analyzing meal photos. Your task is to identify EACH INDIVIDUAL food item visible in the image and estimate its nutritional content separately.
+      const userPrompt = mode === "quick_scan" 
+        ? `Analyze this food image and list the visible food items with estimated nutrition values in JSON format. Available diet tags: ${availableTags?.join(", ") || "none"}.
 
-Guidelines:
-- Identify each distinct food item (e.g., if there are eggs, toast, and bacon, list them as 3 separate items)
-- Estimate portion sizes based on visual appearance
-- Provide realistic calorie and macro estimates for each item
-- Use common serving sizes as reference
-- Be specific with food names (e.g., "Fried Egg" not just "Egg", "Whole Wheat Toast" not just "Bread")`,
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Analyze this meal image and identify EACH INDIVIDUAL food item separately. For each item, provide its name and estimated nutritional values. List all visible food items as separate entries.",
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: imageUrl },
-                },
-              ],
-            },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "detect_food_items",
-                description: "Return an array of individual food items detected in the meal image",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    items: {
-                      type: "array",
-                      description: "Array of individual food items detected in the image",
-                      items: {
-                        type: "object",
-                        properties: {
-                          name: {
-                            type: "string",
-                            description: "Specific name of the food item (e.g., 'Fried Egg', 'Crispy Bacon', 'Whole Wheat Toast')",
-                          },
-                          calories: {
-                            type: "number",
-                            description: "Estimated calories for this specific item",
-                          },
-                          protein_g: {
-                            type: "number",
-                            description: "Estimated protein in grams",
-                          },
-                          carbs_g: {
-                            type: "number",
-                            description: "Estimated carbohydrates in grams",
-                          },
-                          fat_g: {
-                            type: "number",
-                            description: "Estimated fat in grams",
-                          },
-                        },
-                        required: ["name", "calories", "protein_g", "carbs_g", "fat_g"],
-                      },
-                    },
-                  },
-                  required: ["items"],
-                  additionalProperties: false,
-                },
-              },
-            },
-          ],
-          tool_choice: { type: "function", function: { name: "detect_food_items" } },
-        }),
-      });
+Respond with JSON in this exact format:
+{
+  "items": [
+    {"name": "Food Name", "calories": 100, "protein_g": 10, "carbs_g": 15, "fat_g": 5}
+  ]
+}`
+        : `Analyze this meal image and provide detailed information in JSON format. Available diet tags to choose from: ${availableTags?.join(", ") || "vegetarian, vegan, keto, gluten-free, dairy-free, low-carb, high-protein"}.
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          return new Response(
-            JSON.stringify({ error: "AI is busy. Please try again in a moment." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        if (response.status === 402) {
-          return new Response(
-            JSON.stringify({ error: "AI credits exhausted. Please fill in details manually." }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        const errorText = await response.text();
-        console.error("AI gateway error:", response.status, errorText);
-        throw new Error(`AI gateway error: ${response.status}`);
-      }
+Respond with JSON in this exact format:
+{
+  "name": "Meal Name",
+  "description": "Brief description of the meal and visible ingredients",
+  "calories": 450,
+  "protein_g": 25,
+  "carbs_g": 40,
+  "fat_g": 18,
+  "fiber_g": 8,
+  "prep_time_minutes": 20,
+  "suggested_price": 35,
+  "diet_tags": ["high-protein", "gluten-free"]
+}`;
 
-      const data = await response.json();
-      console.log("AI response for quick scan:", JSON.stringify(data, null, 2));
-
-      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-      if (!toolCall?.function?.arguments) {
-        throw new Error("No structured output received from AI");
-      }
-
-      const result = JSON.parse(toolCall.function.arguments);
-      
-      return new Response(
-        JSON.stringify({ success: true, detectedItems: result.items || [] }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Full analysis mode for partner meal creation
-    const tagsList = availableTags?.join(", ") || "Balanced, Dairy Free, Gluten Free, High Fiber, High Protein, Keto, Lean, Low Carb, Low Fat, Omega-3, Vegan, Vegetarian";
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+      // glm-4v-plus is the vision model
+      const requestBody = {
+        model: "glm-4v-plus",
         messages: [
           {
             role: "system",
-            content: `You are a professional nutritionist and food expert. Analyze meal images and provide accurate nutritional information and details.
-
-When analyzing, consider:
-- Visual appearance and ingredients visible in the image
-- Portion size estimation based on standard serving sizes
-- Cooking method visible (grilled, fried, steamed, etc.)
-- Typical nutritional values for similar dishes
-
-Available diet tags: ${tagsList}
-Only select diet tags that clearly apply to the visible dish.`,
+            content: systemPrompt,
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Analyze this meal image and provide complete details including name, description, nutritional information, prep time, suggested price, and applicable diet tags.",
+                text: userPrompt,
               },
               {
                 type: "image_url",
-                image_url: { url: imageUrl },
+                image_url: {
+                  url: imageUrl,
+                },
               },
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "suggest_meal_details",
-              description: "Provide structured meal details based on image analysis",
-              parameters: {
-                type: "object",
-                properties: {
-                  name: {
-                    type: "string",
-                    description: "A catchy, descriptive name for the meal (e.g., 'Grilled Salmon with Herb Butter')",
-                  },
-                  description: {
-                    type: "string",
-                    description: "An appetizing description of the meal, 50-100 words, highlighting key ingredients and flavors",
-                  },
-                  calories: {
-                    type: "number",
-                    description: "Estimated total calories for the visible portion",
-                  },
-                  protein_g: {
-                    type: "number",
-                    description: "Estimated protein content in grams",
-                  },
-                  carbs_g: {
-                    type: "number",
-                    description: "Estimated carbohydrate content in grams",
-                  },
-                  fat_g: {
-                    type: "number",
-                    description: "Estimated fat content in grams",
-                  },
-                  fiber_g: {
-                    type: "number",
-                    description: "Estimated fiber content in grams",
-                  },
-                  prep_time_minutes: {
-                    type: "number",
-                    description: "Estimated preparation time in minutes",
-                  },
-                  suggested_price: {
-                    type: "number",
-                    description: "Suggested price in USD based on ingredients and preparation complexity",
-                  },
-                  diet_tags: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Array of applicable diet tags from the available list",
-                  },
-                },
-                required: ["name", "description", "calories", "protein_g", "carbs_g", "fat_g", "fiber_g", "prep_time_minutes", "suggested_price", "diet_tags"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "suggest_meal_details" } },
-      }),
-    });
+        temperature: 0.7,
+        max_tokens: 1024,
+      };
+      
+      console.log("Request body:", JSON.stringify(requestBody));
 
-    if (!response.ok) {
-      if (response.status === 429) {
+      response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseText = await response.text();
+      console.log("Zhipu AI response status:", response.status);
+      console.log("Zhipu AI response text:", responseText);
+      
+      if (!response.ok) {
+        console.error("Zhipu AI API error:", response.status, responseText);
         return new Response(
-          JSON.stringify({ error: "AI is busy. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ 
+            success: false, 
+            error: `Zhipu AI API error: ${response.status}`,
+            details: responseText,
+            mealDetails: {
+              name: "",
+              description: "",
+              calories: 0,
+              protein_g: 0,
+              carbs_g: 0,
+              fat_g: 0,
+              fiber_g: 0,
+              prep_time_minutes: 15,
+              diet_tags: []
+            }
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse Zhipu AI response as JSON:", responseText);
+        return createFallbackResponse(mode);
+      }
+      
+      console.log("Zhipu AI parsed response:", JSON.stringify(data));
+      
+      const content = data.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        console.log("No content from Zhipu AI. Response structure:", JSON.stringify(data));
         return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please fill in details manually." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ 
+            success: false, 
+            error: "No content from Zhipu AI",
+            rawResponse: data,
+            mealDetails: {
+              name: "",
+              description: "",
+              calories: 0,
+              protein_g: 0,
+              carbs_g: 0,
+              fat_g: 0,
+              fiber_g: 0,
+              prep_time_minutes: 15,
+              diet_tags: []
+            }
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      
+      console.log("Zhipu AI content:", content);
+
+      // Try to parse JSON from content
+      try {
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        const parsed = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(content);
+        
+        if (mode === "quick_scan") {
+          return new Response(
+            JSON.stringify({ success: true, detectedItems: parsed.items || [] }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          return new Response(
+            JSON.stringify({ success: true, mealDetails: parsed }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (e) {
+        console.error("Failed to parse AI response:", content);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to parse AI response as JSON",
+            rawContent: content,
+            mealDetails: {
+              name: "",
+              description: "",
+              calories: 0,
+              protein_g: 0,
+              carbs_g: 0,
+              fat_g: 0,
+              fiber_g: 0,
+              prep_time_minutes: 15,
+              diet_tags: []
+            }
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (error) {
+      console.error("Error calling Zhipu AI:", error);
+      return createFallbackResponse(mode);
     }
-
-    const data = await response.json();
-    console.log("AI response:", JSON.stringify(data, null, 2));
-
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      throw new Error("No structured output received from AI");
-    }
-
-    const mealDetails = JSON.parse(toolCall.function.arguments);
-
-    return new Response(
-      JSON.stringify({ success: true, mealDetails }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (error) {
     console.error("Error in analyze-meal-image:", error);
     return new Response(
@@ -287,3 +214,43 @@ Only select diet tags that clearly apply to the visible dish.`,
     );
   }
 });
+
+function createFallbackResponse(mode: string | undefined) {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
+  if (mode === "quick_scan") {
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        detectedItems: [],
+        note: "AI analysis unavailable. Please enter meal details manually."
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Full analysis fallback
+  return new Response(
+    JSON.stringify({ 
+      success: true, 
+      mealDetails: {
+        name: "",
+        description: "",
+        calories: 0,
+        protein_g: 0,
+        carbs_g: 0,
+        fat_g: 0,
+        fiber_g: 0,
+        prep_time_minutes: 15,
+        suggested_price: 0,
+        diet_tags: []
+      },
+      note: "AI analysis unavailable. Please fill in meal details manually.",
+      provider: "fallback"
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
