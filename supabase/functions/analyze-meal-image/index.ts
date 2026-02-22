@@ -23,7 +23,7 @@ serve(async (req) => {
     const MOONSHOT_API_KEY = Deno.env.get("MOONSHOT_API_KEY");
     if (!MOONSHOT_API_KEY) {
       console.error("MOONSHOT_API_KEY not configured");
-      return createFallbackResponse(mode);
+      return createFallbackResponse(mode, "MOONSHOT_API_KEY not configured");
     }
 
     // Fetch image and convert to base64
@@ -41,7 +41,7 @@ serve(async (req) => {
       imageBase64 = btoa(binary);
     } catch (e) {
       console.error("Failed to fetch/convert image:", e);
-      return createFallbackResponse(mode);
+      return createFallbackResponse(mode, `Image fetch failed: ${(e as Error).message}`);
     }
 
     const systemPrompt = mode === "quick_scan"
@@ -80,7 +80,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error("Moonshot AI error:", response.status, errText);
-      return createFallbackResponse(mode);
+      return createFallbackResponse(mode, `Moonshot API error ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
@@ -129,10 +129,14 @@ serve(async (req) => {
   }
 });
 
-function createFallbackResponse(mode: string | undefined) {
+function createFallbackResponse(mode: string | undefined, errorDetail?: string) {
+  const note = errorDetail 
+    ? `AI analysis unavailable: ${errorDetail}` 
+    : "AI analysis unavailable. Please fill in meal details manually.";
+    
   if (mode === "quick_scan") {
     return new Response(
-      JSON.stringify({ success: true, detectedItems: [], note: "AI analysis unavailable. Please enter meal details manually." }),
+      JSON.stringify({ success: true, detectedItems: [], note, provider: "fallback", error: errorDetail }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -140,8 +144,9 @@ function createFallbackResponse(mode: string | undefined) {
     JSON.stringify({
       success: true,
       mealDetails: { name: "", description: "", calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, prep_time_minutes: 15, suggested_price: 0, diet_tags: [] },
-      note: "AI analysis unavailable. Please fill in meal details manually.",
-      provider: "fallback"
+      note,
+      provider: "fallback",
+      error: errorDetail
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
