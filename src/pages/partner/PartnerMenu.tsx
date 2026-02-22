@@ -482,19 +482,7 @@ export default function PartnerMenu() {
 
         toast({ title: "Meal created successfully" });
         
-        // Show add-ons dialog for the newly created meal
-        if (data) {
-          const newMeal: Meal = {
-            ...data,
-            price: null,
-            diet_tags: selectedTags.length > 0 ? selectedTags : undefined,
-          };
-          setSelectedMealForAddons(newMeal);
-          setAddonsDialogOpen(true);
-        }
-      }
-
-      if (editingMeal) {
+        // Close dialog and refresh meal list
         setDialogOpen(false);
         fetchMeals();
       }
