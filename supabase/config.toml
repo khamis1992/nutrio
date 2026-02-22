@@ -1,4 +1,4 @@
-project_id = "fimhnpinpswlhzifcfnv"
+project_id = "loepcagitrijlfksawfm"
 
 [functions.send-meal-reminders]
 verify_jwt = false
