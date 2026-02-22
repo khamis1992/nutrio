@@ -13,13 +13,21 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     // Allow access from local network for mobile testing
     strictPort: true,
+    // Improve HMR reliability
+    hmr: {
+      overlay: false,
+      timeout: 5000,
+    },
     watch: {
       // Watch for changes in the src directory
       ignored: ['!**/node_modules/**', '!**/dist/**'],
     },
   },
   plugins: [
-    react(), 
+    react({
+      // Improve HMR to prevent hook errors
+      devTarget: 'es2020',
+    }), 
     mode === "development" && componentTagger(),
     // Sentry plugin for source maps (only in production)
     mode === 'production' && sentryVitePlugin({
