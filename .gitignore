@@ -29,3 +29,8 @@ dist-ssr
 keystore.properties
 android/app/release.keystore
 android/app/keystore.properties
+
+# MCP configuration (contains API keys)
+mcp.json
+.cursor/mcp.json
+.vscode/mcp.json
