@@ -9,6 +9,7 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/Logo";
 
 interface MenuSection {
   title: string;
@@ -337,7 +338,10 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
 
         {/* App Version/Footer */}
         <div className="p-4 border-t border-border text-center">
-          <p className="text-xs text-muted-foreground">NUTRIO v1.0.0</p>
+          <div className="flex flex-col items-center gap-2">
+            <Logo size="sm" />
+            <p className="text-xs text-muted-foreground">v1.0.0</p>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Logo } from "@/components/Logo";
 import {
   Utensils,
   Target,
   TrendingUp,
   Calendar,
   ChefHat,
-  Salad,
   Flame,
   Users,
   ArrowRight,
@@ -51,11 +51,8 @@ const Index = () => {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-            <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center">
-              <Salad className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">NUTRIO</span>
+          <Link to="/" onClick={() => setMobileMenuOpen(false)}>
+            <Logo size="md" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -97,13 +94,9 @@ const Index = () => {
                   <div className="flex items-center justify-between p-6 border-b border-border">
                     <Link
                       to="/"
-                      className="flex items-center gap-2"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
-                        <Salad className="w-4 h-4 text-primary-foreground" />
-                      </div>
-                      <span className="text-lg font-bold">NUTRIO</span>
+                      <Logo size="sm" />
                     </Link>
                     <Button
                       variant="ghost"
@@ -492,12 +485,7 @@ const Index = () => {
       <footer className="py-12 px-4 border-t border-border">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 gradient-primary rounded-lg flex items-center justify-center">
-                <Salad className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold">NUTRIO</span>
-            </div>
+            <Logo size="sm" />
             <div className="flex flex-wrap items-center justify-center gap-6">
               <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 About

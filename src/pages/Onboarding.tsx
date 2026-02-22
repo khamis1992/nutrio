@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Salad, 
   Target, 
   Dumbbell, 
   Scale, 
@@ -22,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/Logo";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
@@ -279,12 +279,7 @@ const Onboarding = () => {
       {/* Header */}
       <header className="p-4">
         <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center">
-              <Salad className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">NUTRIO</span>
-          </div>
+          <Logo size="md" />
           <Badge variant="soft">Step {step} of {totalSteps}</Badge>
         </div>
       </header>

@@ -1,17 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#10B981"/>
-      <stop offset="100%" style="stop-color:#059669"/>
+    <!-- Dark green gradient for the main leaf -->
+    <linearGradient id="darkGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D5C3F"/>
+      <stop offset="100%" style="stop-color:#0A4A33"/>
+    </linearGradient>
+    <!-- Light green/yellow gradient for the accent leaf -->
+    <linearGradient id="lightGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A4D94E"/>
+      <stop offset="100%" style="stop-color:#8BC34A"/>
     </linearGradient>
   </defs>
-  <!-- Background circle -->
-  <circle cx="50" cy="50" r="48" fill="url(#bgGrad)"/>
-  <!-- Leaf shape representing fresh/healthy food -->
-  <path d="M50 20 C35 25 25 40 25 55 C25 70 35 80 50 80 C65 80 75 70 75 55 C75 40 65 25 50 20 Z" 
-        fill="white" opacity="0.95"/>
-  <!-- Leaf vein -->
-  <path d="M50 30 L50 70" stroke="#10B981" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <path d="M50 45 L40 38" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M50 55 L60 48" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  
+  <!-- Background circle with subtle green tint -->
+  <circle cx="50" cy="50" r="48" fill="#F8FAF8"/>
+  
+  <!-- Main dark green leaf (left side forming the N) -->
+  <path d="M28 75 C25 65 28 45 40 30 C42 28 45 26 48 25 C50 24 52 25 52 27 C53 35 50 50 42 60 C38 66 33 71 28 75 Z" 
+        fill="url(#darkGreen)"/>
+  
+  <!-- Light green accent leaf (right side forming the N) -->
+  <path d="M52 25 C55 22 60 20 65 22 C72 24 76 32 74 42 C72 52 65 62 55 68 C52 70 50 69 50 67 C49 55 54 40 60 32 C58 35 55 38 52 40 C50 42 48 41 48 39 C47 32 49 28 52 25 Z" 
+        fill="url(#lightGreen)"/>
+  
+  <!-- Connecting stem forming the N shape -->
+  <path d="M35 68 L52 32" 
+        stroke="#0D5C3F" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        opacity="0.8"/>
 </svg>

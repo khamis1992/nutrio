@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Lock, Eye, EyeOff, Salad, CheckCircle } from "lucide-react";
+import { Loader2, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { z } from "zod";
 import { Link } from "react-router-dom";
+import { Logo } from "@/components/Logo";
 
 const passwordSchema = z
   .string()
@@ -116,11 +117,8 @@ const ResetPassword = () => {
     return (
       <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center shadow-glow">
-              <Salad className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold">NUTRIO</span>
+          <Link to="/" className="flex items-center justify-center mb-8">
+            <Logo size="lg" />
           </Link>
           <Card variant="elevated">
             <CardContent className="p-8 text-center">
@@ -145,11 +143,8 @@ const ResetPassword = () => {
     return (
       <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-            <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center shadow-glow">
-              <Salad className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold">NUTRIO</span>
+          <Link to="/" className="flex items-center justify-center mb-8">
+            <Logo size="lg" />
           </Link>
           <Card variant="elevated">
             <CardContent className="p-8 text-center">
@@ -173,11 +168,8 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center shadow-glow">
-            <Salad className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold">NUTRIO</span>
+        <Link to="/" className="flex items-center justify-center mb-8">
+          <Logo size="lg" />
         </Link>
 
         <Card variant="elevated" className="animate-scale-in">

@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Salad, Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2, Fingerprint, AlertCircle } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, User, Loader2, Fingerprint } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
+import { Logo } from "@/components/Logo";
 import { biometricAuth, isNative } from "@/lib/capacitor";
 import { z } from "zod";
 import { checkIPLocation } from "@/lib/ipCheck";
@@ -295,11 +296,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div className="min-h-screen gradient-hero flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-12 h-12 gradient-primary rounded-2xl flex items-center justify-center shadow-glow">
-            <Salad className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold">NUTRIO</span>
+        <Link to="/" className="flex items-center justify-center mb-8">
+          <Logo size="lg" />
         </Link>
 
         {/* Auth Card */}
