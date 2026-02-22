@@ -1,26 +1,37 @@
 
 
-# Reset Password for admin@nutrio.com
+## Fix: Meal Image Analysis Not Working
 
-## Approach
+### Problem
+The `analyze-meal-image` edge function uses Zhipu AI with model `glm-4v-plus`, which returns error 1211 ("model does not exist"). The model name is invalid or deprecated on the Zhipu platform.
 
-Create a temporary backend function that uses the admin API to update the user's password, call it to reset the password, then clean up.
+### Solution
+Rewrite the `analyze-meal-image` edge function to use the **Lovable AI gateway** with `google/gemini-2.5-flash` instead of Zhipu AI. This project already has Lovable Cloud enabled with a `LOVABLE_API_KEY` secret configured, so no new API keys are needed.
 
-## Steps
+### Changes
 
-1. **Create a temporary edge function** (`reset-admin-password`) that:
-   - Uses the service role key to access the admin auth API
-   - Finds the user by email `admin@nutrio.com`
-   - Updates their password to `Khamees1992#`
-   - Returns success/failure status
+**1. Rewrite `supabase/functions/analyze-meal-image/index.ts`**
+- Remove all Zhipu AI logic
+- Use the Lovable AI gateway (`https://ai-gateway.lovable.dev/v1/chat/completions`) with model `google/gemini-2.5-flash`
+- For image input, fetch the image from the URL, convert to base64, and send as `inline_data` in the request (Gemini format via the gateway)
+- Keep the same request/response interface so the frontend code in `PartnerMenu.tsx` and `LogMealDialog.tsx` continues to work without changes
+- Keep both `quick_scan` and full analysis modes
+- Use `LOVABLE_API_KEY` secret (already configured) for authentication
 
-2. **Deploy and call the function** to execute the password reset
+**2. Fix pre-existing build errors in 4 edge functions**
+- `adaptive-goals-batch/index.ts` line 131: cast `error` to `Error`
+- `adaptive-goals/index.ts` line 517: cast `error` to `Error`
+- `check-ip-location/index.ts` line 83: cast `error` to `Error`
+- `log-user-ip/index.ts` line 59: cast `error` to `Error`
 
-3. **Delete the edge function** after use (it's a one-time operation and shouldn't remain deployed)
+### Technical Details
 
-## Technical Details
+The new edge function will:
+1. Receive `imageUrl`, `availableTags`, and `mode` from the request body
+2. Fetch the image from the URL and convert it to base64
+3. Call `https://ai-gateway.lovable.dev/v1/chat/completions` with model `google/gemini-2.5-flash`, passing the image as base64 inline data
+4. Parse the JSON response from the AI model
+5. Return the same response format the frontend expects (`{ success, mealDetails }` or `{ success, detectedItems }`)
 
-- The edge function will use `supabase.auth.admin.updateUserById()` to set the new password
-- The service role key (already configured as a secret) grants admin-level access needed for this operation
-- The function will be removed immediately after successful execution to avoid security risk
+No frontend changes are required since the response format remains the same.
 
