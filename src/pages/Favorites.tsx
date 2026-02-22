@@ -14,7 +14,10 @@ import {
   Utensils,
   UtensilsCrossed,
   Loader2,
-  Trash2
+  Trash2,
+  RotateCcw,
+  TrendingUp,
+  Calendar
 } from "lucide-react";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +25,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useToast } from "@/hooks/use-toast";
+import { useTopMeals } from "@/hooks/useTopMeals";
+import { formatDistanceToNow } from "date-fns";
 
 interface FavoriteRestaurant {
   id: string;
@@ -33,27 +38,15 @@ interface FavoriteRestaurant {
   meal_count: number;
 }
 
-interface FavoriteMeal {
-  id: string;
-  name: string;
-  image_url: string | null;
-  calories: number;
-  protein_g: number;
-  rating: number;
-  prep_time_minutes: number;
-  restaurant_name: string;
-  diet_tags: string[];
-}
-
 const Favorites = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
   const { favoriteIds, toggleFavorite } = useFavoriteRestaurants();
+  const { topMeals, loading: topMealsLoading, removeFromTopMeals, fetchTopMeals } = useTopMeals();
   
   const [restaurants, setRestaurants] = useState<FavoriteRestaurant[]>([]);
-  const [meals, setMeals] = useState<FavoriteMeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("restaurants");
 
@@ -64,10 +57,10 @@ const Favorites = () => {
   }, [profile, navigate]);
 
   useEffect(() => {
-    fetchFavorites();
+    fetchRestaurants();
   }, [user, favoriteIds]);
 
-  const fetchFavorites = async () => {
+  const fetchRestaurants = async () => {
     if (!user) return;
     
     setLoading(true);
@@ -115,40 +108,8 @@ const Favorites = () => {
           }));
 
         setRestaurants(transformedRestaurants);
-
-        // Fetch meals from favorite restaurants
-        const { data: mealsData, error: mealsError } = await supabase
-          .from("meals")
-          .select("id, name, image_url, calories, protein_g, rating, prep_time_minutes, restaurant_id")
-          .in("restaurant_id", restaurantIds)
-          .eq("is_available", true)
-          .order("rating", { ascending: false })
-          .limit(10);
-
-        if (mealsError) throw mealsError;
-
-        // Get restaurant names for meals
-        const restaurantMap: Record<string, string> = {};
-        (restaurantsData || []).forEach((r: any) => {
-          restaurantMap[r.id] = r.name;
-        });
-
-        const transformedMeals: FavoriteMeal[] = (mealsData || []).map((m: any) => ({
-          id: m.id,
-          name: m.name,
-          image_url: m.image_url,
-          calories: m.calories,
-          protein_g: parseFloat(m.protein_g),
-          rating: parseFloat(m.rating) || 0,
-          prep_time_minutes: m.prep_time_minutes || 15,
-          restaurant_name: restaurantMap[m.restaurant_id] || "Unknown",
-          diet_tags: [], // Simplified - diet tags would need separate fetch
-        }));
-
-        setMeals(transformedMeals);
       } else {
         setRestaurants([]);
-        setMeals([]);
       }
     } catch (err) {
       console.error("Error fetching favorites:", err);
@@ -165,6 +126,24 @@ const Favorites = () => {
   const handleRemoveFavorite = async (restaurantId: string, restaurantName: string) => {
     await toggleFavorite(restaurantId, restaurantName);
     setRestaurants(prev => prev.filter(r => r.id !== restaurantId));
+  };
+
+  const handleRemoveTopMeal = async (topMealId: string, mealName: string) => {
+    const success = await removeFromTopMeals(topMealId);
+    if (success) {
+      toast({
+        title: "Removed from Top Meals",
+        description: `${mealName} has been removed from your top meals.`,
+      });
+    }
+  };
+
+  const handleRefreshTopMeals = async () => {
+    await fetchTopMeals();
+    toast({
+      title: "Refreshed",
+      description: "Top meals list has been updated.",
+    });
   };
 
   return (
@@ -193,12 +172,12 @@ const Favorites = () => {
               Restaurants ({restaurants.length})
             </TabsTrigger>
             <TabsTrigger value="meals" className="flex-1">
-              <UtensilsCrossed className="w-4 h-4 mr-2" />
-              Top Meals ({meals.length})
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Top Meals ({topMeals.length})
             </TabsTrigger>
           </TabsList>
 
-          {loading ? (
+          {loading || topMealsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -272,26 +251,51 @@ const Favorites = () => {
               </TabsContent>
 
               <TabsContent value="meals" className="space-y-4">
-                {meals.length === 0 ? (
+                {/* Info Card */}
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <TrendingUp className="w-5 h-5 text-primary mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-sm">How Top Meals Work</h3>
+                        <ul className="text-xs text-muted-foreground mt-1 space-y-1">
+                          <li>• Meals ordered in the last 3 days appear automatically</li>
+                          <li>• Meals ordered 5+ times are always shown</li>
+                          <li>• You can manually add or remove meals anytime</li>
+                        </ul>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="shrink-0"
+                        onClick={handleRefreshTopMeals}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {topMeals.length === 0 ? (
                   <Card>
                     <CardContent className="p-8 text-center">
                       <UtensilsCrossed className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="font-semibold mb-2">No meals to show</h3>
+                      <h3 className="font-semibold mb-2">No top meals yet</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Add favorite restaurants to see their top meals here!
+                        Start ordering meals to see your favorites here!
                       </p>
                       <Button onClick={() => navigate("/meals")}>
-                        Browse Restaurants
+                        Browse Meals
                       </Button>
                     </CardContent>
                   </Card>
                 ) : (
-                  meals.map((meal) => (
-                    <Link key={meal.id} to={`/meals/${meal.id}`}>
-                      <Card className="overflow-hidden hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex gap-4">
-                            <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden shrink-0">
+                  topMeals.map((meal) => (
+                    <Card key={meal.id} className="overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <Link to={`/meals/${meal.meal_id}`} className="shrink-0">
+                            <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
                               {meal.image_url ? (
                                 <img 
                                   src={meal.image_url} 
@@ -302,46 +306,60 @@ const Favorites = () => {
                                 "🍽️"
                               )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">{meal.name}</h3>
-                              <p className="text-xs text-muted-foreground">{meal.restaurant_name}</p>
-                              
-                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                                <span className="flex items-center gap-1">
-                                  <Flame className="w-3 h-3" />
-                                  {meal.calories} cal
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Beef className="w-3 h-3" />
-                                  {meal.protein_g}g
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {meal.prep_time_minutes} min
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Star className="w-3 h-3 fill-warning text-warning" />
-                                  {meal.rating.toFixed(1)}
-                                </span>
-                              </div>
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <Link to={`/meals/${meal.meal_id}`}>
+                              <h3 className="font-semibold truncate hover:text-primary transition-colors">
+                                {meal.name}
+                              </h3>
+                            </Link>
+                            <p className="text-xs text-muted-foreground">{meal.restaurant_name}</p>
+                            
+                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Flame className="w-3 h-3" />
+                                {meal.calories} cal
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Beef className="w-3 h-3" />
+                                {meal.protein_g}g protein
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {meal.prep_time_minutes} min
+                              </span>
+                            </div>
 
-                              {meal.diet_tags.length > 0 && (
-                                <div className="flex gap-1.5 mt-2 flex-wrap">
-                                  {meal.diet_tags.slice(0, 2).map((tag) => (
-                                    <Badge key={tag} variant="diet" className="text-xs">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
+                            {/* Order Count & Last Ordered */}
+                            <div className="flex items-center gap-3 mt-2">
+                              <Badge 
+                                variant={meal.order_count >= 5 ? "default" : "secondary"}
+                                className="text-xs"
+                              >
+                                <TrendingUp className="w-3 h-3 mr-1" />
+                                {meal.order_count} orders
+                              </Badge>
+                              {meal.last_ordered_at && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  Last: {formatDistanceToNow(new Date(meal.last_ordered_at), { addSuffix: true })}
+                                </span>
                               )}
                             </div>
-                            <Badge variant="secondary" className="shrink-0 bg-primary/10 text-primary text-xs">
-                              Included
-                            </Badge>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveTopMeal(meal.id, meal.name)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))
                 )}
               </TabsContent>
