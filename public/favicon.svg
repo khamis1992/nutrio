@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#bgGrad)"/>
+  <!-- Leaf shape representing fresh/healthy food -->
+  <path d="M50 20 C35 25 25 40 25 55 C25 70 35 80 50 80 C65 80 75 70 75 55 C75 40 65 25 50 20 Z" 
+        fill="white" opacity="0.95"/>
+  <!-- Leaf vein -->
+  <path d="M50 30 L50 70" stroke="#10B981" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M50 45 L40 38" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M50 55 L60 48" stroke="#10B981" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>
