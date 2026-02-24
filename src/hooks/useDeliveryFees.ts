@@ -12,7 +12,7 @@ const defaultSettings: DeliveryFeeSettings = {
   standard: 3.99,
   express: 6.99,
   free_threshold: 50,
-  enabled: true,
+  enabled: false,
 };
 
 export function useDeliveryFees() {

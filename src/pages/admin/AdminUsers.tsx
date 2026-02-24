@@ -56,6 +56,7 @@ import { useUserOrders } from "@/hooks/useUserOrders";
 import { OrderHistoryCard } from "@/components/admin/OrderHistoryCard";
 import { OrderStatistics } from "@/components/admin/OrderStatistics";
 import { ChangePasswordDialog } from "@/components/admin/ChangePasswordDialog";
+import { UserSubscriptionManager } from "@/components/admin/UserSubscriptionManager";
 
 type UserRole = "user" | "admin" | "gym_owner" | "staff" | "restaurant" | "driver";
 type UserStatus = "active" | "blocked" | "suspended";
@@ -908,6 +909,12 @@ const OverviewContent = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Subscription Management */}
+      <UserSubscriptionManager 
+        userId={user.user_id} 
+        userName={user.full_name} 
+      />
 
       {/* Quick Actions */}
       <Card>

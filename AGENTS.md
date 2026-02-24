@@ -135,3 +135,25 @@ All client-side env vars are prefixed with `VITE_`. See `.env.production.templat
 - State management: React Context for global state (auth, analytics), TanStack Query for server state, `useState`/`useReducer` for local state.
 - Commit messages: present tense, lowercase.
 - Always run `npm run lint` and `npm run typecheck` before committing.
+
+## Agent Rules (CRITICAL - DO NOT IGNORE)
+
+### 1. Use Best Agent & Skill for Every Task
+**MANDATORY**: Whenever the user asks for any task, you MUST use the best available agent and skill for that specific task type.
+- UI/Design work → Use `frontend-design` or `ui-design-system` skill
+- Security work → Use `senior-security` skill
+- API integration → Use `API Integration Specialist` skill
+- Code review → Use `code-reviewer` skill
+- Complex exploration → Use `explore` subagent with thoroughness level
+- Marketing → Use `executing-marketing-campaigns` skill
+- PDF/Document work → Use `pdf`, `PDF Processing Pro`, or `docx` skill
+- Testing → Use `webapp-testing` skill
+- Deployment → Use `railway-deployment` skill
+- Always match the tool to the task complexity and domain
+
+### 2. Never Push to GitHub Without Explicit Permission
+**MANDATORY**: You must NEVER commit or push changes to GitHub unless the user explicitly tells you to.
+- Make file changes locally
+- Show the user what changed (git status/diff)
+- WAIT for explicit "push" or "commit" command from user
+- This rule is ABSOLUTE - no exceptions

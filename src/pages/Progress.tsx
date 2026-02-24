@@ -1,677 +1,660 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { GoalsManagement } from "@/components/GoalsManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-} from "recharts";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
-  Scale,
+  Flame,
+  Droplets,
   Target,
   TrendingUp,
   TrendingDown,
-  Flame,
-  Beef,
-  Wheat,
-  Droplets,
-  Plus,
-  Calendar,
-  History,
-  RotateCcw,
+  Scale,
+  Droplet,
+  Trophy,
+  Trash2,
 } from "lucide-react";
-import { format, subDays, parseISO, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { format, subDays } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
-import CalorieProgressRing from "@/components/CalorieProgressRing";
+import { cn } from "@/lib/utils";
+import { ProgressRings } from "@/components/progress/ProgressRings";
+import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
+import { professionalWeeklyReportPDF, WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 
-interface ProgressLog {
-  id: string;
-  log_date: string;
-  weight_kg: number | null;
-  calories_consumed: number | null;
-  protein_consumed_g: number | null;
-  carbs_consumed_g: number | null;
-  fat_consumed_g: number | null;
-  notes: string | null;
-}
+// Hooks
+import { useWeeklySummary } from "@/hooks/useWeeklySummary";
+import { useWaterIntake } from "@/hooks/useWaterIntake";
+import { useStreak } from "@/hooks/useStreak";
+import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
+import { useNutritionGoals } from "@/hooks/useNutritionGoals";
+import { useMealQuality } from "@/hooks/useMealQuality";
+import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 
-interface MealHistoryItem {
-  id: string;
-  name: string;
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  logged_at: string;
-}
-
-const Progress = () => {
+const ProgressNative = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useProfile();
+  useProfile();
   const { toast } = useToast();
-  const [logs, setLogs] = useState<ProgressLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [todayWeight, setTodayWeight] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"weight" | "nutrition">("weight");
-  const [mealHistory, setMealHistory] = useState<MealHistoryItem[]>([]);
-  const [relogging, setRelogging] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") as "today" | "week" | "weight" | "goals" | null;
+  const [activeTab, setActiveTab] = useState<"today" | "week" | "weight" | "goals">(initialTab || "today");
+  
+  // Update URL when tab changes
+  const handleTabChange = (tab: "today" | "week" | "weight" | "goals") => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [showWeightView, setShowWeightView] = useState(false);
+  const [weightEntries, setWeightEntries] = useState<any[]>([]);
+  const [currentWeight, setCurrentWeight] = useState("");
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAllEntries, setShowAllEntries] = useState(false);
+  const [dailyData, setDailyData] = useState<WeeklyReportData['dailyData']>([]);
+
+  // Data hooks
+  const { summary: weeklySummary } = useWeeklySummary(user?.id);
+  const { dailySummary: waterSummary, loading: waterLoading, addWater } = useWaterIntake(user?.id);
+  const { streaks } = useStreak(user?.id);
+  const { latestMeasurement } = useBodyMeasurements(user?.id);
+  const { activeGoal, milestones } = useNutritionGoals(user?.id);
+  const { averageScore } = useMealQuality(user?.id);
+  const { recommendations } = useSmartRecommendations(user?.id);
+
+  // Get today's nutrition data
+  const today = new Date().toISOString().split('T')[0];
+  const [todayStats, setTodayStats] = useState({ calories: 0, protein: 0 });
+  
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchTodayStats = async () => {
+      const { data } = await supabase
+        .from('progress_logs')
+        .select('calories_consumed, protein_consumed_g')
+        .eq('user_id', user.id)
+        .eq('log_date', today)
+        .maybeSingle();
+      
+      if (data) {
+        setTodayStats({
+          calories: data.calories_consumed || 0,
+          protein: data.protein_consumed_g || 0
+        });
+      }
+    };
+    
+    fetchTodayStats();
+  }, [user, today]);
 
   useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
-      navigate("/onboarding");
-    }
-  }, [profile, navigate]);
+    if (!user) return;
 
-  useEffect(() => {
-    fetchLogs();
-    fetchMealHistory();
+    const fetchDailyData = async () => {
+      const weekEnd = new Date();
+      const weekStart = subDays(weekEnd, 7);
+
+      const { data: dailyLogs } = await supabase
+        .from('progress_logs')
+        .select('log_date, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g, weight_kg')
+        .eq('user_id', user.id)
+        .gte('log_date', weekStart.toISOString().split('T')[0])
+        .lte('log_date', weekEnd.toISOString().split('T')[0])
+        .order('log_date');
+
+      const { data: waterLogs } = await (supabase as any)
+        .from('water_intake')
+        .select('log_date, glasses')
+        .eq('user_id', user.id)
+        .gte('log_date', weekStart.toISOString().split('T')[0])
+        .lte('log_date', weekEnd.toISOString().split('T')[0]);
+
+      const data: WeeklyReportData['dailyData'] = [];
+      for (let i = 0; i < 7; i++) {
+        const date = subDays(weekEnd, i);
+        const dateStr = date.toISOString().split('T')[0];
+        const log = dailyLogs?.find((l: any) => l.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        
+        data.unshift({
+          date: dateStr,
+          calories: log?.calories_consumed || 0,
+          protein: log?.protein_consumed_g || 0,
+          carbs: log?.carbs_consumed_g || 0,
+          fat: log?.fat_consumed_g || 0,
+          weight: log?.weight_kg || null,
+          water: waterLog?.glasses || 0,
+        });
+      }
+      setDailyData(data);
+    };
+
+    fetchDailyData();
   }, [user]);
 
-  const fetchMealHistory = async () => {
+  const dailyCalorieTarget = activeGoal?.daily_calorie_target || 2000;
+  const dailyProteinTarget = activeGoal?.protein_target_g || 120;
+
+  const calorieProgress = Math.min(100, Math.round((todayStats.calories / dailyCalorieTarget) * 100));
+  const proteinProgress = Math.min(100, Math.round((todayStats.protein / dailyProteinTarget) * 100));
+
+  const handleQuickWaterAdd = async (amount: number) => {
+    try {
+      await addWater(amount);
+      toast({ title: "Water added", description: `+${amount} glasses` });
+    } catch (error) {
+      toast({ title: "Failed to add water", variant: "destructive" });
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    if (!user || !weeklySummary) {
+      toast({ title: "No data available", variant: "destructive" });
+      return;
+    }
+
+    setGeneratingReport(true);
+    try {
+      const weekStart = subDays(new Date(), 7);
+      const weekEnd = new Date();
+
+      const { data: dailyLogs } = await supabase
+        .from('progress_logs')
+        .select('log_date, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g, weight_kg')
+        .eq('user_id', user.id)
+        .gte('log_date', weekStart.toISOString().split('T')[0])
+        .lte('log_date', weekEnd.toISOString().split('T')[0])
+        .order('log_date');
+
+      const { data: waterLogs } = await (supabase as any)
+        .from('water_intake')
+        .select('log_date, glasses')
+        .eq('user_id', user.id)
+        .gte('log_date', weekStart.toISOString().split('T')[0])
+        .lte('log_date', weekEnd.toISOString().split('T')[0]);
+
+      const lastWeekStart = subDays(weekStart, 7);
+      const { data: lastWeekLogs } = await supabase
+        .from('progress_logs')
+        .select('calories_consumed')
+        .eq('user_id', user.id)
+        .gte('log_date', lastWeekStart.toISOString().split('T')[0])
+        .lt('log_date', weekStart.toISOString().split('T')[0]);
+
+      const lastWeekAvg = lastWeekLogs && lastWeekLogs.length > 0
+        ? lastWeekLogs.reduce((sum, log) => sum + (log.calories_consumed || 0), 0) / lastWeekLogs.length
+        : 0;
+
+      const dailyData: WeeklyReportData['dailyData'] = [];
+      for (let i = 0; i < 7; i++) {
+        const date = subDays(weekEnd, i);
+        const dateStr = date.toISOString().split('T')[0];
+        const log = dailyLogs?.find((l: any) => l.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        
+        dailyData.unshift({
+          date: dateStr,
+          calories: log?.calories_consumed || 0,
+          protein: log?.protein_consumed_g || 0,
+          carbs: log?.carbs_consumed_g || 0,
+          fat: log?.fat_consumed_g || 0,
+          weight: log?.weight_kg || null,
+          water: waterLog?.glasses || 0,
+        });
+      }
+
+      const weightChange = latestMeasurement?.weight_kg && activeGoal?.target_weight_kg
+        ? latestMeasurement.weight_kg - activeGoal.target_weight_kg
+        : null;
+
+      const weightProgress = activeGoal?.target_weight_kg && latestMeasurement?.weight_kg
+        ? ((latestMeasurement.weight_kg - (activeGoal.target_weight_kg + 20)) / 20) * 100
+        : 0;
+
+      const reportData: WeeklyReportData = {
+        userName: user.email?.split('@')[0] || 'User',
+        userEmail: user.email || '',
+        reportDate: new Date().toISOString(),
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
+        currentWeight: latestMeasurement?.weight_kg || null,
+        weightChange: weightChange,
+        weightGoal: activeGoal?.target_weight_kg || null,
+        weightProgress: Math.max(0, Math.min(100, weightProgress)),
+        avgCalories: weeklySummary?.calories.thisWeekAvg || 0,
+        calorieTarget: dailyCalorieTarget,
+        calorieProgress: calorieProgress,
+        avgProtein: weeklySummary?.macros.protein.consumed || 0,
+        proteinTarget: dailyProteinTarget,
+        avgCarbs: weeklySummary?.macros.carbs.consumed || 0,
+        carbsTarget: 250,
+        avgFat: weeklySummary?.macros.fat.consumed || 0,
+        fatTarget: 65,
+        dailyData: dailyData,
+        consistencyScore: weeklySummary?.consistency.percentage || 0,
+        daysLogged: weeklySummary?.consistency.daysLogged || 0,
+        totalDays: 7,
+        mealQualityScore: averageScore || 0,
+        waterAverage: dailyData.reduce((sum, d) => sum + d.water, 0) / 7,
+        currentStreak: streaks?.logging?.currentStreak || 0,
+        bestStreak: streaks?.logging?.bestStreak || 0,
+        activeGoal: activeGoal?.goal_type || null,
+        goalProgress: activeGoal?.target_weight_kg && latestMeasurement?.weight_kg
+          ? Math.round(((activeGoal.target_weight_kg + 20 - latestMeasurement.weight_kg) / 20) * 100)
+          : 0,
+        milestonesAchieved: milestones.filter(m => m.achieved_at).length,
+        totalMilestones: milestones.length,
+        insights: recommendations.slice(0, 3).map(r => r.description),
+        recommendations: recommendations.slice(0, 3).map(r => `${r.title}: ${r.description}`),
+        vsLastWeek: {
+          calories: weeklySummary ? weeklySummary.calories.thisWeekAvg - lastWeekAvg : 0,
+          weight: weightChange || 0,
+          consistency: weeklySummary?.consistency.percentage || 0,
+        },
+      };
+
+      professionalWeeklyReportPDF.download(reportData);
+      toast({ title: "Report downloaded!", description: "Your weekly progress report has been saved." });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast({ title: "Failed to generate report", variant: "destructive" });
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
+  
+  // Weight tracking
+  const fetchWeightEntries = async () => {
     if (!user) return;
-    
-    const { data, error } = await supabase
-      .from("meal_history")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("logged_at", { ascending: false })
-      .limit(5);
-    
-    if (!error && data) {
-      setMealHistory(data);
-    }
+    const { data } = await supabase.from("body_measurements").select("*").eq("user_id", user.id).order("log_date", { ascending: false });
+    setWeightEntries(data || []);
   };
 
-  const handleRelogMeal = async (meal: MealHistoryItem) => {
-    if (!user) return;
-    
-    setRelogging(true);
-    const today = format(new Date(), "yyyy-MM-dd");
-    
-    // Check if there's an existing log for today
-    const existingLog = logs.find((log) => log.log_date === today);
-    
-    if (existingLog) {
-      const { error } = await supabase
-        .from("progress_logs")
-        .update({
-          calories_consumed: (existingLog.calories_consumed || 0) + meal.calories,
-          protein_consumed_g: (existingLog.protein_consumed_g || 0) + meal.protein_g,
-          carbs_consumed_g: (existingLog.carbs_consumed_g || 0) + meal.carbs_g,
-          fat_consumed_g: (existingLog.fat_consumed_g || 0) + meal.fat_g,
-        })
-        .eq("id", existingLog.id);
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to log meal",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Meal Logged!",
-          description: `${meal.name} added to today's nutrition`,
-        });
-        fetchLogs();
-      }
-    } else {
-      const { error } = await supabase.from("progress_logs").insert({
-        user_id: user.id,
-        log_date: today,
-        calories_consumed: meal.calories,
-        protein_consumed_g: meal.protein_g,
-        carbs_consumed_g: meal.carbs_g,
-        fat_consumed_g: meal.fat_g,
-      });
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to log meal",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Meal Logged!",
-          description: `${meal.name} added to today's nutrition`,
-        });
-        fetchLogs();
-      }
-    }
-    
-    // Update meal history timestamp
-    await supabase
-      .from("meal_history")
-      .update({ logged_at: new Date().toISOString() })
-      .eq("id", meal.id);
-    
-    fetchMealHistory();
-    setRelogging(false);
+  const handleAddWeight = async () => {
+    if (!user || !currentWeight) return;
+    const weight = parseFloat(currentWeight);
+    if (isNaN(weight) || weight <= 0) return;
+    setIsSubmitting(true);
+    await supabase.from("body_measurements").upsert({ user_id: user.id, weight_kg: weight, log_date: selectedDate }, { onConflict: "user_id,log_date" });
+    setCurrentWeight("");
+    fetchWeightEntries();
+    setIsSubmitting(false);
   };
 
-  const fetchLogs = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    const thirtyDaysAgo = format(subDays(new Date(), 30), "yyyy-MM-dd");
-
-    const { data, error } = await supabase
-      .from("progress_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("log_date", thirtyDaysAgo)
-      .order("log_date", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching progress logs:", error);
-    } else {
-      setLogs(data || []);
-      // Check if there's a log for today
-      const today = format(new Date(), "yyyy-MM-dd");
-      const todayLog = data?.find((log) => log.log_date === today);
-      if (todayLog?.weight_kg) {
-        setTodayWeight(todayLog.weight_kg.toString());
-      }
-    }
-    setLoading(false);
+  const handleDeleteWeight = async (id: string) => {
+    await supabase.from("body_measurements").delete().eq("id", id);
+    fetchWeightEntries();
   };
 
-  const logWeight = async () => {
-    if (!user || !todayWeight) return;
-
-    setSubmitting(true);
-    const today = format(new Date(), "yyyy-MM-dd");
-    const weight = parseFloat(todayWeight);
-
-    // Check if log exists for today
-    const existingLog = logs.find((log) => log.log_date === today);
-
-    if (existingLog) {
-      const { error } = await supabase
-        .from("progress_logs")
-        .update({ weight_kg: weight })
-        .eq("id", existingLog.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update weight",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Updated",
-          description: "Weight logged successfully",
-        });
-        fetchLogs();
-      }
-    } else {
-      const { error } = await supabase.from("progress_logs").insert({
-        user_id: user.id,
-        log_date: today,
-        weight_kg: weight,
-      });
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to log weight",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Weight logged successfully",
-        });
-        fetchLogs();
-      }
-    }
-    setSubmitting(false);
+  const weightStats = {
+    current: weightEntries[0]?.weight_kg,
+    change: weightEntries.length > 1 ? weightEntries[0].weight_kg - weightEntries[weightEntries.length - 1].weight_kg : 0,
+    count: weightEntries.length
   };
-
-  // Calculate stats
-  const weightLogs = logs.filter((log) => log.weight_kg !== null);
-  const latestWeight = weightLogs[weightLogs.length - 1]?.weight_kg || profile?.current_weight_kg || 0;
-  const startWeight = weightLogs[0]?.weight_kg || profile?.current_weight_kg || 0;
-  const weightChange = latestWeight - startWeight;
-  const targetWeight = profile?.target_weight_kg || 0;
-  const remainingToGoal = targetWeight ? latestWeight - targetWeight : 0;
-
-  // Weekly nutrition averages
-  const thisWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const thisWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
-  const thisWeekLogs = logs.filter((log) => {
-    const logDate = parseISO(log.log_date);
-    return logDate >= thisWeekStart && logDate <= thisWeekEnd;
-  });
-
-  const avgCalories = thisWeekLogs.length > 0
-    ? Math.round(thisWeekLogs.reduce((sum, log) => sum + (log.calories_consumed || 0), 0) / thisWeekLogs.length)
-    : 0;
-  const avgProtein = thisWeekLogs.length > 0
-    ? Math.round(thisWeekLogs.reduce((sum, log) => sum + (log.protein_consumed_g || 0), 0) / thisWeekLogs.length)
-    : 0;
-  const avgCarbs = thisWeekLogs.length > 0
-    ? Math.round(thisWeekLogs.reduce((sum, log) => sum + (log.carbs_consumed_g || 0), 0) / thisWeekLogs.length)
-    : 0;
-  const avgFat = thisWeekLogs.length > 0
-    ? Math.round(thisWeekLogs.reduce((sum, log) => sum + (log.fat_consumed_g || 0), 0) / thisWeekLogs.length)
-    : 0;
-
-  // Today's calories for the ring
-  const today = format(new Date(), "yyyy-MM-dd");
-  const todayLog = logs.find((log) => log.log_date === today);
-  const todayCalories = todayLog?.calories_consumed || 0;
-  const dailyCalorieTarget = profile?.daily_calorie_target || 2000;
-
-  // Chart data
-  const weightChartData = weightLogs.map((log) => ({
-    date: format(parseISO(log.log_date), "MMM d"),
-    weight: log.weight_kg,
-    target: targetWeight,
-  }));
-
-  const nutritionChartData = logs
-    .filter((log) => log.calories_consumed !== null)
-    .map((log) => ({
-      date: format(parseISO(log.log_date), "MMM d"),
-      calories: log.calories_consumed,
-      target: profile?.daily_calorie_target || 2000,
-    }));
-
-  const macroChartData = logs
-    .filter((log) => log.protein_consumed_g !== null)
-    .slice(-7)
-    .map((log) => ({
-      date: format(parseISO(log.log_date), "EEE"),
-      protein: log.protein_consumed_g,
-      carbs: log.carbs_consumed_g,
-      fat: log.fat_consumed_g,
-    }));
-
-  const chartConfig = {
-    weight: { label: "Weight", color: "hsl(var(--primary))" },
-    target: { label: "Target", color: "hsl(var(--muted-foreground))" },
-    calories: { label: "Calories", color: "hsl(38 92% 50%)" },
-    protein: { label: "Protein", color: "hsl(0 84% 60%)" },
-    carbs: { label: "Carbs", color: "hsl(38 92% 50%)" },
-    fat: { label: "Fat", color: "hsl(200 80% 50%)" },
-  };
-
-  return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between p-4">
-          <Button
-            variant="ghost"
-            size="icon"
+return (
+    <div className="min-h-screen bg-background pb-24">
+      {/* Native App Header with App Colors */}
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-accent">
+        <div className="flex items-center justify-between px-4 h-14">
+          <button
             onClick={() => navigate("/dashboard")}
+            className="p-2 -ml-2 rounded-full hover:bg-white/20 active:scale-95 transition-all"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">Progress</h1>
+            <ArrowLeft className="w-6 h-6 text-white" />
+          </button>
+          <h1 className="text-lg font-semibold text-white tracking-wide">Progress</h1>
           <div className="w-10" />
         </div>
-      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        {/* Segmented Control */}
+        <div className="px-4 pb-3">
+          <div className="flex rounded-lg p-1 bg-white/20">
+            {(["today", "week", "goals"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => handleTabChange(tab)}
+                className={cn(
+                  "flex-1 py-2.5 px-4 text-sm font-medium rounded-md transition-all duration-300",
+                  activeTab === tab
+                    ? "bg-white text-primary shadow-sm"
+                    : "text-white/80 hover:text-white"
+                )}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
-      ) : (
-        <div className="p-4 space-y-6">
-          {/* Weight Entry Card */}
-          <Card className="p-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Scale className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="font-semibold">Log Today's Weight</h2>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(), "EEEE, MMMM d")}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Label htmlFor="weight" className="sr-only">
-                  Weight in kg
-                </Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  step="0.1"
-                  placeholder="Enter weight in kg"
-                  value={todayWeight}
-                  onChange={(e) => setTodayWeight(e.target.value)}
-                />
-              </div>
-              <Button onClick={logWeight} disabled={!todayWeight || submitting}>
-                <Plus className="h-4 w-4 mr-1" />
-                Log
-              </Button>
-            </div>
-          </Card>
+      </header>
 
-          {/* Stats Overview */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Scale className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Current</span>
-              </div>
-              <p className="text-2xl font-bold">{latestWeight.toFixed(1)} kg</p>
-              {weightChange !== 0 && (
-                <div className={`flex items-center gap-1 text-sm ${
-                  weightChange < 0 ? "text-primary" : "text-warning"
-                }`}>
-                  {weightChange < 0 ? (
-                    <TrendingDown className="h-3 w-3" />
-                  ) : (
-                    <TrendingUp className="h-3 w-3" />
-                  )}
-                  <span>{Math.abs(weightChange).toFixed(1)} kg</span>
+      {/* Main Content */}
+      <main className="px-4 py-4 space-y-4">
+        {/* TODAY TAB */}
+        {activeTab === "today" && (
+          <>
+            {showWeightView ? (
+              <>
+                {/* Weight View Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <button onClick={() => setShowWeightView(false)} className="p-2 -ml-2 rounded-full hover:bg-muted">
+                    <ArrowLeft className="w-6 h-6" />
+                  </button>
+                  <h2 className="text-lg font-semibold">Weight Tracking</h2>
                 </div>
-              )}
-            </Card>
 
-            <Card className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Goal</span>
-              </div>
-              <p className="text-2xl font-bold">{targetWeight.toFixed(1)} kg</p>
-              {remainingToGoal !== 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {Math.abs(remainingToGoal).toFixed(1)} kg to go
-                </p>
-              )}
-            </Card>
-          </div>
-
-          {/* Tab Selector */}
-          <div className="flex gap-2 p-1 bg-muted rounded-lg">
-            <Button
-              variant={activeTab === "weight" ? "default" : "ghost"}
-              className="flex-1 min-h-[44px]"
-              onClick={() => setActiveTab("weight")}
-            >
-              <Scale className="h-4 w-4 mr-2" />
-              Weight
-            </Button>
-            <Button
-              variant={activeTab === "nutrition" ? "default" : "ghost"}
-              className="flex-1 min-h-[44px]"
-              onClick={() => setActiveTab("nutrition")}
-            >
-              <Flame className="h-4 w-4 mr-2" />
-              Nutrition
-            </Button>
-          </div>
-
-          {activeTab === "weight" ? (
-            <>
-              {/* Weight Chart */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-4">Weight Trend</h3>
-                {weightChartData.length > 1 ? (
-                  <ChartContainer config={chartConfig} className="h-48 sm:h-56 md:h-[200px] w-full">
-                    <AreaChart data={weightChartData}>
-                      <defs>
-                        <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10 }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        domain={["dataMin - 2", "dataMax + 2"]}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10 }}
-                        width={35}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      {targetWeight > 0 && (
-                        <Line
-                          type="monotone"
-                          dataKey="target"
-                          stroke="hsl(var(--muted-foreground))"
-                          strokeDasharray="5 5"
-                          strokeWidth={1}
-                          dot={false}
-                        />
-                      )}
-                      <Area
-                        type="monotone"
-                        dataKey="weight"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth={2}
-                        fill="url(#weightGradient)"
-                      />
-                    </AreaChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-48 sm:h-56 md:h-[200px] flex items-center justify-center text-muted-foreground">
+                {/* Current Weight Card */}
+                <Card className="border-0 overflow-hidden bg-gradient-to-br from-primary to-accent">
+                  <CardContent className="p-6">
                     <div className="text-center">
-                      <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Log more weights to see trends</p>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            </>
-          ) : (
-            <>
-              {/* Calorie Progress Ring */}
-              <Card className="p-6">
-                <CalorieProgressRing 
-                  consumed={todayCalories} 
-                  target={dailyCalorieTarget} 
-                />
-              </Card>
-
-              {/* Weekly Nutrition Summary */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-4">This Week's Averages</h3>
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  <div className="p-3 rounded-lg bg-orange-500/10">
-                    <Flame className="h-5 w-5 mx-auto mb-1 text-orange-500" />
-                    <p className="text-lg font-bold">{avgCalories}</p>
-                    <p className="text-xs text-muted-foreground">cal</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-red-500/10">
-                    <Beef className="h-5 w-5 mx-auto mb-1 text-red-500" />
-                    <p className="text-lg font-bold">{avgProtein}g</p>
-                    <p className="text-xs text-muted-foreground">protein</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-amber-500/10">
-                    <Wheat className="h-5 w-5 mx-auto mb-1 text-amber-500" />
-                    <p className="text-lg font-bold">{avgCarbs}g</p>
-                    <p className="text-xs text-muted-foreground">carbs</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-blue-500/10">
-                    <Droplets className="h-5 w-5 mx-auto mb-1 text-blue-500" />
-                    <p className="text-lg font-bold">{avgFat}g</p>
-                    <p className="text-xs text-muted-foreground">fat</p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Calorie Chart */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-4">Calorie Trend</h3>
-                {nutritionChartData.length > 1 ? (
-                  <ChartContainer config={chartConfig} className="h-48 sm:h-56 md:h-[200px] w-full">
-                    <AreaChart data={nutritionChartData}>
-                      <defs>
-                        <linearGradient id="calorieGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10 }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10 }}
-                        width={40}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line
-                        type="monotone"
-                        dataKey="target"
-                        stroke="hsl(var(--muted-foreground))"
-                        strokeDasharray="5 5"
-                        strokeWidth={1}
-                        dot={false}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="calories"
-                        stroke="hsl(38 92% 50%)"
-                        strokeWidth={2}
-                        fill="url(#calorieGradient)"
-                      />
-                    </AreaChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-48 sm:h-56 md:h-[200px] flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Complete meals to track nutrition</p>
-                    </div>
-                  </div>
-                )}
-              </Card>
-
-              {/* Recent Meals - Quick Re-log */}
-              {mealHistory.length > 0 && (
-                <Card className="p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <History className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-semibold">Recent Meals</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {mealHistory.map((meal) => (
-                      <div
-                        key={meal.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{meal.name}</p>
-<p className="text-sm text-muted-foreground">
-                            {meal.calories} cal • P: {meal.protein_g}g • C: {meal.carbs_g}g • F: {meal.fat_g}g
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRelogMeal(meal)}
-                          disabled={relogging}
-                          className="ml-2 shrink-0"
-                        >
-                          <RotateCcw className="h-4 w-4 mr-1" />
-                          Re-log
-                        </Button>
+                      <p className="text-white/80 text-sm mb-1">Current Weight</p>
+                      <div className="flex items-baseline justify-center gap-2">
+                        <span className="text-5xl font-bold text-white">{weightStats.current?.toFixed(1) || latestMeasurement?.weight_kg || "--"}</span>
+                        <span className="text-lg text-white/80">kg</span>
                       </div>
-                    ))}
-                  </div>
+                      {weightStats.change !== 0 && (
+                        <div className={`flex items-center justify-center gap-1 mt-2 px-3 py-1 rounded-full bg-white/20 w-fit mx-auto ${weightStats.change < 0 ? 'text-green-300' : 'text-red-300'}`}>
+                          {weightStats.change < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
+                          <span className="text-sm font-medium">{Math.abs(weightStats.change).toFixed(1)} kg {weightStats.change < 0 ? 'lost' : 'gained'}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/20">
+                      <div className="text-center"><p className="text-white/70 text-xs">Goal</p><p className="text-white font-bold">{activeGoal?.target_weight_kg || "--"}</p></div>
+                      <div className="text-center"><p className="text-white/70 text-xs">Entries</p><p className="text-white font-bold">{weightStats.count}</p></div>
+                      <div className="text-center"><p className="text-white/70 text-xs">BMI</p><p className="text-white font-bold">--</p></div>
+                    </div>
+                  </CardContent>
                 </Card>
-              )}
 
-              {/* Macro Chart */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-4">Macros (Last 7 Days)</h3>
-                {macroChartData.length > 0 ? (
-                  <ChartContainer config={chartConfig} className="h-48 sm:h-56 md:h-[200px] w-full">
-                    <BarChart data={macroChartData}>
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10 }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 10 }}
-                        width={35}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="protein"
-                        fill="hsl(0 84% 60%)"
-                        radius={[2, 2, 0, 0]}
-                        stackId="stack"
-                      />
-                      <Bar
-                        dataKey="carbs"
-                        fill="hsl(38 92% 50%)"
-                        radius={[0, 0, 0, 0]}
-                        stackId="stack"
-                      />
-                      <Bar
-                        dataKey="fat"
-                        fill="hsl(200 80% 50%)"
-                        radius={[2, 2, 0, 0]}
-                        stackId="stack"
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-48 sm:h-56 md:h-[200px] flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No macro data available yet</p>
+                {/* Log Weight Form */}
+                <Card className="border-0">
+                  <CardContent className="p-4 space-y-3">
+                    <div><Label className="text-sm">Date</Label><Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1" /></div>
+                    <div><Label className="text-sm">Weight (kg)</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input type="number" step="0.1" placeholder="0.0" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} className="flex-1" />
+                        <Button onClick={handleAddWeight} disabled={isSubmitting || !currentWeight}>{isSubmitting ? "..." : "Add"}</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Weight History */}
+                <Card className="border-0">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">History</CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => setShowAllEntries(!showAllEntries)}>{showAllEntries ? "Show Less" : "Show All"}</Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(showAllEntries ? weightEntries : weightEntries.slice(0, 5)).map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Scale className="w-5 h-5 text-primary" /></div>
+                            <div>
+                              <p className="font-semibold">{entry.weight_kg?.toFixed(1)} kg</p>
+                              <p className="text-xs text-muted-foreground">{format(new Date(entry.log_date), "MMM dd, yyyy")}</p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteWeight(entry.id)}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                      ))}
+                      {weightEntries.length === 0 && <p className="text-center text-muted-foreground py-4">No entries yet. Start tracking!</p>}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <>
+            {/* Weight Status Card */}
+            <Card className="border-0 overflow-hidden bg-gradient-to-br from-muted to-secondary transition-transform active:scale-[0.98]">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Current Weight</p>
+                    <p className="text-3xl font-bold mt-1 text-foreground">
+                      {latestMeasurement?.weight_kg || "--"} 
+                      <span className="text-lg font-normal text-muted-foreground">kg</span>
+                    </p>
+                    {activeGoal?.target_weight_kg && (
+                      <p className="text-xs mt-1 text-accent">Goal: {activeGoal.target_weight_kg}kg</p>
+                    )}
+                  </div>
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Scale className="w-8 h-8 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Progress Rings - Overall Progress */}
+            <ProgressRings
+              weeklySummary={weeklySummary}
+              waterPercentage={waterSummary?.percentage || 0}
+              mealQualityScore={averageScore || 0}
+              loading={false}
+            />
+
+            {/* Nutrition Dashboard - 2x2 Grid */}
+            <div>
+              <h2 className="text-sm font-semibold mb-3 px-1 text-foreground">Today's Nutrition</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Calories */}
+                <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center">
+                        <Flame className="w-4 h-4 text-warning" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">Calories</span>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">
+                      {todayStats.calories}
+                      <span className="text-xs font-normal ml-1 text-muted-foreground">/{dailyCalorieTarget}</span>
+                    </p>
+                    <div className="mt-2">
+                      <div className="h-1.5 rounded-full overflow-hidden bg-border">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500 bg-warning"
+                          style={{ width: `${calorieProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Protein */}
+                <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <Target className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">Protein</span>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">
+                      {Math.round(todayStats.protein)}g
+                      <span className="text-xs font-normal ml-1 text-muted-foreground">/{dailyProteinTarget}g</span>
+                    </p>
+                    <div className="mt-2">
+                      <div className="h-1.5 rounded-full overflow-hidden bg-border">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500 bg-primary"
+                          style={{ width: `${proteinProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Water */}
+                <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-cyan-500/15 flex items-center justify-center">
+                        <Droplet className="w-4 h-4 text-cyan-500" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">Water</span>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">
+                      {waterSummary?.total || 0}
+                      <span className="text-xs font-normal ml-1 text-muted-foreground">/8 glasses</span>
+                    </p>
+                    <div className="mt-2 flex gap-1">
+                      {[...Array(8)].map((_, i) => (
+                        <div 
+                          key={i}
+                          className="h-1.5 flex-1 rounded-full"
+                          style={{ 
+                            backgroundColor: i < (waterSummary?.total || 0) 
+                              ? "hsl(199 89% 48%)" 
+                              : "hsl(var(--border))"
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Meal Quality */}
+                <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <Trophy className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">Quality</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <p className="text-2xl font-bold text-foreground">
+                        {averageScore || 0}
+                      </p>
+                      <span className="text-xs text-muted-foreground">/100</span>
+                    </div>
+                    <p className="text-xs mt-2 text-muted-foreground">
+                      {averageScore && averageScore >= 80 ? "Excellent!" : 
+                       averageScore && averageScore >= 60 ? "Good progress" : "Keep improving"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <Card className="border-0 shadow-lg bg-gradient-to-r from-primary to-accent">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-white/90 mb-3">Quick Log</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 h-11 bg-white/20 text-white border-0 hover:bg-white/30"
+                    onClick={() => handleQuickWaterAdd(1)}
+                    disabled={waterLoading}
+                  >
+                    <Droplets className="w-4 h-4 mr-1.5" />
+                    Water
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 h-11 bg-white/20 text-white border-0 hover:bg-white/30"
+                    onClick={() => { setShowWeightView(true); fetchWeightEntries(); }}
+                  >
+                    <Scale className="w-4 h-4 mr-1.5" />
+                    Weight
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Streak Status */}
+            <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-warning/15 flex items-center justify-center">
+                      <Flame className="w-6 h-6 text-warning" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {streaks?.logging?.currentStreak || 0} Day Streak
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Best: {streaks?.logging?.bestStreak || 0} days
+                      </p>
                     </div>
                   </div>
-                )}
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-primary">
+                      {weeklySummary?.consistency.percentage || 0}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">Consistency</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Smart Insight */}
+            {recommendations.length > 0 && (
+              <Card className="border-0 overflow-hidden bg-primary/5 border border-primary/20 transition-transform active:scale-[0.98]">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm text-foreground">
+                        {recommendations[0].title}
+                      </p>
+                      <p className="text-xs mt-1 leading-relaxed text-muted-foreground">
+                        {recommendations[0].description}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        )}
+
+        {/* WEEK TAB */}
+        {activeTab === "week" && (
+          <ProfessionalWeeklyReport
+            userId={user?.id}
+            weeklySummary={weeklySummary}
+            activeGoal={activeGoal}
+            streaks={streaks}
+            averageScore={averageScore}
+            waterSummary={waterSummary}
+            milestones={milestones}
+            recommendations={recommendations}
+            dailyData={dailyData}
+            onDownload={handleDownloadReport}
+            generatingReport={generatingReport}
+          />
+        )}
+
+        {/* GOALS TAB */}
+        {activeTab === "goals" && (
+          <GoalsManagement />
+        )}
+      </main>
 
       <CustomerNavigation />
     </div>
   );
 };
 
-export default Progress;
+export default ProgressNative;

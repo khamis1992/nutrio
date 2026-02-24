@@ -36,10 +36,10 @@ export function useTopMeals() {
       setLoading(true);
 
       // First, clean up old auto-added meals (older than 3 days with < 5 orders)
-      await supabase.rpc("cleanup_old_top_meals");
+      await (supabase as any).rpc("cleanup_old_top_meals");
 
-      // Fetch top meals with meal details
-      const { data, error } = await supabase
+      // Fetch top meals
+      const { data, error } = await (supabase as any)
         .from("user_top_meals")
         .select(`
           id,
@@ -47,20 +47,7 @@ export function useTopMeals() {
           order_count,
           is_auto_added,
           last_ordered_at,
-          added_at,
-          meals:meal_id (
-            id,
-            name,
-            image_url,
-            calories,
-            protein_g,
-            rating,
-            prep_time_minutes,
-            restaurant_id,
-            restaurants:restaurant_id (
-              name
-            )
-          )
+          added_at
         `)
         .eq("user_id", user.id)
         .order("order_count", { ascending: false })
@@ -68,26 +55,64 @@ export function useTopMeals() {
 
       if (error) throw error;
 
+      // Fetch meal details separately
+      const mealIds = (data || []).map((item: any) => item.meal_id).filter(Boolean);
+      
+      let mealsData: any[] = [];
+      let restaurantsData: any[] = [];
+      
+      if (mealIds.length > 0) {
+        // Fetch meals
+        const { data: meals, error: mealsError } = await supabase
+          .from("meals")
+          .select("id, name, image_url, calories, protein_g, rating, prep_time_minutes, restaurant_id")
+          .in("id", mealIds);
+        
+        if (!mealsError && meals) {
+          mealsData = meals;
+          
+          // Fetch restaurants
+          const restaurantIds = meals.map((m: any) => m.restaurant_id).filter(Boolean);
+          if (restaurantIds.length > 0) {
+            const { data: restaurants, error: restaurantsError } = await supabase
+              .from("restaurants")
+              .select("id, name")
+              .in("id", restaurantIds);
+            
+            if (!restaurantsError && restaurants) {
+              restaurantsData = restaurants;
+            }
+          }
+        }
+      }
+
       // Transform the data
       const transformedMeals: TopMeal[] = (data || [])
-        .map((item: any) => ({
-          id: item.id,
-          meal_id: item.meal_id,
-          name: item.meals?.name || "Unknown Meal",
-          image_url: item.meals?.image_url,
-          calories: item.meals?.calories || 0,
-          protein_g: parseFloat(item.meals?.protein_g) || 0,
-          rating: parseFloat(item.meals?.rating) || 0,
-          prep_time_minutes: item.meals?.prep_time_minutes || 15,
-          restaurant_name: item.meals?.restaurants?.name || "Unknown Restaurant",
-          restaurant_id: item.meals?.restaurant_id,
-          diet_tags: [], // Would need separate fetch for diet tags
-          order_count: item.order_count,
-          is_auto_added: item.is_auto_added,
-          last_ordered_at: item.last_ordered_at,
-          added_at: item.added_at,
-        }))
-        .filter((meal) => meal.meal_id); // Filter out any null meals
+        .map((item: any) => {
+          // Find the meal details
+          const meal = mealsData.find((m: any) => m.id === item.meal_id);
+          // Find the restaurant details
+          const restaurant = meal ? restaurantsData.find((r: any) => r.id === meal.restaurant_id) : null;
+          
+          return {
+            id: item.id,
+            meal_id: item.meal_id,
+            name: meal?.name || "Unknown Meal",
+            image_url: meal?.image_url,
+            calories: meal?.calories || 0,
+            protein_g: parseFloat(meal?.protein_g) || 0,
+            rating: parseFloat(meal?.rating) || 0,
+            prep_time_minutes: meal?.prep_time_minutes || 15,
+            restaurant_name: restaurant?.name || "Unknown Restaurant",
+            restaurant_id: meal?.restaurant_id,
+            diet_tags: [], // Would need separate fetch for diet tags
+            order_count: item.order_count,
+            is_auto_added: item.is_auto_added,
+            last_ordered_at: item.last_ordered_at,
+            added_at: item.added_at,
+          };
+        })
+        .filter((meal: TopMeal) => meal.meal_id); // Filter out any null meals
 
       setTopMeals(transformedMeals);
     } catch (error) {
@@ -103,7 +128,7 @@ export function useTopMeals() {
       if (!user) return false;
 
       try {
-        const { error } = await supabase.from("user_top_meals").upsert(
+        const { error } = await (supabase as any).from("user_top_meals").upsert(
           {
             user_id: user.id,
             meal_id: mealId,
@@ -136,7 +161,7 @@ export function useTopMeals() {
       if (!user) return false;
 
       try {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("user_top_meals")
           .delete()
           .eq("id", topMealId)

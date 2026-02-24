@@ -27,13 +27,13 @@ interface Meal {
   id: string;
   name: string;
   description: string | null;
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
   image_url: string | null;
-  available: boolean;
-  restaurant_id: string;
+  is_available: boolean | null;
+  restaurant_id: string | null;
 }
 
 interface Restaurant {
@@ -42,7 +42,7 @@ interface Restaurant {
   description: string | null;
   address: string | null;
   logo_url: string | null;
-  rating: number;
+  rating: number | null;
   cuisine_type: string | null;
 }
 
@@ -135,11 +135,11 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           carbs_g,
           fat_g,
           image_url,
-          available,
+          is_available,
           restaurant_id
         `)
         .eq("restaurant_id", restaurantId)
-        .eq("available", true)
+        .eq("is_available", true)
         .order("name", { ascending: true });
 
       console.log("Meals query result:", { data, error });
@@ -552,7 +552,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-lg">{restaurant.name}</h3>
-                            {restaurant.rating > 0 && (
+                            {restaurant.rating && restaurant.rating > 0 && (
                               <div className="flex items-center gap-0.5 text-amber-500">
                                 <Star className="h-3 w-3 fill-current" />
                                 <span className="text-xs font-medium">{restaurant.rating.toFixed(1)}</span>

@@ -31,6 +31,7 @@ const RestaurantDetail = lazy(() => import("./pages/RestaurantDetail"));
 const MealDetail = lazy(() => import("./pages/MealDetail"));
 const Schedule = lazy(() => import("./pages/Schedule"));
 const Progress = lazy(() => import("./pages/Progress"));
+const WeightTracking = lazy(() => import("./pages/WeightTracking"));
 const Profile = lazy(() => import("./pages/Profile"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const OrderDetail = lazy(() => import("./pages/OrderDetail"));
@@ -81,7 +82,10 @@ const AdminPromotions = lazy(() => import("./pages/admin/AdminPromotions"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminNotifications = lazy(() => import("./pages/admin/AdminNotifications"));
 const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
+const AdminDeliveries = lazy(() => import("./pages/admin/AdminDeliveries"));
 const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
+const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
+const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -188,6 +192,18 @@ const App = () => (
               } 
             />
             <Route 
+              path="/weight-tracking" 
+              element={
+                <ProtectedRoute>
+                  <WeightTracking />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/goals" 
+              element={<Navigate to="/progress?tab=goals" replace />} 
+            />
+            <Route 
               path="/profile" 
               element={
                 <ProtectedRoute>
@@ -203,8 +219,8 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/orders/:id" 
+<Route 
+              path="/order/:id" 
               element={
                 <ProtectedRoute>
                   <OrderDetail />
@@ -554,11 +570,35 @@ const App = () => (
     </ProtectedRoute>
   } 
 />
+<Route
+  path="/admin/deliveries"
+  element={
+    <ProtectedRoute>
+      <AdminDeliveries />
+    </ProtectedRoute>
+  }
+/>
 <Route 
   path="/admin/ip-management" 
   element={
     <ProtectedRoute>
       <AdminIPManagement />
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+  path="/admin/freeze-management" 
+  element={
+    <ProtectedRoute>
+      <AdminFreezeManagement />
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+  path="/admin/retention-analytics" 
+  element={
+    <ProtectedRoute>
+      <AdminRetentionAnalytics />
     </ProtectedRoute>
   } 
 />

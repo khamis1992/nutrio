@@ -101,8 +101,10 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
             </svg>
           ),
           label: "Progress",
-          description: "Track your nutrition journey",
+          description: "Track weight, nutrition & health metrics",
           to: "/progress",
+          badge: "Updated",
+          badgeVariant: "success" as const,
         },
         {
           icon: ({ className }) => (

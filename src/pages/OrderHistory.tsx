@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { usePagination } from "@/hooks/usePagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,19 +23,31 @@ import {
   UtensilsCrossed,
   Loader2,
   ChefHat,
-  CircleDot
+  CircleDot,
+  RotateCcw,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
+
+interface Restaurant {
+  id: string;
+  name: string;
+  logo_url: string | null;
+}
+
+interface Meal {
+  id: string;
+  name: string;
+  image_url: string | null;
+  calories: number;
+  restaurant_id: string;
+}
 
 interface OrderItem {
   id: string;
   quantity: number;
-  meal: {
-    id: string;
-    name: string;
-    image_url: string | null;
-    calories: number;
-  } | null;
+  meal_id: string;
+  meal?: Meal;
 }
 
 interface Order {
@@ -46,11 +57,8 @@ interface Order {
   status: string;
   meal_type: string | null;
   notes: string | null;
-  restaurant: {
-    id: string;
-    name: string;
-    logo_url: string | null;
-  } | null;
+  restaurant_id: string | null;
+  restaurant?: Restaurant;
   order_items: OrderItem[];
 }
 
@@ -61,17 +69,36 @@ interface ScheduledMeal {
   is_completed: boolean;
   order_status: string;
   created_at: string;
-  meal: {
-    id: string;
-    name: string;
-    image_url: string | null;
-    calories: number;
-    restaurant: {
-      id: string;
-      name: string;
-      logo_url: string | null;
-    } | null;
-  } | null;
+  meal_id: string;
+  meal?: Meal & { restaurant?: Restaurant };
+}
+
+// Raw types from Supabase (with possible nulls)
+interface RawOrder {
+  id: string;
+  created_at: string;
+  delivery_date: string;
+  status: string | null;
+  meal_type: string | null;
+  notes: string | null;
+  restaurant_id: string | null;
+}
+
+interface RawOrderItem {
+  id: string;
+  order_id: string;
+  quantity: number;
+  meal_id: string | null;
+}
+
+interface RawScheduledMeal {
+  id: string;
+  scheduled_date: string;
+  meal_type: string;
+  is_completed: boolean | null;
+  order_status: string | null;
+  created_at: string;
+  meal_id: string;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -89,98 +116,309 @@ const OrderHistory = () => {
   const { profile } = useProfile();
   const { toast } = useToast();
   const [reordering, setReordering] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("scheduled");
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Orders state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersPage, setOrdersPage] = useState(0);
+  const [ordersHasMore, setOrdersHasMore] = useState(true);
+  
+  // Scheduled meals state
+  const [scheduledMeals, setScheduledMeals] = useState<ScheduledMeal[]>([]);
+  const [scheduledLoading, setScheduledLoading] = useState(false);
+  const [scheduledPage, setScheduledPage] = useState(0);
+  const [scheduledHasMore, setScheduledHasMore] = useState(true);
+  
+  // Pull to refresh handlers
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const minPullDistance = 80;
 
-  // Pagination for orders
-  const {
-    data: orders,
-    loading: ordersLoading,
-    hasMore: ordersHasMore,
-    loadMore: loadMoreOrders,
-    refresh: refreshOrders,
-    page: ordersPage,
-  } = usePagination<any>("orders", {
-    pageSize: 10,
-    orderBy: "created_at",
-    orderDirection: "desc",
-    filters: user ? { user_id: user.id } : {},
-    select: `
-      id,
-      created_at,
-      delivery_date,
-      status,
-      meal_type,
-      notes,
-      restaurant:restaurants (
-        id,
-        name,
-        logo_url
-      ),
-      order_items (
-        id,
-        quantity,
-        meal:meals (
-          id,
-          name,
-          image_url,
-          calories
-        )
-      )
-    `,
-  });
+  // Fetch orders with manual relationship joining
+  const fetchOrders = useCallback(async (page: number, append: boolean = false) => {
+    if (!user) return;
+    
+    setOrdersLoading(true);
+    try {
+      const pageSize = 10;
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
 
-  // Pagination for scheduled meals
-  const {
-    data: scheduledMealsData,
-    loading: scheduledLoading,
-    hasMore: scheduledHasMore,
-    loadMore: loadMoreScheduled,
-    refresh: refreshScheduled,
-  } = usePagination<any>("meal_schedules", {
-    pageSize: 10,
-    orderBy: "scheduled_date",
-    orderDirection: "desc",
-    filters: user ? { user_id: user.id } : {},
-    select: `
-      id,
-      scheduled_date,
-      meal_type,
-      is_completed,
-      order_status,
-      created_at,
-      meals:meal_id (
-        id,
-        name,
-        image_url,
-        calories,
-        restaurant:restaurants (
-          id,
-          name,
-          logo_url
-        )
-      )
-    `,
-  });
+      // Fetch orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select("id, created_at, delivery_date, status, meal_type, notes, restaurant_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
-  // Transform scheduled meals data
-  const scheduledMeals: ScheduledMeal[] = scheduledMealsData.map((item: any) => ({
-    id: item.id,
-    scheduled_date: item.scheduled_date,
-    meal_type: item.meal_type,
-    is_completed: item.is_completed,
-    order_status: item.order_status || "pending",
-    created_at: item.created_at,
-    meal: item.meals,
-  }));
+      if (ordersError) throw ordersError;
+      
+      if (!ordersData || ordersData.length === 0) {
+        setOrdersHasMore(false);
+        setOrdersLoading(false);
+        return;
+      }
 
-  // Combined loading state
-  const loading = ordersLoading || scheduledLoading;
+      // Get unique restaurant IDs (filter out nulls)
+      const restaurantIds = [...new Set(
+        (ordersData as RawOrder[])
+          .map(o => o.restaurant_id)
+          .filter((id): id is string => id !== null)
+      )];
+      
+      // Fetch restaurants
+      let restaurantsData: Restaurant[] = [];
+      if (restaurantIds.length > 0) {
+        const { data: restaurants } = await supabase
+          .from("restaurants")
+          .select("id, name, logo_url")
+          .in("id", restaurantIds);
+        restaurantsData = restaurants || [];
+      }
 
-  useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
-      navigate("/onboarding");
+      // Fetch order items for these orders
+      const orderIds = (ordersData as RawOrder[]).map(o => o.id);
+      const { data: orderItemsData } = await supabase
+        .from("order_items")
+        .select("id, order_id, quantity, meal_id")
+        .in("order_id", orderIds);
+
+      // Get unique meal IDs from order items (filter out nulls)
+      const mealIds = [...new Set(
+        (orderItemsData || [] as RawOrderItem[])
+          .map(oi => oi.meal_id)
+          .filter((id): id is string => id !== null)
+      )];
+      
+      // Fetch meals
+      let mealsData: Meal[] = [];
+      if (mealIds.length > 0) {
+        const { data: meals } = await supabase
+          .from("meals")
+          .select("id, name, image_url, calories, restaurant_id")
+          .in("id", mealIds);
+        mealsData = meals || [];
+      }
+
+      // Transform and combine data
+      const transformedOrders: Order[] = (ordersData as RawOrder[]).map(order => ({
+        id: order.id,
+        created_at: order.created_at,
+        delivery_date: order.delivery_date,
+        status: order.status || "pending",
+        meal_type: order.meal_type,
+        notes: order.notes,
+        restaurant_id: order.restaurant_id,
+        restaurant: restaurantsData.find(r => r.id === order.restaurant_id),
+        order_items: (orderItemsData || [] as RawOrderItem[])
+          .filter(oi => oi.order_id === order.id)
+          .map(oi => ({
+            id: oi.id,
+            quantity: oi.quantity,
+            meal_id: oi.meal_id || "",
+            meal: mealsData.find(m => m.id === oi.meal_id),
+          })),
+      }));
+
+      setOrders(prev => append ? [...prev, ...transformedOrders] : transformedOrders);
+      setOrdersPage(page);
+      setOrdersHasMore(ordersData.length === pageSize);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setOrdersLoading(false);
     }
-  }, [profile, navigate]);
+  }, [user]);
+
+  // Fetch scheduled meals with manual relationship joining
+  const fetchScheduledMeals = useCallback(async (page: number, append: boolean = false) => {
+    if (!user) return;
+    
+    setScheduledLoading(true);
+    try {
+      const pageSize = 10;
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      // Fetch scheduled meals
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("meal_schedules")
+        .select("id, scheduled_date, meal_type, is_completed, order_status, created_at, meal_id")
+        .eq("user_id", user.id)
+        .order("scheduled_date", { ascending: false })
+        .range(from, to);
+
+      if (schedulesError) throw schedulesError;
+      
+      if (!schedulesData || schedulesData.length === 0) {
+        setScheduledHasMore(false);
+        setScheduledLoading(false);
+        return;
+      }
+
+      // Get unique meal IDs
+      const mealIds = [...new Set(
+        (schedulesData as RawScheduledMeal[])
+          .map(s => s.meal_id)
+          .filter((id): id is string => !!id)
+      )];
+      
+      // Fetch meals with restaurant info
+      let mealsData: (Meal & { restaurant?: Restaurant })[] = [];
+      if (mealIds.length > 0) {
+        const { data: meals } = await supabase
+          .from("meals")
+          .select("id, name, image_url, calories, restaurant_id")
+          .in("id", mealIds);
+        
+        if (meals && meals.length > 0) {
+          // Get unique restaurant IDs (filter out nulls)
+          const restaurantIds = [...new Set(
+            meals
+              .map(m => m.restaurant_id)
+              .filter((id): id is string => id !== null)
+          )];
+          
+          // Fetch restaurants
+          let restaurantsData: Restaurant[] = [];
+          if (restaurantIds.length > 0) {
+            const { data: restaurants } = await supabase
+              .from("restaurants")
+              .select("id, name, logo_url")
+              .in("id", restaurantIds);
+            restaurantsData = restaurants || [];
+          }
+          
+          // Combine meals with restaurants
+          mealsData = meals.map(meal => ({
+            ...meal,
+            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id),
+          }));
+        }
+      }
+
+      // Transform data
+      const transformedSchedules: ScheduledMeal[] = (schedulesData as RawScheduledMeal[]).map(schedule => ({
+        id: schedule.id,
+        scheduled_date: schedule.scheduled_date,
+        meal_type: schedule.meal_type,
+        is_completed: schedule.is_completed || false,
+        order_status: schedule.order_status || "pending",
+        created_at: schedule.created_at,
+        meal_id: schedule.meal_id,
+        meal: mealsData.find(m => m.id === schedule.meal_id),
+      }));
+
+      setScheduledMeals(prev => append ? [...prev, ...transformedSchedules] : transformedSchedules);
+      setScheduledPage(page);
+      setScheduledHasMore(schedulesData.length === pageSize);
+    } catch (error) {
+      console.error("Error fetching scheduled meals:", error);
+    } finally {
+      setScheduledLoading(false);
+    }
+  }, [user]);
+
+  // Pull to refresh functionality
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    
+    const currentY = e.targetTouches[0].clientY;
+    const distance = currentY - touchStart;
+    
+    // Only allow pull down when at top of page
+    if (window.scrollY === 0 && distance > 0) {
+      setPullDistance(Math.min(distance, 150));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !pullDistance) return;
+    
+    if (pullDistance > minPullDistance && window.scrollY === 0) {
+      handleRefresh();
+    }
+    
+    setPullDistance(0);
+    setTouchStart(null);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchOrders(0, false),
+      fetchScheduledMeals(0, false)
+    ]);
+    setRefreshing(false);
+    toast({
+      title: "Refreshed",
+      description: "Your orders have been updated.",
+    });
+  };
+
+  // Cancel order function
+  const handleCancelOrder = async (orderId: string, orderType: 'scheduled' | 'order') => {
+    if (!confirm("Are you sure you want to cancel this order?")) return;
+    
+    setCancelling(orderId);
+    try {
+      if (orderType === 'scheduled') {
+        const { error } = await supabase
+          .from("meal_schedules")
+          .update({ order_status: 'cancelled' })
+          .eq("id", orderId);
+        
+        if (error) throw error;
+        
+        // Update local state
+        setScheduledMeals(prev => prev.map(meal => 
+          meal.id === orderId ? { ...meal, order_status: 'cancelled' } : meal
+        ));
+      } else {
+        const { error } = await supabase
+          .from("orders")
+          .update({ status: 'cancelled' })
+          .eq("id", orderId);
+        
+        if (error) throw error;
+        
+        // Update local state
+        setOrders(prev => prev.map(order => 
+          order.id === orderId ? { ...order, status: 'cancelled' } : order
+        ));
+      }
+      
+      toast({
+        title: "Order Cancelled",
+        description: "Your order has been cancelled successfully.",
+      });
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelling(null);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    if (user) {
+      fetchOrders(0, false);
+      fetchScheduledMeals(0, false);
+    }
+  }, [user, fetchOrders, fetchScheduledMeals]);
 
   // Real-time subscription for scheduled meals status updates
   useEffect(() => {
@@ -197,7 +435,7 @@ const OrderHistory = () => {
         },
         () => {
           // Refresh the list when an update occurs
-          refreshScheduled();
+          fetchScheduledMeals(0, false);
         }
       )
       .subscribe();
@@ -205,7 +443,26 @@ const OrderHistory = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, refreshScheduled]);
+  }, [user, fetchScheduledMeals]);
+
+  // Check if user completed onboarding
+  useEffect(() => {
+    if (profile && !profile.onboarding_completed) {
+      navigate("/onboarding");
+    }
+  }, [profile, navigate]);
+
+  const loadMoreOrders = () => {
+    if (!ordersLoading && ordersHasMore) {
+      fetchOrders(ordersPage + 1, true);
+    }
+  };
+
+  const loadMoreScheduled = () => {
+    if (!scheduledLoading && scheduledHasMore) {
+      fetchScheduledMeals(scheduledPage + 1, true);
+    }
+  };
 
   const handleReorder = async (order: Order) => {
     if (!user) return;
@@ -257,7 +514,7 @@ const OrderHistory = () => {
       });
 
       // Refresh orders
-      refreshOrders();
+      fetchOrders(0, false);
     } catch (error) {
       console.error("Error reordering:", error);
       toast({
@@ -284,6 +541,8 @@ const OrderHistory = () => {
   const upcomingMeals = scheduledMeals.filter(m => !m.is_completed && m.scheduled_date >= todayStr);
   const completedMeals = scheduledMeals.filter(m => m.is_completed);
 
+  const loading = ordersLoading || scheduledLoading;
+
   const renderScheduledMeals = (meals: ScheduledMeal[]) => {
     if (meals.length === 0) {
       return (
@@ -306,13 +565,14 @@ const OrderHistory = () => {
       const statusInfo = getStatusInfo(schedule.order_status);
       const StatusIcon = statusInfo.icon;
 
+      const canCancel = schedule.order_status === 'pending' || schedule.order_status === 'confirmed';
+      
       return (
         <Card 
           key={schedule.id} 
           className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate(`/orders/${schedule.id}`)}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-4" onClick={() => navigate(`/order/${schedule.id}`)}>
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -363,13 +623,70 @@ const OrderHistory = () => {
               </Badge>
             </div>
           </CardContent>
+          
+          {/* Cancel Button */}
+          {canCancel && (
+            <div className="px-4 pb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCancelOrder(schedule.id, 'scheduled');
+                }}
+                disabled={cancelling === schedule.id}
+              >
+                {cancelling === schedule.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Cancel Order
+              </Button>
+            </div>
+          )}
         </Card>
       );
     });
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div 
+      className="min-h-screen bg-background pb-20"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull to Refresh Indicator */}
+      {pullDistance > 0 && (
+        <div 
+          className="flex items-center justify-center transition-all duration-200"
+          style={{ 
+            height: `${pullDistance}px`,
+            opacity: Math.min(pullDistance / minPullDistance, 1)
+          }}
+        >
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <RotateCcw 
+              className={`h-5 w-5 ${pullDistance > minPullDistance ? 'animate-spin' : ''}`}
+              style={{ transform: `rotate(${pullDistance * 2}deg)` }}
+            />
+            <span className="text-sm">
+              {pullDistance > minPullDistance ? 'Release to refresh' : 'Pull to refresh'}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* Refreshing Indicator */}
+      {refreshing && (
+        <div className="flex items-center justify-center py-4 bg-primary/5">
+          <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+          <span className="text-sm text-primary">Refreshing...</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between p-4">
@@ -381,13 +698,20 @@ const OrderHistory = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-semibold">Order History</h1>
-          <div className="w-10" /> {/* Spacer for alignment */}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
 
       {/* Content */}
       <div className="p-4">
-        {loading ? (
+        {loading && orders.length === 0 && scheduledMeals.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>

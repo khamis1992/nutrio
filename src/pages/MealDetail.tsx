@@ -1,38 +1,31 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  ChevronLeft,
-  Flame, 
-  Beef, 
-  Wheat,
-  Droplets,
-  Star,
-  Clock,
-  MapPin,
-  CalendarIcon,
-  Check,
-  Loader2,
-  Leaf,
-  Crown,
-  Truck,
-  Zap,
-  Package
-} from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useDeliveryFees } from "@/hooks/useDeliveryFees";
-import { useMealAddons } from "@/hooks/useMealAddons";
-import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
-import { format } from "date-fns";
-import { formatCurrency } from "@/lib/currency";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  ChevronLeft, 
+  Share2,
+  Flame,
+  Beef,
+  Wheat,
+  Droplets,
+  Clock,
+  Star,
+  MapPin,
+  Check,
+  Leaf,
+  ArrowRight
+} from "lucide-react";
+import { format, addDays } from "date-fns";
+import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
+import { hapticFeedback } from "@/lib/capacitor";
 
 interface MealDetail {
   id: string;
@@ -47,20 +40,366 @@ interface MealDetail {
   rating: number;
   prep_time_minutes: number;
   is_vip_exclusive: boolean;
-  price: number;
+  price: number | null;
   restaurant: {
+    id: string;
     name: string;
     address: string | null;
+    logo_url: string | null;
   };
-  diet_tags: string[];
+  diet_tags?: string[];
+  ingredients?: string[];
 }
 
-const mealTypes = [
-  { value: "breakfast", label: "Breakfast", icon: "🌅" },
-  { value: "lunch", label: "Lunch", icon: "☀️" },
-  { value: "dinner", label: "Dinner", icon: "🌙" },
-  { value: "snack", label: "Snack", icon: "🍎" },
+const MEAL_TYPES = [
+  { id: "breakfast", label: "Breakfast", icon: "🌅", time: "7-10 AM" },
+  { id: "lunch", label: "Lunch", icon: "☀️", time: "12-2 PM" },
+  { id: "dinner", label: "Dinner", icon: "🌙", time: "6-9 PM" },
+  { id: "snack", label: "Snack", icon: "🍎", time: "Anytime" },
 ];
+
+// Circular Progress Component
+const CircularProgress = ({ 
+  value, 
+  max, 
+  color, 
+  icon: Icon, 
+  label,
+  delay = 0 
+}: { 
+  value: number; 
+  max: number; 
+  color: string; 
+  icon: React.ElementType; 
+  label: string;
+  delay?: number;
+}) => {
+  const percentage = Math.min((value / max) * 100, 100);
+  const circumference = 2 * Math.PI * 36;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.5, type: "spring" }}
+      className="flex flex-col items-center"
+    >
+      <div className="relative w-24 h-24">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+          <circle
+            cx="40"
+            cy="40"
+            r="36"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="8"
+            className="text-muted/30"
+          />
+          <motion.circle
+            cx="40"
+            cy="40"
+            r="36"
+            fill="none"
+            stroke={color}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset }}
+            transition={{ delay: delay + 0.2, duration: 1, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <Icon className="w-5 h-5 mb-0.5" style={{ color }} />
+          <span className="text-lg font-bold">{value}g</span>
+        </div>
+      </div>
+      <span className="text-xs font-medium text-muted-foreground mt-2">{label}</span>
+    </motion.div>
+  );
+};
+
+// Fixed Bottom Action Bar (UberEats/DoorDash style)
+const FixedBottomActionBar = ({
+  meal,
+  onClick,
+  loading,
+  disabled,
+  isSuccess,
+  hasActiveSubscription,
+  isUnlimited,
+  remainingMeals,
+}: {
+  meal: MealDetail;
+  onClick: () => void;
+  loading: boolean;
+  disabled: boolean;
+  isSuccess: boolean;
+  hasActiveSubscription: boolean;
+  isUnlimited: boolean;
+  remainingMeals: number;
+}) => {
+  return (
+    <motion.div
+      initial={{ y: 100 }}
+      animate={{ y: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom)]"
+    >
+      <div className="max-w-lg mx-auto px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Meal Info */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+              {meal.image_url ? (
+                <img 
+                  src={meal.image_url} 
+                  alt={meal.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-lg">🍽️</span>
+              )}
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-sm font-semibold line-clamp-1">{meal.name}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Flame className="w-3 h-3 text-orange-500" />
+                {meal.calories} kcal
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Subscription Status + CTA */}
+          <div className="flex items-center gap-3">
+            {hasActiveSubscription && (
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Meals Left</p>
+                <p className={`text-sm font-bold ${isUnlimited || remainingMeals > 0 ? 'text-primary' : 'text-destructive'}`}>
+                  {isUnlimited ? '∞' : remainingMeals}
+                </p>
+              </div>
+            )}
+            
+            <Button
+              onClick={onClick}
+              disabled={disabled || loading}
+              className={`
+                rounded-full px-6 h-12 font-semibold shadow-lg transition-all
+                ${disabled 
+                  ? 'bg-muted text-muted-foreground' 
+                  : isSuccess 
+                    ? 'bg-emerald-500 hover:bg-emerald-600'
+                    : 'bg-primary hover:bg-primary/90'
+                }
+              `}
+            >
+              <AnimatePresence mode="wait">
+                {loading ? (
+                  <motion.span
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+                    </svg>
+                    Adding...
+                  </motion.span>
+                ) : isSuccess ? (
+                  <motion.span
+                    key="success"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Check className="w-4 h-4" />
+                    Added!
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="add"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    Add to Schedule
+                    <ArrowRight className="w-4 h-4" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Nutrition Bottom Sheet
+const ScheduleSheet = ({
+  isOpen,
+  onClose,
+  selectedDate,
+  setSelectedDate,
+  selectedMealType,
+  setSelectedMealType,
+  onSchedule,
+  loading,
+  hasActiveSubscription,
+  remainingMeals,
+  isUnlimited,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedDate: Date | undefined;
+  setSelectedDate: (date: Date | undefined) => void;
+  selectedMealType: string;
+  setSelectedMealType: (type: string) => void;
+  onSchedule: () => void;
+  loading: boolean;
+  hasActiveSubscription: boolean;
+  remainingMeals: number;
+  isUnlimited: boolean;
+}) => {
+  const disabledDates = (date: Date) => {
+    return date < new Date(new Date().setHours(0, 0, 0, 0));
+  };
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl border-0 bg-background flex flex-col">
+        <SheetHeader className="pb-4 shrink-0">
+          <SheetTitle className="text-xl font-bold text-center">Schedule Meal</SheetTitle>
+        </SheetHeader>
+        
+        <div className="flex-1 space-y-6 overflow-y-auto pb-4">
+          {/* Date Selection */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Select Date
+            </h3>
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              disabled={disabledDates}
+              fromDate={new Date()}
+              toDate={addDays(new Date(), 30)}
+              className="rounded-2xl border bg-card p-4"
+              classNames={{
+                day_selected: "bg-primary text-primary-foreground rounded-full",
+                day_today: "bg-accent text-accent-foreground rounded-full",
+              }}
+            />
+          </div>
+
+          {/* Meal Type Selection */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Meal Type
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              {MEAL_TYPES.map((type) => (
+                <motion.button
+                  key={type.id}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setSelectedMealType(type.id);
+                    hapticFeedback.buttonPress();
+                  }}
+                  className={`
+                    relative p-4 rounded-2xl border-2 transition-all text-left
+                    ${selectedMealType === type.id 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border bg-card hover:border-primary/30'
+                    }
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{type.icon}</span>
+                    <div>
+                      <p className="font-semibold">{type.label}</p>
+                      <p className="text-xs text-muted-foreground">{type.time}</p>
+                    </div>
+                  </div>
+                  {selectedMealType === type.id && (
+                    <motion.div
+                      layoutId="selected-indicator"
+                      className="absolute top-3 right-3 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+                    >
+                      <Check className="w-3 h-3 text-primary-foreground" />
+                    </motion.div>
+                  )}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Subscription Info */}
+          {hasActiveSubscription && (
+            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Meals Remaining</span>
+                <Badge variant={isUnlimited || remainingMeals > 0 ? "default" : "destructive"}>
+                  {isUnlimited ? "Unlimited" : `${remainingMeals} left`}
+                </Badge>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Schedule Button - Fixed at bottom */}
+        <div className="shrink-0 pt-4 pb-[env(safe-area-inset-bottom)]">
+          <Button
+            onClick={onSchedule}
+            disabled={loading || !selectedDate}
+            className="w-full h-14 text-lg font-semibold rounded-2xl"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-7.5l-2.8 2.8m-8.4 8.4l-2.8 2.8m0-14l2.8 2.8m8.4 8.4l2.8 2.8" />
+                  </svg>
+                </motion.div>
+                Adding...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                Add to Schedule
+                <ArrowRight className="w-5 h-5" />
+              </span>
+            )}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
+// Skeleton Loader
+const MealDetailSkeleton = () => (
+  <div className="min-h-screen bg-background">
+    {/* Hero Skeleton */}
+    <Skeleton className="w-full h-[50vh]" />
+    
+    {/* Content Skeleton */}
+    <div className="px-4 -mt-20 relative z-10 space-y-4">
+      <Skeleton className="w-full h-48 rounded-3xl" />
+      <Skeleton className="w-full h-32 rounded-3xl" />
+      <Skeleton className="w-full h-64 rounded-3xl" />
+    </div>
+  </div>
+);
 
 const MealDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,123 +407,112 @@ const MealDetail = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { subscription, hasActiveSubscription, remainingMeals, isUnlimited, isVip, canOrderMeal, incrementMealUsage, loading: subscriptionLoading } = useSubscription();
-  const { settings: deliverySettings, calculateDeliveryFee, loading: deliveryLoading } = useDeliveryFees();
-  const {
-    loading: addonsLoading,
-    selectedAddons,
-    toggleAddon,
-    getSelectedAddonsList,
-    groupedAddons,
-    hasAddons
-  } = useMealAddons(id);
-
-  // Get initial date and meal type from navigation state
-  const navigationState = location.state as { scheduledDate?: string; mealType?: string } | null;
+  const { 
+    hasActiveSubscription, 
+    remainingMeals, 
+    isUnlimited, 
+    canOrderMeal, 
+    incrementMealUsage 
+  } = useSubscription();
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // If we have a scheduled date from navigation, use it
-    if (navigationState?.scheduledDate) {
-      const scheduledDate = new Date(navigationState.scheduledDate + 'T00:00:00');
-      if (!isNaN(scheduledDate.getTime())) {
-        return scheduledDate;
-      }
-    }
-    return today;
+    const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
+    return navigationState?.scheduledDate;
   });
   const [selectedMealType, setSelectedMealType] = useState<string>(() => {
-    // If we have a meal type from navigation, use it
+    const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
     return navigationState?.mealType || "lunch";
   });
-  const [selectedDeliveryType, setSelectedDeliveryType] = useState<"standard" | "express">("standard");
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll({ container: scrollRef });
+  
+  const headerOpacity = useTransform(scrollY, [0, 200], [0, 1]);
+  const imageScale = useTransform(scrollY, [0, 300], [1, 1.1]);
+  const imageOpacity = useTransform(scrollY, [0, 300], [1, 0.5]);
+  
+  const springConfig = { stiffness: 100, damping: 30, restDelta: 0.001 };
+  const headerOpacitySpring = useSpring(headerOpacity, springConfig);
 
   useEffect(() => {
-    const fetchMeal = async () => {
-      if (!id) return;
+    if (id) {
+      fetchMeal();
+    }
+  }, [id]);
 
-      try {
-        const { data, error } = await supabase
-          .from("meals")
-          .select(`
-            id,
-            name,
-            description,
-            image_url,
-            calories,
-            protein_g,
-            carbs_g,
-            fat_g,
-            fiber_g,
-            rating,
-            prep_time_minutes,
-            is_vip_exclusive,
-            price,
-            restaurants (name, address),
-            meal_diet_tags (
-              diet_tags (name)
-            )
-          `)
-          .eq("id", id)
-          .maybeSingle();
+  const fetchMeal = async () => {
+    try {
+      // Fetch meal first
+      const { data: mealData, error: mealError } = await supabase
+        .from("meals")
+        .select("*")
+        .eq("id", id!)
+        .single();
 
-        if (error) throw error;
+      if (mealError) throw mealError;
 
-        if (data) {
-          setMeal({
-            id: data.id,
-            name: data.name,
-            description: data.description,
-            image_url: data.image_url,
-            calories: data.calories,
-            protein_g: parseFloat(String(data.protein_g)),
-            carbs_g: parseFloat(String(data.carbs_g)),
-            fat_g: parseFloat(String(data.fat_g)),
-            fiber_g: data.fiber_g ? parseFloat(String(data.fiber_g)) : null,
-            rating: parseFloat(String(data.rating)) || 0,
-            prep_time_minutes: data.prep_time_minutes || 15,
-            is_vip_exclusive: data.is_vip_exclusive || false,
-            price: parseFloat(String(data.price)) || 0,
-            restaurant: {
-              name: (data.restaurants as any)?.name || "Unknown",
-              address: (data.restaurants as any)?.address || null,
-            },
-            diet_tags: (data.meal_diet_tags as any[])?.map((mdt: any) => mdt.diet_tags?.name).filter(Boolean) || [],
-          });
+      if (mealData) {
+        // Fetch restaurant separately
+        let restaurantData = null;
+        if (mealData.restaurant_id) {
+          const { data: restData } = await supabase
+            .from("restaurants")
+            .select("id, name, address, logo_url")
+            .eq("id", mealData.restaurant_id)
+            .single();
+          restaurantData = restData;
         }
-      } catch (err) {
-        console.error("Error fetching meal:", err);
-        toast({
-          title: "Error",
-          description: "Failed to load meal details",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+
+        setMeal({
+          ...mealData,
+          calories: Number(mealData.calories),
+          protein_g: Number(mealData.protein_g),
+          carbs_g: Number(mealData.carbs_g),
+          fat_g: Number(mealData.fat_g),
+          fiber_g: mealData.fiber_g ? Number(mealData.fiber_g) : null,
+          rating: Number(mealData.rating),
+          prep_time_minutes: Number(mealData.prep_time_minutes),
+          price: mealData.price ? Number(mealData.price) : null,
+          restaurant: restaurantData || {
+            id: "",
+            name: "Unknown Restaurant",
+            address: null,
+            logo_url: null
+          }
+        } as MealDetail);
       }
-    };
-
-    fetchMeal();
-  }, [id, toast]);
-
-  const [success, setSuccess] = useState(false);
-
-  // Calculate delivery fee (add-ons are included in subscription)
-  const deliveryFeeResult = calculateDeliveryFee(selectedDeliveryType, 0);
+    } catch (error) {
+      console.error("Error fetching meal:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load meal details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddToSchedule = async () => {
-    if (!user || !meal || !selectedDate) return;
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to schedule meals",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
 
     if (!hasActiveSubscription) {
       toast({
         title: "Subscription required",
-        description: "Please subscribe to a plan to order meals.",
+        description: "Please subscribe to schedule meals",
         variant: "destructive",
       });
       navigate("/subscription");
@@ -194,529 +522,430 @@ const MealDetail = () => {
     if (!canOrderMeal) {
       toast({
         title: "Meal limit reached",
-        description: "You've used all your meals for this week. Consider upgrading your plan.",
+        description: "You've reached your weekly meal limit",
         variant: "destructive",
       });
       return;
     }
 
+    setSheetOpen(true);
+  };
+
+  const handleSchedule = async () => {
+    if (!selectedDate || !meal) return;
+
     setScheduling(true);
+    hapticFeedback.buttonPress();
+
     try {
-      // Increment meal usage first
-      const usageSuccess = await incrementMealUsage();
-      if (!usageSuccess) {
+      const quotaUpdated = await incrementMealUsage();
+      if (!quotaUpdated) {
         throw new Error("Failed to update meal quota");
       }
 
-      // Normalize date to midnight local time to avoid timezone issues
-      const normalizedDate = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate()
-      );
-
-      const { data: scheduleData, error } = await supabase
-        .from("meal_schedules")
-        .insert({
-          user_id: user.id,
-          meal_id: meal.id,
-          scheduled_date: format(normalizedDate, "yyyy-MM-dd"),
-          meal_type: selectedMealType,
-          delivery_type: deliveryFeeResult.type,
-          delivery_fee: deliveryFeeResult.fee,
-          addons_total: 0,
-        })
-        .select()
-        .single();
+      const { error } = await supabase.from("meal_schedules").insert({
+        user_id: user!.id,
+        meal_id: meal.id,
+        scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+        meal_type: selectedMealType,
+        is_completed: false,
+      });
 
       if (error) throw error;
 
-      // Insert selected add-ons (included in subscription, no charge)
-      const selectedAddonsList = getSelectedAddonsList();
-      if (selectedAddonsList.length > 0 && scheduleData) {
-        const addonInserts = selectedAddonsList.map(({ addon, quantity }) => ({
-          schedule_id: scheduleData.id,
-          addon_id: addon.id,
-          quantity,
-          unit_price: 0,
-        }));
+      setSuccess(true);
+      setSheetOpen(false);
+      hapticFeedback.success();
 
-        await supabase.from("schedule_addons").insert(addonInserts);
+      // Show success toast notification
+      toast({
+        title: "Meal Scheduled! 🎉",
+        description: `${meal.name} has been added to your schedule for ${format(selectedDate, "MMM d, yyyy")}.`,
+      });
+
+      // Create in-app notification
+      try {
+        await supabase.from("notifications").insert({
+          user_id: user!.id,
+          type: "meal_scheduled",
+          title: "Meal Scheduled",
+          message: `${meal.name} has been scheduled for ${format(selectedDate, "MMM d, yyyy")}`,
+          data: {
+            meal_id: meal.id,
+            meal_name: meal.name,
+            scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+            meal_type: selectedMealType,
+            calories: meal.calories,
+            action: "view_schedule"
+          },
+          status: "unread"
+        });
+      } catch (notifError) {
+        console.error("Error creating notification:", notifError);
       }
 
-      setSuccess(true);
-      toast({
-        title: "Meal scheduled!",
-        description: `${meal.name} added to ${selectedMealType} on ${format(selectedDate, "MMM d")}`,
-      });
-
-      // Navigate to schedule after brief animation
       setTimeout(() => {
         navigate("/schedule");
-      }, 1200);
-    } catch (err) {
-      console.error("Error scheduling meal:", err);
+      }, 1500);
+    } catch (error) {
+      console.error("Error scheduling meal:", error);
       toast({
         title: "Error",
-        description: "Failed to schedule meal",
+        description: "Failed to schedule meal. Please try again.",
         variant: "destructive",
       });
+    } finally {
       setScheduling(false);
     }
   };
 
-  // Calculate macro percentages
-  const totalMacroCalories = meal 
-    ? (meal.protein_g * 4) + (meal.carbs_g * 4) + (meal.fat_g * 9)
-    : 0;
-  
-  const macroPercentages = meal ? {
-    protein: Math.round((meal.protein_g * 4 / totalMacroCalories) * 100) || 0,
-    carbs: Math.round((meal.carbs_g * 4 / totalMacroCalories) * 100) || 0,
-    fat: Math.round((meal.fat_g * 9 / totalMacroCalories) * 100) || 0,
-  } : { protein: 0, carbs: 0, fat: 0 };
+  const shareMeal = async () => {
+    if (!meal) return;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: meal.name,
+          text: `Check out ${meal.name} from ${meal.restaurant.name}!`,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.error("Error sharing:", error);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({ title: "Link copied to clipboard" });
+    }
+  };
 
-  if (loading || subscriptionLoading || deliveryLoading || addonsLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+  if (loading) {
+    return <MealDetailSkeleton />;
   }
 
   if (!meal) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-          <div className="container mx-auto px-4 h-16 flex items-center">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-12 text-center">
-          <h2 className="text-xl font-bold mb-2">Meal not found</h2>
-          <p className="text-muted-foreground mb-4">This meal doesn't exist or is no longer available.</p>
-          <Link to="/meals">
-            <Button>Browse Meals</Button>
-          </Link>
-        </main>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4">
+          <span className="text-4xl">🍽️</span>
+        </div>
+        <h2 className="text-xl font-bold mb-2">Meal not found</h2>
+        <p className="text-muted-foreground text-center mb-6">
+          The meal you're looking for doesn't exist or has been removed.
+        </p>
+        <Button onClick={() => navigate("/meals")} className="rounded-full px-8">
+          Browse Meals
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      {/* Hero Image */}
-      <div className="relative h-80 bg-muted">
-        {meal.image_url ? (
-          <img 
-            src={meal.image_url} 
-            alt={meal.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-8xl bg-gradient-to-br from-muted to-muted-foreground/10">
-            🍽️
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-        
-        {/* Back Button */}
-        <Button 
-          variant="secondary" 
-          size="icon" 
-          className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm"
-          onClick={() => navigate(-1)}
+    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-32">
+      {/* Animated Header */}
+      <motion.header
+        style={{ opacity: headerOpacitySpring }}
+        className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
+      >
+        <div className="flex items-center justify-between px-4 h-14">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-full bg-background/50 backdrop-blur"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </Button>
+          <span className="font-semibold truncate max-w-[200px]">{meal.name}</span>
+          <div className="w-10" />
+        </div>
+      </motion.header>
+
+      {/* Hero Image Section */}
+      <div className="relative h-[55vh] overflow-hidden">
+        <motion.div
+          style={{ scale: imageScale, opacity: imageOpacity }}
+          className="absolute inset-0"
         >
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
+          {meal.image_url ? (
+            <img
+              src={meal.image_url}
+              alt={meal.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/30 flex items-center justify-center">
+              <span className="text-8xl">🍽️</span>
+            </div>
+          )}
+        </motion.div>
+        
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-transparent to-background" />
+        
+        {/* Floating Action Bar */}
+        <div className="absolute top-12 left-4 right-4 flex items-center justify-between">
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-full bg-background/80 backdrop-blur shadow-lg"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            {/* Favorite button - disabled until favorite_meals table is available */}
+            {/* <Button
+              variant="secondary"
+              size="icon"
+              onClick={toggleFavorite}
+              className="rounded-full bg-background/80 backdrop-blur shadow-lg"
+            >
+              <Heart className="w-5 h-5" />
+            </Button> */}
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={shareMeal}
+              className="rounded-full bg-background/80 backdrop-blur shadow-lg"
+            >
+              <Share2 className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* VIP Badge */}
+        {meal.is_vip_exclusive && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-24 right-4"
+          >
+            <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 px-3 py-1.5 text-sm font-bold shadow-lg">
+              ⭐ VIP Exclusive
+            </Badge>
+          </motion.div>
+        )}
       </div>
 
-      <main className="container mx-auto px-4 -mt-16 relative z-10 space-y-6">
-        {/* Header Card */}
-        <Card className="animate-fade-in">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div>
-                <h1 className="text-xl font-bold">{meal.name}</h1>
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                  <MapPin className="w-3 h-3" />
-                  {meal.restaurant.name}
-                </p>
-              </div>
-              {meal.is_vip_exclusive ? (
-                <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-yellow-500 border-0 text-white">
-                  <Crown className="w-3 h-3 mr-1" />
-                  VIP Exclusive
-                </Badge>
+      {/* Content Container */}
+      <div className="relative -mt-16 px-4 space-y-4">
+        {/* Main Info Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-card rounded-3xl shadow-xl border border-border/50 p-6"
+        >
+          {/* Restaurant Info */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+              {meal.restaurant.logo_url ? (
+                <img src={meal.restaurant.logo_url} alt="" className="w-full h-full object-cover" />
               ) : (
-                <Badge variant="secondary" className="bg-primary/10 text-primary">
-                  Included in plan
-                </Badge>
+                <span className="text-lg">🏪</span>
               )}
             </div>
-
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-              <span className="flex items-center gap-1">
-                <Star className="w-4 h-4 fill-warning text-warning" />
-                {meal.rating.toFixed(1)}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                {meal.prep_time_minutes} min
-              </span>
-<span className="flex items-center gap-1">
-                <Flame className="w-4 h-4 text-destructive" />
-                {meal.calories} cal
-              </span>
+            <div className="flex-1">
+              <p className="font-semibold text-sm">{meal.restaurant.name}</p>
+              {meal.restaurant.address && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {meal.restaurant.address}
+                </p>
+              )}
             </div>
+            <div className="flex items-center gap-1 text-amber-500">
+              <Star className="w-4 h-4 fill-current" />
+              <span className="font-semibold text-sm">{meal.rating.toFixed(1)}</span>
+            </div>
+          </div>
 
-{meal.diet_tags.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {meal.diet_tags.map((tag) => (
-                  <Badge key={tag} variant="diet">
-                    {tag}
-                  </Badge>
-                ))}
+          {/* Meal Name */}
+          <h1 className="text-2xl font-bold mb-2">{meal.name}</h1>
+          
+          {/* Description */}
+          {meal.description && (
+            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+              {meal.description}
+            </p>
+          )}
+
+          {/* Quick Stats */}
+          <div className="flex items-center gap-6 py-4 border-y border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                <Flame className="w-4 h-4 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Calories</p>
+                <p className="font-semibold">{meal.calories}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Prep Time</p>
+                <p className="font-semibold">{meal.prep_time_minutes}m</p>
+              </div>
+            </div>
+            {meal.fiber_g && (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <Leaf className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Fiber</p>
+                  <p className="font-semibold">{meal.fiber_g}g</p>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </motion.div>
 
-        {/* Subscription Status Banner */}
-        {!hasActiveSubscription ? (
-          <Card className="animate-fade-in border-amber-500/50 bg-amber-500/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-amber-500" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium">Subscribe to order meals</p>
-                  <p className="text-sm text-muted-foreground">Get access to all meals with a subscription plan</p>
-                </div>
-                <Button size="sm" onClick={() => navigate("/subscription")}>
-                  Subscribe
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <MealsRemainingWidget
-            remainingMeals={remainingMeals}
-            totalMeals={subscription?.meals_per_week || 0}
-            isUnlimited={isUnlimited}
-            isVip={isVip}
-            variant="banner"
-            className="animate-fade-in"
-          />
+        {/* Nutrition Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold">Nutrition Facts</h2>
+            <span className="text-sm text-muted-foreground">Per serving</span>
+          </div>
+
+          {/* Circular Macros */}
+          <div className="flex justify-around">
+            <CircularProgress
+              value={meal.protein_g}
+              max={50}
+              color="#EF4444"
+              icon={Beef}
+              label="Protein"
+              delay={0.2}
+            />
+            <CircularProgress
+              value={meal.carbs_g}
+              max={80}
+              color="#F59E0B"
+              icon={Wheat}
+              label="Carbs"
+              delay={0.3}
+            />
+            <CircularProgress
+              value={meal.fat_g}
+              max={40}
+              color="#14B8A6"
+              icon={Droplets}
+              label="Fat"
+              delay={0.4}
+            />
+          </div>
+        </motion.div>
+
+        {/* Dietary Tags */}
+        {meal.diet_tags && meal.diet_tags.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex flex-wrap gap-2"
+          >
+            {meal.diet_tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="rounded-full px-3 py-1">
+                {tag}
+              </Badge>
+            ))}
+          </motion.div>
         )}
 
-        {/* Description */}
-        {meal.description && (
-          <Card className="animate-fade-in stagger-1">
-            <CardContent className="p-5">
-              <h2 className="font-semibold mb-2">About this meal</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {meal.description}
-              </p>
-            </CardContent>
-          </Card>
+        {/* Ingredients */}
+        {meal.ingredients && meal.ingredients.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
+          >
+            <h2 className="text-lg font-bold mb-4">Ingredients</h2>
+            <ul className="space-y-2">
+              {meal.ingredients.map((ingredient, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  {ingredient}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
         )}
+      </div>
 
-        {/* Nutrition Card */}
-        <Card className="animate-fade-in stagger-2">
-          <CardContent className="p-5">
-            <h2 className="font-semibold mb-4">Nutrition Facts</h2>
-            
-            {/* Calorie Banner */}
-            <div className="bg-primary/10 rounded-xl p-4 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Flame className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{meal.calories}</p>
-                  <p className="text-xs text-muted-foreground">calories per serving</p>
-                </div>
-              </div>
-            </div>
+      {/* Fixed Bottom Action Bar */}
+      <FixedBottomActionBar
+        meal={meal}
+        onClick={handleAddToSchedule}
+        loading={scheduling}
+        disabled={!canOrderMeal && !isUnlimited}
+        isSuccess={success}
+        hasActiveSubscription={hasActiveSubscription}
+        isUnlimited={isUnlimited}
+        remainingMeals={remainingMeals}
+      />
 
-            {/* Macro Breakdown */}
-            <div className="space-y-4">
-              {/* Macro Bar */}
-              <div className="h-3 rounded-full overflow-hidden flex">
-                <div 
-                  className="bg-destructive transition-all"
-                  style={{ width: `${macroPercentages.protein}%` }}
-                />
-                <div 
-                  className="bg-warning transition-all"
-                  style={{ width: `${macroPercentages.carbs}%` }}
-                />
-                <div 
-                  className="bg-accent transition-all"
-                  style={{ width: `${macroPercentages.fat}%` }}
-                />
-              </div>
-
-              {/* Macro Details */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-2">
-                    <Beef className="w-5 h-5 text-destructive" />
-                  </div>
-                  <p className="text-lg font-bold">{meal.protein_g}g</p>
-                  <p className="text-xs text-muted-foreground">Protein</p>
-                  <p className="text-xs text-muted-foreground">{macroPercentages.protein}%</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center mx-auto mb-2">
-                    <Wheat className="w-5 h-5 text-warning" />
-                  </div>
-                  <p className="text-lg font-bold">{meal.carbs_g}g</p>
-                  <p className="text-xs text-muted-foreground">Carbs</p>
-                  <p className="text-xs text-muted-foreground">{macroPercentages.carbs}%</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-2">
-                    <Droplets className="w-5 h-5 text-accent" />
-                  </div>
-                  <p className="text-lg font-bold">{meal.fat_g}g</p>
-                  <p className="text-xs text-muted-foreground">Fat</p>
-                  <p className="text-xs text-muted-foreground">{macroPercentages.fat}%</p>
-                </div>
-              </div>
-
-              {/* Fiber if available */}
-              {meal.fiber_g !== null && meal.fiber_g > 0 && (
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center gap-2">
-                    <Leaf className="w-4 h-4 text-primary" />
-                    <span className="text-sm">Fiber</span>
-                  </div>
-                  <span className="font-medium">{meal.fiber_g}g</span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Schedule Section */}
-        {hasActiveSubscription && (
-          <Card className="animate-fade-in stagger-3">
-            <CardContent className="p-5">
-              <h2 className="font-semibold mb-4">Schedule Delivery</h2>
-              
-              {/* Date Picker */}
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Select Date</label>
-                  <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start">
-                        <CalendarIcon className="w-4 h-4 mr-2" />
-                        {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            // Ensure date is set to midnight local time
-                            const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                            setSelectedDate(normalizedDate);
-                          }
-                          setDatePickerOpen(false);
-                        }}
-                        disabled={(date) => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          return date < today;
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Meal Type Selection */}
-                <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Meal Type</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {mealTypes.map((type) => (
-                      <Button
-                        key={type.value}
-                        variant={selectedMealType === type.value ? "default" : "outline"}
-                        className="flex flex-col h-auto py-3"
-                        onClick={() => setSelectedMealType(type.value)}
-                      >
-                        <span className="text-lg mb-1">{type.icon}</span>
-                        <span className="text-xs">{type.label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Delivery Type Selection */}
-                {deliverySettings.enabled && (
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-2 block">Delivery Option</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        variant={selectedDeliveryType === "standard" ? "default" : "outline"}
-                        className="flex flex-col h-auto py-3 relative"
-                        onClick={() => setSelectedDeliveryType("standard")}
-                      >
-                        <Truck className="w-5 h-5 mb-1" />
-                        <span className="text-sm font-medium">Standard</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatCurrency(deliverySettings.standard)}
-                        </span>
-                      </Button>
-                      <Button
-                        variant={selectedDeliveryType === "express" ? "default" : "outline"}
-                        className="flex flex-col h-auto py-3 relative"
-                        onClick={() => setSelectedDeliveryType("express")}
-                      >
-                        <Zap className="w-5 h-5 mb-1" />
-                        <span className="text-sm font-medium">Express</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatCurrency(deliverySettings.express)}
-                        </span>
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Free delivery on orders over {formatCurrency(deliverySettings.free_threshold)}
-                    </p>
-                  </div>
-                )}
-
-                {/* Add-ons Selection */}
-                {hasAddons && (
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
-                      <Package className="w-4 h-4" />
-                      Add-ons (Optional)
-                    </label>
-                    <div className="space-y-3">
-                      {Object.entries(groupedAddons).map(([category, categoryAddons]) => (
-                        <div key={category}>
-                          <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
-                            {category.replace(/_/g, " ")}
-                          </p>
-                          <div className="space-y-2">
-                            {categoryAddons.map((addon) => (
-                              <div
-                                key={addon.id}
-                                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                                  selectedAddons.has(addon.id)
-                                    ? "border-primary bg-primary/5"
-                                    : "border-border hover:border-primary/50"
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Checkbox
-                                    checked={selectedAddons.has(addon.id)}
-                                    onCheckedChange={() => toggleAddon(addon.id)}
-                                  />
-                                  <div>
-                                    <p className="text-sm font-medium">{addon.name}</p>
-                                    {addon.description && (
-                                      <p className="text-xs text-muted-foreground">{addon.description}</p>
-                                    )}
-                                  </div>
-                                </div>
-
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Order Summary - Pure Subscription Model */}
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Meal</span>
-                    <span className="text-primary font-medium">Included in plan</span>
-                  </div>
-                  {selectedAddons.size > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Add-ons ({selectedAddons.size})</span>
-                      <span className="text-primary font-medium">Included</span>
-                    </div>
-                  )}
-                  {deliverySettings.enabled && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {deliveryFeeResult.type === "express" ? "Express" : "Standard"} Delivery
-                      </span>
-                      <span className={deliveryFeeResult.fee === 0 ? "text-primary font-medium" : ""}>
-                        {deliveryFeeResult.fee === 0 ? "Free" : formatCurrency(deliveryFeeResult.fee)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="border-t pt-2 flex justify-between font-medium">
-                    <span>Total</span>
-                    <span className="text-primary">Included in subscription</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </main>
+      {/* Schedule Bottom Sheet */}
+      <ScheduleSheet
+        isOpen={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        selectedMealType={selectedMealType}
+        setSelectedMealType={setSelectedMealType}
+        onSchedule={handleSchedule}
+        loading={scheduling}
+        hasActiveSubscription={hasActiveSubscription}
+        remainingMeals={remainingMeals}
+        isUnlimited={isUnlimited}
+      />
 
       {/* Success Overlay */}
-      {success && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-sm animate-fade-in">
-          <div className="text-center animate-scale-in">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-              <Check className="w-10 h-10 text-primary animate-scale-in" />
-            </div>
-            <h3 className="text-xl font-bold mb-1">Scheduled!</h3>
-            <p className="text-muted-foreground text-sm">Redirecting to your schedule...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Fixed Bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border z-50">
-        <div className="container mx-auto">
-          {hasActiveSubscription ? (
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={handleAddToSchedule}
-              disabled={scheduling || success || !selectedDate || !canOrderMeal}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center"
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center mb-6"
             >
-              {scheduling ? (
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              ) : success ? (
-                <Check className="w-5 h-5 mr-2" />
-              ) : (
-                <Check className="w-5 h-5 mr-2" />
-              )}
-              {success ? "Scheduled!" : !canOrderMeal ? "Meal Limit Reached" : "Schedule Meal"}
-            </Button>
-          ) : (
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={() => navigate("/subscription")}
+              <Check className="w-12 h-12 text-white" />
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-2xl font-bold mb-2"
             >
-              <Crown className="w-5 h-5 mr-2" />
-              Subscribe to Order
-            </Button>
-          )}
-        </div>
-      </div>
+              Added to Schedule!
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-muted-foreground"
+            >
+              Redirecting to your schedule...
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

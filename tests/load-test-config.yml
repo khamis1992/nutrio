@@ -1,0 +1,172 @@
+/**
+ * Load Testing Configuration
+ * Tests platform performance under 10K+ user load
+ * 
+ * Run with: npm run test:load
+ * Or: artillery run tests/load-test-config.yml
+ */
+
+config:
+  target: 'http://localhost:8080'
+  phases:
+    # Phase 1: Warm up (100 users)
+    - duration: 60
+      arrivalRate: 2
+      name: "Warm up"
+    
+    # Phase 2: Ramp up to 1,000 users
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up to 1,000 concurrent"
+    
+    # Phase 3: Sustained load (5,000 users)
+    - duration: 300
+      arrivalRate: 100
+      name: "Sustained 5,000 concurrent"
+    
+    # Phase 4: Peak load (10,000+ users)
+    - duration: 180
+      arrivalRate: 200
+      name: "Peak load 10,000+ concurrent"
+    
+    # Phase 5: Cool down
+    - duration: 60
+      arrivalRate: 10
+      name: "Cool down"
+  
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+  
+  # Ensure tests stop if error rate exceeds 1%
+  ensure:
+    p95: 500  # 95th percentile response time < 500ms
+    maxErrorRate: 1  # Max 1% error rate
+
+scenarios:
+  # Scenario 1: Browse subscription plans (light read)
+  - name: "Browse Plans"
+    weight: 30
+    flow:
+      - get:
+          url: "/subscription/plans"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      - think: 2
+
+  # Scenario 2: View meal recommendations (medium read)
+  - name: "View Recommendations"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/v1/ai/meal-recommendations"
+          qs:
+            limit: 20
+          expect:
+            - statusCode: 200
+            - responseTime: 
+                max: 1000
+      - think: 3
+
+  # Scenario 3: Generate AI meal plan (heavy compute)
+  - name: "Generate Meal Plan"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/v1/ai/generate-weekly-plan"
+          json:
+            user_id: "{{ $randomString() }}"
+            week_start_date: "2025-03-01"
+          expect:
+            - statusCode: 200
+            - responseTime:
+                max: 2000  # AI generation should complete in <2s
+      - think: 5
+
+  # Scenario 4: Place order (write operation)
+  - name: "Place Order"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/v1/orders"
+          json:
+            user_id: "{{ $randomString() }}"
+            restaurant_id: "{{ $randomString() }}"
+            meal_id: "{{ $randomString() }}"
+            quantity: 1
+          expect:
+            - statusCode: 200
+            - responseTime:
+                max: 500
+      - think: 1
+
+  # Scenario 5: Check credit balance (frequent read)
+  - name: "Check Balance"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/v1/subscriptions/current"
+          expect:
+            - statusCode: 200
+            - responseTime:
+                max: 100
+      - think: 1
+
+# Performance thresholds
+thresholds:
+  # Response time targets
+  - name: "API Response Time"
+    metric: "http.response_time"
+    max: 500
+    p95: 300
+    p99: 800
+  
+  # Error rate targets
+  - name: "Error Rate"
+    metric: "http.errors"
+    max: 1  # Max 1% error rate
+  
+  # Throughput targets
+  - name: "Throughput"
+    metric: "http.requests"
+    min: 1000  # Min 1000 requests/second at peak
+
+# Reporting
+reporter:
+  - type: json
+    output: tests/results/load-test-results.json
+  - type: html
+    output: tests/results/load-test-report.html
+
+# Plugins for monitoring
+plugins:
+  metrics-by-endpoint:
+    useOnlyRequestNames: true
+  ensure:
+    p95: 500
+    maxErrorRate: 1
+
+# Notes:
+# - Target: 10,000 concurrent users
+# - Key metrics: Response time <500ms (p95), Error rate <1%
+# - Database connection pooling must handle load
+# - Edge functions must scale appropriately
+# - Monitor Supabase metrics during test
+
+# Pre-test checklist:
+# ☐ Database indexes created
+# ☐ Connection pooling configured
+# ☐ Edge functions deployed
+# ☐ CDN caching enabled
+# ☐ Monitoring dashboards ready
+# ☐ Rollback plan prepared
+
+# Post-test validation:
+# ☐ All response times < 500ms (p95)
+# ☐ Error rate < 1%
+# ☐ No database connection timeouts
+# ☐ Edge function execution times acceptable
+# ☐ Memory usage stable
+# ☐ No memory leaks detected

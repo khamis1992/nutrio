@@ -91,7 +91,7 @@ const FAQ = () => {
         },
         {
           question: "Is there a delivery fee?",
-          answer: "Delivery fees vary by distance and restaurant. Monthly subscribers enjoy free delivery on all orders. Weekly subscribers may see small delivery fees on some orders."
+          answer: "No, delivery is completely FREE on all orders! We believe healthy eating should be accessible to everyone, so we cover all delivery costs. No minimum order value required."
         }
       ]
     },

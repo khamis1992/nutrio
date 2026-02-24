@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { 
   ArrowLeft, 
   ChevronLeft, 
@@ -18,7 +19,6 @@ import {
   Flame,
   Beef,
   Trash2,
-  UtensilsCrossed,
   AlertTriangle,
   CheckCircle2,
   Circle,
@@ -224,12 +224,21 @@ const Schedule = () => {
     });
   };
 
-  const getDayStatus = (date: Date) => {
+const getDayStatus = (date: Date) => {
     const dayMeals = getMealsForDay(date);
     if (dayMeals.length === 0) return "empty";
     if (dayMeals.every(m => m.is_completed)) return "completed";
     if (dayMeals.some(m => m.is_completed)) return "partial";
     return "scheduled";
+  };
+
+  const getDailyNutritionStats = () => {
+    const meals = getMealsForDay(displayDate);
+    const totalCalories = meals.reduce((sum, s) => sum + (s.meal?.calories || 0), 0);
+    const totalProtein = meals.reduce((sum, s) => sum + (s.meal?.protein_g || 0), 0);
+    const totalCarbs = meals.reduce((sum, s) => sum + (s.meal?.carbs_g || 0), 0);
+    const totalFat = meals.reduce((sum, s) => sum + (s.meal?.fat_g || 0), 0);
+    return { totalCalories, totalProtein, totalCarbs, totalFat };
   };
 
   const getWeekStats = () => {
@@ -421,8 +430,20 @@ const Schedule = () => {
         </div>
       </motion.div>
 
+      {/* Daily Nutrition Card */}
+      <div className="px-4 -mt-2 mb-4">
+        <DailyNutritionCard 
+          totalCalories={getDailyNutritionStats().totalCalories}
+          totalProtein={getDailyNutritionStats().totalProtein}
+          totalCarbs={getDailyNutritionStats().totalCarbs}
+          totalFat={getDailyNutritionStats().totalFat}
+          focusCalories={2500}
+          dayLabel={isSameDay(displayDate, today) ? "Today's Focus" : `${format(displayDate, "EEEE")}'s Nutrition`}
+        />
+      </div>
+
       {/* Selected Day Meals */}
-      <div className="p-4">
+      <div className="p-4 pt-0">
         <AnimatePresence mode="wait">
           {loading ? (
             <motion.div 
@@ -571,7 +592,7 @@ const Schedule = () => {
                     );
                   })}
 
-                  {/* Day Summary */}
+                  {/* Completion Progress */}
                   {displayMeals.length > 0 && (
                     <motion.div
                       initial={{ y: 20, opacity: 0 }}
@@ -579,25 +600,11 @@ const Schedule = () => {
                       transition={{ delay: 0.3 }}
                       className="mt-6 p-4 rounded-2xl bg-muted/50 border border-border"
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-muted-foreground">Daily Nutrition</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-muted-foreground">Meals Completed</span>
                         <Badge variant="secondary" className="bg-primary/10 text-primary">
                           {displayMeals.filter(m => m.is_completed).length}/{displayMeals.length} completed
                         </Badge>
-                      </div>
-                      <div className="grid grid-cols-4 gap-3">
-                        {[
-                          { label: "Calories", value: displayMeals.reduce((sum, s) => sum + (s.meal?.calories || 0), 0), color: "text-orange-500", icon: Flame },
-                          { label: "Protein", value: `${displayMeals.reduce((sum, s) => sum + (s.meal?.protein_g || 0), 0)}g`, color: "text-red-500", icon: Beef },
-                          { label: "Carbs", value: `${displayMeals.reduce((sum, s) => sum + (s.meal?.carbs_g || 0), 0)}g`, color: "text-amber-500", icon: UtensilsCrossed },
-                          { label: "Fat", value: `${displayMeals.reduce((sum, s) => sum + (s.meal?.fat_g || 0), 0)}g`, color: "text-blue-500", icon: UtensilsCrossed },
-                        ].map((stat, idx) => (
-                          <div key={idx} className="text-center">
-                            <stat.icon className={`h-4 w-4 mx-auto mb-1 ${stat.color}`} />
-                            <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-                            <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                          </div>
-                        ))}
                       </div>
                     </motion.div>
                   )}

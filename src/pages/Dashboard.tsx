@@ -5,9 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import {
-  Beef,
-  Wheat,
-  Droplets,
   ChevronRight,
   Utensils,
   Bell,
@@ -38,6 +35,10 @@ import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { WeightPredictionChart } from "@/components/WeightPredictionChart";
 import { SideDrawer } from "@/components/SideDrawer";
 import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
+import { DailyNutritionCard } from "@/components/DailyNutritionCard";
+import { DeliveredMealNotifications } from "@/components/DeliveredMealNotifications";
+import { ScheduledMealNotifications } from "@/hooks/useScheduledMealNotifications";
+import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 
 interface Restaurant {
   id: string;
@@ -53,7 +54,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { hasActiveSubscription, remainingMeals, isUnlimited, isVip, subscription } = useSubscription();
+  const { hasActiveSubscription, remainingMeals, totalMeals, isUnlimited, isVip } = useSubscription();
   const { settings: platformSettings } = usePlatformSettings();
   const { 
     recommendation, 
@@ -68,7 +69,7 @@ const Dashboard = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurantsLoading, setRestaurantsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
-  const { isFeatured } = useFeaturedRestaurants();
+  const { featuredRestaurants, loading: featuredLoading } = useFeaturedRestaurants();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
@@ -136,67 +137,23 @@ const Dashboard = () => {
     fetchTodayProgress();
   }, [user, progressKey]);
 
-  // Fetch restaurants
+  // Use featured restaurants from hook
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      try {
-        // Fetch restaurants
-        const { data: restaurantsData, error: restaurantsError } = await supabase
-          .from("restaurants")
-          .select(`
-            id,
-            name,
-            description,
-            logo_url,
-            rating,
-            total_orders
-          `)
-          .eq("approval_status", "approved")
-          .eq("is_active", true)
-          .limit(5);
-
-        if (restaurantsError) throw restaurantsError;
-
-        // Get meal counts separately
-        const restaurantIds = (restaurantsData || []).map((r: any) => r.id);
-        let mealCounts: Record<string, number> = {};
-        
-        if (restaurantIds.length > 0) {
-          const { data: mealsData } = await supabase
-            .from("meals")
-            .select("restaurant_id")
-            .in("restaurant_id", restaurantIds);
-          
-          mealCounts = (mealsData || []).reduce((acc: Record<string, number>, meal: any) => {
-            acc[meal.restaurant_id] = (acc[meal.restaurant_id] || 0) + 1;
-            return acc;
-          }, {});
-        }
-
-        // Transform data with meal counts
-        const transformedRestaurants: Restaurant[] = (restaurantsData || []).map((restaurant: any) => ({
-          id: restaurant.id,
-          name: restaurant.name,
-          description: restaurant.description,
-          logo_url: restaurant.logo_url,
-          rating: parseFloat(restaurant.rating) || 0,
-          total_orders: restaurant.total_orders || 0,
-          meal_count: mealCounts[restaurant.id] || 0,
-        }));
-
-        // Sort by rating
-        transformedRestaurants.sort((a, b) => b.rating - a.rating);
-
-        setRestaurants(transformedRestaurants);
-      } catch (err) {
-        console.error("Error fetching restaurants:", err);
-      } finally {
-        setRestaurantsLoading(false);
-      }
-    };
-
-    fetchRestaurants();
-  }, []);
+    if (!featuredLoading) {
+      // Map featured restaurants to the Restaurant interface
+      const mappedRestaurants: Restaurant[] = featuredRestaurants.map((fr) => ({
+        id: fr.id,
+        name: fr.name,
+        description: fr.description,
+        logo_url: fr.logo_url,
+        rating: fr.rating,
+        total_orders: fr.total_orders,
+        meal_count: fr.meal_count,
+      }));
+      setRestaurants(mappedRestaurants);
+      setRestaurantsLoading(false);
+    }
+  }, [featuredRestaurants, featuredLoading]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -216,10 +173,7 @@ const Dashboard = () => {
   };
 
   const userName = profile?.full_name?.split(" ")[0] || "there";
-  const caloriePercent = Math.min((userStats.consumedCalories / userStats.dailyCalories) * 100, 100);
-  const proteinPercent = Math.min((userStats.protein.consumed / userStats.protein.target) * 100, 100);
-  const carbsPercent = Math.min((userStats.carbs.consumed / userStats.carbs.target) * 100, 100);
-  const fatPercent = Math.min((userStats.fat.consumed / userStats.fat.target) * 100, 100);
+
 
   if (profileLoading) {
     return (
@@ -320,231 +274,36 @@ const Dashboard = () => {
           />
         )}
 
-        {/* PREMIUM GLASSMORPHIC PROGRESS CARD */}
-        <Card className="overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-2xl">
-          <CardContent className="p-0">
-            {/* Frosted Glass Header */}
-            <div className="px-5 py-4 bg-white/10 backdrop-blur-xl border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    isVip ? "bg-violet-500/20" : "bg-primary/20"
-                  }`}>
-                    <Flame className={`w-5 h-5 ${
-                      isVip ? "text-violet-300" : "text-primary"
-                    }`} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-lg text-foreground">Today's Progress</h2>
-                    <p className="text-xs text-foreground/70">
-                      {userStats.dailyCalories - userStats.consumedCalories > 0 
-                        ? `${Math.round(userStats.dailyCalories - userStats.consumedCalories)} cal remaining` 
-                        : "Daily goal reached! 🎉"}
-                    </p>
-                  </div>
-                </div>
-                
-                {hasActiveSubscription && (
-                  <MealsRemainingWidget
-                    remainingMeals={remainingMeals}
-                    totalMeals={subscription?.meals_per_week || 0}
-                    isUnlimited={isUnlimited}
-                    isVip={isVip}
-                    variant="compact"
-                  />
-                )}
-              </div>
-            </div>
+        {/* Daily Nutrition Card */}
+        <DailyNutritionCard 
+          totalCalories={Math.round(userStats.consumedCalories)}
+          totalProtein={userStats.protein.consumed}
+          totalCarbs={userStats.carbs.consumed}
+          totalFat={userStats.fat.consumed}
+          focusCalories={userStats.dailyCalories}
+          dayLabel="Today's Progress"
+        />
 
-            {/* Interactive Progress Visualization */}
-            <div className="p-5">
-              {/* Premium Circular Progress Dashboard */}
-              <div className="flex justify-center mb-6 group">
-                <div className="relative">
-                  {/* Outer Glow Ring */}
-                  <div className={`absolute inset-0 rounded-full ${
-                    isVip ? "bg-violet-500/10" : "bg-primary/10"
-                  } blur-xl scale-110 transition-all duration-500 group-hover:scale-125`}></div>
-                  
-                  {/* Main Progress Ring */}
-                  <div className="relative w-40 h-40">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                      {/* Background Ring */}
-                      <circle
-                        cx="60"
-                        cy="60"
-                        r="50"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.1)"
-                        strokeWidth="8"
-                        className="transition-all duration-1000"
-                      />
-                      {/* Progress Ring with Gradient */}
-                      <circle
-                        cx="60"
-                        cy="60"
-                        r="50"
-                        fill="none"
-                        stroke={isVip ? "url(#vipProgress)" : "url(#primaryProgress)"}
-                        strokeWidth="8"
-                        strokeLinecap="round"
-                        strokeDasharray="314.16"
-                        strokeDashoffset={314.16 - (314.16 * Math.min(caloriePercent, 100)) / 100}
-                        className="transition-all duration-1000 ease-out"
-                      />
-                      {/* Gradient Definitions */}
-                      <defs>
-                        <linearGradient id="primaryProgress" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="hsl(var(--primary))" />
-                          <stop offset="100%" stopColor="hsl(var(--accent))" />
-                        </linearGradient>
-                        <linearGradient id="vipProgress" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#8b5cf6" />
-                          <stop offset="100%" stopColor="#a855f7" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    
-                    {/* Center Content */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <div className="flex items-baseline gap-1 mb-1">
-                        <span className="text-3xl font-bold tabular-nums text-foreground">
-                          {Math.round(userStats.consumedCalories)}
-                        </span>
-                        <span className="text-sm text-foreground/60">cal</span>
-                      </div>
-                      <span className="text-xs font-medium text-foreground/80">
-                        {Math.round(caloriePercent)}% of {userStats.dailyCalories}
-                      </span>
-                      <div className={`mt-2 px-2 py-1 rounded-full text-xs font-medium ${
-                        caloriePercent >= 100 
-                          ? "bg-success/20 text-success" 
-                          : caloriePercent >= 75 
-                            ? "bg-warning/20 text-warning" 
-                            : isVip 
-                              ? "bg-violet-500/20 text-violet-200" 
-                              : "bg-primary/20 text-primary"
-                      }`}>
-                        {caloriePercent >= 100 ? "Goal Reached!" : 
-                         caloriePercent >= 75 ? "Almost There!" : 
-                         caloriePercent >= 50 ? "Halfway!" : "Keep Going!"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Interactive Macro Visualization */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                {/* Protein - Click to expand */}
-                <div 
-                  className="bg-white/10 backdrop-blur-lg rounded-2xl p-3 flex flex-col items-center cursor-pointer hover:bg-white/20 transition-all duration-300 group"
-                  onClick={() => toast({ title: "Protein Details", description: `Target: ${userStats.protein.target}g • Consumed: ${userStats.protein.consumed}g • ${Math.round(proteinPercent)}%` })}
-                >
-                  <div className="relative w-14 h-14 mb-2">
-                    <div className="absolute inset-0 rounded-full bg-red-500/10"></div>
-                    <svg className="w-full h-full -rotate-90">
-                      <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                      <circle 
-                        cx="28" 
-                        cy="28" 
-                        r="24" 
-                        fill="none" 
-                        stroke="#fca5a5" 
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={`${(Math.min(proteinPercent, 100) / 100) * 150.8} 150.8`}
-                        className="transition-all duration-700"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Beef className="w-5 h-5 text-red-300" />
-                    </div>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{userStats.protein.consumed}g</p>
-                  <p className="text-xs text-foreground/60">Protein</p>
-                </div>
-
-                {/* Carbs - Click to expand */}
-                <div 
-                  className="bg-white/10 backdrop-blur-lg rounded-2xl p-3 flex flex-col items-center cursor-pointer hover:bg-white/20 transition-all duration-300 group"
-                  onClick={() => toast({ title: "Carbohydrates Details", description: `Target: ${userStats.carbs.target}g • Consumed: ${userStats.carbs.consumed}g • ${Math.round(carbsPercent)}%` })}
-                >
-                  <div className="relative w-14 h-14 mb-2">
-                    <div className="absolute inset-0 rounded-full bg-amber-500/10"></div>
-                    <svg className="w-full h-full -rotate-90">
-                      <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                      <circle 
-                        cx="28" 
-                        cy="28" 
-                        r="24" 
-                        fill="none" 
-                        stroke="#fcd34d" 
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={`${(Math.min(carbsPercent, 100) / 100) * 150.8} 150.8`}
-                        className="transition-all duration-700"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Wheat className="w-5 h-5 text-amber-300" />
-                    </div>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{userStats.carbs.consumed}g</p>
-                  <p className="text-xs text-foreground/60">Carbs</p>
-                </div>
-
-                {/* Fat - Click to expand */}
-                <div 
-                  className="bg-white/10 backdrop-blur-lg rounded-2xl p-3 flex flex-col items-center cursor-pointer hover:bg-white/20 transition-all duration-300 group"
-                  onClick={() => toast({ title: "Fats Details", description: `Target: ${userStats.fat.target}g • Consumed: ${userStats.fat.consumed}g • ${Math.round(fatPercent)}%` })}
-                >
-                  <div className="relative w-14 h-14 mb-2">
-                    <div className="absolute inset-0 rounded-full bg-blue-500/10"></div>
-                    <svg className="w-full h-full -rotate-90">
-                      <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                      <circle 
-                        cx="28" 
-                        cy="28" 
-                        r="24" 
-                        fill="none" 
-                        stroke="#93c5fd" 
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={`${(Math.min(fatPercent, 100) / 100) * 150.8} 150.8`}
-                        className="transition-all duration-700"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Droplets className="w-5 h-5 text-blue-300" />
-                    </div>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{userStats.fat.consumed}g</p>
-                  <p className="text-xs text-foreground/60">Fat</p>
-                </div>
-              </div>
-
-              {/* Premium Action Button */}
-              <Button
-                onClick={() => setLogMealOpen(true)}
-                className={`w-full ${
-                  isVip 
-                    ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white" 
-                    : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
-                } shadow-lg font-semibold h-12 text-base backdrop-blur-sm border-0`}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Log a Meal
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Log Meal Button */}
+        <div className="flex justify-center px-4">
+          <Button
+            onClick={() => setLogMealOpen(true)}
+            className={`w-full sm:w-auto sm:min-w-[200px] ${
+              isVip 
+                ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white" 
+                : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
+            } shadow-lg font-semibold h-10 sm:h-12 text-sm sm:text-base backdrop-blur-sm border-0`}
+          >
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+            Log a Meal
+          </Button>
+        </div>
 
         {/* Meals Remaining Widget - Prominent Display */}
         {hasActiveSubscription && (
           <MealsRemainingWidget
             remainingMeals={remainingMeals}
-            totalMeals={subscription?.meals_per_week || 0}
+            totalMeals={totalMeals}
             isUnlimited={isUnlimited}
             isVip={isVip}
             variant="full"
@@ -565,14 +324,14 @@ const Dashboard = () => {
             </Card>
           </Link>
 
-          <Link to="/meals" className="group">
+          <Link to="/subscription" className="group">
             <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-primary/10 hover:border-primary/30 hover:-translate-y-0.5">
               <CardContent className="p-4 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center mb-3 group-hover:bg-amber-200 group-hover:scale-110 transition-all">
-                  <Utensils className="w-6 h-6 text-amber-600" />
+                <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center mb-3 group-hover:bg-violet-200 group-hover:scale-110 transition-all">
+                  <Crown className="w-6 h-6 text-violet-600" />
                 </div>
-                <p className="font-semibold text-sm">Order</p>
-                <p className="text-xs text-muted-foreground mt-1">Browse food</p>
+                <p className="font-semibold text-sm">Subscription</p>
+                <p className="text-xs text-muted-foreground mt-1">Manage plan</p>
               </CardContent>
             </Card>
           </Link>
@@ -608,6 +367,15 @@ const Dashboard = () => {
 
         {/* Affiliate Earnings Widget */}
         {platformSettings.features.referral_program && <AffiliateEarningsWidget />}
+
+        {/* Scheduled Meal Notifications */}
+        <ScheduledMealNotifications />
+
+        {/* Delivered Meal Notifications */}
+        <DeliveredMealNotifications />
+
+        {/* Active Orders Banner - Shows when there are active orders */}
+        {user && <ActiveOrderBanner userId={user.id} />}
 
         {/* STREAK & MOTIVATION SECTION */}
         <Card className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-amber-200">
@@ -685,10 +453,10 @@ const Dashboard = () => {
               ) : restaurants.length === 0 ? (
                 <Card className="w-full min-w-[300px]">
                   <CardContent className="p-8 text-center">
-                    <Utensils className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold mb-2">No restaurants available yet</h3>
+                    <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-semibold mb-2">No featured restaurants yet</h3>
                     <p className="text-sm text-muted-foreground">
-                      Partner restaurants will be added soon. Check back later!
+                      Check back soon for our highlighted partner restaurants!
                     </p>
                   </CardContent>
                 </Card>
@@ -734,12 +502,10 @@ const Dashboard = () => {
                             </svg>
                           </Button>
                           {/* Featured Badge */}
-                          {isFeatured(restaurant.id) && (
-                            <Badge className="absolute top-2 left-2 bg-amber-500 text-white border-0">
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              Featured
-                            </Badge>
-                          )}
+                          <Badge className="absolute top-2 left-2 bg-amber-500 text-white border-0">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            Featured
+                          </Badge>
                         </div>
                         
                         {/* Restaurant Info */}

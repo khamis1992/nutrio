@@ -35,6 +35,9 @@ interface OnboardingData {
   weight: string;
   targetWeight: string;
   activityLevel: ActivityLevel | null;
+  trainingDaysPerWeek: string;
+  foodPreferences: string[];
+  allergies: string[];
 }
 
 // Calculate BMR using Mifflin-St Jeor equation
@@ -116,9 +119,12 @@ const Onboarding = () => {
     weight: "",
     targetWeight: "",
     activityLevel: null,
+    trainingDaysPerWeek: "",
+    foodPreferences: [],
+    allergies: [],
   });
 
-  const totalSteps = 4;
+  const totalSteps = 6;
 
   // Redirect if not authenticated or if user is a partner
   useEffect(() => {
@@ -191,6 +197,9 @@ const Onboarding = () => {
         protein_target_g: macros.protein,
         carbs_target_g: macros.carbs,
         fat_target_g: macros.fat,
+        training_days_per_week: parseInt(data.trainingDaysPerWeek) || 0,
+        food_preferences: data.foodPreferences,
+        allergies: data.allergies,
         onboarding_completed: true,
       });
 
@@ -229,6 +238,10 @@ const Onboarding = () => {
         return data.age && data.height && data.weight;
       case 4:
         return data.activityLevel !== null;
+      case 5:
+        return data.trainingDaysPerWeek !== "";
+      case 6:
+        return true; // Food preferences and allergies are optional
       default:
         return false;
     }
@@ -512,6 +525,106 @@ const Onboarding = () => {
             </div>
           )}
         </div>
+          {/* Step 5: Training Days */}
+          {step === 5 && (
+            <div className="space-y-8">
+              <div className="text-center">
+                <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                  Your <span className="text-gradient">training schedule</span>
+                </h1>
+                <p className="text-muted-foreground">
+                  How many days per week do you exercise?
+                </p>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                {["0", "1", "2", "3", "4", "5", "6", "7"].map((days) => (
+                  <Card
+                    key={days}
+                    variant="interactive"
+                    className={`cursor-pointer transition-all ${
+                      data.trainingDaysPerWeek === days 
+                        ? "border-2 border-primary shadow-glow" 
+                        : ""
+                    }`}
+                    onClick={() => setData({ ...data, trainingDaysPerWeek: days })}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-bold">{days}</div>
+                      <div className="text-xs text-muted-foreground">days</div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Food Preferences & Allergies */}
+          {step === 6 && (
+            <div className="space-y-8">
+              <div className="text-center">
+                <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                  Dietary <span className="text-gradient">preferences</span>
+                </h1>
+                <p className="text-muted-foreground">
+                  Help us personalize your meal recommendations
+                </p>
+              </div>
+
+              <Card variant="elevated">
+                <CardContent className="p-6 space-y-6">
+                  <div>
+                    <Label className="text-base font-semibold mb-3 block">
+                      Food Preferences (Optional)
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {["Halal", "Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Keto", "Low-Carb"].map((pref) => (
+                        <Badge
+                          key={pref}
+                          variant={data.foodPreferences.includes(pref) ? "default" : "outline"}
+                          className="cursor-pointer px-3 py-1.5 text-sm"
+                          onClick={() => {
+                            const newPrefs = data.foodPreferences.includes(pref)
+                              ? data.foodPreferences.filter((p) => p !== pref)
+                              : [...data.foodPreferences, pref];
+                            setData({ ...data, foodPreferences: newPrefs });
+                          }}
+                        >
+                          {data.foodPreferences.includes(pref) && <Check className="w-3 h-3 mr-1" />}
+                          {pref}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-semibold mb-3 block">
+                      Allergies (Optional)
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {["Nuts", "Dairy", "Shellfish", "Eggs", "Wheat", "Soy", "Fish"].map((allergy) => (
+                        <Badge
+                          key={allergy}
+                          variant={data.allergies.includes(allergy) ? "destructive" : "outline"}
+                          className="cursor-pointer px-3 py-1.5 text-sm"
+                          onClick={() => {
+                            const newAllergies = data.allergies.includes(allergy)
+                              ? data.allergies.filter((a) => a !== allergy)
+                              : [...data.allergies, allergy];
+                            setData({ ...data, allergies: newAllergies });
+                          }}
+                        >
+                          {data.allergies.includes(allergy) && <Check className="w-3 h-3 mr-1" />}
+                          {allergy}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
       </main>
 
       {/* Footer Navigation */}

@@ -7,16 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Clock,
   CheckCircle,
-  User,
   Package,
   ChefHat,
   Truck,
@@ -26,21 +18,126 @@ import {
   Utensils,
   Flame,
   Info,
+  CheckCheck,
+  X,
+  Play,
+  Box,
+  ArrowRight,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
+import { PartnerDeliveryHandoff } from "@/components/partner/PartnerDeliveryHandoff";
 
-type OrderStatus = "pending" | "confirmed" | "preparing" | "delivered" | "cancelled";
+// Extended order status type with all new statuses
+type OrderStatus = 
+  | "pending" 
+  | "confirmed" 
+  | "preparing" 
+  | "ready" 
+  | "out_for_delivery" 
+  | "delivered" 
+  | "completed" 
+  | "cancelled";
 
-const ORDER_STATUSES: { value: OrderStatus; label: string; icon: React.ReactNode; color: string }[] = [
-  { value: "pending", label: "Pending", icon: <CircleDot className="h-4 w-4" />, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  { value: "confirmed", label: "Confirmed", icon: <CheckCircle className="h-4 w-4" />, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  { value: "preparing", label: "Preparing", icon: <ChefHat className="h-4 w-4" />, color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  { value: "delivered", label: "Delivered", icon: <CheckCircle className="h-4 w-4" />, color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  { value: "cancelled", label: "Cancelled", icon: <CircleDot className="h-4 w-4" />, color: "bg-red-500/10 text-red-600 border-red-500/20" },
-];
+// Status configuration with icons and colors
+const STATUS_CONFIG: Record<OrderStatus, { 
+  label: string; 
+  icon: React.ReactNode; 
+  color: string;
+  description: string;
+}> = {
+  pending: {
+    label: "Pending",
+    icon: <CircleDot className="h-4 w-4" />,
+    color: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    description: "Waiting for you to accept",
+  },
+  confirmed: {
+    label: "Confirmed",
+    icon: <CheckCircle className="h-4 w-4" />,
+    color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    description: "Accepted, ready to prepare",
+  },
+  preparing: {
+    label: "Preparing",
+    icon: <ChefHat className="h-4 w-4" />,
+    color: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    description: "Currently cooking",
+  },
+  ready: {
+    label: "Ready",
+    icon: <Box className="h-4 w-4" />,
+    color: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+    description: "Ready for pickup/delivery",
+  },
+  out_for_delivery: {
+    label: "Out for Delivery",
+    icon: <Truck className="h-4 w-4" />,
+    color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
+    description: "Driver is on the way",
+  },
+  delivered: {
+    label: "Delivered",
+    icon: <CheckCheck className="h-4 w-4" />,
+    color: "bg-green-500/10 text-green-600 border-green-500/20",
+    description: "Customer received the order",
+  },
+  completed: {
+    label: "Completed",
+    icon: <CheckCircle className="h-4 w-4" />,
+    color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    description: "Order finished",
+  },
+  cancelled: {
+    label: "Cancelled",
+    icon: <X className="h-4 w-4" />,
+    color: "bg-red-500/10 text-red-600 border-red-500/20",
+    description: "Order cancelled",
+  },
+};
+
+// Action buttons configuration for each status
+const ACTION_BUTTONS: Record<OrderStatus, Array<{
+  action: OrderStatus;
+  label: string;
+  icon: React.ReactNode;
+  variant: "default" | "secondary" | "outline" | "destructive";
+}>> = {
+  pending: [
+    { action: "confirmed", label: "Accept Order", icon: <CheckCircle className="h-4 w-4" />, variant: "default" },
+    { action: "cancelled", label: "Cancel Order", icon: <X className="h-4 w-4" />, variant: "destructive" },
+  ],
+  confirmed: [
+    { action: "preparing", label: "Start Preparing", icon: <Play className="h-4 w-4" />, variant: "default" },
+    { action: "cancelled", label: "Cancel Order", icon: <X className="h-4 w-4" />, variant: "destructive" },
+  ],
+  preparing: [
+    { action: "ready", label: "Mark Ready", icon: <Box className="h-4 w-4" />, variant: "default" },
+    { action: "cancelled", label: "Cancel Order", icon: <X className="h-4 w-4" />, variant: "destructive" },
+  ],
+  ready: [
+    { action: "out_for_delivery", label: "Handover to Driver", icon: <Truck className="h-4 w-4" />, variant: "default" },
+    { action: "cancelled", label: "Cancel Order", icon: <X className="h-4 w-4" />, variant: "destructive" },
+  ],
+  out_for_delivery: [
+    // Partners cannot change status once handed to driver
+  ],
+  delivered: [
+    // Partners cannot change status - only customer can mark as completed
+  ],
+  completed: [
+    // No actions for completed orders
+  ],
+  cancelled: [
+    // No actions for cancelled orders
+  ],
+};
+
+// Status flow visualization
+const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered", "completed"];
 
 interface ScheduleAddon {
   id: string;
@@ -89,7 +186,7 @@ const PartnerOrders = () => {
 
   const [loading, setLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [restaurantName, setRestaurantName] = useState("");
+  const [restaurantName, setRestaurantName] = useState<string>("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState("active");
 
@@ -190,7 +287,6 @@ const PartnerOrders = () => {
       // Get user info from auth
       const userIds = [...new Set((schedules || []).map((s: any) => s.user_id))];
       
-      const profilesMap: Record<string, any> = {};
       let addressesMap: Record<string, any> = {};
       
       if (userIds.length > 0) {
@@ -236,34 +332,8 @@ const PartnerOrders = () => {
         }
       }
 
-      // Fetch driver assignments
-      let driversMap: Record<string, any> = {};
-      if (scheduleIds.length > 0) {
-        const { data: deliveries } = await supabase
-          .from("deliveries")
-          .select(`
-            schedule_id,
-            driver_id,
-            driver:drivers (
-              id,
-              user_id
-            )
-          `)
-          .in("schedule_id", scheduleIds)
-          .not("driver_id", "is", null);
-        
-        if (deliveries) {
-          driversMap = (deliveries as any[]).reduce((acc: any, d: any) => {
-            if (d.driver_id) {
-              acc[d.schedule_id] = {
-                id: d.driver_id,
-                full_name: null, // Will fetch separately if needed
-              };
-            }
-            return acc;
-          }, {});
-        }
-      }
+      // Fetch driver assignments (commented out until deliveries table is in types)
+      const driversMap: Record<string, any> = {};
 
       // Transform data
       const transformedOrders: Order[] = (schedules || []).map((s: any) => ({
@@ -276,7 +346,7 @@ const PartnerOrders = () => {
         addons_total: s.addons_total || 0,
         created_at: s.created_at,
         meal: s.meals,
-        customer: null, // Simplified for now
+        customer: null,
         delivery_address: addressesMap[s.user_id] ? {
           address_line1: addressesMap[s.user_id].address_line1,
           address_line2: addressesMap[s.user_id].address_line2,
@@ -303,16 +373,18 @@ const PartnerOrders = () => {
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      const { error } = await supabase
+      // Direct update to meal_schedules (database trigger will validate)
+      const { error: updateError } = await supabase
         .from("meal_schedules")
         .update({ order_status: newStatus })
         .eq("id", orderId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
+      const statusLabel = STATUS_CONFIG[newStatus].label;
       toast({
         title: "Status updated",
-        description: `Order marked as ${newStatus}`,
+        description: `Order marked as ${statusLabel}`,
       });
 
       // Update local state
@@ -321,22 +393,22 @@ const PartnerOrders = () => {
           o.id === orderId ? { ...o, order_status: newStatus } : o
         )
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating order:", error);
       toast({
         title: "Error",
-        description: "Failed to update order status",
+        description: error.message || "Failed to update order status",
         variant: "destructive",
       });
     }
   };
 
   const activeOrders = orders.filter((o) => 
-    o.order_status !== "delivered" && o.order_status !== "cancelled"
+    o.order_status !== "completed" && o.order_status !== "cancelled"
   );
   
   const completedOrders = orders.filter((o) => 
-    o.order_status === "delivered"
+    o.order_status === "completed" || o.order_status === "cancelled"
   );
 
   if (loading) {
@@ -351,11 +423,58 @@ const PartnerOrders = () => {
     );
   }
 
-  const getStatusConfig = (status: OrderStatus) => {
-    return ORDER_STATUSES.find(s => s.value === status) || ORDER_STATUSES[0];
+  // Status Progress Bar Component
+  const StatusProgressBar = ({ currentStatus }: { currentStatus: OrderStatus }) => {
+    if (currentStatus === "cancelled") {
+      return (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 p-2 rounded-lg">
+          <AlertCircle className="h-4 w-4" />
+          <span className="text-sm font-medium">Order Cancelled</span>
+        </div>
+      );
+    }
+
+    const currentIndex = STATUS_FLOW.indexOf(currentStatus);
+    
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+          <span>Progress</span>
+          <span>Step {currentIndex + 1} of {STATUS_FLOW.length}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {STATUS_FLOW.map((status, index) => {
+            const isActive = index <= currentIndex;
+            const isCurrent = index === currentIndex;
+            
+            return (
+              <div key={status} className="flex items-center flex-1">
+                <div 
+                  className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+                    isActive 
+                      ? isCurrent 
+                        ? "bg-primary" 
+                        : "bg-primary/60"
+                      : "bg-muted"
+                  }`}
+                />
+                {index < STATUS_FLOW.length - 1 && (
+                  <ArrowRight className="h-3 w-3 mx-0.5 text-muted-foreground" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+          <span>Order</span>
+          <span>Ready</span>
+          <span>Complete</span>
+        </div>
+      </div>
+    );
   };
 
-  const renderOrders = (ordersList: Order[], showStatusControl = false) => {
+  const renderOrders = (ordersList: Order[], showActions = false) => {
     if (ordersList.length === 0) {
       return (
         <Card>
@@ -368,15 +487,16 @@ const PartnerOrders = () => {
     }
 
     return ordersList.map((order) => {
-      const statusConfig = getStatusConfig(order.order_status);
+      const statusConfig = STATUS_CONFIG[order.order_status];
+      const availableActions = ACTION_BUTTONS[order.order_status] || [];
 
       return (
-        <Card key={order.id}>
+        <Card key={order.id} className="overflow-hidden">
           <CardContent className="p-4">
             {/* Order Header */}
             <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold">Order #{order.id.slice(0, 8)}</p>
                   <Badge variant="outline" className={statusConfig.color}>
                     <span className="flex items-center gap-1">
@@ -386,6 +506,9 @@ const PartnerOrders = () => {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
+                  {statusConfig.description}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
                   <Clock className="h-3 w-3 inline mr-1" />
                   {new Date(order.created_at).toLocaleDateString()} • {order.meal_type}
                 </p>
@@ -398,6 +521,11 @@ const PartnerOrders = () => {
                   </Badge>
                 </div>
               )}
+            </div>
+
+            {/* Status Progress Bar */}
+            <div className="mb-4">
+              <StatusProgressBar currentStatus={order.order_status} />
             </div>
 
             <Separator className="my-3" />
@@ -461,28 +589,40 @@ const PartnerOrders = () => {
               </div>
             )}
 
-            {/* Status Control */}
-            {showStatusControl && (
-              <div className="flex items-center gap-2 mt-4 pt-3 border-t">
-                <span className="text-sm text-muted-foreground">Update status:</span>
-                <Select
-                  value={order.order_status}
-                  onValueChange={(value) => updateOrderStatus(order.id, value as OrderStatus)}
-                >
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDER_STATUSES.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        <span className="flex items-center gap-2">
-                          {status.icon}
-                          {status.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Action Buttons */}
+            {showActions && availableActions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t">
+                <span className="text-sm text-muted-foreground mr-2">Next action:</span>
+                {availableActions.map((action) => (
+                  <Button
+                    key={action.action}
+                    size="sm"
+                    variant={action.variant}
+                    onClick={() => updateOrderStatus(order.id, action.action)}
+                    className="flex items-center gap-1"
+                  >
+                    {action.icon}
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {/* Delivery Handoff Section - Show for ready/out_for_delivery orders */}
+            {(order.order_status === "ready" || order.order_status === "out_for_delivery") && (
+              <div className="mt-4 pt-3 border-t">
+                <PartnerDeliveryHandoff 
+                  scheduleId={order.id} 
+                  restaurantName={restaurantName}
+                />
+              </div>
+            )}
+
+            {/* Waiting Message */}
+            {showActions && availableActions.length === 0 && order.order_status === "out_for_delivery" && (
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+                <Truck className="h-4 w-4" />
+                <span>Driver is delivering this order. No action needed.</span>
               </div>
             )}
           </CardContent>
@@ -496,7 +636,7 @@ const PartnerOrders = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-2 w-full mb-6">
           <TabsTrigger value="active" className="relative">
-            Active
+            Active Orders
             {activeOrders.length > 0 && (
               <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
                 {activeOrders.length}

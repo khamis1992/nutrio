@@ -14,6 +14,9 @@ interface Profile {
   target_weight_kg: number | null;
   health_goal: "lose" | "gain" | "maintain" | null;
   activity_level: "sedentary" | "light" | "moderate" | "active" | "very_active" | null;
+  training_days_per_week: number | null;
+  food_preferences: string[] | null;
+  allergies: string[] | null;
   daily_calorie_target: number | null;
   protein_target_g: number | null;
   carbs_target_g: number | null;

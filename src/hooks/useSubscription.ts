@@ -8,10 +8,14 @@ export interface Subscription {
   status: string;
   start_date: string;
   end_date: string;
+  meals_per_month: number;
+  meals_used_this_month: number;
+  month_start_date: string;
   meals_per_week: number;
   meals_used_this_week: number;
   week_start_date: string;
   tier: 'basic' | 'standard' | 'premium' | 'vip';
+  active: boolean | null;
 }
 
 interface UseSubscriptionReturn {
@@ -20,6 +24,8 @@ interface UseSubscriptionReturn {
   hasActiveSubscription: boolean;
   isPaused: boolean;
   remainingMeals: number;
+  totalMeals: number;
+  mealsUsed: number;
   isUnlimited: boolean;
   isVip: boolean;
   canOrderMeal: boolean;
@@ -42,12 +48,13 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
 
     try {
-      // Fetch active or paused subscription
+      // Fetch active, pending, or cancelled (not yet expired) subscriptions
+      const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("id, plan, status, start_date, end_date, meals_per_week, meals_used_this_week, week_start_date, tier")
+        .select("id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active")
         .eq("user_id", user.id)
-        .in("status", ["active", "pending"])
+        .or(`status.in.("active","pending"),and(status.eq."cancelled",end_date.gte.${today})`)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -56,15 +63,19 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
       if (data) {
         setSubscription({
-          id: data.id,
-          plan: data.plan,
-          status: data.status,
-          start_date: data.start_date,
-          end_date: data.end_date,
+          id: data.id!,
+          plan: data.plan!,
+          status: data.status!,
+          start_date: data.start_date!,
+          end_date: data.end_date!,
+          meals_per_month: data.meals_per_month ?? 0,
+          meals_used_this_month: data.meals_used_this_month ?? 0,
+          month_start_date: data.month_start_date || new Date().toISOString().split('T')[0],
           meals_per_week: data.meals_per_week ?? 5,
           meals_used_this_week: data.meals_used_this_week ?? 0,
           week_start_date: data.week_start_date || new Date().toISOString().split('T')[0],
           tier: (data.tier as 'basic' | 'standard' | 'premium' | 'vip') || 'basic',
+          active: data.active,
         });
       } else {
         setSubscription(null);
@@ -81,16 +92,23 @@ export const useSubscription = (): UseSubscriptionReturn => {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  const hasActiveSubscription = subscription?.status === "active";
-  const isPaused = subscription?.status === "pending";
+  // User has an active subscription if status is active OR if cancelled but not yet expired
+  const hasActiveSubscription: boolean = Boolean(
+    subscription?.status === "active" || 
+    (subscription?.status === "cancelled" && subscription?.end_date && new Date(subscription.end_date) >= new Date())
+  );
+  const isPaused: boolean = subscription?.status === "pending";
   const isVip = subscription?.tier === "vip";
   
-  // VIP tier gets unlimited meals (meals_per_week = 0)
-  const isUnlimited = subscription?.tier === "vip" || subscription?.meals_per_week === 0;
+  // VIP tier gets unlimited meals (meals_per_month = 0)
+  const isUnlimited = subscription?.tier === "vip" || subscription?.meals_per_month === 0;
   
+  // Use monthly values
+  const totalMeals = isUnlimited ? 0 : (subscription?.meals_per_month || 0);
+  const mealsUsed = subscription?.meals_used_this_month || 0;
   const remainingMeals = isUnlimited 
     ? Infinity 
-    : Math.max(0, (subscription?.meals_per_week || 0) - (subscription?.meals_used_this_week || 0));
+    : Math.max(0, totalMeals - mealsUsed);
   
   const canOrderMeal = hasActiveSubscription && (isUnlimited || remainingMeals > 0);
 
@@ -98,8 +116,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
     if (!subscription || !canOrderMeal) return false;
 
     try {
-      const { data, error } = await supabase.rpc("increment_meal_usage", {
-        subscription_id: subscription.id,
+      // Use the new monthly increment function
+      const { data, error } = await (supabase as unknown as { rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: boolean | null; error: Error | null }> }).rpc("increment_monthly_meal_usage", {
+        p_subscription_id: subscription.id,
       });
 
       if (error) throw error;
@@ -160,6 +179,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
     hasActiveSubscription,
     isPaused,
     remainingMeals,
+    totalMeals,
+    mealsUsed,
     isUnlimited,
     isVip,
     canOrderMeal,

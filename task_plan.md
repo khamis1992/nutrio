@@ -1,129 +1,245 @@
-# Task Plan: Admin Dashboard Pages Integration Analysis
+# Implementation Plan: Leaflet Map Integration for Live Driver Tracking
 
 ## Goal
-Analyze all admin dashboard pages and ensure they are fully integrated with the system, fix any issues, and standardize the UI to match the design system.
+Add interactive Leaflet maps to the Nutrio Fuel driver tracking system, enabling real-time driver location visualization, route tracking, and dynamic ETA calculations for both customers and drivers.
 
-## Admin Pages to Analyze
-1. ✅ AdminDashboard.tsx - Dashboard overview
-2. ✅ AdminUsers.tsx - User management
-3. ✅ AdminRestaurants.tsx - Restaurant management
-4. ✅ AdminOrders.tsx - Order management
-5. ✅ AdminSubscriptions.tsx - Subscription management
-6. ✅ AdminPayouts.tsx - Partner payouts
-7. ✅ AdminAffiliatePayouts.tsx - Affiliate payouts
-8. ✅ AdminAffiliateApplications.tsx - Affiliate applications
-9. ✅ AdminMilestones.tsx - Referral milestones
-10. ✅ AdminDietTags.tsx - Dietary tags
-11. ✅ AdminPromotions.tsx - Promotions/coupons
-12. ✅ AdminNotifications.tsx - Announcements
-13. ✅ AdminSupport.tsx - Support tickets
-14. ✅ AdminFeatured.tsx - Featured listings
-15. ✅ AdminAnalytics.tsx - Analytics
-16. ✅ AdminExports.tsx - Data exports
-17. ✅ AdminSettings.tsx - Platform settings
-18. ✅ AdminDrivers.tsx - Driver management
-19. ✅ AdminIPManagement.tsx - IP blocking
+## Current State Analysis
 
-## Analysis Criteria
-- [ ] Database integration (correct queries, proper error handling)
-- [ ] UI consistency (stats cards, tables, tabs matching design system)
-- [ ] Currency format (QAR instead of $)
-- [ ] Proper TypeScript types
-- [ ] Working functionality (CRUD operations)
-- [ ] Error handling and loading states
-- [ ] Bulk actions and export functionality
-- [ ] Responsive design (mobile-friendly)
+### What Exists
+- ✅ Real-time GPS tracking (10-second updates)
+- ✅ Location storage in database (PostGIS POINT)
+- ✅ Speed, heading, accuracy metadata
+- ✅ Supabase realtime subscriptions
+- ✅ Customer and driver tracking UIs (text-based)
+- ✅ Admin delivery monitoring
 
-## Phases
-- [x] Phase 1: Create plan and identify all admin pages
-- [ ] Phase 2: Analyze each page for integration issues
-- [ ] Phase 3: Fix identified issues
-- [ ] Phase 4: Run typecheck and lint
-- [ ] Phase 5: Final review and summary
+### What's Missing
+- ❌ Interactive map visualization
+- ❌ Route tracking/path history (polyline)
+- ❌ Dynamic ETA based on real-time position
+- ❌ In-app turn-by-turn navigation
+- ❌ Visual driver location on customer view
+
+## Implementation Phases
+
+### Phase 1: Setup & Dependencies (30 mins)
+- [ ] Install Leaflet and React-Leaflet packages
+- [ ] Add Leaflet CSS to index.html
+- [ ] Create MapProvider context for map state management
+- [ ] Add map tile configuration (OpenStreetMap default)
+- [ ] Create base Map component wrapper
+
+**Dependencies to install:**
+```bash
+npm install leaflet react-leaflet @types/leaflet
+```
+
+**Files to modify:**
+- `package.json` - add dependencies
+- `src/index.html` - add Leaflet CSS CDN
+- `src/main.tsx` - import Leaflet CSS
+
+### Phase 2: Core Map Components (1 hour)
+- [ ] Create `MapContainer` component with responsive sizing
+- [ ] Create `DriverMarker` component with animated pulse effect
+- [ ] Create `RoutePolyline` component for path visualization
+- [ ] Create `RestaurantMarker` and `CustomerMarker` components
+- [ ] Create `MapBounds` component to auto-fit all markers
+- [ ] Add map controls (zoom, fullscreen option)
+
+**New files:**
+- `src/components/maps/MapContainer.tsx`
+- `src/components/maps/DriverMarker.tsx`
+- `src/components/maps/RoutePolyline.tsx`
+- `src/components/maps/Markers.tsx`
+- `src/components/maps/index.ts`
+
+### Phase 3: Customer Delivery Tracking Map (1.5 hours)
+- [ ] Update `CustomerDeliveryTracker` to include map
+- [ ] Show driver current position with animated marker
+- [ ] Show restaurant pickup location
+- [ ] Show customer delivery location
+- [ ] Display route polyline (driver path history)
+- [ ] Auto-center map on driver position updates
+- [ ] Add distance remaining calculation
+- [ ] Style map for mobile responsiveness
+
+**Files to modify:**
+- `src/components/customer/CustomerDeliveryTracker.tsx`
+- `src/pages/DeliveryTracking.tsx`
+
+### Phase 4: Driver Navigation Map (1.5 hours)
+- [ ] Create `DriverNavigationMap` component
+- [ ] Show current driver position
+- [ ] Show route to pickup (restaurant)
+- [ ] Show route to delivery (customer)
+- [ ] Display turn-by-turn instructions (basic)
+- [ ] Add "Navigate with Google Maps" fallback button
+- [ ] Optimize for mobile/driver view
+
+**New files:**
+- `src/components/driver/DriverNavigationMap.tsx`
+
+### Phase 5: Admin Live Map Dashboard (1 hour)
+- [ ] Create `AdminLiveMap` component
+- [ ] Show all online drivers as markers
+- [ ] Show all active deliveries
+- [ ] Cluster markers when zoomed out
+- [ ] Click driver to see details and assigned job
+- [ ] Click delivery to see route
+
+**New files:**
+- `src/components/admin/AdminLiveMap.tsx`
+- Update `src/pages/admin/AdminDeliveries.tsx`
+
+### Phase 6: Route History & Polyline (1 hour)
+- [ ] Fetch driver location history from database
+- [ ] Create polyline from location points
+- [ ] Color-code polyline by speed (green=slow, red=fast)
+- [ ] Show path only for current delivery job
+- [ ] Clear polyline when delivery completes
+
+**Files to modify:**
+- `src/integrations/supabase/delivery.ts` - add fetchLocationHistory
+- Map components to display polyline
+
+### Phase 7: Dynamic ETA Calculation (45 mins)
+- [ ] Create ETA calculation utility
+- [ ] Use Haversine distance + average speed
+- [ ] Consider traffic (optional: Google Distance Matrix API)
+- [ ] Update ETA every location update
+- [ ] Show ETA in customer view
+- [ ] Show ETA in driver view
+
+**New files:**
+- `src/lib/eta-calculator.ts`
+
+### Phase 8: Styling & Polish (45 mins)
+- [ ] Create custom marker icons (driver car, restaurant, customer home)
+- [ ] Add pulse animation for driver marker
+- [ ] Style map container for dark/light theme
+- [ ] Add loading states for map
+- [ ] Handle map errors gracefully
+- [ ] Mobile touch optimization
+
+### Phase 9: Testing & Integration (30 mins)
+- [ ] Test with real location updates
+- [ ] Verify real-time marker movement
+- [ ] Test mobile responsiveness
+- [ ] Check performance with many markers
+- [ ] Verify polyline renders correctly
+- [ ] Test admin dashboard with multiple drivers
+
+## Technical Architecture
+
+### Data Flow
+```
+Driver GPS (10s) → DriverLayout → delivery.ts API → Supabase DB
+                                              ↓
+Customer Map ← Realtime Sub ← driver_locations table
+```
+
+### Map State Management
+```typescript
+interface MapState {
+  driverLocation: { lat: number; lng: number } | null;
+  restaurantLocation: { lat: number; lng: number } | null;
+  customerLocation: { lat: number; lng: number } | null;
+  routeHistory: Array<{ lat: number; lng: number }>;
+  eta: string | null;
+  distanceRemaining: number | null;
+}
+```
+
+### Key Components Structure
+```
+src/components/maps/
+├── MapContainer.tsx      # Base map with tile layer
+├── DriverMarker.tsx      # Animated driver position marker
+├── RoutePolyline.tsx     # Path visualization
+├── Markers.tsx           # Restaurant & customer markers
+├── MapBounds.tsx         # Auto-fit markers
+└── index.ts              # Exports
+
+src/components/driver/
+├── DriverNavigationMap.tsx   # Driver-side navigation
+
+src/components/admin/
+├── AdminLiveMap.tsx          # Admin dashboard map
+
+src/lib/
+├── eta-calculator.ts         # ETA calculation utilities
+```
+
+## Design Decisions
+
+### Map Provider
+- **OpenStreetMap** (free, no API key needed)
+- Optional: Mapbox for custom styling (requires API key)
+
+### Marker Icons
+- Driver: Custom car icon with rotation based on heading
+- Restaurant: Utensils icon (FontAwesome/Lucide)
+- Customer: Home icon
+
+### Color Scheme
+- Route polyline: Gradient based on speed or single brand color
+- Driver marker: Primary brand color with pulse animation
+- Restaurant: Orange/amber
+- Customer: Green/emerald
+
+### Mobile Considerations
+- Maps should be full-width on mobile
+- Minimize height to 300-400px to show other info
+- Touch gestures enabled (pinch zoom, pan)
+- Driver view optimized for landscape if needed
+
+## Database Queries Needed
+
+### Fetch Location History
+```typescript
+const { data } = await supabase
+  .from('driver_locations')
+  .select('lat, lng, timestamp, speed_kmh')
+  .eq('driver_id', driverId)
+  .gte('timestamp', deliveryStartTime)
+  .order('timestamp', { ascending: true });
+```
+
+## Testing Checklist
+
+- [ ] Map loads correctly on customer page
+- [ ] Driver marker updates in real-time
+- [ ] Polyline shows path from pickup to current position
+- [ ] Map auto-centers on driver
+- [ ] Mobile view is responsive
+- [ ] Admin dashboard shows all drivers
+- [ ] ETA updates correctly
+- [ ] No console errors
+- [ ] Performance is smooth (< 60fps)
+
+## Estimated Timeline
+
+**Total: ~8 hours**
+- Phase 1: 30 mins
+- Phase 2: 1 hour
+- Phase 3: 1.5 hours
+- Phase 4: 1.5 hours
+- Phase 5: 1 hour
+- Phase 6: 1 hour
+- Phase 7: 45 mins
+- Phase 8: 45 mins
+- Phase 9: 30 mins
+
+## Success Criteria
+
+1. ✅ Customers can see driver's live position on a map
+2. ✅ Route path is visible from restaurant to current position
+3. ✅ ETA updates dynamically based on driver speed and distance
+4. ✅ Drivers have a navigation view with pickup and delivery locations
+5. ✅ Admins can see all online drivers on a live map
+6. ✅ Maps work smoothly on mobile devices
+7. ✅ Location updates happen in real-time (10-second intervals)
 
 ## Status
-**COMPLETED** - All priorities addressed
-
-## Summary
-
-### ✅ HIGH PRIORITY COMPLETED
-1. **AdminDrivers.tsx Profile Integration** - Fixed
-   - Now fetches and displays driver profiles from `profiles` table
-   - Shows full name and email for each driver
-   - Merged data properly with error handling
-
-### ✅ MEDIUM PRIORITY COMPLETED  
-All 7 basic pages redesigned to match the card-based design system:
-2. **AdminDietTags.tsx** - Already had good design
-3. **AdminPromotions.tsx** - Added stats cards, tabs, redesign
-4. **AdminSupport.tsx** - Added stats cards, button tabs, detail sheet
-5. **AdminFeatured.tsx** - Added stats cards, tab navigation
-6. **AdminExports.tsx** - Added stats cards, redesigned layout
-7. **AdminIPManagement.tsx** - Added stats cards, tab navigation
-8. **AdminAnalytics.tsx** - Added date ranges, stats cards
-
-### ✅ LOW PRIORITY COMPLETED
-9. **AdminExports.tsx Enhancements:**
-   - Added Restaurants export
-   - Added Drivers export
-   - Added Commission Report export
-   - Custom date range picker
-   - Stats cards showing record counts
-
-10. **AdminAnalytics.tsx Enhancements:**
-    - Date range selector (Last 7/30/90 days, Custom)
-    - Stats cards at top
-    - Real data integration from database
-    - Multiple chart types
-
-## Overall Status: 100% COMPLETE
-All admin pages are now:
-- ✅ Fully integrated with database
-- ✅ Following the card-based design system
-- ✅ Consistent UI patterns
-- ✅ TypeScript error-free
-- ✅ Production-ready
-
-## Findings
-
-### ✅ Fully Integrated (12 pages)
-- AdminDashboard, AdminUsers, AdminRestaurants, AdminOrders
-- AdminSubscriptions, AdminPayouts, AdminAffiliatePayouts
-- AdminAffiliateApplications, AdminMilestones, AdminNotifications
-- AdminSettings
-
-### ⚠️ Functional but Basic Design (7 pages)
-- AdminDietTags, AdminPromotions, AdminSupport, AdminFeatured
-- AdminExports, AdminDrivers, AdminIPManagement, AdminAnalytics
-
-### 🔧 Issues Fixed
-- All currency labels changed from $ to QAR
-- TypeScript errors fixed in AdminSettings.tsx
-- Database queries verified for all pages
-
-### 📊 Overall Status: 95% Complete
-All pages are functionally working and integrated. Only cosmetic improvements needed for design consistency.
-
-## Notes
-Some pages have already been redesigned:
-- AdminUsers.tsx - Redesigned with IP management
-- AdminRestaurants.tsx - Redesigned with approval workflow
-- AdminAffiliateApplications.tsx - Redesigned
-- AdminOrders.tsx - Redesigned
-- AdminSubscriptions.tsx - Redesigned
-- AdminPayouts.tsx - Redesigned
-- AdminAffiliatePayouts.tsx - Redesigned
-- AdminMilestones.tsx - Fixed currency display
-- AdminNotifications.tsx - Consolidated with announcements
-
-Pages needing review:
-- AdminDashboard.tsx
-- AdminDietTags.tsx
-- AdminPromotions.tsx
-- AdminSupport.tsx
-- AdminFeatured.tsx
-- AdminAnalytics.tsx
-- AdminExports.tsx
-- AdminDrivers.tsx
-- AdminIPManagement.tsx
-- AdminSettings.tsx (just completed)
+**Currently in Phase 1** - Setting up dependencies and base components

@@ -44,16 +44,77 @@ import {
   RefreshCw,
   Loader2,
   DollarSign,
+  XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
 
+// Order status type matching database
+type OrderStatus = 
+  | "pending" 
+  | "confirmed" 
+  | "preparing" 
+  | "ready" 
+  | "out_for_delivery" 
+  | "delivered" 
+  | "completed" 
+  | "cancelled";
+
+// Status configuration for display
+const STATUS_CONFIG: Record<OrderStatus, { 
+  label: string; 
+  color: string;
+  bgColor: string;
+}> = {
+  pending: {
+    label: "Pending",
+    color: "text-amber-600",
+    bgColor: "bg-amber-500/10 border-amber-500/20",
+  },
+  confirmed: {
+    label: "Confirmed",
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10 border-blue-500/20",
+  },
+  preparing: {
+    label: "Preparing",
+    color: "text-purple-600",
+    bgColor: "bg-purple-500/10 border-purple-500/20",
+  },
+  ready: {
+    label: "Ready",
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-500/10 border-cyan-500/20",
+  },
+  out_for_delivery: {
+    label: "Out for Delivery",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-500/10 border-indigo-500/20",
+  },
+  delivered: {
+    label: "Delivered",
+    color: "text-green-600",
+    bgColor: "bg-green-500/10 border-green-500/20",
+  },
+  completed: {
+    label: "Completed",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-500/10 border-emerald-500/20",
+  },
+  cancelled: {
+    label: "Cancelled",
+    color: "text-red-600",
+    bgColor: "bg-red-500/10 border-red-500/20",
+  },
+};
+
 interface OrderData {
   id: string;
   scheduled_date: string;
   meal_type: string;
+  order_status: OrderStatus;
   is_completed: boolean;
   created_at: string;
   meal: {
@@ -98,6 +159,7 @@ const AdminOrders = () => {
           scheduled_date,
           meal_type,
           is_completed,
+          order_status,
           created_at,
           user_id,
           meal_id
@@ -150,18 +212,18 @@ const AdminOrders = () => {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, full_name, email")
+          .select("user_id, full_name")
           .in("user_id", userIds);
 
         if (profiles) {
-          profilesMap = profiles.reduce((acc, p) => {
-            acc[p.user_id] = { full_name: p.full_name, email: p.email };
+          profilesMap = profiles.reduce((acc, p: any) => {
+            acc[p.user_id] = { full_name: p.full_name };
             return acc;
-          }, {} as Record<string, { full_name: string | null; email?: string }>);
+          }, {} as Record<string, { full_name: string | null }>);
         }
       }
 
-      const ordersWithDetails: OrderData[] = (schedulesData || []).map((o) => {
+      const ordersWithDetails: OrderData[] = (schedulesData || []).map((o: any) => {
         const meal = mealsMap[o.meal_id] || { name: "Unknown", price: 0, restaurant_id: "" };
         const restaurant = restaurantsMap[meal.restaurant_id] || { name: "Unknown" };
         
@@ -169,6 +231,7 @@ const AdminOrders = () => {
           id: o.id,
           scheduled_date: o.scheduled_date,
           meal_type: o.meal_type,
+          order_status: (o.order_status || "pending") as OrderStatus,
           is_completed: o.is_completed || false,
           created_at: o.created_at,
           meal: {
@@ -234,7 +297,7 @@ const AdminOrders = () => {
       o.meal_type,
       formatCurrency(o.meal.price),
       o.scheduled_date,
-      o.is_completed ? "Completed" : o.scheduled_date < today ? "Overdue" : "Pending",
+      STATUS_CONFIG[o.order_status]?.label || o.order_status,
       format(new Date(o.created_at), "yyyy-MM-dd HH:mm"),
     ]);
     
@@ -250,6 +313,44 @@ const AdminOrders = () => {
     toast({ title: "Export Complete", description: `${rows.length} orders exported to CSV.` });
   };
 
+  // Cancel order function for admin
+  const cancelOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from("meal_schedules")
+        .update({ order_status: "cancelled" })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId ? { ...o, order_status: "cancelled" as OrderStatus } : o
+        )
+      );
+
+      // If detail view is open, update selected order too
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev) =>
+          prev ? { ...prev, order_status: "cancelled" as OrderStatus } : null
+        );
+      }
+
+      toast({
+        title: "Order Cancelled",
+        description: "The order has been cancelled successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error cancelling order:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel order",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredOrders = orders
     .filter((o) => {
       const matchesSearch =
@@ -260,9 +361,9 @@ const AdminOrders = () => {
 
       if (activeTab === "all") return matchesSearch;
       if (activeTab === "today") return matchesSearch && o.scheduled_date === today;
-      if (activeTab === "upcoming") return matchesSearch && !o.is_completed && o.scheduled_date >= today;
-      if (activeTab === "completed") return matchesSearch && o.is_completed;
-      if (activeTab === "overdue") return matchesSearch && !o.is_completed && o.scheduled_date < today;
+      if (activeTab === "upcoming") return matchesSearch && o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date >= today;
+      if (activeTab === "completed") return matchesSearch && o.order_status === "completed";
+      if (activeTab === "overdue") return matchesSearch && o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date < today;
 
       return matchesSearch;
     })
@@ -279,37 +380,22 @@ const AdminOrders = () => {
     });
 
   const getStatusBadge = (order: OrderData) => {
-    if (order.is_completed) {
-      return (
-        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-          <CheckCircle className="h-3 w-3 mr-1" />
-          Completed
-        </Badge>
-      );
-    } else if (order.scheduled_date < today) {
-      return (
-        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-          <Clock className="h-3 w-3 mr-1" />
-          Overdue
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-          <Clock className="h-3 w-3 mr-1" />
-          Pending
-        </Badge>
-      );
-    }
+    const config = STATUS_CONFIG[order.order_status];
+    return (
+      <Badge variant="outline" className={config?.bgColor || "bg-gray-500/10 text-gray-600 border-gray-500/20"}>
+        <CheckCircle className="h-3 w-3 mr-1" />
+        {config?.label || order.order_status}
+      </Badge>
+    );
   };
 
   // Calculate stats
   const stats = {
     total: orders.length,
     today: orders.filter((o) => o.scheduled_date === today).length,
-    upcoming: orders.filter((o) => !o.is_completed && o.scheduled_date >= today).length,
-    completed: orders.filter((o) => o.is_completed).length,
-    overdue: orders.filter((o) => !o.is_completed && o.scheduled_date < today).length,
+    upcoming: orders.filter((o) => o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date >= today).length,
+    completed: orders.filter((o) => o.order_status === "completed").length,
+    overdue: orders.filter((o) => o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date < today).length,
     totalRevenue: orders.reduce((sum, o) => sum + o.meal.price, 0),
   };
 
@@ -577,10 +663,23 @@ const AdminOrders = () => {
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {!order.is_completed && (
-                              <DropdownMenuItem className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-500/10">
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Mark as Completed
+                            {order.order_status !== "completed" && order.order_status !== "cancelled" && (
+                              <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to cancel this order?")) {
+                                    cancelOrder(order.id);
+                                  }
+                                }}
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Cancel Order
+                              </DropdownMenuItem>
+                            )}
+                            {order.order_status === "cancelled" && (
+                              <DropdownMenuItem disabled>
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Order Cancelled
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -682,15 +781,25 @@ const AdminOrders = () => {
                   </Card>
 
                   {/* Actions */}
-                  {!selectedOrder.is_completed && (
+                  {selectedOrder.order_status !== "completed" && selectedOrder.order_status !== "cancelled" && (
                     <div className="flex gap-2">
-                      <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Mark as Completed
-                      </Button>
-                      <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        onClick={() => {
+                          if (confirm("Are you sure you want to cancel this order?")) {
+                            cancelOrder(selectedOrder.id);
+                          }
+                        }}
+                      >
                         Cancel Order
                       </Button>
+                    </div>
+                  )}
+                  
+                  {selectedOrder.order_status === "cancelled" && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-600 font-medium">This order has been cancelled</p>
                     </div>
                   )}
                 </div>
