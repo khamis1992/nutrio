@@ -627,6 +627,7 @@ return (
               </Card>
             )}
           </>
+          </>
         )}
 
         {/* WEEK TAB */}
