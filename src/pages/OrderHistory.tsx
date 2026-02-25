@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { OneTapReorder } from "@/components/OneTapReorder";
 import { 
   ArrowLeft, 
   Package,
@@ -868,21 +869,24 @@ const OrderHistory = () => {
                           </Badge>
                         </div>
 
-                        {/* Reorder Button */}
-                        {order.status === "delivered" && (
-                          <Button
+                        {/* One-Tap Reorder Button */}
+                        {(order.status === "delivered" || order.status === "completed") && (
+                          <OneTapReorder
+                            orderId={order.id}
+                            items={order.order_items.map((item) => ({
+                              meal_id: item.meal_id,
+                              meal_name: item.meal?.name || "Unknown Meal",
+                              quantity: item.quantity,
+                              price: 0, // Subscription orders have no price
+                              image_url: item.meal?.image_url,
+                              restaurant_id: order.restaurant_id || undefined,
+                              restaurant_name: order.restaurant?.name,
+                            }))}
+                            orderTotal={0}
                             variant="outline"
+                            size="default"
                             className="w-full mt-3"
-                            onClick={() => handleReorder(order)}
-                            disabled={reordering === order.id}
-                          >
-                            {reordering === order.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                            )}
-                            Reorder
-                          </Button>
+                          />
                         )}
                       </CardContent>
                     </Card>

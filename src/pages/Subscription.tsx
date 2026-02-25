@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Shield,
   Clock,
-  RefreshCcw
+  RefreshCcw,
+  BadgePercent
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ import { useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
 import { supabase } from "@/integrations/supabase/client";
 import { RolloverCreditsWidget } from "@/components/RolloverCreditsWidget";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
+import { CancellationFlow } from "@/components/CancellationFlow";
+import { BillingIntervalToggle, calculateSavings, type BillingInterval } from "@/components/BillingIntervalToggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -66,98 +69,119 @@ interface PlanType {
   color: string;
 }
 
-const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
-  {
-    id: "basic",
-    name: "Basic",
-    price: pricing.basic_price,
-    period: "month",
-    mealsPerMonth: 22,
-    tier: 'basic',
-    description: "Perfect for getting started",
-    icon: Star,
-    features: [
-      "22 meals per month",
-      "Basic nutrition tracking",
-      "Email support",
-      "Access to 50+ restaurants",
-      "Weekly meal planning",
-    ],
-    popular: false,
-    isVip: false,
-    color: "from-slate-500 to-slate-600",
-  },
-  {
-    id: "standard",
-    name: "Standard",
-    price: pricing.premium_price,
-    period: "month",
-    mealsPerMonth: 43,
-    tier: 'standard',
-    description: "Most popular choice",
-    icon: Zap,
-    features: [
-      "43 meals per month",
-      "Advanced nutrition analytics",
-      "Priority support",
-      "Access to all restaurants",
-      "Custom meal planning",
-      "Dietitian consultations",
-      "Exclusive recipes",
-    ],
-    popular: true,
-    isVip: false,
-    color: "from-primary to-primary/80",
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    price: pricing.family_price,
-    period: "month",
-    mealsPerMonth: 65,
-    tier: 'premium',
-    description: "For serious fitness goals",
-    icon: Crown,
-    features: [
-      "65 meals per month",
-      "Real-time nutrition coaching",
-      "24/7 priority support",
-      "All restaurants + premium partners",
-      "AI-powered meal recommendations",
-      "Weekly dietitian sessions",
-      "Personalized meal prep guides",
-      "Family sharing (up to 4)",
-    ],
-    popular: false,
-    isVip: false,
-    color: "from-amber-500 to-amber-600",
-  },
-  {
-    id: "vip",
-    name: "VIP",
-    price: pricing.vip_price,
-    period: "month",
-    mealsPerMonth: 0,
-    tier: 'vip',
-    description: "Unlimited meals",
-    icon: Sparkles,
-    features: [
-      "♾️ Unlimited meals",
-      "Everything in Premium",
-      "🚀 Priority delivery",
-      "🌟 Exclusive VIP-only meals",
-      "👨‍⚕️ Personal nutrition coach",
-      "📱 1-on-1 weekly coaching",
-      "🏷️ Free delivery on all orders",
-      "⚡ Early access to new restaurants",
-      "💎 Dedicated VIP support",
-      "🎁 Monthly wellness perks",
-    ],
-    popular: false,
-    isVip: true,
-    color: "from-violet-500 to-purple-600",
-  },
-];
+const getPlans = (pricing: SubscriptionPricing, billingInterval: BillingInterval = "monthly"): PlanType[] => {
+  // Calculate annual prices (10 months = 2 months free, ~17% discount)
+  const getPrice = (monthlyPrice: number) => {
+    if (billingInterval === "annual") {
+      return monthlyPrice * 10; // 10 months price for annual
+    }
+    return monthlyPrice;
+  };
+
+  const getPeriod = () => billingInterval === "annual" ? "year" : "month";
+
+  // Add annual badge to features if annual
+  const getAnnualFeature = (features: string[]) => {
+    if (billingInterval === "annual") {
+      return [...features, "💰 2 months free (17% savings)"];
+    }
+    return features;
+  };
+
+  return [
+    {
+      id: "basic",
+      name: "Basic",
+      price: getPrice(pricing.basic_price),
+      period: getPeriod(),
+      mealsPerMonth: 22,
+      tier: 'basic',
+      description: "Perfect for getting started",
+      icon: Star,
+      features: getAnnualFeature([
+        "22 meals per month",
+        "Basic nutrition tracking",
+        "Email support",
+        "Access to 50+ restaurants",
+        "Weekly meal planning",
+      ]),
+      popular: false,
+      isVip: false,
+      color: "from-slate-500 to-slate-600",
+    },
+    {
+      id: "standard",
+      name: "Standard",
+      price: getPrice(pricing.premium_price),
+      period: getPeriod(),
+      mealsPerMonth: 43,
+      tier: 'standard',
+      description: "Most popular choice",
+      icon: Zap,
+      features: getAnnualFeature([
+        "43 meals per month",
+        "Advanced nutrition analytics",
+        "Priority support",
+        "Access to all restaurants",
+        "Custom meal planning",
+        "Dietitian consultations",
+        "Exclusive recipes",
+      ]),
+      popular: true,
+      isVip: false,
+      color: "from-primary to-primary/80",
+    },
+    {
+      id: "premium",
+      name: "Premium",
+      price: getPrice(pricing.family_price),
+      period: getPeriod(),
+      mealsPerMonth: 65,
+      tier: 'premium',
+      description: "For serious fitness goals",
+      icon: Crown,
+      features: getAnnualFeature([
+        "65 meals per month",
+        "Real-time nutrition coaching",
+        "24/7 priority support",
+        "All restaurants + premium partners",
+        "AI-powered meal recommendations",
+        "Weekly dietitian sessions",
+        "Personalized meal prep guides",
+        "Family sharing (up to 4)",
+      ]),
+      popular: false,
+      isVip: false,
+      color: "from-amber-500 to-amber-600",
+    },
+    {
+      id: "vip",
+      name: "VIP",
+      price: getPrice(pricing.vip_price),
+      period: getPeriod(),
+      mealsPerMonth: 0,
+      tier: 'vip',
+      description: "Unlimited meals",
+      icon: Sparkles,
+      features: [
+        "♾️ Unlimited meals",
+        "Everything in Premium",
+        "🚀 Priority delivery",
+        "🌟 Exclusive VIP-only meals",
+        "👨‍⚕️ Personal nutrition coach",
+        "📱 1-on-1 weekly coaching",
+        "🏷️ Free delivery on all orders",
+        "⚡ Early access to new restaurants",
+        "💎 Dedicated VIP support",
+        "🎁 Monthly wellness perks",
+        ...(billingInterval === "annual" ? ["💰 2 months free (17% savings)"] : []),
+      ],
+      popular: false,
+      isVip: true,
+      color: "from-violet-500 to-purple-600",
+    },
+  ];
+};
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
@@ -179,6 +203,7 @@ export default function SubscriptionPage() {
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
+  const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>("monthly");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch rollover credits
@@ -195,7 +220,7 @@ export default function SubscriptionPage() {
     vip_price: 860, // ~199.99 * 4.3
   };
 
-  const plans = getPlans(pricing);
+  const plans = getPlans(pricing, selectedBillingInterval);
 
   const handleUpgrade = async () => {
     if (!selectedPlan || !user || !subscription?.id) return;
@@ -207,53 +232,44 @@ export default function SubscriptionPage() {
         currentPlan: subscription.plan,
         newPlan: selectedPlan.tier,
         newMealsPerMonth: selectedPlan.mealsPerMonth,
+        billingInterval: selectedBillingInterval,
       });
 
-      // Update subscription plan in database
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .update({
-          plan: selectedPlan.tier,
-          tier: selectedPlan.tier,
-          meals_per_month: selectedPlan.mealsPerMonth,
-        })
-        .eq("id", subscription.id)
-        .select();
+      // Use the upgrade_subscription RPC for proper proration and billing interval handling
+      const { data: result, error } = await (supabase.rpc as any)("upgrade_subscription", {
+        p_subscription_id: subscription.id,
+        p_new_tier: selectedPlan.tier,
+        p_new_billing_interval: selectedBillingInterval,
+      });
 
-      console.log("Update result:", { data, error });
+      if (error) throw error;
 
-      if (error) {
-        console.error("Error updating subscription:", error);
-        toast({
-          title: "Error",
-          description: `Failed to update subscription: ${error.message}`,
-          variant: "destructive",
-        });
-        setIsProcessing(false);
-        return;
-      }
+      const upgradeResult = result as { 
+        success: boolean; 
+        error?: string; 
+        prorated_credit?: number; 
+        amount_due?: number;
+      };
 
-      if (data && data.length > 0) {
+      if (upgradeResult.success) {
+        const billingText = selectedBillingInterval === "annual" ? " (Annual billing - 17% savings)" : "";
         toast({
           title: "Plan Updated",
-          description: `Your subscription has been updated to ${selectedPlan.name} plan.`,
+          description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}. ${upgradeResult.prorated_credit ? `Prorated credit: ${upgradeResult.prorated_credit} QAR` : ""}`,
         });
         // Refresh subscription data without page reload
         await refetch();
         setShowUpgradeDialog(false);
         setSelectedPlan(null);
       } else {
-        toast({
-          title: "Error",
-          description: "No rows were updated. Please check your permissions.",
-          variant: "destructive",
-        });
+        throw new Error(upgradeResult.error || "Failed to update subscription");
       }
     } catch (err) {
       console.error("Error in handleUpgrade:", err);
+      const message = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: message,
         variant: "destructive",
       });
     }
@@ -261,43 +277,6 @@ export default function SubscriptionPage() {
     setIsProcessing(false);
   };
 
-  const handleCancel = async () => {
-    setIsProcessing(true);
-    
-    // Cancel subscription in database
-    if (subscription?.id) {
-      // Calculate end of current billing period
-      const currentEndDate = subscription.end_date 
-        ? new Date(subscription.end_date)
-        : addDays(new Date(), 30);
-      
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ 
-          status: "cancelled",
-          active: false,
-        })
-        .eq("id", subscription.id);
-
-      if (error) {
-        console.error("Cancel error:", error);
-        toast({
-          title: "Error",
-          description: `Failed to cancel subscription: ${error.message}`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Subscription Cancelled",
-          description: `Your subscription will remain active until ${format(currentEndDate, "MMM dd, yyyy")}. You can resubscribe anytime before then.`,
-        });
-        await refetch();
-      }
-    }
-    
-    setIsProcessing(false);
-    setShowCancelDialog(false);
-  };
 
   const handleReactivate = async () => {
     setIsProcessing(true);
@@ -373,6 +352,29 @@ export default function SubscriptionPage() {
             </p>
           </div>
 
+          {/* Billing Interval Toggle */}
+          <div className="max-w-md mx-auto mb-8">
+            <BillingIntervalToggle
+              value={selectedBillingInterval}
+              onChange={setSelectedBillingInterval}
+              savingsPercent={17}
+            />
+          </div>
+
+          {/* Annual Savings Banner */}
+          {selectedBillingInterval === "annual" && (
+            <div className="max-w-2xl mx-auto mb-8 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <BadgePercent className="h-5 w-5" />
+                <span className="font-semibold">Save 17% with Annual Billing!</span>
+              </div>
+              <p className="text-sm text-green-50">
+                Pay for 10 months, get 2 months completely free. 
+                Save up to {(pricing.vip_price * 2).toLocaleString()} QAR per year.
+              </p>
+            </div>
+          )}
+
           {/* Plans Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {plans.map((plan) => {
@@ -397,6 +399,11 @@ export default function SubscriptionPage() {
                     <div className="absolute top-0 right-0 bg-gradient-to-r from-violet-500 to-purple-600 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       VIP Elite
+                    </div>
+                  )}
+                  {selectedBillingInterval === "annual" && !plan.isVip && (
+                    <div className="absolute top-0 right-0 bg-green-500 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg">
+                      Save 17%
                     </div>
                   )}
 
@@ -703,6 +710,17 @@ export default function SubscriptionPage() {
                     </Button>
                   </div>
                 )}
+
+                {/* Cancellation Flow Component */}
+                <CancellationFlow
+                  isOpen={showCancelDialog}
+                  onClose={() => setShowCancelDialog(false)}
+                  subscriptionId={subscription?.id || null}
+                  onCancelled={async () => {
+                    await refetch();
+                    setShowCancelDialog(false);
+                  }}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -713,6 +731,27 @@ export default function SubscriptionPage() {
               <h3 className="text-lg font-semibold">Available Plans</h3>
               <p className="text-muted-foreground">Upgrade or change your plan anytime</p>
             </div>
+
+            {/* Billing Interval Toggle */}
+            <BillingIntervalToggle
+              value={selectedBillingInterval}
+              onChange={setSelectedBillingInterval}
+              savingsPercent={17}
+            />
+
+            {/* Annual Savings Info */}
+            {selectedBillingInterval === "annual" && (
+              <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+                <div className="flex items-center gap-2 text-green-700 font-medium mb-1">
+                  <BadgePercent className="h-5 w-5" />
+                  <span>Save 17% with Annual Billing</span>
+                </div>
+                <p className="text-sm text-green-600">
+                  Pay for 10 months and get 2 months completely free. 
+                  That's a savings of up to {(pricing.vip_price * 2).toLocaleString()} QAR per year!
+                </p>
+              </div>
+            )}
 
             <div className="grid md:grid-cols-2 gap-4">
                {plans.map((plan) => {
@@ -809,21 +848,42 @@ export default function SubscriptionPage() {
           </DialogHeader>
           
           {selectedPlan && (
-            <div className="bg-muted rounded-lg p-4 mb-4">
-              <div className="flex justify-between items-center mb-2">
+            <div className="bg-muted rounded-lg p-4 mb-4 space-y-3">
+              <div className="flex justify-between items-center">
                 <span className="font-medium">{selectedPlan.name} Plan</span>
-                <span className="font-bold">{formatCurrency(selectedPlan.price)}/month</span>
+                <span className="font-bold">{formatCurrency(selectedPlan.price)}/{selectedPlan.period}</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 {selectedPlan.mealsPerMonth === 0 ? "Unlimited meals" : `${selectedPlan.mealsPerMonth} meals per month`}
               </p>
+              
+              {/* Billing Interval Display */}
+              <div className="pt-2 border-t">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Billing:</span>
+                  <span className="font-medium capitalize">{selectedBillingInterval}</span>
+                  {selectedBillingInterval === "annual" && (
+                    <span className="text-green-600 text-xs font-medium">(Save 17%)</span>
+                  )}
+                </div>
+                {selectedBillingInterval === "annual" && (
+                  <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
+                    Pay for 10 months, get 2 months free! 
+                    Save {(selectedPlan.price * 0.17).toFixed(0)} QAR per year.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           <Alert>
             <Clock className="h-4 w-4" />
             <AlertDescription>
-              Your plan change will take effect on your next billing cycle. You'll be charged the new rate starting then.
+              Your plan change will take effect on your next billing cycle. 
+              {selectedBillingInterval === "annual" 
+                ? " Annual subscriptions are billed once per year with 2 months free." 
+                : " You'll be charged the new rate starting then."}
             </AlertDescription>
           </Alert>
 
@@ -851,49 +911,6 @@ export default function SubscriptionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Cancel Dialog */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-red-600">Cancel Subscription</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel your subscription?
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              You'll lose access to all subscription benefits after your current billing period ends.
-            </AlertDescription>
-          </Alert>
-
-          <div className="space-y-2 text-sm">
-            <p className="text-muted-foreground">What happens when you cancel:</p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>Your subscription remains active until {subscription?.end_date ? format(new Date(subscription.end_date), 'MMM dd, yyyy') : 'end of period'}</li>
-              <li>You won't be charged again</li>
-              <li>You can resubscribe anytime</li>
-            </ul>
-          </div>
-
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
-              Keep Subscription
-            </Button>
-            <Button variant="destructive" onClick={handleCancel} disabled={isProcessing}>
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Cancelling...
-                </>
-              ) : (
-                'Yes, Cancel'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -42,6 +42,7 @@ import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
 import { StreakRewardsWidget } from "@/components/StreakRewardsWidget";
 import { GamificationWidget } from "@/components/GamificationWidget";
+import { MealLimitUpsellBanner } from "@/components/MealLimitUpsellBanner";
 
 interface Restaurant {
   id: string;
@@ -253,6 +254,9 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-6 space-y-6 pb-24">
         {/* Platform Announcements */}
         <AnnouncementsBanner />
+
+        {/* Meal Limit Upsell Banner - Shows at 80% meal usage */}
+        <MealLimitUpsellBanner threshold={0.8} />
 
         {/* AI Behavior Prediction */}
         <BehaviorPredictionWidget />

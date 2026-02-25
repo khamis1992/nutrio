@@ -21,8 +21,12 @@ import {
   MapPin,
   Check,
   Leaf,
-  ArrowRight
+  ArrowRight,
+  MessageSquare
 } from "lucide-react";
+import { MealReviewsList } from "@/components/MealReviewsList";
+import { MealReviewForm } from "@/components/MealReviewForm";
+import { RatingDisplay } from "@/components/StarRating";
 import { format, addDays } from "date-fns";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
@@ -420,6 +424,7 @@ const MealDetail = () => {
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
     const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
     return navigationState?.scheduledDate;
@@ -881,6 +886,42 @@ const MealDetail = () => {
             </ul>
           </motion.div>
         )}
+
+        {/* Reviews Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold">Reviews</h2>
+            </div>
+            <RatingDisplay 
+              rating={meal.rating || 0} 
+              size="sm" 
+              showCount={false}
+            />
+          </div>
+
+          {showReviewForm ? (
+            <MealReviewForm
+              mealId={meal.id}
+              mealName={meal.name}
+              onSubmitted={() => setShowReviewForm(false)}
+              onCancel={() => setShowReviewForm(false)}
+            />
+          ) : (
+            <MealReviewsList
+              mealId={meal.id}
+              mealName={meal.name}
+              showWriteReview={true}
+              onWriteReview={() => setShowReviewForm(true)}
+            />
+          )}
+        </motion.div>
       </div>
 
       {/* Fixed Bottom Action Bar */}
