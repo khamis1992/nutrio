@@ -30,7 +30,6 @@ import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
-import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { WeightPredictionChart } from "@/components/WeightPredictionChart";
 import { SideDrawer } from "@/components/SideDrawer";
@@ -40,8 +39,6 @@ import { DeliveredMealNotifications } from "@/components/DeliveredMealNotificati
 import { ScheduledMealNotifications } from "@/hooks/useScheduledMealNotifications";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
-import { StreakRewardsWidget } from "@/components/StreakRewardsWidget";
-import { GamificationWidget } from "@/components/GamificationWidget";
 import { MealLimitUpsellBanner } from "@/components/MealLimitUpsellBanner";
 
 interface Restaurant {
@@ -375,9 +372,6 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        {/* Affiliate Earnings Widget */}
-        {platformSettings.features.referral_program && <AffiliateEarningsWidget />}
-
         {/* Scheduled Meal Notifications */}
         <ScheduledMealNotifications />
 
@@ -438,12 +432,6 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Streak Rewards Widget */}
-        <StreakRewardsWidget />
-
-        {/* Gamification Widget */}
-        <GamificationWidget />
 
         {/* ENHANCED RESTAURANTS SECTION */}
         <section className="space-y-4">

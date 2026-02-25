@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
   User,
   Settings,
   ArrowLeft,
@@ -37,17 +47,38 @@ import {
   Eye,
   EyeOff,
   Crown,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  CreditCard,
+  Gift,
+  Share2,
+  Users,
+  TrendingUp,
+  Flame,
+  Crown as CrownIcon,
+  Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { useWallet, type TopUpPackage } from "@/hooks/useWallet";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard";
+import { WalletBalance } from "@/components/wallet/WalletBalance";
+import { TopUpPackages } from "@/components/wallet/TopUpPackages";
+import { TransactionHistory } from "@/components/wallet/TransactionHistory";
+import { StreakRewardsWidget } from "@/components/StreakRewardsWidget";
+import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
+import { ReferralMilestones } from "@/components/ReferralMilestones";
 import { supabase } from "@/integrations/supabase/client";
 import { type Gender } from "@/lib/nutrition-calculator";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
 
-type TabValue = "profile" | "account";
+type TabValue = "profile" | "wallet" | "rewards";
 
 interface NavItem {
   value: TabValue;
@@ -57,7 +88,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { value: "profile", label: "Profile", icon: User },
-  { value: "account", label: "Wallet", icon: Wallet },
+  { value: "wallet", label: "Wallet", icon: Wallet },
+  { value: "rewards", label: "Rewards", icon: Gift },
 ];
 
 // Animation variants
@@ -184,6 +216,8 @@ const Profile = () => {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { toast } = useToast();
+  const { settings: platformSettings } = usePlatformSettings();
+  const { isApprovedAffiliate } = useAffiliateApplication();
 
   // Profile tab state
   const [fullName, setFullName] = useState("");
@@ -199,6 +233,40 @@ const Profile = () => {
   // General state
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<TabValue>("profile");
+
+  // Wallet state
+  const {
+    wallet,
+    transactions,
+    topUpPackages,
+    loading: walletLoading,
+    transactionsLoading,
+    refresh,
+  } = useWallet();
+
+  const [selectedPackage, setSelectedPackage] = useState<TopUpPackage | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'failed'>('idle');
+
+  const handleSelectPackage = (pkg: TopUpPackage) => {
+    setSelectedPackage(pkg);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedPackage || !user) return;
+
+    setProcessingId(selectedPackage.id);
+    setShowConfirmDialog(false);
+
+    // Navigate to checkout page with simulation mode
+    navigate(`/checkout?amount=${selectedPackage.amount}&type=wallet&packageId=${selectedPackage.id}`);
+  };
+
+  const totalAmount = selectedPackage
+    ? selectedPackage.amount + selectedPackage.bonus_amount
+    : 0;
 
   // Load profile data
   useEffect(() => {
@@ -814,65 +882,242 @@ const Profile = () => {
                 </motion.div>
               )}
 
-              {activeTab === "account" && (
+              {activeTab === "wallet" && (
                 <motion.div
-                  key="account"
+                  key="wallet"
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  {/* Quick Links */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      {
-                        to: "/wallet",
-                        icon: Wallet,
-                        title: "Wallet",
-                        desc: "Top-up & manage balance",
-                        color: "green",
-                      },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      const colorClasses: Record<string, string> = {
-                        amber: "bg-amber-500/10 text-amber-500",
-                        green: "bg-green-500/10 text-green-500",
-                        blue: "bg-blue-500/10 text-blue-500",
-                        orange: "bg-orange-500/10 text-orange-500",
-                      };
-                      return (
-                        <motion.div
-                          key={item.to}
-                          variants={itemVariants}
-                          whileHover={{ scale: 1.02, y: -2 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <Link to={item.to}>
-                            <Card className="cursor-pointer hover:shadow-md transition-all duration-300 border-border hover:border-primary/20">
-                              <CardContent className="p-4 flex items-center gap-4">
-                                <div
-                                  className={cn(
-                                    "w-12 h-12 rounded-xl flex items-center justify-center",
-                                    colorClasses[item.color]
-                                  )}
-                                >
-                                  <Icon className="w-6 h-6" />
+                  {/* Wallet Content */}
+                  <motion.div variants={itemVariants}>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-bold">My Wallet</h2>
+                        <p className="text-muted-foreground text-sm">Top-up & manage balance</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                        <Wallet className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+
+                    {paymentStatus === 'success' && (
+                      <Alert className="mb-4 bg-green-50 border-green-200">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-700">
+                          Payment successful! Your wallet has been credited.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {paymentStatus === 'failed' && (
+                      <Alert className="mb-4 bg-red-50 border-red-200" variant="destructive">
+                        <XCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Payment failed. Please try again.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Alert className="mb-4 bg-amber-50 border-amber-200">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-700">
+                        SIMULATION MODE: All payments are simulated. No real money will be charged.
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="space-y-6">
+                      <WalletBalance
+                        balance={wallet?.balance || 0}
+                        totalCredits={wallet?.total_credits || 0}
+                        totalDebits={wallet?.total_debits || 0}
+                        loading={walletLoading}
+                      />
+
+                      <TopUpPackages
+                        packages={topUpPackages}
+                        loading={walletLoading}
+                        onSelectPackage={handleSelectPackage}
+                        selectedPackageId={selectedPackage?.id}
+                        processingId={processingId ?? undefined}
+                      />
+
+                      <TransactionHistory
+                        transactions={transactions}
+                        loading={transactionsLoading}
+                      />
+                    </div>
+                  </motion.div>
+
+                  {/* Payment Confirmation Dialog */}
+                  <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Confirm Top-up</DialogTitle>
+                        <DialogDescription>
+                          Review your top-up details before proceeding to payment.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {selectedPackage && (
+                        <div className="space-y-4">
+                          <Card>
+                            <CardContent className="p-4">
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Package</span>
+                                  <span className="font-medium">{selectedPackage.name}</span>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold">{item.title}</p>
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {item.desc}
-                                  </p>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Top-up Amount</span>
+                                  <span>{formatCurrency(selectedPackage.amount)}</span>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
+                                {selectedPackage.bonus_amount > 0 && (
+                                  <div className="flex justify-between text-purple-600">
+                                    <span>Bonus Credit</span>
+                                    <span>+{formatCurrency(selectedPackage.bonus_amount)}</span>
+                                  </div>
+                                )}
+                                <div className="border-t pt-2 flex justify-between font-semibold">
+                                  <span>Total Credit</span>
+                                  <span className="text-green-600">{formatCurrency(totalAmount)}</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          <p className="text-sm text-muted-foreground text-center">
+                            You will be redirected to Sadad to complete the payment securely.
+                          </p>
+                        </div>
+                      )}
+
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Pay {formatCurrency(selectedPackage?.amount ?? 0)}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </motion.div>
+              )}
+
+              {activeTab === "rewards" && (
+                <motion.div
+                  key="rewards"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  {/* Streak Rewards Widget */}
+                  <motion.div variants={itemVariants}>
+                    <StreakRewardsWidget />
+                  </motion.div>
+
+                  {/* Affiliate Earnings Widget - Only for approved affiliates */}
+                  {isApprovedAffiliate && platformSettings.features.referral_program && (
+                    <motion.div variants={itemVariants}>
+                      <AffiliateEarningsWidget />
+                    </motion.div>
+                  )}
+
+                  {/* Referral Program Card */}
+                  {platformSettings.features.referral_program && (
+                    <motion.div variants={itemVariants}>
+                      <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                              <Share2 className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-1">Refer Friends</h3>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Give $10, Get $10! Invite friends and both earn rewards when they subscribe.
+                              </p>
+                              <Link to="/referral">
+                                <Button className="w-full">
+                                  <Users className="h-4 w-4 mr-2" />
+                                  View Referral Program
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )}
+
+                  {/* Affiliate Program Card */}
+                  {platformSettings.features.referral_program && (
+                    <motion.div variants={itemVariants}>
+                      <Card className="bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-background border-violet-500/20">
+                        <CardContent className="p-6">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                              <CrownIcon className="h-6 w-6 text-violet-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-lg">Affiliate Program</h3>
+                                <Badge className="bg-violet-500 text-white">Earn More</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Become an affiliate and earn multi-tier commissions (up to 3 levels deep) from your referrals.
+                              </p>
+                              <Link to={isApprovedAffiliate ? "/affiliate" : "/profile"}>
+                                <Button variant="outline" className="w-full border-violet-500/30 text-violet-600 hover:bg-violet-500/10">
+                                  <TrendingUp className="h-4 w-4 mr-2" />
+                                  {isApprovedAffiliate ? "View Affiliate Dashboard" : "Apply for Affiliate Program"}
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )}
+
+                  {/* Rewards Info Cards */}
+                  <motion.div variants={itemVariants}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                              <Flame className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Daily Streaks</p>
+                              <p className="text-xs text-muted-foreground">Order daily to earn bonus credits</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                              <Star className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium">Wallet Bonuses</p>
+                              <p className="text-xs text-muted-foreground">Get bonus credits on top-ups</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
