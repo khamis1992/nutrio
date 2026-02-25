@@ -103,6 +103,8 @@ const calculateMacros = (calories: number, goal: Goal) => {
   };
 };
 
+const ONBOARDING_STORAGE_KEY = 'nutrio_onboarding_progress';
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -125,6 +127,44 @@ const Onboarding = () => {
   });
 
   const totalSteps = 6;
+
+  // Load saved progress from localStorage on mount
+  useEffect(() => {
+    const savedProgress = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    if (savedProgress) {
+      try {
+        const parsed = JSON.parse(savedProgress);
+        if (parsed.data) {
+          setData(parsed.data);
+        }
+        if (parsed.step && parsed.step > 1 && parsed.step <= totalSteps) {
+          setStep(parsed.step);
+          toast({
+            title: "Welcome back!",
+            description: `Continuing from where you left off (Step ${parsed.step} of ${totalSteps})`,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to parse saved onboarding progress:', e);
+      }
+    }
+  }, []);
+
+  // Save progress to localStorage whenever data or step changes
+  useEffect(() => {
+    if (step < totalSteps) {
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify({
+        step,
+        data,
+        timestamp: new Date().toISOString(),
+      }));
+    }
+  }, [step, data]);
+
+  // Clear saved progress when onboarding is completed
+  const clearSavedProgress = () => {
+    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+  };
 
   // Redirect if not authenticated or if user is a partner
   useEffect(() => {
@@ -204,6 +244,9 @@ const Onboarding = () => {
       });
 
       if (error) throw error;
+
+      // Clear saved progress on successful completion
+      clearSavedProgress();
 
       toast({
         title: "Profile saved!",

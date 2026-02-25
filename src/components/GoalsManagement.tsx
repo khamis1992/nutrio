@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Utensils, Loader2, Sparkles, Scale, Ruler, Activity, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,9 +23,22 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNutritionGoals } from "@/hooks/useNutritionGoals";
+import { useProfile } from "@/hooks/useProfile";
 import { AdaptiveGoalsSettings } from "@/components/AdaptiveGoalsSettings";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { activityLevelLabels, goalLabels } from "@/lib/nutrition-calculator";
+
+type Goal = "lose" | "gain" | "maintain";
+type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+
+interface DietTag {
+  id: string;
+  name: string;
+  description: string | null;
+  category?: string;
+}
 
 const goalTypes = [
   { value: "weight_loss", label: "Weight Loss", icon: Flame, color: "text-orange-500" },
@@ -33,13 +47,214 @@ const goalTypes = [
   { value: "general_health", label: "General Health", icon: Leaf, color: "text-emerald-500" },
 ];
 
+// Diet tag component
+const DietTagCard = ({
+  tag,
+  selected,
+  onClick,
+  color,
+}: {
+  tag: DietTag;
+  selected: boolean;
+  onClick: () => void;
+  color: string;
+}) => {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={cn(
+        "relative overflow-hidden rounded-xl p-4 transition-all duration-300 text-left",
+        "border-2",
+        selected
+          ? "border-primary bg-primary/5 shadow-md"
+          : "border-border bg-card hover:border-primary/20 hover:shadow-sm"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5",
+            selected ? "bg-primary" : "border-2 border-muted-foreground/30"
+          )}
+        >
+          <AnimatePresence>
+            {selected && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+              >
+                <Check className="w-3 h-3 text-primary-foreground" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={cn("font-medium text-sm", selected && "text-primary")}>
+            {tag.name}
+          </p>
+          {tag.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+              {tag.description}
+            </p>
+          )}
+        </div>
+      </div>
+      <div
+        className={cn(
+          "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
+          selected ? color : "bg-transparent"
+        )}
+      />
+    </motion.button>
+  );
+};
+
+// Activity level card component
+const ActivityLevelCard = ({
+  level,
+  selected,
+  onClick,
+}: {
+  level: ActivityLevel;
+  selected: boolean;
+  onClick: () => void;
+}) => {
+  const intensityDots = {
+    sedentary: 1,
+    light: 2,
+    moderate: 3,
+    active: 4,
+    very_active: 5,
+  };
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.01, x: 4 }}
+      whileTap={{ scale: 0.99 }}
+      onClick={onClick}
+      className={cn(
+        "relative w-full text-left p-4 rounded-xl transition-all duration-300",
+        "border-2 flex items-center gap-4",
+        selected
+          ? "border-primary bg-primary/5 shadow-md"
+          : "border-border bg-card hover:border-primary/20 hover:bg-muted/50"
+      )}
+    >
+      <div className="flex gap-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div
+            key={i}
+            className={cn(
+              "w-2 h-2 rounded-full transition-all duration-300",
+              i < intensityDots[level]
+                ? selected
+                  ? "bg-primary"
+                  : "bg-primary/40"
+                : "bg-muted-foreground/20"
+            )}
+          />
+        ))}
+      </div>
+      <div className="flex-1">
+        <p className={cn("font-medium", selected && "text-primary")}>
+          {activityLevelLabels[level].title}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {activityLevelLabels[level].description}
+        </p>
+      </div>
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+          >
+            <Check className="w-5 h-5 text-primary" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
+};
+
+// Health Goal card component
+const HealthGoalCard = ({
+  goal,
+  selected,
+  onClick,
+}: {
+  goal: Goal;
+  selected: boolean;
+  onClick: () => void;
+}) => {
+  const icons = {
+    lose: TrendingUp,
+    maintain: Activity,
+    gain: Flame,
+  };
+  const colors = {
+    lose: "from-blue-500/20 to-cyan-500/20 text-blue-600",
+    maintain: "from-green-500/20 to-emerald-500/20 text-green-600",
+    gain: "from-amber-500/20 to-orange-500/20 text-amber-600",
+  };
+  const Icon = icons[goal];
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={cn(
+        "relative overflow-hidden rounded-2xl p-5 transition-all duration-300",
+        "border-2 text-left",
+        selected
+          ? "border-primary bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg shadow-primary/10"
+          : "border-border bg-card hover:border-primary/30 hover:shadow-md"
+      )}
+    >
+      <div
+        className={cn(
+          "w-12 h-12 rounded-xl flex items-center justify-center mb-3 bg-gradient-to-br",
+          colors[goal]
+        )}
+      >
+        <Icon className="w-6 h-6" />
+      </div>
+      <p className="font-semibold text-foreground mb-1">
+        {goalLabels[goal].title}
+      </p>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        {goalLabels[goal].description}
+      </p>
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
+          >
+            <Check className="w-4 h-4 text-primary-foreground" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
+};
+
 export const GoalsManagement = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { goals, activeGoal, loading, setGoal } = useNutritionGoals(user?.id);
+  const { profile, updateProfile } = useProfile();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [formData, setFormData] = useState({
     goal_type: "general_health" as const,
     target_weight_kg: "",
@@ -50,6 +265,107 @@ export const GoalsManagement = () => {
     fat_target_g: 65,
     fiber_target_g: 30,
   });
+
+  // Body metrics and goals state
+  const [currentWeight, setCurrentWeight] = useState("");
+  const [targetWeight, setTargetWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
+  const [healthGoal, setHealthGoal] = useState<Goal | null>(null);
+
+  // Load profile data
+  useEffect(() => {
+    if (profile) {
+      setCurrentWeight(profile.current_weight_kg?.toString() || "");
+      setTargetWeight(profile.target_weight_kg?.toString() || "");
+      setHeight(profile.height_cm?.toString() || "");
+      setActivityLevel(profile.activity_level);
+      setHealthGoal(profile.health_goal);
+    }
+  }, [profile]);
+
+  // Diet preferences state
+  const [dietTags, setDietTags] = useState<DietTag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
+
+  // Fetch diet tags and user preferences
+  useEffect(() => {
+    const fetchDietTagsAndPreferences = async () => {
+      try {
+        const { data: tags, error: tagsError } = await supabase
+          .from("diet_tags")
+          .select("*")
+          .order("name");
+
+        if (tagsError) throw tagsError;
+        setDietTags(tags || []);
+
+        if (user) {
+          const { data: prefs, error: prefsError } = await supabase
+            .from("user_dietary_preferences")
+            .select("diet_tag_id")
+            .eq("user_id", user.id);
+
+          if (prefsError) throw prefsError;
+          setSelectedTags(prefs?.map((p) => p.diet_tag_id) || []);
+        }
+      } catch (err) {
+        console.error("Error fetching diet tags:", err);
+      } finally {
+        setTagsLoading(false);
+      }
+    };
+
+    fetchDietTagsAndPreferences();
+  }, [user]);
+
+  const toggleDietPreference = async (tagId: string) => {
+    if (!user) return;
+
+    const isSelected = selectedTags.includes(tagId);
+
+    try {
+      if (isSelected) {
+        const { error } = await supabase
+          .from("user_dietary_preferences")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("diet_tag_id", tagId);
+
+        if (error) throw error;
+        setSelectedTags((prev) => prev.filter((id) => id !== tagId));
+      } else {
+        const { error } = await supabase
+          .from("user_dietary_preferences")
+          .insert({ user_id: user.id, diet_tag_id: tagId });
+
+        if (error) throw error;
+        setSelectedTags((prev) => [...prev, tagId]);
+      }
+    } catch (err) {
+      toast({
+        title: "Error updating preferences",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Get tag colors based on category
+  const getTagColor = (index: number) => {
+    const colors = [
+      "bg-green-500",
+      "bg-emerald-500",
+      "bg-teal-500",
+      "bg-cyan-500",
+      "bg-sky-500",
+      "bg-blue-500",
+      "bg-indigo-500",
+      "bg-violet-500",
+    ];
+    return colors[index % colors.length];
+  };
 
   const handleCreateGoal = async () => {
     if (!user) return;
@@ -98,6 +414,34 @@ export const GoalsManagement = () => {
 
   const getGoalTypeInfo = (type: string) => {
     return goalTypes.find((g) => g.value === type) || goalTypes[3];
+  };
+
+  const saveBodyMetrics = async () => {
+    setSavingProfile(true);
+    try {
+      const { error } = await updateProfile({
+        current_weight_kg: currentWeight ? parseFloat(currentWeight) : null,
+        target_weight_kg: targetWeight ? parseFloat(targetWeight) : null,
+        height_cm: height ? parseFloat(height) : null,
+        activity_level: activityLevel,
+        health_goal: healthGoal,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile updated",
+        description: "Your body metrics and goals have been saved.",
+      });
+    } catch (err) {
+      toast({
+        title: "Error saving profile",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   if (loading) {
@@ -190,6 +534,137 @@ export const GoalsManagement = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Body Metrics */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <Scale className="w-5 h-5 text-blue-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Body Metrics</CardTitle>
+              <CardDescription>Your physical measurements</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Current Weight (kg)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={currentWeight}
+                  onChange={(e) => setCurrentWeight(e.target.value)}
+                  placeholder="75"
+                  className="h-12 rounded-xl"
+                />
+                <Scale className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Target Weight (kg)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={targetWeight}
+                  onChange={(e) => setTargetWeight(e.target.value)}
+                  placeholder="70"
+                  className="h-12 rounded-xl"
+                />
+                <Target className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Height (cm)</Label>
+            <div className="relative">
+              <Input
+                type="number"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                placeholder="175"
+                className="h-12 rounded-xl"
+              />
+              <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Health Goal */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+              <Flame className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Health Goal</CardTitle>
+              <CardDescription>What do you want to achieve?</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {(["lose", "maintain", "gain"] as Goal[]).map((g) => (
+              <HealthGoalCard
+                key={g}
+                goal={g}
+                selected={healthGoal === g}
+                onClick={() => setHealthGoal(g)}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Activity Level */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <Activity className="w-5 h-5 text-green-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Activity Level</CardTitle>
+              <CardDescription>How active are you on a typical week?</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(["sedentary", "light", "moderate", "active", "very_active"] as ActivityLevel[]).map((a) => (
+            <ActivityLevelCard
+              key={a}
+              level={a}
+              selected={activityLevel === a}
+              onClick={() => setActivityLevel(a)}
+            />
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Save Button */}
+      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+        <Button
+          onClick={saveBodyMetrics}
+          disabled={savingProfile}
+          className="w-full h-12 rounded-xl text-base font-medium"
+        >
+          {savingProfile ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Check className="w-5 h-5 mr-2" />
+              Save Body Metrics & Goals
+            </>
+          )}
+        </Button>
+      </motion.div>
 
       {/* Smart Goal Adjustment */}
       <AdaptiveGoalsSettings />
@@ -406,6 +881,68 @@ export const GoalsManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dietary Preferences Section */}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
+              <Utensils className="w-5 h-5 text-teal-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Dietary Preferences</CardTitle>
+              <CardDescription>
+                Select the diets and preferences that match your lifestyle
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {tagsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : dietTags.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <Utensils className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground">
+                No dietary preferences available yet.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {dietTags.map((tag, index) => (
+                <DietTagCard
+                  key={tag.id}
+                  tag={tag}
+                  selected={selectedTags.includes(tag.id)}
+                  onClick={() => toggleDietPreference(tag.id)}
+                  color={getTagColor(index)}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Info Card */}
+      <div className="bg-gradient-to-br from-teal-500/10 to-cyan-500/5 rounded-2xl p-6 border border-teal-500/20">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-6 h-6 text-teal-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-lg mb-1">Personalized Recommendations</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Your selected preferences will be used to recommend meals that match
+              your diet. We&apos;ll prioritize recipes that fit your lifestyle and
+              nutritional goals.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

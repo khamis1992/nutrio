@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -13,11 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertCircle,
-  CreditCard,
-  Loader2,
   CheckCircle,
   XCircle,
   Wallet as WalletIcon,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +25,6 @@ import { WalletBalance } from "@/components/wallet/WalletBalance";
 import { TopUpPackages } from "@/components/wallet/TopUpPackages";
 import { TransactionHistory } from "@/components/wallet/TransactionHistory";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
-import { initiateSadadPayment, sadadService } from "@/lib/sadad";
 import { formatCurrency } from "@/lib/currency";
 
 export default function Wallet() {
@@ -83,42 +81,10 @@ export default function Wallet() {
     setProcessingId(selectedPackage.id);
     setShowConfirmDialog(false);
 
-    try {
-      if (!sadadService.isConfigured()) {
-        // For demo/development, simulate successful payment
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        toast({
-          title: "Demo Mode",
-          description: "Payment gateway not configured. Simulating successful top-up.",
-        });
-        
-        // Refresh wallet data
-        refresh();
-        setProcessingId(null);
-        setSelectedPackage(null);
-        return;
-      }
-
-      const result = await initiateSadadPayment({
-        amount: selectedPackage.amount,
-        bonusAmount: selectedPackage.bonus_amount,
-        packageId: selectedPackage.id,
-        userId: user.id,
-        userEmail: user.email,
-      });
-
-      // Redirect to Sadad payment page
-      window.location.href = result.paymentUrl;
-    } catch (error: any) {
-      console.error('Payment initiation failed:', error);
-      toast({
-        title: "Payment Failed",
-        description: error.message || "Could not initiate payment. Please try again.",
-        variant: "destructive",
-      });
-      setProcessingId(null);
-    }
+    // Navigate to checkout page with simulation mode
+    navigate(`/checkout?amount=${selectedPackage.amount}&type=wallet&packageId=${selectedPackage.id}`);
+    
+    // Note: The actual wallet credit happens in the Checkout page after successful payment
   };
 
   if (!user) {
@@ -163,14 +129,13 @@ export default function Wallet() {
           </Alert>
         )}
 
-        {!sadadService.isConfigured() && (
-          <Alert className="mb-4 bg-amber-50 border-amber-200">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-700">
-              Payment gateway not configured. Top-ups will be simulated in demo mode.
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Simulation Mode Notice */}
+        <Alert className="mb-4 bg-amber-50 border-amber-200">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-700">
+            SIMULATION MODE: All payments are simulated. No real money will be charged.
+          </AlertDescription>
+        </Alert>
 
         <div className="space-y-6">
           <WalletBalance
@@ -185,7 +150,7 @@ export default function Wallet() {
             loading={loading}
             onSelectPackage={handleSelectPackage}
             selectedPackageId={selectedPackage?.id}
-            processingId={processingId}
+            processingId={processingId ?? undefined}
           />
 
           <TransactionHistory
@@ -243,7 +208,7 @@ export default function Wallet() {
             </Button>
             <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
               <CreditCard className="h-4 w-4 mr-2" />
-              Pay {formatCurrency(selectedPackage?.amount || 0)}
+              Pay {formatCurrency(selectedPackage?.amount ?? 0)}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -28,7 +28,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useRolloverCredits } from "@/hooks/useRolloverCredits";
 import { useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
 import { supabase } from "@/integrations/supabase/client";
-import { RolloverCreditsDisplay } from "@/components/subscription/RolloverCreditsDisplay";
+import { RolloverCreditsWidget } from "@/components/RolloverCreditsWidget";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -70,7 +70,7 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
   {
     id: "basic",
     name: "Basic",
-    price: pricing.basic_price * 4.3,
+    price: pricing.basic_price,
     period: "month",
     mealsPerMonth: 22,
     tier: 'basic',
@@ -90,7 +90,7 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
   {
     id: "standard",
     name: "Standard",
-    price: pricing.premium_price * 4.3,
+    price: pricing.premium_price,
     period: "month",
     mealsPerMonth: 43,
     tier: 'standard',
@@ -112,7 +112,7 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
   {
     id: "premium",
     name: "Premium",
-    price: pricing.family_price * 4.3,
+    price: pricing.family_price,
     period: "month",
     mealsPerMonth: 65,
     tier: 'premium',
@@ -135,7 +135,7 @@ const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
   {
     id: "vip",
     name: "VIP",
-    price: pricing.vip_price * 4.3,
+    price: pricing.vip_price,
     period: "month",
     mealsPerMonth: 0,
     tier: 'vip',
@@ -187,11 +187,12 @@ export default function SubscriptionPage() {
   // Fetch freeze info
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
 
+  // Unified pricing - showing both weekly and monthly for transparency
   const pricing: SubscriptionPricing = {
-    basic_price: 49.99,
-    premium_price: 99.99,
-    family_price: 149.99,
-    vip_price: 199.99,
+    basic_price: 215, // ~49.99 * 4.3 (weekly to monthly conversion)
+    premium_price: 430, // ~99.99 * 4.3
+    family_price: 645, // ~149.99 * 4.3
+    vip_price: 860, // ~199.99 * 4.3
   };
 
   const plans = getPlans(pricing);
@@ -556,10 +557,8 @@ export default function SubscriptionPage() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            {/* Rollover Credits */}
-            {subscription?.id && rolloverInfo && rolloverInfo.rollover_credits > 0 && (
-              <RolloverCreditsDisplay subscriptionId={subscription.id} />
-            )}
+            {/* Rollover Credits Widget */}
+            <RolloverCreditsWidget />
 
             {/* Subscription Details */}
             <Card>

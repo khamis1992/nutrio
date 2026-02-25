@@ -39,6 +39,9 @@ import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { DeliveredMealNotifications } from "@/components/DeliveredMealNotifications";
 import { ScheduledMealNotifications } from "@/hooks/useScheduledMealNotifications";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
+import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
+import { StreakRewardsWidget } from "@/components/StreakRewardsWidget";
+import { GamificationWidget } from "@/components/GamificationWidget";
 
 interface Restaurant {
   id: string;
@@ -251,6 +254,9 @@ const Dashboard = () => {
         {/* Platform Announcements */}
         <AnnouncementsBanner />
 
+        {/* AI Behavior Prediction */}
+        <BehaviorPredictionWidget />
+
         {/* AI Adaptive Goal Suggestion */}
         {hasUnviewedAdjustment && recommendation && (
           <AdaptiveGoalCard
@@ -428,6 +434,12 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Streak Rewards Widget */}
+        <StreakRewardsWidget />
+
+        {/* Gamification Widget */}
+        <GamificationWidget />
 
         {/* ENHANCED RESTAURANTS SECTION */}
         <section className="space-y-4">

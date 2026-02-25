@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { Slider } from "@/components/ui/slider";
+
 
 import {
   AlertDialog,
@@ -21,35 +21,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   User,
-  Target,
-  Utensils,
   Settings,
   ArrowLeft,
   Check,
   Loader2,
-  Scale,
-  Ruler,
-  Activity,
-  Flame,
-  Beef,
-  Wheat,
-  Droplets,
   LogOut,
   Trash2,
   Lock,
   Mail,
-  RefreshCw,
-  Receipt,
-  Crown,
   Wallet,
-  FileText,
   ChevronRight,
   Sparkles,
-  TrendingUp,
   Calendar,
   Shield,
   Eye,
   EyeOff,
+  Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -57,24 +44,10 @@ import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  calculateNutritionTargets,
-  activityLevelLabels,
-  goalLabels,
-  type Goal,
-  type ActivityLevel,
-  type Gender,
-} from "@/lib/nutrition-calculator";
+import { type Gender } from "@/lib/nutrition-calculator";
 import { cn } from "@/lib/utils";
 
-interface DietTag {
-  id: string;
-  name: string;
-  description: string | null;
-  category?: string;
-}
-
-type TabValue = "profile" | "targets" | "preferences" | "account";
+type TabValue = "profile" | "account";
 
 interface NavItem {
   value: TabValue;
@@ -84,9 +57,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { value: "profile", label: "Profile", icon: User },
-  { value: "targets", label: "Health Goals", icon: Target },
-  { value: "preferences", label: "Diet", icon: Utensils },
-  { value: "account", label: "Account", icon: Settings },
+  { value: "account", label: "Wallet", icon: Wallet },
 ];
 
 // Animation variants
@@ -115,69 +86,6 @@ const itemVariants = {
 };
 
 
-
-// Circular progress component
-const CircularProgress = ({
-  value,
-  max,
-  label,
-  sublabel,
-  color,
-  icon: Icon,
-}: {
-  value: number;
-  max: number;
-  label: string;
-  sublabel: string;
-  color: string;
-  icon: React.ElementType;
-}) => {
-  const percentage = Math.min((value / max) * 100, 100);
-  const circumference = 2 * Math.PI * 36;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-24 h-24">
-        <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 80 80">
-          <circle
-            cx="40"
-            cy="40"
-            r="36"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            className="text-muted/50"
-          />
-          <motion.circle
-            cx="40"
-            cy="40"
-            r="36"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            strokeLinecap="round"
-            className={color}
-            initial={{ strokeDashoffset: circumference }}
-            animate={{ strokeDashoffset }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            style={{
-              strokeDasharray: circumference,
-            }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Icon className={cn("w-5 h-5", color.replace("text-", "text-"))} />
-        </div>
-      </div>
-      <div className="mt-2 text-center">
-        <p className="text-lg font-bold text-foreground">{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-[10px] text-muted-foreground/60">{sublabel}</p>
-      </div>
-    </div>
-  );
-};
 
 // Gender card component
 const GenderCard = ({
@@ -245,220 +153,6 @@ const GenderCard = ({
   );
 };
 
-// Goal card component
-const GoalCard = ({
-  goal,
-  selected,
-  onClick,
-}: {
-  goal: Goal;
-  selected: boolean;
-  onClick: () => void;
-}) => {
-  const icons = {
-    lose: TrendingUp,
-    maintain: Activity,
-    gain: Sparkles,
-  };
-  const colors = {
-    lose: "from-blue-500/20 to-cyan-500/20 text-blue-600",
-    maintain: "from-green-500/20 to-emerald-500/20 text-green-600",
-    gain: "from-amber-500/20 to-orange-500/20 text-amber-600",
-  };
-  const Icon = icons[goal];
-
-  return (
-    <motion.button
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={cn(
-        "relative overflow-hidden rounded-2xl p-5 transition-all duration-300",
-        "border-2 text-left",
-        selected
-          ? "border-primary bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg shadow-primary/10"
-          : "border-border bg-card hover:border-primary/30 hover:shadow-md"
-      )}
-    >
-      <div
-        className={cn(
-          "w-12 h-12 rounded-xl flex items-center justify-center mb-3 bg-gradient-to-br",
-          colors[goal]
-        )}
-      >
-        <Icon className="w-6 h-6" />
-      </div>
-      <p className="font-semibold text-foreground mb-1">
-        {goalLabels[goal].title}
-      </p>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        {goalLabels[goal].description}
-      </p>
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
-          >
-            <Check className="w-4 h-4 text-primary-foreground" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.button>
-  );
-};
-
-// Activity level card
-const ActivityCard = ({
-  level,
-  selected,
-  onClick,
-}: {
-  level: ActivityLevel;
-  selected: boolean;
-  onClick: () => void;
-}) => {
-  const intensityDots = {
-    sedentary: 1,
-    light: 2,
-    moderate: 3,
-    active: 4,
-    very_active: 5,
-  };
-
-  return (
-    <motion.button
-      whileHover={{ scale: 1.01, x: 4 }}
-      whileTap={{ scale: 0.99 }}
-      onClick={onClick}
-      className={cn(
-        "relative w-full text-left p-4 rounded-xl transition-all duration-300",
-        "border-2 flex items-center gap-4",
-        selected
-          ? "border-primary bg-primary/5 shadow-md"
-          : "border-border bg-card hover:border-primary/20 hover:bg-muted/50"
-      )}
-    >
-      <div className="flex gap-1">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className={cn(
-              "w-2 h-2 rounded-full transition-all duration-300",
-              i < intensityDots[level]
-                ? selected
-                  ? "bg-primary"
-                  : "bg-primary/40"
-                : "bg-muted-foreground/20"
-            )}
-          />
-        ))}
-      </div>
-      <div className="flex-1">
-        <p className={cn("font-medium", selected && "text-primary")}>
-          {activityLevelLabels[level].title}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {activityLevelLabels[level].description}
-        </p>
-      </div>
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-          >
-            <Check className="w-5 h-5 text-primary" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.button>
-  );
-};
-
-// Diet tag component
-const DietTagCard = ({
-  tag,
-  selected,
-  onClick,
-  color,
-}: {
-  tag: DietTag;
-  selected: boolean;
-  onClick: () => void;
-  color: string;
-}) => {
-  return (
-    <motion.button
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={cn(
-        "relative overflow-hidden rounded-xl p-4 transition-all duration-300 text-left",
-        "border-2",
-        selected
-          ? "border-primary bg-primary/5 shadow-md"
-          : "border-border bg-card hover:border-primary/20 hover:shadow-sm"
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            "w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5",
-            selected ? "bg-primary" : "border-2 border-muted-foreground/30"
-          )}
-        >
-          <AnimatePresence>
-            {selected && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-              >
-                <Check className="w-3 h-3 text-primary-foreground" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={cn("font-medium text-sm", selected && "text-primary")}>
-            {tag.name}
-          </p>
-          {tag.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-              {tag.description}
-            </p>
-          )}
-        </div>
-      </div>
-      <div
-        className={cn(
-          "absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
-          selected ? color : "bg-transparent"
-        )}
-      />
-    </motion.button>
-  );
-};
-
-// Animated number counter
-const AnimatedNumber = ({ value, suffix = "" }: { value: number; suffix?: string }) => {
-  return (
-    <motion.span
-      key={value}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="inline-block"
-    >
-      {value}
-      {suffix}
-    </motion.span>
-  );
-};
-
 // Section card wrapper
 const SectionCard = ({
   children,
@@ -496,23 +190,6 @@ const Profile = () => {
   const [gender, setGender] = useState<Gender | null>(null);
   const [age, setAge] = useState("");
 
-  // Targets tab state
-  const [currentWeight, setCurrentWeight] = useState("");
-  const [targetWeight, setTargetWeight] = useState("");
-  const [height, setHeight] = useState("");
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
-  const [healthGoal, setHealthGoal] = useState<Goal | null>(null);
-  const [dailyCalories, setDailyCalories] = useState(2000);
-  const [proteinTarget, setProteinTarget] = useState(150);
-  const [carbsTarget, setCarbsTarget] = useState(200);
-  const [fatTarget, setFatTarget] = useState(65);
-  const [manualOverride, setManualOverride] = useState(false);
-
-  // Preferences tab state
-  const [dietTags, setDietTags] = useState<DietTag[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagsLoading, setTagsLoading] = useState(true);
-
   // Account tab state
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -529,48 +206,8 @@ const Profile = () => {
       setFullName(profile.full_name || "");
       setGender(profile.gender);
       setAge(profile.age?.toString() || "");
-      setCurrentWeight(profile.current_weight_kg?.toString() || "");
-      setTargetWeight(profile.target_weight_kg?.toString() || "");
-      setHeight(profile.height_cm?.toString() || "");
-      setActivityLevel(profile.activity_level);
-      setHealthGoal(profile.health_goal);
-      setDailyCalories(profile.daily_calorie_target || 2000);
-      setProteinTarget(profile.protein_target_g || 150);
-      setCarbsTarget(profile.carbs_target_g || 200);
-      setFatTarget(profile.fat_target_g || 65);
     }
   }, [profile]);
-
-  // Fetch diet tags and user preferences
-  useEffect(() => {
-    const fetchDietTagsAndPreferences = async () => {
-      try {
-        const { data: tags, error: tagsError } = await supabase
-          .from("diet_tags")
-          .select("*")
-          .order("name");
-
-        if (tagsError) throw tagsError;
-        setDietTags(tags || []);
-
-        if (user) {
-          const { data: prefs, error: prefsError } = await supabase
-            .from("user_dietary_preferences")
-            .select("diet_tag_id")
-            .eq("user_id", user.id);
-
-          if (prefsError) throw prefsError;
-          setSelectedTags(prefs?.map((p) => p.diet_tag_id) || []);
-        }
-      } catch (err) {
-        console.error("Error fetching diet tags:", err);
-      } finally {
-        setTagsLoading(false);
-      }
-    };
-
-    fetchDietTagsAndPreferences();
-  }, [user]);
 
   // Calculate password strength
   useEffect(() => {
@@ -581,37 +218,6 @@ const Profile = () => {
     if (/[^A-Za-z0-9]/.test(newPassword)) strength += 1;
     setPasswordStrength(strength);
   }, [newPassword]);
-
-  const recalculateTargets = () => {
-    if (!gender || !activityLevel || !healthGoal || !currentWeight || !height || !age) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all fields to recalculate targets.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const targets = calculateNutritionTargets(
-      gender,
-      parseFloat(currentWeight),
-      parseFloat(height),
-      parseInt(age),
-      activityLevel,
-      healthGoal
-    );
-
-    setDailyCalories(targets.dailyCalories);
-    setProteinTarget(targets.protein);
-    setCarbsTarget(targets.carbs);
-    setFatTarget(targets.fat);
-    setManualOverride(false);
-
-    toast({
-      title: "Targets recalculated",
-      description: `New daily target: ${targets.dailyCalories} cal`,
-    });
-  };
 
   const saveProfileTab = async () => {
     setSaving(true);
@@ -636,70 +242,6 @@ const Profile = () => {
       });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const saveTargetsTab = async () => {
-    setSaving(true);
-    try {
-      const { error } = await updateProfile({
-        current_weight_kg: currentWeight ? parseFloat(currentWeight) : null,
-        target_weight_kg: targetWeight ? parseFloat(targetWeight) : null,
-        height_cm: height ? parseFloat(height) : null,
-        activity_level: activityLevel,
-        health_goal: healthGoal,
-        daily_calorie_target: dailyCalories,
-        protein_target_g: proteinTarget,
-        carbs_target_g: carbsTarget,
-        fat_target_g: fatTarget,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Targets updated",
-        description: "Your nutrition targets have been saved.",
-      });
-    } catch (err) {
-      toast({
-        title: "Error saving targets",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleDietPreference = async (tagId: string) => {
-    if (!user) return;
-
-    const isSelected = selectedTags.includes(tagId);
-
-    try {
-      if (isSelected) {
-        const { error } = await supabase
-          .from("user_dietary_preferences")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("diet_tag_id", tagId);
-
-        if (error) throw error;
-        setSelectedTags((prev) => prev.filter((id) => id !== tagId));
-      } else {
-        const { error } = await supabase
-          .from("user_dietary_preferences")
-          .insert({ user_id: user.id, diet_tag_id: tagId });
-
-        if (error) throw error;
-        setSelectedTags((prev) => [...prev, tagId]);
-      }
-    } catch (err) {
-      toast({
-        title: "Error updating preferences",
-        description: "Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -758,21 +300,6 @@ const Profile = () => {
       title: "Contact support",
       description: "Please contact support to delete your account.",
     });
-  };
-
-  // Get tag colors based on category
-  const getTagColor = (index: number) => {
-    const colors = [
-      "bg-green-500",
-      "bg-emerald-500",
-      "bg-teal-500",
-      "bg-cyan-500",
-      "bg-sky-500",
-      "bg-blue-500",
-      "bg-indigo-500",
-      "bg-violet-500",
-    ];
-    return colors[index % colors.length];
   };
 
   const formatDate = (dateString: string) => {
@@ -1086,538 +613,6 @@ const Profile = () => {
                       </motion.div>
                     </CardContent>
                   </SectionCard>
-                </motion.div>
-              )}
-
-              {activeTab === "targets" && (
-                <motion.div
-                  key="targets"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
-                >
-                  {/* Health Profile Summary */}
-                  {(currentWeight || height || age) && (
-                    <motion.div
-                      variants={itemVariants}
-                      className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/5 rounded-2xl p-6 border border-primary/20"
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                          <Activity className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg">Health Profile</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Based on your current metrics
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {currentWeight && (
-                          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-2xl font-bold text-foreground">
-                              {currentWeight}
-                            </p>
-                            <p className="text-xs text-muted-foreground">kg current</p>
-                          </div>
-                        )}
-                        {targetWeight && (
-                          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-2xl font-bold text-foreground">
-                              {targetWeight}
-                            </p>
-                            <p className="text-xs text-muted-foreground">kg target</p>
-                          </div>
-                        )}
-                        {height && (
-                          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-2xl font-bold text-foreground">
-                              {height}
-                            </p>
-                            <p className="text-xs text-muted-foreground">cm height</p>
-                          </div>
-                        )}
-                        {age && (
-                          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-2xl font-bold text-foreground">{age}</p>
-                            <p className="text-xs text-muted-foreground">years old</p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Body Metrics */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                          <Scale className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Body Metrics</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Used to calculate your nutrition targets
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Current Weight (kg)</Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              value={currentWeight}
-                              onChange={(e) => setCurrentWeight(e.target.value)}
-                              placeholder="75"
-                              className="h-12 rounded-xl"
-                            />
-                            <Scale className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Target Weight (kg)</Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              value={targetWeight}
-                              onChange={(e) => setTargetWeight(e.target.value)}
-                              placeholder="70"
-                              className="h-12 rounded-xl"
-                            />
-                            <Target className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Height (cm)</Label>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            value={height}
-                            onChange={(e) => setHeight(e.target.value)}
-                            placeholder="175"
-                            className="h-12 rounded-xl"
-                          />
-                          <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Health Goal */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                          <Sparkles className="w-5 h-5 text-amber-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Health Goal</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            What do you want to achieve?
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {(Object.keys(goalLabels) as Goal[]).map((g) => (
-                          <GoalCard
-                            key={g}
-                            goal={g}
-                            selected={healthGoal === g}
-                            onClick={() => setHealthGoal(g)}
-                          />
-                        ))}
-                      </div>
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Activity Level */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                          <Activity className="w-5 h-5 text-green-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Activity Level</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            How active are you on a typical week?
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {(Object.keys(activityLevelLabels) as ActivityLevel[]).map((a) => (
-                        <ActivityCard
-                          key={a}
-                          level={a}
-                          selected={activityLevel === a}
-                          onClick={() => setActivityLevel(a)}
-                        />
-                      ))}
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Nutrition Targets */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                            <Flame className="w-5 h-5 text-orange-500" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg">Nutrition Targets</CardTitle>
-                            <p className="text-sm text-muted-foreground">
-                              Your daily nutrition goals
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={recalculateTargets}
-                          disabled={!gender || !activityLevel || !healthGoal}
-                          className="rounded-lg"
-                        >
-                          <RefreshCw className="w-4 h-4 mr-2" />
-                          Recalculate
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {/* Circular Progress Indicators */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 py-4">
-                        <CircularProgress
-                          value={dailyCalories}
-                          max={4000}
-                          label="Calories"
-                          sublabel="daily target"
-                          color="text-orange-500"
-                          icon={Flame}
-                        />
-                        <CircularProgress
-                          value={proteinTarget}
-                          max={300}
-                          label="Protein"
-                          sublabel="grams/day"
-                          color="text-red-500"
-                          icon={Beef}
-                        />
-                        <CircularProgress
-                          value={carbsTarget}
-                          max={400}
-                          label="Carbs"
-                          sublabel="grams/day"
-                          color="text-amber-500"
-                          icon={Wheat}
-                        />
-                        <CircularProgress
-                          value={fatTarget}
-                          max={150}
-                          label="Fat"
-                          sublabel="grams/day"
-                          color="text-cyan-500"
-                          icon={Droplets}
-                        />
-                      </div>
-
-                      {/* Sliders */}
-                      <div className="space-y-6 pt-4 border-t border-border">
-                        {/* Calories Slider */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Flame className="w-5 h-5 text-orange-500" />
-                              <Label className="font-medium">Daily Calories</Label>
-                            </div>
-                            <span className="text-lg font-bold text-orange-500">
-                              <AnimatedNumber value={dailyCalories} /> cal
-                            </span>
-                          </div>
-                          <Slider
-                            value={[dailyCalories]}
-                            onValueChange={([v]) => {
-                              setDailyCalories(v);
-                              setManualOverride(true);
-                            }}
-                            min={1200}
-                            max={4000}
-                            step={50}
-                            className="cursor-pointer"
-                          />
-                        </div>
-
-                        {/* Protein Slider */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Beef className="w-5 h-5 text-red-500" />
-                              <Label className="font-medium">Protein</Label>
-                            </div>
-                            <span className="text-lg font-bold text-red-500">
-                              <AnimatedNumber value={proteinTarget} />g
-                            </span>
-                          </div>
-                          <Slider
-                            value={[proteinTarget]}
-                            onValueChange={([v]) => {
-                              setProteinTarget(v);
-                              setManualOverride(true);
-                            }}
-                            min={50}
-                            max={300}
-                            step={5}
-                            className="cursor-pointer"
-                          />
-                        </div>
-
-                        {/* Carbs Slider */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Wheat className="w-5 h-5 text-amber-500" />
-                              <Label className="font-medium">Carbohydrates</Label>
-                            </div>
-                            <span className="text-lg font-bold text-amber-500">
-                              <AnimatedNumber value={carbsTarget} />g
-                            </span>
-                          </div>
-                          <Slider
-                            value={[carbsTarget]}
-                            onValueChange={([v]) => {
-                              setCarbsTarget(v);
-                              setManualOverride(true);
-                            }}
-                            min={50}
-                            max={400}
-                            step={5}
-                            className="cursor-pointer"
-                          />
-                        </div>
-
-                        {/* Fat Slider */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Droplets className="w-5 h-5 text-cyan-500" />
-                              <Label className="font-medium">Fat</Label>
-                            </div>
-                            <span className="text-lg font-bold text-cyan-500">
-                              <AnimatedNumber value={fatTarget} />g
-                            </span>
-                          </div>
-                          <Slider
-                            value={[fatTarget]}
-                            onValueChange={([v]) => {
-                              setFatTarget(v);
-                              setManualOverride(true);
-                            }}
-                            min={20}
-                            max={150}
-                            step={5}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                      </div>
-
-                      {manualOverride && (
-                        <motion.p
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-xs text-muted-foreground text-center bg-muted/50 rounded-lg py-2"
-                        >
-                          Manual values set. Click "Recalculate" to reset based on your profile.
-                        </motion.p>
-                      )}
-
-                      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                        <Button
-                          onClick={saveTargetsTab}
-                          disabled={saving}
-                          className="w-full h-12 rounded-xl text-base font-medium"
-                        >
-                          {saving ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-5 h-5 mr-2" />
-                              Save Targets
-                            </>
-                          )}
-                        </Button>
-                      </motion.div>
-                    </CardContent>
-                  </SectionCard>
-                </motion.div>
-              )}
-
-              {activeTab === "preferences" && (
-                <motion.div
-                  key="preferences"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
-                >
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
-                          <Utensils className="w-5 h-5 text-teal-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Dietary Preferences</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Select the diets and preferences that match your lifestyle
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {tagsLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        </div>
-                      ) : dietTags.length === 0 ? (
-                        <div className="text-center py-12">
-                          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                            <Utensils className="w-8 h-8 text-muted-foreground" />
-                          </div>
-                          <p className="text-muted-foreground">
-                            No dietary preferences available yet.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {dietTags.map((tag, index) => (
-                            <DietTagCard
-                              key={tag.id}
-                              tag={tag}
-                              selected={selectedTags.includes(tag.id)}
-                              onClick={() => toggleDietPreference(tag.id)}
-                              color={getTagColor(index)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Info Card */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="bg-gradient-to-br from-teal-500/10 to-cyan-500/5 rounded-2xl p-6 border border-teal-500/20"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center flex-shrink-0">
-                        <Sparkles className="w-6 h-6 text-teal-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg mb-1">Personalized Recommendations</h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          Your selected preferences will be used to recommend meals that match
-                          your diet. We&apos;ll prioritize recipes that fit your lifestyle and
-                          nutritional goals.
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-
-              {activeTab === "account" && (
-                <motion.div
-                  key="account"
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
-                >
-                  {/* Quick Links */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      {
-                        to: "/subscription",
-                        icon: Crown,
-                        title: "Subscription Plans",
-                        desc: "Manage your plan & billing",
-                        color: "amber",
-                      },
-                      {
-                        to: "/wallet",
-                        icon: Wallet,
-                        title: "Wallet",
-                        desc: "Top-up & manage balance",
-                        color: "green",
-                      },
-                      {
-                        to: "/invoices",
-                        icon: FileText,
-                        title: "Invoice History",
-                        desc: "View & download invoices",
-                        color: "blue",
-                      },
-                      {
-                        to: "/orders",
-                        icon: Receipt,
-                        title: "Order History",
-                        desc: "View past orders & reorder",
-                        color: "orange",
-                      },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      const colorClasses: Record<string, string> = {
-                        amber: "bg-amber-500/10 text-amber-500",
-                        green: "bg-green-500/10 text-green-500",
-                        blue: "bg-blue-500/10 text-blue-500",
-                        orange: "bg-orange-500/10 text-orange-500",
-                      };
-                      return (
-                        <motion.div
-                          key={item.to}
-                          variants={itemVariants}
-                          whileHover={{ scale: 1.02, y: -2 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <Link to={item.to}>
-                            <Card className="cursor-pointer hover:shadow-md transition-all duration-300 border-border hover:border-primary/20">
-                              <CardContent className="p-4 flex items-center gap-4">
-                                <div
-                                  className={cn(
-                                    "w-12 h-12 rounded-xl flex items-center justify-center",
-                                    colorClasses[item.color]
-                                  )}
-                                >
-                                  <Icon className="w-6 h-6" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold">{item.title}</p>
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {item.desc}
-                                  </p>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                              </CardContent>
-                            </Card>
-                          </Link>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
 
                   {/* Email Display */}
                   <SectionCard>
@@ -1816,6 +811,68 @@ const Profile = () => {
                       </AlertDialog>
                     </CardContent>
                   </SectionCard>
+                </motion.div>
+              )}
+
+              {activeTab === "account" && (
+                <motion.div
+                  key="account"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  {/* Quick Links */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                      {
+                        to: "/wallet",
+                        icon: Wallet,
+                        title: "Wallet",
+                        desc: "Top-up & manage balance",
+                        color: "green",
+                      },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      const colorClasses: Record<string, string> = {
+                        amber: "bg-amber-500/10 text-amber-500",
+                        green: "bg-green-500/10 text-green-500",
+                        blue: "bg-blue-500/10 text-blue-500",
+                        orange: "bg-orange-500/10 text-orange-500",
+                      };
+                      return (
+                        <motion.div
+                          key={item.to}
+                          variants={itemVariants}
+                          whileHover={{ scale: 1.02, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <Link to={item.to}>
+                            <Card className="cursor-pointer hover:shadow-md transition-all duration-300 border-border hover:border-primary/20">
+                              <CardContent className="p-4 flex items-center gap-4">
+                                <div
+                                  className={cn(
+                                    "w-12 h-12 rounded-xl flex items-center justify-center",
+                                    colorClasses[item.color]
+                                  )}
+                                >
+                                  <Icon className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold">{item.title}</p>
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {item.desc}
+                                  </p>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                              </CardContent>
+                            </Card>
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

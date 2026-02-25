@@ -159,52 +159,57 @@ const Schedule = () => {
     const schedule = schedules.find(s => s.id === scheduleId);
     if (!schedule || !user) return;
 
-    const { error } = await supabase
-      .from("meal_schedules")
-      .update({ is_completed: !isCompleted })
-      .eq("id", scheduleId);
+    try {
+      // Use atomic RPC function to prevent race conditions
+      const { data, error } = isCompleted
+        ? await (supabase.rpc as any)('uncomplete_meal_atomic', {
+            p_schedule_id: scheduleId,
+            p_user_id: user.id,
+            p_log_date: schedule.scheduled_date,
+          })
+        : await (supabase.rpc as any)('complete_meal_atomic', {
+            p_schedule_id: scheduleId,
+            p_user_id: user.id,
+            p_log_date: schedule.scheduled_date,
+            p_calories: schedule.meal.calories || 0,
+            p_protein_g: schedule.meal.protein_g || 0,
+            p_carbs_g: schedule.meal.carbs_g || 0,
+            p_fat_g: schedule.meal.fat_g || 0,
+            p_fiber_g: 0,
+          });
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to update meal status", variant: "destructive" });
-      return;
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string; was_already_completed?: boolean; nothing_to_undo?: boolean };
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update meal');
+      }
+
+      // Update local state
+      setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
+      
+      if (isCompleted) {
+        if (result.nothing_to_undo) {
+          toast({ title: "Nothing to undo", description: "This meal was not marked as complete." });
+        } else {
+          toast({ title: "Meal uncompleted", description: "Nutrition removed from progress" });
+        }
+      } else {
+        if (result.was_already_completed) {
+          toast({ title: "Already completed", description: "This meal was already marked as complete." });
+        } else {
+          toast({ title: "Meal completed! 🎉", description: "Nutrition logged to progress" });
+        }
+      }
+    } catch (err: any) {
+      console.error('Error toggling meal completion:', err);
+      toast({ 
+        title: "Error", 
+        description: err.message || "Failed to update meal status", 
+        variant: "destructive" 
+      });
     }
-
-    const logDate = schedule.scheduled_date;
-    const meal = schedule.meal;
-    const multiplier = isCompleted ? -1 : 1;
-
-    const { data: existingLog } = await supabase
-      .from("progress_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("log_date", logDate)
-      .maybeSingle();
-
-    if (existingLog) {
-      await supabase
-        .from("progress_logs")
-        .update({
-          calories_consumed: Math.max(0, (existingLog.calories_consumed || 0) + (meal.calories * multiplier)),
-          protein_consumed_g: Math.max(0, (existingLog.protein_consumed_g || 0) + (meal.protein_g * multiplier)),
-          carbs_consumed_g: Math.max(0, (existingLog.carbs_consumed_g || 0) + (meal.carbs_g * multiplier)),
-          fat_consumed_g: Math.max(0, (existingLog.fat_consumed_g || 0) + (meal.fat_g * multiplier)),
-        })
-        .eq("id", existingLog.id);
-    } else if (!isCompleted) {
-      await supabase
-        .from("progress_logs")
-        .insert({
-          user_id: user.id,
-          log_date: logDate,
-          calories_consumed: meal.calories,
-          protein_consumed_g: meal.protein_g,
-          carbs_consumed_g: meal.carbs_g,
-          fat_consumed_g: meal.fat_g,
-        });
-    }
-
-    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
-    toast({ title: isCompleted ? "Meal uncompleted" : "Meal completed", description: isCompleted ? "Nutrition removed from progress" : "Nutrition logged to progress" });
   };
 
   const deleteMeal = async (scheduleId: string) => {

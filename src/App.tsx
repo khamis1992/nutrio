@@ -47,6 +47,7 @@ const Addresses = lazy(() => import("./pages/Addresses"));
 const Support = lazy(() => import("./pages/Support"));
 const Wallet = lazy(() => import("./pages/Wallet"));
 const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
+const Checkout = lazy(() => import("./pages/Checkout"));
 
 // Partner pages
 const PartnerAuth = lazy(() => import("./pages/partner/PartnerAuth"));
@@ -248,6 +249,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Wallet />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/checkout" 
+              element={
+                <ProtectedRoute>
+                  <Checkout />
                 </ProtectedRoute>
               } 
             />
