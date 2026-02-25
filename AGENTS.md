@@ -157,3 +157,21 @@ All client-side env vars are prefixed with `VITE_`. See `.env.production.templat
 - Show the user what changed (git status/diff)
 - WAIT for explicit "push" or "commit" command from user
 - This rule is ABSOLUTE - no exceptions
+
+## Cursor Cloud specific instructions
+
+### Services
+
+This is a single-service React SPA. The only service to run is the **Vite dev server** on port 8080. All backend functionality is provided by a hosted Supabase instance (credentials in `.env`). No Docker, no local database, no additional services required.
+
+### Running the app
+
+- `npm run dev` starts the Vite dev server on port 8080. See the **Build & Dev Commands** section above for all available scripts.
+
+### Gotchas
+
+- **ESLint has pre-existing errors**: `npm run lint` exits with a non-zero code due to ~280 pre-existing `@typescript-eslint/no-explicit-any` errors in `supabase/functions/` and other files. These are not regressions. `npm run typecheck` is the cleaner gate for type correctness.
+- **Supabase is cloud-hosted**: The backend connects to a remote Supabase project (`loepcagitrijlfksawfm.supabase.co`). There is no local Supabase setup. Auth and data operations require network access to this instance.
+- **IP geo-restriction**: The `AuthContext` includes IP-based geo-restriction to Qatar. In cloud VMs outside Qatar, the app may show geo-restriction warnings for authenticated users. The landing page and auth page load without restriction.
+- **Sentry/PostHog disabled in dev**: Both are configured with empty DSNs/keys in `.env`, so error tracking and analytics are inactive in development. This is expected.
+- **Tests use jsdom**: All Vitest tests run in jsdom environment. Test setup in `src/test/setup.ts` mocks browser APIs (`matchMedia`, `IntersectionObserver`, `ResizeObserver`).
