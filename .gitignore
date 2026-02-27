@@ -34,3 +34,4 @@ android/app/keystore.properties
 mcp.json
 .cursor/mcp.json
 .vscode/mcp.json
+.gitnexus

@@ -1,10 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Bell } from "lucide-react";
-import { DriverLayout } from "@/components/DriverLayout";
-
 export default function DriverNotifications() {
   return (
-    <DriverLayout title="Notifications">
+    <div className="p-4">
       <Card>
         <CardContent className="py-12 text-center">
           <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
@@ -14,6 +12,6 @@ export default function DriverNotifications() {
           </p>
         </CardContent>
       </Card>
-    </DriverLayout>
+    </div>
   );
 }

@@ -100,6 +100,7 @@ const DriverProfile = lazy(() => import("./pages/driver/DriverProfile"));
 const DriverSettings = lazy(() => import("./pages/driver/DriverSettings"));
 const DriverSupport = lazy(() => import("./pages/driver/DriverSupport"));
 const DriverNotifications = lazy(() => import("./pages/driver/DriverNotifications"));
+const DriverLayout = lazy(() => import("./components/driver/DriverLayout").then(m => ({ default: m.DriverLayout })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -158,13 +159,13 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/restaurants/:id" 
+            <Route
+              path="/restaurant/:id"
               element={
                 <ProtectedRoute>
                   <RestaurantDetail />
                 </ProtectedRoute>
-              } 
+              }
             />
             <Route 
               path="/meals/:id" 
@@ -619,86 +620,22 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/driver" 
-              element={
-                <ProtectedRoute>
-                  <DriverDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/orders" 
-              element={
-                <ProtectedRoute>
-                  <DriverOrders />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/orders/:id" 
-              element={
-                <ProtectedRoute>
-                  <DriverOrderDetail />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/history" 
-              element={
-                <ProtectedRoute>
-                  <DriverHistory />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/earnings" 
-              element={
-                <ProtectedRoute>
-                  <DriverEarnings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/payouts" 
-              element={
-                <ProtectedRoute>
-                  <DriverPayouts />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/profile" 
-              element={
-                <ProtectedRoute>
-                  <DriverProfile />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/settings" 
-              element={
-                <ProtectedRoute>
-                  <DriverSettings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/support" 
-              element={
-                <ProtectedRoute>
-                  <DriverSupport />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/driver/notifications" 
-              element={
-                <ProtectedRoute>
-                  <DriverNotifications />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/driver" element={
+              <ProtectedRoute>
+                <DriverLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<DriverDashboard />} />
+              <Route path="orders" element={<DriverOrders />} />
+              <Route path="orders/:id" element={<DriverOrderDetail />} />
+              <Route path="history" element={<DriverHistory />} />
+              <Route path="earnings" element={<DriverEarnings />} />
+              <Route path="payouts" element={<DriverPayouts />} />
+              <Route path="profile" element={<DriverProfile />} />
+              <Route path="settings" element={<DriverSettings />} />
+              <Route path="support" element={<DriverSupport />} />
+              <Route path="notifications" element={<DriverNotifications />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>

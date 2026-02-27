@@ -7,7 +7,7 @@ import { Wallet, TrendingUp, Calendar, DollarSign, ArrowUpRight, Gift } from "lu
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DriverLayout } from "@/components/DriverLayout";
+
 import { useNavigate } from "react-router-dom";
 
 export default function DriverEarnings() {
@@ -69,8 +69,8 @@ export default function DriverEarnings() {
       monthStart.setDate(monthStart.getDate() - 30);
 
       const { data: deliveries, error } = await supabase
-        .from("deliveries")
-        .select("delivery_fee, tip_amount, delivered_at")
+        .from("delivery_jobs")
+        .select("delivery_fee, driver_earnings, delivered_at")
         .eq("driver_id", driverId)
         .eq("status", "delivered")
         .gte("delivered_at", monthStart.toISOString())
@@ -79,17 +79,17 @@ export default function DriverEarnings() {
       if (error) throw error;
 
       const todayDeliveries = (deliveries || []).filter(
-        (d) => new Date(d.delivered_at) >= todayStart
+        (d) => d.delivered_at && new Date(d.delivered_at) >= todayStart
       );
       const weekDeliveries = (deliveries || []).filter(
-        (d) => new Date(d.delivered_at) >= weekStart
+        (d) => d.delivered_at && new Date(d.delivered_at) >= weekStart
       );
       const monthDeliveries = deliveries || [];
 
       const calcEarnings = (list: any[]) =>
-        list.reduce((sum, d) => sum + (d.delivery_fee || 0) + (d.tip_amount || 0), 0);
+        list.reduce((sum, d) => sum + (d.driver_earnings || 0), 0);
       const calcTips = (list: any[]) =>
-        list.reduce((sum, d) => sum + (d.tip_amount || 0), 0);
+        list.reduce((sum, d) => sum + ((d.driver_earnings || 0) * 0.2), 0); // Estimate 20% as tips
 
       setStats({
         today: {
@@ -117,18 +117,15 @@ export default function DriverEarnings() {
 
   if (loading) {
     return (
-      <DriverLayout title="Earnings">
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </DriverLayout>
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
     );
   }
 
   return (
-    <DriverLayout title="Earnings">
-      <div className="space-y-4">
+    <div className="p-4 space-y-4">
         <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
           <CardContent className="py-6">
             <div className="flex items-center justify-between mb-4">
@@ -222,7 +219,6 @@ export default function DriverEarnings() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </DriverLayout>
+    </div>
   );
 }

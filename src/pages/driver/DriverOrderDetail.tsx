@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft } from "lucide-react";
+import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, ScanLine } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DriverLayout } from "@/components/DriverLayout";
+import { DriverQRScanner } from "@/components/driver/DriverQRScanner";
 
 interface DeliveryDetails {
   id: string;
@@ -38,12 +39,18 @@ interface DeliveryDetails {
   } | null;
 }
 
+// Map frontend display statuses to database statuses
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  claimed: { label: "Claimed", color: "bg-blue-500" },
+  assigned: { label: "Claimed", color: "bg-blue-500" },
+  accepted: { label: "Accepted", color: "bg-blue-500" },
   picked_up: { label: "Picked Up", color: "bg-purple-500" },
-  on_the_way: { label: "On the Way", color: "bg-orange-500" },
+  in_transit: { label: "On the Way", color: "bg-orange-500" },
   delivered: { label: "Delivered", color: "bg-green-500" },
+  failed: { label: "Failed", color: "bg-red-500" },
+  cancelled: { label: "Cancelled", color: "bg-gray-500" },
 };
+
+
 
 export default function DriverOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +62,8 @@ export default function DriverOrderDetail() {
   const [updating, setUpdating] = useState(false);
   const [delivery, setDelivery] = useState<DeliveryDetails | null>(null);
   const [notes, setNotes] = useState("");
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (id && user) {
@@ -66,84 +75,67 @@ export default function DriverOrderDetail() {
     if (!id || !user) return;
 
     try {
-      const { data, error } = await supabase
-        .from("deliveries")
-        .select(`
-          id,
-          status,
-          pickup_address,
-          delivery_address,
-          delivery_lat,
-          delivery_lng,
-          estimated_distance_km,
-          delivery_fee,
-          tip_amount,
-          delivery_notes,
-          delivery_photo_url,
-          restaurant:restaurants (name, address, phone),
-          meal_schedule:meal_schedules (
-            meal_name,
-            calories,
-            special_instructions,
-            user_id
-          )
-        `)
+      // Fetch delivery job without embedded queries
+      const { data: deliveryData, error } = await supabase
+        .from("delivery_jobs")
+        .select("*")
         .eq("id", id)
         .single();
 
       if (error) throw error;
 
-      if (data) {
-        const d = data as any;
-        
-        // Fetch customer info and addons
-        let mealScheduleData = null;
-        if (d.meal_schedule) {
-          const [{ data: profile }, { data: address }, { data: addons }] = await Promise.all([
-            supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("user_id", d.meal_schedule.user_id)
-              .single(),
-            supabase
-              .from("user_addresses")
-              .select("phone")
-              .eq("user_id", d.meal_schedule.user_id)
-              .eq("is_default", true)
-              .single(),
-            supabase
-              .from("schedule_addons")
-              .select("addon_name")
-              .eq("schedule_id", id)
-          ]);
-          
+      if (!deliveryData) {
+        setDelivery(null);
+        return;
+      }
+
+      // Fetch restaurant separately
+      let restaurantData = null;
+      if (deliveryData.restaurant_id) {
+        const { data: restaurant } = await supabase
+          .from("restaurants")
+          .select("name, address, phone")
+          .eq("id", deliveryData.restaurant_id)
+          .single();
+        restaurantData = restaurant;
+      }
+
+      // Fetch meal schedule and related data via RPC function
+      let mealScheduleData = null;
+      if (deliveryData.schedule_id) {
+        const { data: details } = await supabase.rpc(
+          "get_delivery_details_for_driver",
+          { p_delivery_job_id: deliveryData.id }
+        );
+
+        if (details && !details.error) {
           mealScheduleData = {
-            meal_name: d.meal_schedule.meal_name,
-            calories: d.meal_schedule.calories,
-            customer_name: profile?.full_name || "Customer",
-            customer_phone: address?.phone || null,
-            special_instructions: d.meal_schedule.special_instructions,
-            addons: addons?.map((a: any) => a.addon_name) || [],
+            meal_name: details.meal_name || "Meal",
+            calories: details.meal_calories || 0,
+            customer_name: details.customer_name || "Customer",
+            customer_phone: details.customer_phone || null,
+            special_instructions: details.delivery_instructions || null,
+            addons: [],
           };
         }
-        
-        setDelivery({
-          id: d.id,
-          status: d.status,
-          pickup_address: d.pickup_address,
-          delivery_address: d.delivery_address,
-          delivery_lat: d.delivery_lat,
-          delivery_lng: d.delivery_lng,
-          estimated_distance_km: d.estimated_distance_km,
-          delivery_fee: d.delivery_fee || 0,
-          tip_amount: d.tip_amount || 0,
-          delivery_notes: d.delivery_notes,
-          delivery_photo_url: d.delivery_photo_url,
-          restaurant: d.restaurant || null,
-          meal_schedule: mealScheduleData,
-        });
-        setNotes(d.delivery_notes || "");
       }
+
+      setDelivery({
+        id: deliveryData.id,
+        status: deliveryData.status || "pending",
+        pickup_address: deliveryData.pickup_address || "",
+        delivery_address: deliveryData.delivery_address || "",
+        delivery_lat: deliveryData.delivery_lat,
+        delivery_lng: deliveryData.delivery_lng,
+        estimated_distance_km: deliveryData.estimated_distance_km,
+        delivery_fee: deliveryData.delivery_fee || 0,
+        tip_amount: deliveryData.tip_amount || 0,
+        delivery_notes: deliveryData.delivery_notes,
+        delivery_photo_url: deliveryData.delivery_photo_url,
+        restaurant: restaurantData,
+        meal_schedule: mealScheduleData,
+      });
+      setNotes(deliveryData.delivery_notes || "");
     } catch (error) {
       console.error("Error fetching delivery:", error);
       toast({
@@ -172,7 +164,7 @@ export default function DriverOrderDetail() {
       }
 
       const { error } = await supabase
-        .from("deliveries")
+        .from("delivery_jobs")
         .update(updateData)
         .eq("id", delivery.id);
 
@@ -203,6 +195,45 @@ export default function DriverOrderDetail() {
   const openMaps = (address: string) => {
     const encoded = encodeURIComponent(address);
     window.open(`https://www.google.com/maps/search/?api=1&query=${encoded}`, "_blank");
+  };
+
+  const handleQRScan = async (qrData: string) => {
+    if (!delivery || !id) return;
+    
+    setUpdating(true);
+    setScanResult(null);
+    
+    try {
+      // Verify the QR code with the backend
+      const { data, error } = await supabase.rpc("verify_pickup_by_qr", {
+        p_delivery_id: id,
+        p_qr_code: qrData,
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        setScanResult({ success: true, message: "Pickup verified successfully!" });
+        
+        // Update status to picked_up after successful verification
+        await updateStatus("picked_up");
+        
+        setShowQRScanner(false);
+      } else {
+        setScanResult({ 
+          success: false, 
+          message: data?.error || "Invalid QR code. Please try again." 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error verifying QR:", error);
+      setScanResult({ 
+        success: false, 
+        message: error.message || "Failed to verify QR code" 
+      });
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (loading) {
@@ -296,7 +327,7 @@ export default function DriverOrderDetail() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(`tel:${delivery.restaurant.phone}`)}
+                  onClick={() => window.open(`tel:${delivery.restaurant!.phone}`)}
                 >
                   <Phone className="h-4 w-4 mr-1" />
                   Call
@@ -388,21 +419,32 @@ export default function DriverOrderDetail() {
         )}
 
         <div className="space-y-3">
-          {delivery.status === "claimed" && (
-            <Button
-              className="w-full bg-purple-600 hover:bg-purple-700"
-              onClick={() => updateStatus("picked_up")}
-              disabled={updating}
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Confirm Pickup
-            </Button>
+          {(delivery.status === "assigned" || delivery.status === "accepted") && (
+            <>
+              <Button
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                onClick={() => setShowQRScanner(true)}
+                disabled={updating}
+              >
+                <ScanLine className="h-4 w-4 mr-2" />
+                Scan QR to Pickup
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowQRScanner(true)}
+                disabled={updating}
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Enter Code Manually
+              </Button>
+            </>
           )}
 
           {delivery.status === "picked_up" && (
             <Button
               className="w-full bg-orange-600 hover:bg-orange-700"
-              onClick={() => updateStatus("on_the_way")}
+              onClick={() => updateStatus("in_transit")}
               disabled={updating}
             >
               <Navigation className="h-4 w-4 mr-2" />
@@ -410,7 +452,7 @@ export default function DriverOrderDetail() {
             </Button>
           )}
 
-          {delivery.status === "on_the_way" && (
+          {delivery.status === "in_transit" && (
             <Button
               className="w-full bg-green-600 hover:bg-green-700"
               onClick={() => updateStatus("delivered")}
@@ -432,6 +474,19 @@ export default function DriverOrderDetail() {
           )}
         </div>
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <DriverQRScanner
+          onScan={handleQRScan}
+          onClose={() => {
+            setShowQRScanner(false);
+            setScanResult(null);
+          }}
+          isScanning={updating}
+          scanResult={scanResult}
+        />
+      )}
     </DriverLayout>
   );
 }

@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCurrency } from "@/lib/currency";
 import { format, isToday, isTomorrow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -37,6 +36,16 @@ interface ActiveOrder {
   restaurant_name: string;
   total_amount: number;
   delivery_type: string;
+}
+
+interface GroupedRestaurantOrder {
+  restaurant_name: string;
+  orders: ActiveOrder[];
+  meal_count: number;
+  meal_names: string[];
+  earliest_date: string;
+  latest_status: OrderStatus;
+  all_statuses: OrderStatus[];
 }
 
 interface MealSchedule {
@@ -272,6 +281,41 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     return journeySteps.findIndex(step => step.status === status);
   };
 
+  // Group orders by restaurant
+  const groupOrdersByRestaurant = (orders: ActiveOrder[]): GroupedRestaurantOrder[] => {
+    const grouped = orders.reduce((acc, order) => {
+      if (!acc[order.restaurant_name]) {
+        acc[order.restaurant_name] = [];
+      }
+      acc[order.restaurant_name].push(order);
+      return acc;
+    }, {} as Record<string, ActiveOrder[]>);
+
+    return Object.entries(grouped).map(([restaurant_name, orders]) => {
+      // Get the "latest" status (furthest along in the journey)
+      const statuses = orders.map(o => o.order_status);
+      const stepIndices = statuses.map(s => getCurrentStepIndex(s));
+      const maxIndex = Math.max(...stepIndices);
+      const latest_status = journeySteps[maxIndex]?.status || orders[0].order_status;
+
+      // Get earliest scheduled date
+      const dates = orders.map(o => new Date(o.scheduled_date));
+      const earliest_date = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
+
+      return {
+        restaurant_name,
+        orders,
+        meal_count: orders.length,
+        meal_names: orders.map(o => o.meal_name),
+        earliest_date,
+        latest_status,
+        all_statuses: statuses,
+      };
+    });
+  };
+
+  const groupedOrders = groupOrdersByRestaurant(activeOrders);
+
   return (
     <div className="space-y-4">
       <motion.div 
@@ -286,7 +330,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           >
             <Utensils className="w-4 h-4 text-primary" />
           </motion.div>
-          Active Orders ({activeOrders.length})
+          Active Orders ({groupedOrders.length})
         </h3>
         <Link to="/orders">
           <Button variant="ghost" size="sm" className="h-8 text-xs hover:bg-primary/10 hover:text-primary transition-colors">
@@ -297,14 +341,14 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       </motion.div>
 
       <AnimatePresence mode="popLayout">
-        {activeOrders.map((order, index) => {
-          const config = statusConfig[order.order_status];
-          const currentStepIndex = getCurrentStepIndex(order.order_status);
+        {groupedOrders.map((group, index) => {
+          const config = statusConfig[group.latest_status];
+          const currentStepIndex = getCurrentStepIndex(group.latest_status);
           const progress = ((currentStepIndex + 1) / journeySteps.length) * 100;
 
           return (
             <motion.div
-              key={order.id}
+              key={group.restaurant_name}
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -312,12 +356,12 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
               layout
             >
               <Link to="/tracking">
-                <Card 
+                <Card
                   className={`group overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer bg-gradient-to-br from-white to-slate-50/50 ${config.glowColor} hover:shadow-lg`}
                 >
                   {/* Top progress bar */}
                   <div className="relative h-1 bg-slate-100 overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       className={`absolute inset-y-0 left-0 bg-gradient-to-r ${config.gradient}`}
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
@@ -335,8 +379,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", stiffness: 500, damping: 30 }}
                           >
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className={`text-xs font-medium px-2.5 py-1 ${config.color} border-current bg-white/80 backdrop-blur-sm`}
                             >
                               <config.icon className="w-3 h-3 mr-1.5" />
@@ -345,15 +389,31 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                           </motion.div>
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {getDateLabel(order.scheduled_date)}
+                            {getDateLabel(group.earliest_date)}
                           </span>
+                          {group.meal_count > 1 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {group.meal_count} meals
+                            </Badge>
+                          )}
                         </div>
                         <h4 className="font-semibold text-base text-slate-900 truncate group-hover:text-primary transition-colors">
-                          {order.meal_name}
+                          {group.restaurant_name}
                         </h4>
-                        <p className="text-sm text-muted-foreground">{order.restaurant_name}</p>
+                        <div className="mt-1 space-y-0.5">
+                          {group.meal_names.slice(0, 3).map((mealName, idx) => (
+                            <p key={idx} className="text-sm text-muted-foreground truncate">
+                              • {mealName}
+                            </p>
+                          ))}
+                          {group.meal_names.length > 3 && (
+                            <p className="text-xs text-muted-foreground">
+                              +{group.meal_names.length - 3} more meals
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <motion.div 
+                      <motion.div
                         className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-lg ${config.glowColor} shadow-lg`}
                         whileHover={{ scale: 1.1, rotate: 5 }}
                         transition={{ type: "spring", stiffness: 400, damping: 17 }}
@@ -435,13 +495,9 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                       </div>
                     </div>
 
-                    {/* Footer with price and action */}
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Total</span>
-                        <span className="font-semibold text-slate-900">{formatCurrency(order.total_amount)}</span>
-                      </div>
-                      <motion.div 
+                    {/* Footer with action */}
+                    <div className="flex items-center justify-end pt-3 border-t border-slate-100">
+                      <motion.div
                         className="flex items-center gap-1 text-xs font-medium text-primary"
                         whileHover={{ x: 3 }}
                       >

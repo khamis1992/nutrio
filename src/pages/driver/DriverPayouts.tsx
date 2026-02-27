@@ -9,7 +9,7 @@ import { Wallet, ArrowDownLeft, Clock, CheckCircle, AlertCircle, Loader2 } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DriverLayout } from "@/components/DriverLayout";
+
 
 interface Payout {
   id: string;
@@ -176,18 +176,15 @@ export default function DriverPayouts() {
 
   if (loading) {
     return (
-      <DriverLayout title="Payouts">
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </DriverLayout>
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
     );
   }
 
   return (
-    <DriverLayout title="Payouts">
-      <div className="space-y-4">
+    <div className="p-4 space-y-4">
         <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
           <CardContent className="py-6">
             <div className="flex items-center justify-between mb-2">
@@ -284,7 +281,6 @@ export default function DriverPayouts() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </DriverLayout>
+    </div>
   );
 }

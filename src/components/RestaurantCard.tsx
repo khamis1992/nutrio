@@ -27,7 +27,7 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite }: Res
   };
 
   return (
-    <Link to={`/restaurants/${restaurant.id}`}>
+    <Link to={`/restaurant/${restaurant.id}`}>
       <Card variant="interactive">
         <CardContent className="p-4">
           <div className="flex gap-4">

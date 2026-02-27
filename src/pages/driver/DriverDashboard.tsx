@@ -8,7 +8,7 @@ import { MapPin, Package, Navigation, Store, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DriverLayout } from "@/components/DriverLayout";
+
 
 interface AvailableDelivery {
   id: string;
@@ -112,23 +112,10 @@ export default function DriverDashboard() {
     if (!driverId) return;
 
     try {
-      const { data, error } = await supabase
-        .from("deliveries")
-        .select(`
-          id,
-          status,
-          pickup_address,
-          delivery_address,
-          estimated_distance_km,
-          delivery_fee,
-          tip_amount,
-          created_at,
-          restaurant:restaurants (name, address),
-          meal_schedule:meal_schedules (
-            meal_name,
-            user_id
-          )
-        `)
+      // Fetch delivery jobs without embedded queries to avoid FK issues
+      const { data: deliveries, error } = await supabase
+        .from("delivery_jobs")
+        .select("*")
         .eq("status", "pending")
         .is("driver_id", null)
         .order("created_at", { ascending: true })
@@ -136,54 +123,53 @@ export default function DriverDashboard() {
 
       if (error) throw error;
 
-      // Fetch user profiles and addresses separately for customer info
-      const userIds = (data || [])
-        .filter((d: any) => d.meal_schedule?.user_id)
-        .map((d: any) => d.meal_schedule.user_id);
-      
-      const profilesMap: Record<string, { full_name: string }> = {};
-      const addressesMap: Record<string, { phone: string | null }> = {};
-      
-      if (userIds.length > 0) {
-        const uniqueUserIds = [...new Set(userIds)];
-        
-        // Fetch profiles for names
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", uniqueUserIds);
-        
-        profiles?.forEach((p: any) => {
-          profilesMap[p.user_id] = p;
-        });
-        
-        // Fetch addresses for phone numbers
-        const { data: addresses } = await supabase
-          .from("user_addresses")
-          .select("user_id, phone")
-          .in("user_id", uniqueUserIds)
-          .eq("is_default", true);
-        
-        addresses?.forEach((a: any) => {
-          addressesMap[a.user_id] = a;
-        });
+      if (!deliveries || deliveries.length === 0) {
+        setAvailableDeliveries([]);
+        return;
       }
 
-      const transformed: AvailableDelivery[] = (data || []).map((d: any) => ({
-        id: d.id,
-        status: d.status,
-        pickup_address: d.pickup_address,
-        delivery_address: d.delivery_address,
-        estimated_distance_km: d.estimated_distance_km,
-        delivery_fee: d.delivery_fee || 0,
-        tip_amount: d.tip_amount || 0,
-        created_at: d.created_at,
-        restaurant: d.restaurant || null,
-        meal_schedule: d.meal_schedule ? {
-          meal_name: d.meal_schedule.meal_name,
-          customer_name: profilesMap[d.meal_schedule.user_id]?.full_name || "Customer",
-          customer_phone: addressesMap[d.meal_schedule.user_id]?.phone || null,
-        } : null,
+      // Get unique IDs for batch fetching
+      const restaurantIds = [...new Set(deliveries.map(d => d.restaurant_id).filter((id): id is string => !!id))];
+      const scheduleIds = [...new Set(deliveries.map(d => d.schedule_id).filter((id): id is string => !!id))];
+
+      // Fetch restaurants separately
+      const { data: restaurants } = restaurantIds.length > 0 ? await supabase
+        .from("restaurants")
+        .select("id, name, address")
+        .in("id", restaurantIds) : { data: [] };
+
+      const restaurantsMap: Record<string, { name: string; address: string | null }> = {};
+      restaurants?.forEach(r => {
+        restaurantsMap[r.id] = r;
+      });
+
+      // Fetch meal and customer info via RPC function
+      const { data: mealInfo } = scheduleIds.length > 0 ? await supabase.rpc(
+        "get_meal_info_for_schedules",
+        { p_schedule_ids: scheduleIds }
+      ) : { data: [] };
+
+      // Create schedule info map from RPC result
+      const scheduleMap: Record<string, { meal_name: string; customer_name: string; customer_phone: string | null }> = {};
+      (mealInfo as any[])?.forEach((info: any) => {
+        scheduleMap[info.schedule_id] = {
+          meal_name: info.meal_name || "Meal",
+          customer_name: info.customer_name || "Customer",
+          customer_phone: info.customer_phone || null,
+        };
+      });
+
+      const transformed: AvailableDelivery[] = deliveries.map(d => ({
+        id: d.id as string,
+        status: (d.status as string) || "pending",
+        pickup_address: (d.pickup_address as string) || "",
+        delivery_address: (d.delivery_address as string) || "",
+        estimated_distance_km: d.estimated_distance_km as number | null,
+        delivery_fee: (d.delivery_fee as number) || 0,
+        tip_amount: (d.tip_amount as number) || 0,
+        created_at: (d.created_at as string) || new Date().toISOString(),
+        restaurant: d.restaurant_id ? restaurantsMap[d.restaurant_id] || null : null,
+        meal_schedule: d.schedule_id ? scheduleMap[d.schedule_id] || null : null,
       }));
 
       setAvailableDeliveries(transformed);
@@ -198,23 +184,10 @@ export default function DriverDashboard() {
     if (!driverId) return;
 
     try {
-      const { data, error } = await supabase
-        .from("deliveries")
-        .select(`
-          id,
-          status,
-          pickup_address,
-          delivery_address,
-          estimated_distance_km,
-          delivery_fee,
-          tip_amount,
-          created_at,
-          restaurant:restaurants (name, address),
-          meal_schedule:meal_schedules (
-            meal_name,
-            user_id
-          )
-        `)
+      // Fetch active delivery job without embedded queries
+      const { data: delivery, error } = await supabase
+        .from("delivery_jobs")
+        .select("*")
         .eq("driver_id", driverId)
         .in("status", ["claimed", "picked_up", "on_the_way"])
         .order("created_at", { ascending: true })
@@ -223,55 +196,55 @@ export default function DriverDashboard() {
 
       if (error) throw error;
 
-      if (data) {
-        const d = data as any;
-        
-        // Fetch customer info if meal_schedule exists
-        const customerInfo = { name: "Customer", phone: null as string | null };
-        if (d.meal_schedule?.user_id) {
-          const [{ data: profile }, { data: address }] = await Promise.all([
-            supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("user_id", d.meal_schedule.user_id)
-              .single(),
-            supabase
-              .from("user_addresses")
-              .select("phone")
-              .eq("user_id", d.meal_schedule.user_id)
-              .eq("is_default", true)
-              .single()
-          ]);
-          
-          if (profile) {
-            customerInfo.name = profile.full_name || "Customer";
-          }
-          if (address) {
-            customerInfo.phone = address.phone;
-          }
-        }
-        
-        setActiveDelivery({
-          id: d.id,
-          status: d.status,
-          pickup_address: d.pickup_address,
-          delivery_address: d.delivery_address,
-          estimated_distance_km: d.estimated_distance_km,
-          delivery_fee: d.delivery_fee || 0,
-          tip_amount: d.tip_amount || 0,
-          created_at: d.created_at,
-          restaurant: d.restaurant || null,
-          meal_schedule: d.meal_schedule ? {
-            meal_name: d.meal_schedule.meal_name,
-            customer_name: customerInfo.name,
-            customer_phone: customerInfo.phone,
-          } : null,
-        });
-      } else {
+      if (!delivery) {
         setActiveDelivery(null);
+        return;
       }
+
+      // Fetch restaurant separately
+      let restaurantData = null;
+      if (delivery.restaurant_id) {
+        const { data: restaurant } = await supabase
+          .from("restaurants")
+          .select("name, address")
+          .eq("id", delivery.restaurant_id)
+          .single();
+        restaurantData = restaurant;
+      }
+
+      // Fetch meal schedule and related data
+      let mealScheduleData = null;
+      if (delivery.schedule_id) {
+        // Fetch meal and customer info via RPC function
+        const { data: details } = await supabase.rpc(
+          "get_delivery_details_for_driver",
+          { p_delivery_job_id: delivery.id }
+        );
+
+        if (details && !details.error) {
+          mealScheduleData = {
+            meal_name: details.meal_name || "Meal",
+            customer_name: details.customer_name || "Customer",
+            customer_phone: details.customer_phone || null,
+          };
+        }
+      }
+
+      setActiveDelivery({
+        id: delivery.id as string,
+        status: (delivery.status as string) || "claimed",
+        pickup_address: (delivery.pickup_address as string) || "",
+        delivery_address: (delivery.delivery_address as string) || "",
+        estimated_distance_km: delivery.estimated_distance_km as number | null,
+        delivery_fee: (delivery.delivery_fee as number) || 0,
+        tip_amount: (delivery.tip_amount as number) || 0,
+        created_at: (delivery.created_at as string) || new Date().toISOString(),
+        restaurant: restaurantData,
+        meal_schedule: mealScheduleData,
+      });
     } catch (error) {
       console.error("Error fetching active delivery:", error);
+      setActiveDelivery(null);
     }
   };
 
@@ -292,14 +265,14 @@ export default function DriverDashboard() {
         .single();
 
       const { count: todayCount } = await supabase
-        .from("deliveries")
+        .from("delivery_jobs")
         .select("*", { count: "exact", head: true })
         .eq("driver_id", driverId)
         .eq("status", "delivered")
         .gte("delivered_at", today.toISOString());
 
       const { count: weekCount } = await supabase
-        .from("deliveries")
+        .from("delivery_jobs")
         .select("*", { count: "exact", head: true })
         .eq("driver_id", driverId)
         .eq("status", "delivered")
@@ -326,18 +299,32 @@ export default function DriverDashboard() {
     setClaimingId(deliveryId);
 
     try {
-      const { error } = await supabase
-        .from("deliveries")
-        .update({
-          driver_id: driverId,
-          status: "claimed",
-          claimed_at: new Date().toISOString(),
-        })
-        .eq("id", deliveryId)
-        .eq("status", "pending")
-        .is("driver_id", null);
+      // Use atomic RPC function to prevent race conditions
+      const { data: result, error } = await supabase.rpc("claim_delivery_job", {
+        p_job_id: deliveryId,
+        p_driver_id: driverId,
+      });
 
       if (error) throw error;
+
+      // Check the result from the atomic function
+      if (!result?.success) {
+        const errorMessages: Record<string, string> = {
+          LOCKED: "This delivery is being processed. Please try again.",
+          NOT_FOUND: "Delivery no longer exists.",
+          ALREADY_CLAIMED: "This delivery was just claimed by another driver.",
+          INVALID_STATE: "This delivery is no longer available.",
+          DRIVER_UNAVAILABLE: "You must be online to claim deliveries.",
+          DRIVER_BUSY: "You already have an active delivery. Complete it first.",
+        };
+
+        toast({
+          title: "Unable to Claim",
+          description: errorMessages[result?.code] || result?.error || "Failed to claim delivery",
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: "Delivery claimed!",
@@ -359,21 +346,18 @@ export default function DriverDashboard() {
 
   if (loading) {
     return (
-      <DriverLayout title="Driver Dashboard">
-        <div className="space-y-4">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-48 w-full" />
-        </div>
-      </DriverLayout>
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
     );
   }
 
   const totalEarnings = (delivery: AvailableDelivery) => delivery.delivery_fee + delivery.tip_amount;
 
   return (
-    <DriverLayout title="Available Orders" subtitle={`${availableDeliveries.length} orders nearby`}>
-      <div className="space-y-4">
+    <div className="p-4 space-y-4">
         {!isOnline && (
           <Card className="bg-amber-500/10 border-amber-500/20">
             <CardContent className="py-4 flex items-center gap-3">
@@ -497,7 +481,6 @@ export default function DriverDashboard() {
             ))}
           </div>
         )}
-      </div>
-    </DriverLayout>
+    </div>
   );
 }

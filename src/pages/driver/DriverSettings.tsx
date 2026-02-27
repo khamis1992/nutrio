@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Bell, Volume2, Vibrate, Smartphone } from "lucide-react";
-import { DriverLayout } from "@/components/DriverLayout";
+
 
 export default function DriverSettings() {
   const [settings, setSettings] = useState({
@@ -14,8 +14,7 @@ export default function DriverSettings() {
   });
 
   return (
-    <DriverLayout title="Settings">
-      <div className="space-y-4">
+    <div className="p-4 space-y-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -107,7 +106,6 @@ export default function DriverSettings() {
             </p>
           </CardContent>
         </Card>
-      </div>
-    </DriverLayout>
+    </div>
   );
 }

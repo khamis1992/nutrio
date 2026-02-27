@@ -554,6 +554,7 @@ const MealDetail = () => {
         scheduled_date: format(selectedDate, "yyyy-MM-dd"),
         meal_type: selectedMealType,
         is_completed: false,
+        order_status: "pending",
       });
 
       if (error) throw error;

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { DriverLayout } from "@/components/DriverLayout";
+
 
 const categories = [
   { value: "delivery_issue", label: "Delivery Issue" },
@@ -59,8 +59,7 @@ export default function DriverSupport() {
   };
 
   return (
-    <DriverLayout title="Support">
-      <div className="space-y-4">
+    <div className="p-4 space-y-4">
         <Card>
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
@@ -173,7 +172,6 @@ export default function DriverSupport() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </DriverLayout>
+    </div>
   );
 }

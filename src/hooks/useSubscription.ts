@@ -26,6 +26,10 @@ interface UseSubscriptionReturn {
   remainingMeals: number;
   totalMeals: number;
   mealsUsed: number;
+  // Weekly values for display
+  remainingMealsWeekly: number;
+  totalMealsWeekly: number;
+  mealsUsedWeekly: number;
   isUnlimited: boolean;
   isVip: boolean;
   canOrderMeal: boolean;
@@ -103,13 +107,20 @@ export const useSubscription = (): UseSubscriptionReturn => {
   // VIP tier gets unlimited meals (meals_per_month = 0)
   const isUnlimited = subscription?.tier === "vip" || subscription?.meals_per_month === 0;
   
-  // Use monthly values
+  // Use monthly values for calculations
   const totalMeals = isUnlimited ? 0 : (subscription?.meals_per_month || 0);
   const mealsUsed = subscription?.meals_used_this_month || 0;
-  const remainingMeals = isUnlimited 
-    ? Infinity 
+  const remainingMeals = isUnlimited
+    ? Infinity
     : Math.max(0, totalMeals - mealsUsed);
-  
+
+  // Weekly values for display (more intuitive for users)
+  const totalMealsWeekly = subscription?.meals_per_week || 0;
+  const mealsUsedWeekly = subscription?.meals_used_this_week || 0;
+  const remainingMealsWeekly = isUnlimited
+    ? Infinity
+    : Math.max(0, totalMealsWeekly - mealsUsedWeekly);
+
   const canOrderMeal = hasActiveSubscription && (isUnlimited || remainingMeals > 0);
 
   const incrementMealUsage = async (): Promise<boolean> => {
@@ -181,6 +192,10 @@ export const useSubscription = (): UseSubscriptionReturn => {
     remainingMeals,
     totalMeals,
     mealsUsed,
+    // Weekly values for display
+    remainingMealsWeekly,
+    totalMealsWeekly,
+    mealsUsedWeekly,
     isUnlimited,
     isVip,
     canOrderMeal,

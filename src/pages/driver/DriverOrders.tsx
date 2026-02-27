@@ -8,7 +8,7 @@ import { Package, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DriverLayout } from "@/components/DriverLayout";
+
 
 interface Delivery {
   id: string;
@@ -65,7 +65,7 @@ export default function DriverOrders() {
         {
           event: "*",
           schema: "public",
-          table: "deliveries",
+          table: "delivery_jobs",
         },
         () => {
           fetchDeliveries();
@@ -105,42 +105,20 @@ export default function DriverOrders() {
     if (!driverId) return;
 
     try {
+      // Fetch active delivery jobs without embedded queries
       const { data: active, error: activeError } = await supabase
-        .from("deliveries")
-        .select(`
-          id,
-          status,
-          pickup_address,
-          delivery_address,
-          delivery_fee,
-          tip_amount,
-          created_at,
-          claimed_at,
-          picked_up_at,
-          delivered_at,
-          restaurant:restaurants (name)
-        `)
+        .from("delivery_jobs")
+        .select("*")
         .eq("driver_id", driverId)
-        .in("status", ["claimed", "picked_up", "on_the_way"])
+        .in("status", ["assigned", "accepted", "picked_up", "in_transit"])
         .order("created_at", { ascending: false });
 
       if (activeError) throw activeError;
 
+      // Fetch completed delivery jobs
       const { data: completed, error: completedError } = await supabase
-        .from("deliveries")
-        .select(`
-          id,
-          status,
-          pickup_address,
-          delivery_address,
-          delivery_fee,
-          tip_amount,
-          created_at,
-          claimed_at,
-          picked_up_at,
-          delivered_at,
-          restaurant:restaurants (name)
-        `)
+        .from("delivery_jobs")
+        .select("*")
         .eq("driver_id", driverId)
         .eq("status", "delivered")
         .order("delivered_at", { ascending: false })
@@ -148,18 +126,33 @@ export default function DriverOrders() {
 
       if (completedError) throw completedError;
 
+      // Get unique restaurant IDs
+      const allJobs = [...(active || []), ...(completed || [])];
+      const restaurantIds = [...new Set(allJobs.map(j => j.restaurant_id).filter((id): id is string => !!id))];
+
+      // Fetch restaurants separately
+      const { data: restaurants } = restaurantIds.length > 0 ? await supabase
+        .from("restaurants")
+        .select("id, name")
+        .in("id", restaurantIds) : { data: [] };
+
+      const restaurantsMap: Record<string, { name: string }> = {};
+      restaurants?.forEach(r => {
+        restaurantsMap[r.id] = r;
+      });
+
       const transformDelivery = (d: any): Delivery => ({
         id: d.id,
-        status: d.status,
-        pickup_address: d.pickup_address,
-        delivery_address: d.delivery_address,
+        status: d.status === "assigned" ? "claimed" : d.status === "in_transit" ? "on_the_way" : d.status,
+        pickup_address: d.pickup_address || "",
+        delivery_address: d.delivery_address || "",
         delivery_fee: d.delivery_fee || 0,
         tip_amount: d.tip_amount || 0,
         created_at: d.created_at,
-        claimed_at: d.claimed_at,
+        claimed_at: d.assigned_at,
         picked_up_at: d.picked_up_at,
         delivered_at: d.delivered_at,
-        restaurant: d.restaurant || null,
+        restaurant: d.restaurant_id ? restaurantsMap[d.restaurant_id] || null : null,
       });
 
       setActiveDeliveries((active || []).map(transformDelivery));
@@ -225,18 +218,16 @@ export default function DriverOrders() {
 
   if (loading) {
     return (
-      <DriverLayout title="Orders">
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </DriverLayout>
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
     );
   }
 
   return (
-    <DriverLayout title="My Orders">
+    <div className="p-4">
       <Tabs defaultValue="active">
         <TabsList className="grid grid-cols-2 w-full mb-4">
           <TabsTrigger value="active" className="relative">
@@ -279,6 +270,6 @@ export default function DriverOrders() {
           )}
         </TabsContent>
       </Tabs>
-    </DriverLayout>
+    </div>
   );
 }

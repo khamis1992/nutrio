@@ -9,7 +9,9 @@ import {
   User, 
   Power,
   MapPin,
-  Loader2
+  Loader2,
+  Package,
+  Wallet
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { driverGoOnline, driverGoOffline, updateDriverLocation } from "@/integrations/supabase/delivery";
@@ -50,10 +52,7 @@ export function DriverLayout() {
     try {
       const { data, error } = await supabase
         .from("drivers")
-        .select(`
-          *,
-          user:user_id(email, raw_user_meta_data)
-        `)
+        .select("*")
         .eq("user_id", user.id)
         .single();
       
@@ -221,7 +220,9 @@ export function DriverLayout() {
       <nav className="bg-background border-t border-border fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto">
         <div className="flex justify-around p-2">
           <NavButton to="/driver" icon={Home} label="Home" end />
+          <NavButton to="/driver/orders" icon={Package} label="Orders" />
           <NavButton to="/driver/history" icon={History} label="History" />
+          <NavButton to="/driver/earnings" icon={Wallet} label="Earnings" />
           <NavButton to="/driver/profile" icon={User} label="Profile" />
         </div>
       </nav>

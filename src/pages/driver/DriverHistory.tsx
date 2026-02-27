@@ -15,15 +15,20 @@ import { format } from "date-fns";
 import type { DriverLayoutContext } from "@/components/driver/DriverLayout";
 
 export default function DriverHistory() {
-  const { driver } = useOutletContext<DriverLayoutContext>();
+  const context = useOutletContext<DriverLayoutContext>();
+  const driver = context?.driver;
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchHistory();
-  }, [driver.id]);
+    if (driver?.id) {
+      fetchHistory();
+    }
+  }, [driver?.id]);
 
   const fetchHistory = async () => {
+    if (!driver?.id) return;
+    
     try {
       const data = await getDriverJobHistory(driver.id, 50);
       setJobs(data || []);
@@ -111,8 +116,8 @@ export default function DriverHistory() {
 }
 
 function HistoryCard({ job }: { job: any }) {
-  const mealName = job.schedule?.meal?.name || "Order";
-  const restaurantName = job.schedule?.meal?.restaurant?.name || "Restaurant";
+  const mealName = job.meal_name || "Order";
+  const restaurantName = job.customer_name || "Restaurant";
   const isDelivered = job.status === "delivered";
   const isFailed = job.status === "failed";
 

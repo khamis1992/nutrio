@@ -373,13 +373,14 @@ const PartnerOrders = () => {
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      // Direct update to meal_schedules (database trigger will validate)
-      const { error: updateError } = await supabase
-        .from("meal_schedules")
-        .update({ order_status: newStatus })
-        .eq("id", orderId);
+      // Use the database function for role-based status update
+      const { data, error } = await supabase.rpc("update_order_status", {
+        p_order_id: orderId,
+        p_new_status: newStatus,
+        p_user_role: "partner",
+      });
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       const statusLabel = STATUS_CONFIG[newStatus].label;
       toast({

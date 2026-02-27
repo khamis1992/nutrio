@@ -5,21 +5,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Target, 
-  Dumbbell, 
-  Scale, 
+import {
+  Target,
+  Dumbbell,
+  Scale,
   ArrowRight,
   ArrowLeft,
   Check,
   User,
   Ruler,
   Activity,
-  Loader2
+  Loader2,
+  Utensils,
+  Leaf,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { useDietTags } from "@/hooks/useDietTags";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
 
@@ -110,6 +114,7 @@ const Onboarding = () => {
   const { user, loading: authLoading } = useAuth();
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
+  const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
   
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -126,7 +131,7 @@ const Onboarding = () => {
     allergies: [],
   });
 
-  const totalSteps = 6;
+  const totalSteps = 5;
 
   // Load saved progress from localStorage on mount
   useEffect(() => {
@@ -237,9 +242,8 @@ const Onboarding = () => {
         protein_target_g: macros.protein,
         carbs_target_g: macros.carbs,
         fat_target_g: macros.fat,
-        training_days_per_week: parseInt(data.trainingDaysPerWeek) || 0,
-        food_preferences: data.foodPreferences,
-        allergies: data.allergies,
+        // Note: food_preferences, allergies, and training_days are stored in local state
+        // but not in the profile table as those columns don't exist
         onboarding_completed: true,
       });
 
@@ -282,8 +286,6 @@ const Onboarding = () => {
       case 4:
         return data.activityLevel !== null;
       case 5:
-        return data.trainingDaysPerWeek !== "";
-      case 6:
         return true; // Food preferences and allergies are optional
       default:
         return false;
@@ -350,9 +352,9 @@ const Onboarding = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
-        <div className="w-full max-w-2xl animate-fade-in" key={step}>
+      {/* Content - Native Mobile Centered Design */}
+      <main className="flex-1 container mx-auto px-4 py-4 flex items-center justify-center overflow-y-auto">
+        <div className="w-full max-w-md animate-fade-in" key={step}>
           {/* Step 1: Goal Selection */}
           {step === 1 && (
             <div className="space-y-8">
@@ -567,134 +569,194 @@ const Onboarding = () => {
               </div>
             </div>
           )}
-        </div>
-          {/* Step 5: Training Days */}
+
+          {/* Step 5: Food Preferences & Allergies - Native Mobile Design */}
           {step === 5 && (
-            <div className="space-y-8">
-              <div className="text-center">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                  Your <span className="text-gradient">training schedule</span>
+            <div className="flex flex-col h-full">
+              {/* Header - Centered */}
+              <div className="text-center mb-6">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <Utensils className="w-10 h-10 text-primary" />
+                </div>
+                <h1 className="text-2xl font-bold mb-2">
+                  Dietary Preferences
                 </h1>
-                <p className="text-muted-foreground">
-                  How many days per week do you exercise?
+                <p className="text-muted-foreground text-sm px-4">
+                  Select your food preferences and allergies
                 </p>
               </div>
 
-              <div className="grid grid-cols-4 gap-3">
-                {["0", "1", "2", "3", "4", "5", "6", "7"].map((days) => (
-                  <Card
-                    key={days}
-                    variant="interactive"
-                    className={`cursor-pointer transition-all ${
-                      data.trainingDaysPerWeek === days 
-                        ? "border-2 border-primary shadow-glow" 
-                        : ""
-                    }`}
-                    onClick={() => setData({ ...data, trainingDaysPerWeek: days })}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold">{days}</div>
-                      <div className="text-xs text-muted-foreground">days</div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto space-y-5 -mx-4 px-4">
+                {/* Food Preferences Section */}
+                <div>
+                  <h3 className="text-base font-semibold mb-3 flex items-center gap-2 px-1">
+                    <span className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Leaf className="w-3.5 h-3.5 text-emerald-600" />
+                    </span>
+                    Food Preferences
+                  </h3>
 
-          {/* Step 6: Food Preferences & Allergies */}
-          {step === 6 && (
-            <div className="space-y-8">
-              <div className="text-center">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                  Dietary <span className="text-gradient">preferences</span>
-                </h1>
-                <p className="text-muted-foreground">
-                  Help us personalize your meal recommendations
-                </p>
-              </div>
-
-              <Card variant="elevated">
-                <CardContent className="p-6 space-y-6">
-                  <div>
-                    <Label className="text-base font-semibold mb-3 block">
-                      Food Preferences (Optional)
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {["Halal", "Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Keto", "Low-Carb"].map((pref) => (
-                        <Badge
-                          key={pref}
-                          variant={data.foodPreferences.includes(pref) ? "default" : "outline"}
-                          className="cursor-pointer px-3 py-1.5 text-sm"
-                          onClick={() => {
-                            const newPrefs = data.foodPreferences.includes(pref)
-                              ? data.foodPreferences.filter((p) => p !== pref)
-                              : [...data.foodPreferences, pref];
-                            setData({ ...data, foodPreferences: newPrefs });
-                          }}
-                        >
-                          {data.foodPreferences.includes(pref) && <Check className="w-3 h-3 mr-1" />}
-                          {pref}
-                        </Badge>
+                  {dietTagsLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />
                       ))}
                     </div>
-                  </div>
+                  ) : dietTags.length > 0 ? (
+                    <div className="space-y-2">
+                      {dietTags.map((tag) => {
+                        const isSelected = data.foodPreferences.includes(tag.name);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => {
+                              const newPrefs = isSelected
+                                ? data.foodPreferences.filter((p) => p !== tag.name)
+                                : [...data.foodPreferences, tag.name];
+                              setData({ ...data, foodPreferences: newPrefs });
+                            }}
+                            className={`
+                              w-full p-3.5 rounded-xl border-2 transition-all duration-200
+                              flex items-center gap-3 min-h-[52px]
+                              ${isSelected
+                                ? "border-emerald-500 bg-emerald-50/50"
+                                : "border-border/50 bg-card hover:border-emerald-200"
+                              }
+                            `}
+                          >
+                            <div className={`
+                              w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
+                              ${isSelected ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground/30"}
+                            `}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="font-medium text-sm">{tag.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted rounded-xl text-center">
+                      <p className="text-sm text-muted-foreground">No preferences available</p>
+                    </div>
+                  )}
+                </div>
 
-                  <div>
-                    <Label className="text-base font-semibold mb-3 block">
-                      Allergies (Optional)
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {["Nuts", "Dairy", "Shellfish", "Eggs", "Wheat", "Soy", "Fish"].map((allergy) => (
-                        <Badge
-                          key={allergy}
-                          variant={data.allergies.includes(allergy) ? "destructive" : "outline"}
-                          className="cursor-pointer px-3 py-1.5 text-sm"
-                          onClick={() => {
-                            const newAllergies = data.allergies.includes(allergy)
-                              ? data.allergies.filter((a) => a !== allergy)
-                              : [...data.allergies, allergy];
-                            setData({ ...data, allergies: newAllergies });
-                          }}
-                        >
-                          {data.allergies.includes(allergy) && <Check className="w-3 h-3 mr-1" />}
-                          {allergy}
-                        </Badge>
+                {/* Allergies Section */}
+                <div>
+                  <h3 className="text-base font-semibold mb-3 flex items-center gap-2 px-1">
+                    <span className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                    </span>
+                    Allergies
+                  </h3>
+
+                  {dietTagsLoading ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />
                       ))}
                     </div>
+                  ) : allergyTags.length > 0 ? (
+                    <div className="space-y-2">
+                      {allergyTags.map((tag) => {
+                        const isSelected = data.allergies.includes(tag.name);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => {
+                              const newAllergies = isSelected
+                                ? data.allergies.filter((a) => a !== tag.name)
+                                : [...data.allergies, tag.name];
+                              setData({ ...data, allergies: newAllergies });
+                            }}
+                            className={`
+                              w-full p-3.5 rounded-xl border-2 transition-all duration-200
+                              flex items-center gap-3 min-h-[52px]
+                              ${isSelected
+                                ? "border-red-500 bg-red-50/50"
+                                : "border-border/50 bg-card hover:border-red-200"
+                              }
+                            `}
+                          >
+                            <div className={`
+                              w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0
+                              ${isSelected ? "border-red-500 bg-red-500" : "border-muted-foreground/30"}
+                            `}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="font-medium text-sm">{tag.name}</span>
+                            {isSelected && (
+                              <span className="ml-auto text-xs text-red-600 font-medium">Avoid</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted rounded-xl text-center">
+                      <p className="text-sm text-muted-foreground">No allergies available</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Spacer for scroll */}
+                <div className="h-4" />
+              </div>
+
+              {/* Summary - Fixed at bottom */}
+              {(data.foodPreferences.length > 0 || data.allergies.length > 0) && (
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Selected:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.foodPreferences.map((pref) => (
+                      <Badge key={pref} variant="secondary" className="bg-emerald-100 text-emerald-700 text-xs">
+                        {pref}
+                      </Badge>
+                    ))}
+                    {data.allergies.map((allergy) => (
+                      <Badge key={allergy} variant="secondary" className="bg-red-100 text-red-700 text-xs">
+                        {allergy}
+                      </Badge>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              )}
             </div>
           )}
-
+        </div>
       </main>
 
-      {/* Footer Navigation */}
-      <footer className="p-4 border-t border-border bg-background/80 backdrop-blur-lg">
-        <div className="container mx-auto flex justify-between items-center">
-          <Button 
-            variant="ghost" 
+      {/* Footer Navigation - Native Mobile Style */}
+      <footer className="p-4 pb-8 border-t border-border bg-background/95 backdrop-blur-lg safe-bottom-nav">
+        <div className="container mx-auto max-w-md flex justify-between items-center gap-4">
+          <Button
+            variant="outline"
+            size="lg"
             onClick={handleBack}
             disabled={step === 1 || saving}
+            className="flex-1 h-14 rounded-xl font-medium min-h-[56px]"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-5 h-5 mr-2" />
             Back
           </Button>
-          <Button 
+          <Button
             variant="gradient"
+            size="lg"
             onClick={handleNext}
             disabled={!canProceed() || saving}
+            className="flex-1 h-14 rounded-xl font-semibold min-h-[56px] shadow-lg"
           >
             {saving ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Saving...
               </>
             ) : (
               <>
-                {step === totalSteps ? "Complete Setup" : "Continue"}
-                <ArrowRight className="w-4 h-4 ml-2" />
+                {step === totalSteps ? "Complete" : "Continue"}
+                <ArrowRight className="w-5 h-5 ml-2" />
               </>
             )}
           </Button>

@@ -13,7 +13,6 @@ import {
   Plus,
   Sparkles,
   Crown,
-  Menu as MenuIcon,
   Flame,
   Target,
 } from "lucide-react";
@@ -32,7 +31,6 @@ import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { WeightPredictionChart } from "@/components/WeightPredictionChart";
-import { SideDrawer } from "@/components/SideDrawer";
 import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { DeliveredMealNotifications } from "@/components/DeliveredMealNotifications";
@@ -55,7 +53,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { hasActiveSubscription, remainingMeals, totalMeals, isUnlimited, isVip } = useSubscription();
+  const { hasActiveSubscription, remainingMealsWeekly, totalMealsWeekly, isUnlimited, isVip } = useSubscription();
   const { settings: platformSettings } = usePlatformSettings();
   const { 
     recommendation, 
@@ -80,7 +78,6 @@ const Dashboard = () => {
   });
   const [progressKey, setProgressKey] = useState(0);
   const [hasRestaurant, setHasRestaurant] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Check if user has a restaurant (for role switcher)
   useEffect(() => {
@@ -190,15 +187,6 @@ const Dashboard = () => {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <SideDrawer
-              open={drawerOpen}
-              onOpenChange={setDrawerOpen}
-              trigger={
-                <Button variant="ghost" size="icon" aria-label="Open menu" className="hover:bg-primary/10">
-                  <MenuIcon className="w-6 h-6" />
-                </Button>
-              }
-            />
             {/* User Avatar with Greeting */}
             <div className="flex items-center gap-3">
               <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 ${
@@ -309,8 +297,8 @@ const Dashboard = () => {
         {/* Meals Remaining Widget - Prominent Display */}
         {hasActiveSubscription && (
           <MealsRemainingWidget
-            remainingMeals={remainingMeals}
-            totalMeals={totalMeals}
+            remainingMeals={remainingMealsWeekly}
+            totalMeals={totalMealsWeekly}
             isUnlimited={isUnlimited}
             isVip={isVip}
             variant="full"

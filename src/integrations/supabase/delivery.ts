@@ -124,30 +124,44 @@ function calculateDistance(loc1: Location, loc2: Location): number {
  * Get restaurant location from meal schedule
  */
 async function getRestaurantLocation(scheduleId: string): Promise<Location> {
-  const { data, error } = await supabase
+  // Fetch meal schedule without embedded queries
+  const { data: schedule, error: scheduleError } = await supabase
     .from("meal_schedules")
-    .select(`
-      meal:meal_id(
-        restaurant:restaurant_id(
-          current_lat,
-          current_lng
-        )
-      )
-    `)
+    .select("meal_id")
     .eq("id", scheduleId)
     .single();
   
-  if (error || !data) {
-    // Return Doha center as fallback
+  if (scheduleError || !schedule) {
+    return { lat: 25.276987, lng: 51.520008 };
+  }
+
+  // Fetch meal to get restaurant_id
+  const { data: meal, error: mealError } = await supabase
+    .from("meals")
+    .select("restaurant_id")
+    .eq("id", schedule.meal_id)
+    .single();
+
+  if (mealError || !meal?.restaurant_id) {
+    return { lat: 25.276987, lng: 51.520008 };
+  }
+
+  // Fetch restaurant coordinates
+  const { data: restaurant, error: restaurantError } = await supabase
+    .from("restaurants")
+    .select("latitude, longitude")
+    .eq("id", meal.restaurant_id)
+    .single();
+  
+  if (restaurantError || !restaurant) {
     return { lat: 25.276987, lng: 51.520008 };
   }
   
   // Use restaurant coordinates if available
-  const restaurant = data.meal?.restaurant;
-  if (restaurant?.current_lat && restaurant?.current_lng) {
+  if (restaurant.latitude && restaurant.longitude) {
     return {
-      lat: parseFloat(restaurant.current_lat),
-      lng: parseFloat(restaurant.current_lng)
+      lat: Number(restaurant.latitude),
+      lng: Number(restaurant.longitude)
     };
   }
   
@@ -409,22 +423,64 @@ export async function getDriverCurrentJob(driverId: string) {
  * Get driver's job history
  */
 export async function getDriverJobHistory(driverId: string, limit = 20) {
-  const { data, error } = await supabase
+  // Fetch delivery jobs without embedded queries
+  const { data: jobs, error: jobsError } = await supabase
     .from("delivery_jobs")
-    .select(`
-      *,
-      schedule:schedule_id(
-        meal:meal_id(name),
-        user:user_id(raw_user_meta_data)
-      )
-    `)
+    .select("*")
     .eq("driver_id", driverId)
     .in("status", ["delivered", "failed", "cancelled"])
     .order("created_at", { ascending: false })
     .limit(limit);
   
-  if (error) throw error;
-  return data;
+  if (jobsError) throw jobsError;
+  if (!jobs || jobs.length === 0) return [];
+
+  // Get unique schedule IDs
+  const scheduleIds = [...new Set(jobs.map(j => j.schedule_id).filter(Boolean))];
+  
+  // Fetch meal schedules
+  const { data: schedules } = scheduleIds.length > 0 ? await supabase
+    .from("meal_schedules")
+    .select("id, meal_id, user_id")
+    .in("id", scheduleIds) : { data: [] };
+
+  // Get unique meal IDs and user IDs
+  const mealIds = [...new Set((schedules || []).map(s => s.meal_id).filter(Boolean))];
+  const userIds = [...new Set((schedules || []).map(s => s.user_id).filter(Boolean))];
+
+  // Fetch meals
+  const { data: meals } = mealIds.length > 0 ? await supabase
+    .from("meals")
+    .select("id, name")
+    .in("id", mealIds) : { data: [] };
+
+  // Fetch profiles
+  const { data: profiles } = userIds.length > 0 ? await supabase
+    .from("profiles")
+    .select("user_id, full_name")
+    .in("user_id", userIds) : { data: [] };
+
+  // Build lookup maps
+  const mealsMap: Record<string, string> = {};
+  meals?.forEach(m => mealsMap[m.id] = m.name);
+  
+  const profilesMap: Record<string, string> = {};
+  profiles?.forEach(p => profilesMap[p.user_id] = p.full_name || "Customer");
+
+  const schedulesMap: Record<string, any> = {};
+  schedules?.forEach(s => {
+    schedulesMap[s.id] = {
+      meal_name: mealsMap[s.meal_id] || "Meal",
+      customer_name: profilesMap[s.user_id] || "Customer"
+    };
+  });
+
+  // Transform jobs
+  return jobs.map(job => ({
+    ...job,
+    meal_name: schedulesMap[job.schedule_id]?.meal_name || "Meal",
+    customer_name: schedulesMap[job.schedule_id]?.customer_name || "Customer"
+  }));
 }
 
 // ==================== ADMIN MANAGEMENT ====================

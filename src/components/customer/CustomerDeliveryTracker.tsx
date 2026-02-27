@@ -181,30 +181,47 @@ export function CustomerDeliveryTracker({
 
   const fetchDeliveryJob = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch delivery job without embedded driver (PostgREST FK issue)
+      const { data: jobData, error: jobError } = await supabase
         .from("delivery_jobs")
-        .select(`
-          *,
-          driver:driver_id(
-            id,
-            phone_number,
-            vehicle_type,
-            rating,
-            total_deliveries,
-            current_lat,
-            current_lng,
-            user:user_id(
-              raw_user_meta_data
-            )
-          )
-        `)
+        .select("*")
         .eq("schedule_id", scheduleId)
         .single();
 
-      if (error && error.code !== "PGRST116") throw error;
-      setDeliveryJob(data as unknown as DeliveryJob);
+      // PGRST116 = no rows found (no delivery job yet)
+      if (jobError && jobError.code !== "PGRST116") {
+        console.error("Error fetching delivery job:", jobError);
+        setDeliveryJob(null);
+        return;
+      }
+      
+      // If no job data, just return (delivery job doesn't exist yet)
+      if (!jobData) {
+        setDeliveryJob(null);
+        return;
+      }
+      
+      // If job has a driver, fetch driver separately
+      let driverData = null;
+      if (jobData?.driver_id) {
+        const { data: driver, error: driverError } = await supabase
+          .from("drivers")
+          .select("id, phone_number, vehicle_type, rating, total_deliveries, current_lat, current_lng")
+          .eq("id", jobData.driver_id)
+          .single();
+        
+        if (!driverError && driver) {
+          driverData = driver;
+        }
+      }
+      
+      setDeliveryJob({
+        ...jobData,
+        driver: driverData
+      } as unknown as DeliveryJob);
     } catch (err) {
       console.error("Error fetching delivery job:", err);
+      setDeliveryJob(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -489,7 +506,7 @@ export function CustomerDeliveryTracker({
                     position={{ lat: driverLocation.lat, lng: driverLocation.lng }}
                     heading={driverLocation.heading}
                     speed={driverLocation.speed_kmh}
-                    driverName={deliveryJob.driver?.user?.raw_user_meta_data?.name || "Driver"}
+                    driverName="Driver"
                     eta={eta || undefined}
                   />
                 )}
@@ -541,9 +558,7 @@ export function CustomerDeliveryTracker({
                 <span className="text-xl">👤</span>
               </div>
               <div className="flex-1">
-                <p className="font-medium">
-                  {deliveryJob.driver.user?.raw_user_meta_data?.name || "Driver"}
-                </p>
+                <p className="font-medium">Driver</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
                   <span>{deliveryJob.driver.rating || 5.0}</span>

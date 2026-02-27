@@ -107,10 +107,10 @@ export function MealsRemainingWidget({
                   {isUnlimited 
                     ? "Enjoy unlimited meals with your VIP plan!"
                     : remainingMeals === 0 
-                      ? "You've used all your meals for this month"
+                      ? "You've used all your meals for this week"
                       : remainingMeals <= 2
                         ? "Running low! Order wisely"
-                        : `${percentage}% of your monthly meals remaining`
+                        : `${percentage}% of your weekly meals remaining`
                   }
                 </p>
               </div>
@@ -170,12 +170,12 @@ export function MealsRemainingWidget({
             </div>
             <div>
               <h3 className="font-semibold text-lg">
-                {isUnlimited ? "Unlimited Meals" : "Monthly Meals"}
+                {isUnlimited ? "Unlimited Meals" : "Weekly Meals"}
               </h3>
                 <p className="text-sm text-muted-foreground">
-                {isUnlimited 
+                {isUnlimited
                   ? "VIP Plan - No limits"
-                  : `Resets monthly`
+                  : `Resets weekly`
                 }
               </p>
             </div>
@@ -229,7 +229,7 @@ export function MealsRemainingWidget({
               {remainingMeals === 0 ? (
                 <>
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>You've used all your meals for this month.</span>
+                  <span>You've used all your meals for this week.</span>
                 </>
               ) : remainingMeals <= 2 ? (
                 <>
@@ -244,7 +244,7 @@ export function MealsRemainingWidget({
               ) : (
                 <>
                   <Utensils className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Doing great! You have plenty of meals remaining this month.</span>
+                  <span>Doing great! You have plenty of meals remaining this week.</span>
                 </>
               )}
             </div>

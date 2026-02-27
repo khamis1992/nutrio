@@ -145,8 +145,8 @@ const RestaurantListCard = ({
       }}
       whileTap={{ scale: 0.97 }}
     >
-      <Link to={`/restaurants/${restaurant.id}`}>
-        <motion.div 
+      <Link to={`/restaurant/${restaurant.id}`}>
+        <motion.div
           className="group bg-white rounded-2xl shadow-sm overflow-hidden border border-emerald-100/50"
           whileHover={{ scale: 1.01 }}
           transition={springConfig}
@@ -302,7 +302,7 @@ const RestaurantGalleryCard = ({
       }}
       whileTap={{ scale: 0.95 }}
     >
-      <Link to={`/restaurants/${restaurant.id}`}>
+      <Link to={`/restaurant/${restaurant.id}`}>
         <div className="group relative">
           {/* Organic Shape Image Container */}
           <motion.div 

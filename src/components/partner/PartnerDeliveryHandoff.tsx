@@ -10,10 +10,13 @@ import {
   Clock,
   CheckCircle2,
   Printer,
-  Loader2
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface PartnerDeliveryHandoffProps {
   scheduleId: string;
@@ -31,6 +34,9 @@ interface DeliveryJob {
   delivery_fee: number;
   driver_earnings: number;
   created_at: string;
+  pickup_verification_code: string | null;
+  verification_expires_at: string | null;
+  qr_scanned_at: string | null;
   driver: DeliveryDriver | null;
 }
 
@@ -41,46 +47,64 @@ interface DeliveryDriver {
   rating: number | null;
   current_lat: number | null;
   current_lng: number | null;
-  user?: {
-    raw_user_meta_data?: {
-      name?: string;
-    };
-  };
 }
 
-export function PartnerDeliveryHandoff({ 
-  scheduleId, 
-  restaurantName 
+export function PartnerDeliveryHandoff({
+  scheduleId,
+  restaurantName
 }: PartnerDeliveryHandoffProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [deliveryJob, setDeliveryJob] = useState<DeliveryJob | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [generatingQR, setGeneratingQR] = useState(false);
 
   useEffect(() => {
     const fetchDeliveryJob = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch delivery job without embedded driver (PostgREST FK issue)
+        const { data: jobData, error: jobError } = await supabase
           .from("delivery_jobs")
-          .select(`
-            *,
-            driver:driver_id(
-              id,
-              phone_number,
-              vehicle_type,
-              rating,
-              current_lat,
-              current_lng,
-              user:user_id(
-                raw_user_meta_data
-              )
-            )
-          `)
+          .select("*")
           .eq("schedule_id", scheduleId)
           .single();
 
-        if (error && error.code !== "PGRST116") throw error;
-        setDeliveryJob(data as unknown as DeliveryJob);
+        // PGRST116 = no rows found (no delivery job yet)
+        if (jobError && jobError.code !== "PGRST116") {
+          console.error("Error fetching delivery job:", jobError);
+          setDeliveryJob(null);
+          return;
+        }
+        
+        // If no job data, just return (delivery job doesn't exist yet)
+        if (!jobData) {
+          setDeliveryJob(null);
+          return;
+        }
+        
+        // If job has a driver, fetch driver separately
+        let driverData = null;
+        if (jobData?.driver_id) {
+          const { data: driver, error: driverError } = await supabase
+            .from("drivers")
+            .select("id, phone_number, vehicle_type, rating, current_lat, current_lng")
+            .eq("id", jobData.driver_id)
+            .single();
+          
+          if (!driverError && driver) {
+            driverData = driver;
+          }
+        }
+        
+        setDeliveryJob({
+          ...jobData,
+          driver: driverData
+        } as unknown as DeliveryJob);
       } catch (err) {
         console.error("Error fetching delivery job:", err);
+        setDeliveryJob(null);
       } finally {
         setLoading(false);
       }
@@ -105,10 +129,92 @@ export function PartnerDeliveryHandoff({
       )
       .subscribe();
 
-    return () => {
+  return () => {
       subscription.unsubscribe();
     };
   }, [scheduleId]);
+
+  const handleRefreshCode = async () => {
+    if (!deliveryJob || !user) return;
+
+    setRefreshing(true);
+    try {
+      const { data, error } = await supabase.rpc("refresh_verification_code", {
+        p_delivery_job_id: deliveryJob.id,
+        p_partner_user_id: user.id,
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Code Refreshed",
+          description: "New verification code generated",
+        });
+        // Refresh the delivery job data
+        const { data: jobData } = await supabase
+          .from("delivery_jobs")
+          .select("*")
+          .eq("id", deliveryJob.id)
+          .single();
+
+        if (jobData) {
+          setDeliveryJob({ ...deliveryJob, ...jobData });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to refresh code",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error refreshing code:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to refresh code",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const isCodeExpired = () => {
+    if (!deliveryJob?.verification_expires_at) return false;
+    return new Date(deliveryJob.verification_expires_at) < new Date();
+  };
+
+  // Generate QR code when delivery job is loaded
+  useEffect(() => {
+    const generateQR = async () => {
+      if (!deliveryJob || deliveryJob.status === 'picked_up' || deliveryJob.status === 'delivered') {
+        setQrCode(null);
+        return;
+      }
+
+      setGeneratingQR(true);
+      try {
+        const { data, error } = await supabase.rpc("generate_pickup_qr_code", {
+          p_delivery_job_id: deliveryJob.id,
+        });
+
+        if (error) throw error;
+        
+        if (data) {
+          setQrCode(data);
+        }
+      } catch (err) {
+        console.error("Error generating QR code:", err);
+        // Fallback to using delivery job ID
+        setQrCode(deliveryJob.id);
+      } finally {
+        setGeneratingQR(false);
+      }
+    };
+
+    generateQR();
+  }, [deliveryJob?.id, deliveryJob?.status]);
 
   const handlePrintQR = () => {
     const printWindow = window.open("", "_blank");
@@ -163,7 +269,7 @@ export function PartnerDeliveryHandoff({
             <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
             <script>
               new QRCode(document.getElementById("qr-code"), {
-                text: "${deliveryJob.id}",
+                text: "${qrCode || deliveryJob.id}",
                 width: 256,
                 height: 256,
               });
@@ -251,12 +357,18 @@ export function PartnerDeliveryHandoff({
         {!['picked_up', 'delivered'].includes(deliveryJob.status) && (
           <div className="text-center space-y-3 p-4 bg-muted/50 rounded-lg">
             <div className="inline-block p-4 bg-white rounded-lg shadow-sm">
-              <QRCodeSVG 
-                value={deliveryJob.id} 
-                size={200}
-                level="H"
-                includeMargin={true}
-              />
+              {generatingQR ? (
+                <div className="w-[200px] h-[200px] flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <QRCodeSVG 
+                  value={qrCode || deliveryJob.id} 
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              )}
             </div>
             <div>
               <p className="font-medium text-sm">Order #{deliveryJob.id.slice(-6)}</p>
@@ -264,14 +376,43 @@ export function PartnerDeliveryHandoff({
                 Show this QR code to the driver when handing over the order
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handlePrintQR}
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              Print QR Code
-            </Button>
+            
+            {/* 6-Digit Verification Code */}
+            {deliveryJob.pickup_verification_code && (
+              <div className="bg-primary/10 p-3 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Or tell driver this code:</p>
+                <p className="text-2xl font-bold tracking-widest text-primary">
+                  {deliveryJob.pickup_verification_code}
+                </p>
+                {deliveryJob.verification_expires_at && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Expires at {format(new Date(deliveryJob.verification_expires_at), "h:mm a")}
+                  </p>
+                )}
+              </div>
+            )}
+            
+            <div className="flex gap-2 justify-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handlePrintQR}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print QR Code
+              </Button>
+              {isCodeExpired() && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRefreshCode}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh Code
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
@@ -314,9 +455,7 @@ export function PartnerDeliveryHandoff({
                 <span className="text-xl">👤</span>
               </div>
               <div className="flex-1">
-                <p className="font-medium">
-                  {deliveryJob.driver.user?.raw_user_meta_data?.name || "Driver"}
-                </p>
+                <p className="font-medium">Driver</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>⭐ {deliveryJob.driver.rating || 5.0}</span>
                   <span>•</span>

@@ -202,11 +202,11 @@ const Favorites = () => {
                     <Card key={restaurant.id} className="overflow-hidden">
                       <CardContent className="p-3 sm:p-4">
                         <div className="flex gap-3 sm:gap-4">
-                          <Link to={`/restaurants/${restaurant.id}`} className="shrink-0">
+                          <Link to={`/restaurant/${restaurant.id}`} className="shrink-0">
                             <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
                               {restaurant.logo_url ? (
-                                <img 
-                                  src={restaurant.logo_url} 
+                                <img
+                                  src={restaurant.logo_url}
                                   alt={restaurant.name}
                                   className="w-full h-full object-cover"
                                 />
@@ -216,7 +216,7 @@ const Favorites = () => {
                             </div>
                           </Link>
                           <div className="flex-1 min-w-0">
-                            <Link to={`/restaurants/${restaurant.id}`}>
+                            <Link to={`/restaurant/${restaurant.id}`}>
                               <h3 className="font-semibold truncate hover:text-primary transition-colors">
                                 {restaurant.name}
                               </h3>
