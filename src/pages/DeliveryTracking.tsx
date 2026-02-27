@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef, Suspense, lazy } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, isToday, isTomorrow } from "date-fns";
+import { format, isToday, isTomorrow, addMinutes } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { toast } from "sonner";
 import { 
   ArrowLeft, 
   Package, 
@@ -176,13 +177,69 @@ const getEstimatedTime = (status: OrderStatus, deliveryDate: string) => {
   }
 };
 
+// Arrival Window Component
+const ArrivalWindow = ({ estimatedMinutes }: { estimatedMinutes: number }) => {
+  const start = addMinutes(new Date(), estimatedMinutes - 5);
+  const end = addMinutes(new Date(), estimatedMinutes + 5);
+  
+  return (
+    <div className="bg-primary/10 rounded-lg p-4 text-center">
+      <p className="text-sm text-muted-foreground">Arriving between</p>
+      <p className="text-2xl font-bold">
+        {format(start, 'h:mm')} - {format(end, 'h:mm a')}
+      </p>
+      <p className="text-sm text-muted-foreground mt-1">
+        (~{estimatedMinutes} minutes)
+      </p>
+    </div>
+  );
+};
+
+// Contact Section Component
+interface ContactSectionProps {
+  restaurantPhone?: string | null;
+  restaurantAddress?: string | null;
+  driverName?: string | null;
+  driverPhone?: string | null;
+}
+
+const ContactSection = ({ restaurantPhone, restaurantAddress, driverName, driverPhone }: ContactSectionProps) => (
+  <div className="pt-4 border-t border-border space-y-3">
+    {restaurantAddress && (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <MapPin className="h-4 w-4 flex-shrink-0" />
+        <span className="truncate">{restaurantAddress}</span>
+      </div>
+    )}
+    <div className="flex gap-2">
+      {driverPhone && (
+        <Button variant="outline" className="flex-1" asChild>
+          <a href={`tel:${driverPhone}`}>
+            <Phone className="h-4 w-4 mr-2" /> Call Driver
+          </a>
+        </Button>
+      )}
+      {restaurantPhone && (
+        <Button variant="outline" className="flex-1" asChild>
+          <a href={`tel:${restaurantPhone}`}>
+            <Phone className="h-4 w-4 mr-2" /> Call Restaurant
+          </a>
+        </Button>
+      )}
+    </div>
+  </div>
+);
+
 export default function DeliveryTracking() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const locationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const orderUpdateChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const selectedOrderId = searchParams.get('id');
 
   const fetchActiveOrders = async () => {
     if (!user) return;
@@ -374,7 +431,25 @@ export default function DeliveryTracking() {
           table: 'meal_schedules',
           filter: `user_id=eq.${user?.id}`,
         },
-        () => {
+        (payload) => {
+          const newStatus = (payload.new as { order_status: string }).order_status;
+          const oldStatus = (payload.old as { order_status: string }).order_status;
+          
+          // Show toast notification when status changes
+          if (newStatus !== oldStatus) {
+            const statusMessages: Record<string, string> = {
+              confirmed: 'Your order has been confirmed!',
+              preparing: 'Your meal is being prepared',
+              ready: 'Your meal is ready for pickup',
+              out_for_delivery: 'Your driver is on the way!',
+              delivered: 'Your meal has been delivered!',
+            };
+            
+            if (statusMessages[newStatus]) {
+              toast.success(statusMessages[newStatus]);
+            }
+          }
+          
           fetchActiveOrders();
         }
       )
@@ -384,6 +459,9 @@ export default function DeliveryTracking() {
       supabase.removeChannel(channel);
       if (locationChannelRef.current) {
         locationChannelRef.current.unsubscribe();
+      }
+      if (orderUpdateChannelRef.current) {
+        orderUpdateChannelRef.current.unsubscribe();
       }
     };
   }, [user?.id]);
@@ -538,14 +616,18 @@ export default function DeliveryTracking() {
                 </CardHeader>
                 
                 <CardContent className="space-y-6">
-                  {/* Estimated Time */}
-                  <div className={`flex items-center gap-3 p-4 rounded-xl ${config.bgColor}`}>
-                    <Clock className={`h-5 w-5 ${config.color}`} />
-                    <div>
-                      <p className="font-medium text-sm text-foreground">Estimated Delivery</p>
-                      <p className={`font-semibold ${config.color}`}>{estimatedTime}</p>
+                  {/* Estimated Time / Arrival Window */}
+                  {order.order_status === "out_for_delivery" ? (
+                    <ArrivalWindow estimatedMinutes={20} />
+                  ) : (
+                    <div className={`flex items-center gap-3 p-4 rounded-xl ${config.bgColor}`}>
+                      <Clock className={`h-5 w-5 ${config.color}`} />
+                      <div>
+                        <p className="font-medium text-sm text-foreground">Estimated Delivery</p>
+                        <p className={`font-semibold ${config.color}`}>{estimatedTime}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Live Map */}
                   {showMap && (
@@ -664,28 +746,13 @@ export default function DeliveryTracking() {
                     </div>
                   </div>
 
-                  {/* Restaurant Contact */}
-                  {(order.restaurant_address || order.restaurant_phone) && (
-                    <div className="pt-4 border-t border-border space-y-2">
-                      {order.restaurant_address && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{order.restaurant_address}</span>
-                        </div>
-                      )}
-                      {order.restaurant_phone && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <a 
-                            href={`tel:${order.restaurant_phone}`}
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {order.restaurant_phone}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Contact Section */}
+                  <ContactSection
+                    restaurantPhone={order.restaurant_phone}
+                    restaurantAddress={order.restaurant_address}
+                    driverName={null}
+                    driverPhone={null}
+                  />
 
 
                 </CardContent>

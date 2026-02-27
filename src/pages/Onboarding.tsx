@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Target,
   Dumbbell,
@@ -26,10 +27,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useDietTags } from "@/hooks/useDietTags";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
+import { OnboardingRecoveryDialog } from "@/components/OnboardingRecoveryDialog";
+import { debounce } from "@/lib/debounce";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
 type Gender = "male" | "female";
+type MetricsSubStep = "basic" | "targets";
 
 interface OnboardingData {
   goal: Goal | null;
@@ -108,6 +112,15 @@ const calculateMacros = (calories: number, goal: Goal) => {
 };
 
 const ONBOARDING_STORAGE_KEY = 'nutrio_onboarding_progress';
+const AUTOSAVE_KEY = 'nutrio_onboarding_draft';
+
+const ONBOARDING_STEPS = [
+  { id: 'goal', label: 'Your Goal', icon: Target },
+  { id: 'gender', label: 'Gender', icon: User },
+  { id: 'metrics', label: 'Body Metrics', icon: Scale },
+  { id: 'activity', label: 'Activity Level', icon: Activity },
+  { id: 'diet', label: 'Dietary Preferences', icon: Utensils },
+];
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -117,7 +130,10 @@ const Onboarding = () => {
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
   
   const [step, setStep] = useState(1);
+  const [metricsSubStep, setMetricsSubStep] = useState<MetricsSubStep>("basic");
   const [saving, setSaving] = useState(false);
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [draftData, setDraftData] = useState<{ data: OnboardingData; step: number; savedAt: string } | null>(null);
   const [data, setData] = useState<OnboardingData>({
     goal: null,
     gender: null,
@@ -132,6 +148,7 @@ const Onboarding = () => {
   });
 
   const totalSteps = 5;
+  const progressPercent = Math.round((step / totalSteps) * 100);
 
   // Load saved progress from localStorage on mount
   useEffect(() => {
@@ -169,6 +186,83 @@ const Onboarding = () => {
   // Clear saved progress when onboarding is completed
   const clearSavedProgress = () => {
     localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    localStorage.removeItem(AUTOSAVE_KEY);
+  };
+
+  // Auto-save draft with debounce
+  const saveDraft = useCallback(
+    debounce((currentData: OnboardingData, currentStep: number) => {
+      localStorage.setItem(
+        AUTOSAVE_KEY,
+        JSON.stringify({
+          data: currentData,
+          step: currentStep,
+          savedAt: new Date().toISOString(),
+        })
+      );
+    }, 500),
+    []
+  );
+
+  // Trigger auto-save whenever data or step changes
+  useEffect(() => {
+    if (step < totalSteps) {
+      saveDraft(data, step);
+    }
+  }, [step, data, saveDraft]);
+
+  // Load draft on mount and show recovery dialog if less than 24 hours old
+  useEffect(() => {
+    const draft = localStorage.getItem(AUTOSAVE_KEY);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        const hoursSinceSave = (Date.now() - new Date(parsed.savedAt).getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceSave < 24 && parsed.step > 1) {
+          setDraftData(parsed);
+          setShowRecoveryDialog(true);
+        }
+      } catch (e) {
+        console.error("Failed to parse onboarding draft:", e);
+      }
+    }
+  }, []);
+
+  const handleRecoveryContinue = () => {
+    if (draftData) {
+      setData(draftData.data);
+      setStep(draftData.step);
+      setShowRecoveryDialog(false);
+    }
+  };
+
+  const handleRecoveryStartFresh = () => {
+    localStorage.removeItem(AUTOSAVE_KEY);
+    setShowRecoveryDialog(false);
+  };
+
+  const handleSkip = async () => {
+    // Save minimal profile data
+    const { error } = await updateProfile({
+      onboarding_completed: true,
+      full_name: user?.user_metadata?.full_name || null,
+    });
+
+    if (!error) {
+      clearSavedProgress();
+      toast({
+        title: "Onboarding skipped",
+        description: "You can complete your profile anytime in Settings",
+      });
+      navigate("/dashboard");
+    } else {
+      toast({
+        title: "Error skipping onboarding",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Redirect if not authenticated or if user is a partner
@@ -342,13 +436,29 @@ const Onboarding = () => {
         </div>
       </header>
 
-      {/* Progress Bar */}
+      {/* Progress Bar with Percentage */}
       <div className="container mx-auto px-4 mt-4">
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full gradient-primary transition-all duration-500 ease-out rounded-full"
-            style={{ width: `${(step / totalSteps) * 100}%` }}
-          />
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-muted-foreground">Step {step} of {totalSteps}</span>
+          <span className="text-sm font-medium text-primary">{progressPercent}% Complete</span>
+        </div>
+        <Progress value={progressPercent} className="h-2" />
+        <div className="flex justify-between mt-4">
+          {ONBOARDING_STEPS.map((stepInfo, idx) => {
+            const StepIcon = stepInfo.icon;
+            return (
+              <div key={stepInfo.id} className="flex flex-col items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                  idx < step ? "bg-primary text-primary-foreground" :
+                  idx === step - 1 ? "bg-primary/20 text-primary border-2 border-primary" :
+                  "bg-muted text-muted-foreground"
+                }`}>
+                  {idx < step ? <Check className="h-5 w-5" /> : <StepIcon className="h-5 w-5" />}
+                </div>
+                <span className="text-xs mt-1 hidden sm:block">{stepInfo.label}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -438,91 +548,136 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* Step 3: Body Metrics */}
+          {/* Step 3: Body Metrics - Split into sub-steps */}
           {step === 3 && (
             <div className="space-y-8">
-              <div className="text-center">
-                <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                  Your <span className="text-gradient">body metrics</span>
-                </h1>
-                <p className="text-muted-foreground">
-                  We'll calculate your ideal calorie and macro targets
-                </p>
-              </div>
-
-              <Card variant="elevated">
-                <CardContent className="p-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="age" className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        Age
-                      </Label>
-                      <Input
-                        id="age"
-                        type="number"
-                        placeholder="25"
-                        value={data.age}
-                        onChange={(e) => setData({ ...data, age: e.target.value })}
-                        className="h-12"
-                        min={13}
-                        max={120}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="height" className="flex items-center gap-2">
-                        <Ruler className="w-4 h-4 text-muted-foreground" />
-                        Height (cm)
-                      </Label>
-                      <Input
-                        id="height"
-                        type="number"
-                        placeholder="175"
-                        value={data.height}
-                        onChange={(e) => setData({ ...data, height: e.target.value })}
-                        className="h-12"
-                        min={100}
-                        max={250}
-                      />
-                    </div>
+              {metricsSubStep === 'basic' && (
+                <div className="space-y-6 animate-in fade-in-50 duration-200">
+                  <div className="text-center">
+                    <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                      Let's get to know you
+                    </h1>
+                    <p className="text-muted-foreground">
+                      We'll calculate your ideal calorie and macro targets
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="weight" className="flex items-center gap-2">
-                        <Scale className="w-4 h-4 text-muted-foreground" />
-                        Current Weight (kg)
-                      </Label>
-                      <Input
-                        id="weight"
-                        type="number"
-                        placeholder="75"
-                        value={data.weight}
-                        onChange={(e) => setData({ ...data, weight: e.target.value })}
-                        className="h-12"
-                        min={30}
-                        max={300}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="targetWeight" className="flex items-center gap-2">
-                        <Target className="w-4 h-4 text-muted-foreground" />
-                        Target Weight (kg)
-                      </Label>
-                      <Input
-                        id="targetWeight"
-                        type="number"
-                        placeholder="70"
-                        value={data.targetWeight}
-                        onChange={(e) => setData({ ...data, targetWeight: e.target.value })}
-                        className="h-12"
-                        min={30}
-                        max={300}
-                      />
-                    </div>
+                  <Card variant="elevated">
+                    <CardContent className="p-6 space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="age" className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-muted-foreground" />
+                            Age
+                          </Label>
+                          <Input
+                            id="age"
+                            type="number"
+                            placeholder="25"
+                            value={data.age}
+                            onChange={(e) => setData({ ...data, age: e.target.value })}
+                            className="h-12"
+                            min={13}
+                            max={120}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="height" className="flex items-center gap-2">
+                            <Ruler className="w-4 h-4 text-muted-foreground" />
+                            Height (cm)
+                          </Label>
+                          <Input
+                            id="height"
+                            type="number"
+                            placeholder="175"
+                            value={data.height}
+                            onChange={(e) => setData({ ...data, height: e.target.value })}
+                            className="h-12"
+                            min={100}
+                            max={250}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="weight" className="flex items-center gap-2">
+                            <Scale className="w-4 h-4 text-muted-foreground" />
+                            Current Weight (kg)
+                          </Label>
+                          <Input
+                            id="weight"
+                            type="number"
+                            placeholder="75"
+                            value={data.weight}
+                            onChange={(e) => setData({ ...data, weight: e.target.value })}
+                            className="h-12"
+                            min={30}
+                            max={300}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Button 
+                    onClick={() => setMetricsSubStep('targets')}
+                    className="w-full"
+                    disabled={!data.age || !data.height || !data.weight}
+                  >
+                    Continue
+                  </Button>
+                </div>
+              )}
+
+              {metricsSubStep === 'targets' && (
+                <div className="space-y-6 animate-in fade-in-50 duration-200">
+                  <div className="text-center">
+                    <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                      What's your target weight?
+                    </h1>
+                    <p className="text-muted-foreground">
+                      {data.goal === 'lose' ? 'We recommend losing 0.5-1kg per week' : 
+                       data.goal === 'gain' ? 'Healthy weight gain takes time' : 
+                       'Maintain your current weight'}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <Card variant="elevated">
+                    <CardContent className="p-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="targetWeight" className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-muted-foreground" />
+                          Target Weight (kg)
+                        </Label>
+                        <Input
+                          id="targetWeight"
+                          type="number"
+                          placeholder="70"
+                          value={data.targetWeight}
+                          onChange={(e) => setData({ ...data, targetWeight: e.target.value })}
+                          className="h-12"
+                          min={30}
+                          max={300}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setMetricsSubStep('basic')} className="flex-1">
+                      Back
+                    </Button>
+                    <Button 
+                      onClick={handleNext}
+                      className="flex-1"
+                      disabled={!data.targetWeight}
+                    >
+                      Continue
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -728,6 +883,15 @@ const Onboarding = () => {
         </div>
       </main>
 
+      {/* Recovery Dialog */}
+      <OnboardingRecoveryDialog
+        open={showRecoveryDialog}
+        onOpenChange={setShowRecoveryDialog}
+        draftData={draftData}
+        onContinue={handleRecoveryContinue}
+        onStartFresh={handleRecoveryStartFresh}
+      />
+
       {/* Footer Navigation - Native Mobile Style */}
       <footer className="p-4 pb-8 border-t border-border bg-background/95 backdrop-blur-lg safe-bottom-nav">
         <div className="container mx-auto max-w-md flex justify-between items-center gap-4">
@@ -760,6 +924,19 @@ const Onboarding = () => {
               </>
             )}
           </Button>
+        </div>
+        {/* Skip for now button */}
+        <div className="container mx-auto max-w-md mt-4 text-center">
+          <Button
+            variant="ghost"
+            onClick={handleSkip}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Skip for now — I&apos;ll set up later
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1">
+            You can always update your preferences in Settings
+          </p>
         </div>
       </footer>
     </div>

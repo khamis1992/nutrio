@@ -119,7 +119,8 @@ const ACTION_BUTTONS: Record<OrderStatus, Array<{
     { action: "cancelled", label: "Cancel Order", icon: <X className="h-4 w-4" />, variant: "destructive" },
   ],
   ready: [
-    { action: "out_for_delivery", label: "Handover to Driver", icon: <Truck className="h-4 w-4" />, variant: "default" },
+    // Partners cannot transition to out_for_delivery - this is handled automatically
+    // when a driver is assigned via the driver assignment system
     { action: "cancelled", label: "Cancel Order", icon: <X className="h-4 w-4" />, variant: "destructive" },
   ],
   out_for_delivery: [
