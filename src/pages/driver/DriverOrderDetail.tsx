@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, ScanLine } from "lucide-react";
+import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, ScanLine, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,7 @@ import { DriverQRScanner } from "@/components/driver/DriverQRScanner";
 
 interface DeliveryDetails {
   id: string;
+  schedule_id: string;
   status: string;
   pickup_address: string;
   delivery_address: string;
@@ -46,6 +47,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   picked_up: { label: "Picked Up", color: "bg-purple-500" },
   in_transit: { label: "On the Way", color: "bg-orange-500" },
   delivered: { label: "Delivered", color: "bg-green-500" },
+  completed: { label: "Completed", color: "bg-green-600" },
   failed: { label: "Failed", color: "bg-red-500" },
   cancelled: { label: "Cancelled", color: "bg-gray-500" },
 };
@@ -61,15 +63,43 @@ export default function DriverOrderDetail() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [delivery, setDelivery] = useState<DeliveryDetails | null>(null);
+  const [driverId, setDriverId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Fetch driver ID on mount
   useEffect(() => {
-    if (id && user) {
+    const fetchDriverId = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: driver, error } = await supabase
+          .from("drivers")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+        
+        if (error) throw error;
+        setDriverId(driver.id);
+      } catch (error) {
+        console.error("Error fetching driver ID:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load driver information",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    fetchDriverId();
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (id && driverId) {
       fetchDelivery();
     }
-  }, [id, user]);
+  }, [id, driverId]);
 
   const fetchDelivery = async () => {
     if (!id || !user) return;
@@ -122,6 +152,7 @@ export default function DriverOrderDetail() {
 
       setDelivery({
         id: deliveryData.id,
+        schedule_id: deliveryData.schedule_id,
         status: deliveryData.status || "pending",
         pickup_address: deliveryData.pickup_address || "",
         delivery_address: deliveryData.delivery_address || "",
@@ -198,38 +229,53 @@ export default function DriverOrderDetail() {
   };
 
   const handleQRScan = async (qrData: string) => {
-    if (!delivery || !id) return;
+    if (!delivery || !id || !driverId) return;
     
     setUpdating(true);
     setScanResult(null);
     
     try {
-      // Verify the QR code with the backend
-      const { data, error } = await supabase.rpc("verify_pickup_by_qr", {
-        p_delivery_id: id,
-        p_qr_code: qrData,
-      });
+      // Check if input is a 6-digit verification code or a QR code
+      const isVerificationCode = /^\d{6}$/.test(qrData);
       
-      if (error) throw error;
+      let result;
+      if (isVerificationCode) {
+        // Use verification code RPC for 6-digit codes
+        const { data, error } = await supabase.rpc("verify_pickup_by_code", {
+          p_verification_code: qrData,
+          p_driver_id: driverId,
+        });
+        result = { data, error };
+      } else {
+        // Use QR code RPC for other data (QR codes)
+        const { data, error } = await supabase.rpc("verify_pickup_by_qr", {
+          p_delivery_id: id,
+          p_qr_code: qrData,
+        });
+        result = { data, error };
+      }
       
-      if (data?.success) {
+      if (result.error) throw result.error;
+      
+      if (result.data?.success) {
         setScanResult({ success: true, message: "Pickup verified successfully!" });
         
-        // Update status to picked_up after successful verification
-        await updateStatus("picked_up");
+        // Status is already updated by the verification function
+        // Just refresh the delivery data to show the new status
+        await fetchDelivery();
         
         setShowQRScanner(false);
       } else {
         setScanResult({ 
           success: false, 
-          message: data?.error || "Invalid QR code. Please try again." 
+          message: result.data?.error || "Invalid code. Please try again." 
         });
       }
     } catch (error: any) {
-      console.error("Error verifying QR:", error);
+      console.error("Error verifying code:", error);
       setScanResult({ 
         success: false, 
-        message: error.message || "Failed to verify QR code" 
+        message: error.message || "Failed to verify code" 
       });
     } finally {
       setUpdating(false);
@@ -281,9 +327,14 @@ export default function DriverOrderDetail() {
 
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
               <p className="font-bold text-green-600 text-lg">QAR {totalEarnings.toFixed(2)}</p>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Order #</p>
+              <p className="font-mono text-sm font-medium">{delivery.schedule_id?.slice(0, 8) || delivery.id?.slice(0, 8)}</p>
             </div>
 
             <div className="flex items-center gap-3 mb-4">
@@ -420,25 +471,14 @@ export default function DriverOrderDetail() {
 
         <div className="space-y-3">
           {(delivery.status === "assigned" || delivery.status === "accepted") && (
-            <>
-              <Button
-                className="w-full bg-purple-600 hover:bg-purple-700"
-                onClick={() => setShowQRScanner(true)}
-                disabled={updating}
-              >
-                <ScanLine className="h-4 w-4 mr-2" />
-                Scan QR to Pickup
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowQRScanner(true)}
-                disabled={updating}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Enter Code Manually
-              </Button>
-            </>
+            <Button
+              className="w-full bg-purple-600 hover:bg-purple-700"
+              onClick={() => setShowQRScanner(true)}
+              disabled={updating}
+            >
+              <ScanLine className="h-4 w-4 mr-2" />
+              Scan QR to Pickup
+            </Button>
           )}
 
           {delivery.status === "picked_up" && (
@@ -455,20 +495,62 @@ export default function DriverOrderDetail() {
           {delivery.status === "in_transit" && (
             <Button
               className="w-full bg-green-600 hover:bg-green-700"
-              onClick={() => updateStatus("delivered")}
+              onClick={async () => {
+                if (!delivery) return;
+                setUpdating(true);
+                try {
+                  // Update delivery_jobs to completed directly
+                  const { error: jobError } = await supabase
+                    .from("delivery_jobs")
+                    .update({
+                      status: "completed",
+                      delivered_at: new Date().toISOString(),
+                      delivery_notes: notes,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq("id", delivery.id);
+                  if (jobError) throw jobError;
+
+                  // Sync trigger will update meal_schedules to completed
+
+                  toast({
+                    title: "Delivery Completed!",
+                    description: "Order marked as completed successfully",
+                  });
+
+                  // Navigate back to driver dashboard
+                  navigate("/driver");
+                } catch (error: any) {
+                  console.error("Error completing delivery:", error);
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to complete delivery",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setUpdating(false);
+                }
+              }}
               disabled={updating}
             >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Confirm Delivery
+              {updating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Complete Delivery
             </Button>
           )}
 
-          {delivery.status === "delivered" && (
-            <div className="p-4 bg-green-500/10 rounded-xl text-center">
-              <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-600" />
-              <p className="font-semibold text-green-600">Delivery Complete!</p>
+          {(delivery.status === "delivered" || delivery.status === "completed") && (
+            <div className="p-4 bg-green-600/10 rounded-xl text-center border-2 border-green-600">
+              <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-600" />
+              <p className="font-bold text-green-600 text-lg">Order Completed!</p>
               <p className="text-sm text-muted-foreground mt-1">
                 You earned QAR {totalEarnings.toFixed(2)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                This order has been successfully completed
               </p>
             </div>
           )}

@@ -211,7 +211,10 @@ const PartnerOrders = () => {
           table: "meal_schedules",
         },
         () => {
-          fetchOrders();
+          // Add small delay to ensure DB transaction is committed
+          setTimeout(() => {
+            fetchOrders();
+          }, 500);
         }
       )
       .subscribe();
@@ -375,7 +378,7 @@ const PartnerOrders = () => {
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
       // Use the database function for role-based status update
-      const { data, error } = await supabase.rpc("update_order_status", {
+      const { error } = await supabase.rpc("update_order_status", {
         p_order_id: orderId,
         p_new_status: newStatus,
         p_user_role: "partner",
@@ -499,7 +502,10 @@ const PartnerOrders = () => {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold">Order #{order.id.slice(0, 8)}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Order #</p>
+                    <p className="font-mono text-sm font-semibold">{order.id.slice(0, 8)}</p>
+                  </div>
                   <Badge variant="outline" className={statusConfig.color}>
                     <span className="flex items-center gap-1">
                       {statusConfig.icon}

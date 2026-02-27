@@ -27,10 +27,14 @@ interface Delivery {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  claimed: { label: "Claimed", color: "bg-blue-500" },
+  assigned: { label: "Assigned", color: "bg-blue-500" },
+  accepted: { label: "Accepted", color: "bg-blue-500" },
   picked_up: { label: "Picked Up", color: "bg-purple-500" },
-  on_the_way: { label: "On the Way", color: "bg-orange-500" },
+  in_transit: { label: "In Transit", color: "bg-orange-500" },
   delivered: { label: "Delivered", color: "bg-green-500" },
+  completed: { label: "Completed", color: "bg-green-600" },
+  failed: { label: "Failed", color: "bg-red-500" },
+  cancelled: { label: "Cancelled", color: "bg-gray-500" },
 };
 
 export default function DriverOrders() {
@@ -115,12 +119,12 @@ export default function DriverOrders() {
 
       if (activeError) throw activeError;
 
-      // Fetch completed delivery jobs
+      // Fetch completed delivery jobs (delivered and completed statuses)
       const { data: completed, error: completedError } = await supabase
         .from("delivery_jobs")
         .select("*")
         .eq("driver_id", driverId)
-        .eq("status", "delivered")
+        .in("status", ["delivered", "completed"])
         .order("delivered_at", { ascending: false })
         .limit(50);
 

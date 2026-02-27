@@ -259,7 +259,7 @@ export function PartnerDeliveryHandoff({
           <body>
             <div class="qr-container">
               <h1>${restaurantName}</h1>
-              <p class="order-id">Order #${deliveryJob.id.slice(-6)}</p>
+              <p class="order-id">Order #${scheduleId.slice(0, 8)}</p>
               <div id="qr-code"></div>
               <p class="instructions">
                 Scan this QR code with the driver app<br>
@@ -371,7 +371,7 @@ export function PartnerDeliveryHandoff({
               )}
             </div>
             <div>
-              <p className="font-medium text-sm">Order #{deliveryJob.id.slice(-6)}</p>
+              <p className="font-medium text-sm">Order #{scheduleId.slice(0, 8)}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Show this QR code to the driver when handing over the order
               </p>
