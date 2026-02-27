@@ -66,7 +66,7 @@ export function DriverLayout() {
       }
       
       setDriver(data);
-      setIsOnline(data.is_online);
+      setIsOnline(data.is_online ?? false);
       
       // If driver is online, start location tracking
       if (data.is_online) {
@@ -101,9 +101,58 @@ export function DriverLayout() {
     }
   }, []);
 
-  const updateCurrentLocation = async (driverId: string) => {
-    if (!navigator.geolocation) return;
-    
+  const handleGeolocationError = (error: GeolocationPositionError, driverId: string, isRetry: boolean) => {
+    let errorMessage: string;
+    let logMessage: string;
+
+    switch (error.code) {
+      case 1: // PERMISSION_DENIED
+        logMessage = `Geolocation permission denied (code: ${error.code})`;
+        errorMessage = "Location access denied. Please enable location permissions in your browser settings.";
+        break;
+      case 2: // POSITION_UNAVAILABLE
+        logMessage = `Geolocation position unavailable (code: ${error.code})`;
+        errorMessage = "Unable to determine your location. Please check your device's location services.";
+        break;
+      case 3: // TIMEOUT
+        logMessage = `Geolocation request timed out (code: ${error.code})`;
+        errorMessage = "Location request timed out. Retrying with lower accuracy...";
+        break;
+      default:
+        logMessage = `Unknown geolocation error (code: ${error.code}): ${error.message}`;
+        errorMessage = "An unexpected error occurred while getting your location.";
+    }
+
+    console.error(logMessage);
+
+    if (error.code === 3 && !isRetry) {
+      // Retry with lower accuracy for timeout
+      setTimeout(() => {
+        getLocationWithOptions(driverId, false);
+      }, 1000);
+      toast({
+        title: "Location Update",
+        description: "Retrying with lower accuracy...",
+        variant: "default"
+      });
+    } else if (error.code === 1) {
+      // Permission denied - show warning
+      toast({
+        title: "Location Access Required",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } else {
+      // Other errors - show warning but less intrusive
+      toast({
+        title: "Location Issue",
+        description: errorMessage,
+        variant: "default"
+      });
+    }
+  };
+
+  const getLocationWithOptions = async (driverId: string, highAccuracy: boolean) => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -122,14 +171,29 @@ export function DriverLayout() {
         }
       },
       (error) => {
-        console.error("Geolocation error:", error);
+        handleGeolocationError(error, driverId, !highAccuracy);
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        enableHighAccuracy: highAccuracy,
+        timeout: highAccuracy ? 10000 : 20000,
+        maximumAge: 60000 // Accept positions up to 1 minute old for fallback
       }
     );
+  };
+
+  const updateCurrentLocation = async (driverId: string) => {
+    if (!navigator.geolocation) {
+      console.error("Geolocation is not supported by this browser");
+      toast({
+        title: "Location Not Supported",
+        description: "Your browser does not support location services. Please use a modern browser.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Start with high accuracy
+    getLocationWithOptions(driverId, true);
   };
 
   const toggleOnline = async () => {
@@ -259,17 +323,6 @@ function NavButton({
   );
 }
 
-function DriverSkeleton() {
-  return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto border-x border-border">
-      <header className="bg-primary text-primary-foreground p-4 h-24 animate-pulse" />
-      <main className="flex-1 p-4 space-y-4">
-        <div className="h-32 bg-muted rounded-lg animate-pulse" />
-        <div className="h-48 bg-muted rounded-lg animate-pulse" />
-        <div className="h-32 bg-muted rounded-lg animate-pulse" />
-      </main>
-    </div>
-  );
-}
+
 
 export type { DriverLayoutContext };
