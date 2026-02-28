@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { MapContainer as LeafletMap, TileLayer, useMap } from "react-leaflet";
-import type { LatLngExpression } from "leaflet";
+import type { LatLngExpression, Map } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 // Fix Leaflet default icon issue with webpack/vite
@@ -8,7 +8,7 @@ import L from "leaflet";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
-let DefaultIcon = L.icon({
+const DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
   iconSize: [25, 41],
@@ -29,11 +29,11 @@ interface MapContainerProps {
 // Component to handle map view updates
 function MapUpdater({ center }: { center: LatLngExpression }) {
   const map = useMap();
-  
+
   useEffect(() => {
     map.setView(center, map.getZoom());
   }, [center, map]);
-  
+
   return null;
 }
 
@@ -45,21 +45,43 @@ export function MapContainer({
   style = { height: "400px", width: "100%" },
   scrollWheelZoom = false,
 }: MapContainerProps) {
+  const mapRef = useRef<Map | null>(null);
+
+  const handleCreated = useCallback((map: Map) => {
+    mapRef.current = map;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          // Ignore
+        }
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
   return (
-    <LeafletMap
-      center={center}
-      zoom={zoom}
-      scrollWheelZoom={scrollWheelZoom}
-      className={`rounded-xl z-0 ${className}`}
-      style={style}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <MapUpdater center={center} />
-      {children}
-    </LeafletMap>
+    <div className={`rounded-xl overflow-hidden ${className}`} style={style}>
+      <LeafletMap
+        center={center}
+        zoom={zoom}
+        scrollWheelZoom={scrollWheelZoom}
+        className="z-0"
+        style={{ height: "100%", width: "100%" }}
+        whenCreated={handleCreated}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapUpdater center={center} />
+        {children}
+      </LeafletMap>
+    </div>
   );
 }
 

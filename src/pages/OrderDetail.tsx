@@ -328,9 +328,10 @@ const OrderDetail = () => {
   const isCompleted = order.order_status === "completed" || order.order_status === "delivered";
   const canCancel = order.order_status === "pending";
   const isOutForDelivery = order.order_status === "out_for_delivery";
+  const isDelivered = order.order_status === "delivered";
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="bg-primary text-white sticky top-0 z-10">
         <div className="flex items-center justify-between p-4">
@@ -622,6 +623,21 @@ const OrderDetail = () => {
               <CheckCheck className="h-4 w-4 mr-2" />
             )}
             I Received My Order
+          </Button>
+        )}
+
+        {isDelivered && (
+          <Button 
+            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => updateOrderStatus("completed")}
+            disabled={updating}
+          >
+            {updating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            )}
+            Mark as Completed
           </Button>
         )}
 

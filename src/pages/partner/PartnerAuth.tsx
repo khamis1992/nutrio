@@ -167,13 +167,28 @@ export default function PartnerAuth() {
         // Check if user has a restaurant
         const { data: restaurant } = await supabase
           .from("restaurants")
-          .select("id")
+          .select("id, approval_status")
           .eq("owner_id", data.user.id)
           .single();
 
         if (!restaurant) {
           await supabase.auth.signOut();
           throw new Error("No restaurant found for this account. Please sign up as a partner.");
+        }
+
+        // Check approval status
+        if (restaurant.approval_status === "rejected") {
+          await supabase.auth.signOut();
+          throw new Error("Your partner application has been rejected. Please contact support.");
+        }
+
+        if (restaurant.approval_status === "pending") {
+          toast({
+            title: "Application Pending",
+            description: "Your restaurant is still under review. You'll be notified once approved.",
+          });
+          navigate("/partner/pending-approval");
+          return;
         }
 
         toast({

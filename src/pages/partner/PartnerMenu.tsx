@@ -309,15 +309,46 @@ export default function PartnerMenu() {
       
       console.log("Calling analyze-meal-image with imageUrl:", imageUrl);
       
+      // Get current session for authorization
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      
       const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
         body: { imageUrl, availableTags: availableTagNames },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       console.log("AI response:", data);
 
       if (error) {
         console.error("Function error:", error);
+        // Handle auth errors specifically
+        if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please sign in again.",
+            variant: "destructive",
+          });
+          // Redirect to login
+          navigate("/partner/auth");
+          return;
+        }
         throw error;
+      }
+
+      // Check for rate limiting
+      if (data?.rateLimit?.remaining === 0) {
+        toast({
+          title: "Rate Limit Reached",
+          description: "You have reached the limit of 50 AI analyses per hour. Please try again later.",
+          variant: "destructive",
+        });
       }
 
       const response = data as AIAnalysisResponse;

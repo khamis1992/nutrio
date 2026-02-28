@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +82,7 @@ interface Restaurant {
 }
 
 const AdminRestaurants = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -568,7 +570,12 @@ const AdminRestaurants = () => {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium">{restaurant.name}</p>
+                            <p 
+                              className="font-medium cursor-pointer hover:text-primary hover:underline"
+                              onClick={() => navigate(`/admin/restaurants/${restaurant.id}`)}
+                            >
+                              {restaurant.name}
+                            </p>
                             {restaurant.address && (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
@@ -635,13 +642,19 @@ const AdminRestaurants = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
+                                onClick={() => navigate(`/admin/restaurants/${restaurant.id}`)}
+                              >
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                Open / Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedRestaurant(restaurant);
                                   setIsDetailOpen(true);
                                 }}
                               >
                                 <Eye className="w-4 h-4 mr-2" />
-                                View Details
+                                Quick View
                               </DropdownMenuItem>
                               {restaurant.website && (
                                 <DropdownMenuItem onClick={() => window.open(restaurant.website!, "_blank")}>

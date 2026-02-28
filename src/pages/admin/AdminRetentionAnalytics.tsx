@@ -312,7 +312,7 @@ export default function AdminRetentionAnalytics() {
               <CardContent>
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                   </div>
                 ) : (
                   <div className="h-80">
@@ -364,7 +364,7 @@ export default function AdminRetentionAnalytics() {
                 <CardContent>
                   {isLoading ? (
                     <div className="flex items-center justify-center py-12">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                     </div>
                   ) : healthScoreDistribution.some(d => d.value > 0) ? (
                     <div className="h-64">
@@ -451,7 +451,7 @@ export default function AdminRetentionAnalytics() {
               <CardContent>
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                   </div>
                 ) : (
                   <div className="h-80">

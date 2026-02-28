@@ -58,10 +58,10 @@ export default function DriverHistory() {
   }, {});
 
   const totalEarnings = jobs
-    .filter(j => j.status === "delivered")
+    .filter(j => j.status === "completed" || j.status === "delivered")
     .reduce((sum, j) => sum + (j.driver_earnings || 0), 0);
 
-  const totalDeliveries = jobs.filter(j => j.status === "delivered").length;
+  const totalDeliveries = jobs.filter(j => j.status === "completed" || j.status === "delivered").length;
 
   return (
     <div className="p-4 space-y-4 pb-24">
@@ -118,8 +118,8 @@ export default function DriverHistory() {
 function HistoryCard({ job }: { job: any }) {
   const mealName = job.meal_name || "Order";
   const restaurantName = job.customer_name || "Restaurant";
-  const isDelivered = job.status === "delivered";
-  const isFailed = job.status === "failed";
+  const isDelivered = job.status === "completed" || job.status === "delivered";
+  const isFailed = job.status === "failed" || job.status === "cancelled";
 
   return (
     <Card className={`${isDelivered ? "bg-green-50/50" : isFailed ? "bg-red-50/50" : "bg-muted/30"}`}>

@@ -57,8 +57,10 @@ import { OrderHistoryCard } from "@/components/admin/OrderHistoryCard";
 import { OrderStatistics } from "@/components/admin/OrderStatistics";
 import { ChangePasswordDialog } from "@/components/admin/ChangePasswordDialog";
 import { UserSubscriptionManager } from "@/components/admin/UserSubscriptionManager";
+import { CreateFleetManagerDialog } from "@/components/admin/CreateFleetManagerDialog";
+import { ManageRolesDialog } from "@/components/admin/ManageRolesDialog";
 
-type UserRole = "user" | "admin" | "gym_owner" | "staff" | "restaurant" | "driver";
+type UserRole = "user" | "admin" | "gym_owner" | "staff" | "restaurant" | "driver" | "fleet_manager" | "partner";
 type UserStatus = "active" | "blocked" | "suspended";
 
 interface UserIPLog {
@@ -105,6 +107,7 @@ const AdminUsers = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "orders">("overview");
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isRolesDialogOpen, setIsRolesDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -136,6 +139,7 @@ const AdminUsers = () => {
       if (profilesError) throw profilesError;
 
       const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      const { data: fleetManagers } = await supabase.from("fleet_managers").select("auth_user_id, role");
       const { data: ipLogs } = await supabase.from("user_ip_logs").select("*").order("created_at", { ascending: false });
       const { data: blockedIPsData } = await supabase.from("blocked_ips").select("*").eq("is_active", true);
 
@@ -149,6 +153,16 @@ const AdminUsers = () => {
         if (r.user_id) {
           if (!rolesMap[r.user_id]) rolesMap[r.user_id] = [];
           rolesMap[r.user_id].push(r.role as UserRole);
+        }
+      });
+
+      // Add fleet_manager role for users in fleet_managers table
+      fleetManagers?.forEach((fm: any) => {
+        if (fm.auth_user_id) {
+          if (!rolesMap[fm.auth_user_id]) rolesMap[fm.auth_user_id] = [];
+          if (!rolesMap[fm.auth_user_id].includes("fleet_manager")) {
+            rolesMap[fm.auth_user_id].push("fleet_manager");
+          }
         }
       });
 
@@ -251,7 +265,9 @@ const AdminUsers = () => {
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "fleet_manager": return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
       case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
+      case "partner": return "bg-pink-500/10 text-pink-600 border-pink-500/20";
       case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
       case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
       case "staff": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
@@ -319,6 +335,7 @@ const AdminUsers = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <CreateFleetManagerDialog onSuccess={fetchData} />
             <Button variant="outline" onClick={fetchData} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -579,10 +596,8 @@ const AdminUsers = () => {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
-                                toast({
-                                  title: "Manage Roles",
-                                  description: "Role management feature coming soon",
-                                });
+                                setSelectedUser(userData);
+                                setIsRolesDialogOpen(true);
                               }}
                             >
                               <Shield className="w-4 h-4 mr-2" />
@@ -630,10 +645,31 @@ const AdminUsers = () => {
                 handleUnblockIP={handleUnblockIP}
                 isPasswordDialogOpen={isPasswordDialogOpen}
                 setIsPasswordDialogOpen={setIsPasswordDialogOpen}
+                setIsRolesDialogOpen={setIsRolesDialogOpen}
               />
             )}
           </SheetContent>
         </Sheet>
+
+        {/* Manage Roles Dialog */}
+        {selectedUser && (
+          <ManageRolesDialog
+            isOpen={isRolesDialogOpen}
+            onClose={() => setIsRolesDialogOpen(false)}
+            userId={selectedUser.user_id}
+            userName={selectedUser.full_name}
+            currentRoles={selectedUser.roles}
+            onRolesUpdated={(newRoles) => {
+              // Update the selected user and the users list
+              setSelectedUser({ ...selectedUser, roles: newRoles });
+              setUsers((prev) =>
+                prev.map((u) =>
+                  u.user_id === selectedUser.user_id ? { ...u, roles: newRoles } : u
+                )
+              );
+            }}
+          />
+        )}
       </div>
     </AdminLayout>
   );
@@ -648,6 +684,7 @@ const UserDetailContent = ({
   handleUnblockIP,
   isPasswordDialogOpen,
   setIsPasswordDialogOpen,
+  setIsRolesDialogOpen,
 }: {
   user: UserData;
   activeTab: "overview" | "orders";
@@ -656,6 +693,7 @@ const UserDetailContent = ({
   handleUnblockIP: (ip: string) => Promise<void>;
   isPasswordDialogOpen: boolean;
   setIsPasswordDialogOpen: (open: boolean) => void;
+  setIsRolesDialogOpen: (open: boolean) => void;
 }) => {
   const { toast } = useToast();
   const { orders, stats, loading: ordersLoading, filters, updateFilters, clearFilters } = useUserOrders(user.user_id);
@@ -663,6 +701,7 @@ const UserDetailContent = ({
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "fleet_manager": return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
       case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
       case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
       case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
@@ -749,6 +788,7 @@ const UserDetailContent = ({
             handleUnblockIP={handleUnblockIP}
             setActiveTab={setActiveTab}
             setIsPasswordDialogOpen={setIsPasswordDialogOpen}
+            setIsRolesDialogOpen={setIsRolesDialogOpen}
             toast={toast}
           />
         )}
@@ -772,6 +812,7 @@ const OverviewContent = ({
   handleUnblockIP,
   setActiveTab,
   setIsPasswordDialogOpen,
+  setIsRolesDialogOpen,
   toast,
 }: {
   user: UserData;
@@ -779,11 +820,13 @@ const OverviewContent = ({
   handleUnblockIP: (ip: string) => Promise<void>;
   setActiveTab: (tab: "overview" | "orders") => void;
   setIsPasswordDialogOpen: (open: boolean) => void;
+  setIsRolesDialogOpen: (open: boolean) => void;
   toast: any;
 }) => {
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case "admin": return "bg-red-500/10 text-red-600 border-red-500/20";
+      case "fleet_manager": return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
       case "restaurant": return "bg-orange-500/10 text-orange-600 border-orange-500/20";
       case "driver": return "bg-blue-500/10 text-blue-600 border-blue-500/20";
       case "gym_owner": return "bg-purple-500/10 text-purple-600 border-purple-500/20";
@@ -932,7 +975,7 @@ const OverviewContent = ({
             <Button 
               variant="outline" 
               className="justify-start"
-              onClick={() => toast({ title: "Edit Roles", description: "Role management feature coming soon" })}
+              onClick={() => setIsRolesDialogOpen(true)}
             >
               <Shield className="w-4 h-4 mr-2" />
               Edit Roles

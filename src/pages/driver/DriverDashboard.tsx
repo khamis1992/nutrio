@@ -268,14 +268,14 @@ export default function DriverDashboard() {
         .from("delivery_jobs")
         .select("*", { count: "exact", head: true })
         .eq("driver_id", driverId)
-        .eq("status", "delivered")
+        .in("status", ["delivered", "completed"])
         .gte("delivered_at", today.toISOString());
 
       const { count: weekCount } = await supabase
         .from("delivery_jobs")
         .select("*", { count: "exact", head: true })
         .eq("driver_id", driverId)
-        .eq("status", "delivered")
+        .in("status", ["delivered", "completed"])
         .gte("delivered_at", weekAgo.toISOString());
 
       setStats({

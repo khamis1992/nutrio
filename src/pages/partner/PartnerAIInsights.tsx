@@ -158,7 +158,7 @@ export default function PartnerAIInsights() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] bg-slate-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
@@ -379,7 +379,7 @@ export default function PartnerAIInsights() {
               </p>
               <Button
                 variant="outline"
-                className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-950"
+                className="border-primary/50 text-cyan-400 hover:bg-cyan-950"
                 onClick={fetchAIInsights}
               >
                 <Zap className="w-4 h-4 mr-2" />

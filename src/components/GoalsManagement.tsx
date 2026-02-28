@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Utensils, Loader2, Sparkles, Scale, Ruler, Activity, TrendingUp } from "lucide-react";
+import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Utensils, Loader2, Scale, Ruler, Activity, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -927,22 +927,6 @@ export const GoalsManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Info Card */}
-      <div className="bg-gradient-to-br from-teal-500/10 to-cyan-500/5 rounded-2xl p-6 border border-teal-500/20">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-6 h-6 text-teal-600" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-lg mb-1">Personalized Recommendations</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Your selected preferences will be used to recommend meals that match
-              your diet. We&apos;ll prioritize recipes that fit your lifestyle and
-              nutritional goals.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

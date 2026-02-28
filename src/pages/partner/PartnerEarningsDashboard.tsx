@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -25,9 +23,7 @@ import {
   FileText,
   ArrowUpRight,
   AlertCircle,
-  CheckCircle2,
-  RefreshCw,
-  ChevronRight
+  CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,11 +50,10 @@ interface PayoutRecord {
   id: string;
   period_start: string;
   period_end: string;
-  total_meals: number;
-  total_earnings_qar: number;
-  payout_status: string;
-  transferred_at: string | null;
-  transfer_reference: string | null;
+  amount: number;
+  status: string | null;
+  processed_at: string | null;
+  reference_number: string | null;
 }
 
 export default function PartnerEarningsDashboard() {
@@ -78,7 +73,7 @@ export default function PartnerEarningsDashboard() {
       const { data: restaurant } = await supabase
         .from("restaurants")
         .select("id")
-        .eq("user_id", user.id)
+        .eq("owner_id", user.id)
         .single();
 
       if (!restaurant) {
@@ -94,15 +89,15 @@ export default function PartnerEarningsDashboard() {
 
       // Fetch earnings
       const { data: earningsData } = await supabase
-        .from("restaurant_earnings")
-        .select("restaurant_payout_qar, created_at, is_settled")
+        .from("partner_earnings")
+        .select("net_amount, created_at, status")
         .eq("restaurant_id", restaurantId)
         .gte("created_at", startDate)
         .order("created_at", { ascending: true });
 
       // Calculate summary
-      const totalEarnings = earningsData?.reduce((sum, e) => sum + e.restaurant_payout_qar, 0) || 0;
-      const pendingPayout = earningsData?.filter(e => !e.is_settled).reduce((sum, e) => sum + e.restaurant_payout_qar, 0) || 0;
+      const totalEarnings = earningsData?.reduce((sum, e) => sum + e.net_amount, 0) || 0;
+      const pendingPayout = earningsData?.filter(e => e.status !== 'paid').reduce((sum, e) => sum + e.net_amount, 0) || 0;
       const mealsSold = earningsData?.length || 0;
       const avgPerMeal = mealsSold > 0 ? totalEarnings / mealsSold : 45;
 
@@ -113,12 +108,12 @@ export default function PartnerEarningsDashboard() {
       const lastMonthEnd = endOfMonth(subDays(now, 30)).toISOString();
 
       const thisMonthEarnings = earningsData
-        ?.filter(e => e.created_at >= thisMonthStart)
-        .reduce((sum, e) => sum + e.restaurant_payout_qar, 0) || 0;
+        ?.filter(e => e.created_at && e.created_at >= thisMonthStart)
+        .reduce((sum, e) => sum + e.net_amount, 0) || 0;
 
       const lastMonthEarnings = earningsData
-        ?.filter(e => e.created_at >= lastMonthStart && e.created_at <= lastMonthEnd)
-        .reduce((sum, e) => sum + e.restaurant_payout_qar, 0) || 0;
+        ?.filter(e => e.created_at && e.created_at >= lastMonthStart && e.created_at <= lastMonthEnd)
+        .reduce((sum, e) => sum + e.net_amount, 0) || 0;
 
       const growthRate = lastMonthEarnings > 0 
         ? ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100 
@@ -137,11 +132,12 @@ export default function PartnerEarningsDashboard() {
       // Prepare daily chart data
       const dailyMap: Record<string, { earnings: number; meals: number }> = {};
       earningsData?.forEach(earning => {
+        if (!earning.created_at) return;
         const date = format(new Date(earning.created_at), "MMM d");
         if (!dailyMap[date]) {
           dailyMap[date] = { earnings: 0, meals: 0 };
         }
-        dailyMap[date].earnings += earning.restaurant_payout_qar;
+        dailyMap[date].earnings += earning.net_amount;
         dailyMap[date].meals += 1;
       });
 
@@ -155,7 +151,7 @@ export default function PartnerEarningsDashboard() {
 
       // Fetch payouts
       const { data: payoutData } = await supabase
-        .from("restaurant_payouts")
+        .from("partner_payouts")
         .select("*")
         .eq("restaurant_id", restaurantId)
         .order("created_at", { ascending: false })
@@ -181,7 +177,7 @@ export default function PartnerEarningsDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] bg-slate-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
@@ -411,7 +407,6 @@ export default function PartnerEarningsDashboard() {
                   <thead>
                     <tr className="border-b border-slate-800">
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Period</th>
-                      <th className="text-left py-3 px-4 text-slate-400 font-medium">Meals</th>
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Amount</th>
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Status</th>
                       <th className="text-left py-3 px-4 text-slate-400 font-medium">Reference</th>
@@ -425,26 +420,25 @@ export default function PartnerEarningsDashboard() {
                             {format(new Date(payout.period_start), "MMM d")} - {format(new Date(payout.period_end), "MMM d")}
                           </div>
                         </td>
-                        <td className="py-4 px-4 text-slate-300">{payout.total_meals}</td>
                         <td className="py-4 px-4">
                           <span className="text-cyan-400 font-medium">
-                            {payout.total_earnings_qar.toLocaleString()} QAR
+                            {payout.amount.toLocaleString()} QAR
                           </span>
                         </td>
                         <td className="py-4 px-4">
                           <Badge 
                             variant="outline"
                             className={cn(
-                              payout.payout_status === "transferred"
+                              payout.status === "completed"
                                 ? "border-emerald-500/50 text-emerald-400"
-                                : payout.payout_status === "pending"
+                                : payout.status === "pending"
                                 ? "border-amber-500/50 text-amber-400"
                                 : "border-red-500/50 text-red-400"
                             )}
                           >
-                            {payout.payout_status === "transferred" ? (
+                            {payout.status === "completed" ? (
                               <><CheckCircle2 className="w-3 h-3 mr-1" /> Paid</>
-                            ) : payout.payout_status === "pending" ? (
+                            ) : payout.status === "pending" ? (
                               <><Clock className="w-3 h-3 mr-1" /> Pending</>
                             ) : (
                               <><AlertCircle className="w-3 h-3 mr-1" /> Failed</>
@@ -452,7 +446,7 @@ export default function PartnerEarningsDashboard() {
                           </Badge>
                         </td>
                         <td className="py-4 px-4 text-slate-400 text-sm font-mono">
-                          {payout.transfer_reference || "-"}
+                          {payout.reference_number || "-"}
                         </td>
                       </tr>
                     ))}

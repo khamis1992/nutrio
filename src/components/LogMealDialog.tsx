@@ -325,14 +325,37 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       setScanMode("scanning");
       
       try {
+        // Get current session for authorization
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        
+        if (!accessToken) {
+          throw new Error("Authentication required. Please sign in again.");
+        }
+        
         const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
           body: { 
             imageUrl: base64,
             mode: "quick_scan" 
           },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle auth errors specifically
+          if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
+            toast({
+              title: "Session Expired",
+              description: "Your session has expired. Please sign in again.",
+              variant: "destructive",
+            });
+            setScanMode("upload");
+            return;
+          }
+          throw error;
+        }
 
         if (data?.success && data?.detectedItems && data.detectedItems.length > 0) {
           const detected: DetectedFood[] = data.detectedItems.map((item: any) => ({

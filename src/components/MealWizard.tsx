@@ -19,7 +19,10 @@ import {
   Store,
   MapPin,
   Star,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  Target,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -34,6 +37,11 @@ interface Meal {
   image_url: string | null;
   is_available: boolean | null;
   restaurant_id: string | null;
+  restaurant?: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+  };
 }
 
 interface Restaurant {
@@ -74,6 +82,22 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     snack: null as any,
   });
   const [scheduling, setScheduling] = useState(false);
+
+  // Smart recommendation state
+  const [remainingNutrition, setRemainingNutrition] = useState({
+    calories: 2000,
+    protein: 120,
+    carbs: 250,
+    fat: 65,
+  });
+  const [recommendedMeals, setRecommendedMeals] = useState<Meal[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(true);
+
+  // Auto-fill day state
+  const [autoFillLoading, setAutoFillLoading] = useState(false);
+  const [showAutoFillDialog, setShowAutoFillDialog] = useState(false);
+  const [generatedDayPlan, setGeneratedDayPlan] = useState<any>(null);
 
   const currentStepData = STEPS[currentStep];
   const CurrentIcon = currentStepData.icon;
@@ -163,6 +187,175 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     }
   };
 
+  // Calculate remaining nutrition for the selected date
+  const calculateRemainingNutrition = async () => {
+    if (!userId) return;
+
+    try {
+      // Fetch user's daily targets from profile
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+        .eq("id", userId)
+        .limit(1);
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return;
+      }
+
+      const profile = profiles?.[0];
+
+      if (profile) {
+        const targets = {
+          calories: profile.daily_calorie_target || 2000,
+          protein: profile.protein_target_g || 120,
+          carbs: profile.carbs_target_g || 250,
+          fat: profile.fat_target_g || 65,
+        };
+
+        // Fetch already scheduled meals for this date
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
+        const { data: scheduledMeals } = await supabase
+          .from("meal_schedules")
+          .select(`
+            meal:meals(
+              calories,
+              protein_g,
+              carbs_g,
+              fat_g
+            )
+          `)
+          .eq("user_id", userId)
+          .eq("scheduled_date", dateStr);
+
+        // Calculate consumed nutrition
+        const consumed = (scheduledMeals || []).reduce(
+          (acc, schedule: any) => ({
+            calories: acc.calories + (schedule.meal?.calories || 0),
+            protein: acc.protein + (schedule.meal?.protein_g || 0),
+            carbs: acc.carbs + (schedule.meal?.carbs_g || 0),
+            fat: acc.fat + (schedule.meal?.fat_g || 0),
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        );
+
+        // Also subtract meals already selected in this wizard session
+        const selectedConsumed = Object.values(selectedMeals).reduce(
+          (acc, meal) => ({
+            calories: acc.calories + (meal?.calories || 0),
+            protein: acc.protein + (meal?.protein_g || 0),
+            carbs: acc.carbs + (meal?.carbs_g || 0),
+            fat: acc.fat + (meal?.fat_g || 0),
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        );
+
+        setRemainingNutrition({
+          calories: Math.max(0, targets.calories - consumed.calories - selectedConsumed.calories),
+          protein: Math.max(0, targets.protein - consumed.protein - selectedConsumed.protein),
+          carbs: Math.max(0, targets.carbs - consumed.carbs - selectedConsumed.carbs),
+          fat: Math.max(0, targets.fat - consumed.fat - selectedConsumed.fat),
+        });
+      }
+    } catch (err) {
+      console.error("Error calculating remaining nutrition:", err);
+    }
+  };
+
+  // Fetch recommended meals based on remaining nutrition
+  const fetchRecommendedMeals = async () => {
+    if (!userId || !showRecommendations) return;
+
+    setLoadingRecommendations(true);
+    try {
+      // Get all available meals
+      const { data: allMeals, error: mealsError } = await supabase
+        .from("meals")
+        .select(`
+          id,
+          name,
+          description,
+          calories,
+          protein_g,
+          carbs_g,
+          fat_g,
+          image_url,
+          is_available,
+          restaurant_id
+        `)
+        .eq("is_available", true)
+        .limit(100);
+
+      if (mealsError) throw mealsError;
+
+      // Get all restaurants for lookup
+      const { data: restaurantsData, error: restaurantsError } = await supabase
+        .from("restaurants")
+        .select("id, name, logo_url");
+
+      if (restaurantsError) throw restaurantsError;
+
+      // Create restaurant lookup map
+      const restaurantMap = (restaurantsData || []).reduce((acc: Record<string, any>, r: any) => {
+        acc[r.id] = r;
+        return acc;
+      }, {});
+
+      // Filter and score meals based on remaining nutrition
+      const scoredMeals = (allMeals || [])
+        .map((meal: any) => {
+          const calories = meal.calories || 0;
+          const protein = meal.protein_g || 0;
+
+          // Calculate score based on how well meal fits remaining targets
+          let score = 0;
+
+          // Prefer meals that don't exceed remaining calories
+          if (calories <= remainingNutrition.calories * 1.2) {
+            score += 50;
+          }
+
+          // Bonus for protein content
+          if (remainingNutrition.protein > 0 && protein > 0) {
+            const proteinRatio = protein / remainingNutrition.protein;
+            if (proteinRatio >= 0.15 && proteinRatio <= 0.4) {
+              score += 30; // Good protein portion for this meal
+            }
+          }
+
+          // Prefer meals with reasonable calorie density
+          if (calories >= 200 && calories <= 800) {
+            score += 20;
+          }
+
+          // Attach restaurant data
+          const restaurant = restaurantMap[meal.restaurant_id];
+
+          return { ...meal, score, restaurant };
+        })
+        .filter((meal: any) => meal.score > 30)
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, 8);
+
+      setRecommendedMeals(scoredMeals);
+    } catch (err) {
+      console.error("Error fetching recommendations:", err);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
+  // Update remaining nutrition when step changes or meals are selected
+  useEffect(() => {
+    calculateRemainingNutrition();
+  }, [currentStep, selectedMeals, selectedDate]);
+
+  // Fetch recommendations when nutrition changes
+  useEffect(() => {
+    fetchRecommendedMeals();
+  }, [remainingNutrition, showRecommendations]);
+
   const selectMeal = (meal: Meal) => {
     const stepKey = STEPS[currentStep].id;
     setSelectedMeals(prev => ({
@@ -248,6 +441,98 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
 
   const getTotalSelectedMeals = () => {
     return Object.values(selectedMeals).filter(meal => meal !== null).length;
+  };
+
+  // Auto-fill day with AI suggestions
+  const handleAutoFillDay = async () => {
+    setAutoFillLoading(true);
+    setShowAutoFillDialog(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("smart-meal-allocator", {
+        body: {
+          user_id: userId,
+          week_start_date: format(selectedDate, "yyyy-MM-dd"),
+          generate_variations: 1,
+          save_to_database: false,
+        },
+      });
+
+      if (error) {
+        if (error.message?.includes('CORS') || error.message?.includes('Failed to send') || error.message?.includes('net::ERR')) {
+          toast({
+            title: "Feature not available",
+            description: "Auto-fill is coming soon! Please select meals manually.",
+            variant: "destructive"
+          });
+          setShowAutoFillDialog(false);
+          return;
+        }
+        throw error;
+      }
+
+      if (data?.weekly_plan?.items) {
+        // Filter meals for the selected date only
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
+        const dayMeals = data.weekly_plan.items.filter((item: any) =>
+          item.scheduled_date === dateStr
+        );
+
+        if (dayMeals.length > 0) {
+          setGeneratedDayPlan(dayMeals);
+        } else {
+          toast({
+            title: "No suggestions",
+            description: "Could not generate suggestions for this day. Please select manually.",
+            variant: "destructive"
+          });
+          setShowAutoFillDialog(false);
+        }
+      } else {
+        toast({
+          title: "No meals available",
+          description: "Could not generate a meal plan. Try selecting manually.",
+          variant: "destructive"
+        });
+        setShowAutoFillDialog(false);
+      }
+    } catch (err: any) {
+      console.error("Error generating day plan:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to generate meal plan",
+        variant: "destructive"
+      });
+      setShowAutoFillDialog(false);
+    } finally {
+      setAutoFillLoading(false);
+    }
+  };
+
+  const applyAutoFillPlan = () => {
+    if (!generatedDayPlan || generatedDayPlan.length === 0) return;
+
+    // Auto-select all meals from the generated plan
+    const newSelectedMeals = { ...selectedMeals };
+
+    generatedDayPlan.forEach((item: any) => {
+      const mealType = item.meal_type;
+      if (STEPS.find(s => s.id === mealType) && item.meal) {
+        newSelectedMeals[mealType] = {
+          ...item.meal,
+          restaurant: item.restaurant || { id: item.meal.restaurant_id, name: "Restaurant", logo_url: null }
+        };
+      }
+    });
+
+    setSelectedMeals(newSelectedMeals);
+    setShowAutoFillDialog(false);
+    setGeneratedDayPlan(null);
+
+    toast({
+      title: "Day Auto-Filled!",
+      description: `Added ${generatedDayPlan.length} meals to your schedule.`,
+    });
   };
 
   const getStepSelected = (stepIndex: number) => {
@@ -515,8 +800,121 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <h3 className="text-lg font-semibold mb-3">Choose a Restaurant</h3>
-            
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Choose a Restaurant</h3>
+            </div>
+
+            {/* Auto-fill Day Button */}
+            {getTotalSelectedMeals() === 0 && (
+              <motion.button
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={handleAutoFillDay}
+                disabled={autoFillLoading}
+                className="w-full mb-4 py-3 px-4 bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50"
+              >
+                {autoFillLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5" />
+                    <span>Auto-fill My Day with AI</span>
+                  </>
+                )}
+              </motion.button>
+            )}
+
+            {/* Recommended for You Section */}
+            {showRecommendations && recommendedMeals.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Recommended for You</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowRecommendations(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Hide
+                  </button>
+                </div>
+
+                {/* Remaining Nutrition Badge */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Badge variant="secondary" className="text-xs">
+                    <Target className="h-3 w-3 mr-1" />
+                    {remainingNutrition.calories} cal remaining
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs bg-red-50 text-red-600">
+                    <Beef className="h-3 w-3 mr-1" />
+                    {remainingNutrition.protein}g protein
+                  </Badge>
+                </div>
+
+                {/* Recommended Meals Horizontal Scroll */}
+                {loadingRecommendations ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                    {recommendedMeals.map((meal) => (
+                      <motion.div
+                        key={meal.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={() => {
+                          // Find restaurant and select meal
+                          const restaurant = restaurants.find(r => r.id === meal.restaurant_id);
+                          if (restaurant) {
+                            setSelectedRestaurant(restaurant);
+                            fetchRestaurantMeals(restaurant.id);
+                            setTimeout(() => selectMeal(meal), 300);
+                          }
+                        }}
+                        className="flex-shrink-0 w-40 cursor-pointer group"
+                      >
+                        <div className="relative w-full h-24 rounded-xl overflow-hidden bg-muted mb-2">
+                          {meal.image_url ? (
+                            <img
+                              src={meal.image_url}
+                              alt={meal.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl">
+                              🍽️
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                            <p className="text-white text-xs font-medium truncate">
+                              {meal.calories} cal
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                          {meal.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {meal.restaurant?.name || 'Restaurant'}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-xs text-red-500 font-medium">
+                            {meal.protein_g}g protein
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
             {restaurants.length === 0 ? (
               <div className="text-center py-12">
                 <Store className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
@@ -644,6 +1042,142 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           </div>
         </div>
       </motion.div>
+
+      {/* Auto-fill Day Dialog */}
+      <AnimatePresence>
+        {showAutoFillDialog && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAutoFillDialog(false)}
+              className="fixed inset-0 bg-black/50 z-50"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto"
+            >
+              {/* Handle Bar */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-muted rounded-full" />
+              </div>
+
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">AI Suggestions</h2>
+                      <p className="text-sm text-muted-foreground">Personalized for your goals</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAutoFillDialog(false)}
+                    className="p-2 rounded-full bg-muted"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {autoFillLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                    <p className="text-muted-foreground">Creating your perfect day...</p>
+                  </div>
+                ) : generatedDayPlan ? (
+                  <>
+                    {/* Summary */}
+                    <div className="bg-gradient-to-r from-primary/10 to-emerald-50 dark:from-primary/20 dark:to-emerald-900/20 rounded-2xl p-4 mb-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Meals</p>
+                          <p className="text-2xl font-bold">{generatedDayPlan.length}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Total Calories</p>
+                          <p className="text-2xl font-bold">
+                            {generatedDayPlan.reduce((sum: number, item: any) => sum + (item.meal?.calories || 0), 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Meal List */}
+                    <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto">
+                      {generatedDayPlan.map((item: any, index: number) => {
+                        const config = STEPS.find(s => s.id === item.meal_type);
+                        const MealTypeIcon = config?.icon || ChefHat;
+
+                        return (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="flex items-center gap-3 p-3 bg-muted/50 rounded-2xl"
+                          >
+                            <div className={`w-10 h-10 rounded-xl ${config?.color || 'bg-primary'} flex items-center justify-center`}>
+                              <MealTypeIcon className="h-5 w-5 text-white" />
+                            </div>
+
+                            {item.meal?.image_url ? (
+                              <img
+                                src={item.meal.image_url}
+                                alt={item.meal.name}
+                                className="w-14 h-14 rounded-xl object-cover"
+                              />
+                            ) : (
+                              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
+                                <ChefHat className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold truncate">{item.meal?.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                <span className="capitalize">{item.meal_type}</span>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-xs">
+                                <span className="text-orange-500 font-medium">{item.meal?.calories || 0} cal</span>
+                                <span className="text-red-500 font-medium">{item.meal?.protein_g || 0}g protein</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-xl h-12"
+                        onClick={() => setShowAutoFillDialog(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="flex-1 rounded-xl h-12 bg-gradient-to-r from-primary to-emerald-500"
+                        onClick={applyAutoFillPlan}
+                      >
+                        <Check className="h-5 w-5 mr-2" />
+                        Apply All Meals
+                      </Button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

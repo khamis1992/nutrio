@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,14 @@ import {
   Sparkles,
   Leaf,
   Flame,
-  ArrowUpRight
+  Utensils
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Haptics } from "@/lib/haptics";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { Badge } from "@/components/ui/badge";
 
 interface Restaurant {
   id: string;
@@ -35,6 +36,8 @@ interface Restaurant {
   delivery_time?: string;
   delivery_fee?: number;
   cuisine_types?: string[];
+  is_featured?: boolean;
+  discount?: string | null;
 }
 
 const cuisineEmojis: Record<string, string> = {
@@ -50,29 +53,38 @@ const cuisineEmojis: Record<string, string> = {
   "Vegetarian": "🥬",
   "Vegan": "🌱",
   "Keto": "🥑",
+  "Protein": "💪",
+  "Low Carb": "🥗",
 };
 
-// Spring animation config for natural feel
-const springConfig = {
-  type: "spring" as const,
-  stiffness: 380,
-  damping: 25,
+const cuisineColors: Record<string, string> = {
+  "Healthy": "from-emerald-400 to-green-500",
+  "Mediterranean": "from-blue-400 to-cyan-500",
+  "Asian": "from-red-400 to-rose-500",
+  "Italian": "from-green-400 to-emerald-500",
+  "Mexican": "from-orange-400 to-amber-500",
+  "Indian": "from-orange-500 to-red-500",
+  "American": "from-yellow-400 to-orange-500",
+  "Breakfast": "from-amber-300 to-yellow-400",
+  "Seafood": "from-cyan-400 to-blue-500",
+  "Vegetarian": "from-green-400 to-lime-500",
+  "Vegan": "from-emerald-400 to-teal-500",
+  "Keto": "from-violet-400 to-purple-500",
+  "Protein": "from-blue-500 to-indigo-500",
+  "Low Carb": "from-teal-400 to-cyan-500",
 };
 
-const bouncyConfig = {
-  type: "spring" as const,
-  stiffness: 400,
-  damping: 17,
-};
+// Animation configurations
+const springConfig = { type: "spring" as const, stiffness: 380, damping: 25 };
 
 // ============================================
-// ENHANCED SKELETON LOADING STATES
+// NATIVE MOBILE SKELETON LOADING
 // ============================================
 const RestaurantCardSkeleton = ({ viewMode }: { viewMode: "list" | "gallery" }) => {
   if (viewMode === "gallery") {
     return (
       <div className="relative">
-        <div className="aspect-[4/5] rounded-3xl bg-gradient-to-br from-emerald-100/50 via-teal-50/50 to-green-100/50 overflow-hidden">
+        <div className="aspect-[4/5] rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 overflow-hidden">
           <motion.div
             className="w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent"
             animate={{ x: ["-100%", "100%"] }}
@@ -80,17 +92,17 @@ const RestaurantCardSkeleton = ({ viewMode }: { viewMode: "list" | "gallery" }) 
           />
         </div>
         <div className="mt-3 space-y-2 px-1">
-          <div className="h-4 bg-emerald-100/60 rounded-full w-2/3" />
-          <div className="h-3 bg-emerald-50/60 rounded-full w-1/2" />
+          <div className="h-4 bg-primary/10 rounded-full w-2/3" />
+          <div className="h-3 bg-muted rounded-full w-1/2" />
         </div>
       </div>
     );
   }
   
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm">
+    <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
       <div className="flex gap-4">
-        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-100/60 to-teal-50/60 shrink-0 overflow-hidden">
+        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 shrink-0 overflow-hidden">
           <motion.div
             className="w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent"
             animate={{ x: ["-100%", "100%"] }}
@@ -98,11 +110,11 @@ const RestaurantCardSkeleton = ({ viewMode }: { viewMode: "list" | "gallery" }) 
           />
         </div>
         <div className="flex-1 space-y-3 py-1">
-          <div className="h-4 bg-emerald-100/60 rounded-full w-3/4" />
-          <div className="h-3 bg-emerald-50/60 rounded-full w-full" />
+          <div className="h-4 bg-primary/10 rounded-full w-3/4" />
+          <div className="h-3 bg-muted rounded-full w-full" />
           <div className="flex gap-3 pt-1">
-            <div className="h-3 bg-emerald-50/60 rounded-full w-16" />
-            <div className="h-3 bg-emerald-50/60 rounded-full w-16" />
+            <div className="h-3 bg-muted rounded-full w-16" />
+            <div className="h-3 bg-muted rounded-full w-16" />
           </div>
         </div>
       </div>
@@ -111,7 +123,7 @@ const RestaurantCardSkeleton = ({ viewMode }: { viewMode: "list" | "gallery" }) 
 };
 
 // ============================================
-// ENHANCED LIST CARD WITH MICRO-INTERACTIONS
+// NATIVE LIST CARD - iOS STYLE
 // ============================================
 const RestaurantListCard = ({ 
   restaurant, 
@@ -124,8 +136,6 @@ const RestaurantListCard = ({
   onToggleFavorite: (id: string, name: string) => void;
   index: number;
 }) => {
-  const [isPressed, setIsPressed] = useState(false);
-
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -134,143 +144,125 @@ const RestaurantListCard = ({
   };
 
   const cuisineEmoji = cuisineEmojis[restaurant.cuisine_types?.[0] || ""] || "🍽️";
+  const hasDiscount = restaurant.discount;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ 
-        delay: index * 0.06,
-        ...springConfig
-      }}
-      whileTap={{ scale: 0.97 }}
+      transition={{ delay: index * 0.05, ...springConfig }}
+      whileTap={{ scale: 0.98 }}
     >
       <Link to={`/restaurant/${restaurant.id}`}>
-        <motion.div
-          className="group bg-white rounded-2xl shadow-sm overflow-hidden border border-emerald-100/50"
-          whileHover={{ scale: 1.01 }}
-          transition={springConfig}
-          onTapStart={() => setIsPressed(true)}
-          onTap={() => setIsPressed(false)}
-        >
+        <div className="group bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow">
           <div className="flex p-3 gap-3">
-            {/* Image Section with Organic Shape */}
-            <div className="relative w-28 h-28 shrink-0">
-              <motion.div 
-                className="w-full h-full rounded-2xl overflow-hidden"
-                animate={{ borderRadius: isPressed ? "24px" : "16px" }}
-                transition={springConfig}
-              >
+            {/* Restaurant Image with Native Feel */}
+            <div className="relative w-24 h-24 shrink-0">
+              <div className="w-full h-full rounded-xl overflow-hidden bg-gradient-to-br from-primary/5 to-accent/5">
                 {restaurant.logo_url ? (
                   <img 
                     src={restaurant.logo_url} 
                     alt={restaurant.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
+                  <div className="w-full h-full flex items-center justify-center text-3xl">
                     {cuisineEmoji}
                   </div>
                 )}
-              </motion.div>
+              </div>
               
-              {/* Floating Rating Badge */}
-              <motion.div 
-                className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-0.5"
-                initial={{ scale: 0, rotate: -20 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: index * 0.06 + 0.2, ...bouncyConfig }}
-              >
-                <Star className="w-3 h-3 fill-white" />
-                {restaurant.rating.toFixed(1)}
-              </motion.div>
+              {/* Featured Badge */}
+              {restaurant.is_featured && (
+                <div className="absolute -top-1 -left-1">
+                  <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] px-1.5 py-0.5 border-0">
+                    <Sparkles className="w-2.5 h-2.5 mr-0.5" />
+                    Featured
+                  </Badge>
+                </div>
+              )}
 
-              {/* Favorite Button with Heart Animation */}
+              {/* Favorite Button */}
               <motion.button
                 onClick={handleFavoriteClick}
-                className="absolute bottom-2 left-2 w-10 h-10 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center shadow-md"
-                whileTap={{ scale: 0.8 }}
-                whileHover={{ scale: 1.1 }}
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-background shadow-md flex items-center justify-center border border-border"
+                whileTap={{ scale: 0.85 }}
               >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={isFavorite ? "filled" : "empty"}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    transition={bouncyConfig}
-                  >
-                    <Heart 
-                      className={`w-5 h-5 ${
-                        isFavorite 
-                          ? "fill-rose-500 text-rose-500" 
-                          : "text-gray-400"
-                      }`} 
-                    />
-                  </motion.div>
-                </AnimatePresence>
+                <Heart 
+                  className={`w-4 h-4 transition-colors ${
+                    isFavorite 
+                      ? "fill-rose-500 text-rose-500" 
+                      : "text-muted-foreground"
+                  }`} 
+                />
               </motion.button>
             </div>
 
             {/* Content Section */}
-            <div className="flex-1 flex flex-col justify-between py-0.5">
+            <div className="flex-1 flex flex-col justify-between min-w-0">
               <div>
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-bold text-base leading-tight line-clamp-1 flex-1 text-gray-800">
+                  <h3 className="font-semibold text-base leading-tight line-clamp-1 text-foreground">
                     {restaurant.name}
                   </h3>
                 </div>
                 
                 {restaurant.cuisine_types && restaurant.cuisine_types.length > 0 && (
-                  <motion.p 
-                    className="text-xs font-medium text-emerald-600 mt-1 flex items-center gap-1"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.06 + 0.1 }}
-                  >
+                  <p className="text-xs font-medium text-primary mt-0.5 flex items-center gap-1">
                     <Leaf className="w-3 h-3" />
                     {restaurant.cuisine_types[0]}
-                  </motion.p>
+                  </p>
                 )}
                 
-                <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                   {restaurant.description || "Healthy & delicious meals"}
                 </p>
               </div>
 
               <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-3">
-                  <motion.span 
-                    className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
-                    whileHover={{ backgroundColor: "#d1fae5" }}
-                  >
+                <div className="flex items-center gap-2">
+                  {/* Rating Badge */}
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                    <span className="text-xs font-semibold">{restaurant.rating.toFixed(1)}</span>
+                  </div>
+                  
+                  {/* Delivery Time */}
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="w-3 h-3" />
                     {restaurant.delivery_time || "25-40 min"}
-                  </motion.span>
-                  
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                    FREE DELIVERY
                   </span>
                 </div>
                 
-                <motion.div 
-                  className="flex items-center gap-1 bg-gradient-to-r from-emerald-50 to-teal-50 px-2 py-1 rounded-full"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Sparkles className="w-3 h-3 text-emerald-500" />
-                  <span className="text-xs font-semibold text-emerald-700">{restaurant.meal_count}</span>
-                </motion.div>
+                {/* Meal Count */}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Utensils className="w-3 h-3" />
+                  <span>{restaurant.meal_count}</span>
+                </div>
               </div>
             </div>
           </div>
-        </motion.div>
+          
+          {/* Discount Banner if exists */}
+          {hasDiscount && (
+            <div className="mx-3 mb-3">
+              <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg px-3 py-2 flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                </div>
+                <span className="text-xs font-medium text-primary">{restaurant.discount}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </Link>
     </motion.div>
   );
 };
 
 // ============================================
-// ENHANCED GALLERY CARD WITH ORGANIC AESTHETIC
+// NATIVE GALLERY CARD - iOS STYLE
 // ============================================
 const RestaurantGalleryCard = ({ 
   restaurant, 
@@ -291,138 +283,98 @@ const RestaurantGalleryCard = ({
   };
 
   const cuisineEmoji = cuisineEmojis[restaurant.cuisine_types?.[0] || ""] || "🍽️";
+  const cuisineGradient = cuisineColors[restaurant.cuisine_types?.[0] || ""] || "from-primary to-accent";
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ 
-        delay: index * 0.05,
-        ...springConfig
-      }}
-      whileTap={{ scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.04, ...springConfig }}
+      whileTap={{ scale: 0.97 }}
     >
       <Link to={`/restaurant/${restaurant.id}`}>
         <div className="group relative">
-          {/* Organic Shape Image Container */}
-          <motion.div 
-            className="relative aspect-[4/5] overflow-hidden"
-            style={{ borderRadius: "24px" }}
-            whileHover={{ borderRadius: "32px" }}
-            transition={springConfig}
-          >
-            {/* Background */}
+          {/* Image Container with Native iOS Feel */}
+          <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-muted to-muted/50">
             {restaurant.logo_url ? (
-              <motion.img 
+              <img 
                 src={restaurant.logo_url} 
                 alt={restaurant.name}
-                className="w-full h-full object-cover"
-                whileHover={{ scale: 1.08 }}
-                transition={{ duration: 0.6 }}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-emerald-100 via-teal-50 to-green-100">
-                {cuisineEmoji}
+              <div className={`w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br ${cuisineGradient}`}>
+                <span className="drop-shadow-lg">{cuisineEmoji}</span>
               </div>
             )}
             
-            {/* Organic Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-emerald-900/30 to-transparent" />
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
             
-            {/* Floating Elements */}
-            <motion.div 
-              className="absolute top-3 right-3"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: index * 0.05 + 0.1, ...bouncyConfig }}
-            >
+            {/* Top Badges */}
+            <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
+              {/* Rating */}
+              <div className="flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm">
+                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                <span className="text-xs font-semibold text-foreground">{restaurant.rating.toFixed(1)}</span>
+              </div>
+              
+              {/* Favorite */}
               <motion.button
                 onClick={handleFavoriteClick}
-                className="w-11 h-11 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30"
+                className="w-8 h-8 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center shadow-sm"
                 whileTap={{ scale: 0.85 }}
-                whileHover={{ backgroundColor: "rgba(255,255,255,0.4)" }}
               >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={isFavorite ? "filled" : "empty"}
-                    initial={{ scale: 0, rotate: -45 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    exit={{ scale: 0, rotate: 45 }}
-                    transition={bouncyConfig}
-                  >
-                    <Heart 
-                      className={`w-5 h-5 ${
-                        isFavorite 
-                          ? "fill-rose-500 text-rose-500" 
-                          : "text-white"
-                      }`} 
-                    />
-                  </motion.div>
-                </AnimatePresence>
+                <Heart 
+                  className={`w-4 h-4 transition-colors ${
+                    isFavorite 
+                      ? "fill-rose-500 text-rose-500" 
+                      : "text-muted-foreground"
+                  }`} 
+                />
               </motion.button>
-            </motion.div>
+            </div>
 
-            {/* Rating Badge */}
-            <motion.div 
-              className="absolute top-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm px-2.5 py-1.5 rounded-full shadow-lg"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: index * 0.05 + 0.15, ...springConfig }}
-            >
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span className="text-xs font-bold text-gray-800">{restaurant.rating.toFixed(1)}</span>
-            </motion.div>
+            {/* Featured Badge */}
+            {restaurant.is_featured && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 shadow-lg">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Featured
+                </Badge>
+              </div>
+            )}
 
-            {/* Meal Count Badge */}
-            <motion.div
-              className="absolute top-3 left-1/2 -translate-x-1/2 bg-emerald-500/90 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg"
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: index * 0.05 + 0.2, ...springConfig }}
-            >
-              {restaurant.meal_count} meals
-            </motion.div>
+            {/* Discount Badge */}
+            {restaurant.discount && (
+              <div className="absolute top-12 left-3">
+                <Badge className="bg-primary text-primary-foreground border-0 shadow-lg">
+                  {restaurant.discount}
+                </Badge>
+              </div>
+            )}
 
             {/* Bottom Content */}
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <motion.h3 
-                className="font-bold text-white text-base leading-tight line-clamp-1 mb-2"
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: index * 0.05 + 0.1 }}
-              >
+            <div className="absolute bottom-0 left-0 right-0 p-3">
+              <h3 className="font-semibold text-foreground text-sm leading-tight line-clamp-2 mb-1">
                 {restaurant.name}
-              </motion.h3>
+              </h3>
               
-              <motion.div 
-                className="flex items-center justify-between"
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: index * 0.05 + 0.15 }}
-              >
-                <div className="flex items-center gap-2 text-white/80 text-xs">
-                  <Clock className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
                   <span>{restaurant.delivery_time || "25-40 min"}</span>
                 </div>
                 
                 {restaurant.cuisine_types && restaurant.cuisine_types.length > 0 && (
-                  <span className="text-xs font-medium text-emerald-200 bg-emerald-800/50 px-2 py-1 rounded-full">
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
                     {restaurant.cuisine_types[0]}
-                  </span>
+                  </Badge>
                 )}
-              </motion.div>
+              </div>
             </div>
-
-            {/* Hover Arrow Indicator */}
-            <motion.div
-              className="absolute bottom-4 right-4 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
-              initial={{ opacity: 0, scale: 0 }}
-              whileHover={{ opacity: 1, scale: 1 }}
-              transition={springConfig}
-            >
-              <ArrowUpRight className="w-4 h-4 text-white" />
-            </motion.div>
-          </motion.div>
+          </div>
         </div>
       </Link>
     </motion.div>
@@ -430,7 +382,7 @@ const RestaurantGalleryCard = ({
 };
 
 // ============================================
-// ORGANIC BOTTOM SHEET FILTER
+// NATIVE BOTTOM SHEET FILTER - iOS STYLE
 // ============================================
 const FilterSheet = ({ 
   isOpen, 
@@ -472,16 +424,16 @@ const FilterSheet = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop with organic blur */}
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-emerald-950/30 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
           />
           
-          {/* Sheet with organic curve */}
+          {/* Sheet */}
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
@@ -495,173 +447,133 @@ const FilterSheet = ({
                 onClose();
               }
             }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 overflow-hidden"
-            style={{ 
-              boxShadow: "0 -10px 40px rgba(0,0,0,0.15)",
-              maxHeight: "85vh"
-            }}
+            className="fixed bottom-0 left-0 right-0 bg-card rounded-t-3xl z-50 overflow-hidden"
+            style={{ maxHeight: "85vh" }}
           >
             {/* Drag Handle */}
-            <div className="pt-4 pb-2 flex justify-center">
-              <motion.div 
-                className="w-12 h-1.5 bg-gray-300 rounded-full"
-                whileHover={{ scale: 1.2 }}
-              />
+            <div className="pt-3 pb-2 flex justify-center">
+              <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
             </div>
             
-            <div className="px-6 pb-8 overflow-y-auto max-h-[calc(85vh-60px)]">
+            <div className="px-5 pb-8 overflow-y-auto max-h-[calc(85vh-60px)]">
               {/* Header */}
-              <motion.div 
-                className="flex items-center justify-between mb-6"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">Discover</h3>
-                  <p className="text-sm text-gray-400">{restaurantCount} restaurants</p>
+                  <h3 className="text-xl font-bold text-foreground">Filters</h3>
+                  <p className="text-sm text-muted-foreground">{restaurantCount} restaurants</p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
-                  <SlidersHorizontal className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <SlidersHorizontal className="w-6 h-6 text-primary" />
                 </div>
-              </motion.div>
+              </div>
               
               {/* Sort Options */}
-              <motion.div 
-                className="mb-6"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-              >
-                <label className="text-sm font-semibold text-gray-700 mb-3 block">
+              <div className="mb-6">
+                <label className="text-sm font-semibold text-foreground mb-3 block">
                   Sort by
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { id: "rating", icon: Star, label: "Top Rated", color: "amber" },
-                    { id: "fastest", icon: Clock, label: "Fastest", color: "emerald" },
-                    { id: "popular", icon: Flame, label: "Popular", color: "orange" },
+                    { id: "rating", icon: Star, label: "Top Rated" },
+                    { id: "fastest", icon: Clock, label: "Fastest" },
+                    { id: "popular", icon: Flame, label: "Popular" },
                   ].map((sort) => (
                     <motion.button
                       key={sort.id}
                       onClick={() => handleSortChange(sort.id as typeof activeSort)}
-                      className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
                         activeSort === sort.id
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                          : "border-gray-100 bg-gray-50 text-gray-600"
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border bg-muted text-muted-foreground"
                       }`}
                       whileTap={{ scale: 0.95 }}
-                      whileHover={{ scale: 1.02 }}
                     >
                       <sort.icon className={`w-4 h-4 ${
-                        activeSort === sort.id ? "text-emerald-600" : "text-gray-400"
+                        activeSort === sort.id ? "text-primary" : "text-muted-foreground"
                       }`} />
-                      <span className="text-sm font-semibold">{sort.label}</span>
+                      <span className="text-sm font-medium">{sort.label}</span>
                     </motion.button>
                   ))}
                 </div>
-              </motion.div>
+              </div>
 
               {/* View Mode Toggle */}
-              <motion.div 
-                className="mb-6"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <label className="text-sm font-semibold text-gray-700 mb-3 block">
+              <div className="mb-6">
+                <label className="text-sm font-semibold text-foreground mb-3 block">
                   View Style
                 </label>
-                <div className="flex gap-3 bg-gray-100 p-1.5 rounded-2xl">
+                <div className="flex gap-2 bg-muted p-1.5 rounded-xl">
                   <motion.button
                     onClick={() => handleViewModeChange("list")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg transition-all ${
                       viewMode === "list"
-                        ? "bg-white shadow-md text-emerald-600"
-                        : "text-gray-500"
+                        ? "bg-card shadow-sm text-primary"
+                        : "text-muted-foreground"
                     }`}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <List className="w-5 h-5" />
-                    <span className="text-sm font-semibold">List</span>
+                    <List className="w-4 h-4" />
+                    <span className="text-sm font-medium">List</span>
                   </motion.button>
                   <motion.button
                     onClick={() => handleViewModeChange("gallery")}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg transition-all ${
                       viewMode === "gallery"
-                        ? "bg-white shadow-md text-emerald-600"
-                        : "text-gray-500"
+                        ? "bg-card shadow-sm text-primary"
+                        : "text-muted-foreground"
                     }`}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <LayoutGrid className="w-5 h-5" />
-                    <span className="text-sm font-semibold">Grid</span>
+                    <LayoutGrid className="w-4 h-4" />
+                    <span className="text-sm font-medium">Grid</span>
                   </motion.button>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Favorites Toggle */}
-              <motion.div 
-                className="mb-8"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-              >
-                <label className="text-sm font-semibold text-gray-700 mb-3 block">
+              <div className="mb-8">
+                <label className="text-sm font-semibold text-foreground mb-3 block">
                   Filters
                 </label>
                 <motion.button
                   onClick={handleFavoritesToggle}
-                  className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                     showFavoritesOnly
-                      ? "border-rose-400 bg-gradient-to-r from-rose-50 to-pink-50"
-                      : "border-gray-100 bg-gray-50"
+                      ? "border-rose-400 bg-rose-50/50"
+                      : "border-border bg-muted"
                   }`}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className="flex items-center gap-4">
-                    <motion.div 
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        showFavoritesOnly ? "bg-rose-100" : "bg-gray-200"
-                      }`}
-                      animate={{ rotate: showFavoritesOnly ? [0, -10, 10, 0] : 0 }}
-                      transition={{ duration: 0.4 }}
-                    >
-                      <Heart className={`w-6 h-6 ${showFavoritesOnly ? "fill-rose-500 text-rose-500" : "text-gray-500"}`} />
-                    </motion.div>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      showFavoritesOnly ? "bg-rose-100" : "bg-muted-foreground/10"
+                    }`}>
+                      <Heart className={`w-5 h-5 ${showFavoritesOnly ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`} />
+                    </div>
                     <div className="text-left">
-                      <span className="font-bold block text-gray-800">Favorites Only</span>
-                      <span className="text-xs text-gray-400">Show only saved restaurants</span>
+                      <span className="font-semibold block text-foreground">Favorites Only</span>
+                      <span className="text-xs text-muted-foreground">Show only saved restaurants</span>
                     </div>
                   </div>
-                  <motion.div 
-                    className={`w-14 h-8 rounded-full p-1 transition-colors ${
-                      showFavoritesOnly ? "bg-rose-500" : "bg-gray-300"
-                    }`}
-                    layout
-                  >
+                  <div className={`w-11 h-6 rounded-full p-1 transition-colors ${
+                    showFavoritesOnly ? "bg-rose-500" : "bg-muted-foreground/20"
+                  }`}>
                     <motion.div 
-                      className="w-6 h-6 bg-white rounded-full shadow-md"
-                      animate={{ x: showFavoritesOnly ? 24 : 0 }}
+                      className="w-4 h-4 bg-white rounded-full shadow"
+                      animate={{ x: showFavoritesOnly ? 20 : 0 }}
                       transition={springConfig}
                     />
-                  </motion.div>
+                  </div>
                 </motion.button>
-              </motion.div>
+              </div>
 
               {/* Apply Button */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+              <Button 
+                onClick={onClose}
+                className="w-full h-12 rounded-xl font-semibold text-base bg-primary hover:bg-primary/90"
               >
-                <Button 
-                  onClick={onClose}
-                  className="w-full h-14 rounded-2xl font-bold text-base bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-lg shadow-emerald-500/25"
-                >
-                  Show {restaurantCount} Restaurants
-                </Button>
-              </motion.div>
+                Show {restaurantCount} Restaurants
+              </Button>
             </div>
           </motion.div>
         </>
@@ -671,37 +583,37 @@ const FilterSheet = ({
 };
 
 // ============================================
-// ORGANIC CHIP COMPONENT
+// NATIVE CHIP COMPONENT
 // ============================================
 const FilterChip = ({ 
   active, 
   onClick, 
   icon: Icon, 
   label,
-  color = "emerald"
+  color = "primary"
 }: { 
   active: boolean; 
   onClick: () => void; 
   icon: React.ElementType; 
   label: string;
-  color?: "emerald" | "amber" | "rose" | "blue";
+  color?: "primary" | "amber" | "rose" | "blue";
 }) => {
   const colorClasses = {
-    emerald: {
-      active: "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30",
-      inactive: "bg-white text-gray-600 border border-gray-200"
+    primary: {
+      active: "bg-primary text-primary-foreground shadow-md shadow-primary/25",
+      inactive: "bg-card text-muted-foreground border border-border"
     },
     amber: {
-      active: "bg-amber-500 text-white shadow-lg shadow-amber-500/30",
-      inactive: "bg-white text-gray-600 border border-gray-200"
+      active: "bg-amber-500 text-white shadow-md shadow-amber-500/25",
+      inactive: "bg-card text-muted-foreground border border-border"
     },
     rose: {
-      active: "bg-rose-500 text-white shadow-lg shadow-rose-500/30",
-      inactive: "bg-white text-gray-600 border border-gray-200"
+      active: "bg-rose-500 text-white shadow-md shadow-rose-500/25",
+      inactive: "bg-card text-muted-foreground border border-border"
     },
     blue: {
-      active: "bg-blue-500 text-white shadow-lg shadow-blue-500/30",
-      inactive: "bg-white text-gray-600 border border-gray-200"
+      active: "bg-blue-500 text-white shadow-md shadow-blue-500/25",
+      inactive: "bg-card text-muted-foreground border border-border"
     }
   };
 
@@ -712,16 +624,71 @@ const FilterChip = ({
         active ? colorClasses[color].active : colorClasses[color].inactive
       }`}
       whileTap={{ scale: 0.92 }}
-      whileHover={{ scale: 1.02 }}
     >
       <Icon className="w-4 h-4" />
-      <span className="text-sm font-semibold">{label}</span>
+      <span className="text-sm font-medium">{label}</span>
     </motion.button>
   );
 };
 
 // ============================================
-// MAIN MEALS COMPONENT
+// CUISINE HORIZONTAL SCROLL
+// ============================================
+const CuisineScroller = ({ 
+  selectedCuisine, 
+  onSelectCuisine 
+}: { 
+  selectedCuisine: string | null;
+  onSelectCuisine: (cuisine: string | null) => void;
+}) => {
+  const cuisines = Object.keys(cuisineEmojis);
+
+  return (
+    <div className="-mx-4 px-4">
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        <motion.button
+          onClick={() => onSelectCuisine(null)}
+          className={`flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${
+            selectedCuisine === null 
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25" 
+              : "bg-card text-muted-foreground border border-border"
+          }`}
+          whileTap={{ scale: 0.95 }}
+        >
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+            selectedCuisine === null ? "bg-white/20" : "bg-muted"
+          }`}>
+            🍽️
+          </div>
+          <span className="text-xs font-medium whitespace-nowrap">All</span>
+        </motion.button>
+
+        {cuisines.map((cuisine) => (
+          <motion.button
+            key={cuisine}
+            onClick={() => onSelectCuisine(cuisine)}
+            className={`flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${
+              selectedCuisine === cuisine 
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/25" 
+                : "bg-card text-muted-foreground border border-border"
+            }`}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+              selectedCuisine === cuisine ? "bg-white/20" : "bg-muted"
+            }`}>
+              {cuisineEmojis[cuisine]}
+            </div>
+            <span className="text-xs font-medium whitespace-nowrap">{cuisine}</span>
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// MAIN MEALS COMPONENT - NATIVE MOBILE DESIGN
 // ============================================
 const Meals = () => {
   const [searchParams] = useSearchParams();
@@ -732,13 +699,9 @@ const Meals = () => {
   const [viewMode, setViewMode] = useState<"list" | "gallery">("list");
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [activeSort, setActiveSort] = useState<"rating" | "fastest" | "popular">("rating");
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
-  const { scrollY } = useScroll();
-  
-  const headerOpacity = useTransform(scrollY, [0, 100], [0, 1]);
-  const headerY = useTransform(scrollY, [0, 100], [0, 0]);
 
-  // Track scroll for header effects
   // Fetch restaurants
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -751,7 +714,8 @@ const Meals = () => {
             description,
             logo_url,
             rating,
-            total_orders
+            total_orders,
+            cuisine_types
           `)
           .eq("approval_status", "approved")
           .eq("is_active", true);
@@ -765,6 +729,7 @@ const Meals = () => {
           logo_url: string | null;
           rating: number | string;
           total_orders: number;
+          cuisine_types: string[] | null;
         }>;
 
         const restaurantIds = typedRestaurantsData.map((r) => r.id);
@@ -783,8 +748,11 @@ const Meals = () => {
           }, {});
         }
 
+        // Add some mock discounts for demo (remove in production)
+        const discounts = ["20% OFF", "Free Delivery", "BOGO", null, null, "15% OFF"];
+
         const transformedRestaurants: Restaurant[] = typedRestaurantsData
-          .map((restaurant) => ({
+          .map((restaurant, index) => ({
             id: restaurant.id,
             name: restaurant.name,
             description: restaurant.description,
@@ -792,6 +760,10 @@ const Meals = () => {
             rating: parseFloat(String(restaurant.rating)) || 0,
             total_orders: restaurant.total_orders || 0,
             meal_count: mealCounts[restaurant.id] || 0,
+            cuisine_types: restaurant.cuisine_types || [],
+            is_featured: index % 5 === 0, // Mock featured status based on index
+            delivery_time: `${20 + Math.floor(Math.random() * 25)}-${45 + Math.floor(Math.random() * 15)} min`,
+            discount: discounts[index % discounts.length],
           }));
 
         setRestaurants(transformedRestaurants);
@@ -811,6 +783,12 @@ const Meals = () => {
     
     if (showFavoritesOnly) {
       result = result.filter(r => favoriteIds.has(r.id));
+    }
+    
+    if (selectedCuisine) {
+      result = result.filter(r => 
+        r.cuisine_types?.some(c => c.toLowerCase() === selectedCuisine.toLowerCase())
+      );
     }
     
     if (searchQuery) {
@@ -840,108 +818,85 @@ const Meals = () => {
     }
     
     return result;
-  }, [restaurants, searchQuery, showFavoritesOnly, favoriteIds, activeSort]);
+  }, [restaurants, searchQuery, showFavoritesOnly, favoriteIds, activeSort, selectedCuisine]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchQuery("");
     setShowFavoritesOnly(false);
+    setSelectedCuisine(null);
     setActiveSort("rating");
-  };
+  }, []);
+
+  const hasActiveFilters = searchQuery || showFavoritesOnly || selectedCuisine || activeSort !== "rating";
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      
-      {/* Sticky Header with Organic Blur */}
-      <motion.header 
-        className="fixed top-0 left-0 right-0 z-40"
-        style={{ y: headerY }}
-      >
-        <motion.div 
-          className="bg-white/80 backdrop-blur-xl border-b border-emerald-100/50"
-          initial={{ opacity: 0 }}
-          style={{ opacity: headerOpacity }}
-        >
-          <div className="px-4 h-16 flex items-center gap-3">
+    <div className="min-h-screen bg-background">
+      {/* Native Header */}
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
+        <div className="px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <Link to="/dashboard">
               <motion.div whileTap={{ scale: 0.9 }}>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="shrink-0 w-11 h-11 rounded-full hover:bg-emerald-100/50"
+                  className="w-10 h-10 rounded-full hover:bg-muted"
                 >
-                  <ChevronLeft className="w-5 h-5 text-emerald-700" />
+                  <ChevronLeft className="w-5 h-5" />
                 </Button>
               </motion.div>
             </Link>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-gray-800">Restaurants</h1>
-              <p className="text-xs text-emerald-600 font-medium">
-                {filteredRestaurants.length} healthy choices
-              </p>
-            </div>
+            <h1 className="text-lg font-bold">Restaurants</h1>
+          </div>
+          <div className="flex items-center gap-1">
             <motion.div whileTap={{ scale: 0.9 }}>
               <Button
                 variant="ghost"
                 size="icon"
-                className={`shrink-0 w-11 h-11 rounded-full relative ${
-                  showFavoritesOnly ? "bg-rose-100 text-rose-500" : "hover:bg-emerald-100/50"
+                className={`w-10 h-10 rounded-full relative ${
+                  showFavoritesOnly ? "bg-rose-100 text-rose-500" : "hover:bg-muted"
                 }`}
                 onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
               >
                 <Heart className={`w-5 h-5 ${showFavoritesOnly ? "fill-current" : ""}`} />
-                {showFavoritesOnly && (
-                  <motion.span 
-                    className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={bouncyConfig}
-                  />
-                )}
               </Button>
             </motion.div>
           </div>
-        </motion.div>
-      </motion.header>
+        </div>
+      </header>
 
-      <main className="px-4 pt-20 pb-28 relative z-10">
-        {/* Hero Section */}
+      <main className="px-4 pt-4 pb-28">
+        {/* Greeting */}
         <motion.div 
-          className="mb-6"
-          initial={{ opacity: 0, y: 20 }}
+          className="mb-4"
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center gap-2 mb-2">
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            >
-              <Leaf className="w-5 h-5 text-emerald-500" />
-            </motion.div>
-            <span className="text-sm font-semibold text-emerald-600">Discover</span>
+          <div className="flex items-center gap-2 mb-1">
+            <Leaf className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-primary">Discover</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 leading-tight">
-            Fresh & <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500">Healthy</span>
-            <br />
-            <span className="text-gray-500 font-medium text-2xl">Meals Near You</span>
+          <h2 className="text-2xl font-bold text-foreground">
+            Healthy Meals
+            <span className="text-muted-foreground font-normal"> Near You</span>
           </h2>
         </motion.div>
 
-        {/* Enhanced Search Bar */}
+        {/* Search Bar - Native Style */}
         <motion.div 
-          className="relative mb-5"
-          initial={{ opacity: 0, y: 20 }}
+          className="relative mb-4"
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
+          transition={{ delay: 0.05 }}
         >
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-            <Search className="w-5 h-5 text-emerald-600" />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <Search className="w-5 h-5" />
           </div>
           <Input
             placeholder="Search restaurants, cuisines..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-16 pr-14 h-14 rounded-2xl border-2 border-emerald-100 bg-white shadow-lg shadow-emerald-500/5 text-base focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition-all"
+            className="pl-12 pr-10 h-12 rounded-xl bg-muted border-0 text-base focus-visible:ring-2 focus-visible:ring-primary"
           />
           <AnimatePresence>
             {searchQuery && (
@@ -950,20 +905,33 @@ const Meals = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0 }}
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted-foreground/20 flex items-center justify-center"
               >
-                <X className="w-4 h-4 text-gray-500" />
+                <X className="w-3 h-3 text-muted-foreground" />
               </motion.button>
             )}
           </AnimatePresence>
         </motion.div>
 
-        {/* Quick Filter Chips */}
-        <motion.div 
-          className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 scrollbar-hide"
+        {/* Cuisine Horizontal Scroll */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.1 }}
+          className="mb-5"
+        >
+          <CuisineScroller 
+            selectedCuisine={selectedCuisine}
+            onSelectCuisine={setSelectedCuisine}
+          />
+        </motion.div>
+
+        {/* Quick Filter Chips */}
+        <motion.div 
+          className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 scrollbar-hide mb-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
         >
           <FilterChip
             active={filterSheetOpen}
@@ -973,14 +941,14 @@ const Meals = () => {
             }}
             icon={SlidersHorizontal}
             label="Filters"
-            color="emerald"
+            color="primary"
           />
           
           <FilterChip
             active={activeSort === "rating"}
             onClick={() => {
               Haptics.impact({ style: "light" });
-              setActiveSort(activeSort === "rating" ? "rating" : "rating");
+              setActiveSort("rating");
             }}
             icon={Star}
             label="Top Rated"
@@ -991,7 +959,7 @@ const Meals = () => {
             active={activeSort === "fastest"}
             onClick={() => {
               Haptics.impact({ style: "light" });
-              setActiveSort(activeSort === "fastest" ? "rating" : "fastest");
+              setActiveSort("fastest");
             }}
             icon={Clock}
             label="Fastest"
@@ -1012,24 +980,24 @@ const Meals = () => {
 
         {/* Results Header */}
         <motion.div 
-          className="flex items-center justify-between mb-4 mt-2"
+          className="flex items-center justify-between mb-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
-          <div>
-            <h2 className="font-bold text-lg text-gray-800">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-foreground">
               {showFavoritesOnly ? "Your Favorites" : "All Restaurants"}
             </h2>
-            <p className="text-xs text-gray-400">
-              {filteredRestaurants.length} {filteredRestaurants.length === 1 ? "place" : "places"} found
-            </p>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {filteredRestaurants.length}
+            </span>
           </div>
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
             <motion.button
               onClick={() => setViewMode("list")}
-              className={`p-2.5 rounded-lg transition-all ${
-                viewMode === "list" ? "bg-white shadow-md text-emerald-600" : "text-gray-400"
+              className={`p-2 rounded-md transition-all ${
+                viewMode === "list" ? "bg-card shadow-sm text-primary" : "text-muted-foreground"
               }`}
               whileTap={{ scale: 0.9 }}
             >
@@ -1037,8 +1005,8 @@ const Meals = () => {
             </motion.button>
             <motion.button
               onClick={() => setViewMode("gallery")}
-              className={`p-2.5 rounded-lg transition-all ${
-                viewMode === "gallery" ? "bg-white shadow-md text-emerald-600" : "text-gray-400"
+              className={`p-2 rounded-md transition-all ${
+                viewMode === "gallery" ? "bg-card shadow-sm text-primary" : "text-muted-foreground"
               }`}
               whileTap={{ scale: 0.9 }}
             >
@@ -1047,8 +1015,27 @@ const Meals = () => {
           </div>
         </motion.div>
 
+        {/* Active Filters */}
+        {hasActiveFilters && (
+          <motion.div 
+            className="flex items-center gap-2 mb-4"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <span className="text-xs text-muted-foreground">Active:</span>
+            <button
+              onClick={clearFilters}
+              className="text-xs text-primary font-medium flex items-center gap-1 hover:underline"
+            >
+              Clear all
+              <X className="w-3 h-3" />
+            </button>
+          </motion.div>
+        )}
+
         {/* Restaurant Grid */}
-        <div className={`${viewMode === "gallery" ? "grid grid-cols-2 gap-4" : "space-y-3"}`}>
+        <div className={`${viewMode === "gallery" ? "grid grid-cols-2 gap-3" : "space-y-3"}`}>
           {loading ? (
             // Skeleton Loading
             Array.from({ length: 6 }).map((_, i) => (
@@ -1057,36 +1044,34 @@ const Meals = () => {
           ) : filteredRestaurants.length === 0 ? (
             // Empty State
             <motion.div 
-              className="py-16 text-center"
+              className="py-16 text-center col-span-full"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: "spring" }}
             >
               <motion.div 
-                className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center mx-auto mb-5"
-                animate={{ y: [0, -10, 0] }}
+                className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4"
+                animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <Store className="w-12 h-12 text-emerald-400" />
+                <Store className="w-10 h-10 text-muted-foreground/50" />
               </motion.div>
-              <h3 className="font-bold text-xl text-gray-800 mb-2">
+              <h3 className="font-semibold text-lg text-foreground mb-1">
                 {showFavoritesOnly ? "No favorites yet" : "No restaurants found"}
               </h3>
-              <p className="text-sm text-gray-400 mb-5 px-8">
+              <p className="text-sm text-muted-foreground mb-4 px-8">
                 {showFavoritesOnly 
                   ? "Save your favorite restaurants to find them quickly" 
                   : "Try adjusting your search or filters"}
               </p>
-              {(searchQuery || showFavoritesOnly || activeSort !== "rating") && (
-                <motion.div whileTap={{ scale: 0.95 }}>
-                  <Button 
-                    onClick={clearFilters}
-                    variant="outline"
-                    className="rounded-full px-6 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                  >
-                    Clear all filters
-                  </Button>
-                </motion.div>
+              {hasActiveFilters && (
+                <Button 
+                  onClick={clearFilters}
+                  variant="outline"
+                  className="rounded-full"
+                >
+                  Clear all filters
+                </Button>
               )}
             </motion.div>
           ) : viewMode === "gallery" ? (
@@ -1115,7 +1100,7 @@ const Meals = () => {
         </div>
       </main>
 
-      {/* Bottom Navigation - Same as Home page */}
+      {/* Bottom Navigation */}
       <CustomerNavigation />
 
       {/* Filter Sheet */}

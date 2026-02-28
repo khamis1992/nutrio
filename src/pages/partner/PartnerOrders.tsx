@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -190,12 +190,31 @@ const PartnerOrders = () => {
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState("active");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchOrders();
     }
   }, [user]);
+
+  // Initialize audio for new order notifications
+  useEffect(() => {
+    // Create audio element with a pleasant notification sound
+    audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+    audioRef.current.volume = 0.5;
+  }, []);
+
+  // Play notification sound when new orders arrive
+  const playNewOrderSound = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((e) => {
+        // Browser might block autoplay until user interaction
+        console.log("Audio play failed:", e);
+      });
+    }
+  };
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -210,7 +229,15 @@ const PartnerOrders = () => {
           schema: "public",
           table: "meal_schedules",
         },
-        () => {
+        (payload) => {
+          // Check if a new order was inserted
+          if (payload.eventType === "INSERT") {
+            playNewOrderSound();
+            toast({
+              title: "New Order!",
+              description: "A new order has been placed",
+            });
+          }
           // Add small delay to ensure DB transaction is committed
           setTimeout(() => {
             fetchOrders();

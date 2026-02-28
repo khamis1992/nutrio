@@ -97,7 +97,7 @@ export default function Wallet() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <CustomerNavigation />
       
       <main className="container max-w-md mx-auto px-4 py-6 pb-24">

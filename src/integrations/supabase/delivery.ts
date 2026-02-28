@@ -428,7 +428,7 @@ export async function getDriverJobHistory(driverId: string, limit = 20) {
     .from("delivery_jobs")
     .select("*")
     .eq("driver_id", driverId)
-    .in("status", ["delivered", "failed", "cancelled"])
+    .in("status", ["completed", "delivered", "failed", "cancelled"])
     .order("created_at", { ascending: false })
     .limit(limit);
   

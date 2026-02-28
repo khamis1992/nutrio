@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Schedule Meal - iOS Native (Nutrio Fuel)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .ios-blur {
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+        }
+        
+        .ios-button {
+            transition: transform 0.1s ease, opacity 0.2s ease;
+        }
+        
+        .ios-button:active {
+            transform: scale(0.96);
+            opacity: 0.8;
+        }
+        
+        .nutrio-gradient {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+        }
+        
+        .nutrio-gradient-light {
+            background: linear-gradient(135deg, #dcfce7 0%, #ccfbf1 100%);
+        }
+        
+        .nutrio-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(34, 197, 94, 0.1);
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.08);
+        }
+        
+        .meal-type-card.selected {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+            color: white;
+            border-color: transparent;
+        }
+        
+        .meal-type-card.selected .text-gray-500 {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .date-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .date-cell.selected {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+        }
+        
+        .date-cell.today {
+            color: #22c55e;
+            font-weight: 600;
+            border: 2px solid #22c55e;
+        }
+        
+        .date-cell.today.selected {
+            border: none;
+        }
+        
+        .safe-area-bottom {
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+        }
+        
+        .nutrio-shadow {
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- iOS Status Bar -->
+    <div class="bg-white ios-blur border-b border-gray-200 sticky top-0 z-50">
+        <div class="flex items-center justify-between px-6 pt-2 pb-3">
+            <button class="ios-button text-gray-600 font-medium text-base flex items-center gap-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Back
+            </button>
+            <h1 class="text-lg font-semibold text-gray-900">Schedule</h1>
+            <div class="w-16"></div>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto pb-32">
+        <!-- Meal Preview Card -->
+        <div class="px-4 pt-4">
+            <div class="nutrio-card rounded-2xl p-4">
+                <div class="flex gap-4">
+                    <div class="w-20 h-20 rounded-xl nutrio-gradient-light flex-shrink-0 flex items-center justify-center">
+                        <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <h2 class="text-lg font-semibold text-gray-900 leading-tight">Grilled Salmon with Quinoa</h2>
+                        <p class="text-sm text-gray-500 mt-1">Fresh Catch Restaurant</p>
+                        <div class="flex items-center gap-3 mt-2">
+                            <span class="flex items-center gap-1 text-sm font-medium text-orange-500">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                                </svg>
+                                450 cal
+                            </span>
+                            <span class="text-sm text-gray-400">•</span>
+                            <span class="text-sm text-green-600 font-medium">35g protein</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Date Context -->
+        <div class="px-4 pt-4">
+            <div class="nutrio-gradient-light rounded-2xl p-4 border border-green-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 nutrio-gradient rounded-xl flex items-center justify-center nutrio-shadow">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-lg font-bold text-green-700">Tomorrow</p>
+                        <p class="text-sm text-gray-600">Thursday, February 27</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="px-4 pt-6">
+            <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 px-1">Select Date</h3>
+            <div class="nutrio-card rounded-2xl p-4">
+                <div class="flex items-center justify-between mb-4">
+                    <button class="ios-button w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </button>
+                    <span class="text-base font-semibold text-gray-900">February 2025</span>
+                    <button class="ios-button w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 mb-2">
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">S</span>
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">M</span>
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">T</span>
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">W</span>
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">T</span>
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">F</span>
+                    <span class="text-xs font-medium text-gray-400 text-center py-2">S</span>
+                </div>
+                <div class="grid grid-cols-7 gap-1">
+                    <span class="date-cell text-gray-300">26</span>
+                    <span class="date-cell today">27</span>
+                    <span class="date-cell selected">28</span>
+                    <span class="date-cell">1</span>
+                    <span class="date-cell">2</span>
+                    <span class="date-cell">3</span>
+                    <span class="date-cell">4</span>
+                    <span class="date-cell">5</span>
+                    <span class="date-cell">6</span>
+                    <span class="date-cell">7</span>
+                    <span class="date-cell">8</span>
+                    <span class="date-cell">9</span>
+                    <span class="date-cell">10</span>
+                    <span class="date-cell">11</span>
+                    <span class="date-cell">12</span>
+                    <span class="date-cell">13</span>
+                    <span class="date-cell">14</span>
+                    <span class="date-cell">15</span>
+                    <span class="date-cell">16</span>
+                    <span class="date-cell">17</span>
+                    <span class="date-cell">18</span>
+                    <span class="date-cell">19</span>
+                    <span class="date-cell">20</span>
+                    <span class="date-cell">21</span>
+                    <span class="date-cell">22</span>
+                    <span class="date-cell">23</span>
+                    <span class="date-cell">24</span>
+                    <span class="date-cell">25</span>
+                    <span class="date-cell">26</span>
+                    <span class="date-cell">27</span>
+                    <span class="date-cell">28</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meal Type Selection -->
+        <div class="px-4 pt-6">
+            <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 px-1">Meal Type</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <button class="meal-type-card ios-button nutrio-card rounded-2xl p-4 flex items-center gap-3 selected border-2 border-transparent">
+                    <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold">Breakfast</p>
+                        <p class="text-xs">7-10 AM</p>
+                    </div>
+                    <svg class="w-5 h-5 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </button>
+                
+                <button class="meal-type-card ios-button nutrio-card rounded-2xl p-4 flex items-center gap-3 border-2 border-transparent">
+                    <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold text-gray-900">Lunch</p>
+                        <p class="text-xs text-gray-500">12-2 PM</p>
+                    </div>
+                </button>
+                
+                <button class="meal-type-card ios-button nutrio-card rounded-2xl p-4 flex items-center gap-3 border-2 border-transparent">
+                    <div class="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center text-teal-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold text-gray-900">Dinner</p>
+                        <p class="text-xs text-gray-500">6-9 PM</p>
+                    </div>
+                </button>
+                
+                <button class="meal-type-card ios-button nutrio-card rounded-2xl p-4 flex items-center gap-3 border-2 border-transparent">
+                    <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-semibold text-gray-900">Snack</p>
+                        <p class="text-xs text-gray-500">Anytime</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Subscription Info -->
+        <div class="px-4 pt-6">
+            <div class="nutrio-gradient-light rounded-2xl p-4 border border-green-100">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 nutrio-gradient rounded-xl flex items-center justify-center nutrio-shadow">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-sm text-gray-900">Meals Remaining</p>
+                            <p class="text-xs text-gray-500">Use them wisely!</p>
+                        </div>
+                    </div>
+                    <span class="nutrio-gradient text-white text-sm font-bold px-4 py-2 rounded-full nutrio-shadow">
+                        12 left
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fixed Bottom Action Bar -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white ios-blur border-t border-gray-200 safe-area-bottom z-50">
+        <div class="max-w-md mx-auto px-4 py-4">
+            <button class="ios-button w-full nutrio-gradient text-white font-semibold text-lg h-14 rounded-xl nutrio-shadow flex items-center justify-center gap-2">
+                <span>Add to Schedule</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+            <p class="text-center text-xs text-gray-400 mt-3">Your meal will be delivered on Tomorrow</p>
+        </div>
+    </div>
+</body>
+</html>

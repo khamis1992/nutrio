@@ -188,15 +188,15 @@ export function ProfessionalWeeklyReport({
 
   return (
     <div className="space-y-4">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-xl">
+      <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 rounded-2xl p-5 shadow-xl border border-emerald-100">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
               <Calendar className="w-4 h-4 text-white" />
             </div>
-            <span className="text-sm font-medium text-slate-300">Weekly Report</span>
+            <span className="text-sm font-medium text-emerald-700">Weekly Report</span>
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-muted-foreground">
             {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
           </span>
         </div>
@@ -211,31 +211,31 @@ export function ProfessionalWeeklyReport({
             >
               <span className="text-3xl font-bold text-white">{stats.overallScore}</span>
             </div>
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-slate-800 px-2 py-0.5 rounded-full">
-              <span className="text-xs text-slate-300">{getScoreLabel(stats.overallScore)}</span>
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-white px-2 py-0.5 rounded-full shadow-sm">
+              <span className="text-xs text-emerald-600 font-medium">{getScoreLabel(stats.overallScore)}</span>
             </div>
           </div>
 
           <div className="flex-1 grid grid-cols-2 gap-3">
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-xs text-slate-400">Avg Calories</p>
-              <p className="text-xl font-bold">{Math.round(stats.avgCalories)}</p>
-              <p className="text-xs text-slate-500">/ {stats.calorieTarget}</p>
+            <div className="bg-white/70 rounded-xl p-3 shadow-sm">
+              <p className="text-xs text-muted-foreground">Avg Calories</p>
+              <p className="text-xl font-bold text-foreground">{Math.round(stats.avgCalories)}</p>
+              <p className="text-xs text-muted-foreground">/ {stats.calorieTarget}</p>
             </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-xs text-slate-400">Days Logged</p>
-              <p className="text-xl font-bold">{stats.daysWithLogs}/7</p>
-              <p className="text-xs text-slate-500">{stats.consistency}% consistency</p>
+            <div className="bg-white/70 rounded-xl p-3 shadow-sm">
+              <p className="text-xs text-muted-foreground">Days Logged</p>
+              <p className="text-xl font-bold text-foreground">{stats.daysWithLogs}/7</p>
+              <p className="text-xs text-muted-foreground">{stats.consistency}% consistency</p>
             </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-xs text-slate-400">Meal Quality</p>
-              <p className="text-xl font-bold">{stats.quality}</p>
-              <p className="text-xs text-slate-500">/ 100</p>
+            <div className="bg-white/70 rounded-xl p-3 shadow-sm">
+              <p className="text-xs text-muted-foreground">Meal Quality</p>
+              <p className="text-xl font-bold text-foreground">{stats.quality}</p>
+              <p className="text-xs text-muted-foreground">/ 100</p>
             </div>
-            <div className="bg-white/5 rounded-xl p-3">
-              <p className="text-xs text-slate-400">Streak</p>
-              <p className="text-xl font-bold">{stats.streak}</p>
-              <p className="text-xs text-slate-500">days</p>
+            <div className="bg-white/70 rounded-xl p-3 shadow-sm">
+              <p className="text-xs text-muted-foreground">Streak</p>
+              <p className="text-xl font-bold text-foreground">{stats.streak}</p>
+              <p className="text-xs text-muted-foreground">days</p>
             </div>
           </div>
         </div>

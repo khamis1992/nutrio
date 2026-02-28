@@ -31,6 +31,7 @@ export default function DriverPayouts() {
   const [driverId, setDriverId] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [minPayoutThreshold, setMinPayoutThreshold] = useState(10);
   const [bankDetails, setBankDetails] = useState({
     bankName: "",
     accountNumber: "",
@@ -53,15 +54,29 @@ export default function DriverPayouts() {
     if (!user) return;
 
     try {
-      const { data: driver, error } = await supabase
-        .from("drivers")
-        .select("id, wallet_balance")
-        .eq("user_id", user.id)
-        .single();
+      // Fetch driver data and settings in parallel
+      const [{ data: driver, error: driverError }, { data: settings }] = await Promise.all([
+        supabase
+          .from("drivers")
+          .select("id, wallet_balance")
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "driver_settings")
+          .single(),
+      ]);
 
-      if (error) throw error;
+      if (driverError) throw driverError;
       setDriverId(driver.id);
       setBalance(driver.wallet_balance || 0);
+
+      // Parse minimum payout threshold from settings
+      if (settings?.value) {
+        const driverSettings = settings.value as Record<string, number>;
+        setMinPayoutThreshold(driverSettings.minimum_payout_threshold || 10);
+      }
     } catch (error) {
       console.error("Error fetching driver data:", error);
       setLoading(false);
@@ -88,10 +103,10 @@ export default function DriverPayouts() {
   };
 
   const handleRequestPayout = async () => {
-    if (!driverId || balance < 10) {
+    if (!driverId || balance < minPayoutThreshold) {
       toast({
         title: "Minimum balance required",
-        description: "You need at least QAR 10 to request a payout",
+        description: `You need at least QAR ${minPayoutThreshold} to request a payout`,
         variant: "destructive",
       });
       return;
@@ -153,7 +168,7 @@ export default function DriverPayouts() {
       case "pending":
         return <Clock className="h-4 w-4 text-amber-600" />;
       case "processing":
-        return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />;
+        return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
       case "paid":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       default:
@@ -192,9 +207,9 @@ export default function DriverPayouts() {
               <Wallet className="h-5 w-5 text-green-100" />
             </div>
             <p className="text-4xl font-bold">QAR {balance.toFixed(2)}</p>
-            {balance < 10 && (
+            {balance < minPayoutThreshold && (
               <p className="text-sm text-green-100 mt-2">
-                Minimum QAR 10 required for payout
+                Minimum QAR {minPayoutThreshold} required for payout
               </p>
             )}
           </CardContent>
@@ -236,7 +251,7 @@ export default function DriverPayouts() {
             <Button
               className="w-full mt-4 bg-green-600 hover:bg-green-700"
               onClick={handleRequestPayout}
-              disabled={requesting || balance < 10}
+              disabled={requesting || balance < minPayoutThreshold}
             >
               {requesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Request Payout

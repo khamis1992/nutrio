@@ -6,7 +6,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
@@ -22,12 +22,16 @@ import {
   Check,
   Leaf,
   ArrowRight,
-  MessageSquare
+  Sunrise,
+  Sun,
+  Moon,
+  Apple,
+  Calendar as CalendarIcon,
+  Sparkles,
+  Utensils
 } from "lucide-react";
-import { MealReviewsList } from "@/components/MealReviewsList";
-import { MealReviewForm } from "@/components/MealReviewForm";
-import { RatingDisplay } from "@/components/StarRating";
-import { format, addDays } from "date-fns";
+
+import { format } from "date-fns";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
 
@@ -52,15 +56,43 @@ interface MealDetail {
     logo_url: string | null;
   };
   diet_tags?: string[];
-  ingredients?: string[];
+  ingredients?: string[] | string | null;
 }
 
 const MEAL_TYPES = [
-  { id: "breakfast", label: "Breakfast", icon: "🌅", time: "7-10 AM" },
-  { id: "lunch", label: "Lunch", icon: "☀️", time: "12-2 PM" },
-  { id: "dinner", label: "Dinner", icon: "🌙", time: "6-9 PM" },
-  { id: "snack", label: "Snack", icon: "🍎", time: "Anytime" },
+  { id: "breakfast", label: "Breakfast", icon: Sunrise, time: "7-10 AM", color: "#F59E0B", gradient: "from-amber-400 to-orange-500" },
+  { id: "lunch", label: "Lunch", icon: Sun, time: "12-2 PM", color: "#F97316", gradient: "from-orange-400 to-red-500" },
+  { id: "dinner", label: "Dinner", icon: Moon, time: "6-9 PM", color: "#6366F1", gradient: "from-indigo-400 to-purple-500" },
+  { id: "snack", label: "Snack", icon: Apple, time: "Anytime", color: "#10B981", gradient: "from-emerald-400 to-teal-500" },
 ];
+
+// Smart default meal type based on current time
+const getSmartDefaultMealType = (): string => {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11) return "breakfast";
+  if (hour >= 11 && hour < 16) return "lunch";
+  if (hour >= 16 && hour < 21) return "dinner";
+  return "snack";
+};
+
+// Get date context label
+const getDateContext = (date: Date): string => {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+  
+  const diffTime = date.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays > 0 && diffDays <= 7) {
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+  
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
 // Circular Progress Component
 const CircularProgress = ({ 
@@ -124,7 +156,7 @@ const CircularProgress = ({
   );
 };
 
-// Fixed Bottom Action Bar (UberEats/DoorDash style)
+// Fixed Bottom Action Bar (Modern Native style with gradient)
 const FixedBottomActionBar = ({
   meal,
   onClick,
@@ -149,69 +181,56 @@ const FixedBottomActionBar = ({
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50 pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-background via-background/95 to-transparent pt-8 pb-6"
     >
-      <div className="max-w-lg mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          {/* Left: Meal Info */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
-              {meal.image_url ? (
-                <img 
-                  src={meal.image_url} 
-                  alt={meal.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-lg">🍽️</span>
-              )}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold line-clamp-1">{meal.name}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Flame className="w-3 h-3 text-orange-500" />
-                {meal.calories} kcal
-              </p>
-            </div>
+      <div className="max-w-lg mx-auto px-6">
+        <div className="flex items-center gap-4">
+          {/* Left: Selection Info */}
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground">Selected</p>
+            <p className="font-semibold text-foreground">{meal.name}</p>
           </div>
 
-          {/* Right: Subscription Status + CTA */}
-          <div className="flex items-center gap-3">
+          {/* Right: Meals Left + FAB */}
+          <div className="flex items-center gap-4">
             {hasActiveSubscription && (
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Meals Left</p>
-                <p className={`text-sm font-bold ${isUnlimited || remainingMeals > 0 ? 'text-primary' : 'text-destructive'}`}>
+                <p className={`text-sm font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent ${isUnlimited || remainingMeals > 0 ? '' : 'text-destructive'}`}>
                   {isUnlimited ? '∞' : remainingMeals}
                 </p>
               </div>
             )}
             
-            <Button
+            <motion.button
               onClick={onClick}
               disabled={disabled || loading}
+              whileTap={{ scale: 0.95 }}
               className={`
-                rounded-full px-6 h-12 font-semibold shadow-lg transition-all
+                w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all
                 ${disabled 
                   ? 'bg-muted text-muted-foreground' 
                   : isSuccess 
                     ? 'bg-emerald-500 hover:bg-emerald-600'
-                    : 'bg-primary hover:bg-primary/90'
+                    : 'bg-gradient-to-br from-green-500 to-teal-500 hover:shadow-green-500/40'
                 }
               `}
+              style={{
+                boxShadow: !disabled && !isSuccess ? '0 8px 32px rgba(34, 197, 94, 0.4)' : undefined
+              }}
             >
               <AnimatePresence mode="wait">
                 {loading ? (
                   <motion.span
                     key="loading"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-2"
+                    initial={{ opacity: 0, rotate: -180 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 180 }}
+                    className="text-white"
                   >
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="w-7 h-7 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
                     </svg>
-                    Adding...
                   </motion.span>
                 ) : isSuccess ? (
                   <motion.span
@@ -219,30 +238,43 @@ const FixedBottomActionBar = ({
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="flex items-center gap-2"
+                    className="text-white"
                   >
-                    <Check className="w-4 h-4" />
-                    Added!
+                    <Check className="w-7 h-7" />
                   </motion.span>
                 ) : (
                   <motion.span
                     key="add"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-2"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="text-white"
                   >
-                    Add to Schedule
-                    <ArrowRight className="w-4 h-4" />
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
                   </motion.span>
                 )}
               </AnimatePresence>
-            </Button>
+            </motion.button>
           </div>
         </div>
+        <p className="text-center text-xs text-muted-foreground mt-4">Tap + to add to your schedule</p>
       </div>
     </motion.div>
   );
+};
+
+// Generate next 14 days for horizontal scroller
+const generateDateOptions = () => {
+  const dates = [];
+  const today = new Date();
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    dates.push(date);
+  }
+  return dates;
 };
 
 // Nutrition Bottom Sheet
@@ -258,6 +290,7 @@ const ScheduleSheet = ({
   hasActiveSubscription,
   remainingMeals,
   isUnlimited,
+  meal,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -270,120 +303,242 @@ const ScheduleSheet = ({
   hasActiveSubscription: boolean;
   remainingMeals: number;
   isUnlimited: boolean;
+  meal: MealDetail | null;
 }) => {
-  const disabledDates = (date: Date) => {
-    return date < new Date(new Date().setHours(0, 0, 0, 0));
-  };
+  const dateOptions = generateDateOptions();
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl border-0 bg-background flex flex-col">
-        <SheetHeader className="pb-4 shrink-0">
-          <SheetTitle className="text-xl font-bold text-center">Schedule Meal</SheetTitle>
+      <SheetContent side="bottom" className="h-[92vh] sm:h-[85vh] rounded-t-[2.5rem] border-0 bg-gradient-to-b from-background via-background to-muted/20 flex flex-col shadow-2xl">
+        {/* Decorative Top Bar */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full bg-muted-foreground/20" />
+        
+        <SheetHeader className="pt-8 pb-4 shrink-0">
+          <SheetTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center">
+              <CalendarIcon className="w-5 h-5 text-white" />
+            </div>
+            Schedule Your Meal
+          </SheetTitle>
+          <p className="text-center text-sm text-muted-foreground">
+            Choose when you&apos;d like to enjoy {meal?.name}
+          </p>
         </SheetHeader>
         
-        <div className="flex-1 space-y-6 overflow-y-auto pb-4">
-          {/* Date Selection */}
+        <div className="flex-1 space-y-6 overflow-y-auto px-1 pb-4">
+          {/* Selected Date Context Card */}
+          {selectedDate && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 rounded-2xl bg-gradient-to-r from-green-50 via-teal-50 to-background border border-green-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+                  <CalendarIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">{getDateContext(selectedDate)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Horizontal Date Scroller */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Select Date
-            </h3>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              disabled={disabledDates}
-              fromDate={new Date()}
-              toDate={addDays(new Date(), 30)}
-              className="rounded-2xl border bg-card p-4"
-              classNames={{
-                day_selected: "bg-primary text-primary-foreground rounded-full",
-                day_today: "bg-accent text-accent-foreground rounded-full",
-              }}
-            />
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">
+                Select Date
+              </h3>
+              <span className="text-xs text-muted-foreground">Swipe →</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {dateOptions.map((date, index) => {
+                const isSelected = selectedDate?.toDateString() === date.toDateString();
+                const isToday = new Date().toDateString() === date.toDateString();
+                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                const dayNum = date.getDate();
+                
+                return (
+                  <motion.button
+                    key={index}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.03 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setSelectedDate(date)}
+                    className={`
+                      flex-shrink-0 p-3 rounded-2xl flex flex-col items-center min-w-[70px] transition-all
+                      ${isSelected 
+                        ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-lg shadow-green-500/30 scale-110' 
+                        : 'bg-white border border-green-100 hover:border-green-300'
+                      }
+                    `}
+                  >
+                    <span className={`text-xs font-medium ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
+                      {dayName}
+                    </span>
+                    <span className={`text-lg font-bold mt-1 ${isSelected ? 'text-white' : 'text-foreground'}`}>
+                      {dayNum}
+                    </span>
+                    {isToday && (
+                      <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-orange-400'}`} />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Meal Type Selection */}
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide px-1">
               Meal Type
             </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {MEAL_TYPES.map((type) => (
-                <motion.button
-                  key={type.id}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setSelectedMealType(type.id);
-                    hapticFeedback.buttonPress();
-                  }}
-                  className={`
-                    relative p-4 rounded-2xl border-2 transition-all text-left
-                    ${selectedMealType === type.id 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border bg-card hover:border-primary/30'
-                    }
-                  `}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{type.icon}</span>
-                    <div>
-                      <p className="font-semibold">{type.label}</p>
-                      <p className="text-xs text-muted-foreground">{type.time}</p>
-                    </div>
-                  </div>
-                  {selectedMealType === type.id && (
-                    <motion.div
-                      layoutId="selected-indicator"
-                      className="absolute top-3 right-3 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+            <div className="space-y-3">
+              {MEAL_TYPES.map((type, index) => {
+                const IconComponent = type.icon;
+                const isSelected = selectedMealType === type.id;
+                return (
+                  <motion.button
+                    key={type.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setSelectedMealType(type.id);
+                      hapticFeedback.buttonPress();
+                    }}
+                    className={`
+                      w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-4
+                      ${isSelected 
+                        ? 'border-transparent bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-500/25' 
+                        : 'border-green-100 bg-white hover:border-green-300'
+                      }
+                    `}
+                  >
+                    <div 
+                      className={`
+                        w-12 h-12 rounded-xl flex items-center justify-center transition-all
+                        ${isSelected ? 'bg-white/20' : `bg-${type.color === '#F59E0B' ? 'orange' : type.color === '#F97316' ? 'orange' : type.color === '#6366F1' ? 'indigo' : 'green'}-100`}
+                      `}
+                      style={{ 
+                        backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : undefined,
+                        color: isSelected ? 'white' : type.color 
+                      }}
                     >
-                      <Check className="w-3 h-3 text-primary-foreground" />
-                    </motion.div>
-                  )}
-                </motion.button>
-              ))}
+                      <IconComponent className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className={`font-bold text-lg ${isSelected ? 'text-white' : 'text-foreground'}`}>{type.label}</p>
+                      <p className={`text-sm ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>{type.time}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <Check className="w-5 h-5 text-white" />
+                      </div>
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Subscription Info */}
+          {/* Subscription Info Card */}
           {hasActiveSubscription && (
-            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-5 rounded-2xl bg-gradient-to-br from-green-50 via-teal-50 to-background border border-green-200"
+            >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Meals Remaining</span>
-                <Badge variant={isUnlimited || remainingMeals > 0 ? "default" : "destructive"}>
-                  {isUnlimited ? "Unlimited" : `${remainingMeals} left`}
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-md shadow-green-500/30">
+                    <Utensils className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Meals Remaining</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isUnlimited ? 'Enjoy unlimited meals' : 'Use them wisely!'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Badge 
+                    variant={isUnlimited || remainingMeals > 0 ? "default" : "destructive"}
+                    className="text-sm px-3 py-1"
+                  >
+                    {isUnlimited ? (
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Unlimited
+                      </span>
+                    ) : (
+                      `${remainingMeals} left`
+                    )}
+                  </Badge>
+                </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
 
         {/* Schedule Button - Fixed at bottom */}
-        <div className="shrink-0 pt-4 pb-[env(safe-area-inset-bottom)]">
-          <Button
-            onClick={onSchedule}
-            disabled={loading || !selectedDate}
-            className="w-full h-14 text-lg font-semibold rounded-2xl"
+        <div className="shrink-0 pt-4 pb-[env(safe-area-inset-bottom)] bg-gradient-to-t from-background via-background to-transparent">
+          <motion.div
+            whileHover={selectedDate ? { scale: 1.02 } : {}}
+            whileTap={selectedDate ? { scale: 0.98 } : {}}
           >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-7.5l-2.8 2.8m-8.4 8.4l-2.8 2.8m0-14l2.8 2.8m8.4 8.4l2.8 2.8" />
-                  </svg>
-                </motion.div>
-                Adding...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                Add to Schedule
-                <ArrowRight className="w-5 h-5" />
-              </span>
-            )}
-          </Button>
+            <Button
+              onClick={onSchedule}
+              disabled={loading || !selectedDate}
+              className={`
+                w-full h-14 text-lg font-semibold rounded-2xl shadow-lg transition-all
+                ${!selectedDate 
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed' 
+                  : 'bg-primary hover:bg-primary/90 hover:shadow-primary/30 hover:shadow-xl'
+                }
+              `}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-7.5l-2.8 2.8m-8.4 8.4l-2.8 2.8m0-14l2.8 2.8m8.4 8.4l2.8 2.8" />
+                    </svg>
+                  </motion.div>
+                  Adding to Schedule...
+                </span>
+              ) : !selectedDate ? (
+                <span className="flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  Select a Date First
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Add to Schedule
+                  <ArrowRight className="w-5 h-5" />
+                </span>
+              )}
+            </Button>
+          </motion.div>
+          
+          {selectedDate && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center text-xs text-muted-foreground mt-3"
+            >
+              Your meal will be delivered on {getDateContext(selectedDate)}
+            </motion.p>
+          )}
         </div>
       </SheetContent>
     </Sheet>
@@ -424,14 +579,14 @@ const MealDetail = () => {
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [showReviewForm, setShowReviewForm] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
     const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
     return navigationState?.scheduledDate;
   });
   const [selectedMealType, setSelectedMealType] = useState<string>(() => {
     const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
-    return navigationState?.mealType || "lunch";
+    return navigationState?.mealType || getSmartDefaultMealType();
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -869,7 +1024,7 @@ const MealDetail = () => {
         )}
 
         {/* Ingredients */}
-        {meal.ingredients && meal.ingredients.length > 0 && (
+        {meal.ingredients && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -878,51 +1033,26 @@ const MealDetail = () => {
           >
             <h2 className="text-lg font-bold mb-4">Ingredients</h2>
             <ul className="space-y-2">
-              {meal.ingredients.map((ingredient, idx) => (
-                <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  {ingredient}
-                </li>
-              ))}
+              {Array.isArray(meal.ingredients) ? (
+                meal.ingredients.map((ingredient: string, idx: number) => (
+                  <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    {ingredient}
+                  </li>
+                ))
+              ) : typeof meal.ingredients === 'string' && meal.ingredients.length > 0 ? (
+                meal.ingredients.split(',').map((ingredient: string, idx: number) => (
+                  <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    {ingredient.trim()}
+                  </li>
+                ))
+              ) : null}
             </ul>
           </motion.div>
         )}
 
-        {/* Reviews Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold">Reviews</h2>
-            </div>
-            <RatingDisplay 
-              rating={meal.rating || 0} 
-              size="sm" 
-              showCount={false}
-            />
-          </div>
 
-          {showReviewForm ? (
-            <MealReviewForm
-              mealId={meal.id}
-              mealName={meal.name}
-              onSubmitted={() => setShowReviewForm(false)}
-              onCancel={() => setShowReviewForm(false)}
-            />
-          ) : (
-            <MealReviewsList
-              mealId={meal.id}
-              mealName={meal.name}
-              showWriteReview={true}
-              onWriteReview={() => setShowReviewForm(true)}
-            />
-          )}
-        </motion.div>
       </div>
 
       {/* Fixed Bottom Action Bar */}
@@ -950,6 +1080,7 @@ const MealDetail = () => {
         hasActiveSubscription={hasActiveSubscription}
         remainingMeals={remainingMeals}
         isUnlimited={isUnlimited}
+        meal={meal}
       />
 
       {/* Success Overlay */}

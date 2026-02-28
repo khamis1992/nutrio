@@ -161,7 +161,7 @@ All client-side env vars are prefixed with `VITE_`. See `.env.production.templat
 <!-- gitnexus:start -->
 # GitNexus MCP
 
-This project is indexed by GitNexus as **nutrio-fuel-new** (2854 symbols, 7128 relationships, 195 execution flows).
+This project is indexed by GitNexus as **nutrio-fuel-new** (3494 symbols, 8675 relationships, 186 execution flows).
 
 GitNexus provides a knowledge graph over this codebase — call chains, blast radius, execution flows, and semantic search.
 

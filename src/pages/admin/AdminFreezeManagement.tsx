@@ -337,7 +337,7 @@ export default function AdminFreezeManagement() {
           <TabsContent value="pending" className="space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
             ) : pendingFreezes.length > 0 ? (
               pendingFreezes.map(freeze => renderFreezeCard(freeze, true))
@@ -359,7 +359,7 @@ export default function AdminFreezeManagement() {
           <TabsContent value="active" className="space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
             ) : activeFreezes.length > 0 ? (
               activeFreezes.map(freeze => renderFreezeCard(freeze))
@@ -381,7 +381,7 @@ export default function AdminFreezeManagement() {
           <TabsContent value="completed" className="space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
             ) : completedFreezes.length > 0 ? (
               completedFreezes.map(freeze => renderFreezeCard(freeze))

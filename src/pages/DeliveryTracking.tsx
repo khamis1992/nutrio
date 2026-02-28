@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef, Suspense, lazy } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,9 +22,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-// Lazy load map components
-const MapContainer = lazy(() => import("@/components/maps/MapContainer"));
-const DriverMarker = lazy(() => import("@/components/maps/DriverMarker"));
+// Import map components directly to avoid StrictMode issues with lazy loading
+import MapContainer from "@/components/maps/MapContainer";
+import DriverMarker from "@/components/maps/DriverMarker";
 
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "out_for_delivery" | "delivered" | "completed" | "cancelled";
 
@@ -203,7 +203,7 @@ interface ContactSectionProps {
   driverPhone?: string | null;
 }
 
-const ContactSection = ({ restaurantPhone, restaurantAddress, driverName, driverPhone }: ContactSectionProps) => (
+const ContactSection = ({ restaurantPhone, restaurantAddress, driverPhone }: ContactSectionProps) => (
   <div className="pt-4 border-t border-border space-y-3">
     {restaurantAddress && (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -232,14 +232,12 @@ const ContactSection = ({ restaurantPhone, restaurantAddress, driverName, driver
 
 export default function DeliveryTracking() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const locationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const orderUpdateChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const selectedOrderId = searchParams.get('id');
 
   const fetchActiveOrders = async () => {
     if (!user) return;
@@ -383,27 +381,58 @@ export default function DeliveryTracking() {
               table: 'driver_locations',
             },
             (payload) => {
-              const location = payload.new as { driver_id: string; lat: number; lng: number };
+              const location = payload.new as { 
+                driver_id: string; 
+                location: { coordinates: [number, number] } | { lat: number; lng: number } | any;
+                lat?: number;
+                lng?: number;
+                heading?: number;
+                speed_kmh?: number;
+              };
+              
               if (driverIds.includes(location.driver_id)) {
-                // Update the order with new driver location
-                setOrders(prevOrders => 
-                  prevOrders.map(order => {
-                    if (order.delivery_job?.driver_id === location.driver_id) {
-                      return {
-                        ...order,
-                        delivery_job: {
-                          ...order.delivery_job!,
-                          driver: {
-                            ...order.delivery_job!.driver!,
-                            current_lat: location.lat,
-                            current_lng: location.lng,
+                // Extract lat/lng from PostGIS geometry or direct fields
+                let lat: number | null = null;
+                let lng: number | null = null;
+                
+                // Handle different location formats
+                if (location.location && typeof location.location === 'object') {
+                  if (location.location.coordinates && Array.isArray(location.location.coordinates)) {
+                    // PostGIS geometry format: [lng, lat]
+                    lng = location.location.coordinates[0];
+                    lat = location.location.coordinates[1];
+                  } else if ('lat' in location.location && 'lng' in location.location) {
+                    // Direct lat/lng object
+                    lat = location.location.lat;
+                    lng = location.location.lng;
+                  }
+                }
+                
+                // Fallback to direct fields if available
+                if (lat === null && location.lat !== undefined) lat = location.lat;
+                if (lng === null && location.lng !== undefined) lng = location.lng;
+                
+                if (lat !== null && lng !== null) {
+                  // Update the order with new driver location
+                  setOrders(prevOrders => 
+                    prevOrders.map(order => {
+                      if (order.delivery_job?.driver_id === location.driver_id) {
+                        return {
+                          ...order,
+                          delivery_job: {
+                            ...order.delivery_job!,
+                            driver: {
+                              ...order.delivery_job!.driver!,
+                              current_lat: lat!,
+                              current_lng: lng!,
+                            }
                           }
-                        }
-                      };
-                    }
-                    return order;
-                  })
-                );
+                        };
+                      }
+                      return order;
+                    })
+                  );
+                }
               }
             }
           )
@@ -504,7 +533,7 @@ export default function DeliveryTracking() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-slate-50/50 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="container mx-auto px-4 py-4">
@@ -651,22 +680,20 @@ export default function DeliveryTracking() {
                           Open in Maps
                         </Button>
                       </div>
-                      <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-                        <MapContainer
-                          center={[mapCenter.lat, mapCenter.lng]}
-                          zoom={15}
-                          style={{ height: "250px", width: "100%" }}
-                          scrollWheelZoom={false}
-                        >
-                          <DriverMarker
-                            position={{ 
-                              lat: order.delivery_job!.driver!.current_lat!,
-                              lng: order.delivery_job!.driver!.current_lng!
-                            }}
-                            driverName="Driver"
-                          />
-                        </MapContainer>
-                      </Suspense>
+                      <MapContainer
+                        center={[mapCenter.lat, mapCenter.lng]}
+                        zoom={15}
+                        style={{ height: "250px", width: "100%" }}
+                        scrollWheelZoom={false}
+                      >
+                        <DriverMarker
+                          position={{
+                            lat: order.delivery_job!.driver!.current_lat!,
+                            lng: order.delivery_job!.driver!.current_lng!
+                          }}
+                          driverName="Driver"
+                        />
+                      </MapContainer>
                     </div>
                   )}
 

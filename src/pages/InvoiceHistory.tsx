@@ -115,7 +115,7 @@ export default function InvoiceHistory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <CustomerNavigation />
         <main className="container max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">
@@ -123,7 +123,7 @@ export default function InvoiceHistory() {
               <h1 className="text-2xl font-bold">Invoice History</h1>
               <Receipt className="h-6 w-6 text-muted-foreground" />
             </div>
-            
+
             <div className="space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <Card key={i} className="animate-pulse">
@@ -141,7 +141,7 @@ export default function InvoiceHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <CustomerNavigation />
       
       <main className="container max-w-md mx-auto px-4 py-6 pb-24">

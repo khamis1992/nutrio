@@ -7,7 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NativeRouteRedirect } from "@/components/NativeRouteRedirect";
+import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
 import { Loader2 } from "lucide-react";
+import { fleetRoutes } from "@/fleet/routes";
 
 // Critical first-render pages (eager loaded)
 import Index from "./pages/Index";
@@ -62,10 +64,14 @@ const PartnerPayouts = lazy(() => import("./pages/partner/PartnerPayouts"));
 const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding"));
 const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
 const PartnerAddons = lazy(() => import("./pages/partner/PartnerAddons"));
+const PendingApproval = lazy(() => import("./pages/partner/PendingApproval"));
+const PartnerEarningsDashboard = lazy(() => import("./pages/partner/PartnerEarningsDashboard"));
+const PartnerAIInsights = lazy(() => import("./pages/partner/PartnerAIInsights"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminRestaurants = lazy(() => import("./pages/admin/AdminRestaurants"));
+const AdminRestaurantDetail = lazy(() => import("./pages/admin/AdminRestaurantDetail"));
 const AdminFeatured = lazy(() => import("./pages/admin/AdminFeatured"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
@@ -118,6 +124,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <AnalyticsProvider>
+            <SessionTimeoutManager>
             <Suspense fallback={<PageLoader />}>
               <Routes>
             <Route
@@ -336,7 +343,7 @@ const App = () => (
             <Route 
               path="/partner/onboarding" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner">
                   <PartnerOnboarding />
                 </ProtectedRoute>
               } 
@@ -344,7 +351,7 @@ const App = () => (
             <Route 
               path="/partner" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerDashboard />
                 </ProtectedRoute>
               } 
@@ -352,7 +359,7 @@ const App = () => (
             <Route 
               path="/partner/menu" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerMenu />
                 </ProtectedRoute>
               } 
@@ -360,7 +367,7 @@ const App = () => (
             <Route 
               path="/partner/addons" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerAddons />
                 </ProtectedRoute>
               } 
@@ -368,7 +375,7 @@ const App = () => (
             <Route 
               path="/partner/orders"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerOrders />
                 </ProtectedRoute>
               } 
@@ -376,7 +383,7 @@ const App = () => (
             <Route 
               path="/partner/settings" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerSettings />
                 </ProtectedRoute>
               } 
@@ -384,7 +391,7 @@ const App = () => (
             <Route 
               path="/partner/analytics" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerAnalytics />
                 </ProtectedRoute>
               } 
@@ -392,7 +399,7 @@ const App = () => (
             <Route 
               path="/partner/notifications" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerNotifications />
                 </ProtectedRoute>
               } 
@@ -400,7 +407,7 @@ const App = () => (
             <Route 
               path="/partner/profile" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerProfile />
                 </ProtectedRoute>
               } 
@@ -408,7 +415,7 @@ const App = () => (
             <Route 
               path="/partner/reviews" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerReviews />
                 </ProtectedRoute>
               } 
@@ -416,7 +423,7 @@ const App = () => (
             <Route 
               path="/partner/payouts" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerPayouts />
                 </ProtectedRoute>
               } 
@@ -424,8 +431,32 @@ const App = () => (
             <Route 
               path="/partner/boost" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerBoost />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/pending-approval" 
+              element={
+                <ProtectedRoute requiredRole="partner">
+                  <PendingApproval />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/earnings" 
+              element={
+                <ProtectedRoute requiredRole="partner" requireApproval>
+                  <PartnerEarningsDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/partner/ai-insights" 
+              element={
+                <ProtectedRoute requiredRole="partner" requireApproval>
+                  <PartnerAIInsights />
                 </ProtectedRoute>
               } 
             />
@@ -433,7 +464,7 @@ const App = () => (
             <Route 
               path="/admin" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminDashboard />
                 </ProtectedRoute>
               } 
@@ -441,15 +472,23 @@ const App = () => (
             <Route 
               path="/admin/restaurants" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminRestaurants />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/restaurants/:id" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminRestaurantDetail />
                 </ProtectedRoute>
               } 
             />
             <Route 
               path="/admin/featured" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminFeatured />
                 </ProtectedRoute>
               } 
@@ -457,7 +496,7 @@ const App = () => (
             <Route 
               path="/admin/users" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminUsers />
                 </ProtectedRoute>
               } 
@@ -465,7 +504,7 @@ const App = () => (
             <Route 
               path="/admin/orders" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminOrders />
                 </ProtectedRoute>
               } 
@@ -473,7 +512,7 @@ const App = () => (
             <Route 
               path="/admin/subscriptions" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminSubscriptions />
                 </ProtectedRoute>
               } 
@@ -481,7 +520,7 @@ const App = () => (
             <Route 
               path="/admin/analytics" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminAnalytics />
                 </ProtectedRoute>
               } 
@@ -489,7 +528,7 @@ const App = () => (
             <Route 
               path="/admin/settings" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminSettings />
                 </ProtectedRoute>
               } 
@@ -497,7 +536,7 @@ const App = () => (
             <Route 
               path="/admin/exports" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminExports />
                 </ProtectedRoute>
               } 
@@ -505,7 +544,7 @@ const App = () => (
             <Route 
               path="/admin/payouts" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminPayouts />
                 </ProtectedRoute>
               } 
@@ -513,7 +552,7 @@ const App = () => (
             <Route 
               path="/admin/affiliate-payouts" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminAffiliatePayouts />
                 </ProtectedRoute>
               } 
@@ -521,7 +560,7 @@ const App = () => (
             <Route 
               path="/admin/affiliate-applications" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminAffiliateApplications />
                 </ProtectedRoute>
               } 
@@ -529,7 +568,7 @@ const App = () => (
             <Route 
               path="/admin/milestones" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminMilestones />
                 </ProtectedRoute>
               } 
@@ -537,7 +576,7 @@ const App = () => (
             <Route 
               path="/admin/diet-tags" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminDietTags />
                 </ProtectedRoute>
               } 
@@ -636,9 +675,12 @@ const App = () => (
               <Route path="support" element={<DriverSupport />} />
               <Route path="notifications" element={<DriverNotifications />} />
             </Route>
+            {/* Fleet Management Portal Routes */}
+            {fleetRoutes}
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </SessionTimeoutManager>
           </AnalyticsProvider>
         </AuthProvider>
       </BrowserRouter>

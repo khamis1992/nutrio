@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown, Users } from "lucide-react";
+import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown, Users, Bike, MapPin, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -87,6 +87,32 @@ interface AffiliateSettings {
   bonus_milestone_50: number;
 }
 
+interface DriverEarningsSettings {
+  minimum_payout_threshold: number;
+  default_base_earning: number;
+  default_percentage: number;
+  enable_distance_tiers: boolean;
+  enable_city_multipliers: boolean;
+  enable_restaurant_specific: boolean;
+  enable_time_based_rates: boolean;
+  distance_tiers: {
+    short_min: number;
+    short_max: number;
+    short_base: number;
+    medium_min: number;
+    medium_max: number;
+    medium_base: number;
+    long_min: number;
+    long_base: number;
+  };
+  city_rates: {
+    doha_multiplier: number;
+    al_wakrah_multiplier: number;
+    al_khor_multiplier: number;
+  };
+  peak_hour_bonus: number;
+}
+
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -160,6 +186,32 @@ export default function AdminSettings() {
     bonus_milestone_50: 100,
   });
 
+  const [driverEarningsSettings, setDriverEarningsSettings] = useState<DriverEarningsSettings>({
+    minimum_payout_threshold: 10,
+    default_base_earning: 0,
+    default_percentage: 80,
+    enable_distance_tiers: false,
+    enable_city_multipliers: false,
+    enable_restaurant_specific: false,
+    enable_time_based_rates: false,
+    distance_tiers: {
+      short_min: 0,
+      short_max: 3,
+      short_base: 3,
+      medium_min: 3,
+      medium_max: 7,
+      medium_base: 5,
+      long_min: 7,
+      long_base: 8,
+    },
+    city_rates: {
+      doha_multiplier: 1.0,
+      al_wakrah_multiplier: 1.1,
+      al_khor_multiplier: 1.2,
+    },
+    peak_hour_bonus: 0,
+  });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -202,6 +254,9 @@ export default function AdminSettings() {
           case "affiliate_settings":
             setAffiliateSettings(value as unknown as AffiliateSettings);
             break;
+          case "driver_settings":
+            setDriverEarningsSettings(value as unknown as DriverEarningsSettings);
+            break;
         }
       });
     } catch (error) {
@@ -225,6 +280,7 @@ export default function AdminSettings() {
         { key: "premium_analytics_prices", value: premiumAnalyticsPrices },
         { key: "vip_settings", value: vipSettings },
         { key: "affiliate_settings", value: affiliateSettings },
+        { key: "driver_settings", value: driverEarningsSettings },
       ];
 
       for (const update of updates) {
@@ -629,6 +685,324 @@ export default function AdminSettings() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Orders over this amount get free delivery
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Driver Earnings Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bike className="h-5 w-5 text-primary" />
+                Driver Earnings Settings
+              </CardTitle>
+              <CardDescription>Configure how drivers earn per delivery</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Global Settings */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground">Global Default</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="driver-base-earning">Base Earning per Order (QAR)</Label>
+                    <Input
+                      id="driver-base-earning"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={driverEarningsSettings.default_base_earning}
+                      onChange={(e) =>
+                        setDriverEarningsSettings({ 
+                          ...driverEarningsSettings, 
+                          default_base_earning: Number(e.target.value) 
+                        })
+                      }
+                      className="h-12 sm:h-10 min-h-[44px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Fixed amount added to every order
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="driver-percentage">Percentage of Delivery Fee (%)</Label>
+                    <Input
+                      id="driver-percentage"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      max="100"
+                      value={driverEarningsSettings.default_percentage}
+                      onChange={(e) =>
+                        setDriverEarningsSettings({ 
+                          ...driverEarningsSettings, 
+                          default_percentage: Number(e.target.value) 
+                        })
+                      }
+                      className="h-12 sm:h-10 min-h-[44px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Driver receives this % of delivery fee + 100% of tips
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Minimum Payout */}
+              <div className="space-y-2">
+                <Label htmlFor="min-payout">Minimum Payout Threshold (QAR)</Label>
+                <Input
+                  id="min-payout"
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  step="1"
+                  value={driverEarningsSettings.minimum_payout_threshold}
+                  onChange={(e) =>
+                    setDriverEarningsSettings({ 
+                      ...driverEarningsSettings, 
+                      minimum_payout_threshold: Number(e.target.value) 
+                    })
+                  }
+                  className="h-12 sm:h-10 min-h-[44px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Minimum balance required before driver can request payout
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Advanced Earnings Features */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground">Advanced Earnings Features</h4>
+                
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Enable Distance Tiers
+                    </Label>
+                    <p className="text-sm text-muted-foreground">Pay different rates based on delivery distance</p>
+                  </div>
+                  <Switch
+                    checked={driverEarningsSettings.enable_distance_tiers}
+                    onCheckedChange={(checked) =>
+                      setDriverEarningsSettings({ 
+                        ...driverEarningsSettings, 
+                        enable_distance_tiers: checked 
+                      })
+                    }
+                  />
+                </div>
+
+                {driverEarningsSettings.enable_distance_tiers && (
+                  <div className="pl-4 border-l-2 border-muted space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Short (0-3km)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={driverEarningsSettings.distance_tiers.short_base}
+                          onChange={(e) =>
+                            setDriverEarningsSettings({
+                              ...driverEarningsSettings,
+                              distance_tiers: {
+                                ...driverEarningsSettings.distance_tiers,
+                                short_base: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Medium (3-7km)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={driverEarningsSettings.distance_tiers.medium_base}
+                          onChange={(e) =>
+                            setDriverEarningsSettings({
+                              ...driverEarningsSettings,
+                              distance_tiers: {
+                                ...driverEarningsSettings.distance_tiers,
+                                medium_base: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Long (7km+)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={driverEarningsSettings.distance_tiers.long_base}
+                          onChange={(e) =>
+                            setDriverEarningsSettings({
+                              ...driverEarningsSettings,
+                              distance_tiers: {
+                                ...driverEarningsSettings.distance_tiers,
+                                long_base: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Enable City Multipliers
+                    </Label>
+                    <p className="text-sm text-muted-foreground">Different rates for different cities</p>
+                  </div>
+                  <Switch
+                    checked={driverEarningsSettings.enable_city_multipliers}
+                    onCheckedChange={(checked) =>
+                      setDriverEarningsSettings({ 
+                        ...driverEarningsSettings, 
+                        enable_city_multipliers: checked 
+                      })
+                    }
+                  />
+                </div>
+
+                {driverEarningsSettings.enable_city_multipliers && (
+                  <div className="pl-4 border-l-2 border-muted space-y-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Doha Multiplier</Label>
+                        <Input
+                          type="number"
+                          min="0.5"
+                          max="3"
+                          step="0.1"
+                          value={driverEarningsSettings.city_rates.doha_multiplier}
+                          onChange={(e) =>
+                            setDriverEarningsSettings({
+                              ...driverEarningsSettings,
+                              city_rates: {
+                                ...driverEarningsSettings.city_rates,
+                                doha_multiplier: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Al Wakrah</Label>
+                        <Input
+                          type="number"
+                          min="0.5"
+                          max="3"
+                          step="0.1"
+                          value={driverEarningsSettings.city_rates.al_wakrah_multiplier}
+                          onChange={(e) =>
+                            setDriverEarningsSettings({
+                              ...driverEarningsSettings,
+                              city_rates: {
+                                ...driverEarningsSettings.city_rates,
+                                al_wakrah_multiplier: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Al Khor</Label>
+                        <Input
+                          type="number"
+                          min="0.5"
+                          max="3"
+                          step="0.1"
+                          value={driverEarningsSettings.city_rates.al_khor_multiplier}
+                          onChange={(e) =>
+                            setDriverEarningsSettings({
+                              ...driverEarningsSettings,
+                              city_rates: {
+                                ...driverEarningsSettings.city_rates,
+                                al_khor_multiplier: Number(e.target.value),
+                              },
+                            })
+                          }
+                          className="h-10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2">
+                      <Store className="h-4 w-4" />
+                      Restaurant-Specific Rates
+                    </Label>
+                    <p className="text-sm text-muted-foreground">Allow custom rates per restaurant</p>
+                  </div>
+                  <Switch
+                    checked={driverEarningsSettings.enable_restaurant_specific}
+                    onCheckedChange={(checked) =>
+                      setDriverEarningsSettings({ 
+                        ...driverEarningsSettings, 
+                        enable_restaurant_specific: checked 
+                      })
+                    }
+                  />
+                </div>
+
+                {driverEarningsSettings.enable_restaurant_specific && (
+                  <div className="pl-4 border-l-2 border-muted">
+                    <p className="text-sm text-muted-foreground">
+                      Restaurant-specific rates can be configured in the restaurant detail page.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Peak Hour Bonus */}
+              <div className="space-y-2">
+                <Label htmlFor="peak-bonus">Peak Hour Bonus (QAR)</Label>
+                <Input
+                  id="peak-bonus"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={driverEarningsSettings.peak_hour_bonus}
+                  onChange={(e) =>
+                    setDriverEarningsSettings({ 
+                      ...driverEarningsSettings, 
+                      peak_hour_bonus: Number(e.target.value) 
+                    })
+                  }
+                  className="h-12 sm:h-10 min-h-[44px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Extra amount added during peak hours (lunch 11am-2pm, dinner 6pm-9pm)
                 </p>
               </div>
             </CardContent>

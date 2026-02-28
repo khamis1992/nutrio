@@ -41,10 +41,11 @@ const navItems = [
   { icon: Settings, label: "Settings", to: "/partner/settings" },
 ];
 
-// Import Sparkles for boost icon
-import { Sparkles } from "lucide-react";
+// Import Sparkles for boost icon and additional icons
+import { Sparkles, Brain } from "lucide-react";
 
 const boostItem = { icon: Sparkles, label: "Boost", to: "/partner/boost" };
+const aiInsightsItem = { icon: Brain, label: "AI Insights", to: "/partner/ai-insights" };
 
 export function PartnerSidebar() {
   const location = useLocation();
@@ -108,6 +109,20 @@ export function PartnerSidebar() {
                   <Link to={boostItem.to}>
                     <boostItem.icon className="h-4 w-4" />
                     <span>{boostItem.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* AI Insights item */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(aiInsightsItem.to)}
+                  tooltip={aiInsightsItem.label}
+                  className="text-purple-500"
+                >
+                  <Link to={aiInsightsItem.to}>
+                    <aiInsightsItem.icon className="h-4 w-4" />
+                    <span>{aiInsightsItem.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

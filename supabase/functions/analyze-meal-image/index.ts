@@ -1,13 +1,194 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * Validates JWT token from Authorization header
+ * Returns user ID if valid, null if invalid
+ */
+async function validateAuthToken(req: Request): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get("Authorization");
+  
+  if (!authHeader) {
+    return { userId: null, error: "Missing Authorization header" };
+  }
+
+  // Extract token from "Bearer <token>" format
+  const token = authHeader.replace("Bearer ", "").trim();
+  
+  if (!token) {
+    return { userId: null, error: "Invalid Authorization header format" };
+  }
+
+  try {
+    // Create Supabase client with anon key to verify JWT
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    // Verify the token by getting the user
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      console.error("JWT validation failed:", error?.message || "No user found");
+      return { userId: null, error: "Invalid or expired token" };
+    }
+
+    // Log successful auth for audit trail
+    console.log(`Authenticated user: ${user.id}`);
+    
+    return { userId: user.id, error: null };
+  } catch (err) {
+    console.error("Auth validation error:", err);
+    return { userId: null, error: "Authentication service error" };
+  }
+}
+
+/**
+ * Logs failed auth attempts for security monitoring
+ */
+async function logFailedAuth(ip: string | null, error: string, userAgent: string | null) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    await supabase.from("api_logs").insert({
+      endpoint: "/functions/v1/analyze-meal-image",
+      method: "POST",
+      status_code: 401,
+      error_message: `Auth failed: ${error}`,
+      ip_address: ip,
+      user_agent: userAgent,
+      request_body: { error },
+    });
+  } catch (e) {
+    console.error("Failed to log auth failure:", e);
+  }
+}
+
+/**
+ * Logs successful analysis for rate limiting and audit
+ */
+async function logSuccessfulAnalysis(userId: string, ip: string | null) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    await supabase.from("api_logs").insert({
+      endpoint: "/functions/v1/analyze-meal-image",
+      method: "POST",
+      status_code: 200,
+      partner_id: userId,
+      ip_address: ip,
+    });
+  } catch (e) {
+    console.error("Failed to log successful analysis:", e);
+  }
+}
+
+/**
+ * Checks rate limiting for AI analysis requests
+ * Returns true if request should be allowed
+ */
+async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number; resetAt: Date }> {
+  const RATE_LIMIT = 50; // 50 requests per hour
+  const WINDOW_MS = 60 * 60 * 1000; // 1 hour window
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const windowStart = new Date(Date.now() - WINDOW_MS).toISOString();
+
+    // Count requests in the current window
+    const { count, error } = await supabase
+      .from("api_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("endpoint", "/functions/v1/analyze-meal-image")
+      .eq("partner_id", userId)
+      .eq("status_code", 200)
+      .gte("created_at", windowStart);
+
+    if (error) {
+      console.error("Rate limit check error:", error);
+      // Allow on error to prevent blocking legitimate users
+      return { allowed: true, remaining: RATE_LIMIT, resetAt: new Date(Date.now() + WINDOW_MS) };
+    }
+
+    const requestCount = count || 0;
+    const remaining = Math.max(0, RATE_LIMIT - requestCount);
+    const allowed = requestCount < RATE_LIMIT;
+    const resetAt = new Date(Date.now() + WINDOW_MS);
+
+    return { allowed, remaining, resetAt };
+  } catch (e) {
+    console.error("Rate limit exception:", e);
+    return { allowed: true, remaining: RATE_LIMIT, resetAt: new Date(Date.now() + WINDOW_MS) };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Get client info for logging
+  const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null;
+  const userAgent = req.headers.get("user-agent");
+
+  // AUTHENTICATION CHECK
+  const { userId, error: authError } = await validateAuthToken(req);
+  
+  if (!userId) {
+    await logFailedAuth(clientIp, authError || "Unknown auth error", userAgent);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "Unauthorized",
+        message: authError || "Valid authentication required"
+      }),
+      { 
+        status: 401, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+  }
+
+  // RATE LIMITING CHECK
+  const rateLimit = await checkRateLimit(userId);
+  
+  if (!rateLimit.allowed) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Rate limit exceeded",
+        message: `You have exceeded the limit of 50 analyses per hour. Please try again after ${rateLimit.resetAt.toISOString()}`,
+        resetAt: rateLimit.resetAt.toISOString(),
+      }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Limit": "50",
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
+        },
+      }
+    );
   }
 
   try {
@@ -55,7 +236,7 @@ serve(async (req) => {
       ? "Analyze this food image and list the visible food items with estimated nutrition values. Available diet tags: " + (availableTags?.join(", ") || "none") + ". Respond with JSON in this exact format: {\"items\": [{\"name\": \"Food Name\", \"calories\": 100, \"protein_g\": 10, \"carbs_g\": 15, \"fat_g\": 5}]}"
       : "Analyze this meal image and provide detailed information. Available diet tags to choose from: " + (availableTags?.join(", ") || "vegetarian, vegan, keto, gluten-free, dairy-free, low-carb, high-protein") + ". Respond with JSON in this exact format: {\"name\": \"Meal Name\", \"description\": \"Brief description\", \"calories\": 450, \"protein_g\": 25, \"carbs_g\": 40, \"fat_g\": 18, \"fiber_g\": 8, \"prep_time_minutes\": 20, \"suggested_price\": 35, \"diet_tags\": [\"high-protein\", \"gluten-free\"]}";
 
-    console.log("Calling gemini-2.5-flash (vision) via OpenAI-compatible API...");
+    console.log(`Calling gemini-2.5-flash (vision) for user ${userId} via OpenAI-compatible API...`);
 
     const response = await fetch("https://api.manus.im/api/llm-proxy/v1/chat/completions", {
       method: "POST",
@@ -101,14 +282,31 @@ serve(async (req) => {
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
       const parsed = jsonMatch ? JSON.parse(jsonMatch[1].trim()) : JSON.parse(content.trim());
 
+      // Log successful analysis
+      await logSuccessfulAnalysis(userId, clientIp);
+
       if (mode === "quick_scan") {
         return new Response(
-          JSON.stringify({ success: true, detectedItems: parsed.items || [] }),
+          JSON.stringify({ 
+            success: true, 
+            detectedItems: parsed.items || [],
+            rateLimit: {
+              remaining: rateLimit.remaining - 1,
+              resetAt: rateLimit.resetAt.toISOString(),
+            }
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } else {
         return new Response(
-          JSON.stringify({ success: true, mealDetails: parsed }),
+          JSON.stringify({ 
+            success: true, 
+            mealDetails: parsed,
+            rateLimit: {
+              remaining: rateLimit.remaining - 1,
+              resetAt: rateLimit.resetAt.toISOString(),
+            }
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

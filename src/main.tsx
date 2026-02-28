@@ -19,20 +19,22 @@ const Root = () => {
   // In development, use DevelopmentErrorBoundary to catch HMR errors
   // In production, just use SentryErrorBoundary
   const isDevelopment = import.meta.env.DEV;
-  
-  return (
-    <React.StrictMode>
-      <SentryErrorBoundary>
-        {isDevelopment ? (
-          <DevelopmentErrorBoundary>
-            <App />
-          </DevelopmentErrorBoundary>
-        ) : (
+
+  const AppWrapper = (
+    <SentryErrorBoundary>
+      {isDevelopment ? (
+        <DevelopmentErrorBoundary>
           <App />
-        )}
-      </SentryErrorBoundary>
-    </React.StrictMode>
+        </DevelopmentErrorBoundary>
+      ) : (
+        <App />
+      )}
+    </SentryErrorBoundary>
   );
+
+  // Disable StrictMode temporarily to fix Leaflet map issues
+  // TODO: Re-enable after fixing MapContainer StrictMode compatibility
+  return AppWrapper;
 };
 
 createRoot(document.getElementById("root")!).render(<Root />);

@@ -79,6 +79,7 @@ const AdminAffiliateApplications = () => {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   useEffect(() => {
     fetchApplications();
@@ -96,7 +97,7 @@ const AdminAffiliateApplications = () => {
 
       const userIds = [...new Set((appsData || []).map((app) => app.user_id).filter(Boolean))];
       
-      let profilesData: any[] = [];
+      let profilesData: { user_id: string; full_name: string | null; email?: string }[] = [];
       if (userIds.length > 0) {
         const { data } = await supabase
           .from("profiles")
@@ -241,6 +242,165 @@ const AdminAffiliateApplications = () => {
       });
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedApplications.size === 0) return;
+
+    setIsBulkProcessing(true);
+    const applicationIds = Array.from(selectedApplications);
+    const approvedCount = { value: 0 };
+
+    try {
+      // Process each application
+      for (const appId of applicationIds) {
+        const application = applications.find((app) => app.id === appId);
+        if (!application || application.status !== "pending") continue;
+
+        // Update application status
+        const { error: updateError } = await supabase
+          .from("affiliate_applications")
+          .update({
+            status: "approved",
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", appId);
+
+        if (updateError) {
+          console.error(`Error approving application ${appId}:`, updateError);
+          continue;
+        }
+
+        // Generate referral code
+        const referralCode = `REF${application.user_id.slice(0, 6).toUpperCase()}${Date.now().toString(36).slice(-4).toUpperCase()}`;
+
+        await supabase
+          .from("profiles")
+          .update({ referral_code: referralCode })
+          .eq("user_id", application.user_id)
+          .is("referral_code", null);
+
+        // Send approval email (fire and forget)
+        try {
+          await supabase.functions.invoke("send-affiliate-status-notification", {
+            body: {
+              user_id: application.user_id,
+              status: "approved",
+            },
+          });
+        } catch (emailError) {
+          console.error("Error sending approval email:", emailError);
+        }
+
+        approvedCount.value++;
+      }
+
+      // Update local state
+      setApplications((prev) =>
+        prev.map((app) =>
+          selectedApplications.has(app.id) && app.status === "pending"
+            ? { ...app, status: "approved", reviewed_at: new Date().toISOString() }
+            : app
+        )
+      );
+
+      toast({
+        title: "Applications Approved",
+        description: `${approvedCount.value} application(s) have been approved and notified.`,
+      });
+
+      // Clear selection
+      setSelectedApplications(new Set());
+    } catch (err) {
+      console.error("Error in bulk approve:", err);
+      toast({
+        title: "Error",
+        description: "Failed to approve some applications",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const openBulkRejectDialog = () => {
+    if (selectedApplications.size === 0) return;
+    setRejectionReason("");
+    setIsRejectDialogOpen(true);
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedApplications.size === 0) return;
+
+    setIsBulkProcessing(true);
+    const applicationIds = Array.from(selectedApplications);
+    const rejectedCount = { value: 0 };
+
+    try {
+      // Process each application
+      for (const appId of applicationIds) {
+        const application = applications.find((app) => app.id === appId);
+        if (!application || application.status !== "pending") continue;
+
+        // Update application status
+        const { error: updateError } = await supabase
+          .from("affiliate_applications")
+          .update({
+            status: "rejected",
+            rejection_reason: rejectionReason || null,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", appId);
+
+        if (updateError) {
+          console.error(`Error rejecting application ${appId}:`, updateError);
+          continue;
+        }
+
+        // Send rejection email (fire and forget)
+        try {
+          await supabase.functions.invoke("send-affiliate-status-notification", {
+            body: {
+              user_id: application.user_id,
+              status: "rejected",
+              rejection_reason: rejectionReason || undefined,
+            },
+          });
+        } catch (emailError) {
+          console.error("Error sending rejection email:", emailError);
+        }
+
+        rejectedCount.value++;
+      }
+
+      // Update local state
+      setApplications((prev) =>
+        prev.map((app) =>
+          selectedApplications.has(app.id) && app.status === "pending"
+            ? { ...app, status: "rejected", rejection_reason: rejectionReason, reviewed_at: new Date().toISOString() }
+            : app
+        )
+      );
+
+      toast({
+        title: "Applications Rejected",
+        description: `${rejectedCount.value} application(s) have been rejected and notified.`,
+      });
+
+      // Clear selection and close dialog
+      setSelectedApplications(new Set());
+      setIsRejectDialogOpen(false);
+      setRejectionReason("");
+    } catch (err) {
+      console.error("Error in bulk reject:", err);
+      toast({
+        title: "Error",
+        description: "Failed to reject some applications",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkProcessing(false);
     }
   };
 
@@ -430,7 +590,7 @@ const AdminAffiliateApplications = () => {
           ].map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setActiveTab(tab.value as any)}
+              onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.value
                   ? "bg-primary text-primary-foreground"
@@ -480,10 +640,10 @@ const AdminAffiliateApplications = () => {
               {selectedApplications.size} application{selectedApplications.size > 1 ? "s" : ""} selected
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleBulkApprove} disabled={isBulkProcessing}>
                 Approve Selected
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200">
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200" onClick={openBulkRejectDialog} disabled={isBulkProcessing}>
                 Reject Selected
               </Button>
             </div>
@@ -776,9 +936,9 @@ const AdminAffiliateApplications = () => {
         <Sheet open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
           <SheetContent className="w-full sm:max-w-md">
             <SheetHeader className="pb-6">
-              <SheetTitle>Reject Application</SheetTitle>
+              <SheetTitle>{selectedApplications.size > 0 ? `Reject ${selectedApplications.size} Applications` : "Reject Application"}</SheetTitle>
               <SheetDescription>
-                Provide a reason for rejecting {selectedApplication?.profile?.full_name || "this application"} (optional).
+                {selectedApplications.size > 0 ? `Provide a reason for rejecting these ${selectedApplications.size} applications (optional). This reason will be sent to all selected applicants.` : `Provide a reason for rejecting ${selectedApplication?.profile?.full_name || "this application"} (optional).`}
               </SheetDescription>
             </SheetHeader>
             <div className="space-y-4 mt-4">
@@ -795,15 +955,15 @@ const AdminAffiliateApplications = () => {
                 <Button
                   variant="destructive"
                   className="flex-1"
-                  onClick={handleReject}
-                  disabled={processingId !== null}
+                  onClick={selectedApplications.size > 0 ? handleBulkReject : handleReject}
+                  disabled={processingId !== null || isBulkProcessing}
                 >
-                  {processingId ? (
+                  {processingId || isBulkProcessing ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   ) : (
                     <XCircle className="w-4 h-4 mr-2" />
                   )}
-                  Reject Application
+                  {selectedApplications.size > 0 ? `Reject ${selectedApplications.size} Applications` : "Reject Application"}
                 </Button>
               </div>
             </div>

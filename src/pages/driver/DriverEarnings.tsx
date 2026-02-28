@@ -70,9 +70,9 @@ export default function DriverEarnings() {
 
       const { data: deliveries, error } = await supabase
         .from("delivery_jobs")
-        .select("delivery_fee, driver_earnings, delivered_at")
+        .select("delivery_fee, driver_earnings, delivered_at, created_at")
         .eq("driver_id", driverId)
-        .eq("status", "delivered")
+        .in("status", ["completed"])
         .gte("delivered_at", monthStart.toISOString())
         .order("delivered_at", { ascending: false });
 

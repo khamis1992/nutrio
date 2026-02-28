@@ -535,6 +535,45 @@ export type Database = {
           },
         ]
       }
+      cities: {
+        Row: {
+          country: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          name_ar: string | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          country?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          name_ar?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          country?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          name_ar?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       community_challenges: {
         Row: {
           badge_icon: string | null
@@ -687,6 +726,124 @@ export type Database = {
         }
         Relationships: []
       }
+      deliveries: {
+        Row: {
+          claimed_at: string | null
+          created_at: string | null
+          delivered_at: string | null
+          delivery_address: string
+          delivery_fee: number | null
+          delivery_lat: number | null
+          delivery_lng: number | null
+          delivery_notes: string | null
+          delivery_photo_url: string | null
+          driver_id: string | null
+          estimated_distance_km: number | null
+          id: string
+          picked_up_at: string | null
+          pickup_address: string
+          qr_generated_at: string | null
+          qr_verification_hash: string | null
+          restaurant_id: string
+          schedule_id: string
+          status: Database["public"]["Enums"]["delivery_status"] | null
+          tip_amount: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_address: string
+          delivery_fee?: number | null
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          delivery_notes?: string | null
+          delivery_photo_url?: string | null
+          driver_id?: string | null
+          estimated_distance_km?: number | null
+          id?: string
+          picked_up_at?: string | null
+          pickup_address: string
+          qr_generated_at?: string | null
+          qr_verification_hash?: string | null
+          restaurant_id: string
+          schedule_id: string
+          status?: Database["public"]["Enums"]["delivery_status"] | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_address?: string
+          delivery_fee?: number | null
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          delivery_notes?: string | null
+          delivery_photo_url?: string | null
+          driver_id?: string | null
+          estimated_distance_km?: number | null
+          id?: string
+          picked_up_at?: string | null
+          pickup_address?: string
+          qr_generated_at?: string | null
+          qr_verification_hash?: string | null
+          restaurant_id?: string
+          schedule_id?: string
+          status?: Database["public"]["Enums"]["delivery_status"] | null
+          tip_amount?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_driver_id_fkey1"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_restaurant_id_fkey1"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_restaurant_id_fkey1"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_restaurant_id_fkey1"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "user_orders_view"
+            referencedColumns: ["restaurant_id"]
+          },
+          {
+            foreignKeyName: "deliveries_schedule_id_fkey1"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "meal_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_schedule_id_fkey1"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "user_orders_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliveries_legacy: {
         Row: {
           claimed_at: string | null
@@ -776,6 +933,13 @@ export type Database = {
             foreignKeyName: "deliveries_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -822,15 +986,21 @@ export type Database = {
           estimated_distance_km: number | null
           failed_at: string | null
           failure_reason: string | null
+          handover_method: string | null
           id: string
           picked_up_at: string | null
           pickup_address: string | null
           pickup_photo_url: string | null
+          pickup_verification_code: string | null
+          qr_generated_at: string | null
+          qr_scanned_at: string | null
+          qr_verification_hash: string | null
           restaurant_id: string | null
           schedule_id: string
           status: string | null
           tip_amount: number | null
           updated_at: string | null
+          verification_expires_at: string | null
         }
         Insert: {
           accepted_at?: string | null
@@ -851,15 +1021,21 @@ export type Database = {
           estimated_distance_km?: number | null
           failed_at?: string | null
           failure_reason?: string | null
+          handover_method?: string | null
           id?: string
           picked_up_at?: string | null
           pickup_address?: string | null
           pickup_photo_url?: string | null
+          pickup_verification_code?: string | null
+          qr_generated_at?: string | null
+          qr_scanned_at?: string | null
+          qr_verification_hash?: string | null
           restaurant_id?: string | null
           schedule_id: string
           status?: string | null
           tip_amount?: number | null
           updated_at?: string | null
+          verification_expires_at?: string | null
         }
         Update: {
           accepted_at?: string | null
@@ -880,15 +1056,21 @@ export type Database = {
           estimated_distance_km?: number | null
           failed_at?: string | null
           failure_reason?: string | null
+          handover_method?: string | null
           id?: string
           picked_up_at?: string | null
           pickup_address?: string | null
           pickup_photo_url?: string | null
+          pickup_verification_code?: string | null
+          qr_generated_at?: string | null
+          qr_scanned_at?: string | null
+          qr_verification_hash?: string | null
           restaurant_id?: string | null
           schedule_id?: string
           status?: string | null
           tip_amount?: number | null
           updated_at?: string | null
+          verification_expires_at?: string | null
         }
         Relationships: [
           {
@@ -896,6 +1078,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_jobs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
             referencedColumns: ["id"]
           },
           {
@@ -928,6 +1117,176 @@ export type Database = {
           },
         ]
       }
+      delivery_queue: {
+        Row: {
+          accepted_at: string | null
+          assigned_at: string | null
+          assigned_driver_id: string | null
+          assignment_attempts: number | null
+          completed_at: string | null
+          created_at: string | null
+          delivery_address: string | null
+          delivery_fee: number | null
+          delivery_lat: number | null
+          delivery_lng: number | null
+          escalated_at: string | null
+          escalated_by: string | null
+          escalation_reason: string | null
+          estimated_delivery_time: string | null
+          expires_at: string | null
+          id: string
+          manual_assignment_notes: string | null
+          metadata: Json | null
+          order_id: string
+          previous_driver_ids: string[] | null
+          priority_reason: string | null
+          priority_score: number | null
+          queued_at: string | null
+          restaurant_id: string | null
+          status: string
+          tip_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          assigned_at?: string | null
+          assigned_driver_id?: string | null
+          assignment_attempts?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number | null
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_reason?: string | null
+          estimated_delivery_time?: string | null
+          expires_at?: string | null
+          id?: string
+          manual_assignment_notes?: string | null
+          metadata?: Json | null
+          order_id: string
+          previous_driver_ids?: string[] | null
+          priority_reason?: string | null
+          priority_score?: number | null
+          queued_at?: string | null
+          restaurant_id?: string | null
+          status?: string
+          tip_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          assigned_at?: string | null
+          assigned_driver_id?: string | null
+          assignment_attempts?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number | null
+          delivery_lat?: number | null
+          delivery_lng?: number | null
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_reason?: string | null
+          estimated_delivery_time?: string | null
+          expires_at?: string | null
+          id?: string
+          manual_assignment_notes?: string | null
+          metadata?: Json | null
+          order_id?: string
+          previous_driver_ids?: string[] | null
+          priority_reason?: string | null
+          priority_score?: number | null
+          queued_at?: string | null
+          restaurant_id?: string | null
+          status?: string
+          tip_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_queue_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_queue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_queue_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_queue_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_queue_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "user_orders_view"
+            referencedColumns: ["restaurant_id"]
+          },
+        ]
+      }
+      delivery_status_history: {
+        Row: {
+          changed_by: string | null
+          changed_by_role: string | null
+          created_at: string | null
+          delivery_id: string
+          id: string
+          new_status: string
+          previous_status: string | null
+          verification_data: Json | null
+          verification_method: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_role?: string | null
+          created_at?: string | null
+          delivery_id: string
+          id?: string
+          new_status: string
+          previous_status?: string | null
+          verification_data?: Json | null
+          verification_method?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_role?: string | null
+          created_at?: string | null
+          delivery_id?: string
+          id?: string
+          new_status?: string
+          previous_status?: string | null
+          verification_data?: Json | null
+          verification_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_status_history_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diet_tags: {
         Row: {
           created_at: string
@@ -946,6 +1305,36 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      driver_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string | null
+          details: Json | null
+          driver_id: string
+          id: string
+          ip_address: unknown
+          user_agent: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string | null
+          details?: Json | null
+          driver_id: string
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string | null
+          details?: Json | null
+          driver_id?: string
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
         }
         Relationships: []
       }
@@ -994,6 +1383,113 @@ export type Database = {
           },
         ]
       }
+      driver_documents: {
+        Row: {
+          created_at: string | null
+          document_type: string
+          document_url: string
+          driver_id: string
+          expiry_date: string | null
+          id: string
+          rejection_reason: string | null
+          updated_at: string | null
+          uploaded_at: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_type: string
+          document_url: string
+          driver_id: string
+          expiry_date?: string | null
+          id?: string
+          rejection_reason?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_type?: string
+          document_url?: string
+          driver_id?: string
+          expiry_date?: string | null
+          id?: string
+          rejection_reason?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "fleet_managers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_earning_rules: {
+        Row: {
+          base_amount: number
+          conditions: Json | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean
+          max_earning: number | null
+          min_earning: number | null
+          name: string
+          percentage_of_delivery_fee: number
+          priority: number
+          rule_type: string
+          updated_at: string | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          base_amount?: number
+          conditions?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          max_earning?: number | null
+          min_earning?: number | null
+          name: string
+          percentage_of_delivery_fee?: number
+          priority?: number
+          rule_type: string
+          updated_at?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          base_amount?: number
+          conditions?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          max_earning?: number | null
+          min_earning?: number | null
+          name?: string
+          percentage_of_delivery_fee?: number
+          priority?: number
+          rule_type?: string
+          updated_at?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       driver_locations: {
         Row: {
           accuracy_meters: number | null
@@ -1035,6 +1531,7 @@ export type Database = {
       driver_payouts: {
         Row: {
           amount: number
+          country: string | null
           created_at: string | null
           driver_id: string
           id: string
@@ -1048,6 +1545,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          country?: string | null
           created_at?: string | null
           driver_id: string
           id?: string
@@ -1061,6 +1559,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          country?: string | null
           created_at?: string | null
           driver_id?: string
           id?: string
@@ -1233,11 +1732,17 @@ export type Database = {
       drivers: {
         Row: {
           approval_status: Database["public"]["Enums"]["approval_status"] | null
+          assigned_zone_ids: string[] | null
+          cancellation_rate: number | null
+          city_id: string | null
+          country: string | null
           created_at: string | null
           current_job_id: string | null
           current_lat: number | null
           current_lng: number | null
           current_location: unknown
+          email: string | null
+          full_name: string | null
           id: string
           is_active: boolean | null
           is_online: boolean | null
@@ -1247,6 +1752,7 @@ export type Database = {
           license_plate: string | null
           phone_number: string | null
           rating: number | null
+          status: string | null
           total_deliveries: number | null
           total_earnings: number | null
           updated_at: string | null
@@ -1260,11 +1766,17 @@ export type Database = {
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
+          assigned_zone_ids?: string[] | null
+          cancellation_rate?: number | null
+          city_id?: string | null
+          country?: string | null
           created_at?: string | null
           current_job_id?: string | null
           current_lat?: number | null
           current_lng?: number | null
           current_location?: unknown
+          email?: string | null
+          full_name?: string | null
           id?: string
           is_active?: boolean | null
           is_online?: boolean | null
@@ -1274,6 +1786,7 @@ export type Database = {
           license_plate?: string | null
           phone_number?: string | null
           rating?: number | null
+          status?: string | null
           total_deliveries?: number | null
           total_earnings?: number | null
           updated_at?: string | null
@@ -1287,11 +1800,17 @@ export type Database = {
           approval_status?:
             | Database["public"]["Enums"]["approval_status"]
             | null
+          assigned_zone_ids?: string[] | null
+          cancellation_rate?: number | null
+          city_id?: string | null
+          country?: string | null
           created_at?: string | null
           current_job_id?: string | null
           current_lat?: number | null
           current_lng?: number | null
           current_location?: unknown
+          email?: string | null
+          full_name?: string | null
           id?: string
           is_active?: boolean | null
           is_online?: boolean | null
@@ -1301,6 +1820,7 @@ export type Database = {
           license_plate?: string | null
           phone_number?: string | null
           rating?: number | null
+          status?: string | null
           total_deliveries?: number | null
           total_earnings?: number | null
           updated_at?: string | null
@@ -1311,6 +1831,13 @@ export type Database = {
           wallet_balance?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "drivers_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "drivers_current_job_id_fkey"
             columns: ["current_job_id"]
@@ -1439,6 +1966,13 @@ export type Database = {
             foreignKeyName: "featured_listings_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "featured_listings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -1508,6 +2042,141 @@ export type Database = {
           title?: string
           trainer_name?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_activity_log: {
+        Row: {
+          action: string
+          city_id: string | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: unknown
+          manager_id: string | null
+          new_values: Json | null
+          old_values: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          city_id?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          manager_id?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          city_id?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          manager_id?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_activity_log_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_activity_log_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_managers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_managers: {
+        Row: {
+          assigned_city_ids: string[] | null
+          auth_user_id: string | null
+          country: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          phone: string | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_city_ids?: string[] | null
+          auth_user_id?: string | null
+          country?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          phone?: string | null
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_city_ids?: string[] | null
+          auth_user_id?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          phone?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      gdpr_export_logs: {
+        Row: {
+          created_at: string | null
+          data_size_bytes: number | null
+          exported_by: string
+          id: string
+          ip_address: unknown
+          is_admin_export: boolean | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data_size_bytes?: number | null
+          exported_by: string
+          id?: string
+          ip_address?: unknown
+          is_admin_export?: boolean | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data_size_bytes?: number | null
+          exported_by?: string
+          id?: string
+          ip_address?: unknown
+          is_admin_export?: boolean | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1982,6 +2651,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
             referencedColumns: ["id"]
           },
           {
@@ -2526,6 +3202,13 @@ export type Database = {
             foreignKeyName: "meal_reviews_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_reviews_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -2601,6 +3284,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_orders_view"
             referencedColumns: ["meal_id"]
+          },
+          {
+            foreignKeyName: "meal_schedules_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "meal_schedules_restaurant_id_fkey"
@@ -2941,6 +3631,91 @@ export type Database = {
           },
         ]
       }
+      nps_responses: {
+        Row: {
+          admin_notes: string | null
+          category: string | null
+          created_at: string | null
+          featured_at: string | null
+          feedback_text: string | null
+          follow_up_response: string | null
+          follow_up_sent: boolean | null
+          follow_up_sent_at: string | null
+          id: string
+          is_featured: boolean | null
+          meal_schedule_id: string | null
+          metadata: Json | null
+          order_id: string | null
+          responded_at: string | null
+          score: number
+          survey_trigger: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          category?: string | null
+          created_at?: string | null
+          featured_at?: string | null
+          feedback_text?: string | null
+          follow_up_response?: string | null
+          follow_up_sent?: boolean | null
+          follow_up_sent_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          meal_schedule_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          responded_at?: string | null
+          score: number
+          survey_trigger?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          category?: string | null
+          created_at?: string | null
+          featured_at?: string | null
+          feedback_text?: string | null
+          follow_up_response?: string | null
+          follow_up_sent?: boolean | null
+          follow_up_sent_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          meal_schedule_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          responded_at?: string | null
+          score?: number
+          survey_trigger?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nps_responses_meal_schedule_id_fkey"
+            columns: ["meal_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "meal_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nps_responses_meal_schedule_id_fkey"
+            columns: ["meal_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "user_orders_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nps_responses_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nutrition_goals: {
         Row: {
           carbs_target_g: number | null
@@ -2988,6 +3763,75 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      order_cancellations: {
+        Row: {
+          cancellation_fee: number | null
+          cancelled_by: string | null
+          cancelled_by_role: string | null
+          created_at: string | null
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          order_id: string
+          order_status_at_cancel: string
+          reason: string
+          reason_category: string | null
+          refund_amount: number
+          refund_type: string | null
+          user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          cancellation_fee?: number | null
+          cancelled_by?: string | null
+          cancelled_by_role?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          order_id: string
+          order_status_at_cancel: string
+          reason: string
+          reason_category?: string | null
+          refund_amount?: number
+          refund_type?: string | null
+          user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          cancellation_fee?: number | null
+          cancelled_by?: string | null
+          cancelled_by_role?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          order_id?: string
+          order_status_at_cancel?: string
+          reason?: string
+          reason_category?: string | null
+          refund_amount?: number
+          refund_type?: string | null
+          user_id?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_cancellations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_cancellations_wallet_transaction_id_fkey"
+            columns: ["wallet_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -3267,6 +4111,13 @@ export type Database = {
             foreignKeyName: "partner_earnings_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_earnings_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -3326,6 +4177,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "partner_payouts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "partner_payouts_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -3618,6 +4476,13 @@ export type Database = {
             foreignKeyName: "payouts_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -3802,9 +4667,13 @@ export type Database = {
           last_goal_adjustment_date: string | null
           level: number | null
           next_scheduled_adjustment: string | null
+          notification_preferences: Json | null
           onboarding_completed: boolean | null
           plateau_weeks: number | null
           protein_target_g: number | null
+          referral_code: string | null
+          referral_rewards_earned: number | null
+          referred_by: string | null
           streak_days: number | null
           target_weight_kg: number | null
           tier1_referrer_id: string | null
@@ -3842,9 +4711,13 @@ export type Database = {
           last_goal_adjustment_date?: string | null
           level?: number | null
           next_scheduled_adjustment?: string | null
+          notification_preferences?: Json | null
           onboarding_completed?: boolean | null
           plateau_weeks?: number | null
           protein_target_g?: number | null
+          referral_code?: string | null
+          referral_rewards_earned?: number | null
+          referred_by?: string | null
           streak_days?: number | null
           target_weight_kg?: number | null
           tier1_referrer_id?: string | null
@@ -3882,9 +4755,13 @@ export type Database = {
           last_goal_adjustment_date?: string | null
           level?: number | null
           next_scheduled_adjustment?: string | null
+          notification_preferences?: Json | null
           onboarding_completed?: boolean | null
           plateau_weeks?: number | null
           protein_target_g?: number | null
+          referral_code?: string | null
+          referral_rewards_earned?: number | null
+          referred_by?: string | null
           streak_days?: number | null
           target_weight_kg?: number | null
           tier1_referrer_id?: string | null
@@ -4042,6 +4919,42 @@ export type Database = {
         }
         Relationships: []
       }
+      push_tokens: {
+        Row: {
+          created_at: string | null
+          device_info: Json | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          platform: string
+          token: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_info?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          platform: string
+          token: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_info?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          platform?: string
+          token?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       referral_milestones: {
         Row: {
           bonus_amount: number
@@ -4119,6 +5032,13 @@ export type Database = {
           usage_count?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "restaurant_addons_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "restaurant_addons_restaurant_id_fkey"
             columns: ["restaurant_id"]
@@ -4219,6 +5139,13 @@ export type Database = {
             foreignKeyName: "restaurant_details_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: true
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_details_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -4294,6 +5221,8 @@ export type Database = {
           created_at: string | null
           cuisine_type: string | null
           cuisine_types: string[] | null
+          current_day_orders: number | null
+          daily_reset_at: string | null
           deleted_at: string | null
           description: string | null
           dietary_tags: string[] | null
@@ -4337,6 +5266,8 @@ export type Database = {
           created_at?: string | null
           cuisine_type?: string | null
           cuisine_types?: string[] | null
+          current_day_orders?: number | null
+          daily_reset_at?: string | null
           deleted_at?: string | null
           description?: string | null
           dietary_tags?: string[] | null
@@ -4380,6 +5311,8 @@ export type Database = {
           created_at?: string | null
           cuisine_type?: string | null
           cuisine_types?: string[] | null
+          current_day_orders?: number | null
+          daily_reset_at?: string | null
           deleted_at?: string | null
           description?: string | null
           dietary_tags?: string[] | null
@@ -5289,6 +6222,13 @@ export type Database = {
             foreignKeyName: "user_favorite_restaurants_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_favorite_restaurants_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -5689,6 +6629,87 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          assigned_driver_id: string | null
+          city_id: string | null
+          color: string | null
+          country: string | null
+          created_at: string | null
+          id: string
+          insurance_document_url: string | null
+          insurance_expiry: string | null
+          insurance_provider: string | null
+          make: string | null
+          model: string | null
+          plate_number: string
+          registration_document_url: string | null
+          registration_number: string | null
+          status: string | null
+          type: string
+          updated_at: string | null
+          vehicle_photo_url: string | null
+          year: number | null
+        }
+        Insert: {
+          assigned_driver_id?: string | null
+          city_id?: string | null
+          color?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          insurance_document_url?: string | null
+          insurance_expiry?: string | null
+          insurance_provider?: string | null
+          make?: string | null
+          model?: string | null
+          plate_number: string
+          registration_document_url?: string | null
+          registration_number?: string | null
+          status?: string | null
+          type: string
+          updated_at?: string | null
+          vehicle_photo_url?: string | null
+          year?: number | null
+        }
+        Update: {
+          assigned_driver_id?: string | null
+          city_id?: string | null
+          color?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          insurance_document_url?: string | null
+          insurance_expiry?: string | null
+          insurance_provider?: string | null
+          make?: string | null
+          model?: string | null
+          plate_number?: string
+          registration_document_url?: string | null
+          registration_number?: string | null
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+          vehicle_photo_url?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_topup_packages: {
         Row: {
           amount: number
@@ -5863,6 +6884,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      webhook_delivery_queue: {
+        Row: {
+          attempt_count: number | null
+          created_at: string | null
+          delivered_at: string | null
+          event_type: string
+          first_attempt_at: string | null
+          headers: Json | null
+          id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          last_http_status: number | null
+          max_attempts: number | null
+          next_retry_at: string | null
+          payload: Json
+          status: string | null
+          webhook_url: string
+        }
+        Insert: {
+          attempt_count?: number | null
+          created_at?: string | null
+          delivered_at?: string | null
+          event_type: string
+          first_attempt_at?: string | null
+          headers?: Json | null
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_http_status?: number | null
+          max_attempts?: number | null
+          next_retry_at?: string | null
+          payload: Json
+          status?: string | null
+          webhook_url: string
+        }
+        Update: {
+          attempt_count?: number | null
+          created_at?: string | null
+          delivered_at?: string | null
+          event_type?: string
+          first_attempt_at?: string | null
+          headers?: Json | null
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_http_status?: number | null
+          max_attempts?: number | null
+          next_retry_at?: string | null
+          payload?: Json
+          status?: string | null
+          webhook_url?: string
+        }
+        Relationships: []
       }
       weekly_adherence: {
         Row: {
@@ -6109,6 +7184,47 @@ export type Database = {
           },
         ]
       }
+      zones: {
+        Row: {
+          city_id: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          name_ar: string | null
+          polygon: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          city_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          name_ar?: string | null
+          polygon?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          city_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          name_ar?: string | null
+          polygon?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zones_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       analytics_daily_stats: {
@@ -6185,6 +7301,39 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurant_capacity_status: {
+        Row: {
+          capacity_status: string | null
+          current_day_orders: number | null
+          daily_reset_at: string | null
+          id: string | null
+          max_meals_per_day: number | null
+          name: string | null
+          remaining_capacity: number | null
+          usage_percentage: number | null
+        }
+        Insert: {
+          capacity_status?: never
+          current_day_orders?: number | null
+          daily_reset_at?: string | null
+          id?: string | null
+          max_meals_per_day?: number | null
+          name?: string | null
+          remaining_capacity?: never
+          usage_percentage?: never
+        }
+        Update: {
+          capacity_status?: never
+          current_day_orders?: number | null
+          daily_reset_at?: string | null
+          id?: string | null
+          max_meals_per_day?: number | null
+          name?: string | null
+          remaining_capacity?: never
+          usage_percentage?: never
+        }
+        Relationships: []
+      }
       restaurant_details_secure: {
         Row: {
           alternate_phone: string | null
@@ -6254,6 +7403,13 @@ export type Database = {
             foreignKeyName: "restaurant_details_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: true
+            referencedRelation: "restaurant_capacity_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_details_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
@@ -6300,6 +7456,16 @@ export type Database = {
           user_email: string | null
           user_full_name: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      webhook_queue_status: {
+        Row: {
+          count: number | null
+          event_type: string | null
+          newest: string | null
+          oldest: string | null
+          status: string | null
         }
         Relationships: []
       }
@@ -6394,9 +7560,21 @@ export type Database = {
         Returns: unknown
       }
       _st_within: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      accept_delivery_assignment: {
+        Args: { p_queue_id: string }
+        Returns: boolean
+      }
       add_delivered_meal_to_progress: {
         Args: { p_meal_id: string; p_order_id: string }
         Returns: boolean
+      }
+      add_to_delivery_queue: {
+        Args: {
+          p_order_id: string
+          p_priority_reason?: string
+          p_priority_score?: number
+        }
+        Returns: string
       }
       addauth: { Args: { "": string }; Returns: boolean }
       addgeometrycolumn:
@@ -6436,6 +7614,14 @@ export type Database = {
             }
             Returns: string
           }
+      assign_driver_to_queue: {
+        Args: {
+          p_driver_id: string
+          p_expiry_minutes?: number
+          p_queue_id: string
+        }
+        Returns: boolean
+      }
       assign_driver_with_lock: {
         Args: { p_driver_id: string; p_job_id: string }
         Returns: Json
@@ -6450,6 +7636,7 @@ export type Database = {
           rate_limit: number
         }[]
       }
+      auto_complete_delivered_orders: { Args: never; Returns: undefined }
       auto_rotate_api_keys: { Args: never; Returns: number }
       award_xp: {
         Args: { p_reason?: string; p_user_id: string; p_xp_amount: number }
@@ -6460,6 +7647,21 @@ export type Database = {
         Returns: number
       }
       calculate_daily_margin: { Args: { p_date: string }; Returns: string }
+      calculate_delivery_priority: {
+        Args: { p_order_id: string }
+        Returns: number
+      }
+      calculate_driver_earnings: {
+        Args: {
+          p_city?: string
+          p_delivery_fee: number
+          p_distance_km?: number
+          p_order_time?: string
+          p_restaurant_id?: string
+          p_tip_amount?: number
+        }
+        Returns: number
+      }
       calculate_meal_quality_score: {
         Args: {
           added_sugars: boolean
@@ -6479,6 +7681,17 @@ export type Database = {
           three_star_count: number
           total_reviews: number
           two_star_count: number
+        }[]
+      }
+      calculate_next_retry: { Args: { attempt_count: number }; Returns: string }
+      calculate_nps_score: {
+        Args: { p_end_date?: string; p_start_date?: string }
+        Returns: {
+          detractors: number
+          nps_score: number
+          passives: number
+          promoters: number
+          total_responses: number
         }[]
       }
       calculate_restaurant_rating: {
@@ -6501,7 +7714,30 @@ export type Database = {
         Args: { p_user_id: string; p_weeks?: number }
         Returns: number
       }
+      can_cancel_order: {
+        Args: { p_order_id: string; p_role?: string }
+        Returns: Json
+      }
+      cancel_order: {
+        Args: {
+          p_cancelled_by_role?: string
+          p_order_id: string
+          p_reason: string
+          p_reason_category?: string
+        }
+        Returns: Json
+      }
       check_and_award_badges: { Args: { p_user_id: string }; Returns: Json }
+      check_restaurant_capacity: {
+        Args: { p_restaurant_id: string }
+        Returns: {
+          can_accept: boolean
+          current_orders: number
+          max_capacity: number
+          message: string
+          remaining_capacity: number
+        }[]
+      }
       claim_delivery_atomic: {
         Args: { p_delivery_id: string; p_driver_id: string }
         Returns: Json
@@ -6555,6 +7791,10 @@ export type Database = {
         }
         Returns: string
       }
+      deactivate_old_push_tokens: {
+        Args: { p_keep_count?: number; p_user_id: string }
+        Returns: number
+      }
       debit_wallet: {
         Args: {
           p_amount: number
@@ -6565,6 +7805,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      decline_delivery_assignment: {
+        Args: { p_queue_id: string; p_reason?: string }
+        Returns: boolean
       }
       decrement_addon_usage: { Args: { addon_id: string }; Returns: undefined }
       delete_meal_review: {
@@ -6608,6 +7852,14 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      escalate_to_manual_assignment: {
+        Args: { p_queue_id: string; p_reason?: string }
+        Returns: boolean
+      }
+      feature_nps_response: {
+        Args: { p_response_id: string }
+        Returns: undefined
+      }
       generate_invoice_number: { Args: { p_type: string }; Returns: string }
       generate_partner_api_credentials: {
         Args: { p_partner_id: string }
@@ -6616,6 +7868,11 @@ export type Database = {
           plain_secret: string
         }[]
       }
+      generate_pickup_qr_code: {
+        Args: { p_delivery_job_id: string }
+        Returns: string
+      }
+      generate_pickup_verification_code: { Args: never; Returns: string }
       generate_weekly_report: {
         Args: { p_user_id: string; p_week_start: string }
         Returns: string
@@ -6738,6 +7995,65 @@ export type Database = {
           xp_reward: number
         }[]
       }
+      get_affiliate_leaderboard_earnings: {
+        Args: { limit_count?: number }
+        Returns: {
+          affiliate_tier: string
+          avatar_url: string
+          full_name: string
+          id: string
+          referral_count: number
+          total_affiliate_earnings: number
+        }[]
+      }
+      get_affiliate_leaderboard_referrals: {
+        Args: { limit_count?: number }
+        Returns: {
+          affiliate_tier: string
+          avatar_url: string
+          full_name: string
+          id: string
+          referral_count: number
+          total_affiliate_earnings: number
+        }[]
+      }
+      get_available_deliveries: {
+        Args: {
+          p_driver_lat?: number
+          p_driver_lng?: number
+          p_max_distance_km?: number
+        }
+        Returns: {
+          delivery_address: string
+          delivery_fee: number
+          delivery_lat: number
+          delivery_lng: number
+          distance_km: number
+          order_id: string
+          priority_score: number
+          queue_id: string
+          queued_at: string
+          restaurant_id: string
+          restaurant_name: string
+          tip_amount: number
+        }[]
+      }
+      get_cancellation_stats: {
+        Args: {
+          p_end_date?: string
+          p_restaurant_id?: string
+          p_start_date?: string
+        }
+        Returns: Json
+      }
+      get_delivery_details_for_driver: {
+        Args: { p_delivery_job_id: string }
+        Returns: Json
+      }
+      get_meal_info_for_schedules: {
+        Args: { p_schedule_ids: string[] }
+        Returns: Json
+      }
       get_meal_quality_grade: { Args: { score: number }; Returns: string }
       get_meal_reviews: {
         Args: {
@@ -6762,6 +8078,14 @@ export type Database = {
           would_recommend: boolean
         }[]
       }
+      get_nps_trend_by_month: {
+        Args: { p_months?: number }
+        Returns: {
+          month: string
+          nps_score: number
+          total_responses: number
+        }[]
+      }
       get_skip_analytics: {
         Args: { p_end_date?: string; p_start_date?: string; p_user_id?: string }
         Returns: {
@@ -6771,6 +8095,13 @@ export type Database = {
         }[]
       }
       get_unread_notification_count: { Args: never; Returns: number }
+      get_user_affiliate_rank: {
+        Args: { user_uuid: string }
+        Returns: {
+          earnings: number
+          referrals: number
+        }[]
+      }
       get_user_health_goal: {
         Args: { user_uuid: string }
         Returns: {
@@ -6792,6 +8123,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      get_user_push_tokens: {
+        Args: { p_user_id: string }
+        Returns: {
+          platform: string
+          token: string
+        }[]
       }
       get_user_restaurant_id: { Args: never; Returns: string }
       get_user_role: {
@@ -6835,6 +8173,10 @@ export type Database = {
         Args: { p_permission: string; p_restaurant_id: string }
         Returns: boolean
       }
+      has_user_submitted_nps: {
+        Args: { p_order_id: string; p_user_id: string }
+        Returns: boolean
+      }
       increment_addon_usage: { Args: { addon_id: string }; Returns: undefined }
       increment_meal_usage: {
         Args: { p_subscription_id: string }
@@ -6842,6 +8184,10 @@ export type Database = {
       }
       increment_monthly_meal_usage: {
         Args: { p_subscription_id: string }
+        Returns: boolean
+      }
+      increment_restaurant_order_count: {
+        Args: { p_restaurant_id: string }
         Returns: boolean
       }
       is_approved_affiliate: { Args: { _user_id: string }; Returns: boolean }
@@ -6855,10 +8201,23 @@ export type Database = {
         Returns: Json
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      manual_assign_driver: {
+        Args: { p_driver_id: string; p_notes?: string; p_queue_id: string }
+        Returns: boolean
+      }
       mark_all_notifications_as_read: { Args: never; Returns: undefined }
       mark_notification_as_read: {
         Args: { notification_id: string }
         Returns: undefined
+      }
+      mark_webhook_delivered: { Args: { p_id: string }; Returns: undefined }
+      mark_webhook_failed: {
+        Args: { p_error: string; p_http_status?: number; p_id: string }
+        Returns: undefined
+      }
+      partner_confirm_handover: {
+        Args: { p_delivery_job_id: string; p_partner_user_id: string }
+        Returns: Json
       }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
@@ -6923,10 +8282,24 @@ export type Database = {
         Returns: Json
       }
       refresh_analytics_stats: { Args: never; Returns: undefined }
+      refresh_verification_code: {
+        Args: { p_delivery_job_id: string; p_partner_user_id: string }
+        Returns: Json
+      }
+      reset_daily_capacity_counts: { Args: never; Returns: undefined }
       reset_weekly_meal_quotas: { Args: never; Returns: number }
       retry_failed_payment: {
         Args: { p_payment_id: string; p_user_id: string }
         Returns: Json
+      }
+      schedule_webhook: {
+        Args: {
+          p_event_type: string
+          p_headers?: Json
+          p_payload: Json
+          p_webhook_url: string
+        }
+        Returns: string
       }
       send_whatsapp_notification: {
         Args: { p_message: string; p_phone: string; p_template?: string }
@@ -7553,9 +8926,10 @@ export type Database = {
         Returns: Json
       }
       update_order_status: {
-        Args: { p_new_status: string; p_order_id: string; p_user_role?: string }
+        Args: { p_new_status: string; p_order_id: string; p_user_role: string }
         Returns: boolean
       }
+      update_push_token_usage: { Args: { p_token: string }; Returns: undefined }
       update_restaurant_banking_info: {
         Args: {
           p_bank_account_number: string
@@ -7564,6 +8938,10 @@ export type Database = {
           p_restaurant_id: string
           p_swift_code: string
         }
+        Returns: undefined
+      }
+      update_restaurant_capacity: {
+        Args: { p_max_meals_per_day: number; p_restaurant_id: string }
         Returns: undefined
       }
       updategeometrysrid: {
@@ -7575,6 +8953,14 @@ export type Database = {
           table_name: string
         }
         Returns: string
+      }
+      verify_pickup_by_code: {
+        Args: { p_driver_id: string; p_verification_code: string }
+        Returns: Json
+      }
+      verify_pickup_by_qr: {
+        Args: { p_delivery_id: string; p_qr_code: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -7638,6 +9024,7 @@ export type Database = {
         | "out_for_delivery"
         | "delivered"
         | "cancelled"
+        | "completed"
       restaurant_status: "active" | "inactive" | "pending"
       subscription_plan: "weekly" | "monthly"
       subscription_status: "active" | "cancelled" | "expired" | "pending"
@@ -7843,6 +9230,7 @@ export const Constants = {
         "out_for_delivery",
         "delivered",
         "cancelled",
+        "completed",
       ],
       restaurant_status: ["active", "inactive", "pending"],
       subscription_plan: ["weekly", "monthly"],
