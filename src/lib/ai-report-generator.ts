@@ -44,7 +44,7 @@ class AIReportGenerator {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${this.apiKey}`,
             "HTTP-Referer": window.location.origin,
-            "X-Title": "Nutrio Fuel Weekly Report",
+            "X-Title": "Nutrio Weekly Report",
           },
           body: JSON.stringify({
             model: model,

@@ -8,7 +8,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const FROM_EMAIL = "Nutrio Fuel <billing@nutrio.app>";
+const FROM_EMAIL = "Nutrio <billing@nutrio.app>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,7 +97,7 @@ const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): stri
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice ${invoiceNumber} - Nutrio Fuel</title>
+  <title>Invoice ${invoiceNumber} - Nutrio</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -250,7 +250,7 @@ const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): stri
 <body>
   <div class="container">
     <div class="header">
-      <h1>Nutrio Fuel</h1>
+      <h1>Nutrio</h1>
       <p>Healthy Meal Delivery & Nutrition</p>
     </div>
     
@@ -304,7 +304,7 @@ const generateInvoiceEmail = (payment: PaymentData, invoiceNumber: string): stri
     </div>
     
     <div class="footer">
-      <p><strong>Nutrio Fuel Qatar</strong></p>
+      <p><strong>Nutrio Qatar</strong></p>
       <p>Healthy Meal Delivery & Nutrition Tracking</p>
       <p>Doha, Qatar</p>
       
@@ -429,7 +429,7 @@ const sendInvoiceEmail = async (paymentId: string): Promise<{
     body: JSON.stringify({
       from: FROM_EMAIL,
       to: [payment.profiles?.email],
-      subject: `Your Nutrio Fuel Invoice - ${invoiceNumber}`,
+      subject: `Your Nutrio Invoice - ${invoiceNumber}`,
       html,
     }),
   });
@@ -448,7 +448,7 @@ const sendInvoiceEmail = async (paymentId: string): Promise<{
     recipient_name: payment.profiles?.full_name,
     email_type: "invoice",
     status: "sent",
-    subject: `Your Nutrio Fuel Invoice - ${invoiceNumber}`,
+    subject: `Your Nutrio Invoice - ${invoiceNumber}`,
     resend_id: resendData.id,
     sent_at: new Date().toISOString(),
   });

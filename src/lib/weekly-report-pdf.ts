@@ -154,7 +154,7 @@ export class WeeklyReportPDFGenerator {
     this.doc.setTextColor(...this.colors.white);
     this.doc.setFontSize(24);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("Nutrio Fuel", this.logoBase64 ? 45 : 20, 28);
+    this.doc.text("Nutrio", this.logoBase64 ? 45 : 20, 28);
     
     this.doc.setFontSize(12);
     this.doc.setFont("helvetica", "normal");
@@ -705,10 +705,10 @@ export class WeeklyReportPDFGenerator {
       this.doc.setFontSize(8);
       this.doc.setFont("helvetica", "normal");
       this.doc.setTextColor(...this.colors.textLight);
-      this.doc.text("Nutrio Fuel - Your Journey to Better Health", 20, 287);
+      this.doc.text("Nutrio - Your Journey to Better Health", 20, 287);
       this.doc.text(`Page ${i} of ${pageCount}`, 180, 287);
       this.doc.setTextColor(...this.colors.primary);
-      this.doc.text(`© ${new Date().getFullYear()} Nutrio Fuel. All rights reserved.`, 105, 293, { align: "center" });
+      this.doc.text(`© ${new Date().getFullYear()} Nutrio. All rights reserved.`, 105, 293, { align: "center" });
     }
   }
 

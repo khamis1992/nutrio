@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Nutrio Fuel</string>
-    <string name="title_activity_main">Nutrio Fuel</string>
+    <string name="app_name">Nutrio</string>
+    <string name="title_activity_main">Nutrio</string>
     <string name="package_name">com.nutriofuel.app</string>
     <string name="custom_url_scheme">com.nutriofuel.app</string>
 </resources>

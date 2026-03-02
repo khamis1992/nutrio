@@ -205,7 +205,7 @@ export class ProfessionalWeeklyReportPDF {
     this.doc.setTextColor(255, 255, 255);
     this.setFontSize(14);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("NUTRIO FUEL", PAGE_WIDTH / 2, logoY + 48, { align: "center" });
+    this.doc.text("Nutrio", PAGE_WIDTH / 2, logoY + 48, { align: "center" });
 
     // Title block
     this.doc.setTextColor(255, 255, 255);
@@ -1657,7 +1657,7 @@ export class ProfessionalWeeklyReportPDF {
     this.doc.setTextColor(...COLORS.primaryDark);
     this.setFontSize(8);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("NUTRIO FUEL", MARGIN + 15, 11);
+    this.doc.text("Nutrio", MARGIN + 15, 11);
 
     // Top accent line
     this.drawGradientBar(0, 18, PAGE_WIDTH, 1, COLORS.gradientStart, COLORS.gradientEnd);
@@ -1683,7 +1683,7 @@ export class ProfessionalWeeklyReportPDF {
     this.doc.setTextColor(...COLORS.textMuted);
     this.setFontSize(6.5);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Nutrio Fuel  |  Nutrition Intelligence Report", MARGIN, y);
+    this.doc.text("Nutrio  |  Nutrition Intelligence Report", MARGIN, y);
     this.doc.text(`${pageNum} / ${this.totalPages}`, PAGE_WIDTH - MARGIN, y, { align: "right" });
 
     // Bottom accent line

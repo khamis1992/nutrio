@@ -129,7 +129,7 @@ export default function PendingApproval() {
           <div className="flex items-center gap-3">
             <Store className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-2xl font-bold">Nutrio Fuel Partner</h1>
+              <h1 className="text-2xl font-bold">Nutrio Partner</h1>
               <p className="text-muted-foreground">Restaurant Application Status</p>
             </div>
           </div>
@@ -261,7 +261,7 @@ export default function PendingApproval() {
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground">
-          Thank you for your interest in partnering with Nutrio Fuel
+          Thank you for your interest in partnering with Nutrio
         </p>
       </div>
     </div>

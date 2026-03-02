@@ -16,7 +16,7 @@
     "fleet-management",
     "real-time-tracking"
   ],
-  "author": "Nutrio Fuel",
+  "author": "Nutrio",
   "license": "MIT",
   "dependencies": {
     "socket.io": "^4.7.4",
