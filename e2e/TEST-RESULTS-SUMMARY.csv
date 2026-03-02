@@ -1,0 +1,15 @@
+TC ID,Portal,Module,Feature,Test Case,Status,Actual Result,Notes,Priority,Date Tested,Tester
+TC001,Customer,Auth,Login,Login with Valid Credentials,Pass,Test executed successfully,Fixed on 2026-03-02 - Rate limiting and email confirmation handled,High,2026-03-02,E2E Agent Swarm
+TC002,Customer,Auth,Login,Login with Invalid Password,Pass,Test executed successfully,Fixed on 2026-03-02,High,2026-03-02,E2E Agent Swarm
+TC003,Customer,Auth,Registration,New Customer Registration,Pass,Test executed successfully,Fixed on 2026-03-02 - Uses gmail.com domain,High,2026-03-02,E2E Agent Swarm
+TC004,Customer,Auth,Logout,Customer Logout,Pass,Test executed successfully,Fixed on 2026-03-02,Medium,2026-03-02,E2E Agent Swarm
+TC005,Customer,Auth,Validation,Login Form Validation,Pass,Test executed successfully,Fixed on 2026-03-02,Medium,2026-03-02,E2E Agent Swarm
+TC006,Customer,Auth,Password Reset,Password Reset Request,Pass,Test executed successfully,Fixed on 2026-03-02,Medium,2026-03-02,E2E Agent Swarm
+TC007,Customer,Auth,Session,Session Persistence,Skip,N/A,Skipped - Email confirmation required for session tests,Medium,2026-03-02,E2E Agent Swarm
+TC008,Customer,Auth,UI,Toggle Login/Sign Up,Pass,Test executed successfully,Fixed on 2026-03-02,Low,2026-03-02,E2E Agent Swarm
+TC009,Customer,Auth,UI,Password Visibility Toggle,Pass,Test executed successfully,Fixed on 2026-03-02,Low,2026-03-02,E2E Agent Swarm
+TC010,Customer,Auth,UI,Remember Me Checkbox,Skip,N/A,Skipped - No remember me checkbox in UI,Low,2026-03-02,E2E Agent Swarm
+TC011,Customer,Auth,Validation,Invalid Email Format,Pass,Test executed successfully,Fixed on 2026-03-02,Medium,2026-03-02,E2E Agent Swarm
+TC012,Customer,Auth,Navigation,Navigation Links Work,Pass,Test executed successfully,Fixed on 2026-03-02,Low,2026-03-02,E2E Agent Swarm
+TC013-TC333,Customer,Various,Various,Various Tests,Fail,Route not found (404),Test routes do not match actual app routes. Needs test file updates.,Various,2026-03-02,E2E Agent Swarm
+TC334-TC899,Admin/Partner/Driver/System,Various,Various,Various Tests,Fail,Route not found (404),Test routes do not match actual app routes. Auto-generated tests need updates.,Various,2026-03-02,E2E Agent Swarm
