@@ -6,7 +6,6 @@ import {
   Star, 
   ArrowLeft, 
   Loader2, 
-  Sparkles,
   Calendar,
   Utensils,
   RotateCcw,
@@ -21,8 +20,6 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -33,9 +30,6 @@ import { RolloverCreditsWidget } from "@/components/RolloverCreditsWidget";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
 import { CancellationFlow } from "@/components/CancellationFlow";
 import { BillingIntervalToggle, calculateSavings, type BillingInterval } from "@/components/BillingIntervalToggle";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { format, differenceInDays, addDays } from "date-fns";
 import {
   Dialog,
@@ -162,7 +156,7 @@ const getPlans = (pricing: SubscriptionPricing, billingInterval: BillingInterval
       mealsPerMonth: 0,
       tier: 'vip',
       description: "Unlimited meals",
-      icon: Sparkles,
+      icon: Crown,
       features: [
         "♾️ Unlimited meals",
         "Everything in Premium",
@@ -316,601 +310,574 @@ export default function SubscriptionPage() {
 
   const percentageUsed = totalMeals > 0 ? (mealsUsed / totalMeals) * 100 : 0;
 
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+        <p className="text-sm text-muted-foreground">Loading your subscription…</p>
       </div>
     );
   }
 
-  // If no active subscription, show plan selection
+  // ── No subscription — plan picker ────────────────────────────────────────
   if (!hasActiveSubscription) {
     return (
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-16 items-center px-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="ml-4 text-xl font-semibold">Choose Your Plan</h1>
+      <div className="min-h-screen pb-10">
+        {/* Native header */}
+        <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
+          <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
+            >
+              <ArrowLeft className="h-5 w-5 text-foreground" />
+            </button>
+            <h1 className="text-lg font-bold tracking-tight">Choose a Plan</h1>
           </div>
         </header>
 
-        <main className="container px-4 py-8 md:py-12">
-          {/* Hero */}
-          <div className="mx-auto max-w-3xl text-center mb-12">
-            <Badge variant="secondary" className="mb-4">
-              🎉 Start Your Journey
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-              Fuel Your Health Journey
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Choose the perfect plan that fits your lifestyle and health goals.
-            </p>
+        <div className="px-4 pt-6 space-y-5">
+          {/* Hero card */}
+          <div className="gradient-primary rounded-3xl px-5 py-6 text-white shadow-lg shadow-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="h-4 w-4 text-white/80" />
+              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Start Your Journey</span>
+            </div>
+            <h2 className="text-2xl font-bold leading-tight mb-1">Fuel Your Health</h2>
+            <p className="text-sm text-white/70">Pick the perfect plan for your lifestyle and goals.</p>
           </div>
 
-          {/* Billing Interval Toggle */}
-          <div className="max-w-md mx-auto mb-8">
-            <BillingIntervalToggle
-              value={selectedBillingInterval}
-              onChange={setSelectedBillingInterval}
-              savingsPercent={17}
-            />
-          </div>
+          {/* Billing toggle */}
+          <BillingIntervalToggle
+            value={selectedBillingInterval}
+            onChange={setSelectedBillingInterval}
+            savingsPercent={17}
+          />
 
-          {/* Annual Savings Banner */}
+          {/* Annual savings banner */}
           {selectedBillingInterval === "annual" && (
-            <div className="max-w-2xl mx-auto mb-8 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <BadgePercent className="h-5 w-5" />
-                <span className="font-semibold">Save 17% with Annual Billing!</span>
+            <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-2xl px-4 py-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <BadgePercent className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm text-green-50">
-                Pay for 10 months, get 2 months completely free. 
-                Save up to {(pricing.vip_price * 2).toLocaleString()} QAR per year.
-              </p>
+              <div>
+                <p className="text-sm font-bold text-foreground">Save 17% — 2 months free</p>
+                <p className="text-xs text-muted-foreground">Pay 10 months, save up to {(pricing.vip_price * 2).toLocaleString()} QAR/yr</p>
+              </div>
             </div>
           )}
 
-          {/* Plans Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+          {/* Plan cards */}
+          <div className="space-y-3">
             {plans.map((plan) => {
               const Icon = plan.icon;
               return (
-                <Card
+                <div
                   key={plan.id}
-                  className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
+                  className={`relative bg-card/95 rounded-3xl border shadow-md overflow-hidden transition-all ${
                     plan.popular
-                      ? "border-primary shadow-lg scale-105 z-10"
+                      ? "border-primary shadow-primary/15"
                       : plan.isVip
-                      ? "border-violet-500 shadow-lg shadow-violet-500/20"
-                      : "hover:scale-102"
+                      ? "border-violet-400 shadow-violet-400/15"
+                      : "border-border/70"
                   }`}
                 >
+                  {/* Badge ribbon */}
                   {plan.popular && (
-                    <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg">
+                    <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-2xl">
                       Most Popular
                     </div>
                   )}
                   {plan.isVip && (
-                    <div className="absolute top-0 right-0 bg-gradient-to-r from-violet-500 to-purple-600 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
+                    <div className="absolute top-0 right-0 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-bl-2xl">
                       VIP Elite
                     </div>
                   )}
-                  {selectedBillingInterval === "annual" && !plan.isVip && (
-                    <div className="absolute top-0 right-0 bg-green-500 text-white px-3 py-1 text-xs font-semibold rounded-bl-lg">
+                  {selectedBillingInterval === "annual" && !plan.popular && !plan.isVip && (
+                    <div className="absolute top-0 right-0 bg-primary/80 text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-2xl">
                       Save 17%
                     </div>
                   )}
 
-                  <CardHeader className="pb-4">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${plan.color} flex items-center justify-center mb-4`}>
-                      <Icon className="h-6 w-6 text-white" />
+                  <div className="p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${plan.color} flex items-center justify-center shadow-sm`}>
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-foreground">{plan.name}</h3>
+                        <p className="text-xs text-muted-foreground">{plan.description}</p>
+                      </div>
+                      <div className="ml-auto text-right">
+                        <p className="text-xl font-bold text-foreground">{formatCurrency(plan.price)}</p>
+                        <p className="text-xs text-muted-foreground">/{plan.period}</p>
+                      </div>
                     </div>
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                    <CardDescription>{plan.description}</CardDescription>
-                  </CardHeader>
 
-                  <CardContent className="pb-4">
-                    <div className="mb-4">
-                      <span className="text-3xl sm:text-4xl font-bold">{formatCurrency(plan.price)}</span>
-                      <span className="text-muted-foreground">/{plan.period}</span>
-                    </div>
-                    
-                    <div className={`mb-6 p-3 rounded-lg ${plan.isVip ? 'bg-violet-500/10' : 'bg-primary/10'}`}>
-                      <p className={`text-sm font-medium ${plan.isVip ? 'text-violet-600 dark:text-violet-400' : 'text-primary'}`}>
-                        {plan.mealsPerMonth === 0 ? "♾️ Unlimited meals" : `🍽️ ${plan.mealsPerMonth} meals per month`}
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl mb-3 ${plan.isVip ? "bg-violet-500/10" : "bg-primary/8"}`}>
+                      <Utensils className={`h-4 w-4 ${plan.isVip ? "text-violet-500" : "text-primary"}`} />
+                      <p className={`text-sm font-semibold ${plan.isVip ? "text-violet-600" : "text-primary"}`}>
+                        {plan.mealsPerMonth === 0 ? "Unlimited meals" : `${plan.mealsPerMonth} meals / month`}
                       </p>
                     </div>
 
-                    <ul className="space-y-3">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-3">
-                          <Check className={`h-5 w-5 shrink-0 mt-0.5 ${plan.isVip ? 'text-violet-500' : 'text-primary'}`} />
-                          <span className="text-sm">{feature}</span>
+                    <ul className="space-y-2 mb-4">
+                      {plan.features.slice(0, 4).map((feature, idx) => (
+                        <li key={idx} className="flex items-center gap-2.5">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${plan.isVip ? "bg-violet-100" : "bg-primary/10"}`}>
+                            <Check className={`h-3 h-3 ${plan.isVip ? "text-violet-600" : "text-primary"}`} />
+                          </div>
+                          <span className="text-sm text-foreground">{feature}</span>
                         </li>
                       ))}
+                      {plan.features.length > 4 && (
+                        <li className="text-xs text-muted-foreground pl-7">+{plan.features.length - 4} more benefits</li>
+                      )}
                     </ul>
-                  </CardContent>
 
-                  <CardFooter>
                     <Button
-                      className={`w-full ${plan.isVip ? 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700' : ''}`}
+                      className={`w-full rounded-2xl h-12 text-base font-semibold ${
+                        plan.isVip
+                          ? "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-md shadow-violet-500/20"
+                          : plan.popular
+                          ? "shadow-md shadow-primary/20"
+                          : ""
+                      }`}
                       variant={plan.popular || plan.isVip ? "default" : "outline"}
-                      size="lg"
                       onClick={() => navigate("/subscription/plans")}
                     >
                       Get Started
                     </Button>
-                  </CardFooter>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>
-        </main>
+        </div>
       </div>
     );
   }
 
+  // ── Active subscription ───────────────────────────────────────────────────
+  const tierOrder = { 'basic': 1, 'standard': 2, 'premium': 3, 'vip': 4 } as const;
+
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-        <div className="container flex h-16 items-center px-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="ml-4 text-xl font-semibold">My Subscription</h1>
+    <div className="min-h-screen pb-24">
+      {/* Native header */}
+      <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
+        <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
+          >
+            <ArrowLeft className="h-5 w-5 text-foreground" />
+          </button>
+          <h1 className="text-lg font-bold tracking-tight">My Subscription</h1>
         </div>
       </header>
 
-      <main className="container px-4 py-6 max-w-5xl mx-auto">
-        {/* Current Plan Overview Card */}
-        <Card className={`mb-6 ${isVip ? 'border-violet-500 shadow-lg shadow-violet-500/20' : ''}`}>
-          <CardHeader className="pb-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
-                  isVip 
-                    ? 'bg-gradient-to-br from-violet-500 to-purple-600' 
-                    : 'bg-gradient-to-br from-primary to-primary/80'
-                }`}>
-                  {isVip ? <Crown className="h-8 w-8 text-white" /> : <Zap className="h-8 w-8 text-white" />}
-                </div>
-                <div>
-                  <CardTitle className="text-2xl capitalize">{subscription?.plan || 'Standard'} Plan</CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    <span className="capitalize">{subscription?.tier || 'Standard'}</span>
-                    <span className="text-muted-foreground">•</span>
-                    {subscription?.status === 'cancelled' ? (
-                      <Badge variant="destructive" className="text-xs">
-                        Cancelled (until {subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd") : 'end date'})
-                      </Badge>
-                    ) : (
-                      <span className="capitalize">{subscription?.status}</span>
-                    )}
-                    {isVip && (
-                      <Badge className="ml-2 bg-violet-100 text-violet-800">
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        VIP
-                      </Badge>
-                    )}
-                  </CardDescription>
-                </div>
+      <div className="px-4 pt-4 space-y-4">
+        {/* Hero plan card */}
+        <div className={`rounded-3xl px-5 py-5 text-white shadow-lg overflow-hidden relative ${
+          isVip
+            ? "bg-gradient-to-br from-violet-500 to-purple-700 shadow-violet-500/25"
+            : "gradient-primary shadow-primary/20"
+        }`}>
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                {isVip ? <Crown className="h-6 w-6 text-white" /> : <Zap className="h-6 w-6 text-white" />}
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold">
-                  {isUnlimited ? '∞' : remainingMeals}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {isUnlimited ? 'Unlimited' : 'meals left'}
+              <div>
+                <h2 className="text-lg font-bold capitalize">{subscription?.plan || 'Standard'} Plan</h2>
+                <p className="text-xs text-white/70 mt-0.5 capitalize">
+                  {subscription?.status === 'cancelled'
+                    ? `Cancelled · ends ${subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd") : ""}`
+                    : subscription?.status}
+                  {isVip && " · VIP"}
                 </p>
               </div>
             </div>
-          </CardHeader>
+            <div className="text-right">
+              <p className="text-3xl font-bold">{isUnlimited ? '∞' : remainingMeals}</p>
+              <p className="text-xs text-white/70">{isUnlimited ? 'unlimited' : 'meals left'}</p>
+            </div>
+          </div>
 
-          <CardContent className="space-y-6">
-            {/* Usage Progress */}
-            {!isUnlimited && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Meal Usage</span>
-                  <span className="font-medium">{mealsUsed} of {totalMeals} used</span>
+          {/* Meal usage bar */}
+          {!isUnlimited && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-white/80">
+                <span>{mealsUsed} of {totalMeals} used</span>
+                <span>{daysRemaining}d until reset</span>
+              </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full transition-all"
+                  style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Quick stat chips */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
+            <Calendar className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-base font-bold text-foreground leading-none">{daysRemaining}</p>
+              <p className="text-xs text-muted-foreground">Days left</p>
+            </div>
+          </div>
+          <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
+            <Utensils className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-base font-bold text-foreground leading-none">{isUnlimited ? '∞' : totalMeals}</p>
+              <p className="text-xs text-muted-foreground">Monthly meals</p>
+            </div>
+          </div>
+          {rolloverInfo && rolloverInfo.rollover_credits > 0 && (
+            <div className="shrink-0 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 shadow-sm">
+              <RotateCcw className="h-4 w-4 text-amber-600" />
+              <div>
+                <p className="text-base font-bold text-amber-600 leading-none">{rolloverInfo.rollover_credits}</p>
+                <p className="text-xs text-amber-600">Rollover</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* iOS-style segment tabs */}
+        <div className="bg-muted rounded-2xl p-1 flex gap-1">
+          {[
+            { id: "overview", label: "Overview" },
+            { id: "manage",   label: "Manage" },
+            { id: "plans",    label: "Plans" },
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── OVERVIEW TAB ── */}
+        {activeTab === "overview" && (
+          <div className="space-y-4">
+
+            {/* Details card */}
+            <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border/60">
+                <Shield className="h-4 w-4 text-primary" />
+                <h3 className="font-bold text-foreground">Subscription Details</h3>
+              </div>
+              {[
+                { label: "Plan", value: <span className="font-semibold capitalize">{subscription?.plan || "Standard"}</span> },
+                {
+                  label: "Status",
+                  value: (
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                      subscription?.status === "cancelled"
+                        ? "bg-red-100 text-red-600"
+                        : "bg-primary/10 text-primary"
+                    }`}>
+                      {subscription?.status === "cancelled" ? "Cancelled (Active)" : subscription?.status}
+                    </span>
+                  ),
+                },
+                {
+                  label: "Start Date",
+                  value: <span className="font-semibold">{subscription?.start_date ? format(new Date(subscription.start_date), "MMM dd, yyyy") : "—"}</span>,
+                },
+                {
+                  label: "End Date",
+                  value: <span className="font-semibold">{subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd, yyyy") : "—"}</span>,
+                },
+              ].map(({ label, value }, idx, arr) => (
+                <div key={label} className={`flex items-center justify-between px-4 py-3.5 ${idx < arr.length - 1 ? "border-b border-border/50" : ""}`}>
+                  <span className="text-sm text-muted-foreground">{label}</span>
+                  {value}
                 </div>
-                <Progress value={percentageUsed} className="h-2" />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{Math.round(percentageUsed)}% used</span>
-                  <span>{daysRemaining} days until reset</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── MANAGE TAB ── */}
+        {activeTab === "manage" && (
+          <div className="space-y-3">
+            <RolloverCreditsWidget />
+
+            {/* Freeze card */}
+            <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <Snowflake className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground text-sm">Freeze Subscription</p>
+                    <p className="text-xs text-muted-foreground">Pause deliveries temporarily</p>
+                  </div>
                 </div>
+                {freezeDays && (
+                  <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                    {freezeDays.remaining}/{freezeDays.total}d
+                  </span>
+                )}
+              </div>
+              {freezeDays && (
+                <div className="space-y-1">
+                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full"
+                      style={{ width: `${((freezeDays.total - freezeDays.remaining) / freezeDays.total) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{freezeDays.remaining} freeze days remaining this cycle</p>
+                </div>
+              )}
+              {subscription?.id && (
+                <FreezeSubscriptionModal
+                  subscriptionId={subscription.id}
+                  trigger={
+                    <Button
+                      className="w-full rounded-2xl h-11 font-semibold"
+                      disabled={!freezeDays || freezeDays.remaining === 0}
+                    >
+                      <Snowflake className="h-4 w-4 mr-2" />
+                      Schedule Freeze
+                    </Button>
+                  }
+                />
+              )}
+            </div>
+
+            {/* Cancel / Reactivate card */}
+            {subscription?.status === "cancelled" ? (
+              <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <RefreshCcw className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground text-sm">Reactivate Plan</p>
+                    <p className="text-xs text-muted-foreground">Restore your subscription benefits</p>
+                  </div>
+                </div>
+                <Button
+                  className="w-full rounded-2xl h-11 font-semibold shadow-sm shadow-primary/20"
+                  onClick={handleReactivate}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Reactivating…</>
+                  ) : (
+                    <><RefreshCcw className="h-4 w-4 mr-2" />Reactivate Subscription</>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground text-sm">Cancel Subscription</p>
+                    <p className="text-xs text-muted-foreground">Access continues until billing period ends</p>
+                  </div>
+                </div>
+                <button
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-50 active:scale-[0.98] transition-all"
+                  onClick={() => setShowCancelDialog(true)}
+                >
+                  <X className="h-4 w-4" />
+                  Cancel Subscription
+                </button>
               </div>
             )}
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-3 bg-muted rounded-lg text-center">
-                <Calendar className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-lg font-bold">{daysRemaining}</p>
-                <p className="text-xs text-muted-foreground">Days Left</p>
-              </div>
-              
-              <div className="p-3 bg-muted rounded-lg text-center">
-                <Utensils className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <p className="text-lg font-bold">{isUnlimited ? '∞' : totalMeals}</p>
-                <p className="text-xs text-muted-foreground">Monthly Meals</p>
-              </div>
+            <CancellationFlow
+              isOpen={showCancelDialog}
+              onClose={() => setShowCancelDialog(false)}
+              subscriptionId={subscription?.id || null}
+              onCancelled={async () => {
+                await refetch();
+                setShowCancelDialog(false);
+              }}
+            />
+          </div>
+        )}
 
-              {rolloverInfo && rolloverInfo.rollover_credits > 0 && (
-                <div className="p-3 bg-amber-50 rounded-lg text-center border border-amber-200">
-                  <RotateCcw className="h-5 w-5 mx-auto mb-1 text-amber-600" />
-                  <p className="text-lg font-bold text-amber-600">{rolloverInfo.rollover_credits}</p>
-                  <p className="text-xs text-amber-600">Rollover</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabs for Different Sections */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="manage">Manage</TabsTrigger>
-            <TabsTrigger value="plans">Plans</TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* Rollover Credits Widget */}
-            <RolloverCreditsWidget />
-
-            {/* Subscription Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Subscription Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground">Plan</span>
-                  <span className="font-medium capitalize">{subscription?.plan || 'Standard'}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground">Status</span>
-                  <Badge 
-                    variant={subscription?.status === 'cancelled' ? "destructive" : (hasActiveSubscription ? "default" : "secondary")} 
-                    className="capitalize"
-                  >
-                    {subscription?.status === 'cancelled' ? 'Cancelled (Active)' : subscription?.status}
-                  </Badge>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground">Start Date</span>
-                  <span className="font-medium">
-                    {subscription?.start_date ? format(new Date(subscription.start_date), 'MMM dd, yyyy') : '-'}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground">End Date</span>
-                  <span className="font-medium">
-                    {subscription?.end_date ? format(new Date(subscription.end_date), 'MMM dd, yyyy') : '-'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-          </TabsContent>
-
-          {/* Manage Tab */}
-          <TabsContent value="manage" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Controls</CardTitle>
-                <CardDescription>Manage your subscription status</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Freeze Subscription */}
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Snowflake className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium">Freeze Subscription</span>
-                    </div>
-                    {freezeDays && (
-                      <span className="text-2xl font-bold text-blue-600">
-                        {freezeDays.remaining}/{freezeDays.total}
-                      </span>
-                    )}
-                  </div>
-                  {freezeDays && (
-                    <>
-                      <Progress 
-                        value={((freezeDays.total - freezeDays.remaining) / freezeDays.total) * 100} 
-                        className="h-2 mb-2"
-                      />
-                      <p className="text-xs text-muted-foreground mb-4">
-                        {freezeDays.remaining} days remaining this cycle
-                      </p>
-                    </>
-                  )}
-                  {subscription?.id && (
-                    <FreezeSubscriptionModal 
-                      subscriptionId={subscription.id}
-                      trigger={
-                        <Button 
-                          className="w-full" 
-                          disabled={!freezeDays || freezeDays.remaining === 0}
-                        >
-                          <Snowflake className="h-4 w-4 mr-2" />
-                          Schedule Freeze
-                        </Button>
-                      }
-                    />
-                  )}
-                </div>
-
-                <Separator />
-
-                {/* Cancel / Reactivate */}
-                {subscription?.status === 'cancelled' ? (
-                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <div className="flex items-start gap-3">
-                      <RefreshCcw className="h-5 w-5 text-emerald-600 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="font-medium text-emerald-900">Reactivate Subscription</p>
-                        <p className="text-sm text-emerald-700 mt-1">
-                          Your subscription was cancelled. Reactivate to keep your plan and benefits.
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={handleReactivate}
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Reactivating...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCcw className="h-4 w-4 mr-2" />
-                          Retrieve Plan
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="font-medium text-red-900">Cancel Subscription</p>
-                        <p className="text-sm text-red-700 mt-1">
-                          Cancel anytime. You'll keep access until the end of your billing period.
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      className="w-full mt-4 border-red-300 text-red-700 hover:bg-red-100"
-                      onClick={() => setShowCancelDialog(true)}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel Subscription
-                    </Button>
-                  </div>
-                )}
-
-                {/* Cancellation Flow Component */}
-                <CancellationFlow
-                  isOpen={showCancelDialog}
-                  onClose={() => setShowCancelDialog(false)}
-                  subscriptionId={subscription?.id || null}
-                  onCancelled={async () => {
-                    await refetch();
-                    setShowCancelDialog(false);
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Plans Tab */}
-          <TabsContent value="plans" className="space-y-6">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold">Available Plans</h3>
-              <p className="text-muted-foreground">Upgrade or change your plan anytime</p>
+        {/* ── PLANS TAB ── */}
+        {activeTab === "plans" && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <h3 className="font-bold text-foreground">Available Plans</h3>
+              <p className="text-sm text-muted-foreground">Upgrade or change anytime</p>
             </div>
 
-            {/* Billing Interval Toggle */}
             <BillingIntervalToggle
               value={selectedBillingInterval}
               onChange={setSelectedBillingInterval}
               savingsPercent={17}
             />
 
-            {/* Annual Savings Info */}
             {selectedBillingInterval === "annual" && (
-              <div className="rounded-lg bg-green-50 border border-green-200 p-4">
-                <div className="flex items-center gap-2 text-green-700 font-medium mb-1">
-                  <BadgePercent className="h-5 w-5" />
-                  <span>Save 17% with Annual Billing</span>
+              <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-2xl px-4 py-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <BadgePercent className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-sm text-green-600">
-                  Pay for 10 months and get 2 months completely free. 
-                  That's a savings of up to {(pricing.vip_price * 2).toLocaleString()} QAR per year!
-                </p>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Save 17% — 2 months free</p>
+                  <p className="text-xs text-muted-foreground">Save up to {(pricing.vip_price * 2).toLocaleString()} QAR per year</p>
+                </div>
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-4">
-               {plans.map((plan) => {
+            <div className="space-y-3">
+              {plans.map((plan) => {
                 const Icon = plan.icon;
                 const isCurrentPlan = subscription?.tier === plan.tier;
-                
-                // Define tier order for comparison
-                const tierOrder = { 'basic': 1, 'standard': 2, 'premium': 3, 'vip': 4 };
-                const currentTier = subscription?.tier || 'basic';
+                const currentTier = subscription?.tier || "basic";
                 const currentTierRank = tierOrder[currentTier as keyof typeof tierOrder] || 1;
                 const planTierRank = tierOrder[plan.tier];
-                
-                let buttonText = 'Upgrade';
-                let buttonVariant: "default" | "outline" | "secondary" = "outline";
-                
-                if (isCurrentPlan) {
-                  buttonText = 'Current Plan';
-                  buttonVariant = "secondary";
-                } else if (planTierRank < currentTierRank) {
-                  buttonText = 'Downgrade';
-                  buttonVariant = "outline";
-                } else if (planTierRank > currentTierRank) {
-                  buttonText = 'Upgrade';
-                  buttonVariant = "default";
-                }
-                
+
+                let buttonText = "Upgrade";
+                let isPrimary = true;
+                if (isCurrentPlan) { buttonText = "Current Plan"; isPrimary = false; }
+                else if (planTierRank < currentTierRank) { buttonText = "Downgrade"; isPrimary = false; }
+
                 return (
-                  <Card 
-                    key={plan.id} 
-                    className={`${isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                  <div
+                    key={plan.id}
+                    className={`bg-card/95 rounded-3xl border shadow-md p-4 transition-all ${
+                      isCurrentPlan ? "border-primary ring-1 ring-primary/20 shadow-primary/10" : "border-border/70"
+                    }`}
                   >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${plan.color} flex items-center justify-center`}>
-                            <Icon className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg">{plan.name}</CardTitle>
-                            <CardDescription>{plan.mealsPerMonth === 0 ? 'Unlimited' : `${plan.mealsPerMonth} meals/month`}</CardDescription>
-                          </div>
-                        </div>
-                        {isCurrentPlan && (
-                          <Badge>Current</Badge>
-                        )}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${plan.color} flex items-center justify-center shadow-sm`}>
+                        <Icon className="h-5 w-5 text-white" />
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold">{formatCurrency(plan.price)}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
-                    </CardContent>
-                    <CardFooter>
-                      <Button 
-                        variant={buttonVariant} 
-                        className="w-full"
-                        disabled={isCurrentPlan}
-                        onClick={() => {
-                          setSelectedPlan(plan);
-                          setShowUpgradeDialog(true);
-                        }}
-                      >
-                        {buttonText}
-                      </Button>
-                    </CardFooter>
-                  </Card>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-foreground">{plan.name}</h3>
+                          {isCurrentPlan && (
+                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Current</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{plan.mealsPerMonth === 0 ? "Unlimited meals" : `${plan.mealsPerMonth} meals / month`}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-foreground">{formatCurrency(plan.price)}</p>
+                        <p className="text-xs text-muted-foreground">/{plan.period}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant={isPrimary ? "default" : "outline"}
+                      className="w-full rounded-2xl h-11 font-semibold"
+                      disabled={isCurrentPlan}
+                      onClick={() => { setSelectedPlan(plan); setShowUpgradeDialog(true); }}
+                    >
+                      {buttonText}
+                    </Button>
+                  </div>
                 );
               })}
             </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+          </div>
+        )}
+      </div>
 
-      {/* Upgrade/Downgrade Dialog */}
+      {/* Change-plan dialog — kept as-is */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>
             <DialogTitle>
               {(() => {
-                if (!selectedPlan || !subscription) return 'Change Plan';
-                const tierOrder = { 'basic': 1, 'standard': 2, 'premium': 3, 'vip': 4 };
+                if (!selectedPlan || !subscription) return "Change Plan";
                 const currentRank = tierOrder[subscription.tier as keyof typeof tierOrder] || 1;
                 const selectedRank = tierOrder[selectedPlan.tier];
-                return selectedRank > currentRank ? 'Upgrade Subscription' : 'Downgrade Subscription';
+                return selectedRank > currentRank ? "Upgrade Subscription" : "Downgrade Subscription";
               })()}
             </DialogTitle>
             <DialogDescription>
               {selectedPlan ? (() => {
-                const tierOrder = { 'basic': 1, 'standard': 2, 'premium': 3, 'vip': 4 };
                 const currentRank = tierOrder[subscription?.tier as keyof typeof tierOrder] || 1;
                 const selectedRank = tierOrder[selectedPlan.tier];
-                const action = selectedRank > currentRank ? 'Upgrade' : 'Downgrade';
-                return `${action} to ${selectedPlan.name} plan`;
-              })() : 'Select a plan to change'}
+                return `${selectedRank > currentRank ? "Upgrade" : "Downgrade"} to ${selectedPlan.name} plan`;
+              })() : "Select a plan to change"}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedPlan && (
-            <div className="bg-muted rounded-lg p-4 mb-4 space-y-3">
+            <div className="bg-muted rounded-2xl p-4 space-y-3">
               <div className="flex justify-between items-center">
-                <span className="font-medium">{selectedPlan.name} Plan</span>
+                <span className="font-semibold">{selectedPlan.name} Plan</span>
                 <span className="font-bold">{formatCurrency(selectedPlan.price)}/{selectedPlan.period}</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 {selectedPlan.mealsPerMonth === 0 ? "Unlimited meals" : `${selectedPlan.mealsPerMonth} meals per month`}
               </p>
-              
-              {/* Billing Interval Display */}
-              <div className="pt-2 border-t">
+              <div className="pt-2 border-t border-border/50">
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Billing:</span>
-                  <span className="font-medium capitalize">{selectedBillingInterval}</span>
+                  <span className="font-semibold capitalize">{selectedBillingInterval}</span>
                   {selectedBillingInterval === "annual" && (
-                    <span className="text-green-600 text-xs font-medium">(Save 17%)</span>
+                    <span className="text-primary text-xs font-semibold">(Save 17%)</span>
                   )}
                 </div>
                 {selectedBillingInterval === "annual" && (
-                  <div className="mt-2 text-xs text-green-600 bg-green-50 p-2 rounded">
-                    Pay for 10 months, get 2 months free! 
-                    Save {(selectedPlan.price * 0.17).toFixed(0)} QAR per year.
+                  <div className="mt-2 text-xs text-primary bg-primary/5 border border-primary/15 p-2 rounded-xl">
+                    Pay for 10 months, get 2 months free — save {(selectedPlan.price * 0.17).toFixed(0)} QAR/yr.
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          <Alert>
+          <Alert className="rounded-2xl">
             <Clock className="h-4 w-4" />
             <AlertDescription>
-              Your plan change will take effect on your next billing cycle. 
-              {selectedBillingInterval === "annual" 
-                ? " Annual subscriptions are billed once per year with 2 months free." 
-                : " You'll be charged the new rate starting then."}
+              Your plan change takes effect on the next billing cycle.
+              {selectedBillingInterval === "annual"
+                ? " Annual billing gives you 2 months free."
+                : " You'll be charged the new rate from then."}
             </AlertDescription>
           </Alert>
 
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setShowUpgradeDialog(false)}>
+          <DialogFooter className="mt-2 gap-2">
+            <Button variant="outline" className="rounded-2xl" onClick={() => setShowUpgradeDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpgrade} disabled={isProcessing || !selectedPlan}>
+            <Button className="rounded-2xl" onClick={handleUpgrade} disabled={isProcessing || !selectedPlan}>
               {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Processing...
-                </>
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing…</>
               ) : (
                 (() => {
-                  if (!selectedPlan || !subscription) return 'Confirm';
-                  const tierOrder = { 'basic': 1, 'standard': 2, 'premium': 3, 'vip': 4 };
+                  if (!selectedPlan || !subscription) return "Confirm";
                   const currentRank = tierOrder[subscription.tier as keyof typeof tierOrder] || 1;
                   const selectedRank = tierOrder[selectedPlan.tier];
-                  return selectedRank > currentRank ? 'Confirm Upgrade' : 'Confirm Downgrade';
+                  return selectedRank > currentRank ? "Confirm Upgrade" : "Confirm Downgrade";
                 })()
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { ProgressRings } from "@/components/progress/ProgressRings";
 import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
 import { professionalWeeklyReportPDF, WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
+import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
 
 // Hooks
 import { useWeeklySummary } from "@/hooks/useWeeklySummary";
@@ -67,7 +68,7 @@ const ProgressNative = () => {
   const { latestMeasurement } = useBodyMeasurements(user?.id);
   const { activeGoal, milestones } = useNutritionGoals(user?.id);
   const { averageScore } = useMealQuality(user?.id);
-  const { recommendations } = useSmartRecommendations(user?.id);
+  const { recommendations, refresh: refreshRecommendations } = useSmartRecommendations(user?.id);
 
   // Get today's nutrition data
   const today = new Date().toISOString().split('T')[0];
@@ -261,7 +262,26 @@ const ProgressNative = () => {
         },
       };
 
-      professionalWeeklyReportPDF.download(reportData);
+      // Generate meal plan and load images for PDF
+      const mealPlan = await generateWeeklyMealPlan(dailyCalorieTarget, dailyProteinTarget);
+      const mealImages = await loadMealPlanImages(mealPlan);
+      const mealPlanWithEmbeddedImages = mealPlan.map((day) => {
+        const embed = (meal: typeof day.breakfast) =>
+          meal
+            ? { ...meal, image_url: mealImages.get(meal.id) || meal.image_url }
+            : meal;
+        return {
+          ...day,
+          breakfast: embed(day.breakfast),
+          lunch: embed(day.lunch),
+          dinner: embed(day.dinner),
+          snack: embed(day.snack),
+        };
+      });
+      reportData.mealPlan = mealPlanWithEmbeddedImages;
+      reportData.mealImages = mealImages;
+
+      await professionalWeeklyReportPDF.download(reportData);
       toast({ title: "Report downloaded!", description: "Your weekly progress report has been saved." });
     } catch (error) {
       console.error("Error generating report:", error);
@@ -645,6 +665,7 @@ return (
             dailyData={dailyData}
             onDownload={handleDownloadReport}
             generatingReport={generatingReport}
+            onRefreshRecommendations={refreshRecommendations}
           />
         )}
 

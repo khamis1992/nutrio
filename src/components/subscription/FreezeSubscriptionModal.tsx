@@ -5,13 +5,10 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Pause, Calendar as CalendarIcon, Info, Snowflake, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -136,118 +133,136 @@ export function FreezeSubscriptionModal({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[400px] max-h-[95vh] p-0">
+      <DialogContent className="sm:max-w-[400px] max-h-[95vh] p-0 overflow-hidden rounded-2xl gap-0">
         <div className="flex flex-col h-full max-h-[95vh]">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Snowflake className="h-5 w-5 text-blue-600" />
-              Freeze Your Subscription
-            </DialogTitle>
-            <DialogDescription className="text-sm sm:text-base">
-              Pause your subscription for up to {daysRemaining} days.
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            {!canFreeze ? (
-              <Alert variant="destructive">
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  You have used all 7 freeze days for this billing cycle. 
-                  Freeze days reset at the start of your next cycle.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <div className="space-y-6">
-                {/* Freeze days info */}
-                <div className="flex items-center justify-between p-3 sm:p-4 bg-muted rounded-lg">
-                  <span className="text-sm font-medium">Freeze Days Available</span>
-                  <span className="text-xl sm:text-2xl font-bold text-blue-600">{daysRemaining} / 7</span>
-                </div>
-
-                {/* Step indicator */}
-                <div className="flex items-center gap-2 text-sm">
-                  <div className={`h-2 w-2 rounded-full ${step === "start" ? "bg-primary" : "bg-primary"}`} />
-                  <span className={step === "start" ? "font-medium" : "text-muted-foreground"}>
-                    {step === "start" ? "Step 1: Select Start Date" : "Step 2: Select End Date"}
-                  </span>
-                </div>
-
-                {/* Selected dates summary */}
-                {(startDate || endDate) && (
-                  <div className="p-3 bg-blue-50 rounded-lg space-y-1">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700">
-                        {startDate && endDate 
-                          ? `Freezing for ${freezeDaysSelected} days`
-                          : "Selected dates:"}
-                      </span>
-                    </div>
-                    <div className="text-xs text-blue-600 pl-6 space-y-0.5">
-                      {startDate && <p>Start: {format(startDate, "MMM dd, yyyy")}</p>}
-                      {endDate && <p>End: {format(endDate, "MMM dd, yyyy")}</p>}
-                    </div>
-                    {(startDate || endDate) && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleReset}
-                        className="mt-2 h-7 text-xs"
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" />
-                        Reset dates
-                      </Button>
-                    )}
+          {/* Native-style hero header */}
+          <div className="relative bg-gradient-to-br from-primary to-accent px-6 pt-8 pb-6 text-white">
+            <DialogTitle className="sr-only">Freeze Your Subscription</DialogTitle>
+            <DialogDescription className="sr-only">Pause your subscription for up to {daysRemaining} days.</DialogDescription>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="bg-white/20 rounded-full p-1.5">
+                    <Snowflake className="h-4 w-4 text-white" />
                   </div>
-                )}
-
-                {/* Single Calendar */}
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base">
-                    {step === "start" ? "Select Start Date" : "Select End Date"}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {step === "start" 
-                      ? "Choose when to pause your subscription"
-                      : `Choose end date (up to ${daysRemaining} days)`}
-                  </p>
-                  <div className="border rounded-lg p-2 sm:p-3 bg-background">
-                    <Calendar
-                      mode="single"
-                      selected={step === "start" ? startDate : endDate}
-                      onSelect={handleDateSelect}
-                      disabled={isDateDisabled}
-                      className="mx-auto"
-                    />
-                  </div>
+                  <span className="text-white/80 text-xs font-medium uppercase tracking-widest">Subscription</span>
                 </div>
+                <h2 className="text-xl font-bold text-white mt-2">Freeze Your Plan</h2>
+                <p className="text-white/70 text-sm mt-0.5">Pause delivery for up to 7 days</p>
+              </div>
+              {/* Days pill */}
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-3 py-2 text-center border border-white/20">
+                <span className="text-2xl font-bold text-white">{daysRemaining}</span>
+                <p className="text-white/70 text-[10px] font-medium leading-tight">days<br/>left</p>
+              </div>
+            </div>
 
-                {/* Validation messages */}
-                {startDate && !endDate && step === "end" && (
-                  <Alert className="bg-muted border-muted-foreground/20">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      Now select your end date to complete the freeze request.
-                    </AlertDescription>
-                  </Alert>
-                )}
+            {/* Step pills */}
+            {canFreeze && (
+              <div className="flex gap-2 mt-4">
+                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                  step === "start"
+                    ? "bg-white text-primary"
+                    : "bg-white/20 text-white"
+                }`}>
+                  <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    step !== "start" ? "bg-white text-primary" : "bg-primary/10 text-primary"
+                  }`}>1</span>
+                  Start
+                </div>
+                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                  step === "end"
+                    ? "bg-white text-primary"
+                    : "bg-white/20 text-white"
+                }`}>
+                  <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    step === "end" ? "bg-primary/10 text-primary" : "bg-white/20 text-white"
+                  }`}>2</span>
+                  End
+                </div>
               </div>
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t flex-col sm:flex-row gap-2 sm:gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setOpen(false)}
-              className="w-full sm:w-auto"
-            >
-              Cancel
-            </Button>
-            <Button 
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {!canFreeze ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <div className="bg-destructive/10 rounded-full p-4">
+                  <Info className="h-6 w-6 text-destructive" />
+                </div>
+                <p className="font-semibold text-foreground">No Freeze Days Left</p>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px]">
+                  You've used all 7 freeze days this billing cycle. They reset at your next renewal.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Selected date summary card */}
+                {(startDate || endDate) && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 rounded-lg p-2">
+                        <CalendarIcon className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        {startDate && (
+                          <p className="text-xs text-muted-foreground">
+                            Start: <span className="font-semibold text-foreground">{format(startDate, "MMM dd")}</span>
+                          </p>
+                        )}
+                        {endDate && (
+                          <p className="text-xs text-muted-foreground">
+                            End: <span className="font-semibold text-foreground">{format(endDate, "MMM dd")}</span>
+                            <span className="ml-1.5 text-primary font-semibold">· {freezeDaysSelected}d</span>
+                          </p>
+                        )}
+                        {!endDate && startDate && (
+                          <p className="text-xs text-primary font-medium">Now pick an end date</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleReset}
+                      className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-muted"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Calendar label */}
+                <div>
+                  <Label className="text-sm font-semibold text-foreground">
+                    {step === "start" ? "When should it start?" : "When should it end?"}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {step === "start"
+                      ? "Tap a date to begin your freeze"
+                      : `Pick an end date — max ${daysRemaining} days`}
+                  </p>
+                </div>
+
+                {/* Calendar */}
+                <div className="rounded-xl border border-border bg-background overflow-hidden">
+                  <Calendar
+                    mode="single"
+                    selected={step === "start" ? startDate : endDate}
+                    onSelect={handleDateSelect}
+                    disabled={isDateDisabled}
+                    className="mx-auto"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Native-style bottom action bar */}
+          <div className="px-5 pb-5 pt-3 border-t border-border space-y-2.5">
+            <Button
               onClick={handleSubmit}
               disabled={!isValid || isPending}
-              className="w-full sm:w-auto"
+              className="w-full h-12 rounded-xl text-sm font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white border-0 shadow-md shadow-primary/20"
             >
               {isPending ? (
                 <>
@@ -261,7 +276,15 @@ export function FreezeSubscriptionModal({
                 </>
               )}
             </Button>
-          </DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setOpen(false)}
+              className="w-full h-10 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </Button>
+          </div>
+
         </div>
       </DialogContent>
     </Dialog>

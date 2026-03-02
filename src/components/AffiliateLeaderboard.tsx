@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Trophy, Medal, Users, TrendingUp, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
@@ -19,6 +18,7 @@ interface LeaderboardEntry {
 
 export function AffiliateLeaderboard() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<"earnings" | "referrals">("earnings");
   const [topEarners, setTopEarners] = useState<LeaderboardEntry[]>([]);
   const [topReferrers, setTopReferrers] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,26 +197,31 @@ export function AffiliateLeaderboard() {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="earnings" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="earnings" className="text-xs">
-              <TrendingUp className="w-3 h-3 mr-1" />
-              Top Earners
-            </TabsTrigger>
-            <TabsTrigger value="referrals" className="text-xs">
-              <Users className="w-3 h-3 mr-1" />
-              Top Referrers
-            </TabsTrigger>
-          </TabsList>
+        <div className="w-full">
+          {/* iOS-style segment tabs */}
+          <div className="bg-muted rounded-2xl p-1 flex gap-1 mb-4">
+            {([
+              { id: "earnings", label: "Top Earners", icon: TrendingUp },
+              { id: "referrals", label: "Top Referrers", icon: Users },
+            ] as const).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === id
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
 
-          <TabsContent value="earnings" className="mt-0">
-            {renderLeaderboardList(topEarners, 'earnings')}
-          </TabsContent>
-
-          <TabsContent value="referrals" className="mt-0">
-            {renderLeaderboardList(topReferrers, 'referrals')}
-          </TabsContent>
-        </Tabs>
+          {activeTab === "earnings" && renderLeaderboardList(topEarners, "earnings")}
+          {activeTab === "referrals" && renderLeaderboardList(topReferrers, "referrals")}
+        </div>
       </CardContent>
     </Card>
   );
