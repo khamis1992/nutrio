@@ -594,9 +594,9 @@ export const initializeNativeApp = async () => {
   if (!isNative) return;
 
   try {
-    // Set status bar style
+    // Set status bar style — do NOT overlay so content stays below the status bar
     await statusBar.setStyle(Style.Light);
-    await statusBar.setOverlaysWebView(true);
+    await statusBar.setOverlaysWebView(false);
 
     // Hide splash screen after a delay
     setTimeout(() => {
