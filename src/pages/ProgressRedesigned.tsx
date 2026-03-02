@@ -37,8 +37,8 @@ import {
 import { format, subDays } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { cn } from "@/lib/utils";
-import { professionalWeeklyReportPDF } from "@/lib/professional-weekly-report-pdf";
 import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
+import { nutrioReportPDF } from "@/lib/nutrio-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
 
 // Hooks
@@ -381,7 +381,7 @@ const ProgressDashboard = () => {
         mealImages,
       };
 
-      await professionalWeeklyReportPDF.download(reportData);
+      await nutrioReportPDF.download(reportData);
       toast({ title: "Report downloaded!", description: "Your Nutrition Performance & Habit Intelligence report has been saved." });
     } catch (error) {
       console.error("Error generating report:", error);

@@ -26,7 +26,8 @@ import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { cn } from "@/lib/utils";
 import { ProgressRings } from "@/components/progress/ProgressRings";
 import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
-import { professionalWeeklyReportPDF, WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
+import { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
+import { nutrioReportPDF } from "@/lib/nutrio-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
 
 // Hooks
@@ -281,7 +282,7 @@ const ProgressNative = () => {
       reportData.mealPlan = mealPlanWithEmbeddedImages;
       reportData.mealImages = mealImages;
 
-      await professionalWeeklyReportPDF.download(reportData);
+      await nutrioReportPDF.download(reportData);
       toast({ title: "Report downloaded!", description: "Your weekly progress report has been saved." });
     } catch (error) {
       console.error("Error generating report:", error);
