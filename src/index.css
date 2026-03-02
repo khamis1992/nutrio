@@ -192,6 +192,11 @@
     z-index: 10;
   }
 
+  /* Safe area padding for fixed bottom navigation bars */
+  .safe-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   .shadow-card {
     box-shadow: var(--shadow-md);
   }
