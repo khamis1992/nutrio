@@ -145,23 +145,13 @@ export function useAffiliateProgram() {
 
       if (payoutsError) throw payoutsError;
 
-      // Fetch referral network (tier 1)
-      const { data: tier1Data, error: tier1Error } = await supabase
-        .from("profiles")
-        .select("id, full_name, created_at, user_id")
-        .eq("tier1_referrer_id", user.id);
+      // Fetch referral network using RPC to bypass RLS
+      const { data: networkData, error: networkError } = await supabase
+        .rpc('get_affiliate_network', { p_referrer_id: user.id });
 
-      // Fetch referral network (tier 2)
-      const { data: tier2Data, error: tier2Error } = await supabase
-        .from("profiles")
-        .select("id, full_name, created_at, user_id")
-        .eq("tier2_referrer_id", user.id);
-
-      // Fetch referral network (tier 3)
-      const { data: tier3Data, error: tier3Error } = await supabase
-        .from("profiles")
-        .select("id, full_name, created_at, user_id")
-        .eq("tier3_referrer_id", user.id);
+      if (networkError) {
+        console.error("Error fetching network:", networkError);
+      }
 
       // Calculate stats
       const pendingCommissions = commissionsData?.filter(c => c.status === "pending") || [];
@@ -171,21 +161,28 @@ export function useAffiliateProgram() {
       const availableBalance = Number(profileData?.affiliate_balance || 0);
 
       // Build network
-      const networkMembers: NetworkMember[] = [
-        ...(tier1Data || []).map(m => ({ ...m, tier: 1, total_orders: 0 })),
-        ...(tier2Data || []).map(m => ({ ...m, tier: 2, total_orders: 0 })),
-        ...(tier3Data || []).map(m => ({ ...m, tier: 3, total_orders: 0 })),
-      ];
+      const networkMembers: NetworkMember[] = (networkData || []).map(m => ({ 
+        id: m.user_id,
+        full_name: m.full_name,
+        created_at: m.created_at,
+        tier: m.tier,
+        total_orders: 0 
+      }));
+
+      // Count referrals by tier
+      const tier1Count = networkMembers.filter(m => m.tier === 1).length;
+      const tier2Count = networkMembers.filter(m => m.tier === 2).length;
+      const tier3Count = networkMembers.filter(m => m.tier === 3).length;
 
       setStats({
         totalEarnings: Number(profileData?.total_affiliate_earnings || 0),
         pendingBalance,
         availableBalance,
-        tier1Referrals: tier1Data?.length || 0,
-        tier2Referrals: tier2Data?.length || 0,
-        tier3Referrals: tier3Data?.length || 0,
+        tier1Referrals: tier1Count,
+        tier2Referrals: tier2Count,
+        tier3Referrals: tier3Count,
         currentTier: profileData?.affiliate_tier || "bronze",
-        totalReferrals: (tier1Data?.length || 0) + (tier2Data?.length || 0) + (tier3Data?.length || 0),
+        totalReferrals: networkMembers.length,
       });
 
       setCommissions(commissionsData || []);
