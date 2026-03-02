@@ -21,7 +21,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION credit_driver_wallet_from_jobs IS 
+COMMENT ON credit_driver_wallet_from_jobs IS 
 'Credits driver wallet_balance when a delivery_job is marked as delivered';
 
 -- Apply trigger to delivery_jobs table
@@ -32,7 +32,7 @@ CREATE TRIGGER trg_credit_driver_wallet
   EXECUTE FUNCTION credit_driver_wallet_from_jobs();
 
 -- Grant permissions
-GRANT EXECUTE ON FUNCTION credit_driver_wallet_from_jobs TO authenticated;
+GRANT EXECUTE ON credit_driver_wallet_from_jobs TO authenticated;
 
 -- Update existing delivered jobs to sync wallet balances (optional - run manually if needed)
 -- This recalculates wallet_balance for all drivers based on completed delivery_jobs
@@ -55,3 +55,4 @@ SET
 */
 
 SELECT 'Trigger created successfully' as status;
+

@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   RotateCcw,
   Gift,
-  Sparkles,
   History,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -48,7 +47,7 @@ const transactionConfig: Record<
     label: "Bonus",
   },
   cashback: {
-    icon: Sparkles,
+    icon: Gift,
     color: "text-amber-600",
     bgColor: "bg-amber-100",
     label: "Cashback",

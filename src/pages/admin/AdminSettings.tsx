@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2, Sparkles, Truck, Crown, Users, Bike, MapPin, Store } from "lucide-react";
+import { Settings, DollarSign, Bell, Zap, Save, Loader2, Truck, Crown, Users, Bike, MapPin, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -498,7 +498,6 @@ export default function AdminSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
                 Featured Listing Pricing
               </CardTitle>
               <CardDescription>Configure prices for restaurant boost packages</CardDescription>

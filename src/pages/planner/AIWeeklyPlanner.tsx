@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Sparkles, 
   RotateCcw,
   Check,
   Info,
@@ -276,7 +275,6 @@ export default function AIWeeklyPlanner() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-8 h-8 text-emerald-500" />
               AI Weekly Meal Planner
             </h1>
             <p className="text-slate-600 mt-1">
@@ -315,9 +313,6 @@ export default function AIWeeklyPlanner() {
       {!weeklyPlan ? (
         // No plan state
         <Card className="p-12 text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-100 flex items-center justify-center">
-            <Sparkles className="w-10 h-10 text-emerald-600" />
-          </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
             No Meal Plan Yet
           </h2>
@@ -338,7 +333,6 @@ export default function AIWeeklyPlanner() {
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 mr-2" />
                 Generate AI Meal Plan
               </>
             )}
@@ -471,7 +465,6 @@ export default function AIWeeklyPlanner() {
 
                           {item.is_ai_suggested && !item.user_swapped && (
                             <Badge className="mt-2 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                              <Sparkles className="w-3 h-3 mr-1" />
                               AI Pick
                             </Badge>
                           )}

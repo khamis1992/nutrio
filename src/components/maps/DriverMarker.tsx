@@ -1,7 +1,6 @@
 import { Marker, Popup } from "react-leaflet";
 import L from "leaflet";
-import { Car, Navigation } from "lucide-react";
-import { renderToString } from "react-dom/server";
+import { Navigation } from "lucide-react";
 
 interface DriverMarkerProps {
   position: { lat: number; lng: number };
@@ -11,50 +10,112 @@ interface DriverMarkerProps {
   eta?: string;
 }
 
-// Create custom driver icon with rotation
+// Delivery scooter SVG — clean top-down view
+const SCOOTER_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36">
+  <!-- Body -->
+  <rect x="22" y="18" width="20" height="28" rx="6" fill="#16a34a"/>
+  <!-- Windshield -->
+  <rect x="26" y="20" width="12" height="8" rx="3" fill="#bbf7d0" opacity="0.9"/>
+  <!-- Front wheel -->
+  <ellipse cx="32" cy="10" rx="5" ry="7" fill="#15803d"/>
+  <ellipse cx="32" cy="10" rx="2.5" ry="4" fill="#4ade80"/>
+  <!-- Rear wheel -->
+  <ellipse cx="32" cy="54" rx="5" ry="7" fill="#15803d"/>
+  <ellipse cx="32" cy="54" rx="2.5" ry="4" fill="#4ade80"/>
+  <!-- Handlebars -->
+  <rect x="16" y="14" width="10" height="3" rx="1.5" fill="#15803d"/>
+  <rect x="38" y="14" width="10" height="3" rx="1.5" fill="#15803d"/>
+  <!-- Headlight -->
+  <ellipse cx="32" cy="6" rx="3" ry="2" fill="#fef08a" opacity="0.95"/>
+  <!-- Bag/box on back -->
+  <rect x="24" y="36" width="16" height="10" rx="3" fill="#166534"/>
+  <rect x="26" y="38" width="12" height="6" rx="2" fill="#4ade80" opacity="0.5"/>
+</svg>`;
+
 function createDriverIcon(heading: number = 0) {
-  const iconHtml = renderToString(
-    <div
-      style={{
-        transform: `rotate(${heading}deg)`,
-        transition: "transform 0.3s ease-out",
-      }}
-    >
-      <Car className="w-8 h-8 text-primary fill-primary" />
-    </div>
-  );
+  const html = `
+    <div style="
+      position:relative;
+      width:52px; height:52px;
+      display:flex; align-items:center; justify-content:center;
+    ">
+      <!-- Outer glow ring -->
+      <div style="
+        position:absolute; inset:0;
+        background:rgba(22,163,74,0.18);
+        border-radius:50%;
+        border:2px solid rgba(22,163,74,0.35);
+      "></div>
+      <!-- White pill badge -->
+      <div style="
+        position:relative; z-index:1;
+        background:#fff;
+        border-radius:50%;
+        width:40px; height:40px;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 3px 12px rgba(0,0,0,0.22), 0 0 0 2px #16a34a;
+        transform:rotate(${heading}deg);
+        transition:transform 0.3s ease-out;
+      ">
+        ${SCOOTER_SVG}
+      </div>
+    </div>`;
 
   return L.divIcon({
-    html: iconHtml,
-    className: "custom-driver-marker",
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    html,
+    className: "",
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
+    popupAnchor: [0, -28],
   });
 }
 
-// Create pulse effect icon
 function createPulseIcon(heading: number = 0) {
-  const iconHtml = `
-    <div class="relative">
-      <div class="absolute inset-0 bg-primary/30 rounded-full animate-ping"></div>
-      <div class="absolute inset-2 bg-primary/50 rounded-full animate-pulse"></div>
-      <div class="relative z-10" style="transform: rotate(${heading}deg); transition: transform 0.3s ease-out;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary fill-primary">
-          <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
-          <circle cx="7" cy="17" r="2"/>
-          <circle cx="17" cy="17" r="2"/>
-        </svg>
+  const html = `
+    <style>
+      @keyframes drv-ping {
+        0%   { transform:scale(1);   opacity:.6; }
+        70%  { transform:scale(1.8); opacity:0; }
+        100% { transform:scale(1.8); opacity:0; }
+      }
+      .drv-ping { animation: drv-ping 1.6s ease-out infinite; }
+    </style>
+    <div style="position:relative; width:60px; height:60px; display:flex; align-items:center; justify-content:center;">
+      <!-- Animated ping ring -->
+      <div class="drv-ping" style="
+        position:absolute; inset:0;
+        background:rgba(74,222,128,0.4);
+        border-radius:50%;
+      "></div>
+      <!-- Static halo -->
+      <div style="
+        position:absolute; inset:4px;
+        background:rgba(22,163,74,0.15);
+        border-radius:50%;
+        border:2px solid rgba(22,163,74,0.4);
+      "></div>
+      <!-- White badge -->
+      <div style="
+        position:relative; z-index:1;
+        background:#fff;
+        border-radius:50%;
+        width:44px; height:44px;
+        display:flex; align-items:center; justify-content:center;
+        box-shadow:0 4px 16px rgba(0,0,0,0.25), 0 0 0 2.5px #16a34a;
+        transform:rotate(${heading}deg);
+        transition:transform 0.3s ease-out;
+      ">
+        ${SCOOTER_SVG}
       </div>
-    </div>
-  `;
+    </div>`;
 
   return L.divIcon({
-    html: iconHtml,
-    className: "custom-pulse-marker",
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-    popupAnchor: [0, -24],
+    html,
+    className: "",
+    iconSize: [60, 60],
+    iconAnchor: [30, 30],
+    popupAnchor: [0, -32],
   });
 }
 

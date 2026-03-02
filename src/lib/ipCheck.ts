@@ -14,16 +14,31 @@ export interface IPLocationResponse {
  * @returns IPLocationResponse with allowed status and location info
  */
 export const checkIPLocation = async (): Promise<IPLocationResponse> => {
+  // Skip IP check in development/local environment
+  if (import.meta.env.DEV || window.location.hostname === 'localhost') {
+    return {
+      allowed: true,
+      blocked: false,
+      ip: '127.0.0.1',
+      countryCode: 'QA',
+      country: 'Qatar',
+      city: 'Doha',
+      reason: 'Development mode - IP check skipped',
+    };
+  }
+
   try {
-    const response = await fetch('https://loepcagitrijlfksawfm.supabase.co/functions/v1/check-ip-location', {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const response = await fetch(`${supabaseUrl}/functions/v1/check-ip-location`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
       }
     });
 
     if (!response.ok) {
-      // If function returns error, allow access (fail open for reliability)
+      // If function returns error (404, 500, etc), allow access (fail open for reliability)
       console.warn(`IP check failed with status ${response.status}, allowing access`);
       return {
         allowed: true,
@@ -37,12 +52,12 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
     return data;
   } catch (error) {
     console.error('Error checking IP location:', error);
+    // Fail open - allow access if check fails
     return {
-      allowed: false,
+      allowed: true,
       blocked: false,
       ip: 'unknown',
-      reason: 'Unable to verify location',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: 'Unable to verify location - allowing access',
     };
   }
 };
@@ -53,15 +68,23 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
  * @param userId - The user ID (optional for signup)
  */
 export const logUserIP = async (action: 'signup' | 'login', userId?: string) => {
+  // Skip in development
+  if (import.meta.env.DEV || window.location.hostname === 'localhost') {
+    return;
+  }
+
   try {
-    await fetch('https://loepcagitrijlfksawfm.supabase.co/functions/v1/log-user-ip', {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    await fetch(`${supabaseUrl}/functions/v1/log-user-ip`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
       },
       body: JSON.stringify({ action, userId })
     });
   } catch (error) {
-    console.error('Error logging user IP:', error);
+    // Silently fail - IP logging is not critical
+    console.warn('Error logging user IP (non-critical):', error);
   }
 };

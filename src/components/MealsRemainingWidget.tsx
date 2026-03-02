@@ -1,4 +1,4 @@
-import { Crown, Utensils, AlertCircle, Sparkles } from "lucide-react";
+import { Crown, Utensils, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -252,8 +252,7 @@ export function MealsRemainingWidget({
         )}
 
         {isUnlimited && (
-          <div className="mt-4 p-3 rounded-lg bg-violet-500/10 text-violet-700 text-sm flex items-start gap-2">
-            <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="mt-4 p-3 rounded-lg bg-violet-500/10 text-violet-700 text-sm">
             <span>Enjoy unlimited meals with your VIP subscription! No restrictions, order whenever you want.</span>
           </div>
         )}

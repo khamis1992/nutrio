@@ -40,8 +40,7 @@ import {
   Package, 
   Library,
   Check,
-  Copy,
-  Sparkles
+  Copy
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -423,7 +422,6 @@ export function MealAddonsManager({ mealId, mealName, restaurantId, open, onOpen
                     size="sm" 
                     onClick={() => setTemplateDialogOpen(true)}
                   >
-                    <Sparkles className="h-4 w-4 mr-2" />
                     Templates
                   </Button>
                   <Button onClick={openAddDialog} size="sm">
@@ -444,7 +442,6 @@ export function MealAddonsManager({ mealId, mealName, restaurantId, open, onOpen
                     <p className="text-muted-foreground mb-3">Your library is empty</p>
                     <div className="flex gap-2 justify-center">
                       <Button onClick={() => setTemplateDialogOpen(true)} variant="outline" size="sm">
-                        <Sparkles className="h-4 w-4 mr-2" />
                         Use Template
                       </Button>
                       <Button onClick={openAddDialog} size="sm">
@@ -614,7 +611,6 @@ export function MealAddonsManager({ mealId, mealName, restaurantId, open, onOpen
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
               Quick Add from Templates
             </DialogTitle>
           </DialogHeader>

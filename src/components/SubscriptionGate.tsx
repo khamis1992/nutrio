@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles, ArrowRight, X } from "lucide-react";
+import { Check, ArrowRight, X } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +75,6 @@ export function SubscriptionGate({
           </Button>
         )}
         <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Sparkles className="h-6 w-6 text-primary" />
         </div>
         <CardTitle className="text-xl">{props.title}</CardTitle>
         <CardDescription>{props.description}</CardDescription>

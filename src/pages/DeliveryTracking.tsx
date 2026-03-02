@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, isToday, isTomorrow, addMinutes } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { 
   ArrowLeft, 
   Package, 
@@ -20,11 +21,17 @@ import {
   Phone,
   RefreshCw,
   ExternalLink,
+  ChevronRight,
+  Check,
+  Utensils,
 } from "lucide-react";
+import flameLogo from "@/assets/flam.png";
 
 // Import map components directly to avoid StrictMode issues with lazy loading
 import MapContainer from "@/components/maps/MapContainer";
 import DriverMarker from "@/components/maps/DriverMarker";
+import { Marker, Polyline, useMap } from "react-leaflet";
+import L from "leaflet";
 
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "out_for_delivery" | "delivered" | "completed" | "cancelled";
 
@@ -56,6 +63,8 @@ interface DeliveryJob {
   status: string | null;
   picked_up_at: string | null;
   delivered_at: string | null;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   driver?: {
     current_lat: number | null;
     current_lng: number | null;
@@ -76,69 +85,91 @@ interface ActiveOrder {
   delivery_job?: DeliveryJob | null;
 }
 
-const statusSteps: { status: OrderStatus; label: string; icon: React.ElementType }[] = [
-  { status: "pending", label: "Order Placed", icon: Package },
-  { status: "confirmed", label: "Confirmed", icon: CheckCircle2 },
-  { status: "preparing", label: "Preparing", icon: ChefHat },
-  { status: "ready", label: "Ready", icon: Package },
-  { status: "out_for_delivery", label: "On the Way", icon: Truck },
-  { status: "delivered", label: "Delivered", icon: CheckCircle2 },
+// 5 steps - removed Confirmed to match reference design
+const statusSteps: { status: OrderStatus; label: string; sublabel?: string }[] = [
+  { status: "pending", label: "Order Placed" },
+  { status: "preparing", label: "Preparing", sublabel: "In Queue" },
+  { status: "ready", label: "Ready" },
+  { status: "out_for_delivery", label: "On the Way", sublabel: "Near Your Location" },
+  { status: "delivered", label: "Delivered" },
 ];
 
 const statusConfig: Record<OrderStatus, {
   label: string;
-  color: string;
-  bgColor: string;
-  gradient: string;
+  shortLabel: string;
+  badgeClass: string;
+  textClass: string;
 }> = {
   pending: {
     label: "Pending",
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
-    gradient: "from-amber-400 to-orange-500",
+    shortLabel: "PENDING",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   confirmed: {
     label: "Confirmed",
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    gradient: "from-blue-400 to-indigo-500",
+    shortLabel: "CONFIRMED",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   preparing: {
     label: "Preparing",
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    gradient: "from-purple-400 to-pink-500",
+    shortLabel: "PREPARING",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   ready: {
     label: "Ready",
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-50",
-    gradient: "from-cyan-400 to-teal-500",
+    shortLabel: "READY",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   out_for_delivery: {
     label: "On the Way",
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
-    gradient: "from-orange-400 to-red-500",
+    shortLabel: "ON THE WAY",
+    badgeClass: "bg-green-700",
+    textClass: "text-[#bef264]",
   },
   delivered: {
     label: "Delivered",
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
-    gradient: "from-emerald-400 to-green-500",
+    shortLabel: "DELIVERED",
+    badgeClass: "bg-green-700",
+    textClass: "text-white",
   },
   completed: {
     label: "Completed",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-    gradient: "from-green-400 to-emerald-500",
+    shortLabel: "COMPLETED",
+    badgeClass: "bg-green-700",
+    textClass: "text-white",
   },
   cancelled: {
     label: "Cancelled",
-    color: "text-red-600",
-    bgColor: "bg-red-50",
-    gradient: "from-red-400 to-rose-500",
+    shortLabel: "CANCELLED",
+    badgeClass: "bg-red-500",
+    textClass: "text-white",
   },
+};
+
+// Food emoji for meal items
+const FoodEmoji = () => (
+  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-green-100 text-xs mr-2">
+    🥗
+  </span>
+);
+
+const haversineDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const calculateEtaMinutes = (driverLat: number, driverLng: number, destLat: number, destLng: number): number => {
+  const distKm = haversineDistanceKm(driverLat, driverLng, destLat, destLng);
+  return Math.max(2, Math.round((distKm / 30) * 60)); // 30 km/h average city speed
 };
 
 const getCurrentStepIndex = (status: OrderStatus) => {
@@ -177,19 +208,189 @@ const getEstimatedTime = (status: OrderStatus, deliveryDate: string) => {
   }
 };
 
-// Arrival Window Component
-const ArrivalWindow = ({ estimatedMinutes }: { estimatedMinutes: number }) => {
-  const start = addMinutes(new Date(), estimatedMinutes - 5);
-  const end = addMinutes(new Date(), estimatedMinutes + 5);
-  
+// ── Road-following route line using OSRM (free, no API key) ─────────────
+// Injects route animation CSS once into the document
+const ROUTE_STYLE_ID = "nutrio-route-anim";
+function injectRouteStyles() {
+  if (document.getElementById(ROUTE_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = ROUTE_STYLE_ID;
+  style.textContent = `
+    /* Flowing dash — travels from driver to customer */
+    @keyframes routeFlow {
+      from { stroke-dashoffset: 400; }
+      to   { stroke-dashoffset: 0; }
+    }
+    /* Glow pulse on main line */
+    @keyframes routeGlow {
+      0%,100% { filter: drop-shadow(0 0 3px #4ade80) drop-shadow(0 0 6px #16a34a); }
+      50%      { filter: drop-shadow(0 0 8px #86efac) drop-shadow(0 0 16px #22c55e); }
+    }
+    .route-glow path {
+      animation: routeGlow 2s ease-in-out infinite;
+    }
+    .route-flow path {
+      stroke-dasharray: 16 12;
+      animation: routeFlow 1.4s linear infinite;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function RoutePolyline({
+  from,
+  to,
+}: {
+  from: [number, number];
+  to: [number, number];
+}) {
+  const [routePoints, setRoutePoints] = useState<[number, number][]>([from, to]);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Inject CSS animation once on mount
+  useEffect(() => { injectRouteStyles(); }, []);
+
+  const fetchRoute = useCallback(async () => {
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${from[1]},${from[0]};${to[1]},${to[0]}` +
+      `?overview=full&geometries=geojson&alternatives=3`;
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
+    try {
+      const res = await fetch(url, { signal: abortRef.current.signal });
+      const data = await res.json();
+
+      if (data?.routes?.length) {
+        const shortest = [...data.routes].sort(
+          (a: { distance: number }, b: { distance: number }) => a.distance - b.distance
+        )[0];
+
+        if (shortest?.geometry?.coordinates) {
+          const pts: [number, number][] = shortest.geometry.coordinates.map(
+            ([lng, lat]: [number, number]) => [lat, lng]
+          );
+          setRoutePoints(pts);
+        }
+      }
+    } catch {
+      // keep straight fallback on error
+    }
+  }, [from[0], from[1], to[0], to[1]]);
+
+  useEffect(() => {
+    fetchRoute();
+    return () => abortRef.current?.abort();
+  }, [fetchRoute]);
+
   return (
-    <div className="bg-primary/10 rounded-lg p-4 text-center">
+    <>
+      {/* 1. White halo / outline for contrast */}
+      <Polyline
+        positions={routePoints}
+        pathOptions={{ color: "#ffffff", weight: 8, opacity: 0.55, lineCap: "round", lineJoin: "round" }}
+      />
+
+      {/* 2. Main glowing green road line */}
+      <Polyline
+        positions={routePoints}
+        className="route-glow"
+        pathOptions={{ color: "#16a34a", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }}
+      />
+
+      {/* 3. Bright flowing dash that travels from driver → customer */}
+      <Polyline
+        positions={routePoints}
+        className="route-flow"
+        pathOptions={{ color: "#86efac", weight: 3, opacity: 0.95, lineCap: "round", lineJoin: "round" }}
+      />
+    </>
+  );
+}
+
+// Fits the map to show both driver and customer markers
+function MapBoundsFitter({ driverPos, customerPos }: { driverPos: [number, number]; customerPos: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.fitBounds([driverPos, customerPos], { padding: [50, 50], maxZoom: 16 });
+  }, [driverPos[0], driverPos[1], customerPos[0], customerPos[1]]);
+  return null;
+}
+
+const destinationIcon = L.divIcon({
+  html: `
+    <div style="position:relative;width:48px;height:56px;display:flex;flex-direction:column;align-items:center;">
+      <!-- Pin body -->
+      <div style="
+        width:44px;height:44px;
+        background:linear-gradient(135deg,#16a34a,#15803d);
+        border-radius:50% 50% 50% 4px;
+        transform:rotate(45deg);
+        box-shadow:0 4px 16px rgba(22,163,74,0.45),0 2px 6px rgba(0,0,0,0.25);
+        border:2.5px solid #fff;
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <!-- Inner white circle -->
+        <div style="
+          transform:rotate(-45deg);
+          width:28px;height:28px;
+          background:#fff;
+          border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+        ">
+          <!-- House SVG -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+      </div>
+      <!-- Pin tail shadow -->
+      <div style="
+        width:10px;height:10px;
+        background:rgba(0,0,0,0.15);
+        border-radius:50%;
+        margin-top:-4px;
+        filter:blur(3px);
+      "></div>
+    </div>`,
+  className: "",
+  iconSize: [48, 56],
+  iconAnchor: [24, 54],
+});
+
+// Arrival Window Component — updates every 30 s so the clock stays accurate
+const ArrivalWindow = ({ estimatedMinutes }: { estimatedMinutes: number }) => {
+  const [now, setNow] = useState(new Date());
+
+  // Tick every 30 seconds so displayed times don't go stale
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const start = addMinutes(now, Math.max(0, estimatedMinutes - 5));
+  const end   = addMinutes(now, estimatedMinutes + 5);
+
+  return (
+    <div className="bg-primary/10 rounded-xl p-4 text-center space-y-1">
+      {/* Live pulse header */}
+      <div className="flex items-center justify-center gap-2 mb-1">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
+        </span>
+        <p className="text-xs font-semibold text-primary uppercase tracking-wide">Live ETA</p>
+      </div>
+
       <p className="text-sm text-muted-foreground">Arriving between</p>
-      <p className="text-2xl font-bold">
-        {format(start, 'h:mm')} - {format(end, 'h:mm a')}
+      <p className="text-2xl font-bold text-foreground">
+        {format(start, 'h:mm')} – {format(end, 'h:mm a')}
       </p>
-      <p className="text-sm text-muted-foreground mt-1">
-        (~{estimatedMinutes} minutes)
+      <p className="text-sm text-muted-foreground">
+        ~{estimatedMinutes} min away
       </p>
     </div>
   );
@@ -236,8 +437,69 @@ export default function DeliveryTracking() {
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [customerLocation, setCustomerLocation] = useState<[number, number] | null>(null);
   const locationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const orderUpdateChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Fetch customer's default delivery address and geocode it
+  useEffect(() => {
+    if (!user) return;
+
+    const loadCustomerLocation = async () => {
+      try {
+        // 1. Try to get saved default address
+        const { data: addresses } = await supabase
+          .from("user_addresses")
+          .select("address_line1, city, state, country, postal_code")
+          .eq("user_id", user.id)
+          .eq("is_default", true)
+          .limit(1);
+
+        if (addresses && addresses.length > 0) {
+          const addr = addresses[0];
+          const city = addr.city?.trim() || "";
+          const street = addr.address_line1?.trim() || "";
+          const country = addr.country?.toLowerCase() === "united states" ? "Qatar" : (addr.country || "Qatar");
+
+          // Fallback query chain: specific → city + country → city only
+          const queries = [
+            street && city ? `${street}, ${city}, ${country}` : "",
+            city ? `${city}, ${country}` : "",
+            city || "",
+          ].filter(Boolean);
+
+          for (const q of queries) {
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=qa`,
+                { headers: { "Accept-Language": "en" } }
+              );
+              const data = await res.json();
+              if (data && data.length > 0) {
+                setCustomerLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+                return;
+              }
+            } catch { /* try next */ }
+          }
+        }
+
+        // 2. Fallback to browser GPS
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => setCustomerLocation([coords.latitude, coords.longitude]),
+            () => setCustomerLocation([25.2854, 51.5310]), // Doha fallback
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        } else {
+          setCustomerLocation([25.2854, 51.5310]);
+        }
+      } catch {
+        setCustomerLocation([25.2854, 51.5310]);
+      }
+    };
+
+    loadCustomerLocation();
+  }, [user]);
 
   const fetchActiveOrders = async () => {
     if (!user) return;
@@ -333,6 +595,8 @@ export default function DeliveryTracking() {
           status,
           picked_up_at,
           delivered_at,
+          delivery_lat,
+          delivery_lng,
           driver:driver_id(
             current_lat,
             current_lng
@@ -366,8 +630,12 @@ export default function DeliveryTracking() {
 
       setOrders(activeOrders);
 
-      // Subscribe to driver location updates for orders with assigned drivers
+      // Stop tracking if no orders are out for delivery any more
       const ordersWithDrivers = activeOrders.filter(o => o.delivery_job?.driver_id && o.order_status === "out_for_delivery");
+      if (ordersWithDrivers.length === 0 && locationChannelRef.current) {
+        locationChannelRef.current.unsubscribe();
+        locationChannelRef.current = null;
+      }
       if (ordersWithDrivers.length > 0) {
         const driverIds = ordersWithDrivers.map(o => o.delivery_job!.driver_id!);
         
@@ -589,91 +857,127 @@ export default function DeliveryTracking() {
             const currentStepIndex = getCurrentStepIndex(status);
             const config = statusConfig[status];
             const estimatedTime = getEstimatedTime(status, order.scheduled_date);
-            const progress = ((currentStepIndex + 1) / statusSteps.length) * 100;
             
-            // Show map if order is out for delivery and we have driver location
-            const showMap = order.order_status === "out_for_delivery" && 
-                           order.delivery_job?.driver?.current_lat && 
-                           order.delivery_job?.driver?.current_lng;
-            
-            // Calculate map center - only show driver location for now
-            // Restaurant/customer locations are not stored in the database
-            const mapCenter = showMap 
+            // Stop tracking once delivered
+            const isDelivered = status === "delivered" || status === "completed";
+
+            // Show map only when driver is on the way
+            const showMap = !!customerLocation && order.order_status === "out_for_delivery";
+
+            // Driver location (only available when out_for_delivery)
+            const hasDriverLocation = order.order_status === "out_for_delivery" &&
+              order.delivery_job?.driver?.current_lat &&
+              order.delivery_job?.driver?.current_lng;
+
+            // Map centers on driver when tracking, otherwise on customer's home
+            const mapCenter = hasDriverLocation
               ? { lat: order.delivery_job!.driver!.current_lat!, lng: order.delivery_job!.driver!.current_lng! }
-              : { lat: 25.2854, lng: 51.5310 }; // Doha default
+              : customerLocation
+              ? { lat: customerLocation[0], lng: customerLocation[1] }
+              : { lat: 25.2854, lng: 51.5310 };
 
             return (
-              <Card key={order.id} className={`group overflow-hidden border-0 shadow-lg ${config.bgColor}`}>
-                {/* Top progress bar */}
-                <div className="relative h-1.5 bg-slate-100 overflow-hidden">
-                  <div 
-                    className={`absolute inset-y-0 left-0 bg-gradient-to-r ${config.gradient}`}
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+              <Card key={order.id} className="group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white rounded-3xl">
+                {/* Top gradient border */}
+                <div className="h-1.5 bg-gradient-to-r from-green-400 via-lime-400 to-green-500" />
 
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge 
-                          variant="outline"
-                          className={`text-xs font-medium px-2.5 py-1 ${config.color} border-current bg-white/80 backdrop-blur-sm`}
+                      {/* Status Badge and Date */}
+                      <div className="flex items-center gap-3 mb-2">
+                        <Badge
+                          className={`${config.badgeClass} ${config.textClass} font-bold text-xs px-4 py-1.5 rounded-full border-0 shadow-sm flex items-center gap-1.5`}
                         >
-                          {config.label}
+                          <Clock className="w-3.5 h-3.5" />
+                          {config.shortLabel}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {getDateLabel(order.scheduled_date)}
+                        <span className="text-sm text-muted-foreground font-medium">
+                          est. {getDateLabel(order.scheduled_date)}
                         </span>
                       </div>
-                      <CardTitle className="text-lg truncate">
+                      <CardTitle className="text-2xl font-bold text-slate-900 truncate">
                         {order.restaurant_name}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
                         Order #{order.id.slice(0, 8).toUpperCase()}
                       </p>
                     </div>
-                    <div 
-                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-lg`}
-                    >
-                      {(() => {
-                        const CurrentIcon = statusSteps[currentStepIndex]?.icon;
-                        return CurrentIcon ? <CurrentIcon className="w-7 h-7 text-white" /> : null;
-                      })()}
+                    {/* Clock Icon Button */}
+                    <div className="w-12 h-12 rounded-full bg-green-700 flex items-center justify-center shadow-lg flex-shrink-0">
+                      <Clock className="w-6 h-6 text-white" />
                     </div>
                   </div>
                 </CardHeader>
                 
                 <CardContent className="space-y-6">
+                  {/* ── Delivered celebration — replaces all tracking UI ── */}
+                  {isDelivered ? (
+                    <div className="flex flex-col items-center text-center py-6 space-y-4">
+                      {/* Animated checkmark ring */}
+                      <div className="relative flex items-center justify-center">
+                        <span className="absolute w-24 h-24 rounded-full bg-green-100 animate-ping opacity-40" />
+                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl shadow-green-400/40">
+                          <CheckCircle2 className="w-10 h-10 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-green-700">Your meal has been delivered! 🎉</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Enjoy your meal. Tracking has stopped.</p>
+                      </div>
+                      <Button
+                        className="rounded-2xl px-6 shadow-sm shadow-primary/20"
+                        onClick={() => navigate("/orders")}
+                      >
+                        View Order History
+                      </Button>
+                    </div>
+                  ) : (
+                  <>
                   {/* Estimated Time / Arrival Window */}
                   {order.order_status === "out_for_delivery" ? (
-                    <ArrivalWindow estimatedMinutes={20} />
+                    <ArrivalWindow
+                      estimatedMinutes={
+                        order.delivery_job?.driver?.current_lat &&
+                        order.delivery_job?.driver?.current_lng &&
+                        customerLocation
+                          ? calculateEtaMinutes(
+                              order.delivery_job.driver.current_lat,
+                              order.delivery_job.driver.current_lng,
+                              customerLocation[0],
+                              customerLocation[1]
+                            )
+                          : 20
+                      }
+                    />
                   ) : (
-                    <div className={`flex items-center gap-3 p-4 rounded-xl ${config.bgColor}`}>
-                      <Clock className={`h-5 w-5 ${config.color}`} />
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-green-50">
+                      <Clock className="h-5 w-5 text-green-600" />
                       <div>
                         <p className="font-medium text-sm text-foreground">Estimated Delivery</p>
-                        <p className={`font-semibold ${config.color}`}>{estimatedTime}</p>
+                        <p className="font-semibold text-green-600">{estimatedTime}</p>
                       </div>
                     </div>
                   )}
 
-                  {/* Live Map */}
-                  {showMap && (
-                    <div className="rounded-xl overflow-hidden border-2 border-primary/20">
-                      <div className="bg-primary/5 px-4 py-2 flex items-center justify-between">
+                  {/* Delivery Map — always shown when customer location is known */}
+                  {showMap && customerLocation && (
+                    <div className="rounded-xl overflow-hidden border-2 border-green-500/20">
+                      <div className="bg-green-50 px-4 py-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">Live Location</span>
+                          <MapPin className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium">
+                            {hasDriverLocation ? "Live Tracking" : "Delivery Location"}
+                          </span>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-7 text-xs"
                           onClick={() => openGoogleMaps(
-                            order.delivery_job!.driver!.current_lat!,
-                            order.delivery_job!.driver!.current_lng!,
-                            "Driver Location"
+                            customerLocation[0],
+                            customerLocation[1],
+                            "Your Delivery Location"
                           )}
                         >
                           <ExternalLink className="w-3 h-3 mr-1" />
@@ -682,66 +986,171 @@ export default function DeliveryTracking() {
                       </div>
                       <MapContainer
                         center={[mapCenter.lat, mapCenter.lng]}
-                        zoom={15}
+                        zoom={hasDriverLocation ? 15 : 16}
                         style={{ height: "250px", width: "100%" }}
                         scrollWheelZoom={false}
                       >
-                        <DriverMarker
-                          position={{
-                            lat: order.delivery_job!.driver!.current_lat!,
-                            lng: order.delivery_job!.driver!.current_lng!
-                          }}
-                          driverName="Driver"
+                        {/* Customer home pin — always shown */}
+                        <Marker
+                          position={customerLocation}
+                          icon={destinationIcon}
                         />
+
+                        {/* Driver pin + route line + bounds fit — only when out for delivery */}
+                        {hasDriverLocation && (
+                          <>
+                            {/* Road-following route between driver and customer */}
+                            <RoutePolyline
+                              from={[order.delivery_job!.driver!.current_lat!, order.delivery_job!.driver!.current_lng!]}
+                              to={customerLocation}
+                            />
+                            <DriverMarker
+                              position={{
+                                lat: order.delivery_job!.driver!.current_lat!,
+                                lng: order.delivery_job!.driver!.current_lng!,
+                              }}
+                              driverName="Driver"
+                              eta={`${calculateEtaMinutes(
+                                order.delivery_job!.driver!.current_lat!,
+                                order.delivery_job!.driver!.current_lng!,
+                                customerLocation[0],
+                                customerLocation[1]
+                              )} min`}
+                            />
+                            <MapBoundsFitter
+                              driverPos={[
+                                order.delivery_job!.driver!.current_lat!,
+                                order.delivery_job!.driver!.current_lng!,
+                              ]}
+                              customerPos={customerLocation}
+                            />
+                          </>
+                        )}
                       </MapContainer>
                     </div>
                   )}
 
-                  {/* Progress Timeline */}
-                  <div className="relative mt-6 mb-4">
-                    {/* Connecting line */}
-                    <div className="absolute top-4 left-0 right-0 h-0.5 bg-slate-200">
-                      <div 
-                        className={`h-full bg-gradient-to-r ${config.gradient}`}
-                        style={{ width: `${(currentStepIndex / (statusSteps.length - 1)) * 100}%` }}
+                  {/* Progress Timeline - Straight line with 5 steps */}
+                  <div className="mt-8 mb-4">
+                    <div className="relative px-2">
+                      {/* Background Line */}
+                      <div className="absolute top-5 left-8 right-8 h-0.5 bg-slate-200" />
+                      
+                      {/* Active Progress Line */}
+                      <motion.div 
+                        className="absolute top-5 left-8 h-0.5 bg-green-500"
+                        initial={{ width: "0%" }}
+                        animate={{ 
+                          width: `${(currentStepIndex / (statusSteps.length - 1)) * 100}%` 
+                        }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        style={{ 
+                          right: 'auto',
+                          maxWidth: 'calc(100% - 64px)'
+                        }}
                       />
-                    </div>
+                      
+                      {/* Steps */}
+                      <div className="relative flex justify-between">
+                        {statusSteps.map((step, stepIndex) => {
+                          const isCompleted = stepIndex < currentStepIndex;
+                          const isCurrent = stepIndex === currentStepIndex;
 
-                    {/* Steps */}
-                    <div className="relative flex justify-between">
-                      {statusSteps.map((step, stepIndex) => {
-                        const isCompleted = stepIndex <= currentStepIndex;
-                        const isCurrent = stepIndex === currentStepIndex;
-                        const StepIcon = step.icon;
-
-                        return (
-                          <div 
-                            key={step.status}
-                            className="flex flex-col items-center"
-                          >
-                            <div
-                              className={`
-                                relative w-8 h-8 rounded-full flex items-center justify-center
-                                transition-all duration-300 border-2
-                                ${isCompleted 
-                                  ? `bg-gradient-to-br ${config.gradient} border-transparent text-white shadow-md` 
-                                  : 'bg-white border-slate-200 text-slate-300'
-                                }
-                                ${isCurrent ? `scale-110 shadow-lg ring-4 ${config.bgColor}` : ''}
-                              `}
+                          return (
+                            <div 
+                              key={step.status}
+                              className="flex flex-col items-center"
+                              style={{ width: `${100 / statusSteps.length}%` }}
                             >
-                              <StepIcon className="w-4 h-4" />
+                              {/* Step Circle */}
+                              <motion.div
+                                className={`
+                                  relative w-10 h-10 rounded-full flex items-center justify-center
+                                  transition-all duration-300 z-10
+                                  ${isCompleted 
+                                    ? 'bg-green-600 text-white shadow-md' 
+                                    : isCurrent
+                                      ? 'bg-white text-green-600 shadow-lg ring-2 ring-green-400'
+                                      : 'bg-white text-slate-300 border-2 border-slate-200'
+                                  }
+                                `}
+                                animate={isCurrent ? {
+                                  scale: [1, 1.05, 1],
+                                } : {}}
+                                transition={isCurrent ? {
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut"
+                                } : {}}
+                              >
+                                {isCurrent ? (
+                                  <div className="relative">
+                                    {/* Glow effect */}
+                                    <motion.div
+                                      className="absolute inset-0 rounded-full bg-green-400 blur-md"
+                                      animate={{
+                                        scale: [1.2, 1.5, 1.2],
+                                        opacity: [0.6, 0.3, 0.6],
+                                      }}
+                                      transition={{
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                      }}
+                                    />
+                                    <motion.div
+                                      className="absolute inset-0 rounded-full bg-lime-300 blur-sm"
+                                      animate={{
+                                        scale: [1, 1.3, 1],
+                                        opacity: [0.8, 0.4, 0.8],
+                                      }}
+                                      transition={{
+                                        duration: 1.5,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                      }}
+                                    />
+                                    <motion.img 
+                                      src={flameLogo} 
+                                      alt="NutrioFuel" 
+                                      className="w-7 h-7 object-contain relative z-10"
+                                      animate={{
+                                        scale: [1, 1.1, 1],
+                                        rotate: [0, 5, -5, 0],
+                                      }}
+                                      transition={{
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                      }}
+                                    />
+                                  </div>
+                                ) : isCompleted ? (
+                                  <Check className="w-5 h-5" />
+                                ) : (
+                                  <div className="w-2 h-2 rounded-full bg-slate-300" />
+                                )}
+                              </motion.div>
+                              
+                              {/* Step Label */}
+                              <span className={`
+                                text-[11px] mt-2 font-semibold text-center whitespace-nowrap
+                                ${isCompleted || isCurrent ? 'text-slate-700' : 'text-slate-400'}
+                                ${isCurrent ? 'font-bold' : ''}
+                              `}>
+                                {step.label}
+                              </span>
+                              
+                              {/* Step Sublabel (only for current) */}
+                              {isCurrent && step.sublabel && (
+                                <span className="text-[10px] text-slate-500 mt-0.5 font-medium whitespace-nowrap">
+                                  {step.sublabel}
+                                </span>
+                              )}
                             </div>
-                            <span className={`
-                              text-[10px] mt-1.5 font-medium transition-colors duration-300 text-center max-w-[60px]
-                              ${isCompleted ? config.color : 'text-slate-300'}
-                              ${isCurrent ? 'font-semibold' : ''}
-                            `}>
-                              {step.label}
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
@@ -761,7 +1170,9 @@ export default function DeliveryTracking() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
+                        <p className="font-medium text-sm flex items-center">
+                          <span className="text-slate-400 mr-2">•</span>
+                          <FoodEmoji />
                           {order.meal_name}
                         </p>
                       </div>
@@ -780,8 +1191,8 @@ export default function DeliveryTracking() {
                     driverName={null}
                     driverPhone={null}
                   />
-
-
+                  </> // end non-delivered tracking UI
+                  )} {/* end isDelivered ternary */}
                 </CardContent>
               </Card>
             );

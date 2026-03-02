@@ -76,36 +76,43 @@ DROP POLICY IF EXISTS "Staff can view assigned restaurants" ON restaurants;
 -- Create comprehensive restaurant policies
 
 -- 1. Public can view approved restaurants
+DROP POLICY IF EXISTS "Anyone can view approved restaurants" ON restaurants;
 CREATE POLICY "Anyone can view approved restaurants"
 ON restaurants FOR SELECT
 USING (approval_status = 'approved' AND is_active = true);
 
 -- 2. Owners can view their restaurants
+DROP POLICY IF EXISTS "Owners can view their restaurants" ON restaurants;
 CREATE POLICY "Owners can view their restaurants"
 ON restaurants FOR SELECT
 USING (owner_id = auth.uid());
 
 -- 3. Staff can view their assigned restaurants
+DROP POLICY IF EXISTS "Staff can view assigned restaurants" ON restaurants;
 CREATE POLICY "Staff can view assigned restaurants"
 ON restaurants FOR SELECT
 USING (public.is_restaurant_staff(id));
 
 -- 4. Admins can view all restaurants
+DROP POLICY IF EXISTS "Admins can view all restaurants" ON restaurants;
 CREATE POLICY "Admins can view all restaurants"
 ON restaurants FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- 5. Owners can update their restaurants
+DROP POLICY IF EXISTS "Owners can update their restaurants" ON restaurants;
 CREATE POLICY "Owners can update their restaurants"
 ON restaurants FOR UPDATE
 USING (owner_id = auth.uid());
 
 -- 6. Staff with 'manage_restaurant' permission can update
+DROP POLICY IF EXISTS "Staff with permission can update restaurants" ON restaurants;
 CREATE POLICY "Staff with permission can update restaurants"
 ON restaurants FOR UPDATE
 USING (public.has_staff_permission(id, 'manage_restaurant'));
 
 -- 7. Admins can manage all restaurants
+DROP POLICY IF EXISTS "Admins can manage all restaurants" ON restaurants;
 CREATE POLICY "Admins can manage all restaurants"
 ON restaurants FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
@@ -116,6 +123,7 @@ DROP POLICY IF EXISTS "Anyone can view meals" ON meals;
 DROP POLICY IF EXISTS "Admins can manage all meals" ON meals;
 
 -- Recreate meals policies with staff access
+DROP POLICY IF EXISTS "Anyone can view meals from approved restaurants" ON meals;
 CREATE POLICY "Anyone can view meals from approved restaurants"
 ON meals FOR SELECT
 USING (
@@ -126,6 +134,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Owners can manage their restaurant meals" ON meals;
 CREATE POLICY "Owners can manage their restaurant meals"
 ON meals FOR ALL
 USING (
@@ -136,6 +145,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Staff can manage meals with permission" ON meals;
 CREATE POLICY "Staff can manage meals with permission"
 ON meals FOR ALL
 USING (
@@ -145,6 +155,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all meals" ON meals;
 CREATE POLICY "Admins can manage all meals"
 ON meals FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
@@ -152,6 +163,7 @@ USING (public.has_role(auth.uid(), 'admin'));
 -- Update orders table policies for staff access
 DROP POLICY IF EXISTS "Partners can view orders for their restaurants" ON orders;
 
+DROP POLICY IF EXISTS "Partners and staff can view restaurant orders" ON orders;
 CREATE POLICY "Partners and staff can view restaurant orders"
 ON orders FOR SELECT
 USING (
@@ -165,6 +177,7 @@ USING (
 -- Update staff_members table policies
 DROP POLICY IF EXISTS "Partners can manage their staff" ON staff_members;
 
+DROP POLICY IF EXISTS "Owners can manage their restaurant staff" ON staff_members;
 CREATE POLICY "Owners can manage their restaurant staff"
 ON staff_members FOR ALL
 USING (
@@ -175,12 +188,14 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Staff with HR permission can manage staff" ON staff_members;
 CREATE POLICY "Staff with HR permission can manage staff"
 ON staff_members FOR ALL
 USING (
     public.has_staff_permission(restaurant_id, 'manage_staff')
 );
 
+DROP POLICY IF EXISTS "Admins can manage all staff" ON staff_members;
 CREATE POLICY "Admins can manage all staff"
 ON staff_members FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
@@ -188,6 +203,7 @@ USING (public.has_role(auth.uid(), 'admin'));
 -- Update staff_schedules table policies
 DROP POLICY IF EXISTS "Partners can manage staff schedules" ON staff_schedules;
 
+DROP POLICY IF EXISTS "Owners can manage staff schedules" ON staff_schedules;
 CREATE POLICY "Owners can manage staff schedules"
 ON staff_schedules FOR ALL
 USING (
@@ -199,6 +215,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Staff can view their own schedules" ON staff_schedules;
 CREATE POLICY "Staff can view their own schedules"
 ON staff_schedules FOR SELECT
 USING (
@@ -209,6 +226,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Staff with scheduling permission can manage schedules" ON staff_schedules;
 CREATE POLICY "Staff with scheduling permission can manage schedules"
 ON staff_schedules FOR ALL
 USING (
@@ -301,6 +319,8 @@ ALTER VIEW staff_members_with_permissions OWNER TO postgres;
 COMMENT ON VIEW staff_members_with_permissions IS 'Staff members with their role permissions - access controlled by underlying staff_members policies';
 
 -- Comments
-COMMENT ON FUNCTION public.is_restaurant_staff(UUID) IS 'Check if current user is an active staff member of the specified restaurant';
-COMMENT ON FUNCTION public.has_staff_permission(UUID, TEXT) IS 'Check if current staff member has a specific permission';
+COMMENT ON public.is_restaurant_staff(UUID) IS 'Check if current user is an active staff member of the specified restaurant';
+COMMENT ON public.has_staff_permission(UUID, TEXT) IS 'Check if current staff member has a specific permission';
 COMMENT ON COLUMN staff_members.user_id IS 'Link to auth.users for staff member login and RLS policies';
+
+

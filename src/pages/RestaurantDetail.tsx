@@ -22,7 +22,12 @@ import {
   Plus,
   Check,
   ArrowUpRight,
-  ShoppingBag
+  ShoppingBag,
+  Coffee,
+  Sun,
+  Moon,
+  Apple,
+  LayoutGrid
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -30,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
+import { getMealImage, getRestaurantImage } from "@/lib/meal-images";
 
 interface Restaurant {
   id: string;
@@ -66,11 +72,11 @@ interface Meal {
 }
 
 const MEAL_CATEGORIES = [
-  { id: "all", label: "All", icon: "🍽️" },
-  { id: "breakfast", label: "Breakfast", icon: "🌅" },
-  { id: "lunch", label: "Lunch", icon: "☀️" },
-  { id: "dinner", label: "Dinner", icon: "🌙" },
-  { id: "snack", label: "Snacks", icon: "🥨" },
+  { id: "all", label: "All", icon: LayoutGrid, color: "text-primary" },
+  { id: "breakfast", label: "Breakfast", icon: Coffee, color: "text-amber-500" },
+  { id: "lunch", label: "Lunch", icon: Sun, color: "text-orange-500" },
+  { id: "dinner", label: "Dinner", icon: Moon, color: "text-indigo-500" },
+  { id: "snack", label: "Snacks", icon: Apple, color: "text-emerald-500" },
 ];
 
 // Skeleton Loader Component
@@ -349,17 +355,11 @@ const RestaurantDetail = () => {
           style={{ scale: heroScale, opacity: heroOpacity }}
           className="absolute inset-0"
         >
-          {restaurant.cover_url ? (
-            <img
-              src={restaurant.cover_url}
-              alt={restaurant.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[hsl(142,60%,95%)] via-[hsl(142,71%,85%)] to-[hsl(168,76%,80%)] flex items-center justify-center">
-              <span className="text-9xl opacity-30">🍽️</span>
-            </div>
-          )}
+          <img
+            src={getRestaurantImage(restaurant.cover_url, restaurant.id)}
+            alt={restaurant.name}
+            className="w-full h-full object-cover"
+          />
         </motion.div>
         
         {/* Gradient Overlays */}
@@ -419,15 +419,11 @@ const RestaurantDetail = () => {
           {/* Header Row */}
           <div className="flex items-start gap-4 mb-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(142,71%,45%)] to-[hsl(168,76%,42%)] flex items-center justify-center text-3xl overflow-hidden shrink-0 shadow-lg">
-              {restaurant.logo_url ? (
-                <img 
-                  src={restaurant.logo_url} 
-                  alt={restaurant.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                "🍽️"
-              )}
+              <img
+                src={getRestaurantImage(restaurant.logo_url, restaurant.id)}
+                alt={restaurant.name}
+                className="w-full h-full object-cover"
+              />
             </div>
             
             <div className="flex-1 min-w-0">
@@ -571,36 +567,38 @@ const RestaurantDetail = () => {
         transition={{ delay: 0.4 }}
         className="mt-6"
       >
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {MEAL_CATEGORIES.map((category, index) => (
-            <motion.button
-              key={category.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + index * 0.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setActiveCategory(category.id)}
-              className={`
-                flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold whitespace-nowrap transition-all shrink-0
-                ${activeCategory === category.id 
-                  ? 'bg-[hsl(142,71%,45%)] text-white shadow-lg shadow-[hsl(142,71%,45%)]/30' 
-                  : 'bg-white text-[hsl(150,25%,15%)] border border-[hsl(120,15%,90%)]'
-                }
-              `}
-            >
-              <span>{category.icon}</span>
-              <span>{category.label}</span>
-              <span className={`
-                px-2 py-0.5 rounded-full text-xs
-                ${activeCategory === category.id 
-                  ? 'bg-white/20 text-white' 
-                  : 'bg-[hsl(120,15%,94%)] text-[hsl(150,10%,45%)]'
-                }
-              `}>
-                {categoryCounts[category.id] || 0}
-              </span>
-            </motion.button>
-          ))}
+        <div className="flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          {MEAL_CATEGORIES.map((category, index) => {
+            const isActive = activeCategory === category.id;
+            const count = categoryCounts[category.id] || 0;
+            const Icon = category.icon;
+            return (
+              <motion.button
+                key={category.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + index * 0.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setActiveCategory(category.id)}
+                className={`
+                  flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all shrink-0
+                  ${isActive
+                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/30'
+                    : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                  }
+                `}
+              >
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : category.color}`} />
+                <span>{category.label}</span>
+                <span className={`
+                  text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none
+                  ${isActive ? 'bg-white/25 text-white' : 'bg-background text-muted-foreground'}
+                `}>
+                  {count}
+                </span>
+              </motion.button>
+            );
+          })}
         </div>
       </motion.div>
 
@@ -650,16 +648,12 @@ const RestaurantDetail = () => {
                     <div className="flex gap-4 relative z-10">
                       {/* Meal Image */}
                       <div className="w-28 h-28 rounded-2xl bg-[hsl(120,20%,98%)] flex items-center justify-center text-4xl overflow-hidden shrink-0 relative">
-                        {meal.image_url ? (
-                          <img
-                            src={meal.image_url}
-                            alt={meal.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                          />
-                        ) : (
-                          <span className="opacity-30">🍽️</span>
-                        )}
-                        
+                        <img
+                          src={getMealImage(meal.image_url, meal.id, meal.meal_type)}
+                          alt={meal.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+
                         {/* VIP Badge */}
                         {meal.is_vip_exclusive && (
                           <div className="absolute top-2 left-2">

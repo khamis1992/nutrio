@@ -1,18 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, Sparkles, History, RotateCcw, ChevronDown, ChevronUp, Upload } from "lucide-react";
+import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, History, RotateCcw, Upload, Pencil } from "lucide-react";
+import { getMealImage } from "@/lib/meal-images";
 
 interface Meal {
   id: string;
@@ -59,6 +53,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const [searchQuery, setSearchQuery] = useState("");
   const [logging, setLogging] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [activeTab, setActiveTab] = useState<"search" | "recent" | "manual">("search");
   
   // Manual entry state
   const [manualEntry, setManualEntry] = useState({
@@ -468,366 +463,341 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     });
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-              <Plus className="w-4 h-4 text-white" />
-            </div>
-            Log Meal
-          </DialogTitle>
-        </DialogHeader>
+  const tabs = [
+    { id: "search" as const, label: "Search", icon: Search },
+    { id: "recent" as const, label: "Recent", icon: History },
+    { id: "manual" as const, label: "Manual", icon: Pencil },
+  ];
 
-        <div className="flex-1 overflow-y-auto pr-1 space-y-5 mt-2">
-          {/* Search Section */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search meals from our menu..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10 pr-20 h-11"
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-primary"
-                    title="Scan with AI"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => cameraInputRef.current?.click()}>
-                    <Camera className="w-4 h-4 mr-2" />
-                    Take Photo
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => uploadInputRef.current?.click()}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Image
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="p-0 rounded-t-3xl max-h-[92vh] flex flex-col gap-0 border-0 outline-none focus:outline-none [&>button:last-of-type]:hidden bg-background"
+      >
+        {/* Hidden SheetTitle for accessibility */}
+        <SheetTitle className="sr-only">Log a Meal</SheetTitle>
+
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+        </div>
+
+        {/* Header */}
+        <div className="gradient-primary px-5 pt-4 pb-5 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                <Flame className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-white font-bold text-lg leading-tight">Log a Meal</h2>
+                <p className="text-white/65 text-xs mt-0.5">Track your daily nutrition</p>
+              </div>
             </div>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 active:scale-95 transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* AI Scan Results */}
+          {/* AI Scan buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 active:scale-95 transition-all rounded-2xl py-3 text-white text-sm font-semibold border border-white/20"
+            >
+              <Camera className="w-4 h-4" />
+              Camera
+            </button>
+            <button
+              onClick={() => uploadInputRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 active:scale-95 transition-all rounded-2xl py-3 text-white text-sm font-semibold border border-white/20"
+            >
+              <Upload className="w-4 h-4" />
+              Upload
+            </button>
+          </div>
+        </div>
+
+        {/* iOS-style Segment Tabs */}
+        <div className="px-4 py-3 flex-shrink-0 bg-background border-b border-border/60">
+          <div className="flex gap-1 bg-muted rounded-2xl p-1">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  activeTab === id
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Hidden file inputs */}
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+        <input ref={uploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+
+          {/* AI Scan: scanning state */}
           {scanMode === "scanning" && (
-            <div className="relative rounded-xl overflow-hidden">
-              {scanImage && (
-                <img 
-                  src={scanImage} 
-                  alt="Scanning" 
-                  className="w-full h-32 object-cover"
-                />
-              )}
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center gap-3">
-                <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-                <span className="text-sm font-medium">Scanning food...</span>
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <div className="relative mx-4 mt-4 rounded-3xl overflow-hidden border border-border/70 shadow-md">
+              {scanImage && <img src={scanImage} alt="Scanning" className="w-full h-36 object-cover" />}
+              <div className="absolute inset-0 bg-background/75 backdrop-blur-md flex flex-col items-center justify-center gap-2.5">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+                <span className="text-sm font-semibold text-foreground">Analysing food…</span>
+                <span className="text-xs text-muted-foreground">AI is reading your meal</span>
               </div>
             </div>
           )}
 
+          {/* AI Scan: results state */}
           {scanMode === "results" && (
-            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
+            <div className="mx-4 mt-4 bg-primary/5 border border-primary/20 rounded-3xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-primary" />
+                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                    <Check className="w-3.5 h-3.5 text-primary-foreground" />
                   </div>
-                  <span className="text-sm font-medium">AI Detected Items</span>
+                  <span className="text-sm font-bold text-foreground">AI Detected</span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={resetScan} className="h-7 text-xs">
-                  <X className="w-3 h-3 mr-1" />
-                  Clear
-                </Button>
+                <button onClick={resetScan} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-muted transition-colors">
+                  <X className="w-3 h-3" /> Clear
+                </button>
               </div>
               <div className="space-y-2 mb-3">
                 {detectedFoods.map((food, index) => (
                   <div
                     key={index}
-                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
-                      food.selected 
-                        ? "bg-background ring-1 ring-primary/30" 
-                        : "bg-background/50 opacity-60"
-                    }`}
                     onClick={() => toggleFoodSelection(index)}
+                    className={`flex items-center gap-2.5 p-3 rounded-2xl cursor-pointer transition-all ${
+                      food.selected
+                        ? "bg-card border border-primary/30 shadow-sm"
+                        : "bg-card/50 opacity-50"
+                    }`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                      food.selected ? "bg-primary text-primary-foreground" : "bg-muted"
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
+                      food.selected ? "bg-primary border-primary" : "border-muted-foreground/30"
                     }`}>
-                      {food.selected ? <Check className="w-3 h-3" /> : null}
+                      {food.selected && <Check className="w-3 h-3 text-primary-foreground" />}
                     </div>
                     <span className="flex-1 text-sm font-medium truncate">{food.name}</span>
-                    <span className="text-xs text-primary font-semibold">{food.calories} cal</span>
+                    <span className="text-xs font-bold text-primary">{food.calories} cal</span>
                   </div>
                 ))}
               </div>
-              <Button 
+              <Button
                 onClick={handleConfirmFoods}
                 disabled={logging || detectedFoods.filter(f => f.selected).length === 0}
-                className="w-full"
+                className="w-full rounded-2xl h-11 font-semibold"
                 size="sm"
               >
-                {logging ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
+                {logging ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                   <>
                     <Check className="w-4 h-4 mr-2" />
-                    Log {detectedFoods.filter(f => f.selected).length} Item(s) ({detectedFoods.filter(f => f.selected).reduce((sum, f) => sum + f.calories, 0)} cal)
+                    Use {detectedFoods.filter(f => f.selected).length} item(s) · {detectedFoods.filter(f => f.selected).reduce((s, f) => s + f.calories, 0)} cal
                   </>
                 )}
               </Button>
             </div>
           )}
 
-          {/* Camera Input - captures live photo */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-          
-          {/* Upload Input - selects from gallery */}
-          <input
-            ref={uploadInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
+          {/* ── SEARCH TAB ── */}
+          {activeTab === "search" && (
+            <div className="px-4 py-4 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search meals from our menu…"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-10 h-12 rounded-2xl bg-card/95 border border-border/70 shadow-sm focus-visible:ring-2 focus-visible:ring-primary text-base"
+                />
+              </div>
 
-          {/* Recent Meals */}
-          {!searchQuery && mealHistory.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <History className="w-4 h-4" />
-                Recent Meals
-              </div>
-              <div className="space-y-2">
-                {loadingHistory ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  mealHistory.slice(0, 3).map((item) => (
-                    <Card
-                      key={item.id}
-                      variant="interactive"
-                      className="cursor-pointer"
-                      onClick={() => !logging && handleHistorySelect(item)}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-                            <RotateCcw className="w-4 h-4 text-emerald-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate text-sm">{item.name}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Flame className="w-3 h-3 text-orange-500" />
-                                {item.calories} cal
-                              </span>
-                              <span className="text-emerald-600">P: {item.protein_g}g</span>
-                            </div>
-                          </div>
-                          {logging ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                          ) : (
-                            <Plus className="w-4 h-4 text-emerald-600" />
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Search Results */}
-          {(searchQuery || meals.length > 0) && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Search className="w-4 h-4" />
-                {searchQuery ? "Search Results" : "Browse Menu"}
-              </div>
-              <div className="space-y-2">
-                {searching ? (
-                  <div className="flex items-center justify-center py-8">
+              {searching ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                     <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   </div>
-                ) : meals.length === 0 && searchQuery ? (
-                  <div className="text-center py-6 bg-muted/30 rounded-xl">
-                    <p className="text-muted-foreground text-sm">No meals found</p>
-                    <p className="text-xs text-muted-foreground mt-1">Try a different search or add manually</p>
+                  <p className="text-sm text-muted-foreground">Searching…</p>
+                </div>
+              ) : meals.length === 0 && searchQuery ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-3xl bg-muted mx-auto flex items-center justify-center mb-3 shadow-sm">
+                    <Search className="w-7 h-7 text-muted-foreground/60" />
                   </div>
-                ) : (
-                  meals.map((meal) => (
-                    <Card
+                  <p className="text-sm font-semibold text-foreground">No meals found</p>
+                  <p className="text-xs text-muted-foreground mt-1">Switch to Manual to enter details</p>
+                </div>
+              ) : meals.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-3xl bg-muted mx-auto flex items-center justify-center mb-3 shadow-sm">
+                    <Search className="w-7 h-7 text-muted-foreground/40" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Type to search meals</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {meals.map((meal) => (
+                    <button
                       key={meal.id}
-                      variant="interactive"
-                      className="cursor-pointer"
                       onClick={() => !logging && handleMealSelect(meal)}
+                      disabled={logging}
+                      className="w-full flex items-center gap-3 p-3 rounded-3xl bg-card/95 border border-border/70 shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
                     >
-                      <CardContent className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-xl overflow-hidden">
-                            {meal.image_url ? (
-                              <img
-                                src={meal.image_url}
-                                alt={meal.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              "🍽️"
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate text-sm">{meal.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{meal.restaurant_name}</p>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                              <span className="flex items-center gap-1">
-                                <Flame className="w-3 h-3 text-orange-500" />
-                                {meal.calories} cal
-                              </span>
-                              <span className="text-emerald-600">P: {Math.round(meal.protein_g)}g</span>
-                            </div>
-                          </div>
-                          {logging ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                          ) : (
-                            <Plus className="w-5 h-5 text-emerald-600" />
-                          )}
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                        <img src={getMealImage(meal.image_url, meal.id)} alt={meal.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate text-foreground">{meal.name}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{meal.restaurant_name}</p>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="flex items-center gap-0.5 text-xs text-orange-500 font-semibold bg-orange-50 px-1.5 py-0.5 rounded-full">
+                            <Flame className="w-3 h-3" />{meal.calories}
+                          </span>
+                          <span className="text-xs font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">P {Math.round(meal.protein_g)}g</span>
+                          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">C {Math.round(meal.carbs_g)}g</span>
+                          <span className="text-xs font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">F {Math.round(meal.fat_g)}g</span>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
+                      </div>
+                      {logging ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
+                          <Plus className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Manual Entry Toggle */}
-          <div className="pt-2 border-t">
-            <button
-              onClick={() => setShowManualEntry(!showManualEntry)}
-              className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-white" />
+          {/* ── RECENT TAB ── */}
+          {activeTab === "recent" && (
+            <div className="px-4 py-4">
+              {loadingHistory ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Loading history…</p>
                 </div>
-                <div className="text-left">
-                  <p className="font-medium text-sm">Manual Entry</p>
-                  <p className="text-xs text-muted-foreground">Add custom meal details</p>
+              ) : mealHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-3xl bg-muted mx-auto flex items-center justify-center mb-3 shadow-sm">
+                    <History className="w-7 h-7 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">No recent meals</p>
+                  <p className="text-xs text-muted-foreground mt-1">Meals you log will appear here</p>
                 </div>
-              </div>
-              {showManualEntry ? (
-                <ChevronUp className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-              )}
-            </button>
-
-            {/* Manual Entry Form */}
-            {showManualEntry && (
-              <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
                 <div className="space-y-2">
-                  <Label htmlFor="meal-name" className="text-sm">Meal Name</Label>
-                  <Input
-                    id="meal-name"
-                    placeholder="e.g., Homemade Salad"
-                    value={manualEntry.name}
-                    onChange={(e) => setManualEntry({ ...manualEntry, name: e.target.value })}
-                  />
+                  {mealHistory.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => !logging && handleHistorySelect(item)}
+                      disabled={logging}
+                      className="w-full flex items-center gap-3 p-3 rounded-3xl bg-card/95 border border-border/70 shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <RotateCcw className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate text-foreground">{item.name}</p>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="flex items-center gap-0.5 text-xs text-orange-500 font-semibold bg-orange-50 px-1.5 py-0.5 rounded-full">
+                            <Flame className="w-3 h-3" />{item.calories}
+                          </span>
+                          <span className="text-xs font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">P {item.protein_g}g</span>
+                          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">C {item.carbs_g}g</span>
+                          <span className="text-xs font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">F {item.fat_g}g</span>
+                        </div>
+                      </div>
+                      {logging ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
+                          <Plus className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
+              )}
+            </div>
+          )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="calories" className="flex items-center gap-1.5 text-sm">
-                      <Flame className="w-3.5 h-3.5 text-orange-500" />
-                      Calories
-                    </Label>
-                    <Input
-                      id="calories"
-                      type="number"
-                      placeholder="0"
-                      value={manualEntry.calories}
-                      onChange={(e) => setManualEntry({ ...manualEntry, calories: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="protein" className="flex items-center gap-1.5 text-sm">
-                      <Beef className="w-3.5 h-3.5 text-emerald-600" />
-                      Protein (g)
-                    </Label>
-                    <Input
-                      id="protein"
-                      type="number"
-                      placeholder="0"
-                      value={manualEntry.protein}
-                      onChange={(e) => setManualEntry({ ...manualEntry, protein: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="carbs" className="flex items-center gap-1.5 text-sm">
-                      <Wheat className="w-3.5 h-3.5 text-amber-500" />
-                      Carbs (g)
-                    </Label>
-                    <Input
-                      id="carbs"
-                      type="number"
-                      placeholder="0"
-                      value={manualEntry.carbs}
-                      onChange={(e) => setManualEntry({ ...manualEntry, carbs: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fat" className="flex items-center gap-1.5 text-sm">
-                      <Droplets className="w-3.5 h-3.5 text-blue-500" />
-                      Fat (g)
-                    </Label>
-                    <Input
-                      id="fat"
-                      type="number"
-                      placeholder="0"
-                      value={manualEntry.fat}
-                      onChange={(e) => setManualEntry({ ...manualEntry, fat: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleManualLog}
-                  disabled={logging}
-                  className="w-full"
-                >
-                  {logging ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Logging...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Log Meal
-                    </>
-                  )}
-                </Button>
+          {/* ── MANUAL TAB ── */}
+          {activeTab === "manual" && (
+            <div className="px-4 py-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="meal-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meal Name</Label>
+                <Input
+                  id="meal-name"
+                  placeholder="e.g., Homemade Salad"
+                  value={manualEntry.name}
+                  onChange={(e) => setManualEntry({ ...manualEntry, name: e.target.value })}
+                  className="rounded-2xl h-12 bg-card/95 border border-border/70 shadow-sm focus-visible:ring-2 focus-visible:ring-primary text-base"
+                />
               </div>
-            )}
-          </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: "calories", label: "Calories", key: "calories", icon: Flame,    color: "text-orange-500", bg: "bg-orange-50",  border: "border-orange-100", unit: "kcal" },
+                  { id: "protein",  label: "Protein",  key: "protein",  icon: Beef,     color: "text-red-500",    bg: "bg-red-50",     border: "border-red-100",    unit: "g" },
+                  { id: "carbs",    label: "Carbs",    key: "carbs",    icon: Wheat,    color: "text-amber-600",  bg: "bg-amber-50",   border: "border-amber-100",  unit: "g" },
+                  { id: "fat",      label: "Fat",      key: "fat",      icon: Droplets, color: "text-blue-500",   bg: "bg-blue-50",    border: "border-blue-100",   unit: "g" },
+                ].map(({ id, label, key, icon: Icon, color, bg, border, unit }) => (
+                  <div key={id} className={`${bg} ${border} border rounded-3xl p-4 space-y-2 shadow-sm`}>
+                    <div className={`flex items-center gap-1.5 ${color}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                      <span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={manualEntry[key as keyof typeof manualEntry]}
+                        onChange={(e) => setManualEntry({ ...manualEntry, [key]: e.target.value })}
+                        className="w-full bg-transparent text-2xl font-bold text-foreground outline-none placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-xs text-muted-foreground shrink-0 font-medium">{unit}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={handleManualLog}
+                disabled={logging}
+                className="w-full rounded-2xl h-13 text-base font-semibold shadow-md shadow-primary/20"
+              >
+                {logging ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Logging…</>
+                ) : (
+                  <><Plus className="w-4 h-4 mr-2" />Log Meal</>
+                )}
+              </Button>
+            </div>
+          )}
+
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

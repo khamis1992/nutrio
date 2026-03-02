@@ -39,7 +39,6 @@ import {
   Loader2,
   Package,
   DollarSign,
-  Sparkles,
   BarChart3,
   Check,
 } from "lucide-react";
@@ -475,7 +474,6 @@ const PartnerAddons = () => {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
-              <Sparkles className="h-4 w-4 mr-2" />
               Templates
             </Button>
             <Button onClick={openAddDialog}>
@@ -493,7 +491,6 @@ const PartnerAddons = () => {
               <p className="text-muted-foreground mb-4">No add-ons in your library yet</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
-                  <Sparkles className="h-4 w-4 mr-2" />
                   Use Templates
                 </Button>
                 <Button onClick={openAddDialog}>
@@ -593,7 +590,6 @@ const PartnerAddons = () => {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
               Quick Add from Templates
             </DialogTitle>
           </DialogHeader>

@@ -229,60 +229,18 @@ export default function AdminNotifications() {
   const handleSendNotification = async (announcement: Announcement) => {
     setSending(true);
     try {
-      if (announcement.target_audience === "partners") {
-        const { data: partnerRoles } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "restaurant");
+      // Use the database function to send notifications
+      const { data, error } = await supabase.rpc('send_announcement_notification', {
+        p_announcement_id: announcement.id
+      });
 
-        if (partnerRoles && partnerRoles.length > 0) {
-          const notifications = partnerRoles.map((r) => ({
-            user_id: r.user_id,
-            type: "announcement",
-            title: announcement.title,
-            message: announcement.message,
-            metadata: { announcement_type: announcement.type },
-          }));
+      if (error) throw error;
 
-          const { error } = await supabase.from("notifications").insert(notifications);
-          if (error) throw error;
-          toast.success(`Sent to ${notifications.length} partners`);
-        }
-      } else if (announcement.target_audience === "admins") {
-        const { data: adminRoles } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "admin");
-        
-        if (adminRoles && adminRoles.length > 0) {
-          const notifications = adminRoles.map((r) => ({
-            user_id: r.user_id,
-            type: "announcement",
-            title: announcement.title,
-            message: announcement.message,
-            metadata: { announcement_type: announcement.type },
-          }));
-
-          const { error } = await supabase.from("notifications").insert(notifications);
-          if (error) throw error;
-          toast.success(`Sent to ${notifications.length} admins`);
-        }
+      const count = data || 0;
+      if (count > 0) {
+        toast.success(`Notification sent to ${count} ${announcement.target_audience === 'all' ? 'users' : announcement.target_audience}`);
       } else {
-        const { data: profiles } = await supabase.from("profiles").select("user_id");
-        
-        if (profiles && profiles.length > 0) {
-          const notifications = profiles.map((p) => ({
-            user_id: p.user_id,
-            type: "announcement",
-            title: announcement.title,
-            message: announcement.message,
-            metadata: { announcement_type: announcement.type },
-          }));
-
-          const { error } = await supabase.from("notifications").insert(notifications);
-          if (error) throw error;
-          toast.success(`Sent to ${notifications.length} users`);
-        }
+        toast.info('Notifications already sent or no target users found');
       }
     } catch (error) {
       console.error("Error sending notifications:", error);

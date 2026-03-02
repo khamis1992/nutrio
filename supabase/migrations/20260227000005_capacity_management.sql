@@ -191,11 +191,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Comments
-COMMENT ON FUNCTION check_restaurant_capacity IS 'Checks if restaurant can accept more orders';
-COMMENT ON FUNCTION increment_restaurant_order_count IS 'Increments order count when order is confirmed';
+COMMENT ON check_restaurant_capacity IS 'Checks if restaurant can accept more orders';
+COMMENT ON increment_restaurant_order_count IS 'Increments order count when order is confirmed';
 COMMENT ON VIEW restaurant_capacity_status IS 'Real-time capacity status for all restaurants';
 
 -- Grant access to partner (restaurant owner) to update their capacity
+DROP POLICY IF EXISTS "Restaurant owners can update their capacity" ON public.restaurants;
 CREATE POLICY "Restaurant owners can update their capacity"
 ON public.restaurants FOR UPDATE
 USING (owner_id = auth.uid())
@@ -203,3 +204,5 @@ WITH CHECK (
     owner_id = auth.uid() 
     AND max_meals_per_day BETWEEN 10 AND 1000  -- Reasonable limits
 );
+
+

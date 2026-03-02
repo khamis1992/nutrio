@@ -320,11 +320,13 @@ ALTER TABLE rate_limit.tracking ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rate_limit.violations ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can manage config
+DROP POLICY IF EXISTS "Only admins can manage rate limit config" ON rate_limit.config;
 CREATE POLICY "Only admins can manage rate limit config"
 ON rate_limit.config FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- Users can view their own tracking
+DROP POLICY IF EXISTS "Users can view their rate limit status" ON rate_limit.tracking;
 CREATE POLICY "Users can view their rate limit status"
 ON rate_limit.tracking FOR SELECT
 USING (
@@ -333,11 +335,13 @@ USING (
 );
 
 -- Admins can view all tracking
+DROP POLICY IF EXISTS "Admins can view all rate limit tracking" ON rate_limit.tracking;
 CREATE POLICY "Admins can view all rate limit tracking"
 ON rate_limit.tracking FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- Only admins can view violations
+DROP POLICY IF EXISTS "Only admins can view violations" ON rate_limit.violations;
 CREATE POLICY "Only admins can view violations"
 ON rate_limit.violations FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
@@ -345,9 +349,11 @@ USING (public.has_role(auth.uid(), 'admin'));
 -- Comments
 COMMENT ON TABLE rate_limit.config IS 'Rate limiting configuration for different endpoints';
 COMMENT ON TABLE rate_limit.tracking IS 'Active rate limit tracking per identifier';
-COMMENT ON FUNCTION rate_limit.check_and_increment IS 'Check rate limit and increment counter if allowed';
-COMMENT ON FUNCTION rate_limit.check_only IS 'Check rate limit without incrementing (for pre-flight)';
+COMMENT ON rate_limit.check_and_increment IS 'Check rate limit and increment counter if allowed';
+COMMENT ON rate_limit.check_only IS 'Check rate limit without incrementing (for pre-flight)';
 
 -- Example usage in application code:
 -- SELECT * FROM rate_limit.check_and_increment('api_general', auth.uid()::text);
 -- SELECT * FROM rate_limit.check_and_increment('auth_login', '192.168.1.1');
+
+

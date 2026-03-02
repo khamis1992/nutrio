@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Check, X, TrendingUp, TrendingDown, Minus, Sparkles, Info } from "lucide-react";
+import { AlertTriangle, Check, X, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
 
 interface AdaptiveGoalCardProps {
   recommendation: {
@@ -69,7 +69,6 @@ export const AdaptiveGoalCard = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div>
               <CardTitle className="text-lg">AI Suggestion Ready</CardTitle>

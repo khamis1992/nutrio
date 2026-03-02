@@ -27,13 +27,16 @@ import {
   Moon,
   Apple,
   Calendar as CalendarIcon,
-  Sparkles,
-  Utensils
+  Utensils,
+  Home,
+  Briefcase,
+  Plus,
 } from "lucide-react";
 
 import { format } from "date-fns";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
+import { getMealImage } from "@/lib/meal-images";
 
 interface MealDetail {
   id: string;
@@ -93,6 +96,7 @@ const getDateContext = (date: Date): string => {
   
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
+
 
 // Circular Progress Component
 const CircularProgress = ({ 
@@ -178,12 +182,12 @@ const FixedBottomActionBar = ({
 }) => {
   return (
     <motion.div
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-background via-background/95 to-transparent pt-8 pb-6"
+      className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
     >
-      <div className="max-w-lg mx-auto px-6">
+      <div>
         <div className="flex items-center gap-4">
           {/* Left: Selection Info */}
           <div className="flex-1">
@@ -291,6 +295,10 @@ const ScheduleSheet = ({
   remainingMeals,
   isUnlimited,
   meal,
+  selectedAddressId,
+  setSelectedAddressId,
+  setSelectedAddressLabel,
+  userId,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -304,7 +312,32 @@ const ScheduleSheet = ({
   remainingMeals: number;
   isUnlimited: boolean;
   meal: MealDetail | null;
+  selectedAddressId: string | null;
+  setSelectedAddressId: (id: string | null) => void;
+  setSelectedAddressLabel: (label: string) => void;
+  userId: string | undefined;
 }) => {
+  // Fetch user addresses when sheet opens
+  const [addresses, setAddresses] = useState<{ id: string; label: string; address_line1: string; city: string; is_default: boolean }[]>([]);
+  useEffect(() => {
+    if (!isOpen || !userId) return;
+    supabase
+      .from("user_addresses")
+      .select("id, label, address_line1, city, is_default")
+      .eq("user_id", userId)
+      .order("is_default", { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setAddresses(data);
+          // Pre-select default address if none chosen yet
+          if (!selectedAddressId) {
+            const def = data.find(a => a.is_default) || data[0];
+            setSelectedAddressId(def.id);
+            setSelectedAddressLabel(`${def.label} – ${def.address_line1}, ${def.city}`);
+          }
+        }
+      });
+  }, [isOpen, userId]);
   const dateOptions = generateDateOptions();
 
   return (
@@ -448,6 +481,72 @@ const ScheduleSheet = ({
             </div>
           </div>
 
+          {/* Delivery Address Picker */}
+          {addresses.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide px-1 flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Delivery Address
+              </h3>
+              <div className="space-y-2">
+                {addresses.map((addr) => {
+                  const isSelected = selectedAddressId === addr.id;
+                  return (
+                    <motion.button
+                      key={addr.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setSelectedAddressId(addr.id);
+                        setSelectedAddressLabel(`${addr.label} – ${addr.address_line1}, ${addr.city}`);
+                      }}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all ${
+                        isSelected
+                          ? "border-transparent bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-500/25"
+                          : "border-green-100 bg-white hover:border-green-300"
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? "bg-white/20" : "bg-green-50"}`}>
+                        {addr.label.toLowerCase() === "home" ? (
+                          <Home className={`w-5 h-5 ${isSelected ? "text-white" : "text-green-600"}`} />
+                        ) : addr.label.toLowerCase() === "work" || addr.label.toLowerCase() === "office" ? (
+                          <Briefcase className={`w-5 h-5 ${isSelected ? "text-white" : "text-green-600"}`} />
+                        ) : (
+                          <MapPin className={`w-5 h-5 ${isSelected ? "text-white" : "text-green-600"}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-bold text-sm ${isSelected ? "text-white" : "text-foreground"}`}>{addr.label}</p>
+                          {addr.is_default && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${isSelected ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs truncate mt-0.5 ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
+                          {addr.address_line1}, {addr.city}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => window.open("/addresses", "_blank")}
+                  className="w-full flex items-center gap-2 p-3 rounded-2xl border-2 border-dashed border-green-200 text-green-600 hover:border-green-400 hover:bg-green-50 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Add new address</span>
+                </motion.button>
+              </div>
+            </div>
+          )}
+
           {/* Subscription Info Card */}
           {hasActiveSubscription && (
             <motion.div
@@ -474,7 +573,6 @@ const ScheduleSheet = ({
                   >
                     {isUnlimited ? (
                       <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
                         Unlimited
                       </span>
                     ) : (
@@ -588,6 +686,8 @@ const MealDetail = () => {
     const navigationState = location.state as { scheduledDate?: Date; mealType?: string } | null;
     return navigationState?.mealType || getSmartDefaultMealType();
   });
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [selectedAddressLabel, setSelectedAddressLabel] = useState<string>("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll({ container: scrollRef });
@@ -737,7 +837,9 @@ const MealDetail = () => {
             scheduled_date: format(selectedDate, "yyyy-MM-dd"),
             meal_type: selectedMealType,
             calories: meal.calories,
-            action: "view_schedule"
+            action: "view_schedule",
+            delivery_address_id: selectedAddressId,
+            delivery_address_label: selectedAddressLabel,
           },
           status: "unread"
         });
@@ -801,11 +903,11 @@ const MealDetail = () => {
   }
 
   return (
-    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-32">
+    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-24">
       {/* Animated Header */}
       <motion.header
         style={{ opacity: headerOpacitySpring }}
-        className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
+        className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50"
       >
         <div className="flex items-center justify-between px-4 h-14">
           <Button
@@ -827,33 +929,18 @@ const MealDetail = () => {
           style={{ scale: imageScale, opacity: imageOpacity }}
           className="absolute inset-0"
         >
-          {meal.image_url ? (
-            <img
-              src={meal.image_url}
-              alt={meal.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/30 flex items-center justify-center">
-              <span className="text-8xl">🍽️</span>
-            </div>
-          )}
+          <img
+            src={getMealImage(meal.image_url, meal.id)}
+            alt={meal.name}
+            className="w-full h-full object-cover"
+          />
         </motion.div>
         
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-transparent to-background" />
         
         {/* Floating Action Bar */}
-        <div className="absolute top-12 left-4 right-4 flex items-center justify-between">
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="rounded-full bg-background/80 backdrop-blur shadow-lg"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </Button>
-          
+        <div className="absolute top-12 left-4 right-4 flex items-center justify-end">
           <div className="flex items-center gap-2">
             {/* Favorite button - disabled until favorite_meals table is available */}
             {/* <Button
@@ -1007,6 +1094,18 @@ const MealDetail = () => {
           </div>
         </motion.div>
 
+        {/* Action Bar - inline below Nutrition Facts */}
+        <FixedBottomActionBar
+          meal={meal}
+          onClick={handleAddToSchedule}
+          loading={scheduling}
+          disabled={!canOrderMeal && !isUnlimited}
+          isSuccess={success}
+          hasActiveSubscription={hasActiveSubscription}
+          isUnlimited={isUnlimited}
+          remainingMeals={remainingMeals}
+        />
+
         {/* Dietary Tags */}
         {meal.diet_tags && meal.diet_tags.length > 0 && (
           <motion.div
@@ -1055,18 +1154,6 @@ const MealDetail = () => {
 
       </div>
 
-      {/* Fixed Bottom Action Bar */}
-      <FixedBottomActionBar
-        meal={meal}
-        onClick={handleAddToSchedule}
-        loading={scheduling}
-        disabled={!canOrderMeal && !isUnlimited}
-        isSuccess={success}
-        hasActiveSubscription={hasActiveSubscription}
-        isUnlimited={isUnlimited}
-        remainingMeals={remainingMeals}
-      />
-
       {/* Schedule Bottom Sheet */}
       <ScheduleSheet
         isOpen={sheetOpen}
@@ -1081,6 +1168,10 @@ const MealDetail = () => {
         remainingMeals={remainingMeals}
         isUnlimited={isUnlimited}
         meal={meal}
+        selectedAddressId={selectedAddressId}
+        setSelectedAddressId={setSelectedAddressId}
+        setSelectedAddressLabel={setSelectedAddressLabel}
+        userId={user?.id}
       />
 
       {/* Success Overlay */}

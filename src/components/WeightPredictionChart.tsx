@@ -8,9 +8,20 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
-  ReferenceLine
+  ComposedChart,
+  ReferenceLine,
+  Legend,
 } from "recharts";
 import { TrendingUp, Info } from "lucide-react";
+
+interface ChartPoint {
+  date: string;
+  label: string;
+  actual: number | null;
+  predicted: number | null;
+  lower: number | null;
+  upper: number | null;
+}
 
 interface WeightPredictionChartProps {
   predictions: Array<{
@@ -19,6 +30,7 @@ interface WeightPredictionChartProps {
     confidence_lower: number;
     confidence_upper: number;
   }>;
+  weightChartData?: ChartPoint[];
   currentWeight: number;
   targetWeight: number;
   startWeight?: number;
@@ -26,60 +38,104 @@ interface WeightPredictionChartProps {
 
 export const WeightPredictionChart = ({
   predictions,
+  weightChartData,
   currentWeight,
   targetWeight,
   startWeight
 }: WeightPredictionChartProps) => {
-  if (!predictions || predictions.length === 0) {
+  // Use rich chart data if provided, otherwise fall back to old predictions-only path
+  const hasRichData = weightChartData && weightChartData.length > 0;
+
+  // No data or weight not configured
+  const hasNoData = !hasRichData && (!predictions || predictions.length === 0);
+  const weightNotSet = !hasRichData && (!currentWeight || currentWeight === 0);
+  const targetNotSet = !targetWeight || targetWeight === 0;
+
+  if (hasNoData || weightNotSet) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
+            <TrendingUp className="h-5 w-5 text-primary" />
             Weight Forecast
           </CardTitle>
-          <CardDescription>4-week prediction based on your current pace</CardDescription>
+          <CardDescription>4-week AI prediction based on your progress</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            <div className="text-center">
-              <Info className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Log your weight for 7+ days to see predictions</p>
+          <div className="h-[200px] flex flex-col items-center justify-center gap-4">
+            {/* Mini placeholder chart lines */}
+            <div className="w-full h-24 relative opacity-20 pointer-events-none">
+              <svg viewBox="0 0 300 80" className="w-full h-full">
+                <polyline
+                  points="0,60 60,50 120,35 180,25 240,20 300,15"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeDasharray="6 3"
+                  className="text-primary"
+                />
+                <polyline
+                  points="0,60 60,55 120,48 180,42 240,38 300,32"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="text-muted-foreground"
+                />
+              </svg>
             </div>
+
+            <div className="text-center space-y-1">
+              <Info className="h-6 w-6 mx-auto text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-foreground">
+                {weightNotSet ? "Set your current weight" : "Log weight for 7+ days"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                {weightNotSet
+                  ? "Go to Profile → update your current & target weight to unlock AI predictions."
+                  : "Keep logging daily and your personalised forecast will appear here."}
+              </p>
+            </div>
+
+            {weightNotSet && (
+              <a
+                href="/profile"
+                className="text-xs font-bold text-primary bg-primary/10 hover:bg-primary/15 px-4 py-2 rounded-full transition-colors"
+              >
+                Set Up Weight Goal →
+              </a>
+            )}
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  // Prepare data for chart
-  const chartData = [
-    { 
-      date: "Now", 
-      weight: currentWeight, 
-      type: "current",
-      lower: currentWeight,
-      upper: currentWeight
-    },
-    ...predictions.map(p => ({
-      date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      weight: p.predicted_weight,
-      type: "predicted",
-      lower: p.confidence_lower,
-      upper: p.confidence_upper
-    }))
-  ];
+  // Use rich data if available, otherwise build from old predictions
+  const chartData: ChartPoint[] = hasRichData
+    ? weightChartData!
+    : [
+        { date: "now", label: "Now", actual: currentWeight || null, predicted: null, lower: null, upper: null },
+        ...predictions.map(p => ({
+          date: p.date,
+          label: new Date(p.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          actual: null,
+          predicted: p.predicted_weight,
+          lower: p.confidence_lower,
+          upper: p.confidence_upper,
+        })),
+      ];
 
-  // Calculate progress percentage
-  const totalChange = Math.abs(targetWeight - (startWeight || currentWeight));
-  const currentChange = Math.abs(currentWeight - (startWeight || currentWeight));
-  const progressPercent = totalChange > 0 ? (currentChange / totalChange) * 100 : 0;
-
-  // Estimate weeks to goal
-  const lastPrediction = predictions[predictions.length - 1];
-  const weeksToGoal = lastPrediction 
-    ? Math.ceil(Math.abs(targetWeight - lastPrediction.predicted_weight) / Math.abs((lastPrediction.predicted_weight - currentWeight) / 4))
-    : null;
+  // Stats from chart data
+  const actualPoints = chartData.filter(d => d.actual !== null);
+  const latestActual = actualPoints[actualPoints.length - 1]?.actual ?? currentWeight;
+  const firstActual = actualPoints[0]?.actual ?? currentWeight;
+  const lastPredicted = chartData.filter(d => d.predicted !== null).slice(-1)[0]?.predicted;
+  const progressPercent = targetWeight && firstActual
+    ? Math.min(100, Math.round(Math.abs(latestActual - firstActual) / Math.abs(targetWeight - firstActual) * 100))
+    : 0;
+  const allWeights = chartData.flatMap(d => [d.actual, d.predicted, d.lower, d.upper].filter(Boolean) as number[]);
+  const yMin = Math.floor(Math.min(...allWeights) - 1);
+  const yMax = Math.ceil(Math.max(...allWeights) + 1);
 
   return (
     <Card>
@@ -87,121 +143,146 @@ export const WeightPredictionChart = ({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               Weight Forecast
             </CardTitle>
-            <CardDescription>4-week prediction based on your current pace</CardDescription>
+            <CardDescription>
+              {actualPoints.length} data point{actualPoints.length !== 1 ? "s" : ""} · 4-week projection
+            </CardDescription>
           </div>
-          {weeksToGoal && weeksToGoal > 0 && weeksToGoal < 52 && (
+          {targetWeight > 0 && lastPredicted && (
             <div className="text-right">
-              <p className="text-2xl font-bold text-primary">~{weeksToGoal} weeks</p>
-              <p className="text-xs text-muted-foreground">to goal</p>
+              <p className="text-2xl font-bold text-primary">
+                {lastPredicted > 0 ? `${lastPredicted.toFixed(1)} kg` : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">in 4 weeks</p>
             </div>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Progress Stats */}
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="bg-muted p-3 rounded-lg">
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-muted p-3 rounded-xl">
             <p className="text-xs text-muted-foreground mb-1">Current</p>
-            <p className="text-lg font-bold">{currentWeight.toFixed(1)} kg</p>
+            <p className="text-lg font-bold">{latestActual > 0 ? `${latestActual.toFixed(1)}` : "—"} kg</p>
           </div>
-          <div className="bg-primary/10 p-3 rounded-lg">
+          <div className="bg-primary/10 p-3 rounded-xl">
             <p className="text-xs text-primary mb-1">Target</p>
-            <p className="text-lg font-bold text-primary">{targetWeight.toFixed(1)} kg</p>
+            <p className="text-lg font-bold text-primary">{targetWeight > 0 ? `${targetWeight.toFixed(1)}` : "—"} kg</p>
           </div>
-          <div className="bg-muted p-3 rounded-lg">
+          <div className="bg-muted p-3 rounded-xl">
             <p className="text-xs text-muted-foreground mb-1">Progress</p>
-            <p className="text-lg font-bold">{progressPercent.toFixed(0)}%</p>
+            <p className="text-lg font-bold">{progressPercent}%</p>
           </div>
         </div>
 
         {/* Chart */}
         <div className="h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
               <defs>
-                <linearGradient id="confidenceGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05}/>
+                <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="predGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.12} />
+                  <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
+
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
                 tickLine={false}
+                axisLine={false}
               />
-              <YAxis 
-                domain={['dataMin - 1', 'dataMax + 1']}
-                tick={{ fontSize: 12 }}
+              <YAxis
+                domain={[yMin, yMax]}
+                tick={{ fontSize: 11, fill: "#94a3b8" }}
                 tickLine={false}
-                tickFormatter={(value) => `${value}kg`}
+                axisLine={false}
+                tickFormatter={(v) => `${v}kg`}
               />
-              <Tooltip 
-                formatter={(value: number) => [`${value.toFixed(1)} kg`, 'Weight']}
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  fontSize: 12,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                 }}
+                formatter={(value: number, name: string) => [
+                  `${Number(value).toFixed(1)} kg`,
+                  name === "actual" ? "Logged weight" : name === "predicted" ? "Forecast" : name,
+                ]}
               />
-              
-              {/* Confidence interval area */}
-              <Area
-                type="monotone"
-                dataKey="upper"
-                stroke="transparent"
-                fill="url(#confidenceGradient)"
-              />
-              <Area
-                type="monotone"
-                dataKey="lower"
-                stroke="transparent"
-                fill="white"
-              />
-              
-              {/* Target weight line */}
-              <ReferenceLine 
-                y={targetWeight} 
-                stroke="hsl(var(--primary))" 
-                strokeDasharray="5 5"
-                label={{ value: "Goal", fill: "hsl(var(--primary))", fontSize: 12, position: 'right' }}
-              />
-              
-              {/* Weight line */}
+
+              {/* Confidence band (upper – lower shaded area) */}
+              <Area type="monotone" dataKey="upper" stroke="none" fill="url(#predGrad)" legendType="none" />
+              <Area type="monotone" dataKey="lower" stroke="none" fill="white" legendType="none" />
+
+              {/* Actual logged weight */}
               <Line
                 type="monotone"
-                dataKey="weight"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2 }}
+                dataKey="actual"
+                stroke="#22c55e"
+                strokeWidth={2.5}
+                dot={{ fill: "#22c55e", r: 4, strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
+                connectNulls={false}
+                name="actual"
               />
-            </AreaChart>
+
+              {/* Predicted weight (dashed) */}
+              <Line
+                type="monotone"
+                dataKey="predicted"
+                stroke="#14b8a6"
+                strokeWidth={2}
+                strokeDasharray="5 4"
+                dot={{ fill: "#14b8a6", r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
+                name="predicted"
+              />
+
+              {/* Goal reference line */}
+              {targetWeight > 0 && targetWeight >= yMin && targetWeight <= yMax && (
+                <ReferenceLine
+                  y={targetWeight}
+                  stroke="#22c55e"
+                  strokeDasharray="6 3"
+                  strokeOpacity={0.5}
+                  label={{ value: "Goal", fill: "#22c55e", fontSize: 11, position: "insideTopRight" }}
+                />
+              )}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-primary" />
-            <span>Predicted weight</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-primary/20" />
-            <span>Confidence range</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 border-t-2 border-dashed border-primary" />
-            <span>Goal</span>
-          </div>
+        <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-0.5 bg-green-500 rounded-full inline-block" />
+            Logged weight
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-0.5 border-t-2 border-dashed border-teal-500 inline-block" />
+            4-week forecast
+          </span>
+          {targetWeight > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 border-t-2 border-dashed border-green-400 opacity-60 inline-block" />
+              Goal
+            </span>
+          )}
         </div>
 
-        {/* Disclaimer */}
         <p className="text-xs text-muted-foreground text-center">
-          Predictions based on your current pace. Actual results may vary based on adherence and other factors.
+          Forecast based on your actual logged weight trend.
         </p>
       </CardContent>
     </Card>

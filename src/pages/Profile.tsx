@@ -41,7 +41,6 @@ import {
   Mail,
   Wallet,
   ChevronRight,
-  Sparkles,
   Calendar,
   Shield,
   Eye,
@@ -52,12 +51,11 @@ import {
   XCircle,
   CreditCard,
   Gift,
-  Share2,
-  Users,
   TrendingUp,
   Flame,
   Crown as CrownIcon,
   Star,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -395,7 +393,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Sticky Header */}
       <motion.header
         initial={{ y: -20, opacity: 0 }}
@@ -443,14 +441,6 @@ const Profile = () => {
                     ? fullName.charAt(0).toUpperCase()
                     : user?.email?.charAt(0).toUpperCase()}
                 </div>
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.3, type: "spring" }}
-                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-background border-2 border-primary flex items-center justify-center"
-                >
-                  <Sparkles className="w-4 h-4 text-primary" />
-                </motion.div>
               </motion.div>
 
               {/* User info */}
@@ -679,6 +669,26 @@ const Profile = () => {
                           )}
                         </Button>
                       </motion.div>
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Delivery Addresses */}
+                  <SectionCard>
+                    <CardContent className="p-0">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate("/addresses")}
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <MapPin className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground">Delivery Addresses</p>
+                          <p className="text-sm text-muted-foreground">Manage your saved delivery locations</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                      </motion.button>
                     </CardContent>
                   </SectionCard>
 
@@ -1029,32 +1039,6 @@ const Profile = () => {
                     </motion.div>
                   )}
 
-                  {/* Referral Program Card */}
-                  {platformSettings.features.referral_program && (
-                    <motion.div variants={itemVariants}>
-                      <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
-                        <CardContent className="p-6">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                              <Share2 className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg mb-1">Refer Friends</h3>
-                              <p className="text-sm text-muted-foreground mb-4">
-                                Give $10, Get $10! Invite friends and both earn rewards when they subscribe.
-                              </p>
-                              <Link to="/referral">
-                                <Button className="w-full">
-                                  <Users className="h-4 w-4 mr-2" />
-                                  View Referral Program
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  )}
 
                   {/* Affiliate Program Card */}
                   {platformSettings.features.referral_program && (

@@ -179,7 +179,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-COMMENT ON FUNCTION calculate_driver_earnings IS 
+COMMENT ON calculate_driver_earnings IS 
 'Calculates driver earnings based on configurable rules. Priority: city > restaurant > distance > time > global';
 
 -- Create trigger function to auto-calculate earnings on delivery_jobs insert/update
@@ -217,6 +217,7 @@ CREATE TRIGGER trg_calculate_driver_earnings
 -- RLS Policies for driver_earning_rules (admin only)
 ALTER TABLE driver_earning_rules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage driver earning rules" ON driver_earning_rules;
 CREATE POLICY "Admins can manage driver earning rules"
   ON driver_earning_rules
   FOR ALL
@@ -228,6 +229,7 @@ CREATE POLICY "Admins can manage driver earning rules"
     )
   );
 
+DROP POLICY IF EXISTS "Anyone can view active driver earning rules" ON driver_earning_rules;
 CREATE POLICY "Anyone can view active driver earning rules"
   ON driver_earning_rules
   FOR SELECT
@@ -251,7 +253,7 @@ CREATE TRIGGER trg_driver_earning_rules_updated_at
 
 -- Grant permissions
 GRANT ALL ON public.driver_earning_rules TO authenticated;
-GRANT EXECUTE ON FUNCTION calculate_driver_earnings TO authenticated;
+GRANT EXECUTE ON calculate_driver_earnings TO authenticated;
 
 -- Recalculate existing delivery_jobs with new formula (optional - for historical consistency)
 -- Uncomment if you want to update existing records:
@@ -265,3 +267,5 @@ GRANT EXECUTE ON FUNCTION calculate_driver_earnings TO authenticated;
 --   created_at
 -- )
 -- WHERE status NOT IN ('delivered', 'cancelled');
+
+

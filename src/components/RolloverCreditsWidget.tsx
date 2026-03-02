@@ -40,27 +40,36 @@ export function RolloverCreditsWidget() {
 
   const fetchRolloverCredits = async () => {
     try {
-      // Fetch active rollover credits
+      const today = new Date().toISOString().split('T')[0];
+
+      // Query using status column (active, consumed, expired)
       const { data, error } = await supabase
         .from('subscription_rollovers')
         .select('*')
         .eq('user_id', user?.id)
         .eq('status', 'active')
+        .gte('expiry_date', today)
         .order('expiry_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        // Table may not exist yet — treat as empty, don't crash
+        console.warn('Rollover credits table not available:', error.message);
+        setLoading(false);
+        return;
+      }
 
-      setRollovers(data || []);
+      // Data already has status field from DB
+      const mapped = (data || []) as RolloverCredit[];
+
+      setRollovers(mapped);
       
-      // Calculate totals
-      const total = data?.reduce((sum, r) => sum + (r.rollover_credits || 0), 0) || 0;
+      const total = mapped.reduce((sum, r) => sum + (r.rollover_credits || 0), 0);
       setTotalRollover(total);
 
-      // Calculate expiring in next 7 days
-      const expiring = data?.filter(r => {
+      const expiring = mapped.filter(r => {
         const daysUntilExpiry = differenceInDays(new Date(r.expiry_date), new Date());
         return daysUntilExpiry <= 7 && daysUntilExpiry > 0;
-      }).reduce((sum, r) => sum + (r.rollover_credits || 0), 0) || 0;
+      }).reduce((sum, r) => sum + (r.rollover_credits || 0), 0);
       
       setTotalExpiring(expiring);
     } catch (err) {
@@ -101,21 +110,29 @@ export function RolloverCreditsWidget() {
 
       if (result.success) {
         toast({
-          title: 'Rollover Credits Calculated!',
-          description: `You've received ${result.rollover_credits} rollover credits from your unused meals.`,
+          title: '🎉 Rollover Credits Granted!',
+          description: `${result.rollover_credits} credits rolled over from your unused meals. They expire at the end of next billing cycle.`,
         });
         fetchRolloverCredits();
       } else {
+        // Provide user-friendly explanations for common failure reasons
+        let friendlyMsg = result.message || result.error || 'No rollover credits available.';
+        if (friendlyMsg.includes('payment')) {
+          friendlyMsg = 'Rollover credits are granted automatically when your subscription renews. Check back after your next billing cycle.';
+        } else if (friendlyMsg.includes('initial subscription')) {
+          friendlyMsg = 'Rollover credits apply from your second billing cycle onwards once you have unused meals to carry forward.';
+        } else if (friendlyMsg.includes('not found')) {
+          friendlyMsg = 'No active subscription found. Please subscribe first.';
+        }
         toast({
-          title: 'Rollover Calculation',
-          description: result.message || result.error || 'No rollover credits available at this time.',
-          variant: 'destructive',
+          title: 'Rollover Not Available Yet',
+          description: friendlyMsg,
         });
       }
     } catch (err: any) {
       toast({
-        title: 'Error',
-        description: err.message || 'Failed to calculate rollover credits.',
+        title: 'Could Not Check Rollover',
+        description: err.message || 'Please try again later.',
         variant: 'destructive',
       });
     }
@@ -123,7 +140,7 @@ export function RolloverCreditsWidget() {
 
   if (loading) return null;
 
-  // Only show if user has rollover credits or it's near cycle end
+  // No active rollover credits — show info card
   if (totalRollover === 0 && rollovers.length === 0) {
     return (
       <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
@@ -133,13 +150,28 @@ export function RolloverCreditsWidget() {
             <CardTitle className="text-base font-semibold">Rollover Credits</CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-3">
-            Didn't use all your meals this month? You can roll over up to 20% of unused credits to next month!
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Unused meals at the end of your billing cycle roll over automatically — up to 20% of your monthly allocation. They appear here after your subscription renews.
           </p>
-          <Button variant="outline" size="sm" onClick={calculateRollover} className="w-full">
+          <div className="bg-white/60 rounded-xl p-3 border border-blue-200/60 space-y-1.5">
+            <p className="text-xs font-semibold text-blue-700">How rollover works:</p>
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">1</span>
+              <span>End each cycle with unused meals</span>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">2</span>
+              <span>Up to 20% carry forward when your plan renews</span>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+              <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">3</span>
+              <span>Credits expire at the end of the following cycle</span>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={calculateRollover} className="w-full border-blue-300 text-blue-700 hover:bg-blue-50">
             <RefreshCw className="w-4 h-4 mr-2" />
-            Check Eligibility
+            Check Eligibility Now
           </Button>
         </CardContent>
       </Card>

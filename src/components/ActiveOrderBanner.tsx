@@ -9,14 +9,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat,
   Truck,
-  Utensils,
   MapPin,
   ChevronRight,
   Package,
-  AlertCircle,
-  CheckCircle2,
+  Check,
   Clock,
+  Utensils,
+  CircleCheck,
 } from "lucide-react";
+import flameLogo from "@/assets/flam.png";
 
 type OrderStatus =
   | "pending"
@@ -69,89 +70,77 @@ interface Restaurant {
   name: string;
 }
 
-// Define the journey steps with their order
-const journeySteps: { status: OrderStatus; label: string; icon: React.ElementType }[] = [
-  { status: "pending", label: "Order Placed", icon: AlertCircle },
-  { status: "confirmed", label: "Confirmed", icon: CheckCircle2 },
-  { status: "preparing", label: "Preparing", icon: ChefHat },
-  { status: "ready", label: "Ready", icon: Package },
-  { status: "out_for_delivery", label: "On the Way", icon: Truck },
-  { status: "delivered", label: "Delivered", icon: MapPin },
+// Journey steps with icons for each step
+const journeySteps: { status: OrderStatus; label: string; sublabel?: string; Icon: React.ElementType }[] = [
+  { status: "pending",          label: "Order Placed", Icon: CircleCheck },
+  { status: "confirmed",        label: "Confirmed",    Icon: Check },
+  { status: "preparing",        label: "Preparing",    sublabel: "In Queue",           Icon: ChefHat },
+  { status: "ready",            label: "Ready",        Icon: Package },
+  { status: "out_for_delivery", label: "On the Way",   sublabel: "Near Your Location", Icon: Truck },
+  { status: "delivered",        label: "Delivered",    Icon: MapPin },
 ];
 
 const statusConfig: Record<OrderStatus, {
   label: string;
-  icon: React.ElementType;
-  color: string;
-  bgColor: string;
-  gradient: string;
-  glowColor: string;
+  shortLabel: string;
+  badgeClass: string;
+  textClass: string;
 }> = {
   pending: {
     label: "Pending",
-    icon: AlertCircle,
-    color: "text-amber-600",
-    bgColor: "bg-amber-50",
-    gradient: "from-amber-400 to-orange-500",
-    glowColor: "shadow-amber-400/30",
+    shortLabel: "PENDING",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   confirmed: {
     label: "Confirmed",
-    icon: CheckCircle2,
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    gradient: "from-blue-400 to-indigo-500",
-    glowColor: "shadow-blue-400/30",
+    shortLabel: "CONFIRMED",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   preparing: {
     label: "Preparing",
-    icon: ChefHat,
-    color: "text-purple-600",
-    bgColor: "bg-purple-50",
-    gradient: "from-purple-400 to-pink-500",
-    glowColor: "shadow-purple-400/30",
+    shortLabel: "PREPARING",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   ready: {
     label: "Ready",
-    icon: Package,
-    color: "text-cyan-600",
-    bgColor: "bg-cyan-50",
-    gradient: "from-cyan-400 to-teal-500",
-    glowColor: "shadow-cyan-400/30",
+    shortLabel: "READY",
+    badgeClass: "bg-[#bef264]",
+    textClass: "text-green-900",
   },
   out_for_delivery: {
     label: "On the Way",
-    icon: Truck,
-    color: "text-orange-600",
-    bgColor: "bg-orange-50",
-    gradient: "from-orange-400 to-red-500",
-    glowColor: "shadow-orange-400/30",
+    shortLabel: "ON THE WAY",
+    badgeClass: "bg-green-700",
+    textClass: "text-[#bef264]",
   },
   delivered: {
     label: "Delivered",
-    icon: MapPin,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
-    gradient: "from-emerald-400 to-green-500",
-    glowColor: "shadow-emerald-400/30",
+    shortLabel: "DELIVERED",
+    badgeClass: "bg-green-700",
+    textClass: "text-white",
   },
   completed: {
     label: "Completed",
-    icon: CheckCircle2,
-    color: "text-green-600",
-    bgColor: "bg-green-50",
-    gradient: "from-green-400 to-emerald-500",
-    glowColor: "shadow-green-400/30",
+    shortLabel: "COMPLETED",
+    badgeClass: "bg-green-700",
+    textClass: "text-white",
   },
   cancelled: {
     label: "Cancelled",
-    icon: AlertCircle,
-    color: "text-red-600",
-    bgColor: "bg-red-50",
-    gradient: "from-red-400 to-rose-500",
-    glowColor: "shadow-red-400/30",
+    shortLabel: "CANCELLED",
+    badgeClass: "bg-red-500",
+    textClass: "text-white",
   },
 };
+
+const FoodEmoji = () => (
+  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-green-100 text-xs mr-2">
+    🥗
+  </span>
+);
 
 interface ActiveOrderBannerProps {
   userId: string;
@@ -281,7 +270,6 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     return journeySteps.findIndex(step => step.status === status);
   };
 
-  // Group orders by restaurant
   const groupOrdersByRestaurant = (orders: ActiveOrder[]): GroupedRestaurantOrder[] => {
     const grouped = orders.reduce((acc, order) => {
       if (!acc[order.restaurant_name]) {
@@ -292,13 +280,11 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     }, {} as Record<string, ActiveOrder[]>);
 
     return Object.entries(grouped).map(([restaurant_name, orders]) => {
-      // Get the "latest" status (furthest along in the journey)
       const statuses = orders.map(o => o.order_status);
       const stepIndices = statuses.map(s => getCurrentStepIndex(s));
       const maxIndex = Math.max(...stepIndices);
       const latest_status = journeySteps[maxIndex]?.status || orders[0].order_status;
 
-      // Get earliest scheduled date
       const dates = orders.map(o => new Date(o.scheduled_date));
       const earliest_date = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
 
@@ -318,24 +304,26 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
   return (
     <div className="space-y-4">
+      {/* Section Header */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
-        <h3 className="font-semibold text-sm flex items-center gap-2">
-          <motion.div
-            animate={{ rotate: [0, 15, -15, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-          >
-            <Utensils className="w-4 h-4 text-primary" />
-          </motion.div>
+        <h3 className="font-semibold text-base flex items-center gap-2 text-slate-800">
+          <span className="text-green-600">
+            <Utensils className="w-5 h-5" />
+          </span>
           Active Orders ({groupedOrders.length})
         </h3>
         <Link to="/orders">
-          <Button variant="ghost" size="sm" className="h-8 text-xs hover:bg-primary/10 hover:text-primary transition-colors">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 text-sm font-medium hover:bg-green-50 hover:text-green-700 transition-colors text-slate-600"
+          >
             View All
-            <ChevronRight className="w-3 h-3 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </Link>
       </motion.div>
@@ -344,7 +332,6 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         {groupedOrders.map((group, index) => {
           const config = statusConfig[group.latest_status];
           const currentStepIndex = getCurrentStepIndex(group.latest_status);
-          const progress = ((currentStepIndex + 1) / journeySteps.length) * 100;
 
           return (
             <motion.div
@@ -356,157 +343,170 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
               layout
             >
               <Link to="/tracking">
-                <Card
-                  className={`group overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer bg-gradient-to-br from-white to-slate-50/50 ${config.glowColor} hover:shadow-lg`}
-                >
-                  {/* Top progress bar */}
-                  <div className="relative h-1 bg-slate-100 overflow-hidden">
-                    <motion.div
-                      className={`absolute inset-y-0 left-0 bg-gradient-to-r ${config.gradient}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
-                    />
-                  </div>
-
-                  <CardContent className="p-5">
-                    {/* Header with status badge */}
+                <div className="group relative overflow-hidden rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white via-green-50/60 to-green-100/70 border border-green-100">
+                  <div className="p-5">
+                    {/* Header Row */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          >
-                            <Badge
-                              variant="outline"
-                              className={`text-xs font-medium px-2.5 py-1 ${config.color} border-current bg-white/80 backdrop-blur-sm`}
-                            >
-                              <config.icon className="w-3 h-3 mr-1.5" />
-                              {config.label}
-                            </Badge>
-                          </motion.div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {getDateLabel(group.earliest_date)}
+                        {/* Status Badge + Date/ETA */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className={`${config.badgeClass} ${config.textClass} font-bold text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5`}>
+                            {group.latest_status === "out_for_delivery"
+                              ? <Truck className="w-3.5 h-3.5" />
+                              : <Clock className="w-3.5 h-3.5" />
+                            }
+                            {config.shortLabel}
                           </span>
-                          {group.meal_count > 1 && (
-                            <Badge variant="secondary" className="text-xs">
-                              {group.meal_count} meals
-                            </Badge>
-                          )}
+                          <span className="text-sm text-slate-500 font-medium">
+                            {group.latest_status === "out_for_delivery" ? "ETA" : "est."} {getDateLabel(group.earliest_date)}
+                          </span>
                         </div>
-                        <h4 className="font-semibold text-base text-slate-900 truncate group-hover:text-primary transition-colors">
+
+                        {/* Restaurant Name */}
+                        <h4 className="font-bold text-xl text-green-950 mb-2">
                           {group.restaurant_name}
                         </h4>
-                        <div className="mt-1 space-y-0.5">
-                          {group.meal_names.slice(0, 3).map((mealName, idx) => (
-                            <p key={idx} className="text-sm text-muted-foreground truncate">
-                              • {mealName}
+
+                        {/* Meal Items */}
+                        <div className="space-y-1">
+                          {group.meal_names.slice(0, 2).map((mealName, idx) => (
+                            <p key={idx} className="text-sm text-green-900/70 flex items-center font-medium">
+                              <span className="mr-2">•</span>
+                              <FoodEmoji />
+                              {mealName}
                             </p>
                           ))}
-                          {group.meal_names.length > 3 && (
-                            <p className="text-xs text-muted-foreground">
-                              +{group.meal_names.length - 3} more meals
+                          {group.meal_names.length > 2 && (
+                            <p className="text-xs text-green-700/60 ml-6">
+                              +{group.meal_names.length - 2} more meals
                             </p>
                           )}
                         </div>
                       </div>
-                      <motion.div
-                        className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-lg ${config.glowColor} shadow-lg`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                      >
-                        <config.icon className="w-6 h-6 text-white" />
-                      </motion.div>
+
+                      {/* Status Icon — top right (flashing) */}
+                      <div className="relative flex-shrink-0">
+                        {/* Ping rings */}
+                        <span className="absolute inset-0 rounded-full bg-green-600 opacity-40 animate-ping" />
+                        <span className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping [animation-delay:0.4s]" />
+                        <motion.div
+                          className="relative w-12 h-12 rounded-full bg-green-800 flex items-center justify-center shadow-lg"
+                          animate={{ scale: [1, 1.08, 1] }}
+                          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          {group.latest_status === "out_for_delivery"
+                            ? <Truck className="w-6 h-6 text-white" />
+                            : <Clock className="w-6 h-6 text-white" />
+                          }
+                        </motion.div>
+                      </div>
                     </div>
 
-                    {/* Animated Journey Timeline */}
-                    <div className="relative mt-6 mb-4">
-                      {/* Connecting line */}
-                      <div className="absolute top-4 left-0 right-0 h-0.5 bg-slate-200">
-                        <motion.div 
-                          className={`h-full bg-gradient-to-r ${config.gradient}`}
+                    {/* Progress Stepper */}
+                    <div className="mt-6 mb-2">
+                      <div className="relative px-1">
+                        {/* Background Line */}
+                        <div className="absolute top-5 left-6 right-6 h-0.5 bg-green-200/80" />
+
+                        {/* Active Progress Line */}
+                        <motion.div
+                          className="absolute top-5 left-6 h-0.5 bg-green-600"
                           initial={{ width: "0%" }}
-                          animate={{ width: `${(currentStepIndex / (journeySteps.length - 1)) * 100}%` }}
-                          transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+                          animate={{
+                            width: `${(currentStepIndex / (journeySteps.length - 1)) * (100 - 8)}%`
+                          }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          style={{ right: "auto" }}
                         />
-                      </div>
 
-                      {/* Steps */}
-                      <div className="relative flex justify-between">
-                        {journeySteps.map((step, stepIndex) => {
-                          const isCompleted = stepIndex <= currentStepIndex;
-                          const isCurrent = stepIndex === currentStepIndex;
-                          const StepIcon = step.icon;
+                        {/* Steps */}
+                        <div className="relative flex justify-between">
+                          {journeySteps.map((step, stepIndex) => {
+                            const isCompleted = stepIndex < currentStepIndex;
+                            const isCurrent = stepIndex === currentStepIndex;
+                            const StepIcon = step.Icon;
 
-                          return (
-                            <motion.div 
-                              key={step.status}
-                              className="flex flex-col items-center"
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.6 + stepIndex * 0.05 }}
-                            >
-                              <motion.div
-                                className={`
-                                  relative w-8 h-8 rounded-full flex items-center justify-center
-                                  transition-all duration-300 border-2
-                                  ${isCompleted 
-                                    ? `bg-gradient-to-br ${config.gradient} border-transparent text-white shadow-md ${config.glowColor}` 
-                                    : 'bg-white border-slate-200 text-slate-300'
-                                  }
-                                  ${isCurrent ? `scale-110 shadow-lg ring-4 ${config.bgColor} ${config.glowColor} ring-opacity-50` : ''}
-                                `}
-                                animate={isCurrent ? {
-                                  scale: [1, 1.15, 1],
-                                  boxShadow: [
-                                    `0 0 0 0px rgba(var(--tw-shadow-color), 0)`,
-                                    `0 0 0 8px rgba(var(--tw-shadow-color), 0.2)`,
-                                    `0 0 0 0px rgba(var(--tw-shadow-color), 0)`
-                                  ]
-                                } : {}}
-                                transition={isCurrent ? {
-                                  duration: 2,
-                                  repeat: Infinity,
-                                  ease: "easeInOut"
-                                } : {}}
+                            return (
+                              <div
+                                key={step.status}
+                                className="flex flex-col items-center"
+                                style={{ width: `${100 / journeySteps.length}%` }}
                               >
-                                <StepIcon className="w-4 h-4" />
-                                {isCurrent && (
-                                  <motion.div
-                                    className="absolute inset-0 rounded-full bg-white/30"
-                                    animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                  />
+                                {/* Step Circle */}
+                                {isCurrent ? (
+                                  <div className="relative flex items-center justify-center w-11 h-11">
+                                    {/* Ping rings */}
+                                    <span className="absolute inset-0 rounded-full bg-green-400 opacity-40 animate-ping" />
+                                    <span className="absolute inset-0 rounded-full bg-green-300 opacity-20 animate-ping [animation-delay:0.4s]" />
+                                    <motion.div
+                                      className="relative w-11 h-11 flex items-center justify-center rounded-full bg-white shadow-lg ring-2 ring-green-500 z-10"
+                                      animate={{ scale: [1, 1.06, 1] }}
+                                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                      <motion.div
+                                        className="absolute inset-0 rounded-full bg-green-400 blur-md"
+                                        animate={{ scale: [1.2, 1.6, 1.2], opacity: [0.4, 0.1, 0.4] }}
+                                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                                      />
+                                      <motion.img
+                                        src={flameLogo}
+                                        alt="NutrioFuel"
+                                        className="w-7 h-7 object-contain relative z-10"
+                                        animate={{ scale: [1, 1.12, 1], rotate: [0, 5, -5, 0] }}
+                                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                                      />
+                                    </motion.div>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className={`
+                                      relative flex items-center justify-center rounded-full z-10 transition-all duration-300 w-9 h-9
+                                      ${isCompleted
+                                        ? 'bg-green-700 text-white shadow-md'
+                                        : 'bg-white/80 text-green-300 border border-green-200'
+                                      }
+                                    `}
+                                  >
+                                    {isCompleted
+                                      ? <Check className="w-4 h-4" />
+                                      : <StepIcon className="w-4 h-4 text-green-300" />
+                                    }
+                                  </div>
                                 )}
-                              </motion.div>
-                              <span className={`
-                                text-[10px] mt-1.5 font-medium transition-colors duration-300
-                                ${isCompleted ? config.color : 'text-slate-300'}
-                                ${isCurrent ? 'font-semibold' : ''}
-                              `}>
-                                {step.label}
-                              </span>
-                            </motion.div>
-                          );
-                        })}
+
+                                {/* Step Label */}
+                                <span className={`
+                                  text-[10px] mt-1.5 text-center whitespace-nowrap leading-tight
+                                  ${isCurrent ? 'font-bold text-green-900' : isCompleted ? 'font-semibold text-green-800' : 'font-medium text-green-400'}
+                                `}>
+                                  {step.label}
+                                </span>
+
+                                {/* Sublabel for current step */}
+                                {isCurrent && step.sublabel && (
+                                  <span className="text-[9px] text-green-700/70 mt-0.5 whitespace-nowrap italic">
+                                    {step.sublabel}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Footer with action */}
-                    <div className="flex items-center justify-end pt-3 border-t border-slate-100">
+                    {/* Track Order Button */}
+                    <div className="flex justify-end mt-4">
                       <motion.div
-                        className="flex items-center gap-1 text-xs font-medium text-primary"
-                        whileHover={{ x: 3 }}
+                        className="flex items-center gap-1 text-sm font-semibold text-green-900 bg-white/80 hover:bg-white border border-green-200 px-4 py-2 rounded-xl transition-colors cursor-pointer shadow-sm"
+                        whileHover={{ x: 2 }}
                       >
                         <span>Track Order</span>
-                        <ChevronRight className="w-3 h-3" />
+                        <ChevronRight className="w-4 h-4" />
                       </motion.div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </Link>
             </motion.div>
           );

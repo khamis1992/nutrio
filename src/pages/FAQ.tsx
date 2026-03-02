@@ -133,7 +133,7 @@ const FAQ = () => {
         },
         {
           question: "How do I refer a friend?",
-          answer: "Visit the Referral page in your account to get your unique referral code. When friends sign up using your code and complete their first order, you both earn rewards!"
+          answer: "Visit the Affiliate Program in your account to get your unique referral code. When friends sign up using your code and place orders, you earn commissions automatically!"
         }
       ]
     }

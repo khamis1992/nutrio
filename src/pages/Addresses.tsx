@@ -1,6 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Plus, Edit2, Trash2, Check, Home, Briefcase, Star, Phone } from "lucide-react";
+import { ArrowLeft, MapPin, Plus, Edit2, Trash2, Check, Home, Briefcase, Star, Phone, Locate, Navigation } from "lucide-react";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from "react-leaflet";
+
+// Fix Leaflet's default broken icon URLs when bundled with Vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -84,6 +96,31 @@ const emptyForm: AddressFormData = {
 
 const labelOptions = ["Home", "Work", "Office", "Other"];
 
+// ── Map sub-components ────────────────────────────────────────────────────
+
+// Imperatively moves the map view whenever `position` changes
+const SetMapView = ({ position, zoom = 16 }: { position: [number, number]; zoom?: number }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(position, zoom, { animate: true });
+    // Invalidate size after dialog animation settles
+    setTimeout(() => map.invalidateSize(), 300);
+  }, [map, position, zoom]);
+  return null;
+};
+
+// Listens for map clicks and moves the pin
+const ClickHandler = ({ onPick }: { onPick: (lat: number, lng: number) => void }) => {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+};
+
+// ── Addresses page ────────────────────────────────────────────────────────
+
 const Addresses = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -99,11 +136,199 @@ const Addresses = () => {
   const [formData, setFormData] = useState<AddressFormData>(emptyForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Map / location state
+  const [pinPosition, setPinPosition] = useState<[number, number] | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null); // metres
+  const watchIdRef = useRef<number | null>(null);
+
+  // Forward-geocode with fallback chain using Nominatim
+  const forwardGeocode = useCallback(async (queries: string[]) => {
+    // Skip geocoding on localhost due to CORS restrictions
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // Set a default position for Doha, Qatar in development
+      setPinPosition([25.2854, 51.5310]);
+      return;
+    }
+
+    for (const query of queries) {
+      if (!query.trim()) continue;
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=qa`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          setPinPosition([lat, lng]);
+          return; // stop at first successful result
+        }
+      } catch {
+        // try next query
+      }
+    }
+  }, []);
+
+  // Reverse-geocode with Nominatim and fill form fields
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      // Check if running on localhost (CORS issues with Nominatim)
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // In development, just set coordinates without reverse geocoding
+        setFormData(prev => ({
+          ...prev,
+          address_line1: prev.address_line1 || `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+          city: prev.city || 'Doha',
+          country: prev.country || 'Qatar',
+        }));
+        return;
+      }
+
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data = await res.json();
+      const a = data.address || {};
+      setFormData(prev => ({
+        ...prev,
+        address_line1: [a.road, a.house_number].filter(Boolean).join(" ") || data.display_name?.split(",")[0] || prev.address_line1,
+        address_line2: [a.suburb, a.neighbourhood].filter(Boolean).join(", ") || prev.address_line2 || "",
+        city: a.city || a.town || a.village || a.county || prev.city,
+        state: a.state || prev.state || "",
+        postal_code: a.postcode || prev.postal_code,
+        country: a.country || prev.country,
+      }));
+    } catch {
+      // silently ignore — user can still fill manually
+      // Set default values for Qatar
+      setFormData(prev => ({
+        ...prev,
+        city: prev.city || 'Doha',
+        country: prev.country || 'Qatar',
+      }));
+    }
+  }, []);
+
+  const handleMapPick = useCallback((lat: number, lng: number) => {
+    setPinPosition([lat, lng]);
+    reverseGeocode(lat, lng);
+  }, [reverseGeocode]);
+
+  // Stop any active GPS watch
+  const stopWatch = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+  }, []);
+
+  const detectLocation = useCallback((onDone?: () => void) => {
+    if (!navigator.geolocation) return;
+    stopWatch();
+    setGpsLoading(true);
+    setGpsAccuracy(null);
+
+    // Keep track of best accuracy seen so far
+    let bestAccuracy = Infinity;
+    let geocodeFired = false;
+
+    // Hard timeout — accept whatever we have after 15 s
+    const timeoutId = setTimeout(() => {
+      stopWatch();
+      setGpsLoading(false);
+      onDone?.();
+    }, 15000);
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        const { latitude, longitude, accuracy } = coords;
+
+        // Always move the pin to the latest reading so the user sees it refine
+        setPinPosition([latitude, longitude]);
+        setGpsAccuracy(Math.round(accuracy));
+
+        // Reverse-geocode once we have a good enough fix (< 60 m)
+        if (accuracy < 60 && !geocodeFired) {
+          geocodeFired = true;
+          reverseGeocode(latitude, longitude);
+        }
+
+        // Stop watching when accuracy is good enough (< 30 m) or clearly better
+        if (accuracy < 30 || (accuracy < 60 && accuracy < bestAccuracy * 0.6)) {
+          clearTimeout(timeoutId);
+          stopWatch();
+          if (!geocodeFired) reverseGeocode(latitude, longitude);
+          setGpsLoading(false);
+          onDone?.();
+        }
+
+        bestAccuracy = Math.min(bestAccuracy, accuracy);
+      },
+      () => {
+        clearTimeout(timeoutId);
+        stopWatch();
+        setGpsLoading(false);
+        onDone?.();
+        toast({
+          title: "Location denied",
+          description: "Please allow location access and try again.",
+          variant: "destructive",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }, [reverseGeocode, stopWatch]);
+
+  // Clean up watch on unmount
+  useEffect(() => () => stopWatch(), [stopWatch]);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS not supported", description: "Your browser doesn't support location.", variant: "destructive" });
+      return;
+    }
+    detectLocation();
+  };
+
   useEffect(() => {
     if (user) {
       fetchAddresses();
     }
   }, [user]);
+
+  // After dialog opens, wait 500ms for MapContainer to mount then geocode / GPS
+  useEffect(() => {
+    if (!dialogOpen) return;
+
+    const timer = setTimeout(() => {
+      if (editingAddress) {
+        // Build a fallback query chain: specific → city only → postal code only
+        const city = editingAddress.city?.trim();
+        const street = editingAddress.address_line1?.trim();
+        const postal = editingAddress.postal_code?.trim();
+
+        const queries = [
+          // 1. Street + city + Qatar
+          street && city ? `${street}, ${city}, Qatar` : "",
+          // 2. City + Qatar (most reliable for Nominatim)
+          city ? `${city}, Qatar` : "",
+          // 3. Postal code + Qatar
+          postal && postal.length > 2 ? `${postal}, Qatar` : "",
+          // 4. Just city
+          city || "",
+        ];
+        forwardGeocode(queries);
+      } else {
+        // Add mode: auto-detect GPS
+        detectLocation();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [dialogOpen, editingAddress, forwardGeocode, detectLocation]);
 
   const fetchAddresses = async () => {
     if (!user) return;
@@ -135,11 +360,14 @@ const Addresses = () => {
     setEditingAddress(null);
     setFormData(emptyForm);
     setFormErrors({});
+    setPinPosition(null);
     setDialogOpen(true);
+    // GPS detection is triggered by the useEffect after 400ms (map mount delay)
   };
 
   const openEditDialog = (address: Address) => {
     setEditingAddress(address);
+    setPinPosition(null);
     setFormData({
       label: address.label,
       address_line1: address.address_line1,
@@ -412,9 +640,110 @@ const Addresses = () => {
             <DialogTitle>
               {editingAddress ? "Edit Address" : "Add New Address"}
             </DialogTitle>
+            <DialogDescription>
+              {editingAddress ? "Update your address details." : "Add a new delivery address to your account."}
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* ── Location Picker ── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Pin Your Location</Label>
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  disabled={gpsLoading}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 active:scale-95 transition-all px-3 py-1.5 rounded-full disabled:opacity-50"
+                >
+                  {gpsLoading ? (
+                    <>
+                      <Navigation className="h-3.5 w-3.5 animate-spin" />
+                      {gpsAccuracy !== null ? `±${gpsAccuracy}m…` : "Locating…"}
+                    </>
+                  ) : (
+                    <><Locate className="h-3.5 w-3.5" />Use My Location</>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">Tap the map or use GPS to pin your location — address fields fill automatically.</p>
+              <div className="relative rounded-2xl overflow-hidden border border-border/70 shadow-sm" style={{ height: 240 }}>
+                {/* GPS loading overlay */}
+                {gpsLoading && (
+                  <div className="absolute inset-0 z-[1000] bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Navigation className="h-5 w-5 text-primary animate-pulse" />
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">Detecting your location…</p>
+                  </div>
+                )}
+                {/* No-pin hint */}
+                {!pinPosition && !gpsLoading && (
+                  <div className="absolute inset-0 z-[999] flex items-end justify-center pb-3 pointer-events-none">
+                    <span className="text-xs bg-background/90 text-muted-foreground px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
+                      Tap the map to drop a pin
+                    </span>
+                  </div>
+                )}
+                <MapContainer
+                  center={[25.2854, 51.5310]}
+                  zoom={12}
+                  style={{ height: "100%", width: "100%" }}
+                  scrollWheelZoom
+                  zoomControl
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <ClickHandler onPick={handleMapPick} />
+                  {pinPosition && (
+                    <>
+                      <SetMapView position={pinPosition} />
+                      {/* Accuracy radius circle — shrinks as GPS improves */}
+                      {gpsLoading && gpsAccuracy !== null && gpsAccuracy > 30 && (
+                        <Circle
+                          center={pinPosition}
+                          radius={gpsAccuracy}
+                          pathOptions={{
+                            color: "#16a34a",
+                            fillColor: "#16a34a",
+                            fillOpacity: 0.08,
+                            weight: 1.5,
+                            opacity: 0.5,
+                            dashArray: "4 4",
+                          }}
+                        />
+                      )}
+                      <Marker
+                        position={pinPosition}
+                        draggable
+                        eventHandlers={{
+                          dragend(e) {
+                            const m = e.target;
+                            const { lat, lng } = m.getLatLng();
+                            handleMapPick(lat, lng);
+                          },
+                        }}
+                      />
+                    </>
+                  )}
+                </MapContainer>
+              </div>
+              {pinPosition && (
+                <p className="text-xs text-primary font-medium flex items-center gap-1 flex-wrap">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {pinPosition[0].toFixed(5)}, {pinPosition[1].toFixed(5)}
+                  {gpsAccuracy !== null && !gpsLoading && (
+                    <span className="text-muted-foreground font-normal">· ±{gpsAccuracy}m accuracy</span>
+                  )}
+                  {!gpsLoading && (
+                    <span className="text-muted-foreground font-normal">· drag or tap to adjust</span>
+                  )}
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Label</Label>
               <Select

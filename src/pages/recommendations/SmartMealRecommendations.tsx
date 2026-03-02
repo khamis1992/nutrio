@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { 
-  Sparkles, 
   Flame, 
   Dumbbell, 
   Wheat, 
@@ -189,7 +188,6 @@ export default function SmartMealRecommendations() {
         
         <div className="relative max-w-4xl mx-auto text-center">
           <Badge className="mb-4 bg-white/10 text-white border-white/20 backdrop-blur-sm">
-            <Sparkles className="w-3 h-3 mr-1" />
             AI-Powered
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
@@ -344,7 +342,6 @@ export default function SmartMealRecommendations() {
             Showing <span className="font-semibold text-slate-900">{filteredMeals.length}</span> meals
           </p>
           <Badge variant="outline" className="border-violet-200 text-violet-700">
-            <Sparkles className="w-3 h-3 mr-1" />
             AI-Powered Ranking
           </Badge>
         </div>

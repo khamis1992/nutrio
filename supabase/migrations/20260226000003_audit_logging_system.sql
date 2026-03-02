@@ -311,11 +311,13 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE audit.log ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can view audit logs
+DROP POLICY IF EXISTS "Only admins can view audit logs" ON audit.log;
 CREATE POLICY "Only admins can view audit logs"
 ON audit.log FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- No one can modify audit logs (append-only)
+DROP POLICY IF EXISTS "Audit logs are append-only" ON audit.log;
 CREATE POLICY "Audit logs are append-only"
 ON audit.log FOR ALL
 USING (FALSE);
@@ -366,3 +368,5 @@ COMMENT ON TABLE audit.log IS 'Comprehensive audit trail for all data modificati
 COMMENT ON FUNCTION audit.capture_change() IS 'Trigger function that captures all changes to audited tables';
 COMMENT ON FUNCTION audit.enable_auditing(TEXT, TEXT) IS 'Enable auditing on a specific table';
 COMMENT ON FUNCTION audit.disable_auditing(TEXT, TEXT) IS 'Disable auditing on a specific table';
+
+

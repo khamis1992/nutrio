@@ -285,20 +285,24 @@ $$ LANGUAGE plpgsql;
 
 -- Update existing restaurant policies to exclude soft-deleted
 DROP POLICY IF EXISTS "Anyone can view approved restaurants" ON restaurants;
+DROP POLICY IF EXISTS "Anyone can view approved restaurants" ON restaurants;
 CREATE POLICY "Anyone can view approved restaurants"
 ON restaurants FOR SELECT
 USING (approval_status = 'approved' AND is_active = true AND deleted_at IS NULL);
 
+DROP POLICY IF EXISTS "Owners can view their restaurants" ON restaurants;
 DROP POLICY IF EXISTS "Owners can view their restaurants" ON restaurants;
 CREATE POLICY "Owners can view their restaurants"
 ON restaurants FOR SELECT
 USING (owner_id = auth.uid() AND deleted_at IS NULL);
 
 DROP POLICY IF EXISTS "Staff can view assigned restaurants" ON restaurants;
+DROP POLICY IF EXISTS "Staff can view assigned restaurants" ON restaurants;
 CREATE POLICY "Staff can view assigned restaurants"
 ON restaurants FOR SELECT
 USING (public.is_restaurant_staff(id) AND deleted_at IS NULL);
 
+DROP POLICY IF EXISTS "Admins can view all restaurants" ON restaurants;
 DROP POLICY IF EXISTS "Admins can view all restaurants" ON restaurants;
 CREATE POLICY "Admins can view all restaurants"
 ON restaurants FOR SELECT
@@ -309,11 +313,13 @@ ALTER TABLE soft_delete.metadata ENABLE ROW LEVEL SECURITY;
 ALTER TABLE soft_delete.trash ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can manage soft delete configuration
+DROP POLICY IF EXISTS "Only admins can manage soft delete config" ON soft_delete.metadata;
 CREATE POLICY "Only admins can manage soft delete config"
 ON soft_delete.metadata FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- Admins and owners can view their deleted records
+DROP POLICY IF EXISTS "View deleted records" ON soft_delete.trash;
 CREATE POLICY "View deleted records"
 ON soft_delete.trash FOR SELECT
 USING (
@@ -329,12 +335,15 @@ USING (
 );
 
 -- Only admins can restore permanently
+DROP POLICY IF EXISTS "Admins can restore deleted records" ON soft_delete.trash;
 CREATE POLICY "Admins can restore deleted records"
 ON soft_delete.trash FOR UPDATE
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- Comments
 COMMENT ON TABLE soft_delete.trash IS 'Recycle bin for soft-deleted records with automatic permanent deletion';
-COMMENT ON FUNCTION soft_delete.record IS 'Soft delete a record by moving it to trash';
-COMMENT ON FUNCTION soft_delete.restore IS 'Restore a soft-deleted record from trash';
+COMMENT ON soft_delete.record IS 'Soft delete a record by moving it to trash';
+COMMENT ON soft_delete.restore IS 'Restore a soft-deleted record from trash';
 COMMENT ON COLUMN restaurants.deleted_at IS 'Soft delete timestamp - NULL if active';
+
+

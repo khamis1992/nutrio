@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const QUESTIONS = [
@@ -166,7 +166,6 @@ export function RecommendedPlanBanner({ plan }: RecommendedPlanBannerProps) {
   return (
     <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 mb-6">
       <div className="flex items-center gap-2 mb-2">
-        <Sparkles className="h-5 w-5 text-primary" />
         <span className="font-medium">Recommended for You</span>
         <Badge variant="secondary">{details.highlight}</Badge>
       </div>

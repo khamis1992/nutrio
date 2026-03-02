@@ -24,11 +24,13 @@ ON public.gdpr_export_logs(created_at DESC);
 ALTER TABLE public.gdpr_export_logs ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own export logs
+DROP POLICY IF EXISTS "Users can view own export logs" ON public.gdpr_export_logs;
 CREATE POLICY "Users can view own export logs"
 ON public.gdpr_export_logs FOR SELECT
 USING (user_id = auth.uid());
 
 -- Admins can view all export logs
+DROP POLICY IF EXISTS "Admins can view all export logs" ON public.gdpr_export_logs;
 CREATE POLICY "Admins can view all export logs"
 ON public.gdpr_export_logs FOR SELECT
 USING (
@@ -39,6 +41,7 @@ USING (
 );
 
 -- Only system can insert (via Edge Function with service role)
+DROP POLICY IF EXISTS "System can insert export logs" ON public.gdpr_export_logs;
 CREATE POLICY "System can insert export logs"
 ON public.gdpr_export_logs FOR INSERT
 WITH CHECK (false); -- Inserted via service role key only
@@ -52,3 +55,5 @@ COMMENT ON TABLE public.gdpr_export_logs IS 'Logs all GDPR data exports for comp
 COMMENT ON COLUMN public.gdpr_export_logs.user_id IS 'User whose data was exported';
 COMMENT ON COLUMN public.gdpr_export_logs.exported_by IS 'User who initiated the export';
 COMMENT ON COLUMN public.gdpr_export_logs.is_admin_export IS 'True if export was done by admin on behalf of user';
+
+

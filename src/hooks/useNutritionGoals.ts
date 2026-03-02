@@ -107,12 +107,31 @@ export function useNutritionGoals(userId: string | undefined) {
     fetchGoals();
   }, [fetchGoals]);
 
+  const updateGoalTargets = useCallback(async (
+    updates: Partial<Pick<NutritionGoal, "daily_calorie_target" | "protein_target_g" | "carbs_target_g" | "fat_target_g">>
+  ) => {
+    if (!userId || !activeGoal) return false;
+    try {
+      const { error } = await (supabase as any)
+        .from("nutrition_goals")
+        .update(updates)
+        .eq("id", activeGoal.id);
+      if (error) throw error;
+      await fetchGoals();
+      return true;
+    } catch (error) {
+      console.error("Error updating goal targets:", error);
+      return false;
+    }
+  }, [userId, activeGoal, fetchGoals]);
+
   return {
     goals,
     activeGoal,
     milestones,
     loading,
     setGoal,
+    updateGoalTargets,
     refresh: fetchGoals,
   };
 }

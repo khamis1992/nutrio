@@ -30,30 +30,35 @@ DROP POLICY IF EXISTS "Users can delete their own addresses" ON public.user_addr
 DROP POLICY IF EXISTS "Partners can view addresses for their orders" ON public.user_addresses;
 
 -- Users can view their own addresses
+DROP POLICY IF EXISTS "Users can view their own addresses" ON public.user_addresses;
 CREATE POLICY "Users can view their own addresses"
 ON public.user_addresses
 FOR SELECT
 USING (auth.uid() = user_id);
 
 -- Users can create their own addresses
+DROP POLICY IF EXISTS "Users can create their own addresses" ON public.user_addresses;
 CREATE POLICY "Users can create their own addresses"
 ON public.user_addresses
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own addresses
+DROP POLICY IF EXISTS "Users can update their own addresses" ON public.user_addresses;
 CREATE POLICY "Users can update their own addresses"
 ON public.user_addresses
 FOR UPDATE
 USING (auth.uid() = user_id);
 
 -- Users can delete their own addresses
+DROP POLICY IF EXISTS "Users can delete their own addresses" ON public.user_addresses;
 CREATE POLICY "Users can delete their own addresses"
 ON public.user_addresses
 FOR DELETE
 USING (auth.uid() = user_id);
 
 -- Partners can view addresses for orders at their restaurant
+DROP POLICY IF EXISTS "Partners can view addresses for their orders" ON public.user_addresses;
 CREATE POLICY "Partners can view addresses for their orders"
 ON public.user_addresses
 FOR SELECT
@@ -115,3 +120,5 @@ EXECUTE FUNCTION public.ensure_single_default_address();
 
 -- Add comments
 COMMENT ON TABLE public.user_addresses IS 'User delivery addresses for meal orders';
+
+

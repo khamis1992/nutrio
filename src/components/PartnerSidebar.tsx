@@ -41,10 +41,10 @@ const navItems = [
   { icon: Settings, label: "Settings", to: "/partner/settings" },
 ];
 
-// Import Sparkles for boost icon and additional icons
-import { Sparkles, Brain } from "lucide-react";
+// Import additional icons
+import { Brain, Rocket } from "lucide-react";
 
-const boostItem = { icon: Sparkles, label: "Boost", to: "/partner/boost" };
+const boostItem = { icon: Rocket, label: "Boost", to: "/partner/boost" };
 const aiInsightsItem = { icon: Brain, label: "AI Insights", to: "/partner/ai-insights" };
 
 export function PartnerSidebar() {

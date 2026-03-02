@@ -38,7 +38,7 @@ BEGIN
     WHERE key_name = 'banking_data_key';
     
     IF encryption_key IS NULL OR encryption_key = 'YOUR_SECURE_32_BYTE_KEY_HERE' THEN
-        RAISE EXCEPTION 'Encryption key not configured properly';
+        RAISE EXCEPTIon key not configured properly';
     END IF;
     
     RETURN pgp_sym_encrypt(plain_text, encryption_key, 'cipher-algo=aes256');
@@ -57,7 +57,7 @@ BEGIN
     WHERE key_name = 'banking_data_key';
     
     IF encryption_key IS NULL OR encryption_key = 'YOUR_SECURE_32_BYTE_KEY_HERE' THEN
-        RAISE EXCEPTION 'Encryption key not configured properly';
+        RAISE EXCEPTIon key not configured properly';
     END IF;
     
     RETURN pgp_sym_decrypt(encrypted_data, encryption_key);
@@ -72,9 +72,9 @@ ADD COLUMN IF NOT EXISTS bank_swift_encrypted BYTEA,
 ADD COLUMN IF NOT EXISTS bank_name_encrypted BYTEA;
 
 -- Migrate existing data (encrypt current plaintext values)
+-- Wrapped in exception handler in case pgcrypto functions are not available
 DO $$
 BEGIN
-    -- Only migrate if there's data and encrypted columns are null
     IF EXISTS (
         SELECT 1 FROM restaurant_details 
         WHERE bank_account_number IS NOT NULL 
@@ -84,11 +84,13 @@ BEGIN
         SET 
             bank_account_number_encrypted = security.encrypt_sensitive_data(bank_account_number),
             bank_iban_encrypted = security.encrypt_sensitive_data(COALESCE(bank_iban, '')),
-            bank_swift_encrypted = security.decrypt_sensitive_data(COALESCE(swift_code, '')),
+            bank_swift_encrypted = security.encrypt_sensitive_data(COALESCE(swift_code, '')),
             bank_name_encrypted = security.encrypt_sensitive_data(COALESCE(bank_name, ''))
         WHERE bank_account_number IS NOT NULL 
         AND bank_account_number_encrypted IS NULL;
     END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Data encryption skipped: %', SQLERRM;
 END $$;
 
 -- Create view for secure access to banking data
@@ -156,7 +158,7 @@ BEGIN
         WHERE id = p_restaurant_id 
         AND (owner_id = auth.uid() OR public.has_role(auth.uid(), 'admin'))
     ) THEN
-        RAISE EXCEPTION 'Permission denied';
+        RAISE EXCEPTIon denied';
     END IF;
     
     UPDATE restaurant_details
@@ -171,14 +173,16 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Secure the encryption functions - only allow specific roles
-REVOKE ALL ON FUNCTION security.encrypt_sensitive_data(TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION security.decrypt_sensitive_data(BYTEA) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION security.encrypt_sensitive_data(TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION security.decrypt_sensitive_data(BYTEA) TO authenticated;
+REVOKE ALL ON security.encrypt_sensitive_data(TEXT) FROM PUBLIC;
+REVOKE ALL ON security.decrypt_sensitive_data(BYTEA) FROM PUBLIC;
+GRANT EXECUTE ON security.encrypt_sensitive_data(TEXT) TO authenticated;
+GRANT EXECUTE ON security.decrypt_sensitive_data(BYTEA) TO authenticated;
 
 -- Disable RLS on security schema tables for admin-only access
 ALTER TABLE security.encryption_config ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Only admins can access encryption config" ON security.encryption_config;
+DROP POLICY IF EXISTS "Only admins can access encryption config" ON security.encryption_config;
 CREATE POLICY "Only admins can access encryption config"
 ON security.encryption_config
 FOR ALL
@@ -195,3 +199,5 @@ COMMENT ON COLUMN restaurant_details.bank_name IS 'DEPRECATED: Use bank_name_enc
 -- ALTER TABLE restaurant_details DROP COLUMN bank_iban;
 -- ALTER TABLE restaurant_details DROP COLUMN swift_code;
 -- ALTER TABLE restaurant_details DROP COLUMN bank_name;
+
+

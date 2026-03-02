@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -11,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Sparkles, Calendar, Info, Play, History } from "lucide-react";
+import { Calendar, Info, History } from "lucide-react";
 import { useAdaptiveGoals } from "@/hooks/useAdaptiveGoals";
 
 export const AdaptiveGoalsSettings = () => {
@@ -20,8 +19,7 @@ export const AdaptiveGoalsSettings = () => {
     adjustmentHistory,
     settingsLoading,
     historyLoading,
-    updateSettings,
-    analyzeNow
+    updateSettings
   } = useAdaptiveGoals();
 
   if (settingsLoading) {
@@ -41,7 +39,6 @@ export const AdaptiveGoalsSettings = () => {
       <CardHeader>
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div>
             <CardTitle>Smart Goal Adjustment</CardTitle>
@@ -135,25 +132,7 @@ export const AdaptiveGoalsSettings = () => {
               </ul>
             </div>
 
-            <Separator />
 
-            {/* Manual Analysis Button */}
-            <div className="space-y-3">
-              <Label className="text-base flex items-center gap-2">
-                <Play className="h-4 w-4" />
-                Run Analysis Now
-              </Label>
-              <Button 
-                onClick={analyzeNow} 
-                variant="outline" 
-                className="w-full"
-              >
-                Analyze My Progress
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Trigger an immediate analysis instead of waiting for the next scheduled check
-              </p>
-            </div>
           </>
         )}
 

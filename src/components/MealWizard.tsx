@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Coffee, 
-  Sun, 
-  Moon, 
-  Apple, 
-  ChevronLeft, 
+import {
+  Coffee,
+  Sun,
+  Moon,
+  Apple,
+  ChevronLeft,
   Check,
   X,
   Flame,
@@ -20,11 +20,17 @@ import {
   MapPin,
   Star,
   ChevronRight,
-  Sparkles,
   Target,
-  Loader2
+  Loader2,
+  Sparkles,
+  Calendar,
+  RefreshCw,
+  Home,
+  Briefcase,
+  ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
+import { getMealImage } from "@/lib/meal-images";
 
 interface Meal {
   id: string;
@@ -94,16 +100,39 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(true);
 
+  // Delivery address state
+  const [addresses, setAddresses] = useState<{ id: string; label: string; address_line1: string; city: string; is_default: boolean }[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+
   // Auto-fill day state
   const [autoFillLoading, setAutoFillLoading] = useState(false);
   const [showAutoFillDialog, setShowAutoFillDialog] = useState(false);
   const [generatedDayPlan, setGeneratedDayPlan] = useState<any>(null);
+  const [selectedSuggestedMeals, setSelectedSuggestedMeals] = useState<Set<number>>(new Set());
+  const [lockedMeals, setLockedMeals] = useState<any[]>([]);
+  const [pullProgress, setPullProgress] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [showPlanSummary, setShowPlanSummary] = useState(false);
 
   const currentStepData = STEPS[currentStep];
   const CurrentIcon = currentStepData.icon;
 
   useEffect(() => {
     fetchRestaurants();
+    // Fetch user's saved delivery addresses
+    supabase
+      .from("user_addresses")
+      .select("id, label, address_line1, city, is_default")
+      .eq("user_id", userId)
+      .order("is_default", { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setAddresses(data);
+          const def = data.find(a => a.is_default) || data[0];
+          setSelectedAddressId(def.id);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -356,17 +385,29 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     fetchRecommendedMeals();
   }, [remainingNutrition, showRecommendations]);
 
+  const [justSelectedId, setJustSelectedId] = useState<string | null>(null);
+
   const selectMeal = (meal: Meal) => {
     const stepKey = STEPS[currentStep].id;
     setSelectedMeals(prev => ({
       ...prev,
       [stepKey]: { ...meal, restaurant: selectedRestaurant! }
     }));
-    
-    toast({
-      title: `${currentStepData.label} selected`,
-      description: `${meal.name} from ${selectedRestaurant?.name}`,
-    });
+    setJustSelectedId(meal.id);
+
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+
+    // Auto-advance to next step after celebration
+    const isLastStep = currentStep === STEPS.length - 1;
+    setTimeout(() => {
+      setJustSelectedId(null);
+      if (!isLastStep) {
+        setSelectedRestaurant(null);
+        setMeals([]);
+        setCurrentStep(prev => prev + 1);
+      }
+    }, 900);
   };
 
   const isMealSelected = (mealId: string) => {
@@ -395,6 +436,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     setScheduling(true);
     
     try {
+      const selectedAddr = addresses.find(a => a.id === selectedAddressId);
       const allSelectedMeals = Object.entries(selectedMeals)
         .filter(([_, meal]) => meal !== null)
         .map(([mealType, meal]) => ({
@@ -403,6 +445,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           meal_type: mealType,
           is_completed: false,
+          // store delivery_type as "home_delivery" or label so system knows which address
+          delivery_type: selectedAddr ? `delivery:${selectedAddressId}` : "delivery",
         }));
 
       if (allSelectedMeals.length === 0) {
@@ -443,20 +487,69 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     return Object.values(selectedMeals).filter(meal => meal !== null).length;
   };
 
-  // Auto-fill day with AI suggestions
-  const handleAutoFillDay = async () => {
+  // Calculate remaining nutrition based on locked meals for suggestions
+  const calculateRemainingForSuggestions = (lockedMealsList: any[]) => {
+    const totalLockedCalories = lockedMealsList.reduce((sum, meal) => sum + (meal.meal?.calories || 0), 0);
+    const totalLockedProtein = lockedMealsList.reduce((sum, meal) => sum + (meal.meal?.protein_g || 0), 0);
+    
+    return {
+      remainingCalories: Math.max(0, 2000 - totalLockedCalories), // Default 2000 if no profile
+      remainingProtein: Math.max(0, 120 - totalLockedProtein), // Default 120g if no profile
+    };
+  };
+
+  // Auto-fill day with Nutrio suggestions
+  const handleAutoFillDay = async (isRefresh = false) => {
     setAutoFillLoading(true);
-    setShowAutoFillDialog(true);
+    if (!isRefresh) {
+      setShowAutoFillDialog(true);
+      setSelectedSuggestedMeals(new Set());
+      setLockedMeals([]);
+    }
 
     try {
+      // Calculate remaining nutrition if refreshing with locked meals
+      const { remainingCalories, remainingProtein } = calculateRemainingForSuggestions(lockedMeals);
+      
+      const requestBody: any = {
+        user_id: userId,
+        week_start_date: format(selectedDate, "yyyy-MM-dd"),
+        generate_variations: 1,
+      };
+      
+      // If refreshing with locked meals, send remaining nutrition
+      if (isRefresh && lockedMeals.length > 0) {
+        requestBody.remaining_calories = remainingCalories;
+        requestBody.remaining_protein = remainingProtein;
+        requestBody.locked_meal_types = lockedMeals.map(m => m.meal_type);
+      }
+      
+      console.log("Sending request to smart-meal-allocator:", JSON.stringify(requestBody));
+
       const { data, error } = await supabase.functions.invoke("smart-meal-allocator", {
-        body: {
-          user_id: userId,
-          week_start_date: format(selectedDate, "yyyy-MM-dd"),
-          generate_variations: 1,
-          save_to_database: false,
-        },
+        body: requestBody,
       });
+
+      console.log("Edge function response:", { data, error });
+
+      // If error is an HTTP error, try to parse the response
+      if (error && error.context) {
+        try {
+          const errorText = await error.context.text();
+          console.error("Error response body:", errorText);
+          const errorJson = JSON.parse(errorText);
+          toast({
+            title: "Server Error",
+            description: errorJson.error || "Unknown server error",
+            variant: "destructive"
+          });
+          setShowAutoFillDialog(false);
+          setAutoFillLoading(false);
+          return;
+        } catch (parseErr) {
+          console.error("Could not parse error response:", parseErr);
+        }
+      }
 
       if (error) {
         if (error.message?.includes('CORS') || error.message?.includes('Failed to send') || error.message?.includes('net::ERR')) {
@@ -474,12 +567,23 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
       if (data?.weekly_plan?.items) {
         // Filter meals for the selected date only
         const dateStr = format(selectedDate, "yyyy-MM-dd");
-        const dayMeals = data.weekly_plan.items.filter((item: any) =>
+        let dayMeals = data.weekly_plan.items.filter((item: any) =>
           item.scheduled_date === dateStr
         );
 
+        // If refreshing, merge locked meals with new suggestions
+        if (isRefresh && lockedMeals.length > 0) {
+          const lockedMealTypes = new Set(lockedMeals.map(m => m.meal_type));
+          dayMeals = [
+            ...lockedMeals,
+            ...dayMeals.filter((item: any) => !lockedMealTypes.has(item.meal_type))
+          ];
+        }
+
         if (dayMeals.length > 0) {
           setGeneratedDayPlan(dayMeals);
+          // Auto-select all meals initially
+          setSelectedSuggestedMeals(new Set(dayMeals.map((_meal: any, index: number) => index)));
         } else {
           toast({
             title: "No suggestions",
@@ -498,9 +602,14 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
       }
     } catch (err: any) {
       console.error("Error generating day plan:", err);
+      // Log the full error details
+      console.error("Error details:", JSON.stringify(err, null, 2));
+      if (err.context) {
+        console.error("Error context:", err.context);
+      }
       toast({
         title: "Error",
-        description: err.message || "Failed to generate meal plan",
+        description: err.message || err.error?.message || "Failed to generate meal plan - please try again",
         variant: "destructive"
       });
       setShowAutoFillDialog(false);
@@ -509,30 +618,68 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     }
   };
 
+  // Toggle meal selection
+  const toggleMealSelection = (index: number) => {
+    setSelectedSuggestedMeals(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  // Lock selected meals and refresh others
+  const handleRefreshWithLocked = () => {
+    // Get selected meals and mark them as locked
+    const newlyLocked = generatedDayPlan.filter((_meal: any, index: number) => 
+      selectedSuggestedMeals.has(index)
+    );
+    setLockedMeals(newlyLocked);
+    
+    // Refresh with remaining nutrition
+    handleAutoFillDay(true);
+  };
+
   const applyAutoFillPlan = () => {
     if (!generatedDayPlan || generatedDayPlan.length === 0) return;
 
-    // Auto-select all meals from the generated plan
+    // Only apply selected meals from the generated plan
     const newSelectedMeals = { ...selectedMeals };
+    let appliedCount = 0;
 
-    generatedDayPlan.forEach((item: any) => {
-      const mealType = item.meal_type;
-      if (STEPS.find(s => s.id === mealType) && item.meal) {
-        newSelectedMeals[mealType] = {
-          ...item.meal,
-          restaurant: item.restaurant || { id: item.meal.restaurant_id, name: "Restaurant", logo_url: null }
-        };
+    generatedDayPlan.forEach((item: any, index: number) => {
+      // Only apply if this meal is selected
+      if (selectedSuggestedMeals.has(index)) {
+        const mealType = item.meal_type;
+        if (STEPS.find(s => s.id === mealType) && item.meal) {
+          newSelectedMeals[mealType] = {
+            ...item.meal,
+            restaurant: item.restaurant || { id: item.meal.restaurant_id, name: "Restaurant", logo_url: null }
+          };
+          appliedCount++;
+        }
       }
     });
 
     setSelectedMeals(newSelectedMeals);
     setShowAutoFillDialog(false);
     setGeneratedDayPlan(null);
+    setSelectedSuggestedMeals(new Set());
+    setLockedMeals([]);
+    setSelectedRestaurant(null);
 
-    toast({
-      title: "Day Auto-Filled!",
-      description: `Added ${generatedDayPlan.length} meals to your schedule.`,
-    });
+    if (appliedCount === STEPS.length) {
+      setCurrentStep(STEPS.length - 1);
+      setShowPlanSummary(true);
+    } else {
+      toast({
+        title: "Meals Added!",
+        description: `Added ${appliedCount} meal${appliedCount !== 1 ? 's' : ''} to your schedule.`,
+      });
+    }
   };
 
   const getStepSelected = (stepIndex: number) => {
@@ -559,68 +706,83 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           <div className="w-10" />
         </div>
 
-        {/* Progress Steps */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center justify-between relative">
-            {/* Progress Line */}
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-muted rounded-full">
-              <motion.div 
-                className="h-full bg-gradient-to-r from-amber-500 via-orange-500 via-indigo-500 to-emerald-500 rounded-full"
-                initial={{ width: "0%" }}
-                animate={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
-                transition={{ duration: 0.5, ease: "easeInOut" }}
-              />
-            </div>
-            
+        {/* Progress Steps — native pill tabs */}
+        <div className="px-4 pb-3">
+          {/* Thin overall progress bar */}
+          <div className="h-0.5 bg-muted rounded-full mb-3 overflow-hidden">
+            <motion.div
+              className="h-full bg-primary rounded-full"
+              initial={{ width: "0%" }}
+              animate={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
+              transition={{ duration: 0.45, ease: "easeInOut" }}
+            />
+          </div>
+
+          {/* Step pills */}
+          <div className="flex gap-2">
             {STEPS.map((step, index) => {
               const StepIcon = step.icon;
               const isActive = index === currentStep;
               const hasSelection = getStepSelected(index) !== null;
-              const isDone = index < currentStep || hasSelection;
-              
+              const isDone = hasSelection; // only green when a meal is actually selected
+              const isLocked = index > currentStep;
+
               return (
                 <motion.button
                   key={step.id}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: index * 0.1 }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.06 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => {
-                    if (index <= currentStep) {
-                      setSelectedRestaurant(null);
-                      setMeals([]);
-                      setCurrentStep(index);
-                    }
+                    setSelectedRestaurant(null);
+                    setMeals([]);
+                    setCurrentStep(index);
                   }}
-                  className={`relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                    isActive 
-                      ? `${step.color} text-white shadow-lg shadow-${step.color}/30 scale-110` 
+                  className={`relative flex items-center gap-2 px-3 py-2 rounded-2xl transition-all duration-300 overflow-hidden ${
+                    isActive
+                      ? "flex-1 gradient-primary text-primary-foreground shadow-md shadow-primary/25"
                       : isDone
-                      ? `${step.color} text-white`
-                      : 'bg-muted text-muted-foreground'
+                      ? "flex-none bg-primary/10 text-primary"
+                      : "flex-none bg-muted text-muted-foreground"
                   }`}
                 >
-                  {isDone ? (
-                    <Check className="h-5 w-5" />
-                  ) : (
-                    <StepIcon className="h-5 w-5" />
+                  {/* Icon */}
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                    isActive ? "bg-white/20" : isDone ? "bg-primary/20" : "bg-muted-foreground/10"
+                  }`}>
+                    {isDone ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <StepIcon className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+
+                  {/* Label — only visible on active step */}
+                  {isActive && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      className="text-sm font-bold whitespace-nowrap pr-1"
+                    >
+                      {step.label}
+                    </motion.span>
+                  )}
+
+                  {/* Meal selected dot */}
+                  {hasSelection && !isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                   )}
                 </motion.button>
               );
             })}
-          </div>
-          
-          {/* Step Labels */}
-          <div className="flex justify-between mt-2 px-1">
-            {STEPS.map((step, index) => (
-              <span 
-                key={step.id} 
-                className={`text-[10px] font-medium transition-colors ${
-                  index === currentStep ? 'text-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                {step.label}
+
+            {/* Step counter badge */}
+            <div className="ml-auto flex items-center shrink-0">
+              <span className="text-xs font-bold text-muted-foreground bg-muted px-2.5 py-1.5 rounded-full">
+                {currentStep + 1}/{STEPS.length}
               </span>
-            ))}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -643,38 +805,141 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               <h2 className="text-xl font-bold">{currentStepData.label}</h2>
               <p className="text-sm text-muted-foreground">{currentStepData.description}</p>
             </div>
-          </div>
+           </div>
         </motion.div>
 
-        {/* Selected Meal for This Step */}
-        {getStepSelected(currentStep) && (
+        {/* Selected Meals Summary — shows all selected meals across all steps */}
+        {getTotalSelectedMeals() > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4"
+            className="mb-4 space-y-2"
           >
-            <p className="text-sm font-medium text-muted-foreground mb-2">Selected for {currentStepData.label}</p>
-            <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-xl">
-              <Check className="h-4 w-4" />
-              <div className="flex-1">
-                <p className="font-medium text-sm">{getStepSelected(currentStep)?.name}</p>
-                <p className="text-xs opacity-80">from {getStepSelected(currentStep)?.restaurant.name}</p>
-              </div>
-              <button
-                onClick={() => {
-                  const stepKey = STEPS[currentStep].id;
-                  setSelectedMeals(prev => ({ ...prev, [stepKey]: null as any }));
-                }}
-                className="hover:text-destructive"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+            <p className="text-sm font-medium text-muted-foreground">
+              {getTotalSelectedMeals()} of {STEPS.length} meals selected
+            </p>
+            {STEPS.map((step) => {
+              const meal = selectedMeals[step.id];
+              if (!meal) return null;
+              const StepIcon = step.icon;
+              return (
+                <div key={step.id} className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-xl">
+                  <StepIcon className="h-4 w-4 shrink-0 opacity-60" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{meal.name}</p>
+                    <p className="text-xs opacity-70">{step.label} · {meal.restaurant?.name}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedMeals(prev => ({ ...prev, [step.id]: null as any }));
+                      setSelectedRestaurant(null);
+                    }}
+                    className="hover:text-destructive shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
           </motion.div>
         )}
 
-        {/* Loading State */}
-        {loading ? (
+        {/* ── Plan Summary Screen (shown after Auto-fill applies all meals) ── */}
+        {showPlanSummary && getTotalSelectedMeals() === STEPS.length ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-4"
+          >
+            {/* Success header */}
+            <div className="flex flex-col items-center text-center py-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-primary flex items-center justify-center mb-3 shadow-lg">
+                <Check className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Your Day is Planned!</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {format(selectedDate, "EEEE, MMM d")} · 4 meals ready to schedule
+              </p>
+            </div>
+
+            {/* Meal cards */}
+            <div className="space-y-3">
+              {STEPS.map((step) => {
+                const meal = selectedMeals[step.id];
+                if (!meal) return null;
+                const StepIcon = step.icon;
+                const totalCals = meal.calories ?? 0;
+                const totalProt = meal.protein_g ?? 0;
+                return (
+                  <motion.div
+                    key={step.id}
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-3 bg-white border border-border/50 rounded-2xl p-3 shadow-sm"
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${step.color} flex items-center justify-center shrink-0`}>
+                      <StepIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{step.label}</p>
+                      <p className="font-semibold text-sm text-slate-900 truncate">{meal.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{meal.restaurant?.name}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {totalCals > 0 && <p className="text-sm font-bold text-primary">{totalCals} kcal</p>}
+                      {totalProt > 0 && <p className="text-xs text-muted-foreground">{totalProt}g protein</p>}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedMeals(prev => ({ ...prev, [step.id]: null as any }));
+                        setShowPlanSummary(false);
+                      }}
+                      className="text-muted-foreground hover:text-destructive shrink-0 ml-1"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Nutrition totals */}
+            {(() => {
+              const allMeals = Object.values(selectedMeals).filter(Boolean);
+              const totalCal = allMeals.reduce((s, m) => s + (m?.calories ?? 0), 0);
+              const totalProt = allMeals.reduce((s, m) => s + (m?.protein_g ?? 0), 0);
+              const totalCarb = allMeals.reduce((s, m) => s + (m?.carbs_g ?? 0), 0);
+              const totalFat  = allMeals.reduce((s, m) => s + (m?.fat_g ?? 0), 0);
+              return (
+                <div className="bg-slate-50 rounded-2xl p-4 grid grid-cols-4 gap-2 text-center">
+                  {[
+                    { label: "Calories", value: totalCal, unit: "kcal", color: "text-orange-500" },
+                    { label: "Protein",  value: totalProt, unit: "g", color: "text-blue-500" },
+                    { label: "Carbs",    value: totalCarb, unit: "g", color: "text-amber-500" },
+                    { label: "Fat",      value: totalFat,  unit: "g", color: "text-pink-500" },
+                  ].map(({ label, value, unit, color }) => (
+                    <div key={label}>
+                      <p className={`text-lg font-bold ${color}`}>{value}<span className="text-xs font-normal ml-0.5">{unit}</span></p>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Edit / Add manually link */}
+            <button
+              onClick={() => setShowPlanSummary(false)}
+              className="w-full text-center text-sm text-muted-foreground underline-offset-2 hover:underline py-1"
+            >
+              Edit or add meals manually
+            </button>
+          </motion.div>
+
+        ) : (
+          <>
+          {/* Loading State */}
+          {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
@@ -684,18 +949,17 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            {/* Back to Restaurants Button */}
-            <Button
-              variant="ghost"
-              className="mb-4"
+            {/* Back to Restaurants Button - Native Mobile Style */}
+            <button
               onClick={() => {
                 setSelectedRestaurant(null);
                 setMeals([]);
               }}
+              className="flex items-center gap-1 mb-4 px-3 py-2 -ml-2 text-primary font-medium text-sm active:opacity-60 transition-opacity"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Back to Restaurants
-            </Button>
+              <ChevronLeft className="h-5 w-5" />
+              <span>Back to Restaurants</span>
+            </button>
 
             {/* Restaurant Header */}
             <div className="flex items-center gap-3 mb-4 p-3 bg-muted rounded-xl">
@@ -734,35 +998,52 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                       onClick={() => selectMeal(meal)}
                       className={`group cursor-pointer relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
                         isMealSelected(meal.id)
-                          ? 'border-primary bg-primary/5 shadow-lg'
+                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/15 scale-[1.01]'
                           : 'border-border bg-card hover:border-primary/30'
                       }`}
                     >
-                      <div className="flex gap-3 p-3">
-                        {/* Image */}
-                        <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-muted">
-                          {meal.image_url ? (
-                            <img
-                              src={meal.image_url}
-                              alt={meal.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl">
-                              🍽️
-                            </div>
-                          )}
-                          
-                          {isMealSelected(meal.id) && (
+                      {/* Full-card celebration overlay — shows for 900ms on selection */}
+                      <AnimatePresence>
+                        {justSelectedId === meal.id && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute inset-0 z-20 rounded-2xl flex flex-col items-center justify-center gap-2"
+                            style={{ background: "linear-gradient(135deg, #22c55e 0%, #14b8a6 100%)" }}
+                          >
                             <motion.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
-                              className="absolute inset-0 bg-primary/60 flex items-center justify-center"
+                              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                              className="w-14 h-14 rounded-full flex items-center justify-center"
+                              style={{ background: "rgba(255,255,255,0.25)" }}
                             >
-                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                                <Check className="h-5 w-5 text-primary" />
-                              </div>
+                              <Check className="h-8 w-8 text-white" strokeWidth={3} />
                             </motion.div>
+                            <p className="text-white font-bold text-base">{meal.name}</p>
+                            {meal.calories && (
+                              <p className="text-white/80 text-sm">{meal.calories} cal · {currentStepData.label}</p>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="flex gap-3 p-3">
+                        {/* Image */}
+                        <div className="relative w-20 h-20 rounded-xl overflow-hidden shrink-0 bg-muted">
+                          <img
+                            src={getMealImage(meal.image_url, meal.id)}
+                            alt={meal.name}
+                            className="w-full h-full object-cover"
+                          />
+
+                          {/* checkmark on image when already selected */}
+                          {isMealSelected(meal.id) && justSelectedId !== meal.id && (
+                            <div className="absolute inset-0 bg-primary/70 flex items-center justify-center rounded-xl">
+                              <Check className="h-7 w-7 text-white" strokeWidth={3} />
+                            </div>
                           )}
                         </div>
 
@@ -804,12 +1085,45 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               <h3 className="text-lg font-semibold">Choose a Restaurant</h3>
             </div>
 
+            {/* Delivery Address banner */}
+            {addresses.length > 0 && (() => {
+              const addr = addresses.find(a => a.id === selectedAddressId);
+              const lbl = addr?.label?.toLowerCase() || "";
+              const AddrIcon = lbl === "home" ? Home : (lbl === "work" || lbl === "office") ? Briefcase : MapPin;
+              return (
+                <button
+                  onClick={() => setShowAddressPicker(true)}
+                  className="w-full flex items-center gap-3 mb-4 p-3.5 rounded-2xl bg-primary/5 border border-primary/20 active:scale-[0.98] transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-2xl gradient-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
+                    <AddrIcon className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-primary uppercase tracking-wide leading-none mb-0.5">
+                      Delivering to
+                    </p>
+                    {addr ? (
+                      <>
+                        <p className="font-bold text-sm text-foreground leading-tight">{addr.label}</p>
+                        <p className="text-xs text-muted-foreground truncate">{addr.address_line1}, {addr.city}</p>
+                      </>
+                    ) : (
+                      <p className="font-semibold text-sm text-primary">Tap to select address</p>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full">
+                    Change
+                  </span>
+                </button>
+              );
+            })()}
+
             {/* Auto-fill Day Button */}
-            {getTotalSelectedMeals() === 0 && (
+            {getTotalSelectedMeals() < STEPS.length && (
               <motion.button
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                onClick={handleAutoFillDay}
+                onClick={() => handleAutoFillDay(false)}
                 disabled={autoFillLoading}
                 className="w-full mb-4 py-3 px-4 bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50"
               >
@@ -817,8 +1131,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    <Sparkles className="h-5 w-5" />
-                    <span>Auto-fill My Day with AI</span>
+                    <span>Auto-fill My Day</span>
                   </>
                 )}
               </motion.button>
@@ -833,7 +1146,6 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
                     <h3 className="font-semibold text-sm">Recommended for You</h3>
                   </div>
                   <button
@@ -869,35 +1181,59 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={() => {
-                          // Find restaurant and select meal
+                          if (justSelectedId === meal.id) return; // prevent double-tap
+                          setJustSelectedId(meal.id);
+                          if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
                           const restaurant = restaurants.find(r => r.id === meal.restaurant_id);
-                          if (restaurant) {
-                            setSelectedRestaurant(restaurant);
-                            fetchRestaurantMeals(restaurant.id);
-                            setTimeout(() => selectMeal(meal), 300);
-                          }
+                          setTimeout(() => {
+                            setJustSelectedId(null);
+                            if (restaurant) {
+                              setSelectedRestaurant(restaurant);
+                              fetchRestaurantMeals(restaurant.id);
+                              setTimeout(() => selectMeal(meal), 200);
+                            }
+                          }, 900);
                         }}
                         className="flex-shrink-0 w-40 cursor-pointer group"
                       >
                         <div className="relative w-full h-24 rounded-xl overflow-hidden bg-muted mb-2">
-                          {meal.image_url ? (
-                            <img
-                              src={meal.image_url}
-                              alt={meal.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl">
-                              🍽️
-                            </div>
-                          )}
+                          <img
+                            src={getMealImage(meal.image_url, meal.id)}
+                            alt={meal.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          {/* Calorie label */}
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                             <p className="text-white text-xs font-medium truncate">
                               {meal.calories} cal
                             </p>
                           </div>
+                          {/* Celebration overlay */}
+                          <AnimatePresence>
+                            {justSelectedId === meal.id && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl"
+                                style={{ background: "linear-gradient(135deg,#22c55e 0%,#14b8a6 100%)" }}
+                              >
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                                  style={{ background: "rgba(255,255,255,0.25)" }}
+                                >
+                                  <Check className="h-6 w-6 text-white" strokeWidth={3} />
+                                </motion.div>
+                                <span className="text-white text-[10px] font-bold">Added!</span>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                        <p className={`text-sm font-medium truncate transition-colors ${justSelectedId === meal.id ? "text-primary" : "group-hover:text-primary"}`}>
                           {meal.name}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
@@ -982,16 +1318,19 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             )}
           </motion.div>
         )}
+          </>
+        )}
       </div>
 
       {/* Bottom Actions */}
       <motion.div 
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border"
+        className="fixed bottom-16 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border z-40"
       >
+
         <div className="flex items-center gap-3">
-          {(currentStep > 0 || selectedRestaurant) && (
+          {!showPlanSummary && (currentStep > 0 || selectedRestaurant) && (
             <Button
               variant="outline"
               className="rounded-xl px-6"
@@ -1003,15 +1342,20 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           )}
           
           <div className="flex-1">
-            {getTotalSelectedMeals() > 0 && (
-              <div className="text-center mb-2">
-                <span className="text-sm text-muted-foreground">
-                  {getTotalSelectedMeals()} of 4 meals selected
-                </span>
-              </div>
-            )}
             
-            {currentStep < STEPS.length - 1 ? (
+            {showPlanSummary ? (
+              <Button
+                className="w-full rounded-xl h-12 text-base font-semibold bg-gradient-to-r from-primary to-emerald-500 hover:opacity-90 shadow-lg"
+                onClick={handleComplete}
+                disabled={scheduling}
+              >
+                {scheduling ? (
+                  <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />Scheduling…</>
+                ) : (
+                  <><ChefHat className="h-5 w-5 mr-2" />Schedule All 4 Meals</>
+                )}
+              </Button>
+            ) : currentStep < STEPS.length - 1 ? (
               <Button 
                 className="w-full rounded-xl h-12 text-base font-semibold"
                 onClick={handleNext}
@@ -1020,11 +1364,11 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                 Continue
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
-            ) : (
+            ) : getTotalSelectedMeals() > 0 ? (
               <Button 
-                className="w-full rounded-xl h-12 text-base font-semibold bg-gradient-to-r from-primary to-emerald-500 hover:opacity-90"
+                className="w-full rounded-xl h-12 text-base font-semibold bg-gradient-to-r from-primary to-emerald-500 hover:opacity-90 shadow-lg"
                 onClick={handleComplete}
-                disabled={scheduling || getTotalSelectedMeals() === 0}
+                disabled={scheduling}
               >
                 {scheduling ? (
                   <>
@@ -1038,12 +1382,126 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                   </>
                 )}
               </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                className="w-full rounded-xl h-12 text-base text-muted-foreground"
+                onClick={onCancel}
+              >
+                Select a meal to continue
+              </Button>
             )}
           </div>
         </div>
       </motion.div>
 
-      {/* Auto-fill Day Dialog */}
+      {/* Address Picker Bottom Sheet */}
+      <AnimatePresence>
+        {showAddressPicker && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddressPicker(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+            />
+
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 350 }}
+              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-[61] overflow-hidden"
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+              </div>
+
+              {/* Header */}
+              <div className="px-5 pb-4 flex items-center justify-between border-b border-border/60">
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Delivery Address</h3>
+                  <p className="text-sm text-muted-foreground">Where should we deliver your meals?</p>
+                </div>
+                <button
+                  onClick={() => setShowAddressPicker(false)}
+                  className="w-9 h-9 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform"
+                >
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Address list */}
+              <div className="px-4 py-4 space-y-2 max-h-[60vh] overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+                {addresses.map((addr) => {
+                  const isSelected = selectedAddressId === addr.id;
+                  const lbl = addr.label.toLowerCase();
+                  const AddrIcon = lbl === "home" ? Home : (lbl === "work" || lbl === "office") ? Briefcase : MapPin;
+                  return (
+                    <motion.button
+                      key={addr.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => { setSelectedAddressId(addr.id); setShowAddressPicker(false); }}
+                      className={`w-full flex items-center gap-4 p-4 rounded-3xl border-2 text-left transition-all ${
+                        isSelected
+                          ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                          : "border-border/70 bg-card/95 hover:border-primary/30"
+                      }`}
+                    >
+                      {/* Icon */}
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                        isSelected ? "gradient-primary shadow-sm shadow-primary/20" : "bg-muted"
+                      }`}>
+                        <AddrIcon className={`h-6 w-6 ${isSelected ? "text-white" : "text-muted-foreground"}`} />
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="font-bold text-foreground">{addr.label}</p>
+                          {addr.is_default && (
+                            <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">{addr.address_line1}, {addr.city}</p>
+                      </div>
+
+                      {/* Selected indicator */}
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
+                        isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
+                      }`}>
+                        {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                      </div>
+                    </motion.button>
+                  );
+                })}
+
+                {/* Add new address link */}
+                <button
+                  onClick={() => window.open("/addresses", "_blank")}
+                  className="w-full flex items-center gap-3 p-4 rounded-3xl border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <MapPin className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">Add new address</p>
+                    <p className="text-xs text-muted-foreground">Opens address manager</p>
+                  </div>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Auto-fill Day Dialog - Native Mobile Design */}
       <AnimatePresence>
         {showAutoFillDialog && (
           <>
@@ -1052,101 +1510,250 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAutoFillDialog(false)}
-              className="fixed inset-0 bg-black/50 z-50"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto"
+              transition={{ type: "spring", damping: 30, stiffness: 350 }}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 100) {
+                  setShowAutoFillDialog(false);
+                }
+              }}
+              className="fixed bottom-[80px] left-0 right-0 bg-[#F2F2F7] dark:bg-zinc-950 rounded-t-[32px] z-50 max-h-[75vh] overflow-hidden flex flex-col"
             >
-              {/* Handle Bar */}
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1 bg-muted rounded-full" />
+              {/* Native Handle Bar */}
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-9 h-1 bg-zinc-300 dark:bg-zinc-700 rounded-full" />
               </div>
 
-              <div className="p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+              {/* Header Section */}
+              <div className="px-5 pt-2 pb-4">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shadow-lg shadow-primary/25">
                       <Sparkles className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">AI Suggestions</h2>
-                      <p className="text-sm text-muted-foreground">Personalized for your goals</p>
+                      <h2 className="text-[22px] font-bold text-zinc-900 dark:text-white">Nutrio Suggestions</h2>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Personalized for your goals</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowAutoFillDialog(false)}
-                    className="p-2 rounded-full bg-muted"
+                    className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition-transform"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                   </button>
                 </div>
 
+                {/* Date Pill */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 rounded-full shadow-sm">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {format(selectedDate, "EEEE, MMMM d")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Content Area with Pull to Refresh */}
+              <motion.div 
+                className="flex-1 overflow-y-auto px-5 pb-4 scrollbar-hide relative"
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={0.3}
+                onDrag={(_, info) => {
+                  if (info.offset.y > 0 && info.offset.y < 100) {
+                    setPullProgress(info.offset.y / 100);
+                    setIsPulling(true);
+                  }
+                }}
+                onDragEnd={(_, info) => {
+                  if (info.offset.y > 80) {
+                    handleAutoFillDay();
+                  }
+                  setPullProgress(0);
+                  setIsPulling(false);
+                }}
+              >
+                {/* Pull to Refresh Indicator */}
+                <AnimatePresence>
+                  {isPulling && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="absolute top-0 left-0 right-0 flex justify-center pt-2 z-10"
+                    >
+                      <div className="bg-white dark:bg-zinc-800 rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
+                        <motion.div
+                          animate={{ rotate: pullProgress * 360 }}
+                        >
+                          <RefreshCw className="h-4 w-4 text-primary" />
+                        </motion.div>
+                        <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                          {pullProgress > 0.8 ? 'Release to refresh' : 'Pull to refresh'}
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {autoFillLoading ? (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                    <p className="text-muted-foreground">Creating your perfect day...</p>
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                      </div>
+                      <div className="absolute inset-0 rounded-2xl bg-primary/10 animate-pulse" />
+                    </div>
+                    <p className="mt-4 text-base font-medium text-zinc-600 dark:text-zinc-400">Creating your perfect day...</p>
+                    <p className="text-sm text-zinc-400 dark:text-zinc-500">Analyzing your nutrition goals</p>
                   </div>
                 ) : generatedDayPlan ? (
                   <>
-                    {/* Summary */}
-                    <div className="bg-gradient-to-r from-primary/10 to-emerald-50 dark:from-primary/20 dark:to-emerald-900/20 rounded-2xl p-4 mb-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Meals</p>
-                          <p className="text-2xl font-bold">{generatedDayPlan.length}</p>
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 gap-3 mb-5">
+                      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                            <Flame className="h-4 w-4 text-orange-500" />
+                          </div>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">Calories</span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Total Calories</p>
-                          <p className="text-2xl font-bold">
-                            {generatedDayPlan.reduce((sum: number, item: any) => sum + (item.meal?.calories || 0), 0)}
-                          </p>
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-white">
+                          {generatedDayPlan.reduce((sum: number, item: any) => sum + (item.meal?.calories || 0), 0)}
+                        </p>
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500">total today</p>
+                      </div>
+                      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                            <Beef className="h-4 w-4 text-red-500" />
+                          </div>
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">Protein</span>
                         </div>
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-white">
+                          {generatedDayPlan.reduce((sum: number, item: any) => sum + (item.meal?.protein_g || 0), 0)}g
+                        </p>
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500">total today</p>
                       </div>
                     </div>
 
-                    {/* Meal List */}
-                    <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto">
+                    {/* Meals Header with Refresh */}
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                        {generatedDayPlan.length} Meals
+                      </h3>
+                      <motion.button
+                        onClick={handleRefreshWithLocked}
+                        disabled={autoFillLoading}
+                        whileTap={{ scale: 0.95 }}
+                        className="flex items-center gap-1.5 text-xs text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full disabled:opacity-50"
+                      >
+                        {autoFillLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        Refresh
+                      </motion.button>
+                    </div>
+
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
+                      Tap meals to select/deselect. Selected meals will be kept when refreshing.
+                    </p>
+                    
+                    {/* Selected/Locked Meals Info */}
+                    {lockedMeals.length > 0 && (
+                      <div className="bg-primary/10 rounded-xl p-3 mb-3">
+                        <p className="text-sm text-primary font-medium">
+                          {lockedMeals.length} meal{lockedMeals.length !== 1 ? 's' : ''} locked • Generating {4 - lockedMeals.length} new suggestion{lockedMeals.length !== 3 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-zinc-500 mt-1">
+                          Refresh will suggest meals to complete your nutrition goals
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Meal List - Native iOS Cards with Selection */}
+                    <div className="space-y-3">
                       {generatedDayPlan.map((item: any, index: number) => {
                         const config = STEPS.find(s => s.id === item.meal_type);
                         const MealTypeIcon = config?.icon || ChefHat;
+                        const isSelected = selectedSuggestedMeals.has(index);
 
                         return (
                           <motion.div
                             key={index}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="flex items-center gap-3 p-3 bg-muted/50 rounded-2xl"
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ delay: index * 0.08, type: "spring", stiffness: 400 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => toggleMealSelection(index)}
+                            className={`bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm active:shadow-md transition-all cursor-pointer border-2 ${
+                              isSelected ? 'border-primary' : 'border-transparent'
+                            }`}
                           >
-                            <div className={`w-10 h-10 rounded-xl ${config?.color || 'bg-primary'} flex items-center justify-center`}>
-                              <MealTypeIcon className="h-5 w-5 text-white" />
-                            </div>
-
-                            {item.meal?.image_url ? (
-                              <img
-                                src={item.meal.image_url}
-                                alt={item.meal.name}
-                                className="w-14 h-14 rounded-xl object-cover"
-                              />
-                            ) : (
-                              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
-                                <ChefHat className="h-6 w-6 text-muted-foreground" />
+                            <div className="flex gap-4">
+                              {/* Meal Image */}
+                              <div className="relative shrink-0">
+                                <img
+                                  src={getMealImage(item.meal?.image_url, item.meal?.id)}
+                                  alt={item.meal?.name || 'Meal'}
+                                  className="w-20 h-20 rounded-xl object-cover"
+                                />
+                                {/* Meal Type Badge */}
+                                <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full ${config?.color || 'bg-primary'} flex items-center justify-center shadow-md`}>
+                                  <MealTypeIcon className="h-4 w-4 text-white" />
+                                </div>
                               </div>
-                            )}
 
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold truncate">{item.meal?.name}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                <span className="capitalize">{item.meal_type}</span>
+                              {/* Meal Info */}
+                              <div className="flex-1 min-w-0">
+                                {/* Meal Name */}
+                                <p className="font-semibold text-[17px] text-zinc-900 dark:text-white truncate leading-tight">
+                                  {item.meal?.name}
+                                </p>
+                                
+                                {/* Restaurant Name */}
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <Store className="h-3.5 w-3.5 text-primary" />
+                                  <p className="text-sm text-primary font-medium truncate">
+                                    {item.restaurant?.name || "Partner Restaurant"}
+                                  </p>
+                                </div>
+                                
+                                {/* Meal Type & Nutrition */}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="text-xs text-zinc-500 dark:text-zinc-400 capitalize bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
+                                    {item.meal_type}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-xs font-medium rounded">
+                                    <Flame className="h-3 w-3" />
+                                    {item.meal?.calories || 0}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-medium rounded">
+                                    <Beef className="h-3 w-3" />
+                                    {item.meal?.protein_g || 0}g
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3 mt-1 text-xs">
-                                <span className="text-orange-500 font-medium">{item.meal?.calories || 0} cal</span>
-                                <span className="text-red-500 font-medium">{item.meal?.protein_g || 0}g protein</span>
+
+                              {/* Selection Checkbox */}
+                              <div className="flex items-center justify-center">
+                                <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                  isSelected 
+                                    ? 'bg-primary border-primary' 
+                                    : 'border-zinc-300 dark:border-zinc-600'
+                                }`}>
+                                  {isSelected && <Check className="h-4 w-4 text-white" />}
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -1154,25 +1761,33 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                       })}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        className="flex-1 rounded-xl h-12"
-                        onClick={() => setShowAutoFillDialog(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        className="flex-1 rounded-xl h-12 bg-gradient-to-r from-primary to-emerald-500"
-                        onClick={applyAutoFillPlan}
-                      >
-                        <Check className="h-5 w-5 mr-2" />
-                        Apply All Meals
-                      </Button>
-                    </div>
+                    {/* Bottom Spacer */}
+                    <div className="h-4" />
                   </>
                 ) : null}
+              </motion.div>
+
+              {/* Sticky Action Buttons - iOS Native Style */}
+              <div className="shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-zinc-200/50 dark:border-zinc-800/50 px-5 pt-3 pb-8">
+                {/* Primary Action - Apply Selected */}
+                <motion.button
+                  onClick={applyAutoFillPlan}
+                  disabled={selectedSuggestedMeals.size === 0}
+                  whileTap={{ scale: 0.97 }}
+                  className="w-full h-[52px] rounded-[14px] bg-primary text-white font-semibold text-[17px] shadow-[0_4px_14px_rgba(34,197,94,0.35)] active:shadow-[0_2px_8px_rgba(34,197,94,0.25)] transition-shadow flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Check className="h-5 w-5" strokeWidth={2.5} />
+                  Apply {selectedSuggestedMeals.size} Meal{selectedSuggestedMeals.size !== 1 ? 's' : ''}
+                </motion.button>
+                
+                {/* Secondary Action - Cancel */}
+                <motion.button
+                  onClick={() => setShowAutoFillDialog(false)}
+                  whileTap={{ scale: 0.97 }}
+                  className="w-full h-[48px] mt-3 rounded-[14px] text-zinc-500 dark:text-zinc-400 font-medium text-[17px] active:bg-zinc-100 dark:active:bg-zinc-800/50 transition-colors"
+                >
+                  Cancel
+                </motion.button>
               </div>
             </motion.div>
           </>

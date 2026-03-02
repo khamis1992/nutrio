@@ -231,14 +231,17 @@ ALTER TABLE security.api_auth_failures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE security.api_rate_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE security.api_key_rotation_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Only admins can view auth failures" ON security.api_auth_failures;
 CREATE POLICY "Only admins can view auth failures"
 ON security.api_auth_failures FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
 
+DROP POLICY IF EXISTS "Only admins can view rate limits" ON security.api_rate_limits;
 CREATE POLICY "Only admins can view rate limits"
 ON security.api_rate_limits FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
 
+DROP POLICY IF EXISTS "Only admins can view rotation log" ON security.api_key_rotation_log;
 CREATE POLICY "Only admins can view rotation log"
 ON security.api_key_rotation_log FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
@@ -261,3 +264,5 @@ END $$;
 
 -- Note: After migration, use generate_partner_api_credentials() to create new credentials
 -- Never store the plain_secret after returning it to the partner
+
+

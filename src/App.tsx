@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -10,6 +11,7 @@ import { NativeRouteRedirect } from "@/components/NativeRouteRedirect";
 import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
 import { Loader2 } from "lucide-react";
 import { fleetRoutes } from "@/fleet/routes";
+import CustomerLayout from "@/components/CustomerLayout";
 
 // Critical first-render pages (eager loaded)
 import Index from "./pages/Index";
@@ -31,8 +33,9 @@ const Meals = lazy(() => import("./pages/Meals"));
 const RestaurantDetail = lazy(() => import("./pages/RestaurantDetail"));
 const MealDetail = lazy(() => import("./pages/MealDetail"));
 const Schedule = lazy(() => import("./pages/Schedule"));
-const Progress = lazy(() => import("./pages/Progress"));
+const Progress = lazy(() => import("./pages/ProgressRedesigned"));
 const WeightTracking = lazy(() => import("./pages/WeightTracking"));
+
 const Profile = lazy(() => import("./pages/Profile"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const OrderDetail = lazy(() => import("./pages/OrderDetail"));
@@ -41,7 +44,6 @@ const Subscription = lazy(() => import("./pages/Subscription"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const Settings = lazy(() => import("./pages/Settings"));
-const Referral = lazy(() => import("./pages/Referral"));
 const Affiliate = lazy(() => import("./pages/Affiliate"));
 const ReferralTracking = lazy(() => import("./pages/ReferralTracking"));
 const Addresses = lazy(() => import("./pages/Addresses"));
@@ -92,6 +94,7 @@ const AdminDeliveries = lazy(() => import("./pages/admin/AdminDeliveries"));
 const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
 const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
+const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -121,6 +124,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster position="top-right" />
+      <RadixToaster />
       <BrowserRouter>
         <AuthProvider>
           <AnalyticsProvider>
@@ -142,14 +146,17 @@ const App = () => (
             <Route path="/faq" element={<FAQ />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route 
-              path="/onboarding" 
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              } 
-            />
+            
+            {/* Customer App Routes - Wrapped with CustomerLayout for background */}
+            <Route element={<CustomerLayout />}>
+              <Route 
+                path="/onboarding" 
+                element={
+                  <ProtectedRoute>
+                    <Onboarding />
+                  </ProtectedRoute>
+                } 
+              />
             <Route 
               path="/dashboard" 
               element={
@@ -299,14 +306,6 @@ const App = () => (
               } 
             />
             <Route 
-              path="/referral" 
-              element={
-                <ProtectedRoute>
-                  <Referral />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
               path="/affiliate" 
               element={
                 <ProtectedRoute>
@@ -338,6 +337,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            </Route>
             {/* Partner Portal Routes */}
             <Route path="/partner/auth" element={<PartnerAuth />} />
             <Route 
@@ -565,15 +565,23 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin/milestones" 
+            <Route
+              path="/admin/affiliate-milestones"
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminMilestones />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
+            <Route
+              path="/admin/streak-rewards"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminStreakRewards />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/diet-tags" 
               element={
                 <ProtectedRoute requiredRole="admin">

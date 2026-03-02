@@ -23,7 +23,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION trigger_whatsapp_notification_processor() IS 
+COMMENT ON trigger_whatsapp_notification_processor() IS 
 'Marker function to indicate WhatsApp notifications need processing. 
 In production, set up a cron job to call the process-whatsapp-notifications edge function every minute.';
 
@@ -43,4 +43,4 @@ VALUES ('process-whatsapp-notifications', 1, true)
 ON CONFLICT (function_name) DO NOTHING;
 
 COMMENT ON TABLE edge_function_schedule IS 
-'Simple scheduling table for edge functions. Used when pg_cron extension is not available.';
+'Simple scheduling table for edge functions. Used when pg_cron is not available.';

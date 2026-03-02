@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  Sparkles, 
   Loader2, 
   DollarSign, 
   TrendingUp, 
@@ -282,7 +281,6 @@ export default function AdminFeatured() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
               Featured Listings
             </h1>
             <p className="text-muted-foreground">
@@ -327,7 +325,6 @@ export default function AdminFeatured() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-warning" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Active Listings</p>
@@ -363,7 +360,6 @@ export default function AdminFeatured() {
             <div className="overflow-x-auto">
             {listings.length === 0 ? (
               <div className="text-center py-12">
-                <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-semibold mb-2">No featured listings yet</h3>
                 <p className="text-sm text-muted-foreground">
                   When partners purchase featured listings, they'll appear here.

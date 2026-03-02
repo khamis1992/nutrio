@@ -31,7 +31,7 @@ CREATE TRIGGER on_delivery_job_status_change
     EXECUTE FUNCTION sync_delivery_status_to_schedule();
 
 -- Add comment for documentation
-COMMENT ON FUNCTION sync_delivery_status_to_schedule() IS 
+COMMENT ON sync_delivery_status_to_schedule() IS 
     'Syncs delivery_jobs.status changes back to meal_schedules.order_status to keep customer/partner portals in sync';
 
 -- Fix any existing out-of-sync orders
@@ -52,3 +52,4 @@ BEGIN
     GET DIAGNOSTICS fixed_count = ROW_COUNT;
     RAISE NOTICE 'Fixed % out-of-sync orders', fixed_count;
 END $$;
+

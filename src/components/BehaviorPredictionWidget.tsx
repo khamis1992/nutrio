@@ -6,7 +6,6 @@ import {
   Brain, 
   TrendingDown, 
   AlertTriangle, 
-  Sparkles,
   X,
   Lightbulb,
   Gift,
@@ -109,7 +108,7 @@ export function BehaviorPredictionWidget() {
         color: 'bg-purple-50 border-purple-200 text-purple-800',
       },
       'cuisine_exploration': {
-        icon: <Sparkles className="w-5 h-5" />,
+        icon: <Lightbulb className="w-5 h-5" />,
         title: 'Try Something New',
         description: 'Explore new restaurants and cuisines this week.',
         color: 'bg-amber-50 border-amber-200 text-amber-800',
@@ -192,7 +191,6 @@ export function BehaviorPredictionWidget() {
 
         {prediction.boredom_risk_score > 0.6 && (
           <div className="flex items-center gap-2 text-sm">
-            <Sparkles className="w-4 h-4" />
             <span>Time for variety!</span>
           </div>
         )}

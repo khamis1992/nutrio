@@ -29,7 +29,7 @@ export const DEEP_LINK_ROUTES = {
   
   // Social & Support
   'support': '/support',
-  'referral': '/referral',
+  'referral': '/affiliate',
   'affiliate': '/affiliate',
   
   // Profile
@@ -180,10 +180,10 @@ export const NOTIFICATION_TEMPLATES = {
       body: `${restaurantName} is now available. Check them out!`,
     }),
   
-  referralBonus: (amount: number) => 
-    createNotificationPayload('wallet', {
-      title: 'Referral Bonus!',
-      body: `You earned ${amount} QAR from a successful referral`,
+  referralBonus: (amount: number) =>
+    createNotificationPayload('affiliate', {
+      title: 'Affiliate Commission!',
+      body: `You earned ${amount} QAR from your affiliate network`,
     }),
   
   weeklyReport: () => 

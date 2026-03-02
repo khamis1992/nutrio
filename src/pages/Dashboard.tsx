@@ -11,7 +11,6 @@ import {
   LogOut,
   Loader2,
   Plus,
-  Sparkles,
   Crown,
   Flame,
   Target,
@@ -30,7 +29,6 @@ import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
-import { WeightPredictionChart } from "@/components/WeightPredictionChart";
 import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { DeliveredMealNotifications } from "@/components/DeliveredMealNotifications";
@@ -182,14 +180,14 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Enhanced Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* User Avatar with Greeting */}
             <div className="flex items-center gap-3">
-              <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 ${
+              <Link to="/profile" className={`relative w-10 h-10 rounded-full overflow-hidden border-2 block ${
                 isVip ? "border-violet-500" : "border-primary/30"
               }`}>
                 {profile?.avatar_url ? (
@@ -210,7 +208,7 @@ const Dashboard = () => {
                     <Crown className="w-3 h-3 text-white" />
                   </div>
                 )}
-              </div>
+              </Link>
               <div>
                 <p className="text-xs text-muted-foreground">
                   {new Date().getHours() < 12 ? "Good morning ☀️" : 
@@ -257,15 +255,6 @@ const Dashboard = () => {
             onApply={applyAdjustment}
             onDismiss={dismissAdjustment}
             loading={adaptiveLoading}
-          />
-        )}
-
-        {/* Weight Predictions */}
-        {predictions.length > 0 && (
-          <WeightPredictionChart
-            predictions={predictions}
-            currentWeight={profile?.current_weight_kg || 0}
-            targetWeight={profile?.target_weight_kg || 0}
           />
         )}
 
@@ -445,7 +434,6 @@ const Dashboard = () => {
               ) : restaurants.length === 0 ? (
                 <Card className="w-full min-w-[300px]">
                   <CardContent className="p-8 text-center">
-                    <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="font-semibold mb-2">No featured restaurants yet</h3>
                     <p className="text-sm text-muted-foreground">
                       Check back soon for our highlighted partner restaurants!
@@ -495,7 +483,6 @@ const Dashboard = () => {
                           </Button>
                           {/* Featured Badge */}
                           <Badge className="absolute top-2 left-2 bg-amber-500 text-white border-0">
-                            <Sparkles className="w-3 h-3 mr-1" />
                             Featured
                           </Badge>
                         </div>

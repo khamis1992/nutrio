@@ -11,6 +11,7 @@ DROP POLICY IF EXISTS "Drivers can insert own locations" ON driver_locations;
 DROP POLICY IF EXISTS "Admins can manage driver locations" ON driver_locations;
 
 -- Customers can view driver locations for drivers assigned to their orders
+DROP POLICY IF EXISTS "Customers can view driver locations for their orders" ON driver_locations;
 CREATE POLICY "Customers can view driver locations for their orders"
   ON driver_locations FOR SELECT
   USING (
@@ -23,6 +24,7 @@ CREATE POLICY "Customers can view driver locations for their orders"
   );
 
 -- Drivers can insert their own locations
+DROP POLICY IF EXISTS "Drivers can insert own locations" ON driver_locations;
 CREATE POLICY "Drivers can insert own locations"
   ON driver_locations FOR INSERT
   WITH CHECK (
@@ -34,6 +36,7 @@ CREATE POLICY "Drivers can insert own locations"
   );
 
 -- Admins can manage all driver locations
+DROP POLICY IF EXISTS "Admins can manage driver locations" ON driver_locations;
 CREATE POLICY "Admins can manage driver locations"
   ON driver_locations FOR ALL
   USING (public.has_role(auth.uid(), 'admin'));
@@ -48,11 +51,13 @@ DROP POLICY IF EXISTS "Admins can manage drivers" ON drivers;
 DROP POLICY IF EXISTS "Customers can view assigned drivers" ON drivers;
 
 -- Drivers can view own profile
+DROP POLICY IF EXISTS "Drivers can view own profile" ON drivers;
 CREATE POLICY "Drivers can view own profile"
   ON drivers FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Customers can view drivers assigned to their orders
+DROP POLICY IF EXISTS "Customers can view assigned drivers" ON drivers;
 CREATE POLICY "Customers can view assigned drivers"
   ON drivers FOR SELECT
   USING (
@@ -65,6 +70,7 @@ CREATE POLICY "Customers can view assigned drivers"
   );
 
 -- Admins can manage all drivers
+DROP POLICY IF EXISTS "Admins can manage drivers" ON drivers;
 CREATE POLICY "Admins can manage drivers"
   ON drivers FOR ALL
   USING (public.has_role(auth.uid(), 'admin'));
@@ -79,6 +85,7 @@ DROP POLICY IF EXISTS "Drivers can view assigned jobs" ON delivery_jobs;
 DROP POLICY IF EXISTS "Admins can manage delivery jobs" ON delivery_jobs;
 
 -- Customers can view delivery jobs for their orders
+DROP POLICY IF EXISTS "Customers can view their delivery jobs" ON delivery_jobs;
 CREATE POLICY "Customers can view their delivery jobs"
   ON delivery_jobs FOR SELECT
   USING (
@@ -90,6 +97,7 @@ CREATE POLICY "Customers can view their delivery jobs"
   );
 
 -- Drivers can view jobs assigned to them
+DROP POLICY IF EXISTS "Drivers can view assigned jobs" ON delivery_jobs;
 CREATE POLICY "Drivers can view assigned jobs"
   ON delivery_jobs FOR SELECT
   USING (
@@ -107,6 +115,9 @@ CREATE POLICY "Drivers can view assigned jobs"
   );
 
 -- Admins can manage all delivery jobs
+DROP POLICY IF EXISTS "Admins can manage delivery jobs" ON delivery_jobs;
 CREATE POLICY "Admins can manage delivery jobs"
   ON delivery_jobs FOR ALL
   USING (public.has_role(auth.uid(), 'admin'));
+
+

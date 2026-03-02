@@ -27,11 +27,12 @@ import { formatDistanceToNow } from "date-fns";
 
 interface Notification {
   id: string;
-  type: "order_update" | "meal_reminder" | "subscription_alert" | "general";
+  type: "order_update" | "meal_reminder" | "subscription_alert" | "general" | "announcement";
   title: string;
   message: string;
-  is_read: boolean;
-  metadata: Record<string, unknown>;
+  status: "unread" | "read" | "archived";
+  read_at: string | null;
+  data: Record<string, unknown>;
   created_at: string;
 }
 
@@ -40,13 +41,15 @@ const notificationIcons = {
   meal_reminder: Calendar,
   subscription_alert: CreditCard,
   general: Info,
+  announcement: Bell,
 };
 
 const notificationColors = {
   order_update: "bg-primary/10 text-primary",
   meal_reminder: "bg-warning/10 text-warning",
   subscription_alert: "bg-amber-500/10 text-amber-500",
-  general: "bg-muted text-muted-foreground",
+  general: "bg-blue-500/10 text-blue-500",
+  announcement: "bg-purple-500/10 text-purple-500",
 };
 
 export default function Notifications() {
@@ -104,13 +107,13 @@ export default function Notifications() {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ is_read: true })
+        .update({ status: "read", read_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) throw error;
 
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+        prev.map((n) => (n.id === id ? { ...n, status: "read", read_at: new Date().toISOString() } : n))
       );
     } catch (err) {
       toast({
@@ -127,13 +130,13 @@ export default function Notifications() {
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ is_read: true })
+        .update({ status: "read", read_at: new Date().toISOString() })
         .eq("user_id", user.id)
-        .eq("is_read", false);
+        .eq("status", "unread");
 
       if (error) throw error;
 
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, status: "read" as const, read_at: new Date().toISOString() })));
       toast({
         title: "All marked as read",
         description: "All notifications have been marked as read.",
@@ -191,7 +194,7 @@ export default function Notifications() {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => n.status === "unread").length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -259,7 +262,7 @@ export default function Notifications() {
                 <Card
                   key={notification.id}
                   className={`transition-all ${
-                    !notification.is_read
+                    notification.status === "unread"
                       ? "border-primary/30 bg-primary/5"
                       : ""
                   }`}
@@ -281,7 +284,7 @@ export default function Notifications() {
                               {notification.message}
                             </p>
                           </div>
-                          {!notification.is_read && (
+                          {notification.status === "unread" && (
                             <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
                           )}
                         </div>
@@ -292,7 +295,7 @@ export default function Notifications() {
                             })}
                           </p>
                           <div className="flex items-center gap-1">
-                            {!notification.is_read && (
+                            {notification.status === "unread" && (
                               <Button
                                 variant="ghost"
                                 size="sm"

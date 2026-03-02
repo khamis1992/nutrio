@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
+import { Upload, X, Loader2, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -120,7 +120,6 @@ export const MealImageUpload = ({ currentImageUrl, onImageChange, mealId, onImag
               />
               {isAnalyzing && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                  <Sparkles className="w-6 h-6 animate-pulse text-primary" />
                 </div>
               )}
               {!isAnalyzing && (
@@ -162,7 +161,7 @@ export const MealImageUpload = ({ currentImageUrl, onImageChange, mealId, onImag
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : isAnalyzing ? (
-              <Sparkles className="h-4 w-4 animate-pulse" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Upload className="h-4 w-4" />
             )}

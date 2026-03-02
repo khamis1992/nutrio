@@ -115,6 +115,7 @@ ON CONFLICT (procedure_name) DO NOTHING;
 ALTER TABLE admin.disaster_recovery_procedures ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can view DR procedures
+DROP POLICY IF EXISTS "Only admins can view DR procedures" ON admin.disaster_recovery_procedures;
 CREATE POLICY "Only admins can view DR procedures"
 ON admin.disaster_recovery_procedures FOR ALL
 USING (
@@ -126,3 +127,5 @@ USING (
 
 -- Run verification
 SELECT * FROM admin.verify_backup_status();
+
+

@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import type { TopUpPackage } from "@/hooks/useWallet";
 
@@ -89,7 +89,6 @@ export function TopUpPackages({
                 
                 {pkg.bonus_amount > 0 && (
                   <div className="flex items-center justify-center gap-1 mt-2 text-purple-600">
-                    <Sparkles className="h-3 w-3" />
                     <span className="text-sm font-medium">
                       +{formatCurrency(pkg.bonus_amount)} bonus
                     </span>

@@ -297,7 +297,7 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen pb-24">
         <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between px-4 h-14">
             <button onClick={() => navigate("/dashboard")} className="p-2 -ml-2">
@@ -321,9 +321,9 @@ const Schedule = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 overflow-hidden">
+    <div className="min-h-screen pb-24 overflow-hidden">
       {/* Native iOS-style Header */}
-      <motion.div 
+      <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800"
@@ -715,7 +715,7 @@ const Schedule = () => {
                 <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
               </div>
 
-              <div className="p-6">
+              <div className="p-6 pb-28">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -740,39 +740,8 @@ const Schedule = () => {
                   </button>
                 </div>
 
-                {/* Meal Image */}
-                {selectedMeal.meal.image_url ? (
-                  <img
-                    src={selectedMeal.meal.image_url}
-                    alt={selectedMeal.meal.name}
-                    className="w-full h-48 object-cover rounded-2xl mb-6"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-4xl mb-6">
-                    🍽️
-                  </div>
-                )}
-
-                {/* Nutrition Grid */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Flame className="h-5 w-5 text-orange-500" />
-                      <span className="text-sm text-orange-600 dark:text-orange-400">Calories</span>
-                    </div>
-                    <p className="text-2xl font-bold">{selectedMeal.meal.calories}</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Beef className="h-5 w-5 text-red-500" />
-                      <span className="text-sm text-red-600 dark:text-red-400">Protein</span>
-                    </div>
-                    <p className="text-2xl font-bold">{selectedMeal.meal.protein_g}g</p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-3">
+                {/* Actions - Moved to top */}
+                <div className="space-y-3 mb-6">
                   <button
                     onClick={() => {
                       toggleMealCompletion(selectedMeal.id, selectedMeal.is_completed);
@@ -812,6 +781,37 @@ const Schedule = () => {
                     <Trash2 className="h-5 w-5" />
                     Remove from Schedule
                   </button>
+                </div>
+
+                {/* Meal Image */}
+                {selectedMeal.meal.image_url ? (
+                  <img
+                    src={selectedMeal.meal.image_url}
+                    alt={selectedMeal.meal.name}
+                    className="w-full h-48 object-cover rounded-2xl mb-6"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-4xl mb-6">
+                    🍽️
+                  </div>
+                )}
+
+                {/* Nutrition Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Flame className="h-5 w-5 text-orange-500" />
+                      <span className="text-sm text-orange-600 dark:text-orange-400">Calories</span>
+                    </div>
+                    <p className="text-2xl font-bold">{selectedMeal.meal.calories}</p>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Beef className="h-5 w-5 text-red-500" />
+                      <span className="text-sm text-red-600 dark:text-red-400">Protein</span>
+                    </div>
+                    <p className="text-2xl font-bold">{selectedMeal.meal.protein_g}g</p>
+                  </div>
                 </div>
               </div>
             </motion.div>

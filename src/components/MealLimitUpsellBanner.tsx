@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Utensils, ArrowRight, TrendingUp, Sparkles } from "lucide-react";
+import { Utensils, ArrowRight, TrendingUp } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { posthog } from "posthog-js";
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,11 +94,7 @@ export function MealLimitUpsellBanner({
       <div className="relative z-10">
         <div className="flex items-start gap-3">
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isCritical ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-            {isCritical ? (
-              <Sparkles className="h-5 w-5" />
-            ) : (
-              <Utensils className="h-5 w-5" />
-            )}
+            <Utensils className="h-5 w-5" />
           </div>
 
           <div className="flex-1 min-w-0">

@@ -15,7 +15,6 @@ import {
   Line
 } from "recharts";
 import { 
-  Sparkles, 
   TrendingUp, 
   TrendingDown,
   AlertTriangle,
@@ -171,7 +170,6 @@ export default function PartnerAIInsights() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-violet-500" />
                 AI Insights & Analytics
               </h1>
               <p className="text-slate-400 mt-1">
@@ -370,7 +368,6 @@ export default function PartnerAIInsights() {
         ) : (
           <Card className="bg-slate-900 border-slate-800 mb-8">
             <CardContent className="p-12 text-center">
-              <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-600" />
               <h3 className="text-xl font-semibold text-slate-200 mb-2">
                 No Analytics Data Yet
               </h3>

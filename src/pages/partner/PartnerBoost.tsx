@@ -3,7 +3,7 @@ import { PartnerLayout } from "@/components/PartnerLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check, Clock, Zap, Crown, Loader2, Calendar, DollarSign } from "lucide-react";
+import { Check, Clock, Zap, Crown, Loader2, Calendar, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -179,7 +179,6 @@ export default function PartnerBoost() {
       <PartnerLayout>
         <Card>
           <CardContent className="p-12 text-center">
-            <Sparkles className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-2">No Restaurant Found</h3>
             <p className="text-muted-foreground">
               You need to register a restaurant before you can boost it.
@@ -195,7 +194,6 @@ export default function PartnerBoost() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
             Boost Your Restaurant
           </h1>
           <p className="text-muted-foreground">
@@ -310,7 +308,6 @@ export default function PartnerBoost() {
             <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-3">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-semibold">3x More Visibility</p>

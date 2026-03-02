@@ -111,8 +111,9 @@ GROUP BY DATE_TRUNC('day', action_timestamp), table_name, action
 ORDER BY day DESC, action_count DESC;
 
 -- Add comment
-COMMENT ON FUNCTION audit.verify_audit_coverage() IS 'Verifies that all critical tables have audit triggers enabled';
+COMMENT ON audit.verify_audit_coverage() IS 'Verifies that all critical tables have audit triggers enabled';
 COMMENT ON VIEW audit.audit_summary_view IS 'Daily summary of audit log activity for monitoring';
 
 -- Run verification
 SELECT * FROM audit.verify_audit_coverage();
+

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BadgePercent, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import { BadgePercent, ArrowRight, ArrowLeft } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import type { WinBackOffer } from "@/hooks/useSubscriptionManagement";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -73,7 +73,6 @@ export function Step3DiscountOffer({ offers, onNext, onAccept, onBack }: Step3Di
                     onClick={() => onAccept(offer.offer_code)}
                     className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Sparkles className="mr-2 h-4 w-4" />
                     Apply Discount
                   </Button>
                 </div>

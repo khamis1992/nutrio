@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, Brain, Target, Heart, Sparkles } from "lucide-react";
+import { Info, Brain, Target, Heart, Lightbulb } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface MatchFactor {
@@ -63,7 +63,6 @@ export function AIMealExplanation({
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
                   AI Match Score
                 </CardTitle>
                 <Badge
@@ -152,7 +151,7 @@ export const MEAL_MATCH_FACTORS = {
   },
   variety: {
     name: "Variety Balance",
-    icon: Sparkles,
+    icon: Lightbulb,
     description: "Helps you maintain dietary variety",
   },
 };

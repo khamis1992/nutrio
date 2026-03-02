@@ -16,6 +16,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -717,6 +718,9 @@ export const GoalsManagement = () => {
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Nutrition Goal</DialogTitle>
+            <DialogDescription>
+              Set up your personalized nutrition goal to track your progress.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {/* Goal Type */}

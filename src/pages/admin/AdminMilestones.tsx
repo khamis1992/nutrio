@@ -239,7 +239,7 @@ export default function AdminMilestones() {
 
   if (loading) {
     return (
-      <AdminLayout title="Referral Milestones" subtitle="Manage milestone bonuses">
+      <AdminLayout title="Affiliate Milestones" subtitle="Manage affiliate milestone bonuses">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -248,7 +248,7 @@ export default function AdminMilestones() {
   }
 
   return (
-    <AdminLayout title="Referral Milestones" subtitle="Manage milestone bonuses">
+      <AdminLayout title="Affiliate Milestones" subtitle="Manage affiliate milestone bonuses">
       <div className="space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -411,7 +411,7 @@ export default function AdminMilestones() {
               {selectedMilestone ? "Edit Milestone" : "Add New Milestone"}
             </DialogTitle>
             <DialogDescription>
-              Configure a referral milestone bonus that affiliates can earn.
+              Configure an affiliate milestone bonus that affiliates can earn.
             </DialogDescription>
           </DialogHeader>
 

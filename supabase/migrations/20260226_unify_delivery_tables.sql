@@ -100,6 +100,7 @@ DROP POLICY IF EXISTS "Drivers can view assigned jobs" ON delivery_jobs;
 DROP POLICY IF EXISTS "Drivers can update assigned jobs" ON delivery_jobs;
 
 -- Create new policies for driver portal
+DROP POLICY IF EXISTS "Drivers can view available delivery jobs" ON delivery_jobs;
 CREATE POLICY "Drivers can view available delivery jobs"
   ON delivery_jobs FOR SELECT
   USING (
@@ -108,6 +109,7 @@ CREATE POLICY "Drivers can view available delivery jobs"
     (driver_id IN (SELECT id FROM drivers WHERE user_id = auth.uid()))
   );
 
+DROP POLICY IF EXISTS "Drivers can claim delivery jobs" ON delivery_jobs;
 CREATE POLICY "Drivers can claim delivery jobs"
   ON delivery_jobs FOR UPDATE
   USING (
@@ -124,3 +126,5 @@ COMMENT ON TABLE deliveries_legacy IS 'Legacy deliveries table - kept for histor
 SELECT 'Migration complete' as status,
        (SELECT COUNT(*) FROM delivery_jobs WHERE status = 'pending') as pending_jobs,
        (SELECT COUNT(*) FROM deliveries_legacy) as legacy_records;
+
+

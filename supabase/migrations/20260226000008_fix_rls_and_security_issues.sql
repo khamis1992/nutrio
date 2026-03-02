@@ -7,22 +7,27 @@
 ALTER TABLE user_nutrition_log ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for user_nutrition_log
+DROP POLICY IF EXISTS "Users can view their own nutrition logs" ON user_nutrition_log;
 CREATE POLICY "Users can view their own nutrition logs"
 ON user_nutrition_log FOR SELECT
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert their own nutrition logs" ON user_nutrition_log;
 CREATE POLICY "Users can insert their own nutrition logs"
 ON user_nutrition_log FOR INSERT
 WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update their own nutrition logs" ON user_nutrition_log;
 CREATE POLICY "Users can update their own nutrition logs"
 ON user_nutrition_log FOR UPDATE
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete their own nutrition logs" ON user_nutrition_log;
 CREATE POLICY "Users can delete their own nutrition logs"
 ON user_nutrition_log FOR DELETE
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Admins can manage all nutrition logs" ON user_nutrition_log;
 CREATE POLICY "Admins can manage all nutrition logs"
 ON user_nutrition_log FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
@@ -57,7 +62,7 @@ ON CONFLICT (table_name) DO UPDATE SET
     retention_days = EXCLUDED.retention_days,
     purge_policy = EXCLUDED.purge_policy;
 
--- Create function to purge data based on retention policy
+-- Create function to purge data based on policy
 CREATE OR REPLACE FUNCTION data_retention.purge_old_data(
     p_dry_run BOOLEAN DEFAULT true
 )
@@ -226,17 +231,21 @@ ALTER TABLE data_retention.policies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE security.failed_auth_attempts ENABLE ROW LEVEL SECURITY;
 
 -- Only admins can manage retention policies
+DROP POLICY IF EXISTS "Only admins can manage retention policies" ON data_retention.policies;
 CREATE POLICY "Only admins can manage retention policies"
 ON data_retention.policies FOR ALL
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- Only admins can view failed auth attempts
+DROP POLICY IF EXISTS "Only admins can view failed auth attempts" ON security.failed_auth_attempts;
 CREATE POLICY "Only admins can view failed auth attempts"
 ON security.failed_auth_attempts FOR SELECT
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- Comments
-COMMENT ON TABLE data_retention.policies IS 'Data retention configuration for GDPR/privacy compliance';
+COMMENT ON TABLE data_retention.policies IS 'Data retention for GDPR/privacy compliance';
 COMMENT ON TABLE security.failed_auth_attempts IS 'Log of failed authentication attempts for security monitoring';
-COMMENT ON FUNCTION security.log_failed_auth IS 'Log a failed authentication attempt';
-COMMENT ON FUNCTION security.should_block_ip IS 'Check if IP should be blocked due to excessive failures';
+COMMENT ON security.log_failed_auth IS 'Log a failed authentication attempt';
+COMMENT ON security.should_block_ip IS 'Check if IP should be blocked due to excessive failures';
+
+

@@ -41,6 +41,7 @@ ON public.webhook_delivery_queue(event_type, status);
 ALTER TABLE public.webhook_delivery_queue ENABLE ROW LEVEL SECURITY;
 
 -- Only system can access (via Edge Functions with service role)
+DROP POLICY IF EXISTS "System access only" ON public.webhook_delivery_queue;
 CREATE POLICY "System access only"
 ON public.webhook_delivery_queue FOR ALL
 USING (false);
@@ -174,4 +175,6 @@ AFTER INSERT OR UPDATE OR DELETE ON public.webhook_delivery_queue
 FOR EACH ROW EXECUTE FUNCTION audit.log_change();
 
 COMMENT ON TABLE public.webhook_delivery_queue IS 'Queue for reliable webhook delivery with retry logic';
-COMMENT ON FUNCTION calculate_next_retry IS 'Calculates next retry time with exponential backoff and jitter';
+COMMENT ON calculate_next_retry IS 'Calculates next retry time with exponential backoff and jitter';
+
+

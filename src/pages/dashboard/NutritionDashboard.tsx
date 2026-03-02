@@ -26,7 +26,6 @@ import {
   Calendar,
   Award,
   AlertCircle,
-  Sparkles,
   ChevronRight,
   RefreshCw
 } from "lucide-react";
@@ -245,7 +244,7 @@ export default function NutritionDashboard() {
           {[
             { id: "overview", label: "Overview", icon: Target },
             { id: "weight", label: "Weight Progress", icon: TrendingDown },
-            { id: "adjustments", label: "AI Adjustments", icon: Sparkles },
+            { id: "adjustments", label: "AI Adjustments", icon: Target },
           ].map((tab) => (
             <Button
               key={tab.id}
@@ -324,7 +323,6 @@ export default function NutritionDashboard() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-slate-600">AI Adjustments</span>
-                    <Sparkles className="w-4 h-4 text-amber-500" />
                   </div>
                   <div className="text-2xl font-bold text-amber-600">
                     {adjustments.length}
@@ -522,7 +520,6 @@ export default function NutritionDashboard() {
 
                         <div className="flex items-center gap-4 text-sm">
                           <div className="flex items-center gap-1 text-slate-500">
-                            <Sparkles className="w-4 h-4 text-amber-500" />
                             Confidence: {Math.round((adjustment.confidence_score || 0) * 100)}%
                           </div>
                           {adjustment.previous_values && adjustment.new_values && (
@@ -548,7 +545,6 @@ export default function NutritionDashboard() {
             ) : (
               <Card>
                 <CardContent className="p-12 text-center">
-                  <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                   <h3 className="text-lg font-semibold text-slate-900 mb-2">
                     No AI Adjustments Yet
                   </h3>
@@ -561,7 +557,6 @@ export default function NutritionDashboard() {
                     onClick={handleRequestAdjustment}
                     className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   >
-                    <Sparkles className="w-4 h-4 mr-2" />
                     Request AI Analysis
                   </Button>
                 </CardContent>

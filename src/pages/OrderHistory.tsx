@@ -4,9 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { OneTapReorder } from "@/components/OneTapReorder";
@@ -54,9 +51,9 @@ interface OrderItem {
 interface Order {
   id: string;
   created_at: string;
-  delivery_date: string;
+  estimated_delivery_time?: string;
   status: string;
-  meal_type: string | null;
+  meal_id: string | null;
   notes: string | null;
   restaurant_id: string | null;
   restaurant?: Restaurant;
@@ -78,9 +75,9 @@ interface ScheduledMeal {
 interface RawOrder {
   id: string;
   created_at: string;
-  delivery_date: string;
+  estimated_delivery_time: string | null;
   status: string | null;
-  meal_type: string | null;
+  meal_id: string | null;
   notes: string | null;
   restaurant_id: string | null;
 }
@@ -151,7 +148,7 @@ const OrderHistory = () => {
       // Fetch orders
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
-        .select("id, created_at, delivery_date, status, meal_type, notes, restaurant_id")
+        .select("id, created_at, estimated_delivery_time, status, notes, restaurant_id, meal_id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -209,9 +206,9 @@ const OrderHistory = () => {
       const transformedOrders: Order[] = (ordersData as RawOrder[]).map(order => ({
         id: order.id,
         created_at: order.created_at,
-        delivery_date: order.delivery_date,
+        estimated_delivery_time: order.estimated_delivery_time || undefined,
         status: order.status || "pending",
-        meal_type: order.meal_type,
+        meal_id: order.meal_id,
         notes: order.notes,
         restaurant_id: order.restaurant_id,
         restaurant: restaurantsData.find(r => r.id === order.restaurant_id),
@@ -481,10 +478,10 @@ const OrderHistory = () => {
         .insert({
           user_id: user.id,
           restaurant_id: order.restaurant?.id,
-          delivery_date: format(tomorrow, "yyyy-MM-dd"),
-          total_price: 0, // Subscription-based, no charge
+          estimated_delivery_time: format(tomorrow, "yyyy-MM-dd'T'HH:mm:ss"),
+          total_amount: 0, // Subscription-based, no charge
           status: "pending",
-          meal_type: order.meal_type,
+          meal_id: order.meal_id,
         })
         .select()
         .single();
@@ -497,8 +494,10 @@ const OrderHistory = () => {
         .map(item => ({
           order_id: newOrder.id,
           meal_id: item.meal!.id,
+          meal_name: item.meal!.name,
           quantity: item.quantity,
           unit_price: 0, // Subscription-based
+          subtotal: 0, // Subscription-based
         }));
 
       if (orderItems.length > 0) {
@@ -544,371 +543,369 @@ const OrderHistory = () => {
 
   const loading = ordersLoading || scheduledLoading;
 
+  // ── Scheduled meal card (native style) ──────────────────────────────────
   const renderScheduledMeals = (meals: ScheduledMeal[]) => {
     if (meals.length === 0) {
       return (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="font-semibold mb-2">No scheduled meals</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Schedule meals from your favorite restaurants!
-            </p>
-            <Button onClick={() => navigate("/meals")}>
-              Browse Meals
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+          <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-4 shadow-sm">
+            <ShoppingBag className="h-9 w-9 text-muted-foreground/50" />
+          </div>
+          <h3 className="font-bold text-lg text-foreground mb-1">No scheduled meals</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+            Schedule meals from your favourite restaurants to see them here.
+          </p>
+          <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 shadow-sm shadow-primary/20">
+            Browse Meals
+          </Button>
+        </div>
       );
     }
 
-    return meals.map((schedule) => {
-      const statusInfo = getStatusInfo(schedule.order_status);
-      const StatusIcon = statusInfo.icon;
+    return (
+      <div className="space-y-3">
+        {meals.map((schedule) => {
+          const statusInfo = getStatusInfo(schedule.order_status);
+          const StatusIcon = statusInfo.icon;
+          const canCancel = schedule.order_status === 'pending' || schedule.order_status === 'confirmed';
 
-      const canCancel = schedule.order_status === 'pending' || schedule.order_status === 'confirmed';
-      
-      return (
-        <Card 
-          key={schedule.id} 
-          className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-        >
-          <CardContent className="p-4" onClick={() => navigate(`/order/${schedule.id}`)}>
-            {/* Header */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                  {schedule.meal?.image_url ? (
-                    <img 
-                      src={schedule.meal.image_url} 
-                      alt={schedule.meal.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <UtensilsCrossed className="h-6 w-6 text-muted-foreground" />
-                  )}
+          return (
+            <div
+              key={schedule.id}
+              className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden active:scale-[0.99] transition-all"
+              onClick={() => navigate(`/order/${schedule.id}`)}
+            >
+              <div className="p-4">
+                {/* Card header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-14 h-14 rounded-2xl bg-muted overflow-hidden shrink-0 shadow-sm">
+                    {schedule.meal?.image_url ? (
+                      <img src={schedule.meal.image_url} alt={schedule.meal.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <UtensilsCrossed className="h-6 w-6 text-muted-foreground/50" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base text-foreground truncate">
+                      {schedule.meal?.name || "Unknown Meal"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {schedule.meal?.restaurant?.name || "Restaurant"}
+                    </p>
+                  </div>
+                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${statusInfo.color}`}>
+                    <StatusIcon className="h-3 w-3" />
+                    {statusInfo.label}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="font-semibold">
-                    {schedule.meal?.name || "Unknown Meal"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {schedule.meal?.restaurant?.name || "Restaurant"}
-                  </p>
+
+                {/* Meta chips */}
+                <div className="flex items-center gap-2 pt-3 border-t border-border/60 flex-wrap">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    <Calendar className="h-3 w-3" />
+                    {format(new Date(schedule.scheduled_date), "MMM d, yyyy")}
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    <Clock className="h-3 w-3" />
+                    {schedule.meal_type}
+                  </span>
+                  {schedule.meal?.calories ? (
+                    <span className="flex items-center gap-1 text-xs text-orange-500 font-semibold bg-orange-50 px-2 py-1 rounded-full">
+                      <Flame className="h-3 w-3" />
+                      {schedule.meal.calories} cal
+                    </span>
+                  ) : null}
+                  <span className="ml-auto text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                    Included
+                  </span>
                 </div>
               </div>
-              <Badge className={`${statusInfo.color} border`}>
-                <StatusIcon className="h-3 w-3 mr-1" />
-                {statusInfo.label}
-              </Badge>
-            </div>
 
-            {/* Order Summary */}
-            <div className="flex items-center justify-between pt-3 border-t border-border">
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(schedule.scheduled_date), "MMM d, yyyy")}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {schedule.meal_type}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Flame className="h-3 w-3" />
-                  {schedule.meal?.calories || 0} cal
-                </span>
-              </div>
-              <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
-                Included
-              </Badge>
+              {/* Cancel button */}
+              {canCancel && (
+                <div className="px-4 pb-4">
+                  <button
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                    onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id, 'scheduled'); }}
+                    disabled={cancelling === schedule.id}
+                  >
+                    {cancelling === schedule.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Cancel Order
+                  </button>
+                </div>
+              )}
             </div>
-          </CardContent>
-          
-          {/* Cancel Button */}
-          {canCancel && (
-            <div className="px-4 pb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancelOrder(schedule.id, 'scheduled');
-                }}
-                disabled={cancelling === schedule.id}
-              >
-                {cancelling === schedule.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Trash2 className="h-4 w-4 mr-2" />
-                )}
-                Cancel Order
-              </Button>
-            </div>
-          )}
-        </Card>
-      );
-    });
+          );
+        })}
+      </div>
+    );
   };
 
   return (
-    <div 
-      className="min-h-screen bg-background pb-20"
+    <div
+      className="min-h-screen pb-24"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Pull to Refresh Indicator */}
+      {/* Pull-to-refresh indicator */}
       {pullDistance > 0 && (
-        <div 
+        <div
           className="flex items-center justify-center transition-all duration-200"
-          style={{ 
-            height: `${pullDistance}px`,
-            opacity: Math.min(pullDistance / minPullDistance, 1)
-          }}
+          style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / minPullDistance, 1) }}
         >
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <RotateCcw 
-              className={`h-5 w-5 ${pullDistance > minPullDistance ? 'animate-spin' : ''}`}
+          <div className="flex items-center gap-2 text-primary bg-primary/10 px-4 py-2 rounded-full">
+            <RotateCcw
+              className="h-4 w-4"
               style={{ transform: `rotate(${pullDistance * 2}deg)` }}
             />
-            <span className="text-sm">
+            <span className="text-sm font-medium">
               {pullDistance > minPullDistance ? 'Release to refresh' : 'Pull to refresh'}
             </span>
           </div>
         </div>
       )}
-      
-      {/* Refreshing Indicator */}
+
+      {/* Refreshing banner */}
       {refreshing && (
-        <div className="flex items-center justify-center py-4 bg-primary/5">
-          <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
-          <span className="text-sm text-primary">Refreshing...</span>
+        <div className="flex items-center justify-center py-3 bg-primary/5 border-b border-primary/10">
+          <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+          <span className="text-sm font-medium text-primary">Refreshing…</span>
         </div>
       )}
 
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between p-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
+      {/* Native header */}
+      <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
+        <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between">
+          <button
             onClick={() => navigate("/dashboard")}
+            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">Order History</h1>
-          <Button 
-            variant="ghost" 
-            size="icon"
+            <ArrowLeft className="h-5 w-5 text-foreground" />
+          </button>
+          <h1 className="text-lg font-bold tracking-tight">Orders</h1>
+          <button
             onClick={handleRefresh}
             disabled={refreshing}
+            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all disabled:opacity-40"
           >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </Button>
+            <RefreshCw className={`h-4.5 w-4.5 text-foreground ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
-      </div>
+      </header>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="px-4 pt-4">
         {loading && orders.length === 0 && scheduledMeals.length === 0 ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground">Loading your orders…</p>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-3 w-full mb-4">
-              <TabsTrigger value="scheduled" className="relative">
-                Upcoming
-                {upcomingMeals.length > 0 && (
-                  <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    {upcomingMeals.length}
-                  </Badge>
+          <>
+            {/* iOS-style segment control */}
+            <div className="bg-muted rounded-2xl p-1 flex gap-1 mb-5">
+              {[
+                { id: "scheduled", label: "Upcoming", count: upcomingMeals.length },
+                { id: "completed", label: "Completed", count: completedMeals.length },
+                { id: "orders",    label: "Orders",    count: orders.length },
+              ].map(({ id, label, count }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === id
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                  {count > 0 && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                      activeTab === id ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
+                    }`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Upcoming tab */}
+            {activeTab === "scheduled" && (
+              <>
+                {renderScheduledMeals(upcomingMeals)}
+                {scheduledHasMore && (
+                  <button
+                    className="w-full mt-3 py-3 rounded-2xl border border-border/70 bg-card/90 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    onClick={loadMoreScheduled}
+                    disabled={scheduledLoading}
+                  >
+                    {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
+                  </button>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-              <TabsTrigger value="orders">Orders</TabsTrigger>
-            </TabsList>
+              </>
+            )}
 
-            <TabsContent value="scheduled" className="space-y-4">
-              {renderScheduledMeals(upcomingMeals)}
-              {scheduledHasMore && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={loadMoreScheduled}
-                  disabled={scheduledLoading}
-                >
-                  {scheduledLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    "Load More"
-                  )}
-                </Button>
-              )}
-            </TabsContent>
+            {/* Completed tab */}
+            {activeTab === "completed" && (
+              <>
+                {renderScheduledMeals(completedMeals)}
+                {scheduledHasMore && (
+                  <button
+                    className="w-full mt-3 py-3 rounded-2xl border border-border/70 bg-card/90 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    onClick={loadMoreScheduled}
+                    disabled={scheduledLoading}
+                  >
+                    {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
+                  </button>
+                )}
+              </>
+            )}
 
-            <TabsContent value="completed" className="space-y-4">
-              {renderScheduledMeals(completedMeals)}
-              {scheduledHasMore && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={loadMoreScheduled}
-                  disabled={scheduledLoading}
-                >
-                  {scheduledLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    "Load More"
-                  )}
-                </Button>
-              )}
-            </TabsContent>
-
-            <TabsContent value="orders" className="space-y-4">
-              {orders.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="font-semibold mb-2">No orders yet</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+            {/* Orders tab */}
+            {activeTab === "orders" && (
+              <>
+                {orders.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-4 shadow-sm">
+                      <ShoppingBag className="h-9 w-9 text-muted-foreground/50" />
+                    </div>
+                    <h3 className="font-bold text-lg text-foreground mb-1">No orders yet</h3>
+                    <p className="text-sm text-muted-foreground mb-6 max-w-xs">
                       Start exploring our delicious meals and place your first order!
                     </p>
-                    <Button onClick={() => navigate("/meals")}>
+                    <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 shadow-sm shadow-primary/20">
                       Browse Meals
                     </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                orders.map((order) => {
-                  const statusInfo = getStatusInfo(order.status);
-                  const StatusIcon = statusInfo.icon;
-                  const totalCalories = getTotalCalories(order.order_items);
-                  
-                  return (
-                    <Card key={order.id} className="overflow-hidden">
-                      <CardContent className="p-4">
-                        {/* Order Header */}
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
-                              {order.restaurant?.logo_url ? (
-                                <img 
-                                  src={order.restaurant.logo_url} 
-                                  alt={order.restaurant.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <Package className="h-6 w-6 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div>
-                              <h3 className="font-semibold">
-                                {order.restaurant?.name || "Restaurant"}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(order.created_at), "MMM d, yyyy 'at' h:mm a")}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className={`${statusInfo.color} border`}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusInfo.label}
-                          </Badge>
-                        </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {orders.map((order) => {
+                      const statusInfo = getStatusInfo(order.status);
+                      const StatusIcon = statusInfo.icon;
+                      const totalCalories = getTotalCalories(order.order_items);
 
-                        {/* Order Items */}
-                        <div className="space-y-2 mb-3">
-                          {order.order_items.map((item) => (
-                            <div 
-                              key={item.id}
-                              className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
-                            >
-                              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                                {item.meal?.image_url ? (
-                                  <img 
-                                    src={item.meal.image_url} 
-                                    alt={item.meal.name}
-                                    className="w-full h-full object-cover"
-                                  />
+                      return (
+                        <div key={order.id} className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden">
+                          <div className="p-4">
+                            {/* Restaurant row */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-14 h-14 rounded-2xl bg-muted overflow-hidden shrink-0 shadow-sm">
+                                {order.restaurant?.logo_url ? (
+                                  <img src={order.restaurant.logo_url} alt={order.restaurant.name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="h-6 w-6 text-muted-foreground/50" />
+                                  </div>
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {item.meal?.name || "Unknown meal"}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Qty: {item.quantity}
+                                <h3 className="font-bold text-base text-foreground truncate">
+                                  {order.restaurant?.name || "Restaurant"}
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {format(new Date(order.created_at), "MMM d, yyyy 'at' h:mm a")}
                                 </p>
                               </div>
-                              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                Included
-                              </Badge>
+                              <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${statusInfo.color}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                {statusInfo.label}
+                              </span>
                             </div>
-                          ))}
-                        </div>
 
-                        {/* Order Summary */}
-                        <div className="flex items-center justify-between pt-3 border-t border-border">
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(order.delivery_date), "MMM d")}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Flame className="h-3 w-3" />
-                              {totalCalories} cal
-                            </span>
+                            {/* Order items */}
+                            {order.order_items.length > 0 && (
+                              <div className="space-y-2 mb-3">
+                                {order.order_items.map((item) => (
+                                  <div key={item.id} className="flex items-center gap-3 p-2.5 rounded-2xl bg-muted/50">
+                                    <div className="w-11 h-11 rounded-xl bg-muted overflow-hidden shrink-0">
+                                      {item.meal?.image_url ? (
+                                        <img src={item.meal.image_url} alt={item.meal.name} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <UtensilsCrossed className="h-4 w-4 text-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold truncate text-foreground">
+                                        {item.meal?.name || "Unknown meal"}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                                    </div>
+                                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                      Included
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Meta chips */}
+                            <div className="flex items-center gap-2 pt-3 border-t border-border/60 flex-wrap">
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(order.estimated_delivery_time || order.created_at), "MMM d")}
+                              </span>
+                              {totalCalories > 0 && (
+                                <span className="flex items-center gap-1 text-xs text-orange-500 font-semibold bg-orange-50 px-2 py-1 rounded-full">
+                                  <Flame className="h-3 w-3" />
+                                  {totalCalories} cal
+                                </span>
+                              )}
+                              <span className="ml-auto text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                                Subscription
+                              </span>
+                            </div>
+
+                            {/* Reorder */}
+                            {(order.status === "delivered" || order.status === "completed") && (
+                              <div className="mt-3">
+                                <OneTapReorder
+                                  orderId={order.id}
+                                  items={order.order_items.map((item) => ({
+                                    meal_id: item.meal_id,
+                                    meal_name: item.meal?.name || "Unknown Meal",
+                                    quantity: item.quantity,
+                                    price: 0,
+                                    image_url: item.meal?.image_url,
+                                    restaurant_id: order.restaurant_id || undefined,
+                                    restaurant_name: order.restaurant?.name,
+                                  }))}
+                                  orderTotal={0}
+                                  variant="outline"
+                                  size="default"
+                                  className="w-full rounded-2xl"
+                                />
+                              </div>
+                            )}
                           </div>
-                          <Badge variant="secondary" className="bg-primary/10 text-primary">
-                            Subscription Order
-                          </Badge>
                         </div>
-
-                        {/* One-Tap Reorder Button */}
-                        {(order.status === "delivered" || order.status === "completed") && (
-                          <OneTapReorder
-                            orderId={order.id}
-                            items={order.order_items.map((item) => ({
-                              meal_id: item.meal_id,
-                              meal_name: item.meal?.name || "Unknown Meal",
-                              quantity: item.quantity,
-                              price: 0, // Subscription orders have no price
-                              image_url: item.meal?.image_url,
-                              restaurant_id: order.restaurant_id || undefined,
-                              restaurant_name: order.restaurant?.name,
-                            }))}
-                            orderTotal={0}
-                            variant="outline"
-                            size="default"
-                            className="w-full mt-3"
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-              {ordersHasMore && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={loadMoreOrders}
-                  disabled={ordersLoading}
-                >
-                  {ordersLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    `Load More (${ordersPage * 10}+ orders)`
-                  )}
-                </Button>
-              )}
-            </TabsContent>
-          </Tabs>
+                      );
+                    })}
+                  </div>
+                )}
+                {ordersHasMore && (
+                  <button
+                    className="w-full mt-3 py-3 rounded-2xl border border-border/70 bg-card/90 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    onClick={loadMoreOrders}
+                    disabled={ordersLoading}
+                  >
+                    {ordersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `Load more (${ordersPage * 10}+ orders)`}
+                  </button>
+                )}
+              </>
+            )}
+          </>
         )}
       </div>
 
