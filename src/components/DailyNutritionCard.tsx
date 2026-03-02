@@ -8,6 +8,9 @@ interface DailyNutritionCardProps {
   totalCarbs: number;
   totalFat: number;
   focusCalories: number;
+  targetProtein?: number;
+  targetCarbs?: number;
+  targetFat?: number;
   dayLabel?: string;
 }
 
@@ -87,7 +90,7 @@ const MacroProgressBar = ({ label, value, max, color }: {
 };
 
 export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = (
-  { totalCalories, totalProtein, totalCarbs, totalFat, focusCalories, dayLabel = "Today's Focus" }
+  { totalCalories, totalProtein, totalCarbs, totalFat, focusCalories, targetProtein, targetCarbs, targetFat, dayLabel = "Today's Focus" }
 ) => {
   const caloriesColor = "#22c55e"; // Green
   const proteinColor = "#f97316"; // Orange
@@ -130,19 +133,19 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = (
               <MacroProgressBar 
                 label="Protein" 
                 value={totalProtein} 
-                max={focusCalories ? focusCalories * 0.08 : 150} 
+                max={targetProtein || 150} 
                 color={proteinColor} 
               />
               <MacroProgressBar 
                 label="Carbs" 
                 value={totalCarbs} 
-                max={focusCalories ? focusCalories * 0.125 : 300} 
+                max={targetCarbs || 300} 
                 color={carbsColor} 
               />
               <MacroProgressBar 
                 label="Fat" 
                 value={totalFat} 
-                max={focusCalories ? focusCalories * 0.035 : 90} 
+                max={targetFat || 90} 
                 color={fatColor} 
               />
             </div>

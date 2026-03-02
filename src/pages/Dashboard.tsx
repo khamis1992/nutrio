@@ -265,6 +265,9 @@ const Dashboard = () => {
           totalCarbs={userStats.carbs.consumed}
           totalFat={userStats.fat.consumed}
           focusCalories={userStats.dailyCalories}
+          targetProtein={userStats.protein.target}
+          targetCarbs={userStats.carbs.target}
+          targetFat={userStats.fat.target}
           dayLabel="Today's Progress"
         />
 
