@@ -19,7 +19,10 @@ export function MealsRemainingWidget({
   className,
   variant = "full",
 }: MealsRemainingWidgetProps) {
-  // Calculate percentage remaining
+  // Percentage of meals already used (bar fills as meals are consumed)
+  const usedMeals = totalMeals - remainingMeals;
+  const usedPercentage = isUnlimited ? 0 : Math.round((usedMeals / totalMeals) * 100);
+  // Percentage remaining (used in labels only)
   const percentage = isUnlimited ? 100 : Math.round((remainingMeals / totalMeals) * 100);
   
   // Determine status color based on remaining meals
@@ -130,12 +133,12 @@ export function MealsRemainingWidget({
               <div className="h-2 bg-background rounded-full overflow-hidden">
                 <div 
                   className={cn("h-full transition-all duration-500 rounded-full", progressColor)}
-                  style={{ width: `${percentage}%` }}
+                  style={{ width: `${usedPercentage}%` }}
                 />
               </div>
               <div className="flex justify-between mt-1 text-xs text-muted-foreground">
                 <span>0 used</span>
-                <span>{totalMeals - remainingMeals} used</span>
+                <span>{usedMeals} used</span>
                 <span>{totalMeals} total</span>
               </div>
             </div>
@@ -193,12 +196,12 @@ export function MealsRemainingWidget({
 
         {!isUnlimited && (
           <>
-            {/* Progress Bar */}
+            {/* Progress Bar - fills as meals are used */}
             <div className="relative">
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div 
                   className={cn("h-full transition-all duration-700 ease-out rounded-full relative", progressColor)}
-                  style={{ width: `${percentage}%` }}
+                  style={{ width: `${usedPercentage}%` }}
                 >
                   {/* Shimmer effect */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
