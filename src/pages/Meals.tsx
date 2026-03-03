@@ -637,7 +637,7 @@ const Meals = () => {
   const hasActiveFilters = searchQuery || showFavoritesOnly || selectedCuisine || activeSort !== "rating";
 
   return (
-    <div className="min-h-screen" style={{ background: '#f5f5f5' }}>
+    <div className="min-h-screen">
       {/* Native Header */}
       <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
         <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between">
