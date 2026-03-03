@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIPLocation } from "@/lib/ipCheck";
+import { Capacitor } from "@capacitor/core";
 import { pushNotificationService } from "@/lib/notifications/push";
 
 interface AuthContextType {
@@ -40,9 +41,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Initialize push notifications when user signs in
-        if (session?.user) {
-          pushNotificationService.initialize().catch(console.error);
+        // Initialize push notifications when user signs in on native platform
+        if (session?.user && Capacitor.isNativePlatform()) {
+          pushNotificationService.initialize().catch((err) =>
+            console.error("Failed to initialize push notifications:", err)
+          );
         }
       }
     );
