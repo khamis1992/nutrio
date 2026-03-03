@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIPLocation } from "@/lib/ipCheck";
+import { Capacitor } from "@capacitor/core";
+import { pushNotificationService } from "@/lib/notifications/push";
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +40,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        // Initialize push notifications when user signs in on native platform
+        if (session?.user && Capacitor.isNativePlatform()) {
+          pushNotificationService.initialize().catch((err) =>
+            console.error("Failed to initialize push notifications:", err)
+          );
+        }
       }
     );
 

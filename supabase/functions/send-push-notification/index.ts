@@ -26,6 +26,17 @@ interface FCMMessage {
         channel_id?: string;
       };
     };
+    apns?: {
+      payload?: {
+        aps?: {
+          alert?: { title: string; body: string };
+          badge?: number;
+          sound?: string;
+          "content-available"?: number;
+        };
+      };
+      headers?: Record<string, string>;
+    };
     data?: Record<string, string>;
   };
 }
@@ -123,6 +134,19 @@ async function sendFCMNotification(
         notification: {
           channel_id: "default",
           click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: { title, body },
+            badge: 1,
+            sound: "default",
+            "content-available": 1,
+          },
+        },
+        headers: {
+          "apns-priority": "10",
         },
       },
       ...(data && Object.keys(data).length > 0 ? { data } : {}),
