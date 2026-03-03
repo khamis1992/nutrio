@@ -88,8 +88,7 @@ BEGIN
         price = v_new_plan.price_qar,
         annual_discount_percent = v_new_plan.discount_percent,
         meals_per_month = v_new_plan.meals_per_month,
-        prorated_credit = v_prorated_credit,
-        updated_at = NOW()
+        prorated_credit = v_prorated_credit
     WHERE id = p_subscription_id;
 
     -- Return success
