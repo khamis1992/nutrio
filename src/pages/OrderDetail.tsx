@@ -306,8 +306,21 @@ const OrderDetail = () => {
   };
 
   const handleCancelOrder = async () => {
+    if (!order || !id) return;
     if (!confirm("Are you sure you want to cancel this order?")) return;
-    await updateOrderStatus("cancelled");
+    setUpdating(true);
+    try {
+      const { data, error } = await supabase.rpc("cancel_meal_schedule", {
+        p_schedule_id: id,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+      setOrder(prev => prev ? { ...prev, order_status: "cancelled" } : null);
+    } catch (err: any) {
+      alert(err.message || "Failed to cancel order");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (loading) {
@@ -326,7 +339,7 @@ const OrderDetail = () => {
   const estimatedArrival = getEstimatedArrival(order.order_status, order.scheduled_date);
   const isCancelled = order.order_status === "cancelled";
   const isCompleted = order.order_status === "completed" || order.order_status === "delivered";
-  const canCancel = order.order_status === "pending";
+  const canCancel = order.order_status === "pending" || order.order_status === "confirmed";
   const isOutForDelivery = order.order_status === "out_for_delivery";
   const isDelivered = order.order_status === "delivered";
 

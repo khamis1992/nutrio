@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isToday, isTomorrow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   ChefHat,
   Truck,
@@ -16,6 +17,8 @@ import {
   Clock,
   Utensils,
   CircleCheck,
+  Loader2,
+  X,
 } from "lucide-react";
 import flameLogo from "@/assets/flam.png";
 
@@ -149,6 +152,27 @@ interface ActiveOrderBannerProps {
 export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+
+  const handleCancelOrder = async (orderId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to cancel this order?")) return;
+    setCancelling(orderId);
+    try {
+      const { data, error } = await supabase.rpc("cancel_meal_schedule", {
+        p_schedule_id: orderId,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+      setActiveOrders(prev => prev.filter(o => o.id !== orderId));
+      toast.success("Order cancelled successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel order. Please try again.");
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   useEffect(() => {
     const fetchActiveOrders = async () => {
@@ -332,6 +356,12 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         {groupedOrders.map((group, index) => {
           const config = statusConfig[group.latest_status];
           const currentStepIndex = getCurrentStepIndex(group.latest_status);
+          const canCancel = group.orders.some(
+            o => o.order_status === "pending" || o.order_status === "confirmed"
+          );
+          const cancellableOrderId = group.orders.find(
+            o => o.order_status === "pending" || o.order_status === "confirmed"
+          )?.id;
 
           return (
             <motion.div
@@ -508,6 +538,22 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                   </div>
                 </div>
               </Link>
+
+              {/* Cancel button — outside Link so it doesn't navigate */}
+              {canCancel && cancellableOrderId && (
+                <button
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border-t border-red-100 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-100 active:scale-[0.98] transition-all disabled:opacity-50 rounded-b-3xl"
+                  onClick={(e) => handleCancelOrder(cancellableOrderId, e)}
+                  disabled={cancelling === cancellableOrderId}
+                >
+                  {cancelling === cancellableOrderId ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
+                  Cancel Order
+                </button>
+              )}
             </motion.div>
           );
         })}

@@ -47,6 +47,21 @@ interface Restaurant {
   cuisine_types?: string[];
 }
 
+interface MealResult {
+  id: string;
+  name: string;
+  calories: number | null;
+  image_url: string | null;
+  restaurant_id: string | null;
+  is_available: boolean | null;
+  restaurant_name: string;
+  restaurant_logo_url: string | null;
+  restaurant_rating: number;
+  restaurant_total_orders: number;
+}
+
+type CalorieRange = "all" | "under300" | "300-500" | "500-700" | "700plus";
+
 const cuisineEmojis: Record<string, string> = {
   "Healthy": "🥗",
   "Vegetarian": "🥬",
@@ -212,6 +227,99 @@ const RestaurantListCard = ({
   );
 };
 
+const MealListCard = ({
+  meal,
+  isFavoriteRestaurant,
+  onToggleFavorite,
+  index,
+}: {
+  meal: MealResult;
+  isFavoriteRestaurant: boolean;
+  onToggleFavorite: (id: string, name: string) => void;
+  index: number;
+}) => {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    if (!meal.restaurant_id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    Haptics.impact({ style: "medium" });
+    onToggleFavorite(meal.restaurant_id, meal.restaurant_name);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, ...springConfig }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <Link to={`/meals/${meal.id}`}>
+        <div className="group bg-card/95 rounded-3xl overflow-hidden border border-border/70 shadow-md hover:shadow-lg transition-all backdrop-blur-sm">
+          <div className="flex p-3 gap-3">
+            <div className="relative w-24 h-24 shrink-0">
+              <div className="w-full h-full rounded-xl overflow-hidden bg-gradient-to-br from-primary/5 to-accent/10">
+                <img
+                  src={meal.image_url || getRestaurantImage(meal.restaurant_logo_url, meal.restaurant_id || meal.id)}
+                  alt={meal.name}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
+
+              {meal.restaurant_id && (
+                <motion.button
+                  onClick={handleFavoriteClick}
+                  className="absolute top-1 right-1 w-8 h-8 rounded-full bg-background/95 shadow-md flex items-center justify-center border border-border/70 backdrop-blur-sm"
+                  whileTap={{ scale: 0.85 }}
+                >
+                  <Heart
+                    className={`w-4 h-4 transition-colors ${
+                      isFavoriteRestaurant
+                        ? "fill-rose-500 text-rose-500"
+                        : "text-muted-foreground"
+                    }`}
+                  />
+                </motion.button>
+              )}
+            </div>
+
+            <div className="flex-1 flex flex-col justify-between min-w-0">
+              <div>
+                <h3 className="font-semibold text-base leading-tight line-clamp-1 text-foreground">
+                  {meal.name}
+                </h3>
+                <p className="text-xs font-semibold text-primary mt-1 line-clamp-1">
+                  {meal.restaurant_name}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {meal.is_available === false ? "Currently unavailable" : "Available now"}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">
+                    <Flame className="w-3 h-3 text-orange-600" />
+                    <span className="text-xs font-semibold">{meal.calories ?? 0} cal</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                    <span className="text-xs font-semibold">{meal.restaurant_rating.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                <div className="self-center pr-1 text-muted-foreground/60 group-hover:text-primary transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+};
+
 // ============================================
 // NATIVE BOTTOM SHEET FILTER - iOS STYLE
 // ============================================
@@ -220,17 +328,23 @@ const FilterSheet = ({
   onClose,
   showFavoritesOnly,
   onToggleFavorites,
-  restaurantCount,
+  resultCount,
+  resultLabel,
   activeSort,
-  onChangeSort
+  onChangeSort,
+  calorieRange,
+  onChangeCalorieRange
 }: {
   isOpen: boolean;
   onClose: () => void;
   showFavoritesOnly: boolean;
   onToggleFavorites: () => void;
-  restaurantCount: number;
+  resultCount: number;
+  resultLabel: "restaurants" | "meals";
   activeSort: "rating" | "fastest" | "popular";
   onChangeSort: (sort: "rating" | "fastest" | "popular") => void;
+  calorieRange: CalorieRange;
+  onChangeCalorieRange: (range: CalorieRange) => void;
 }) => {
   const handleSortChange = (sort: "rating" | "fastest" | "popular") => {
     Haptics.impact({ style: "light" });
@@ -240,6 +354,11 @@ const FilterSheet = ({
   const handleFavoritesToggle = () => {
     Haptics.impact({ style: "medium" });
     onToggleFavorites();
+  };
+
+  const handleCalorieRangeChange = (range: CalorieRange) => {
+    Haptics.impact({ style: "light" });
+    onChangeCalorieRange(range);
   };
 
   return (
@@ -269,20 +388,21 @@ const FilterSheet = ({
                 onClose();
               }
             }}
-            className="fixed bottom-0 left-0 right-0 bg-card rounded-t-3xl z-50 overflow-hidden"
-            style={{ maxHeight: "85vh" }}
+            className="fixed left-0 right-0 bg-card rounded-t-3xl z-50 overflow-hidden flex flex-col"
+            style={{ bottom: '64px', maxHeight: "calc(85vh - 64px)" }}
           >
             {/* Drag Handle */}
-            <div className="pt-3 pb-2 flex justify-center">
+            <div className="pt-3 pb-2 flex justify-center flex-shrink-0">
               <div className="w-10 h-1 bg-muted-foreground/20 rounded-full" />
             </div>
             
-            <div className="px-5 pb-8 overflow-y-auto max-h-[calc(85vh-60px)]">
+            {/* Scrollable Content */}
+            <div className="px-5 overflow-y-auto flex-1">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Filters</h3>
-                  <p className="text-sm text-muted-foreground">{restaurantCount} restaurants</p>
+                  <p className="text-sm text-muted-foreground">{resultCount} {resultLabel}</p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                   <SlidersHorizontal className="w-6 h-6 text-primary" />
@@ -319,10 +439,42 @@ const FilterSheet = ({
                 </div>
               </div>
 
-              {/* Favorites Toggle */}
-              <div className="mb-8">
+              {/* Calorie Range Filter */}
+              <div className="mb-6">
                 <label className="text-sm font-semibold text-foreground mb-3 block">
-                  Filters
+                  Filter by Calories
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { id: "all", label: "All" },
+                    { id: "under300", label: "Under 300" },
+                    { id: "300-500", label: "300-500" },
+                    { id: "500-700", label: "500-700" },
+                    { id: "700plus", label: "700+" },
+                  ].map((range) => (
+                    <motion.button
+                      key={range.id}
+                      onClick={() => handleCalorieRangeChange(range.id as CalorieRange)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                        calorieRange === range.id
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border bg-muted text-muted-foreground"
+                      }`}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Flame className={`w-4 h-4 ${
+                        calorieRange === range.id ? "text-primary" : "text-muted-foreground"
+                      }`} />
+                      <span className="text-sm font-medium">{range.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Favorites Toggle */}
+              <div className="mb-6">
+                <label className="text-sm font-semibold text-foreground mb-3 block">
+                  Other Filters
                 </label>
                 <motion.button
                   onClick={handleFavoritesToggle}
@@ -355,13 +507,15 @@ const FilterSheet = ({
                   </div>
                 </motion.button>
               </div>
+            </div>
 
-              {/* Apply Button */}
+            {/* Fixed Button at Bottom */}
+            <div className="px-5 pt-4 pb-6 border-t border-border bg-card flex-shrink-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
               <Button 
                 onClick={onClose}
                 className="w-full h-12 rounded-xl font-semibold text-base bg-primary hover:bg-primary/90"
               >
-                Show {restaurantCount} Restaurants
+                Show {resultCount} {resultLabel === "restaurants" ? "Restaurants" : "Meals"}
               </Button>
             </div>
           </motion.div>
@@ -489,6 +643,7 @@ const CuisineScroller = ({
 const Meals = () => {
   const [searchParams] = useSearchParams();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [meals, setMeals] = useState<MealResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
@@ -511,6 +666,7 @@ const Meals = () => {
     }
   };
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+  const [calorieRange, setCalorieRange] = useState<CalorieRange>("all");
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
 
   // Fetch restaurants
@@ -545,18 +701,46 @@ const Meals = () => {
 
         const restaurantIds = typedRestaurantsData.map((r) => r.id);
         let mealCounts: Record<string, number> = {};
+        let transformedMeals: MealResult[] = [];
         
         if (restaurantIds.length > 0) {
           const { data: mealsData } = await supabase
             .from("meals")
-            .select("restaurant_id")
+            .select("id, name, calories, image_url, restaurant_id, is_available")
             .in("restaurant_id", restaurantIds);
           
-          mealCounts = (mealsData || []).reduce((acc: Record<string, number>, meal) => {
-            const restaurantId = (meal as { restaurant_id: string }).restaurant_id;
+          const typedMealsData = (mealsData || []) as Array<{
+            id: string;
+            name: string;
+            calories: number | null;
+            image_url: string | null;
+            restaurant_id: string | null;
+            is_available: boolean | null;
+          }>;
+
+          mealCounts = typedMealsData.reduce((acc: Record<string, number>, meal) => {
+            if (!meal.restaurant_id) return acc;
+            const restaurantId = meal.restaurant_id;
             acc[restaurantId] = (acc[restaurantId] || 0) + 1;
             return acc;
           }, {});
+
+          const restaurantsById = new Map(typedRestaurantsData.map((r) => [r.id, r]));
+          transformedMeals = typedMealsData.map((meal) => {
+            const parentRestaurant = meal.restaurant_id ? restaurantsById.get(meal.restaurant_id) : null;
+            return {
+              id: meal.id,
+              name: meal.name,
+              calories: meal.calories,
+              image_url: meal.image_url,
+              restaurant_id: meal.restaurant_id,
+              is_available: meal.is_available,
+              restaurant_name: parentRestaurant?.name || "Restaurant",
+              restaurant_logo_url: parentRestaurant?.logo_url || null,
+              restaurant_rating: parseFloat(String(parentRestaurant?.rating || 0)) || 0,
+              restaurant_total_orders: parentRestaurant?.total_orders || 0,
+            };
+          });
         }
 
         const transformedRestaurants: Restaurant[] = typedRestaurantsData
@@ -573,6 +757,7 @@ const Meals = () => {
           }));
 
         setRestaurants(transformedRestaurants);
+        setMeals(transformedMeals);
       } catch (err) {
         console.error("Error fetching restaurants:", err);
       } finally {
@@ -582,6 +767,65 @@ const Meals = () => {
 
     fetchRestaurants();
   }, []);
+
+  const isCalorieFilterActive = calorieRange !== "all";
+
+  const filteredMeals = useMemo(() => {
+    let result = [...meals];
+
+    if (showFavoritesOnly) {
+      result = result.filter((m) => (m.restaurant_id ? favoriteIds.has(m.restaurant_id) : false));
+    }
+
+    if (selectedCuisine) {
+      const selected = selectedCuisine.toLowerCase();
+      result = result.filter((meal) => {
+        const restaurant = restaurants.find((r) => r.id === meal.restaurant_id);
+        return !!restaurant?.cuisine_types?.some((c) => c.toLowerCase() === selected);
+      });
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (meal) =>
+          meal.name.toLowerCase().includes(query) ||
+          meal.restaurant_name.toLowerCase().includes(query)
+      );
+    }
+
+    if (calorieRange !== "all") {
+      result = result.filter((meal) => {
+        const calories = meal.calories ?? 0;
+        switch (calorieRange) {
+          case "under300":
+            return calories < 300;
+          case "300-500":
+            return calories >= 300 && calories <= 500;
+          case "500-700":
+            return calories > 500 && calories <= 700;
+          case "700plus":
+            return calories > 700;
+          default:
+            return true;
+        }
+      });
+    }
+
+    switch (activeSort) {
+      case "rating":
+        result.sort((a, b) => b.restaurant_rating - a.restaurant_rating);
+        break;
+      case "popular":
+        result.sort((a, b) => b.restaurant_total_orders - a.restaurant_total_orders);
+        break;
+      case "fastest":
+        result.sort((a, b) => (a.calories ?? 0) - (b.calories ?? 0));
+        break;
+    }
+
+    return result;
+  }, [meals, showFavoritesOnly, favoriteIds, selectedCuisine, searchQuery, calorieRange, activeSort, restaurants]);
 
   // Filter and sort restaurants
   const filteredRestaurants = useMemo(() => {
@@ -632,9 +876,11 @@ const Meals = () => {
     setSelectedCuisine(null);
     setActiveSort("rating");
     setActiveChip("rating");
+    setCalorieRange("all");
   }, []);
 
-  const hasActiveFilters = searchQuery || showFavoritesOnly || selectedCuisine || activeSort !== "rating";
+  const hasActiveFilters = searchQuery || showFavoritesOnly || selectedCuisine || activeSort !== "rating" || calorieRange !== "all";
+  const displayedCount = isCalorieFilterActive ? filteredMeals.length : filteredRestaurants.length;
 
   return (
     <div className="min-h-screen">
@@ -785,10 +1031,12 @@ const Meals = () => {
         >
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-foreground">
-              {showFavoritesOnly ? "Your Favorites" : "All Restaurants"}
+              {isCalorieFilterActive
+                ? (showFavoritesOnly ? "Favorite Meals" : "Filtered Meals")
+                : (showFavoritesOnly ? "Your Favorites" : "All Restaurants")}
             </h2>
             <span className="text-xs text-muted-foreground bg-card/90 border border-border/70 px-2 py-0.5 rounded-full">
-              {filteredRestaurants.length}
+              {displayedCount}
             </span>
           </div>
         </motion.div>
@@ -812,14 +1060,14 @@ const Meals = () => {
           </motion.div>
         )}
 
-        {/* Restaurant List */}
+        {/* Results List */}
         <div className="space-y-3">
           {loading ? (
             // Skeleton Loading
             Array.from({ length: 6 }).map((_, i) => (
               <RestaurantCardSkeleton key={i} />
             ))
-          ) : filteredRestaurants.length === 0 ? (
+          ) : displayedCount === 0 ? (
             // Empty State
             <motion.div 
               className="py-16 text-center col-span-full rounded-3xl bg-card/90 border border-border/70"
@@ -835,12 +1083,16 @@ const Meals = () => {
                 <Store className="w-10 h-10 text-muted-foreground/50" />
               </motion.div>
               <h3 className="font-semibold text-lg text-foreground mb-1">
-                {showFavoritesOnly ? "No favorites yet" : "No restaurants found"}
+                {isCalorieFilterActive
+                  ? (showFavoritesOnly ? "No favorite meals yet" : "No meals found")
+                  : (showFavoritesOnly ? "No favorites yet" : "No restaurants found")}
               </h3>
               <p className="text-sm text-muted-foreground mb-4 px-8">
-                {showFavoritesOnly 
-                  ? "Save your favorite restaurants to find them quickly" 
-                  : "Try adjusting your search or filters"}
+                {isCalorieFilterActive
+                  ? "Try a different calorie range or clear filters."
+                  : showFavoritesOnly
+                    ? "Save your favorite restaurants to find them quickly"
+                    : "Try adjusting your search or filters"}
               </p>
               {hasActiveFilters && (
                 <Button 
@@ -852,8 +1104,17 @@ const Meals = () => {
                 </Button>
               )}
             </motion.div>
+          ) : isCalorieFilterActive ? (
+            filteredMeals.map((meal, index) => (
+              <MealListCard
+                key={meal.id}
+                meal={meal}
+                isFavoriteRestaurant={meal.restaurant_id ? isFavorite(meal.restaurant_id) : false}
+                onToggleFavorite={toggleFavorite}
+                index={index}
+              />
+            ))
           ) : (
-            // List View
             filteredRestaurants.map((restaurant, index) => (
               <RestaurantListCard
                 key={restaurant.id}
@@ -876,9 +1137,12 @@ const Meals = () => {
         onClose={() => setFilterSheetOpen(false)}
         showFavoritesOnly={showFavoritesOnly}
         onToggleFavorites={() => selectChip(activeChip === "favorites" ? "rating" : "favorites")}
-        restaurantCount={filteredRestaurants.length}
+        resultCount={displayedCount}
+        resultLabel={isCalorieFilterActive ? "meals" : "restaurants"}
         activeSort={activeSort}
         onChangeSort={(sort) => { setActiveSort(sort); setActiveChip(sort); setShowFavoritesOnly(false); }}
+        calorieRange={calorieRange}
+        onChangeCalorieRange={setCalorieRange}
       />
     </div>
   );

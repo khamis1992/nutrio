@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Pause, Calendar as CalendarIcon, Info, Snowflake, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { CalendarDate } from "@internationalized/date";
+import { RangeCalendar, CalendarGrid, CalendarGridBody, CalendarGridHeader, CalendarHeaderCell, CalendarHeading, CalendarCell } from "@/components/ui/range-calendar";
 
 interface FreezeSubscriptionModalProps {
   subscriptionId: string;
@@ -23,55 +24,74 @@ export function FreezeSubscriptionModal({
   trigger 
 }: FreezeSubscriptionModalProps) {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"start" | "end">("start");
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
   const [isPending, setIsPending] = useState(false);
+  
+  // Use react-aria CalendarDate for the range calendar
+  const [range, setRange] = useState<{ start: CalendarDate | null; end: CalendarDate | null }>({
+    start: null,
+    end: null
+  });
 
   const daysRemaining = 7;
   const canFreeze = daysRemaining > 0;
 
+  // Get today's date in local timezone
+  const today = new CalendarDate(
+    new Date().getFullYear(),
+    new Date().getMonth() + 1,
+    new Date().getDate()
+  );
+
+  // Minimum start date is tomorrow
+  const minDate = today.add({ days: 1 });
+
+  // Helper to convert CalendarDate to Date
+  const calendarDateToDate = (cd: CalendarDate): Date => {
+    return new Date(cd.year, cd.month - 1, cd.day);
+  };
+
+  // Helper to calculate days between two CalendarDates
+  const getDaysBetween = (start: CalendarDate, end: CalendarDate): number => {
+    const startJs = calendarDateToDate(start);
+    const endJs = calendarDateToDate(end);
+    const diffTime = Math.abs(endJs.getTime() - startJs.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  };
+
   const freezeDaysSelected = (() => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
-    const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
+    if (!range.start || !range.end) return 0;
+    return getDaysBetween(range.start, range.end);
   })();
 
-  const isValid = Boolean(startDate && endDate && freezeDaysSelected > 0 && freezeDaysSelected <= daysRemaining);
+  const isValid = Boolean(range.start && range.end && freezeDaysSelected > 0 && freezeDaysSelected <= daysRemaining);
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) return;
-    
-    if (step === "start") {
-      setStartDate(new Date(date));
-      setStep("end");
-    } else {
-      if (startDate && date > startDate) {
-        const daysDiff = Math.ceil((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysDiff <= daysRemaining) {
-          setEndDate(new Date(date));
-        } else {
-          toast.error(`You can only freeze for up to ${daysRemaining} days`);
-        }
+  const handleRangeChange = (newRange: { start: CalendarDate; end: CalendarDate } | null) => {
+    if (newRange) {
+      // Validate that the range doesn't exceed daysRemaining
+      const days = getDaysBetween(newRange.start, newRange.end);
+      if (days > daysRemaining) {
+        toast.error(`You can only freeze for up to ${daysRemaining} days`);
+        return;
       }
+      setRange({ start: newRange.start, end: newRange.end });
+    } else {
+      setRange({ start: null, end: null });
     }
   };
 
   const handleReset = () => {
-    setStep("start");
-    setStartDate(undefined);
-    setEndDate(undefined);
+    setRange({ start: null, end: null });
   };
 
   const handleSubmit = async () => {
-    if (!startDate || !endDate || !isValid) {
+    if (!range.start || !range.end || !isValid) {
       toast.error("Please select both start and end dates");
       return;
     }
+
+    // Convert CalendarDate to Date for formatting
+    const startDate = calendarDateToDate(range.start);
+    const endDate = calendarDateToDate(range.end);
 
     setIsPending(true);
     
@@ -81,46 +101,8 @@ export function FreezeSubscriptionModal({
         `Freeze scheduled for ${freezeDaysSelected} days from ${format(startDate, "MMM dd")} to ${format(endDate, "MMM dd")}`
       );
       setOpen(false);
-      setStep("start");
-      setStartDate(undefined);
-      setEndDate(undefined);
+      setRange({ start: null, end: null });
     }, 1500);
-  };
-
-  // Get tomorrow's date using local timezone (not UTC)
-  const minStartDate = (() => {
-    const now = new Date();
-    // Create tomorrow in local timezone at midnight
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-    return tomorrow;
-  })();
-
-  // Helper to get YYYY-MM-DD string from a date (using local date components)
-  const dateToString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const isDateDisabled = (date: Date) => {
-    if (step === "start") {
-      const checkDateStr = dateToString(date);
-      const minDateStr = dateToString(minStartDate);
-      return checkDateStr < minDateStr;
-    } else {
-      if (!startDate) return true;
-      const checkDateStr = dateToString(date);
-      const startDateStr = dateToString(startDate);
-      
-      if (checkDateStr <= startDateStr) return true;
-      
-      // Calculate days difference using local date components
-      const checkDay = date.getDate();
-      const startDay = startDate.getDate();
-      const daysDiff = checkDay - startDay;
-      return daysDiff > daysRemaining;
-    }
   };
 
   return (
@@ -157,32 +139,6 @@ export function FreezeSubscriptionModal({
                 <p className="text-white/70 text-[10px] font-medium leading-tight">days<br/>left</p>
               </div>
             </div>
-
-            {/* Step pills */}
-            {canFreeze && (
-              <div className="flex gap-2 mt-4">
-                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                  step === "start"
-                    ? "bg-white text-primary"
-                    : "bg-white/20 text-white"
-                }`}>
-                  <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step !== "start" ? "bg-white text-primary" : "bg-primary/10 text-primary"
-                  }`}>1</span>
-                  Start
-                </div>
-                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                  step === "end"
-                    ? "bg-white text-primary"
-                    : "bg-white/20 text-white"
-                }`}>
-                  <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step === "end" ? "bg-primary/10 text-primary" : "bg-white/20 text-white"
-                  }`}>2</span>
-                  End
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -199,25 +155,25 @@ export function FreezeSubscriptionModal({
             ) : (
               <>
                 {/* Selected date summary card */}
-                {(startDate || endDate) && (
+                {(range.start || range.end) && (
                   <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="bg-primary/10 rounded-lg p-2">
                         <CalendarIcon className="h-4 w-4 text-primary" />
                       </div>
                       <div>
-                        {startDate && (
+                        {range.start && (
                           <p className="text-xs text-muted-foreground">
-                            Start: <span className="font-semibold text-foreground">{format(startDate, "MMM dd")}</span>
+                            Start: <span className="font-semibold text-foreground">{format(calendarDateToDate(range.start), "MMM dd")}</span>
                           </p>
                         )}
-                        {endDate && (
+                        {range.end && (
                           <p className="text-xs text-muted-foreground">
-                            End: <span className="font-semibold text-foreground">{format(endDate, "MMM dd")}</span>
+                            End: <span className="font-semibold text-foreground">{format(calendarDateToDate(range.end), "MMM dd")}</span>
                             <span className="ml-1.5 text-primary font-semibold">· {freezeDaysSelected}d</span>
                           </p>
                         )}
-                        {!endDate && startDate && (
+                        {!range.end && range.start && (
                           <p className="text-xs text-primary font-medium">Now pick an end date</p>
                         )}
                       </div>
@@ -234,24 +190,32 @@ export function FreezeSubscriptionModal({
                 {/* Calendar label */}
                 <div>
                   <Label className="text-sm font-semibold text-foreground">
-                    {step === "start" ? "When should it start?" : "When should it end?"}
+                    Select freeze dates
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {step === "start"
-                      ? "Tap a date to begin your freeze"
-                      : `Pick an end date — max ${daysRemaining} days`}
+                    Choose up to {daysRemaining} days to freeze
                   </p>
                 </div>
 
-                {/* Calendar */}
+                {/* Range Calendar */}
                 <div className="rounded-xl border border-border bg-background overflow-hidden">
-                  <Calendar
-                    mode="single"
-                    selected={step === "start" ? startDate : endDate}
-                    onSelect={handleDateSelect}
-                    disabled={isDateDisabled}
+                  <RangeCalendar 
+                    value={range.start && range.end ? { start: range.start, end: range.end } : null}
+                    onChange={handleRangeChange}
+                    minValue={minDate}
+                    maxValue={range.start ? range.start.add({ days: daysRemaining - 1 }) : undefined}
                     className="mx-auto"
-                  />
+                  >
+                    <CalendarHeading />
+                    <CalendarGrid>
+                      <CalendarGridHeader>
+                        {(day) => <CalendarHeaderCell>{day}</CalendarHeaderCell>}
+                      </CalendarGridHeader>
+                      <CalendarGridBody>
+                        {(date) => <CalendarCell date={date} />}
+                      </CalendarGridBody>
+                    </CalendarGrid>
+                  </RangeCalendar>
                 </div>
               </>
             )}

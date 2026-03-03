@@ -565,44 +565,43 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
           {/* AI Scan: results state */}
           {scanMode === "results" && (
-            <div className="mx-4 mt-4 bg-primary/5 border border-primary/20 rounded-3xl p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="mx-4 mt-4 bg-card/95 backdrop-blur-sm border border-border/70 rounded-3xl p-4 shadow-md">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-sm">
-                    <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                    <Check className="w-4 h-4 text-primary-foreground" />
                   </div>
                   <span className="text-sm font-bold text-foreground">AI Detected</span>
                 </div>
-                <button onClick={resetScan} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-muted transition-colors">
-                  <X className="w-3 h-3" /> Clear
+                <button onClick={resetScan} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
+                  <X className="w-3.5 h-3.5" /> Clear
                 </button>
               </div>
-              <div className="space-y-2 mb-3">
+              <div className="space-y-2.5 mb-4">
                 {detectedFoods.map((food, index) => (
                   <div
                     key={index}
                     onClick={() => toggleFoodSelection(index)}
-                    className={`flex items-center gap-2.5 p-3 rounded-2xl cursor-pointer transition-all ${
+                    className={`flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-all ${
                       food.selected
-                        ? "bg-card border border-primary/30 shadow-sm"
-                        : "bg-card/50 opacity-50"
+                        ? "bg-primary/5 border-2 border-primary/30 shadow-sm"
+                        : "bg-muted/30 border-2 border-transparent opacity-50"
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
                       food.selected ? "bg-primary border-primary" : "border-muted-foreground/30"
                     }`}>
-                      {food.selected && <Check className="w-3 h-3 text-primary-foreground" />}
+                      {food.selected && <Check className="w-3.5 h-3.5 text-primary-foreground" />}
                     </div>
-                    <span className="flex-1 text-sm font-medium truncate">{food.name}</span>
-                    <span className="text-xs font-bold text-primary">{food.calories} cal</span>
+                    <span className="flex-1 text-sm font-semibold truncate">{food.name}</span>
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">{food.calories} cal</span>
                   </div>
                 ))}
               </div>
               <Button
                 onClick={handleConfirmFoods}
                 disabled={logging || detectedFoods.filter(f => f.selected).length === 0}
-                className="w-full rounded-2xl h-11 font-semibold"
-                size="sm"
+                className="w-full rounded-2xl h-12 font-semibold shadow-md shadow-primary/20"
               >
                 {logging ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                   <>
@@ -650,34 +649,34 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                   <p className="text-sm text-muted-foreground">Type to search meals</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {meals.map((meal) => (
                     <button
                       key={meal.id}
                       onClick={() => !logging && handleMealSelect(meal)}
                       disabled={logging}
-                      className="w-full flex items-center gap-3 p-3 rounded-3xl bg-card/95 border border-border/70 shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
+                      className="w-full flex items-center gap-4 p-4 rounded-3xl bg-card/95 backdrop-blur-sm border border-border/70 shadow-md hover:shadow-lg active:scale-[0.98] transition-all text-left"
                     >
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/10 to-accent/15 shrink-0 shadow-sm">
                         <img src={getMealImage(meal.image_url, meal.id)} alt={meal.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate text-foreground">{meal.name}</p>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{meal.restaurant_name}</p>
-                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                          <span className="flex items-center gap-0.5 text-xs text-orange-500 font-semibold bg-orange-50 px-1.5 py-0.5 rounded-full">
+                        <p className="font-bold text-base truncate text-foreground mb-1">{meal.name}</p>
+                        <p className="text-xs text-muted-foreground/80 truncate mb-2">{meal.restaurant_name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="flex items-center gap-0.5 text-xs text-orange-500 font-bold bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
                             <Flame className="w-3 h-3" />{meal.calories}
                           </span>
-                          <span className="text-xs font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">P {Math.round(meal.protein_g)}g</span>
-                          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">C {Math.round(meal.carbs_g)}g</span>
-                          <span className="text-xs font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">F {Math.round(meal.fat_g)}g</span>
+                          <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-full">P {Math.round(meal.protein_g)}g</span>
+                          <span className="text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-full">C {Math.round(meal.carbs_g)}g</span>
+                          <span className="text-xs font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded-full">F {Math.round(meal.fat_g)}g</span>
                         </div>
                       </div>
                       {logging ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                        <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-                          <Plus className="w-4 h-4 text-primary-foreground" />
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-md shadow-primary/25">
+                          <Plus className="w-5 h-5 text-primary-foreground" />
                         </div>
                       )}
                     </button>
@@ -706,33 +705,33 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                   <p className="text-xs text-muted-foreground mt-1">Meals you log will appear here</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {mealHistory.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => !logging && handleHistorySelect(item)}
                       disabled={logging}
-                      className="w-full flex items-center gap-3 p-3 rounded-3xl bg-card/95 border border-border/70 shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
+                      className="w-full flex items-center gap-4 p-4 rounded-3xl bg-card/95 backdrop-blur-sm border border-border/70 shadow-md hover:shadow-lg active:scale-[0.98] transition-all text-left"
                     >
-                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <RotateCcw className="w-4 h-4 text-primary" />
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/15 flex items-center justify-center shrink-0 shadow-sm">
+                        <RotateCcw className="w-5 h-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate text-foreground">{item.name}</p>
-                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                          <span className="flex items-center gap-0.5 text-xs text-orange-500 font-semibold bg-orange-50 px-1.5 py-0.5 rounded-full">
+                        <p className="font-bold text-base truncate text-foreground mb-2">{item.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="flex items-center gap-0.5 text-xs text-orange-500 font-bold bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
                             <Flame className="w-3 h-3" />{item.calories}
                           </span>
-                          <span className="text-xs font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">P {item.protein_g}g</span>
-                          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">C {item.carbs_g}g</span>
-                          <span className="text-xs font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">F {item.fat_g}g</span>
+                          <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-full">P {item.protein_g}g</span>
+                          <span className="text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-full">C {item.carbs_g}g</span>
+                          <span className="text-xs font-bold text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-1 rounded-full">F {item.fat_g}g</span>
                         </div>
                       </div>
                       {logging ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                        <Loader2 className="w-5 h-5 animate-spin text-primary shrink-0" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-                          <Plus className="w-4 h-4 text-primary-foreground" />
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-md shadow-primary/25">
+                          <Plus className="w-5 h-5 text-primary-foreground" />
                         </div>
                       )}
                     </button>

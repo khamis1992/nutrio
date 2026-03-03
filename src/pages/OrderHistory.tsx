@@ -369,13 +369,12 @@ const OrderHistory = () => {
     setCancelling(orderId);
     try {
       if (orderType === 'scheduled') {
-        const { error } = await supabase
-          .from("meal_schedules")
-          .update({ order_status: 'cancelled' })
-          .eq("id", orderId);
-        
+        const { data, error } = await supabase.rpc("cancel_meal_schedule", {
+          p_schedule_id: orderId,
+        });
         if (error) throw error;
-        
+        if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+
         // Update local state
         setScheduledMeals(prev => prev.map(meal => 
           meal.id === orderId ? { ...meal, order_status: 'cancelled' } : meal

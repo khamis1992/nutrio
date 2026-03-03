@@ -27,7 +27,6 @@ import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
-import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
@@ -235,9 +234,6 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 pb-24">
-        {/* Platform Announcements */}
-        <AnnouncementsBanner />
-
         {/* Meal Limit Upsell Banner - Shows at 80% meal usage */}
         <MealLimitUpsellBanner threshold={0.8} />
 
