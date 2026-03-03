@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import flamAvatar from "@/assets/flam.png"; // Default avatar
 
 
 
@@ -29,6 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   User,
   Settings,
@@ -56,8 +59,21 @@ import {
   Crown as CrownIcon,
   Star,
   MapPin,
+  Utensils,
+  ShieldAlert,
+  FileText,
+  Bell,
+  Globe,
+  ChevronDown,
+  HelpCircle,
+  MessageCircle,
+  Phone,
+  Ticket,
+  ExternalLink,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDietTags } from "@/hooks/useDietTags";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { useWallet, type TopUpPackage } from "@/hooks/useWallet";
@@ -71,12 +87,13 @@ import { TransactionHistory } from "@/components/wallet/TransactionHistory";
 import { StreakRewardsWidget } from "@/components/StreakRewardsWidget";
 import { AffiliateEarningsWidget } from "@/components/AffiliateEarningsWidget";
 import { ReferralMilestones } from "@/components/ReferralMilestones";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { type Gender } from "@/lib/nutrition-calculator";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 
-type TabValue = "profile" | "wallet" | "rewards";
+type TabValue = "profile" | "wallet" | "rewards" | "settings";
 
 interface NavItem {
   value: TabValue;
@@ -85,9 +102,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { value: "profile", label: "Profile", icon: User },
-  { value: "wallet", label: "Wallet", icon: Wallet },
-  { value: "rewards", label: "Rewards", icon: Gift },
+  { value: "profile",  label: "Profile",  icon: User },
+  { value: "wallet",   label: "Wallet",   icon: Wallet },
+  { value: "rewards",  label: "Rewards",  icon: Gift },
+  { value: "settings", label: "Settings", icon: Settings },
 ];
 
 // Animation variants
@@ -213,6 +231,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const { settings: platformSettings } = usePlatformSettings();
   const { isApprovedAffiliate } = useAffiliateApplication();
@@ -247,6 +266,64 @@ const Profile = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'failed'>('idle');
 
+  // Profile accordion state
+  const [openSection, setOpenSection] = useState<"personal" | "addresses" | "dietary" | "policies" | "support" | null>(null);
+  const toggleSection = (s: typeof openSection) => setOpenSection(prev => prev === s ? null : s);
+
+  // Settings state
+  const [notifOrderUpdates, setNotifOrderUpdates] = useState(true);
+  const [notifPromotions, setNotifPromotions] = useState(true);
+  const [notifNewMeals, setNotifNewMeals] = useState(false);
+  const [privacyAnalytics, setPrivacyAnalytics] = useState(true);
+  const [privacyPersonalised, setPrivacyPersonalised] = useState(true);
+  const [language, setLanguage] = useState("en");
+
+  // Dietary state
+  const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
+  const [userDietPreferences, setUserDietPreferences] = useState<string[]>([]);
+  const [dietaryLoading, setDietaryLoading] = useState(false);
+
+  const fetchDietaryData = async () => {
+    if (!user) return;
+    setDietaryLoading(true);
+    try {
+      const { data: prefs } = await supabase
+        .from("user_dietary_preferences")
+        .select("diet_tag_id")
+        .eq("user_id", user.id);
+      setUserDietPreferences(prefs?.map((p: { diet_tag_id: string }) => p.diet_tag_id) || []);
+    } catch {
+      toast({ title: "Error", description: "Failed to load dietary preferences", variant: "destructive" });
+    } finally {
+      setDietaryLoading(false);
+    }
+  };
+
+  const toggleDietPreference = async (tagId: string) => {
+    if (!user) return;
+    const isSelected = userDietPreferences.includes(tagId);
+    try {
+      if (isSelected) {
+        const { error } = await supabase
+          .from("user_dietary_preferences")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("diet_tag_id", tagId);
+        if (error) throw error;
+        setUserDietPreferences(prev => prev.filter(id => id !== tagId));
+      } else {
+        const { error } = await supabase
+          .from("user_dietary_preferences")
+          .insert({ user_id: user.id, diet_tag_id: tagId });
+        if (error) throw error;
+        setUserDietPreferences(prev => [...prev, tagId]);
+      }
+      toast({ title: isSelected ? "Removed" : "Added", description: `Dietary preference ${isSelected ? "removed" : "added"}` });
+    } catch {
+      toast({ title: "Error", description: "Failed to update dietary preference", variant: "destructive" });
+    }
+  };
+
   const handleSelectPackage = (pkg: TopUpPackage) => {
     setSelectedPackage(pkg);
     setShowConfirmDialog(true);
@@ -274,6 +351,10 @@ const Profile = () => {
       setAge(profile.age?.toString() || "");
     }
   }, [profile]);
+
+  useEffect(() => {
+    fetchDietaryData();
+  }, [user]);
 
   // Calculate password strength
   useEffect(() => {
@@ -430,17 +511,19 @@ const Profile = () => {
 
           <div className="relative">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-              {/* Avatar with gradient ring */}
+              {/* Avatar with gradient ring - Clickable for upload */}
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 className="relative"
               >
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary via-accent to-primary blur-sm opacity-70" />
-                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl text-primary-foreground font-bold shadow-xl">
-                  {fullName
-                    ? fullName.charAt(0).toUpperCase()
-                    : user?.email?.charAt(0).toUpperCase()}
-                </div>
+                <AvatarUpload
+                  currentAvatarUrl={avatarUrl || profile?.avatar_url || null}
+                  onAvatarUpdate={(url) => {
+                    // Update local state to reflect change immediately
+                    setAvatarUrl(url);
+                  }}
+                  size="lg"
+                />
               </motion.div>
 
               {/* User info */}
@@ -579,105 +662,105 @@ const Profile = () => {
                     <AffiliateApplicationCard />
                   </motion.div>
 
-                  {/* Personal Information */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Personal Information</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Update your basic profile details
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {/* Full Name */}
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName" className="text-sm font-medium">
-                          Full Name
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="fullName"
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Enter your full name"
-                            className="h-12 rounded-xl border-border focus:border-primary focus:ring-primary/20"
-                          />
-                          <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        </div>
-                      </div>
-
-                      {/* Gender Selection */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium">Gender</Label>
-                        <div className="grid grid-cols-2 gap-4">
-                          {(["male", "female"] as Gender[]).map((g) => (
-                            <GenderCard
-                              key={g}
-                              gender={g}
-                              selected={gender === g}
-                              onClick={() => setGender(g)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Age */}
-                      <div className="space-y-2">
-                        <Label htmlFor="age" className="text-sm font-medium">
-                          Age
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="age"
-                            type="number"
-                            value={age}
-                            onChange={(e) => setAge(e.target.value)}
-                            placeholder="25"
-                            min={13}
-                            max={120}
-                            className="h-12 rounded-xl border-border focus:border-primary focus:ring-primary/20"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                            years
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Save Button */}
-                      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                        <Button
-                          onClick={saveProfileTab}
-                          disabled={saving}
-                          className="w-full h-12 rounded-xl text-base font-medium"
-                        >
-                          {saving ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-5 h-5 mr-2" />
-                              Save Changes
-                            </>
-                          )}
-                        </Button>
-                      </motion.div>
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Delivery Addresses */}
+                  {/* Personal Information Accordion */}
                   <SectionCard>
                     <CardContent className="p-0">
                       <motion.button
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => navigate("/addresses")}
+                        onClick={() => toggleSection("personal")}
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground">Personal Information</p>
+                          <p className="text-sm text-muted-foreground">Name, gender, age and email address</p>
+                        </div>
+                        <motion.div animate={{ rotate: openSection === "personal" ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                        </motion.div>
+                      </motion.button>
+                      <AnimatePresence initial={false}>
+                        {openSection === "personal" && (
+                          <motion.div
+                            key="personal-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-5 pb-5 pt-1 space-y-5 border-t border-border/50">
+                              {/* Full Name */}
+                              <div className="space-y-2">
+                                <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
+                                <div className="relative">
+                                  <Input
+                                    id="fullName"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    placeholder="Enter your full name"
+                                    className="h-12 rounded-xl pr-12"
+                                  />
+                                  <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                                </div>
+                              </div>
+                              {/* Gender */}
+                              <div className="space-y-3">
+                                <Label className="text-sm font-medium">Gender</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  {(["male", "female"] as Gender[]).map((g) => (
+                                    <GenderCard key={g} gender={g} selected={gender === g} onClick={() => setGender(g)} />
+                                  ))}
+                                </div>
+                              </div>
+                              {/* Age */}
+                              <div className="space-y-2">
+                                <Label htmlFor="age" className="text-sm font-medium">Age</Label>
+                                <div className="relative">
+                                  <Input
+                                    id="age"
+                                    type="number"
+                                    value={age}
+                                    onChange={(e) => setAge(e.target.value)}
+                                    placeholder="25"
+                                    min={13}
+                                    max={120}
+                                    className="h-12 rounded-xl"
+                                  />
+                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">years</span>
+                                </div>
+                              </div>
+                              {/* Email */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">Email Address</Label>
+                                <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl">
+                                  <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
+                                  <p className="font-medium text-sm">{user?.email}</p>
+                                </div>
+                              </div>
+                              {/* Save */}
+                              <Button
+                                onClick={saveProfileTab}
+                                disabled={saving}
+                                className="w-full h-12 rounded-xl"
+                              >
+                                {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Check className="w-4 h-4 mr-2" />Save Changes</>}
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Delivery Addresses Accordion */}
+                  <SectionCard>
+                    <CardContent className="p-0">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => toggleSection("addresses")}
                         className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
                       >
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -687,206 +770,271 @@ const Profile = () => {
                           <p className="font-semibold text-foreground">Delivery Addresses</p>
                           <p className="text-sm text-muted-foreground">Manage your saved delivery locations</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                        <motion.div animate={{ rotate: openSection === "addresses" ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                        </motion.div>
                       </motion.button>
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Email Display */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                          <Mail className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Email Address</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Your account email cannot be changed
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
-                        </div>
-                        <p className="font-medium">{user?.email}</p>
-                      </div>
-                    </CardContent>
-                  </SectionCard>
-
-                  {/* Password Change */}
-                  <SectionCard>
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                          <Lock className="w-5 h-5 text-purple-500" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Change Password</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Update your account password
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">New Password</Label>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Enter new password"
-                            className="h-12 rounded-xl pr-12"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      <AnimatePresence initial={false}>
+                        {openSection === "addresses" && (
+                          <motion.div
+                            key="addresses-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            className="overflow-hidden"
                           >
-                            {showPassword ? (
-                              <EyeOff className="w-5 h-5" />
-                            ) : (
-                              <Eye className="w-5 h-5" />
-                            )}
-                          </button>
-                        </div>
-                        {/* Password Strength */}
-                        {newPassword && (
-                          <div className="flex gap-1 mt-2">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                              <div
-                                key={i}
-                                className={cn(
-                                  "h-1 flex-1 rounded-full transition-all duration-300",
-                                  i < passwordStrength
-                                    ? passwordStrength >= 3
-                                      ? "bg-green-500"
-                                      : passwordStrength >= 2
-                                      ? "bg-amber-500"
-                                      : "bg-red-500"
-                                    : "bg-muted"
-                                )}
-                              />
-                            ))}
-                          </div>
+                            <div className="px-5 pb-5 pt-3 border-t border-border/50">
+                              <Button
+                                variant="outline"
+                                className="w-full h-12 rounded-xl justify-start gap-3"
+                                onClick={() => navigate("/addresses")}
+                              >
+                                <MapPin className="w-5 h-5 text-muted-foreground" />
+                                <span>Manage Addresses</span>
+                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                              </Button>
+                            </div>
+                          </motion.div>
                         )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Confirm Password</Label>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Confirm new password"
-                            className="h-12 rounded-xl"
-                          />
-                          <Shield
-                            className={cn(
-                              "absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors",
-                              confirmPassword && newPassword === confirmPassword
-                                ? "text-green-500"
-                                : "text-muted-foreground"
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                        <Button
-                          onClick={handlePasswordChange}
-                          disabled={saving || !newPassword || !confirmPassword}
-                          variant="outline"
-                          className="w-full h-12 rounded-xl"
-                        >
-                          {saving ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-5 h-5 mr-2" />
-                              Update Password
-                            </>
-                          )}
-                        </Button>
-                      </motion.div>
+                      </AnimatePresence>
                     </CardContent>
                   </SectionCard>
 
-                  {/* Account Actions */}
-                  <SectionCard className="border-destructive/20">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                          <Settings className="w-5 h-5 text-destructive" />
+                  {/* Dietary & Allergies Accordion */}
+                  <SectionCard>
+                    <CardContent className="p-0">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => toggleSection("dietary")}
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Utensils className="w-5 h-5 text-primary" />
                         </div>
-                        <div>
-                          <CardTitle className="text-lg">Account Actions</CardTitle>
-                          <p className="text-sm text-muted-foreground">
-                            Manage your account status
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground">Dietary & Allergies</p>
+                          <p className="text-sm text-muted-foreground">Manage dietary preferences and intolerances</p>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                        <Button
-                          variant="outline"
-                          className="w-full h-12 rounded-xl justify-start gap-3 hover:bg-muted"
-                          onClick={handleSignOut}
-                        >
-                          <LogOut className="w-5 h-5 text-muted-foreground" />
-                          <span>Sign Out</span>
-                        </Button>
-                      </motion.div>
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                            <Button
-                              variant="outline"
-                              className="w-full h-12 rounded-xl justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                              <span>Delete Account</span>
-                            </Button>
-                          </motion.div>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="rounded-2xl">
-                          <AlertDialogHeader>
-                            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-2">
-                              <Trash2 className="w-6 h-6 text-destructive" />
+                        <motion.div animate={{ rotate: openSection === "dietary" ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                        </motion.div>
+                      </motion.button>
+                      <AnimatePresence initial={false}>
+                        {openSection === "dietary" && (
+                          <motion.div
+                            key="dietary-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-5 pb-5 pt-3 space-y-4 border-t border-border/50">
+                              {/* Diet tags */}
+                              <div>
+                                <p className="text-sm font-medium mb-2">Dietary Preferences</p>
+                                {(dietaryLoading || dietTagsLoading) ? (
+                                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                                ) : dietTags.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground">No dietary tags available</p>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {dietTags.map(tag => {
+                                      const isSelected = userDietPreferences.includes(tag.id);
+                                      return (
+                                        <button
+                                          key={tag.id}
+                                          onClick={() => toggleDietPreference(tag.id)}
+                                          className={cn(
+                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all duration-200",
+                                            isSelected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                                          )}
+                                        >
+                                          {isSelected && <Check className="w-3 h-3" />}
+                                          {tag.name}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Allergy tags */}
+                              {!dietTagsLoading && allergyTags.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium mb-2">Allergies & Intolerances</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {allergyTags.map(tag => {
+                                      const isSelected = userDietPreferences.includes(tag.id);
+                                      return (
+                                        <button
+                                          key={tag.id}
+                                          onClick={() => toggleDietPreference(tag.id)}
+                                          className={cn(
+                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all duration-200",
+                                            isSelected ? "border-amber-500 bg-amber-500 text-white" : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400"
+                                          )}
+                                        >
+                                          {isSelected && <Check className="w-3 h-3" />}
+                                          {tag.name}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            <AlertDialogTitle className="text-center">
-                              Delete Account?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription className="text-center">
-                              This action cannot be undone. All your data including meal
-                              schedules, progress logs, and preferences will be permanently
-                              deleted.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="gap-2">
-                            <AlertDialogCancel className="rounded-xl h-11">
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleDeleteAccount}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-11"
-                            >
-                              Delete Account
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Policies Accordion */}
+                  <SectionCard>
+                    <CardContent className="p-0">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => toggleSection("policies")}
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <FileText className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground">Policies</p>
+                          <p className="text-sm text-muted-foreground">Terms and conditions, privacy policy</p>
+                        </div>
+                        <motion.div animate={{ rotate: openSection === "policies" ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                        </motion.div>
+                      </motion.button>
+                      <AnimatePresence initial={false}>
+                        {openSection === "policies" && (
+                          <motion.div
+                            key="policies-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-5 pb-5 pt-3 space-y-2 border-t border-border/50">
+                              <Button
+                                variant="outline"
+                                className="w-full h-12 rounded-xl justify-start gap-3"
+                                onClick={() => navigate("/terms")}
+                              >
+                                <FileText className="w-5 h-5 text-muted-foreground" />
+                                <span>Terms and Conditions</span>
+                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="w-full h-12 rounded-xl justify-start gap-3"
+                                onClick={() => navigate("/privacy")}
+                              >
+                                <ShieldAlert className="w-5 h-5 text-muted-foreground" />
+                                <span>Privacy Policy</span>
+                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Support Accordion */}
+                  <SectionCard>
+                    <CardContent className="p-0">
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => toggleSection("support")}
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
+                          <HelpCircle className="w-5 h-5 text-sky-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground">Support</p>
+                          <p className="text-sm text-muted-foreground">Get help, report issues, contact us</p>
+                        </div>
+                        <motion.div animate={{ rotate: openSection === "support" ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                        </motion.div>
+                      </motion.button>
+                      <AnimatePresence initial={false}>
+                        {openSection === "support" && (
+                          <motion.div
+                            key="support-content"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: "easeInOut" }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-5 pb-5 pt-3 space-y-2 border-t border-border/50">
+                              {/* WhatsApp */}
+                              <a
+                                href="https://wa.me/97412345678?text=Hi%2C%20I%20need%20help%20with%20Nutrio%20Fuel"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
+                              >
+                                <MessageCircle className="w-5 h-5 text-green-500 shrink-0" />
+                                <span className="flex-1 text-left">Chat on WhatsApp</span>
+                                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              </a>
+
+                              {/* Email */}
+                              <a
+                                href="mailto:support@nutriofuel.com?subject=Support%20Request"
+                                className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
+                              >
+                                <Mail className="w-5 h-5 text-sky-500 shrink-0" />
+                                <span className="flex-1 text-left">Email Support</span>
+                                <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              </a>
+
+                              {/* Phone */}
+                              <a
+                                href="tel:+97412345678"
+                                className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
+                              >
+                                <Phone className="w-5 h-5 text-violet-500 shrink-0" />
+                                <span className="flex-1 text-left">Call Us</span>
+                                <span className="text-xs text-muted-foreground">+974 1234 5678</span>
+                              </a>
+
+                              {/* Submit a Ticket */}
+                              <button
+                                onClick={() => navigate("/support")}
+                                className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
+                              >
+                                <Ticket className="w-5 h-5 text-amber-500 shrink-0" />
+                                <span className="flex-1 text-left">Submit a Ticket</span>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              </button>
+
+                              {/* FAQ */}
+                              <button
+                                onClick={() => navigate("/faq")}
+                                className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
+                              >
+                                <BookOpen className="w-5 h-5 text-primary shrink-0" />
+                                <span className="flex-1 text-left">View FAQ</span>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              </button>
+
+                              {/* App version note */}
+                              <p className="text-xs text-center text-muted-foreground pt-2">
+                                Nutrio Fuel · Support hours: 8 AM – 10 PM (Qatar)
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </CardContent>
                   </SectionCard>
                 </motion.div>
@@ -1102,6 +1250,244 @@ const Profile = () => {
                       </Card>
                     </div>
                   </motion.div>
+                </motion.div>
+              )}
+              {activeTab === "settings" && (
+                <motion.div
+                  key="settings"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  {/* Change Password */}
+                  <SectionCard>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                          <Lock className="w-5 h-5 text-purple-500" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Change Password</CardTitle>
+                          <p className="text-sm text-muted-foreground">Update your account password</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">New Password</Label>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Enter new password"
+                            className="h-12 rounded-xl pr-12"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
+                        </div>
+                        {newPassword && (
+                          <div className="flex gap-1 mt-2">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={cn(
+                                  "h-1 flex-1 rounded-full transition-all duration-300",
+                                  i < passwordStrength
+                                    ? passwordStrength >= 3 ? "bg-green-500" : passwordStrength >= 2 ? "bg-amber-500" : "bg-red-500"
+                                    : "bg-muted"
+                                )}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Confirm Password</Label>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Confirm new password"
+                            className="h-12 rounded-xl"
+                          />
+                          <Shield
+                            className={cn(
+                              "absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors",
+                              confirmPassword && newPassword === confirmPassword ? "text-green-500" : "text-muted-foreground"
+                            )}
+                          />
+                        </div>
+                      </div>
+                      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                        <Button
+                          onClick={handlePasswordChange}
+                          disabled={saving || !newPassword || !confirmPassword}
+                          variant="outline"
+                          className="w-full h-12 rounded-xl"
+                        >
+                          {saving ? (
+                            <><Loader2 className="w-5 h-5 animate-spin mr-2" />Updating...</>
+                          ) : (
+                            <><Lock className="w-5 h-5 mr-2" />Update Password</>
+                          )}
+                        </Button>
+                      </motion.div>
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Notification Settings */}
+                  <SectionCard>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                          <Bell className="w-5 h-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Notification Settings</CardTitle>
+                          <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {[
+                        { label: "Order Updates", desc: "Status changes for your active orders", value: notifOrderUpdates, set: setNotifOrderUpdates },
+                        { label: "Promotions & Offers", desc: "Discounts and special deals", value: notifPromotions, set: setNotifPromotions },
+                        { label: "New Meals Available", desc: "When restaurants add new items", value: notifNewMeals, set: setNotifNewMeals },
+                      ].map(({ label, desc, value, set }) => (
+                        <div key={label} className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-medium">{label}</p>
+                            <p className="text-xs text-muted-foreground">{desc}</p>
+                          </div>
+                          <Switch checked={value} onCheckedChange={set} />
+                        </div>
+                      ))}
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Privacy Settings */}
+                  <SectionCard>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-green-500" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Privacy Settings</CardTitle>
+                          <p className="text-sm text-muted-foreground">Control how your data is used</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {[
+                        { label: "Usage Analytics", desc: "Help us improve the app with anonymous data", value: privacyAnalytics, set: setPrivacyAnalytics },
+                        { label: "Personalised Recommendations", desc: "Tailor meals and offers to your habits", value: privacyPersonalised, set: setPrivacyPersonalised },
+                      ].map(({ label, desc, value, set }) => (
+                        <div key={label} className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-medium">{label}</p>
+                            <p className="text-xs text-muted-foreground">{desc}</p>
+                          </div>
+                          <Switch checked={value} onCheckedChange={set} />
+                        </div>
+                      ))}
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Language Selection */}
+                  <SectionCard>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                          <Globe className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Language</CardTitle>
+                          <p className="text-sm text-muted-foreground">Select your preferred language</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <Select value={language} onValueChange={setLanguage}>
+                        <SelectTrigger className="h-12 rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">🇬🇧 English</SelectItem>
+                          <SelectItem value="ar">🇶🇦 العربية</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </CardContent>
+                  </SectionCard>
+
+                  {/* Account Actions */}
+                  <SectionCard className="border-destructive/20">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                          <Settings className="w-5 h-5 text-destructive" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Account Actions</CardTitle>
+                          <p className="text-sm text-muted-foreground">Manage your account status</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                        <Button
+                          variant="outline"
+                          className="w-full h-12 rounded-xl justify-start gap-3 hover:bg-muted"
+                          onClick={handleSignOut}
+                        >
+                          <LogOut className="w-5 h-5 text-muted-foreground" />
+                          <span>Sign Out</span>
+                        </Button>
+                      </motion.div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                            <Button
+                              variant="outline"
+                              className="w-full h-12 rounded-xl justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                              <span>Delete Account</span>
+                            </Button>
+                          </motion.div>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-2xl">
+                          <AlertDialogHeader>
+                            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-2">
+                              <Trash2 className="w-6 h-6 text-destructive" />
+                            </div>
+                            <AlertDialogTitle className="text-center">Delete Account?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-center">
+                              This action cannot be undone. All your data including meal schedules, progress logs, and preferences will be permanently deleted.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="gap-2">
+                            <AlertDialogCancel className="rounded-xl h-11">Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleDeleteAccount}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-11"
+                            >
+                              Delete Account
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardContent>
+                  </SectionCard>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -35,6 +35,16 @@ const Auth = () => {
   const [biometricType, setBiometricType] = useState("");
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [enableBiometric, setEnableBiometric] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load saved email on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("remembered_email");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   // Check for biometric availability
   useEffect(() => {
@@ -62,7 +72,9 @@ const Auth = () => {
 
       setCheckingRole(true);
       try {
-        // Check if user is an admin
+        // Priority order: Admin > Staff > Fleet Manager > Driver > Partner > Customer
+        
+        // 1. Check if user is an admin (highest priority)
         const { data: adminRole } = await supabase
           .from("user_roles")
           .select("role")
@@ -75,7 +87,33 @@ const Auth = () => {
           return;
         }
 
-        // Check if user is a driver
+        // 2. Check if user is a staff member
+        const { data: staffRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "staff")
+          .maybeSingle();
+
+        if (staffRole) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+
+        // 3. Check if user is a fleet manager
+        const { data: fleetManager } = await supabase
+          .from("fleet_managers")
+          .select("id, role")
+          .eq("auth_user_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (fleetManager) {
+          navigate("/fleet", { replace: true });
+          return;
+        }
+
+        // 4. Check if user is a driver
         const { data: driver } = await supabase
           .from("drivers")
           .select("id, approval_status")
@@ -91,19 +129,26 @@ const Auth = () => {
           return;
         }
 
-        // Check if user has a restaurant (is a partner)
+        // 5. Check if user has a restaurant (is a partner)
         const { data: restaurant } = await supabase
           .from("restaurants")
-          .select("id")
+          .select("id, approval_status")
           .eq("owner_id", user.id)
           .maybeSingle();
 
         if (restaurant) {
-          navigate("/partner", { replace: true });
-        } else {
-          const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";
-          navigate(from, { replace: true });
+          // Check if restaurant is approved
+          if (restaurant.approval_status === "approved") {
+            navigate("/partner", { replace: true });
+          } else {
+            navigate("/partner/pending-approval", { replace: true });
+          }
+          return;
         }
+
+        // 6. Default: Regular customer - go to dashboard
+        const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";
+        navigate(from, { replace: true });
       } catch (error) {
         console.error("Error checking user role:", error);
         navigate("/dashboard", { replace: true });
@@ -226,6 +271,13 @@ const handleSubmit = async (e: React.FormEvent) => {
           // Store credentials for biometric login if enabled
           if (enableBiometric) {
             await biometricAuth.setCredentials(email, password);
+          }
+
+          // Remember Me - save/remove email
+          if (rememberMe) {
+            localStorage.setItem("remembered_email", email);
+          } else {
+            localStorage.removeItem("remembered_email");
           }
 
           toast({
@@ -416,6 +468,25 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
               </div>
+
+              {/* Remember Me Checkbox */}
+              {isLogin && (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="remember-me"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  />
+                  <Label
+                    htmlFor="remember-me"
+                    className="text-sm font-normal cursor-pointer select-none"
+                  >
+                    Remember me
+                  </Label>
+                </div>
+              )}
 
               {/* Enable Biometric Checkbox */}
               {isLogin && biometricAvailable && (

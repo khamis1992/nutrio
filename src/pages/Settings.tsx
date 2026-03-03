@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Utensils, Clock, Mail, Smartphone, Tag, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight } from "lucide-react";
+import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -38,12 +38,6 @@ interface NotificationPreferences {
   reminder_time: string;
 }
 
-interface DietTag {
-  id: string;
-  name: string;
-  description: string | null;
-}
-
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -55,8 +49,6 @@ const Settings = () => {
   const [saving, setSaving] = useState(false);
   const [pausingSubscription, setPausingSubscription] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
-  const [dietTags, setDietTags] = useState<DietTag[]>([]);
-  const [userDietPreferences, setUserDietPreferences] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -102,24 +94,6 @@ const Settings = () => {
         setNotificationPrefs(newPrefs);
       }
 
-      // Fetch diet tags
-      const { data: tagsData, error: tagsError } = await supabase
-        .from("diet_tags")
-        .select("*")
-        .order("name");
-
-      if (tagsError) throw tagsError;
-      setDietTags(tagsData || []);
-
-      // Fetch user's dietary preferences
-      const { data: userPrefsData, error: userPrefsError } = await supabase
-        .from("user_dietary_preferences")
-        .select("diet_tag_id")
-        .eq("user_id", user.id);
-
-      if (userPrefsError) throw userPrefsError;
-      setUserDietPreferences(userPrefsData?.map(p => p.diet_tag_id) || []);
-
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast({
@@ -160,47 +134,6 @@ const Settings = () => {
       });
     } finally {
       setSaving(false);
-    }
-  };
-
-  const toggleDietPreference = async (tagId: string) => {
-    if (!user) return;
-
-    try {
-      const isSelected = userDietPreferences.includes(tagId);
-
-      if (isSelected) {
-        const { error } = await supabase
-          .from("user_dietary_preferences")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("diet_tag_id", tagId);
-
-        if (error) throw error;
-        setUserDietPreferences(prev => prev.filter(id => id !== tagId));
-      } else {
-        const { error } = await supabase
-          .from("user_dietary_preferences")
-          .insert({
-            user_id: user.id,
-            diet_tag_id: tagId
-          });
-
-        if (error) throw error;
-        setUserDietPreferences(prev => [...prev, tagId]);
-      }
-
-      toast({
-        title: isSelected ? "Removed" : "Added",
-        description: `Dietary preference ${isSelected ? "removed" : "added"}`
-      });
-    } catch (error) {
-      console.error("Error toggling diet preference:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update dietary preference",
-        variant: "destructive"
-      });
     }
   };
 
@@ -535,48 +468,6 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Dietary Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Utensils className="h-5 w-5 text-primary" />
-              Dietary Preferences
-            </CardTitle>
-            <CardDescription>
-              Select your dietary restrictions and preferences to filter meals
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {dietTags.map(tag => {
-                const isSelected = userDietPreferences.includes(tag.id);
-                return (
-                  <Badge
-                    key={tag.id}
-                    variant={isSelected ? "default" : "outline"}
-                    className={`cursor-pointer transition-all px-3 py-1.5 text-sm ${
-                      isSelected 
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                        : "hover:bg-muted"
-                    }`}
-                    onClick={() => toggleDietPreference(tag.id)}
-                  >
-                    {isSelected ? (
-                      <Check className="h-3 w-3 mr-1" />
-                    ) : null}
-                    {tag.name}
-                  </Badge>
-                );
-              })}
-            </div>
-            {dietTags.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No dietary tags available
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Support */}
         <Card 
           className="cursor-pointer hover:bg-accent/50 transition-colors"
@@ -588,6 +479,23 @@ const Settings = () => {
               <div>
                 <p className="font-medium">Help & Support</p>
                 <p className="text-sm text-muted-foreground">Get help or submit a support ticket</p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+
+        {/* FAQ */}
+        <Card
+          className="cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={() => navigate("/faq")}
+        >
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">View FAQ</p>
+                <p className="text-sm text-muted-foreground">Frequently asked questions</p>
               </div>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />

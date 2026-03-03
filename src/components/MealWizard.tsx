@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { getMealImage } from "@/lib/meal-images";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 
 interface Meal {
   id: string;
@@ -111,9 +113,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   const [generatedDayPlan, setGeneratedDayPlan] = useState<any>(null);
   const [selectedSuggestedMeals, setSelectedSuggestedMeals] = useState<Set<number>>(new Set());
   const [lockedMeals, setLockedMeals] = useState<any[]>([]);
-  const [pullProgress, setPullProgress] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
   const [showPlanSummary, setShowPlanSummary] = useState(false);
+  const [showDeliveryScheduler, setShowDeliveryScheduler] = useState(false);
 
   const currentStepData = STEPS[currentStep];
   const CurrentIcon = currentStepData.icon;
@@ -432,7 +433,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (deliveryTimeSlot?: string) => {
     setScheduling(true);
     
     try {
@@ -445,8 +446,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           meal_type: mealType,
           is_completed: false,
-          // store delivery_type as "home_delivery" or label so system knows which address
           delivery_type: selectedAddr ? `delivery:${selectedAddressId}` : "delivery",
+          ...(deliveryTimeSlot ? { delivery_time_slot: deliveryTimeSlot } : {}),
         }));
 
       if (allSelectedMeals.length === 0) {
@@ -1346,7 +1347,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             {showPlanSummary ? (
               <Button
                 className="w-full rounded-xl h-12 text-base font-semibold bg-gradient-to-r from-primary to-emerald-500 hover:opacity-90 shadow-lg"
-                onClick={handleComplete}
+                onClick={() => setShowDeliveryScheduler(true)}
                 disabled={scheduling}
               >
                 {scheduling ? (
@@ -1367,7 +1368,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             ) : getTotalSelectedMeals() > 0 ? (
               <Button 
                 className="w-full rounded-xl h-12 text-base font-semibold bg-gradient-to-r from-primary to-emerald-500 hover:opacity-90 shadow-lg"
-                onClick={handleComplete}
+                onClick={() => setShowDeliveryScheduler(true)}
                 disabled={scheduling}
               >
                 {scheduling ? (
@@ -1561,49 +1562,10 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                 </div>
               </div>
 
-              {/* Content Area with Pull to Refresh */}
-              <motion.div 
+              {/* Content Area */}
+              <div 
                 className="flex-1 overflow-y-auto px-5 pb-4 scrollbar-hide relative"
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={0.3}
-                onDrag={(_, info) => {
-                  if (info.offset.y > 0 && info.offset.y < 100) {
-                    setPullProgress(info.offset.y / 100);
-                    setIsPulling(true);
-                  }
-                }}
-                onDragEnd={(_, info) => {
-                  if (info.offset.y > 80) {
-                    handleAutoFillDay();
-                  }
-                  setPullProgress(0);
-                  setIsPulling(false);
-                }}
               >
-                {/* Pull to Refresh Indicator */}
-                <AnimatePresence>
-                  {isPulling && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="absolute top-0 left-0 right-0 flex justify-center pt-2 z-10"
-                    >
-                      <div className="bg-white dark:bg-zinc-800 rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
-                        <motion.div
-                          animate={{ rotate: pullProgress * 360 }}
-                        >
-                          <RefreshCw className="h-4 w-4 text-primary" />
-                        </motion.div>
-                        <span className="text-sm text-zinc-600 dark:text-zinc-300">
-                          {pullProgress > 0.8 ? 'Release to refresh' : 'Pull to refresh'}
-                        </span>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
                 {autoFillLoading ? (
                   <div className="flex flex-col items-center justify-center py-20">
                     <div className="relative">
@@ -1765,7 +1727,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                     <div className="h-4" />
                   </>
                 ) : null}
-              </motion.div>
+              </div>
 
               {/* Sticky Action Buttons - iOS Native Style */}
               <div className="shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-zinc-200/50 dark:border-zinc-800/50 px-5 pt-3 pb-8">
@@ -1793,6 +1755,32 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           </>
         )}
       </AnimatePresence>
+
+      {/* Delivery Time Scheduler */}
+      <Dialog open={showDeliveryScheduler} onOpenChange={setShowDeliveryScheduler}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Choose Delivery Time
+            </DialogTitle>
+          </DialogHeader>
+          <DeliveryScheduler
+            initialDate={selectedDate}
+            timeSlots={[
+              "7:00 AM", "8:00 AM", "9:00 AM",
+              "11:00 AM", "12:00 PM", "1:00 PM",
+              "5:00 PM", "6:00 PM", "7:00 PM",
+            ]}
+            timeZone="Qatar (GMT +3)"
+            onSchedule={({ time }) => {
+              setShowDeliveryScheduler(false);
+              handleComplete(time);
+            }}
+            onCancel={() => setShowDeliveryScheduler(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

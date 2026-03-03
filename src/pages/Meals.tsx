@@ -18,11 +18,13 @@ import {
   LayoutGrid
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRestaurantImage } from "@/lib/meal-images";
 import { Haptics } from "@/lib/haptics";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 
 // Import filter images
 import allFilterImage from "@/assets/all.png";
@@ -668,6 +670,22 @@ const Meals = () => {
   const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
   const [calorieRange, setCalorieRange] = useState<CalorieRange>("all");
   const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
+  const { user } = useAuth();
+  const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
+
+  // Handle favorite toggle with login check
+  const handleToggleFavorite = useCallback((restaurantId: string, restaurantName: string) => {
+    if (!user) {
+      promptLogin({
+        title: "Save your favorites",
+        description: "Create an account to save your favorite restaurants and get personalized recommendations!",
+        actionLabel: "Sign In",
+        signUpLabel: "Create Free Account"
+      });
+      return;
+    }
+    toggleFavorite(restaurantId, restaurantName);
+  }, [user, toggleFavorite, promptLogin]);
 
   // Fetch restaurants
   useEffect(() => {
@@ -1110,7 +1128,7 @@ const Meals = () => {
                 key={meal.id}
                 meal={meal}
                 isFavoriteRestaurant={meal.restaurant_id ? isFavorite(meal.restaurant_id) : false}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={handleToggleFavorite}
                 index={index}
               />
             ))
@@ -1120,7 +1138,7 @@ const Meals = () => {
                 key={restaurant.id}
                 restaurant={restaurant}
                 isFavorite={isFavorite(restaurant.id)}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={handleToggleFavorite}
                 index={index}
               />
             ))
@@ -1140,9 +1158,25 @@ const Meals = () => {
         resultCount={displayedCount}
         resultLabel={isCalorieFilterActive ? "meals" : "restaurants"}
         activeSort={activeSort}
-        onChangeSort={(sort) => { setActiveSort(sort); setActiveChip(sort); setShowFavoritesOnly(false); }}
+        onChangeSort={(sort) => { 
+          if (sort !== "popular") {
+            setActiveSort(sort as "rating" | "fastest"); 
+            setActiveChip(sort as "rating" | "fastest" | "favorites"); 
+          }
+          setShowFavoritesOnly(false); 
+        }}
         calorieRange={calorieRange}
         onChangeCalorieRange={setCalorieRange}
+      />
+
+      {/* Guest Login Prompt */}
+      <GuestLoginPrompt
+        open={showLoginPrompt}
+        onOpenChange={setShowLoginPrompt}
+        title={loginPromptConfig.title}
+        description={loginPromptConfig.description}
+        actionLabel={loginPromptConfig.actionLabel}
+        signUpLabel={loginPromptConfig.signUpLabel}
       />
     </div>
   );

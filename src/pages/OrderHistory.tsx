@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { OneTapReorder } from "@/components/OneTapReorder";
+import { ModifyOrderModal } from "@/components/ModifyOrderModal";
+import { isOrderModifiable } from "@/hooks/useOrderModification";
 import { 
   ArrowLeft, 
   Package,
@@ -23,7 +25,8 @@ import {
   ChefHat,
   CircleDot,
   RotateCcw,
-  Trash2
+  Trash2,
+  Pencil
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -129,6 +132,9 @@ const OrderHistory = () => {
   const [scheduledLoading, setScheduledLoading] = useState(false);
   const [scheduledPage, setScheduledPage] = useState(0);
   const [scheduledHasMore, setScheduledHasMore] = useState(true);
+  
+  // Order modification state
+  const [modifyingSchedule, setModifyingSchedule] = useState<ScheduledMeal | null>(null);
   
   // Pull to refresh handlers
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -372,7 +378,16 @@ const OrderHistory = () => {
         const { data, error } = await supabase.rpc("cancel_meal_schedule", {
           p_schedule_id: orderId,
         });
-        if (error) throw error;
+        
+        // Handle specific error for "preparing" status
+        if (error) {
+          const errorMessage = error.message || "";
+          if (errorMessage.includes('preparing')) {
+            throw new Error("Cannot cancel order - it's already being prepared. Please contact the restaurant for assistance.");
+          }
+          throw error;
+        }
+        
         if (!data?.success) throw new Error("Cancellation failed. Please try again.");
 
         // Update local state
@@ -417,7 +432,7 @@ const OrderHistory = () => {
     }
   }, [user, fetchOrders, fetchScheduledMeals]);
 
-  // Real-time subscription for scheduled meals status updates
+// Real-time subscription for scheduled meals status updates
   useEffect(() => {
     if (!user) return;
 
@@ -429,8 +444,29 @@ const OrderHistory = () => {
           event: 'UPDATE',
           schema: 'public',
           table: 'meal_schedules',
+          filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
+          const newStatus = (payload.new as { order_status: string }).order_status;
+          const oldStatus = (payload.old as { order_status: string }).order_status;
+          
+          // Show toast notification when status changes
+          if (newStatus !== oldStatus) {
+            const statusMessages: Record<string, string> = {
+              confirmed: 'Your order has been confirmed!',
+              preparing: 'Your meal is being prepared',
+              ready: 'Your meal is ready for pickup',
+              out_for_delivery: 'Your driver is on the way!',
+              delivered: 'Your meal has been delivered!',
+              completed: 'Order completed. Enjoy your meal!',
+              cancelled: 'Your order has been cancelled',
+            };
+            
+            if (statusMessages[newStatus]) {
+              toast.success(statusMessages[newStatus]);
+            }
+          }
+          
           // Refresh the list when an update occurs
           fetchScheduledMeals(0, false);
         }
@@ -440,7 +476,7 @@ const OrderHistory = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchScheduledMeals]);
+  }, [user, fetchScheduledMeals, toast]);
 
   // Check if user completed onboarding
   useEffect(() => {
@@ -622,11 +658,18 @@ const OrderHistory = () => {
                 </div>
               </div>
 
-              {/* Cancel button */}
+              {/* Action buttons: Modify and Cancel */}
               {canCancel && (
-                <div className="px-4 pb-4">
+                <div className="px-4 pb-4 flex gap-2">
                   <button
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-primary/20 text-primary bg-primary/5 text-sm font-semibold hover:bg-primary/10 active:scale-[0.98] transition-all"
+                    onClick={(e) => { e.stopPropagation(); setModifyingSchedule(schedule); }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Modify
+                  </button>
+                  <button
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50"
                     onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id, 'scheduled'); }}
                     disabled={cancelling === schedule.id}
                   >
@@ -635,7 +678,7 @@ const OrderHistory = () => {
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
-                    Cancel Order
+                    Cancel
                   </button>
                 </div>
               )}
@@ -907,6 +950,17 @@ const OrderHistory = () => {
           </>
         )}
       </div>
+
+      {/* Modify Order Modal */}
+      <ModifyOrderModal
+        isOpen={!!modifyingSchedule}
+        onClose={() => setModifyingSchedule(null)}
+        schedule={modifyingSchedule}
+        onModified={() => {
+          // Refresh the scheduled meals after modification
+          fetchScheduledMeals(0, false);
+        }}
+      />
 
       <CustomerNavigation />
     </div>

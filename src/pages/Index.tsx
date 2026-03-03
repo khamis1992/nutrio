@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { Logo } from "@/components/Logo";
 import { formatCurrency } from "@/lib/currency";
 import { PromoVideo } from "@/components/PromoVideo";
-import { supabase } from "@/integrations/supabase/client";
+import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
 import {
   Utensils,
   Target,
@@ -41,104 +41,30 @@ import meal1 from "@/assets/1.png";
 import meal2 from "@/assets/2.png";
 import meal3 from "@/assets/3.png";
 
-interface SubscriptionPricing {
-  basic_price: number;
-  premium_price: number;
-  family_price: number;
-  vip_price: number;
-}
+const TIER_META: Record<string, { icon: typeof Star; color: string; description: string; popular: boolean; isVip: boolean }> = {
+  basic:    { icon: Star,     color: "from-emerald-400 to-teal-500",  description: "Perfect start",   popular: false, isVip: false },
+  standard: { icon: Zap,     color: "from-violet-500 to-purple-600",  description: "Most popular",    popular: true,  isVip: false },
+  premium:  { icon: Crown,   color: "from-amber-400 to-orange-500",   description: "Serious goals",   popular: false, isVip: false },
+  vip:      { icon: Sparkles,color: "from-rose-400 to-pink-500",      description: "Unlimited",       popular: false, isVip: true  },
+};
 
-interface PlanType {
-  id: string;
-  name: string;
-  price: number;
-  period: string;
-  mealsPerWeek: number;
-  description: string;
-  features: string[];
-  popular: boolean;
-  isVip: boolean;
-  icon: typeof Star;
-  color: string;
+function dbToLandingPlan(p: DbSubscriptionPlan) {
+  const meta = TIER_META[p.tier] ?? TIER_META.basic;
+  return {
+    id: p.id,
+    name: p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
+    price: p.price_qar ?? 0,
+    period: "month",
+    mealsPerWeek: p.meals_per_week ?? 0,
+    mealsPerMonth: p.meals_per_month ?? 0,
+    description: meta.description,
+    icon: meta.icon,
+    color: meta.color,
+    features: Array.isArray(p.features) ? p.features : [],
+    popular: meta.popular,
+    isVip: meta.isVip,
+  };
 }
-
-const getPlans = (pricing: SubscriptionPricing): PlanType[] => [
-  {
-    id: "basic",
-    name: "Starter",
-    price: pricing.basic_price,
-    period: "week",
-    mealsPerWeek: 5,
-    description: "Perfect start",
-    icon: Star,
-    color: "from-emerald-400 to-teal-500",
-    features: [
-      "5 meals per week",
-      "Basic nutrition tracking",
-      "Email support",
-      "Access to 50+ restaurants",
-    ],
-    popular: false,
-    isVip: false,
-  },
-  {
-    id: "standard",
-    name: "Pro",
-    price: pricing.premium_price,
-    period: "week",
-    mealsPerWeek: 10,
-    description: "Most popular",
-    icon: Zap,
-    color: "from-violet-500 to-purple-600",
-    features: [
-      "10 meals per week",
-      "Advanced nutrition analytics",
-      "Priority support",
-      "Custom meal planning",
-      "Dietitian consultations",
-    ],
-    popular: true,
-    isVip: false,
-  },
-  {
-    id: "premium",
-    name: "Elite",
-    price: pricing.family_price,
-    period: "week",
-    mealsPerWeek: 15,
-    description: "Serious goals",
-    icon: Crown,
-    color: "from-amber-400 to-orange-500",
-    features: [
-      "15 meals per week",
-      "Real-time coaching",
-      "24/7 priority support",
-      "AI meal recommendations",
-      "Family sharing (up to 4)",
-    ],
-    popular: false,
-    isVip: false,
-  },
-  {
-    id: "vip",
-    name: "VIP",
-    price: pricing.vip_price,
-    period: "week",
-    mealsPerWeek: 0,
-    description: "Unlimited",
-    icon: Sparkles,
-    color: "from-rose-400 to-pink-500",
-    features: [
-      "Unlimited meals",
-      "Priority delivery",
-      "Exclusive VIP meals",
-      "Personal nutrition coach",
-      "Dedicated VIP line",
-    ],
-    popular: false,
-    isVip: true,
-  },
-];
 
 // Story/Highlight data
 const stories = [
@@ -197,8 +123,8 @@ const bottomNavItems = [
 
 const Index = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [plans, setPlans] = useState<PlanType[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(true);
+  const { plans: dbPlans, loading: loadingPlans } = useSubscriptionPlans();
+  const plans = dbPlans.map(dbToLandingPlan);
   const [activeStory, setActiveStory] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState("");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -214,40 +140,6 @@ const Index = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("platform_settings")
-          .select("value")
-          .eq("key", "subscription_plans")
-          .single();
-
-        if (error) throw error;
-
-        const pricing = (data?.value as unknown as SubscriptionPricing) || {
-          basic_price: 49.99,
-          premium_price: 99.99,
-          family_price: 149.99,
-          vip_price: 199.99,
-        };
-
-        setPlans(getPlans(pricing));
-      } catch (error) {
-        console.error("Error fetching pricing:", error);
-        setPlans(getPlans({
-          basic_price: 49.99,
-          premium_price: 99.99,
-          family_price: 149.99,
-          vip_price: 199.99,
-        }));
-      } finally {
-        setLoadingPlans(false);
-      }
-    };
-
-    fetchPlans();
-  }, []);
 
   // Horizontal scroll handlers
   const scroll = (direction: "left" | "right") => {

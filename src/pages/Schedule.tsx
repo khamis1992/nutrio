@@ -7,6 +7,9 @@ import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,7 +28,8 @@ import {
   X,
   Check,
   Utensils,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Clock
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -36,6 +40,7 @@ interface ScheduledMeal {
   scheduled_date: string;
   meal_type: string;
   is_completed: boolean;
+  delivery_time_slot: string | null;
   meal: {
     id: string;
     name: string;
@@ -93,6 +98,7 @@ const Schedule = () => {
   const { profile } = useProfile();
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
+  const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
   
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date();
@@ -109,6 +115,10 @@ const Schedule = () => {
   // Bottom sheet for meal details
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);
   const [showMealSheet, setShowMealSheet] = useState(false);
+
+  // Time slot selector
+  const [showTimeSlotDialog, setShowTimeSlotDialog] = useState(false);
+  const [selectedScheduleForTimeSlot, setSelectedScheduleForTimeSlot] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {
@@ -137,7 +147,8 @@ const Schedule = () => {
         scheduled_date,
         meal_type,
         is_completed,
-        meal_id
+        meal_id,
+        delivery_time_slot
       `)
       .eq("user_id", user.id)
       .gte("scheduled_date", format(currentWeekStart, "yyyy-MM-dd"))
@@ -170,6 +181,7 @@ const Schedule = () => {
       scheduled_date: schedule.scheduled_date,
       meal_type: schedule.meal_type,
       is_completed: schedule.is_completed,
+      delivery_time_slot: schedule.delivery_time_slot || null,
       meal: mealsMap[schedule.meal_id] || {
         id: schedule.meal_id,
         name: "Unknown Meal",
@@ -230,8 +242,20 @@ const Schedule = () => {
       }
 
       setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
-      
+
       if (!isCompleted && !result.was_already_completed) {
+        // Save to meal_history so it appears in Log a Meal → Recent tab
+        supabase.from("meal_history").insert({
+          user_id: user.id,
+          name: schedule.meal.name,
+          calories: schedule.meal.calories || 0,
+          protein_g: schedule.meal.protein_g || 0,
+          carbs_g: schedule.meal.carbs_g || 0,
+          fat_g: schedule.meal.fat_g || 0,
+        }).then(({ error }) => {
+          if (error) console.error("Could not save to meal history:", error);
+        });
+
         // Haptic feedback simulation
         if (navigator.vibrate) navigator.vibrate(10);
       }
@@ -254,6 +278,47 @@ const Schedule = () => {
       setShowMealSheet(false);
       toast({ title: "Removed", description: "Meal removed from schedule" });
     }
+  };
+
+  // Update delivery time slot
+  const updateDeliveryTimeSlot = async (scheduleId: string, timeSlot: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from("meal_schedules")
+        .update({ delivery_time_slot: timeSlot })
+        .eq("id", scheduleId);
+
+      if (error) throw error;
+
+      setSchedules(prev => prev.map(s => 
+        s.id === scheduleId ? { ...s, delivery_time_slot: timeSlot } : s
+      ));
+
+      toast({ 
+        title: "Delivery Time Set", 
+        description: `Your meal will be delivered during the selected time slot.` 
+      });
+    } catch (err) {
+      console.error("Error updating time slot:", err);
+      toast({ 
+        title: "Error", 
+        description: "Failed to set delivery time. Please try again.", 
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const handleOpenTimeSlotSelector = (scheduleId: string) => {
+    setSelectedScheduleForTimeSlot(scheduleId);
+    setShowTimeSlotDialog(true);
+  };
+
+  const handleTimeSlotSelect = ({ time }: { date: Date; time: string }) => {
+    if (selectedScheduleForTimeSlot) {
+      updateDeliveryTimeSlot(selectedScheduleForTimeSlot, time);
+    }
+    setShowTimeSlotDialog(false);
+    setSelectedScheduleForTimeSlot(null);
   };
 
   const getMealsForDay = (date: Date) => {
@@ -288,11 +353,17 @@ const Schedule = () => {
   const displayMeals = getMealsForDay(selectedDate);
   const dailyNutrition = getDailyNutrition(selectedDate);
 
-  // Calculate week progress
+  // Calculate week progress — only count meals within the current displayed week
+  const currentWeekEnd = addDays(currentWeekStart, 6);
+  const thisWeekSchedules = schedules.filter(s => {
+    const d = new Date(s.scheduled_date);
+    d.setHours(0, 0, 0, 0);
+    return d >= currentWeekStart && d <= currentWeekEnd;
+  });
   const weekProgress = {
-    total: schedules.length,
-    completed: schedules.filter(s => s.is_completed).length,
-    calories: schedules.reduce((sum, s) => sum + (s.is_completed ? s.meal.calories : 0), 0)
+    total: thisWeekSchedules.length,
+    completed: thisWeekSchedules.filter(s => s.is_completed).length,
+    calories: thisWeekSchedules.reduce((sum, s) => sum + (s.is_completed ? s.meal?.calories ?? 0 : 0), 0),
   };
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
@@ -315,8 +386,18 @@ const Schedule = () => {
           <p className="text-gray-500 text-center mb-6">Meal scheduling is currently disabled.</p>
           <Button onClick={() => navigate("/dashboard")} className="rounded-full px-8">Go Back</Button>
         </div>
-        <CustomerNavigation />
-      </div>
+      {/* Guest Login Prompt */}
+      <GuestLoginPrompt
+        open={showLoginPrompt}
+        onOpenChange={setShowLoginPrompt}
+        title={loginPromptConfig.title}
+        description={loginPromptConfig.description}
+        actionLabel={loginPromptConfig.actionLabel}
+        signUpLabel={loginPromptConfig.signUpLabel}
+      />
+
+      <CustomerNavigation />
+    </div>
     );
   }
 
@@ -378,30 +459,46 @@ const Schedule = () => {
           animate={{ scale: 1, opacity: 1 }}
           className="mx-4 mt-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden"
         >
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Week Progress</p>
-                <p className="text-2xl font-bold">
-                  {weekProgress.completed}<span className="text-gray-400 text-lg">/{weekProgress.total}</span>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">This Week</p>
+
+            {/* Stats row */}
+            <div className="flex items-center gap-3">
+              {/* Meals completed */}
+              <div className="flex-1 bg-primary/5 rounded-xl px-3 py-2.5">
+                <p className="text-xs text-muted-foreground mb-0.5">Meals completed</p>
+                <p className="text-xl font-bold text-foreground leading-none">
+                  {weekProgress.completed}
+                  <span className="text-sm font-medium text-muted-foreground ml-1">
+                    of {weekProgress.total}
+                  </span>
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Calories</p>
-                <p className="text-2xl font-bold text-orange-500">
+
+              {/* Calories burned */}
+              <div className="flex-1 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-3 py-2.5">
+                <p className="text-xs text-muted-foreground mb-0.5">Calories consumed</p>
+                <p className="text-xl font-bold text-orange-500 leading-none">
                   {weekProgress.calories.toLocaleString()}
+                  <span className="text-xs font-medium text-muted-foreground ml-1">kcal</span>
                 </p>
               </div>
             </div>
-            
+
             {/* Progress Bar */}
-            <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${weekProgress.total > 0 ? (weekProgress.completed / weekProgress.total) * 100 : 0}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="h-full bg-primary rounded-full"
-              />
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>{weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0}% done</span>
+                <span>{weekProgress.total - weekProgress.completed} meals remaining</span>
+              </div>
+              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${weekProgress.total > 0 ? (weekProgress.completed / weekProgress.total) * 100 : 0}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full bg-primary rounded-full"
+                />
+              </div>
             </div>
           </div>
         </motion.div>
@@ -639,6 +736,24 @@ const Schedule = () => {
                                     {schedule.meal?.protein_g}g
                                   </span>
                                 </div>
+                                {/* Delivery Time Slot Button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenTimeSlotSelector(schedule.id);
+                                  }}
+                                  className={`mt-2 flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg transition-colors ${
+                                    schedule.delivery_time_slot 
+                                      ? "bg-primary/10 text-primary" 
+                                      : "bg-gray-100 text-gray-500 hover:bg-primary/5 hover:text-primary"
+                                  }`}
+                                >
+                                  <Clock className="h-3 w-3" />
+                                  {schedule.delivery_time_slot 
+                                    ? schedule.delivery_time_slot.charAt(0).toUpperCase() + schedule.delivery_time_slot.slice(1)
+                                    : "Set delivery time"
+                                  }
+                                </button>
                               </div>
 
                               {/* Arrow */}
@@ -662,7 +777,18 @@ const Schedule = () => {
         animate={{ scale: 1, opacity: 1 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
-        onClick={() => setShowWizard(true)}
+        onClick={() => {
+          if (user) {
+            setShowWizard(true);
+          } else {
+            promptLogin({
+              title: "Sign in to schedule meals",
+              description: "Create an account to start planning your healthy meals and track your nutrition goals!",
+              actionLabel: "Sign In",
+              signUpLabel: "Create Free Account"
+            });
+          }
+        }}
         className="fixed right-4 w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center z-30"
         style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
       >
@@ -819,6 +945,29 @@ const Schedule = () => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Delivery Scheduler Dialog */}
+      <Dialog open={showTimeSlotDialog} onOpenChange={setShowTimeSlotDialog}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Schedule Delivery
+            </DialogTitle>
+          </DialogHeader>
+          <DeliveryScheduler
+            initialDate={selectedDate}
+            timeSlots={[
+              "7:00 AM", "8:00 AM", "9:00 AM",
+              "11:00 AM", "12:00 PM", "1:00 PM",
+              "5:00 PM", "6:00 PM", "7:00 PM",
+            ]}
+            timeZone="Qatar (GMT +3)"
+            onSchedule={handleTimeSlotSelect}
+            onCancel={() => setShowTimeSlotDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       <CustomerNavigation />
     </div>

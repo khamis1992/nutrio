@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Timer, LogOut, RefreshCw } from "lucide-react";
+import { isNative } from "@/lib/capacitor";
 
 // Constants
 const IDLE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
@@ -59,9 +60,10 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSubmittingRef = useRef<boolean>(false);
 
-  // Initialize BroadcastChannel for cross-tab sync
+  // Initialize BroadcastChannel for cross-tab sync (only for same browser tabs, not different devices)
   useEffect(() => {
-    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+    if (typeof window !== "undefined" && "BroadcastChannel" in window && !isNative) {
+      // Only use BroadcastChannel for web (not native apps/APK)
       broadcastChannelRef.current = new BroadcastChannel("session_timeout");
       
       broadcastChannelRef.current.onmessage = (event) => {

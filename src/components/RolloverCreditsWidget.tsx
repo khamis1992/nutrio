@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { 
   RefreshCw, 
   Clock, 
-  AlertCircle,
-  ChevronRight,
-  PiggyBank
+  AlertTriangle,
+  Sparkles,
+  Calendar,
+  ArrowRight,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,7 +45,6 @@ export function RolloverCreditsWidget() {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      // Query using status column (active, consumed, expired)
       const { data, error } = await supabase
         .from('subscription_rollovers')
         .select('*')
@@ -52,15 +54,12 @@ export function RolloverCreditsWidget() {
         .order('expiry_date', { ascending: true });
 
       if (error) {
-        // Table may not exist yet — treat as empty, don't crash
         console.warn('Rollover credits table not available:', error.message);
         setLoading(false);
         return;
       }
 
-      // Data already has status field from DB
       const mapped = (data || []) as RolloverCredit[];
-
       setRollovers(mapped);
       
       const total = mapped.reduce((sum, r) => sum + (r.rollover_credits || 0), 0);
@@ -81,7 +80,6 @@ export function RolloverCreditsWidget() {
 
   const calculateRollover = async () => {
     try {
-      // Get active subscription
       const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
         .select('id')
@@ -98,7 +96,6 @@ export function RolloverCreditsWidget() {
         return;
       }
 
-      // Call the calculate_rollover_credits function
       const { data, error } = await supabase.rpc('calculate_rollover_credits', {
         p_subscription_id: subscription.id,
         p_user_id: user?.id,
@@ -115,7 +112,6 @@ export function RolloverCreditsWidget() {
         });
         fetchRolloverCredits();
       } else {
-        // Provide user-friendly explanations for common failure reasons
         let friendlyMsg = result.message || result.error || 'No rollover credits available.';
         if (friendlyMsg.includes('payment')) {
           friendlyMsg = 'Rollover credits are granted automatically when your subscription renews. Check back after your next billing cycle.';
@@ -129,10 +125,11 @@ export function RolloverCreditsWidget() {
           description: friendlyMsg,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Please try again later.';
       toast({
         title: 'Could Not Check Rollover',
-        description: err.message || 'Please try again later.',
+        description: errorMessage,
         variant: 'destructive',
       });
     }
@@ -140,110 +137,163 @@ export function RolloverCreditsWidget() {
 
   if (loading) return null;
 
-  // No active rollover credits — show info card
+  // No active rollover credits — show eligibility card
   if (totalRollover === 0 && rollovers.length === 0) {
     return (
-      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <PiggyBank className="w-5 h-5 text-blue-600" />
-            <CardTitle className="text-base font-semibold">Rollover Credits</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Unused meals at the end of your billing cycle roll over automatically — up to 20% of your monthly allocation. They appear here after your subscription renews.
-          </p>
-          <div className="bg-white/60 rounded-xl p-3 border border-blue-200/60 space-y-1.5">
-            <p className="text-xs font-semibold text-blue-700">How rollover works:</p>
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">1</span>
-              <span>End each cycle with unused meals</span>
+      <Card className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-emerald-200/50">
+        <CardContent className="p-5 space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <RefreshCw className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">2</span>
-              <span>Up to 20% carry forward when your plan renews</span>
-            </div>
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">3</span>
-              <span>Credits expire at the end of the following cycle</span>
+            <div>
+              <h3 className="font-bold text-emerald-900">Rollover Credits</h3>
+              <p className="text-emerald-600 text-sm">Carry forward unused meals</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={calculateRollover} className="w-full border-blue-300 text-blue-700 hover:bg-blue-50">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Check Eligibility Now
+
+          {/* Info Box */}
+          <div className="bg-white/60 rounded-xl p-4 space-y-2 border border-emerald-100">
+            <p className="text-sm text-emerald-800">
+              Unused meals at the end of your billing cycle roll over automatically — up to 20% of your monthly allocation.
+            </p>
+          </div>
+
+          {/* Steps */}
+          <div className="space-y-2">
+            {[
+              { step: 1, text: 'End each cycle with unused meals' },
+              { step: 2, text: 'Up to 20% carry forward on renewal' },
+              { step: 3, text: 'Use them in the next cycle' },
+            ].map((item) => (
+              <div key={item.step} className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">
+                  {item.step}
+                </div>
+                <span className="text-sm text-emerald-700">{item.text}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA Button */}
+          <Button 
+            variant="outline"
+            size="sm" 
+            onClick={calculateRollover}
+            className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400"
+          >
+            Check Eligibility
+            <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </CardContent>
       </Card>
     );
   }
 
+  // Has rollover credits — show the main card
   return (
-    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-      <CardHeader className="pb-3">
+    <Card className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-emerald-200/50">
+      <CardContent className="p-5 space-y-5">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <PiggyBank className="w-5 h-5 text-blue-600" />
-            <CardTitle className="text-base font-semibold">Rollover Credits</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-emerald-900">Rollover Credits</h3>
+              <p className="text-emerald-600 text-sm">Your unused meals</p>
+            </div>
           </div>
           {totalExpiring > 0 && (
-            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              {totalExpiring} expiring soon
+            <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              {totalExpiring} expiring
             </Badge>
           )}
         </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {/* Total Rollover */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">Available Rollover Credits</p>
-            <p className="text-3xl font-bold text-blue-700">{totalRollover}</p>
+
+        {/* Main Stats */}
+        <div className="flex items-end justify-between">
+          <div className="space-y-1">
+            <p className="text-emerald-600 text-sm">Available Credits</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl font-bold text-emerald-700">{totalRollover}</span>
+              <span className="text-emerald-600 text-lg">meals</span>
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 text-blue-600" />
+          <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center">
+            <RefreshCw className="w-8 h-8 text-emerald-600" />
           </div>
         </div>
 
-        {/* Active Rollovers List */}
+        {/* Progress to expiry indicator */}
+        {rollovers.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-emerald-600 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                Next expiry
+              </span>
+              <span className="font-medium text-emerald-800">
+                {format(new Date(rollovers[0].expiry_date), 'MMM d, yyyy')}
+              </span>
+            </div>
+            <Progress 
+              value={Math.max(0, 100 - (differenceInDays(new Date(rollovers[0].expiry_date), new Date()) / 30) * 100)} 
+              className="h-2 bg-emerald-100 [&>div]:bg-emerald-500"
+            />
+          </div>
+        )}
+
+        {/* Individual Credits List */}
         {rollovers.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-medium">Active Credits</p>
-            <div className="space-y-2">
+            <p className="text-sm font-medium text-emerald-700">Active Credits</p>
+            <div className="grid gap-2">
               {rollovers.slice(0, 3).map((rollover) => {
                 const daysUntilExpiry = differenceInDays(new Date(rollover.expiry_date), new Date());
                 const isExpiringSoon = daysUntilExpiry <= 7;
+                const expiryPercent = Math.max(0, Math.min(100, (daysUntilExpiry / 30) * 100));
 
                 return (
                   <div 
                     key={rollover.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                    className={`flex items-center justify-between p-3 rounded-xl border ${
                       isExpiringSoon 
                         ? 'bg-amber-50 border-amber-200' 
-                        : 'bg-white/60 border-blue-200'
+                        : 'bg-white/60 border-emerald-100'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        isExpiringSoon ? 'bg-amber-100' : 'bg-blue-100'
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isExpiringSoon ? 'bg-amber-100' : 'bg-emerald-100'
                       }`}>
                         {isExpiringSoon ? (
-                          <Clock className={`w-4 h-4 ${isExpiringSoon ? 'text-amber-600' : 'text-blue-600'}`} />
+                          <Clock className="w-4 h-4 text-amber-600" />
                         ) : (
-                          <RefreshCw className="w-4 h-4 text-blue-600" />
+                          <RefreshCw className="w-4 h-4 text-emerald-600" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{rollover.rollover_credits} credits</p>
-                        <p className={`text-xs ${isExpiringSoon ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                        <p className="font-semibold text-emerald-900">{rollover.rollover_credits} credits</p>
+                        <p className={`text-xs ${isExpiringSoon ? 'text-amber-600' : 'text-emerald-600'}`}>
                           {isExpiringSoon ? (
                             <>Expires in {daysUntilExpiry} days</>
                           ) : (
                             <>Valid until {format(new Date(rollover.expiry_date), 'MMM d')}</>
                           )}
                         </p>
+                      </div>
+                    </div>
+                    {/* Mini expiry bar */}
+                    <div className="w-12">
+                      <div className="h-1 bg-emerald-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${isExpiringSoon ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                          style={{ width: `${expiryPercent}%` }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -253,11 +303,12 @@ export function RolloverCreditsWidget() {
           </div>
         )}
 
-        {/* How it works */}
-        <div className="bg-white/50 p-3 rounded-lg border border-blue-200/50">
-          <p className="text-xs text-muted-foreground">
-            <strong>How it works:</strong> At the end of each billing cycle, up to 20% of your unused meal credits are rolled over to the next month. Rollover credits expire at the end of the next billing cycle.
-          </p>
+        {/* Footer Note */}
+        <div className="pt-3 border-t border-emerald-200">
+          <div className="flex items-start gap-2 text-xs text-emerald-600">
+            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+            <p>Rollover credits expire at the end of your next billing cycle. Use them before they expire!</p>
+          </div>
         </div>
       </CardContent>
     </Card>

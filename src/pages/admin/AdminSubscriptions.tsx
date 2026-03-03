@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,13 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -28,108 +21,89 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Search,
-  CreditCard,
-  Calendar,
-  User,
+  Plus,
   Edit,
-  XCircle,
-  RefreshCw,
-  MoreHorizontal,
-  Eye,
-  Download,
-  ChevronDown,
-  ChevronUp,
+  Trash2,
+  Check,
+  X,
   Loader2,
   DollarSign,
+  Calendar,
+  Sparkles,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
-import { format } from "date-fns";
 
-interface SubscriptionData {
+interface SubscriptionPlan {
   id: string;
-  user_id: string;
-  plan: string;
-  status: string;
-  price: number;
-  start_date: string;
-  end_date: string;
-  auto_renew: boolean;
-  meals_per_week: number;
-  meals_used_this_week: number;
-  created_at: string;
-  profile?: {
-    full_name: string | null;
-    email?: string;
-  } | null;
+  tier: string;
+  billing_interval: string;
+  price_qar: number | null;
+  meals_per_week: number | null;
+  meals_per_month: number | null;
+  discount_percent: number | null;
+  features: string[] | null;
+  is_active: boolean | null;
+  created_at: string | null;
 }
 
 const AdminSubscriptions = () => {
-  const [subscriptions, setSubscriptions] = useState<SubscriptionData[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSubscriptions, setSelectedSubscriptions] = useState<Set<string>>(new Set());
-  const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionData | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "cancelled" | "expired" | "pending">("all");
-  const [sortField, setSortField] = useState<"created_at" | "end_date" | "price">("created_at");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isPlanEditOpen, setIsPlanEditOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [processing, setProcessing] = useState(false);
-  
-  const [editPlan, setEditPlan] = useState("");
-  const [editMealsPerWeek, setEditMealsPerWeek] = useState("");
-  const [editAutoRenew, setEditAutoRenew] = useState(true);
+
+  // Form state
+  const [planForm, setPlanForm] = useState({
+    tier: "",
+    billing_interval: "monthly",
+    price_qar: 0,
+    meals_per_week: 0,
+    meals_per_month: 0,
+    discount_percent: 0,
+    is_active: true,
+    features: [] as string[],
+  });
+  const [featureInput, setFeatureInput] = useState("");
 
   useEffect(() => {
-    fetchSubscriptions();
+    fetchPlans();
   }, []);
 
-  const fetchSubscriptions = async () => {
+  const fetchPlans = async () => {
     setLoading(true);
     try {
-      const { data: subsData, error: subsError } = await supabase
-        .from("subscriptions")
+      const { data, error } = await supabase
+        .from("subscription_plans")
         .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (subsError) throw subsError;
+        .order("price_qar", { ascending: true });
 
-      if (subsData) {
-        const userIds = [...new Set(subsData.map(s => s.user_id).filter(Boolean))];
-        
-        let profileMap = new Map();
-        if (userIds.length > 0) {
-          const { data: profilesData } = await supabase
-            .from("profiles")
-            .select("user_id, full_name, email")
-            .in("user_id", userIds);
-          
-          profileMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
-        }
-        
-        const enrichedData = subsData.map(s => ({
-          ...s,
-          profile: profileMap.get(s.user_id) || null
+      if (error) throw error;
+
+      if (data) {
+        const formattedPlans: SubscriptionPlan[] = data.map((p) => ({
+          id: p.id,
+          tier: p.tier,
+          billing_interval: p.billing_interval,
+          price_qar: p.price_qar,
+          meals_per_week: (p as any).meals_per_week ?? null,
+          meals_per_month: p.meals_per_month,
+          discount_percent: p.discount_percent,
+          features: p.features as string[] | null,
+          is_active: p.is_active,
+          created_at: p.created_at,
         }));
-        setSubscriptions(enrichedData as SubscriptionData[]);
+        setPlans(formattedPlans);
       }
     } catch (error) {
-      console.error("Error fetching subscriptions:", error);
+      console.error("Error fetching plans:", error);
       toast({
         title: "Error",
-        description: "Failed to load subscriptions",
+        description: "Failed to load subscription plans",
         variant: "destructive",
       });
     } finally {
@@ -137,52 +111,88 @@ const AdminSubscriptions = () => {
     }
   };
 
-  const handleEditClick = (subscription: SubscriptionData) => {
-    setSelectedSubscription(subscription);
-    setEditPlan(subscription.plan);
-    setEditMealsPerWeek(subscription.meals_per_week?.toString() || "5");
-    setEditAutoRenew(subscription.auto_renew ?? true);
-    setIsEditOpen(true);
+  const openPlanEdit = (plan?: SubscriptionPlan) => {
+    if (plan) {
+      setSelectedPlan(plan);
+      setPlanForm({
+        tier: plan.tier,
+        billing_interval: plan.billing_interval,
+        price_qar: plan.price_qar ?? 0,
+        meals_per_week: plan.meals_per_week ?? 0,
+        meals_per_month: plan.meals_per_month ?? 0,
+        discount_percent: plan.discount_percent ?? 0,
+        features: plan.features ?? [],
+        is_active: plan.is_active ?? true,
+      });
+    } else {
+      setSelectedPlan(null);
+      resetPlanForm();
+    }
+    setIsPlanEditOpen(true);
   };
 
-  const handleCancelClick = (subscription: SubscriptionData) => {
-    setSelectedSubscription(subscription);
-    setIsCancelOpen(true);
+  const resetPlanForm = () => {
+    setPlanForm({
+      tier: "",
+      billing_interval: "monthly",
+      price_qar: 0,
+      meals_per_week: 0,
+      meals_per_month: 0,
+      discount_percent: 0,
+      is_active: true,
+      features: [],
+    });
+    setFeatureInput("");
   };
 
-  const handleUpdateSubscription = async () => {
-    if (!selectedSubscription) return;
-    
+  const addFeature = () => {
+    if (featureInput.trim() && !planForm.features.includes(featureInput.trim())) {
+      setPlanForm({
+        ...planForm,
+        features: [...planForm.features, featureInput.trim()],
+      });
+      setFeatureInput("");
+    }
+  };
+
+  const removeFeature = (feature: string) => {
+    setPlanForm({
+      ...planForm,
+      features: planForm.features.filter((f) => f !== feature),
+    });
+  };
+
+  const handleAddPlan = async () => {
     setProcessing(true);
     try {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({
-          plan: editPlan as "monthly" | "weekly",
-          meals_per_week: parseInt(editMealsPerWeek),
-          auto_renew: editAutoRenew,
-        })
-        .eq("id", selectedSubscription.id);
+      const { error } = await supabase.from("subscription_plans").insert({
+        tier: planForm.tier.toLowerCase().replace(/\s+/g, "-"),
+        billing_interval: planForm.billing_interval,
+        price_qar: planForm.price_qar,
+        meals_per_week: planForm.meals_per_week,
+        meals_per_month: planForm.meals_per_week * 4,
+        discount_percent: planForm.discount_percent,
+        features: planForm.features,
+        is_active: planForm.is_active,
+      });
 
       if (error) throw error;
 
-      setSubscriptions((prev) =>
-        prev.map((sub) =>
-          sub.id === selectedSubscription.id
-            ? { ...sub, plan: editPlan, meals_per_week: parseInt(editMealsPerWeek), auto_renew: editAutoRenew }
-            : sub
-        )
-      );
-
       toast({
         title: "Success",
-        description: "Subscription updated successfully",
+        description: "Plan created successfully",
       });
-      setIsEditOpen(false);
-    } catch (error) {
+
+      fetchPlans();
+      setIsPlanEditOpen(false);
+      resetPlanForm();
+    } catch (error: any) {
+      const isDuplicate = error?.message?.includes("unique") || error?.code === "23505";
       toast({
         title: "Error",
-        description: "Failed to update subscription",
+        description: isDuplicate
+          ? `A ${planForm.tier} / ${planForm.billing_interval} plan already exists. Choose a different tier or billing interval.`
+          : error?.message || "Failed to create plan",
         variant: "destructive",
       });
     } finally {
@@ -190,38 +200,39 @@ const AdminSubscriptions = () => {
     }
   };
 
-  const handleCancelSubscription = async () => {
-    if (!selectedSubscription) return;
-    
+  const handleUpdatePlan = async () => {
+    if (!selectedPlan) return;
+
     setProcessing(true);
     try {
       const { error } = await supabase
-        .from("subscriptions")
+        .from("subscription_plans")
         .update({
-          status: "cancelled",
-          auto_renew: false,
+          tier: planForm.tier.toLowerCase().replace(/\s+/g, "-"),
+          price_qar: planForm.price_qar,
+          meals_per_week: planForm.meals_per_week,
+          meals_per_month: planForm.meals_per_week * 4,
+          discount_percent: planForm.discount_percent,
+          features: planForm.features,
+          is_active: planForm.is_active,
         })
-        .eq("id", selectedSubscription.id);
+        .eq("id", selectedPlan.id);
 
       if (error) throw error;
 
-      setSubscriptions((prev) =>
-        prev.map((sub) =>
-          sub.id === selectedSubscription.id
-            ? { ...sub, status: "cancelled", auto_renew: false }
-            : sub
-        )
-      );
-
       toast({
         title: "Success",
-        description: "Subscription cancelled successfully",
+        description: "Plan updated successfully",
       });
-      setIsCancelOpen(false);
+
+      fetchPlans();
+      setIsPlanEditOpen(false);
+      setSelectedPlan(null);
+      resetPlanForm();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to cancel subscription",
+        description: "Failed to update plan",
         variant: "destructive",
       });
     } finally {
@@ -229,665 +240,488 @@ const AdminSubscriptions = () => {
     }
   };
 
-  const toggleSubscriptionSelection = (subscriptionId: string) => {
-    setSelectedSubscriptions((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(subscriptionId)) {
-        newSet.delete(subscriptionId);
-      } else {
-        newSet.add(subscriptionId);
-      }
-      return newSet;
-    });
-  };
+  const handleDeletePlan = async (planId: string) => {
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
 
-  const selectAllSubscriptions = () => {
-    if (selectedSubscriptions.size === filteredSubscriptions.length) {
-      setSelectedSubscriptions(new Set());
-    } else {
-      setSelectedSubscriptions(new Set(filteredSubscriptions.map((s) => s.id)));
-    }
-  };
-
-  const handleSort = (field: "created_at" | "end_date" | "price") => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  const exportToCSV = () => {
-    const headers = ["ID", "User", "Plan", "Status", "Price", "Start Date", "End Date", "Meals/Week", "Auto Renew"];
-    const rows = filteredSubscriptions.map((s) => [
-      s.id,
-      s.profile?.full_name || "Unknown",
-      s.plan,
-      s.status,
-      formatCurrency(s.price),
-      format(new Date(s.start_date), "yyyy-MM-dd"),
-      format(new Date(s.end_date), "yyyy-MM-dd"),
-      s.meals_per_week,
-      s.auto_renew ? "Yes" : "No",
-    ]);
+    const confirmed = confirm(
+      `Are you sure you want to permanently delete "${plan.tier}" plan? This cannot be undone.`
+    );
     
-    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `subscriptions-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    if (!confirmed) return;
 
-    toast({ title: "Export Complete", description: `${rows.length} subscriptions exported to CSV.` });
-  };
+    try {
+      // First, try to delete the plan directly
+      const { error } = await supabase
+        .from("subscription_plans")
+        .delete()
+        .eq("id", planId);
 
-  const filteredSubscriptions = subscriptions
-    .filter((sub) => {
-      const matchesSearch = 
-        !searchQuery ||
-        sub.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sub.plan.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sub.id.toLowerCase().includes(searchQuery.toLowerCase());
+      if (error) {
+        // If delete fails due to foreign key, offer to deactivate instead
+        const deactivateConfirm = confirm(
+          `Cannot delete "${plan.tier}" plan because it has subscriptions using it.\n\nWould you like to deactivate it instead?`
+        );
+        
+        if (deactivateConfirm) {
+          const { error: deactivateError } = await supabase
+            .from("subscription_plans")
+            .update({ is_active: false })
+            .eq("id", planId);
 
-      if (activeTab === "all") return matchesSearch;
-      return matchesSearch && sub.status === activeTab;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      if (sortField === "created_at") {
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      } else if (sortField === "end_date") {
-        comparison = new Date(a.end_date).getTime() - new Date(b.end_date).getTime();
-      } else if (sortField === "price") {
-        comparison = a.price - b.price;
+          if (deactivateError) throw deactivateError;
+
+          toast({
+            title: "Plan Deactivated",
+            description: `"${plan.tier}" plan has been deactivated instead of deleted`,
+          });
+          fetchPlans();
+          return;
+        }
+        return; // User cancelled
       }
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return (
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-            Active
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">
-            Cancelled
-          </Badge>
-        );
-      case "expired":
-        return (
-          <Badge variant="outline" className="bg-slate-500/10 text-slate-600 border-slate-500/20">
-            Expired
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-            Pending
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+      toast({
+        title: "Success",
+        description: `"${plan.tier}" plan has been deleted`,
+      });
+
+      fetchPlans();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete plan",
+        variant: "destructive",
+      });
     }
   };
 
-  const getPlanBadge = (plan: string) => {
-    switch (plan) {
-      case "weekly":
-        return (
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-            Weekly
-          </Badge>
-        );
-      case "monthly":
-        return (
-          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20">
-            Monthly
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{plan}</Badge>;
+  const handleToggleActive = async (plan: SubscriptionPlan) => {
+    try {
+      const { error } = await supabase
+        .from("subscription_plans")
+        .update({ is_active: !plan.is_active })
+        .eq("id", plan.id);
+
+      if (error) throw error;
+
+      toast({
+        title: plan.is_active ? "Plan Deactivated" : "Plan Activated",
+        description: `${plan.tier} plan is now ${plan.is_active ? "inactive" : "active"}`,
+      });
+
+      fetchPlans();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update plan status",
+        variant: "destructive",
+      });
     }
   };
 
   // Calculate stats
   const stats = {
-    total: subscriptions.length,
-    active: subscriptions.filter(s => s.status === "active").length,
-    cancelled: subscriptions.filter(s => s.status === "cancelled").length,
-    expired: subscriptions.filter(s => s.status === "expired").length,
-    pending: subscriptions.filter(s => s.status === "pending").length,
-    revenue: subscriptions
-      .filter(s => s.status === "active")
-      .reduce((acc, s) => acc + (s.price || 0), 0),
+    totalPlans: plans.length,
+    activePlans: plans.filter((p) => p.is_active).length,
+    monthlyPlans: plans.filter((p) => p.billing_interval === "monthly").length,
+    annualPlans: plans.filter((p) => p.billing_interval === "annual").length,
+    avgPrice: plans.length > 0
+      ? plans.reduce((acc, p) => acc + (p.price_qar || 0), 0) / plans.length
+      : 0,
   };
 
   return (
-    <AdminLayout title="Subscription Management" subtitle={`${stats.active} active subscriptions`}>
+    <AdminLayout
+      title="Subscription Plans"
+      subtitle={`${stats.activePlans} active plans`}
+    >
       <div className="space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-          <Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-primary" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-2xl font-bold">{stats.totalPlans}</p>
+                  <p className="text-xs text-muted-foreground">Total Plans</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20">
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <RefreshCw className="h-5 w-5 text-emerald-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <Check className="h-5 w-5 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.active}</p>
+                  <p className="text-2xl font-bold">{stats.activePlans}</p>
                   <p className="text-xs text-muted-foreground">Active</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-red-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.cancelled}</p>
-                  <p className="text-xs text-muted-foreground">Cancelled</p>
+                  <p className="text-2xl font-bold">{stats.monthlyPlans}</p>
+                  <p className="text-xs text-muted-foreground">Monthly</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-violet-500/5 to-violet-500/10 border-violet-500/20">
             <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-slate-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-violet-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.expired}</p>
-                  <p className="text-xs text-muted-foreground">Expired</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.revenue)}</p>
-                  <p className="text-xs text-muted-foreground">Monthly Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(stats.avgPrice)}</p>
+                  <p className="text-xs text-muted-foreground">Avg Price</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: "all", label: "All", count: stats.total },
-            { value: "active", label: "Active", count: stats.active },
-            { value: "cancelled", label: "Cancelled", count: stats.cancelled },
-            { value: "expired", label: "Expired", count: stats.expired },
-            { value: "pending", label: "Pending", count: stats.pending },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  {tab.count}
-                </Badge>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
+        {/* Plans Table */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, plan, or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" onClick={exportToCSV} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
-                <Button variant="outline" size="icon" onClick={fetchSubscriptions} disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Bulk Actions */}
-        {selectedSubscriptions.size > 0 && (
-          <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
-            <span className="text-sm text-primary font-medium">
-              {selectedSubscriptions.size} subscription{selectedSubscriptions.size > 1 ? "s" : ""} selected
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                Export Selected
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Subscriptions Table */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">Subscriptions</CardTitle>
+          <CardHeader className="pb-4 flex flex-row items-center justify-between">
+            <CardTitle className="text-lg font-semibold">All Plans</CardTitle>
+            <Button onClick={() => openPlanEdit()} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add Plan
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-10 pl-6">
-                    <Checkbox
-                      checked={selectedSubscriptions.size === filteredSubscriptions.length && filteredSubscriptions.length > 0}
-                      onCheckedChange={selectAllSubscriptions}
-                    />
-                  </TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
-                    <button onClick={() => handleSort("price")} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      Price
-                      {sortField === "price" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : plans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Sparkles className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground font-medium">No plans yet</p>
+                <p className="text-sm text-muted-foreground/70 mb-4">
+                  Create your first subscription plan
+                </p>
+                <Button onClick={() => openPlanEdit()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Plan
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
+                {plans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className={`relative rounded-2xl border-2 p-5 transition-all ${
+                      plan.is_active
+                        ? "border-primary/30 bg-card hover:border-primary/50"
+                        : "border-muted bg-muted/30 opacity-70"
+                    }`}
+                  >
+                    {/* Status Toggle */}
+                    <button
+                      onClick={() => handleToggleActive(plan)}
+                      className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+                      title={plan.is_active ? "Deactivate plan" : "Activate plan"}
+                    >
+                      {plan.is_active ? (
+                        <ToggleRight className="h-6 w-6 text-emerald-500" />
+                      ) : (
+                        <ToggleLeft className="h-6 w-6" />
+                      )}
                     </button>
-                  </TableHead>
-                  <TableHead>
-                    <button onClick={() => handleSort("end_date")} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      End Date
-                      {sortField === "end_date" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
-                    </button>
-                  </TableHead>
-                  <TableHead>Meals</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <p className="text-muted-foreground text-sm">Loading subscriptions...</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredSubscriptions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <CreditCard className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                        <p className="text-muted-foreground">No subscriptions found</p>
-                        <p className="text-muted-foreground/70 text-sm">Try adjusting your filters</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSubscriptions.map((subscription) => (
-                    <TableRow key={subscription.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell className="pl-6">
-                        <Checkbox
-                          checked={selectedSubscriptions.has(subscription.id)}
-                          onCheckedChange={() => toggleSubscriptionSelection(subscription.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{subscription.profile?.full_name || "Unknown User"}</p>
-                            <p className="text-xs text-muted-foreground">{subscription.profile?.email || "No email"}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getPlanBadge(subscription.plan)}</TableCell>
-                      <TableCell>{getStatusBadge(subscription.status)}</TableCell>
-                      <TableCell>
-                        <span className="font-medium">{formatCurrency(subscription.price)}</span>
-                        <span className="text-xs text-muted-foreground">/month</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(subscription.end_date), "MMM d, yyyy")}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <span className="font-medium">{subscription.meals_used_this_week || 0}</span>
-                          <span className="text-muted-foreground">/{subscription.meals_per_week || 0}</span>
-                          <span className="text-xs text-muted-foreground ml-1">this week</span>
-                        </div>
-                        {subscription.auto_renew && (
-                          <Badge variant="outline" className="text-xs mt-1">
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Auto-renew
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleEditClick(subscription)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedSubscription(subscription);
-                                  setIsDetailOpen(true);
-                                }}
-                              >
-                                <Eye className="w-4 h-4 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditClick(subscription)}>
-                                <Edit className="w-4 h-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {subscription.status === "active" && (
-                                <DropdownMenuItem
-                                  onClick={() => handleCancelClick(subscription)}
-                                  className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Cancel
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
 
-        {/* Subscription Detail Sheet */}
-        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full sm:max-w-xl">
-            {selectedSubscription && (
-              <>
-                <SheetHeader className="pb-6 border-b">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-8 h-8 text-primary" />
+                    {/* Plan Header */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge
+                          variant="outline"
+                          className={`capitalize ${
+                            plan.is_active
+                              ? "bg-primary/10 text-primary border-primary/20"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {plan.tier.replace(/-/g, " ")}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs capitalize">
+                          {plan.billing_interval}
+                        </Badge>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold">
+                          {formatCurrency(plan.price_qar || 0)}
+                        </span>
+                        <span className="text-muted-foreground text-sm">/month</span>
+                      </div>
+                      {plan.discount_percent && plan.discount_percent > 0 && (
+                        <p className="text-xs text-emerald-600 font-medium mt-1">
+                          {plan.discount_percent}% discount applied
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <SheetTitle className="text-xl">
-                        {selectedSubscription.profile?.full_name || "Unknown User"}
-                      </SheetTitle>
-                      <SheetDescription>{getStatusBadge(selectedSubscription.status)}</SheetDescription>
+
+                    {/* Plan Details */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Meals/week</span>
+                        <span className="font-medium">{plan.meals_per_week ?? Math.round((plan.meals_per_month || 0) / 4)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Meals/month</span>
+                        <span className="font-medium">{plan.meals_per_month || 0}</span>
+                      </div>
+                      {plan.features && plan.features.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {plan.features.slice(0, 3).map((feature, idx) => (
+                            <Badge
+                              key={idx}
+                              variant="outline"
+                              className="text-xs bg-muted/50"
+                            >
+                              {feature}
+                            </Badge>
+                          ))}
+                          {plan.features.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{plan.features.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </SheetHeader>
 
-                <div className="mt-6 space-y-6">
-                  {/* Subscription Info */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Subscription Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Subscription ID</p>
-                          <code className="text-sm font-mono">{selectedSubscription.id.substring(0, 16)}...</code>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Plan</p>
-                          <p className="text-sm font-medium">{getPlanBadge(selectedSubscription.plan)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Price</p>
-                          <p className="text-lg font-semibold">{formatCurrency(selectedSubscription.price)}<span className="text-sm text-muted-foreground">/month</span></p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Meals per Week</p>
-                          <p className="text-sm font-medium">{selectedSubscription.meals_per_week}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Start Date</p>
-                          <p className="text-sm">{format(new Date(selectedSubscription.start_date), "MMM d, yyyy")}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">End Date</p>
-                          <p className="text-sm">{format(new Date(selectedSubscription.end_date), "MMM d, yyyy")}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Usage */}
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        This Week Usage
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Meals Used</p>
-                          <p className="text-2xl font-bold">
-                            {selectedSubscription.meals_used_this_week || 0}
-                            <span className="text-lg text-muted-foreground">/{selectedSubscription.meals_per_week || 0}</span>
-                          </p>
-                        </div>
-                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                          <CreditCard className="w-8 h-8 text-primary" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Auto Renew */}
-                  {selectedSubscription.auto_renew && (
-                    <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                      <div className="flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4 text-emerald-600" />
-                        <p className="text-sm text-emerald-700 font-medium">Auto-renewal is enabled</p>
-                      </div>
-                      <p className="text-xs text-emerald-600 mt-1">
-                        This subscription will automatically renew on {format(new Date(selectedSubscription.end_date), "MMM d, yyyy")}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  {selectedSubscription.status === "active" && (
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-3 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="flex-1"
-                        onClick={() => {
-                          setIsDetailOpen(false);
-                          handleEditClick(selectedSubscription);
-                        }}
+                        onClick={() => openPlanEdit(plan)}
                       >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Subscription
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() => {
-                          setIsDetailOpen(false);
-                          handleCancelClick(selectedSubscription);
-                        }}
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeletePlan(plan.id)}
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Cancel
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
-                  )}
-                </div>
-              </>
+                  </div>
+                ))}
+              </div>
             )}
-          </SheetContent>
-        </Sheet>
+          </CardContent>
+        </Card>
 
-        {/* Edit Dialog */}
-        <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <SheetContent className="w-full sm:max-w-md">
-            <SheetHeader className="pb-6">
-              <SheetTitle>Edit Subscription</SheetTitle>
+        {/* Plan Edit Sheet */}
+        <Sheet
+          open={isPlanEditOpen}
+          onOpenChange={(open) => {
+            setIsPlanEditOpen(open);
+            if (!open) {
+              setSelectedPlan(null);
+              resetPlanForm();
+            }
+          }}
+        >
+          <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader className="pb-4">
+              <SheetTitle>
+                {selectedPlan ? "Edit Plan" : "Create New Plan"}
+              </SheetTitle>
               <SheetDescription>
-                Modify subscription details for {selectedSubscription?.profile?.full_name || "this user"}
+                {selectedPlan
+                  ? "Update the subscription plan details"
+                  : "Add a new subscription plan tier"}
               </SheetDescription>
             </SheetHeader>
-            <div className="space-y-4 mt-4">
+            <div className="space-y-4 py-4">
+              {/* Plan Name / Tier */}
               <div className="space-y-2">
-                <Label>Plan</Label>
-                <Select value={editPlan} onValueChange={setEditPlan}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Plan Name</Label>
+                <Input
+                  value={planForm.tier}
+                  onChange={(e) =>
+                    setPlanForm({
+                      ...planForm,
+                      tier: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                    })
+                  }
+                  placeholder="e.g. gold, silver, family, student"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Lowercase letters and hyphens only. Each plan name + billing interval must be unique.
+                </p>
               </div>
+
+              {/* Billing Interval */}
               <div className="space-y-2">
-                <Label>Meals per Week</Label>
-                <Select value={editMealsPerWeek} onValueChange={setEditMealsPerWeek}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="3">3 meals</SelectItem>
-                    <SelectItem value="5">5 meals</SelectItem>
-                    <SelectItem value="7">7 meals</SelectItem>
-                    <SelectItem value="10">10 meals</SelectItem>
-                    <SelectItem value="14">14 meals</SelectItem>
-                    <SelectItem value="21">21 meals</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Auto-renew</Label>
+                <Label>Billing Interval</Label>
                 <Select
-                  value={editAutoRenew ? "yes" : "no"}
-                  onValueChange={(v) => setEditAutoRenew(v === "yes")}
+                  value={planForm.billing_interval}
+                  onValueChange={(v) =>
+                    setPlanForm({ ...planForm, billing_interval: v })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Price */}
+              <div className="space-y-2">
+                <Label>Price (QAR)</Label>
+                <Input
+                  type="number"
+                  value={planForm.price_qar}
+                  onChange={(e) =>
+                    setPlanForm({
+                      ...planForm,
+                      price_qar: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Meals per Week */}
+              <div className="space-y-2">
+                <Label>Meals per Week</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={planForm.meals_per_week}
+                  onChange={(e) => {
+                    const weekly = parseInt(e.target.value) || 0;
+                    setPlanForm({
+                      ...planForm,
+                      meals_per_week: weekly,
+                      meals_per_month: weekly * 4,
+                    });
+                  }}
+                  placeholder="e.g. 5"
+                />
+                {planForm.meals_per_week > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    ≈ {planForm.meals_per_week * 4} meals / month
+                  </p>
+                )}
+              </div>
+
+              {/* Discount */}
+              <div className="space-y-2">
+                <Label>Discount (%)</Label>
+                <Input
+                  type="number"
+                  value={planForm.discount_percent}
+                  onChange={(e) =>
+                    setPlanForm({
+                      ...planForm,
+                      discount_percent: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Active Status */}
+              <div className="flex items-center justify-between">
+                <Label>Active</Label>
+                <Switch
+                  checked={planForm.is_active}
+                  onCheckedChange={(checked) =>
+                    setPlanForm({ ...planForm, is_active: checked })
+                  }
+                />
+              </div>
+
+              {/* Features */}
+              <div className="space-y-2">
+                <Label>Features</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={featureInput}
+                    onChange={(e) => setFeatureInput(e.target.value)}
+                    placeholder="Add a feature"
+                    onKeyPress={(e) => e.key === "Enter" && addFeature()}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={addFeature}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {planForm.features.map((feature) => (
+                    <Badge
+                      key={feature}
+                      variant="secondary"
+                      className="gap-1 pr-1"
+                    >
+                      {feature}
+                      <button
+                        type="button"
+                        onClick={() => removeFeature(feature)}
+                        className="hover:text-destructive"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
               <div className="flex gap-2 pt-4">
-                <Button variant="outline" className="flex-1" onClick={() => setIsEditOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setIsPlanEditOpen(false);
+                    setSelectedPlan(null);
+                    resetPlanForm();
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button className="flex-1" onClick={handleUpdateSubscription} disabled={processing}>
+                <Button
+                  className="flex-1"
+                  onClick={selectedPlan ? handleUpdatePlan : handleAddPlan}
+                  disabled={processing || !planForm.tier}
+                >
                   {processing ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   ) : (
-                    <Edit className="w-4 h-4 mr-2" />
+                    <Check className="w-4 h-4 mr-2" />
                   )}
-                  Save Changes
+                  {selectedPlan ? "Save Changes" : "Create Plan"}
                 </Button>
               </div>
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Cancel Dialog */}
-        <Sheet open={isCancelOpen} onOpenChange={setIsCancelOpen}>
-          <SheetContent className="w-full sm:max-w-md">
-            <SheetHeader className="pb-6">
-              <SheetTitle>Cancel Subscription</SheetTitle>
-              <SheetDescription>
-                Are you sure you want to cancel this subscription? This will disable auto-renewal and mark the subscription as cancelled.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex gap-2 mt-4">
-              <Button variant="outline" className="flex-1" onClick={() => setIsCancelOpen(false)}>
-                Keep Subscription
-              </Button>
-              <Button 
-                variant="destructive" 
-                className="flex-1" 
-                onClick={handleCancelSubscription} 
-                disabled={processing}
-              >
-                {processing ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <XCircle className="w-4 h-4 mr-2" />
-                )}
-                Cancel Subscription
-              </Button>
             </div>
           </SheetContent>
         </Sheet>

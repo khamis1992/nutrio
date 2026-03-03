@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIPLocation } from "@/lib/ipCheck";
+import { pushNotificationService } from "@/lib/notifications/push";
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +39,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Initialize push notifications when user signs in
+        if (session?.user) {
+          pushNotificationService.initialize().catch(console.error);
+        }
       }
     );
 
@@ -101,6 +107,8 @@ const signIn = async (email: string, password: string) => {
   };
 
   const signOut = async () => {
+    // Clear remembered email on logout
+    localStorage.removeItem("remembered_email");
     await supabase.auth.signOut();
   };
 

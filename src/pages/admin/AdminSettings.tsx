@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Settings, DollarSign, Bell, Zap, Save, Loader2, Truck, Crown, Users, Bike, MapPin, Store } from "lucide-react";
+import { DollarSign, Bell, Zap, Save, Loader2, Truck, Crown, Users, Bike, MapPin, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -23,13 +23,6 @@ interface Features {
   meal_scheduling: boolean;
   subscription_pause: boolean;
   delivery_tracking: boolean;
-}
-
-interface SubscriptionPlans {
-  [key: string]: number;
-  basic_price: number;
-  premium_price: number;
-  family_price: number;
 }
 
 interface NotificationSettings {
@@ -59,20 +52,6 @@ interface PremiumAnalyticsPrices {
   monthly: number;
   quarterly: number;
   yearly: number;
-}
-
-interface VipSettings {
-  vip_price: number;
-  vip_discount_percent: number;
-  vip_benefits: {
-    priority_delivery: boolean;
-    exclusive_meals: boolean;
-    personal_coaching: boolean;
-    free_delivery: boolean;
-    early_access: boolean;
-    dedicated_support: boolean;
-    meal_discounts: boolean;
-  };
 }
 
 interface AffiliateSettings {
@@ -129,12 +108,6 @@ export default function AdminSettings() {
     delivery_tracking: true,
   });
   
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlans>({
-    basic_price: 49.99,
-    premium_price: 99.99,
-    family_price: 149.99,
-  });
-  
   const [notifications, setNotifications] = useState<NotificationSettings>({
     email_enabled: true,
     push_enabled: true,
@@ -158,20 +131,6 @@ export default function AdminSettings() {
     monthly: 29.99,
     quarterly: 74.99,
     yearly: 249.99,
-  });
-
-  const [vipSettings, setVipSettings] = useState<VipSettings>({
-    vip_price: 199.99,
-    vip_discount_percent: 15,
-    vip_benefits: {
-      priority_delivery: true,
-      exclusive_meals: true,
-      personal_coaching: true,
-      free_delivery: true,
-      early_access: true,
-      dedicated_support: true,
-      meal_discounts: true,
-    },
   });
 
   const [affiliateSettings, setAffiliateSettings] = useState<AffiliateSettings>({
@@ -233,9 +192,6 @@ export default function AdminSettings() {
           case "features":
             setFeatures(value as unknown as Features);
             break;
-          case "subscription_plans":
-            setSubscriptionPlans(value as unknown as SubscriptionPlans);
-            break;
           case "notifications":
             setNotifications(value as unknown as NotificationSettings);
             break;
@@ -247,9 +203,6 @@ export default function AdminSettings() {
             break;
           case "premium_analytics_prices":
             setPremiumAnalyticsPrices(value as unknown as PremiumAnalyticsPrices);
-            break;
-          case "vip_settings":
-            setVipSettings(value as unknown as VipSettings);
             break;
           case "affiliate_settings":
             setAffiliateSettings(value as unknown as AffiliateSettings);
@@ -273,12 +226,10 @@ export default function AdminSettings() {
       const updates = [
         { key: "commission_rates", value: commissionRates },
         { key: "features", value: features },
-        { key: "subscription_plans", value: subscriptionPlans },
         { key: "notifications", value: notifications },
         { key: "featured_listing_prices", value: featuredPrices },
         { key: "delivery_fees", value: deliveryFees },
         { key: "premium_analytics_prices", value: premiumAnalyticsPrices },
-        { key: "vip_settings", value: vipSettings },
         { key: "affiliate_settings", value: affiliateSettings },
         { key: "driver_settings", value: driverEarningsSettings },
       ];
@@ -369,127 +320,6 @@ export default function AdminSettings() {
                   }
                   className="h-12 sm:h-10 min-h-[44px]"
                 />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Subscription Pricing */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-primary" />
-                Subscription Pricing
-              </CardTitle>
-              <CardDescription>Configure subscription plan prices</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="basic-price">Basic Plan Price (QAR)</Label>
-                <Input
-                  id="basic-price"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={subscriptionPlans.basic_price}
-                  onChange={(e) =>
-                    setSubscriptionPlans({ ...subscriptionPlans, basic_price: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="premium-price">Premium Plan Price (QAR)</Label>
-                <Input
-                  id="premium-price"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={subscriptionPlans.premium_price}
-                  onChange={(e) =>
-                    setSubscriptionPlans({ ...subscriptionPlans, premium_price: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="family-price">Family Plan Price (QAR)</Label>
-                <Input
-                  id="family-price"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={subscriptionPlans.family_price}
-                  onChange={(e) =>
-                    setSubscriptionPlans({ ...subscriptionPlans, family_price: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* VIP Subscription Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-violet-500" />
-                VIP Subscription Tier
-              </CardTitle>
-              <CardDescription>Configure VIP Elite subscription pricing and benefits</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="vip-price">VIP Elite Price (QAR/week)</Label>
-                <Input
-                  id="vip-price"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={vipSettings.vip_price}
-                  onChange={(e) =>
-                    setVipSettings({ ...vipSettings, vip_price: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="vip-discount">VIP Meal Discount (%)</Label>
-                <Input
-                  id="vip-discount"
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={vipSettings.vip_discount_percent}
-                  onChange={(e) =>
-                    setVipSettings({ ...vipSettings, vip_discount_percent: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-                <p className="text-xs text-muted-foreground">Discount applied to all meals for VIP subscribers</p>
-              </div>
-              <Separator />
-              <p className="text-sm font-medium">VIP Benefits</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {Object.entries(vipSettings.vip_benefits).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between">
-                    <Label className="capitalize">{key.replace(/_/g, ' ')}</Label>
-                    <Switch
-                      checked={value}
-                      onCheckedChange={(checked) =>
-                        setVipSettings({
-                          ...vipSettings,
-                          vip_benefits: { ...vipSettings.vip_benefits, [key]: checked }
-                        })
-                      }
-                    />
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>

@@ -31,12 +31,14 @@ import {
   Home,
   Briefcase,
   Plus,
+  ShieldAlert,
 } from "lucide-react";
 
 import { format } from "date-fns";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
 import { getMealImage } from "@/lib/meal-images";
+import { toast as sonnerToast } from "sonner";
 
 interface MealDetail {
   id: string;
@@ -787,6 +789,65 @@ const MealDetail = () => {
       });
       return;
     }
+
+    // ── Allergy check ──────────────────────────────────────────────────
+    // Fetch the user's allergy tag IDs from their saved preferences
+    if (meal) {
+      try {
+        const { data: userPrefs } = await supabase
+          .from("user_dietary_preferences")
+          .select("diet_tag_id, diet_tags(id, name)")
+          .eq("user_id", user.id);
+
+        if (userPrefs && userPrefs.length > 0) {
+          // Determine which of their saved tags are allergen tags
+          const allergenKeywords = ["nut", "dairy", "shellfish", "egg", "wheat", "soy", "fish", "gluten", "lactose"];
+          const userAllergyNames = userPrefs
+            .map((p: any) => p.diet_tags?.name as string | undefined)
+            .filter((name): name is string =>
+              !!name && allergenKeywords.some(k => name.toLowerCase().includes(k))
+            );
+
+          if (userAllergyNames.length > 0) {
+            // Fetch the meal's diet tags from the join table
+            const { data: mealTagRows } = await supabase
+              .from("meal_diet_tags")
+              .select("diet_tags(name)")
+              .eq("meal_id", meal.id);
+
+            const mealTagNames = (mealTagRows || [])
+              .map((r: any) => r.diet_tags?.name as string | undefined)
+              .filter((n): n is string => !!n);
+
+            const conflicts = mealTagNames.filter(tagName =>
+              userAllergyNames.some(allergen =>
+                tagName.toLowerCase().includes(allergen.toLowerCase()) ||
+                allergen.toLowerCase().includes(tagName.toLowerCase())
+              )
+            );
+
+            if (conflicts.length > 0) {
+              sonnerToast.warning(
+                `Allergen alert: ${conflicts.join(", ")}`,
+                {
+                  description: "This meal contains ingredients that match your allergy settings. You can still proceed.",
+                  icon: "⚠️",
+                  duration: 6000,
+                  action: {
+                    label: "Proceed anyway",
+                    onClick: () => setSheetOpen(true),
+                  },
+                }
+              );
+              return; // let the user decide via the toast action
+            }
+          }
+        }
+      } catch {
+        // allergy check is best-effort — never block scheduling on a lookup failure
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────
 
     setSheetOpen(true);
   };

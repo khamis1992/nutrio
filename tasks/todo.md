@@ -1,3 +1,33 @@
+# Task Plan: Integrate DeliveryScheduler on Schedule page
+
+## Goal
+Add a polished date + time slot picker (DeliveryScheduler) to the `/schedule` page, replacing the existing simple time-slot dialog when the user taps "Set delivery time" on a meal.
+
+## Todo
+
+- [ ] Create `src/components/ui/delivery-scheduler.tsx` with the provided component code
+- [ ] Replace the `<TimeSlotSelector>` in `Schedule.tsx` with a Dialog wrapping `DeliveryScheduler`
+- [ ] Update the save handler to accept `{date, time}` and store the time string as `delivery_time_slot`
+- [ ] Run lint checks
+- [ ] Add review notes
+
+## Plan
+
+1. Copy the `DeliveryScheduler` component into `src/components/ui/delivery-scheduler.tsx` (all deps already installed)
+2. In `Schedule.tsx`, swap `<TimeSlotSelector ... />` with a shadcn `<Dialog>` that renders `<DeliveryScheduler>` inside
+3. The `onSchedule` callback receives `{date, time}` – save the `time` string as the `delivery_time_slot` column value (no DB schema change needed)
+4. Keep all other Schedule page logic unchanged
+
+## Review
+
+- Created `src/components/ui/delivery-scheduler.tsx` — a self-contained weekly date picker + time slot picker using `framer-motion` animated selections and `class-variance-authority` button variants. All dependencies were already installed.
+- In `Schedule.tsx`, replaced the `<TimeSlotSelector>` dialog with a shadcn `<Dialog>` wrapping `<DeliveryScheduler>`. The dialog shows a polished weekly calendar strip and a 3-column grid of time slots (7 AM – 7 PM, Qatar GMT+3).
+- Updated `handleTimeSlotSelect` signature to accept `{date, time}` from the scheduler; saves the `time` string (e.g. "8:00 AM") as the `delivery_time_slot` column value — no DB schema changes needed.
+- The "Set delivery time" button on each meal card in the schedule still triggers the flow, now opening the new scheduler.
+- Zero linter errors on both touched files.
+
+---
+
 # Calendar Redesign
 
 ## Todo

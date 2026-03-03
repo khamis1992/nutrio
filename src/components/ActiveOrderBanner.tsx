@@ -163,7 +163,22 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: orderId,
       });
-      if (error) throw error;
+      
+      // Handle specific error for "preparing" status
+      if (error) {
+        const errorMessage = error.message || "";
+        if (errorMessage.includes('preparing')) {
+          toast({
+            title: "Cannot Cancel Order",
+            description: "Your order is already being prepared. Please contact the restaurant for assistance.",
+            variant: "destructive",
+          });
+          setCancelling(null);
+          return;
+        }
+        throw error;
+      }
+      
       if (!data?.success) throw new Error("Cancellation failed. Please try again.");
       setActiveOrders(prev => prev.filter(o => o.id !== orderId));
       toast.success("Order cancelled successfully");

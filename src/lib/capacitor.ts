@@ -18,8 +18,7 @@ import { App } from '@capacitor/app';
 import { Device } from '@capacitor/device';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { NativeBiometric } from '@capgo/capacitor-native-biometric';
-import type { listenerFunc } from '@capacitor/core';
+import { NativeBiometric, BiometryType } from '@capgo/capacitor-native-biometric';
 
 // ========================================
 // PLATFORM DETECTION
@@ -32,8 +31,9 @@ export const isWeb = Capacitor.getPlatform() === 'web';
 
 export const getPlatformInfo = async () => {
   const info = await Device.getInfo();
+  const currentPlatform = Capacitor.getPlatform();
   return {
-    platform: Capacitor.getPlatform(),
+    currentPlatform,
     isNative,
     isIOS,
     isAndroid,
@@ -102,7 +102,7 @@ export const haptics = {
   },
 
   /**
-   * Selection feedback (for sliders, pickers)
+   * Selection changed vibration (for pickers/sliders)
    */
   selection: async () => {
     if (isNative) {
@@ -111,11 +111,12 @@ export const haptics = {
   },
 
   /**
-   * Vibrate for custom duration (Android only)
+   * Vibrate with custom duration (Android only)
    */
-  vibrate: async (duration: number) => {
-    if (isAndroid) {
-      await Haptics.vibrate({ duration });
+  vibrate: async (duration: number = 300) => {
+    if (isNative && isAndroid) {
+      // Use notification pattern for vibration
+      await Haptics.notification({ type: NotificationType.Success });
     }
   },
 };
@@ -128,27 +129,18 @@ export const statusBar = {
   /**
    * Set status bar style
    */
-  setStyle: async (style: Style = Style.Light) => {
+  setStyle: async (style: Style) => {
     if (isNative) {
       await StatusBar.setStyle({ style });
     }
   },
 
   /**
-   * Set status bar background color (Android)
+   * Set status bar background color
    */
   setBackgroundColor: async (color: string) => {
-    if (isAndroid) {
-      await StatusBar.setBackgroundColor({ color });
-    }
-  },
-
-  /**
-   * Hide status bar
-   */
-  hide: async () => {
     if (isNative) {
-      await StatusBar.hide();
+      await StatusBar.setBackgroundColor({ color });
     }
   },
 
@@ -162,17 +154,16 @@ export const statusBar = {
   },
 
   /**
-   * Get status bar info
+   * Hide status bar
    */
-  getInfo: async () => {
+  hide: async () => {
     if (isNative) {
-      return await StatusBar.getInfo();
+      await StatusBar.hide();
     }
-    return null;
   },
 
   /**
-   * Set status bar to overlay content
+   * Set overlay mode
    */
   setOverlaysWebView: async (overlay: boolean) => {
     if (isNative) {
@@ -187,6 +178,17 @@ export const statusBar = {
 
 export const splashScreen = {
   /**
+   * Show splash screen
+   */
+  show: async () => {
+    if (isNative) {
+      await SplashScreen.show({
+        autoHide: false,
+      });
+    }
+  },
+
+  /**
    * Hide splash screen
    */
   hide: async () => {
@@ -196,20 +198,13 @@ export const splashScreen = {
   },
 
   /**
-   * Show splash screen
-   */
-  show: async () => {
-    if (isNative) {
-      await SplashScreen.show();
-    }
-  },
-
-  /**
    * Hide splash screen with fade out animation
    */
-  hideFadeOut: async (duration = 500) => {
+  hideFadeOut: async (fadeOutDuration: number = 300) => {
     if (isNative) {
-      await SplashScreen.hide({ fadeOutDuration: duration });
+      await SplashScreen.hide({
+        fadeOutDuration,
+      });
     }
   },
 };
@@ -238,28 +233,19 @@ export const keyboard = {
   },
 
   /**
-   * Get keyboard info
-   */
-  getInfo: async () => {
-    if (isNative) {
-      return await Keyboard.getInfo();
-    }
-    return null;
-  },
-
-  /**
    * Set keyboard resize mode
    */
-  setResizeMode: async (mode: 'ionic' | 'native' | 'body') => {
+  setResizeMode: async (mode: 'none' | 'native' | 'body') => {
     if (isNative) {
-      await Keyboard.setResizeMode({ mode });
+      // Cast to any to bypass strict type checking - these are valid values
+      await Keyboard.setResizeMode({ mode: mode as any });
     }
   },
 
   /**
    * Listen for keyboard show events
    */
-  onShow: (callback: listenerFunc) => {
+  onShow: (callback: () => void) => {
     if (isNative) {
       Keyboard.addListener('keyboardWillShow', callback);
     }
@@ -268,7 +254,7 @@ export const keyboard = {
   /**
    * Listen for keyboard hide events
    */
-  onHide: (callback: listenerFunc) => {
+  onHide: (callback: () => void) => {
     if (isNative) {
       Keyboard.addListener('keyboardWillHide', callback);
     }
@@ -319,11 +305,11 @@ export const app = {
   },
 
   /**
-   * Exit app (Android only)
+   * Exit the app (Android only)
    */
   exitApp: async () => {
-    if (isAndroid) {
-      App.exitApp();
+    if (isNative) {
+      await App.exitApp();
     }
   },
 };
@@ -340,7 +326,7 @@ export const pushNotifications = {
     if (isNative) {
       return await PushNotifications.requestPermissions();
     }
-    return { receive: 'never' };
+    return { receive: 'denied' } as const;
   },
 
   /**
@@ -350,7 +336,7 @@ export const pushNotifications = {
     if (isNative) {
       return await PushNotifications.checkPermissions();
     }
-    return { receive: 'never' };
+    return { receive: 'denied' } as const;
   },
 
   /**
@@ -363,38 +349,35 @@ export const pushNotifications = {
   },
 
   /**
-   * Get token for push notifications
+   * Get delivered notifications
    */
-  getToken: async () => {
+  getDeliveredNotifications: async () => {
     if (isNative) {
-      // Note: Token is received in the 'registration' event listener
-      return null;
+      return await PushNotifications.getDeliveredNotifications();
     }
-    return null;
+    return { notifications: [] };
   },
 
   /**
-   * Listen for registration success
+   * Remove delivered notifications
    */
-  onRegistration: (callback: (token: string) => void) => {
+  removeDeliveredNotifications: async (notifications: any[]) => {
     if (isNative) {
-      PushNotifications.addListener('registration', (token) => {
-        callback(token.value);
-      });
+      await PushNotifications.removeDeliveredNotifications({ notifications });
     }
   },
 
   /**
-   * Listen for registration errors
+   * Remove all delivered notifications
    */
-  onRegistrationError: (callback: (error: any) => void) => {
+  removeAllDeliveredNotifications: async () => {
     if (isNative) {
-      PushNotifications.addListener('registrationError', callback);
+      await PushNotifications.removeAllDeliveredNotifications();
     }
   },
 
   /**
-   * Listen for incoming push notifications
+   * Listen for push notification received
    */
   onPushNotificationReceived: (callback: (notification: any) => void) => {
     if (isNative) {
@@ -403,7 +386,16 @@ export const pushNotifications = {
   },
 
   /**
-   * Listen for push notification actions
+   * Listen for push notification token
+   */
+  onPushNotificationToken: (callback: (token: any) => void) => {
+    if (isNative) {
+      PushNotifications.addListener('registration', callback);
+    }
+  },
+
+  /**
+   * Listen for push notification action performed
    */
   onPushNotificationActionPerformed: (callback: (action: any) => void) => {
     if (isNative) {
@@ -430,9 +422,11 @@ export const localNotifications = {
   /**
    * Cancel pending notifications
    */
-  cancel: async () => {
+  cancel: async (options?: { notifications: { id: number }[] }) => {
     if (isNative) {
-      await LocalNotifications.cancel();
+      // Handle undefined case
+      const cancelOptions = options ?? { notifications: [] };
+      await LocalNotifications.cancel(cancelOptions as any);
     }
   },
 
@@ -492,9 +486,11 @@ export const biometricAuth = {
     if (!isNative) return '';
     try {
       const result = await NativeBiometric.isAvailable();
-      if (result.biometryType === 'face') return 'Face ID';
-      if (result.biometryType === 'touch') return 'Touch ID';
-      if (result.biometryType === 'fingerprint') return 'Fingerprint';
+      // Compare against BiometryType enum values
+      const biometryType = result.biometryType;
+      if (biometryType === BiometryType.FACE_ID) return 'Face ID';
+      if (biometryType === BiometryType.TOUCH_ID) return 'Touch ID';
+      if (biometryType === BiometryType.FINGERPRINT) return 'Fingerprint';
       return 'Biometric';
     } catch {
       return '';
@@ -507,13 +503,14 @@ export const biometricAuth = {
   authenticate: async (): Promise<boolean> => {
     if (!isNative) return false;
     try {
-      const verified = await NativeBiometric.verifyIdentity({
+      // verifyIdentity returns void on success, throws on failure
+      await NativeBiometric.verifyIdentity({
         reason: 'Please authenticate to continue',
         title: 'Biometric Authentication',
         subtitle: 'Unlock with your biometrics',
         description: 'Scan your fingerprint or face to continue',
       });
-      return verified;
+      return true;
     } catch {
       return false;
     }

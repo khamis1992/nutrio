@@ -9,10 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Loader2, Pause, Calendar as CalendarIcon, Info, Snowflake, RotateCcw } from "lucide-react";
-import { format } from "date-fns";
-import { toast } from "sonner";
+import { format, addDays } from "date-fns";
 import { CalendarDate } from "@internationalized/date";
 import { RangeCalendar, CalendarGrid, CalendarGridBody, CalendarGridHeader, CalendarHeaderCell, CalendarHeading, CalendarCell } from "@/components/ui/range-calendar";
+import { useRequestFreeze, useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
 
 interface FreezeSubscriptionModalProps {
   subscriptionId: string;
@@ -20,11 +20,10 @@ interface FreezeSubscriptionModalProps {
 }
 
 export function FreezeSubscriptionModal({ 
-  subscriptionId: _subscriptionId, 
+  subscriptionId, 
   trigger 
 }: FreezeSubscriptionModalProps) {
   const [open, setOpen] = useState(false);
-  const [isPending, setIsPending] = useState(false);
   
   // Use react-aria CalendarDate for the range calendar
   const [range, setRange] = useState<{ start: CalendarDate | null; end: CalendarDate | null }>({
@@ -32,8 +31,13 @@ export function FreezeSubscriptionModal({
     end: null
   });
 
-  const daysRemaining = 7;
+  // Real freeze days from DB
+  const { data: freezeDaysData } = useFreezeDaysRemaining(subscriptionId);
+  const requestFreeze = useRequestFreeze();
+
+  const daysRemaining = freezeDaysData?.remaining ?? 7;
   const canFreeze = daysRemaining > 0;
+  const isPending = requestFreeze.isPending;
 
   // Get today's date in local timezone
   const today = new CalendarDate(
@@ -67,12 +71,7 @@ export function FreezeSubscriptionModal({
 
   const handleRangeChange = (newRange: { start: CalendarDate; end: CalendarDate } | null) => {
     if (newRange) {
-      // Validate that the range doesn't exceed daysRemaining
-      const days = getDaysBetween(newRange.start, newRange.end);
-      if (days > daysRemaining) {
-        toast.error(`You can only freeze for up to ${daysRemaining} days`);
-        return;
-      }
+      // maxValue on the calendar already prevents selecting beyond daysRemaining
       setRange({ start: newRange.start, end: newRange.end });
     } else {
       setRange({ start: null, end: null });
@@ -84,25 +83,23 @@ export function FreezeSubscriptionModal({
   };
 
   const handleSubmit = async () => {
-    if (!range.start || !range.end || !isValid) {
-      toast.error("Please select both start and end dates");
-      return;
-    }
+    if (!range.start || !range.end || !isValid) return;
 
-    // Convert CalendarDate to Date for formatting
     const startDate = calendarDateToDate(range.start);
     const endDate = calendarDateToDate(range.end);
 
-    setIsPending(true);
-    
-    setTimeout(() => {
-      setIsPending(false);
-      toast.success(
-        `Freeze scheduled for ${freezeDaysSelected} days from ${format(startDate, "MMM dd")} to ${format(endDate, "MMM dd")}`
-      );
+    // The RPC uses exclusive end dates (end - start = freeze days),
+    // so we add 1 day to make a single-day selection send start=Mar5, end=Mar6 (= 1 freeze day).
+    const result = await requestFreeze.mutateAsync({
+      subscription_id: subscriptionId,
+      freeze_start_date: format(startDate, "yyyy-MM-dd"),
+      freeze_end_date: format(addDays(endDate, 1), "yyyy-MM-dd"),
+    });
+
+    if (result.success) {
       setOpen(false);
       setRange({ start: null, end: null });
-    }, 1500);
+    }
   };
 
   return (

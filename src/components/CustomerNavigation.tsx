@@ -6,8 +6,8 @@ import { hapticFeedback } from "@/lib/capacitor";
 
 export function CustomerNavigation() {
   const location = useLocation();
-  const { isApprovedAffiliate, loading: affiliateLoading } = useAffiliateApplication();
-  const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
+  const { isApprovedAffiliate } = useAffiliateApplication();
+  const { settings: platformSettings } = usePlatformSettings();
 
   const isActive = (path: string) => {
     if (path === "/dashboard") {

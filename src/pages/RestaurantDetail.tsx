@@ -30,9 +30,11 @@ import {
   LayoutGrid
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
 import { getMealImage, getRestaurantImage } from "@/lib/meal-images";
@@ -162,6 +164,8 @@ const RestaurantDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { hasActiveSubscription } = useSubscription();
+  const { user } = useAuth();
+  const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -255,11 +259,29 @@ const RestaurantDetail = () => {
   };
 
   const handleQuickAdd = (mealId: string) => {
+    if (!user) {
+      promptLogin({
+        title: "Add to your order",
+        description: "Sign in to add meals to your cart and place your order!",
+        actionLabel: "Sign In",
+        signUpLabel: "Create Free Account"
+      });
+      return;
+    }
     setCartCount(prev => prev + 1);
     navigate(`/meals/${mealId}`, { state: { quickAdd: true } });
   };
 
   const toggleFavorite = () => {
+    if (!user) {
+      promptLogin({
+        title: "Save your favorites",
+        description: "Create an account to save your favorite restaurants!",
+        actionLabel: "Sign In",
+        signUpLabel: "Create Free Account"
+      });
+      return;
+    }
     hapticFeedback.buttonPress();
     setIsFavorite(!isFavorite);
     toast({
@@ -821,6 +843,16 @@ const RestaurantDetail = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Guest Login Prompt */}
+      <GuestLoginPrompt
+        open={showLoginPrompt}
+        onOpenChange={setShowLoginPrompt}
+        title={loginPromptConfig.title}
+        description={loginPromptConfig.description}
+        actionLabel={loginPromptConfig.actionLabel}
+        signUpLabel={loginPromptConfig.signUpLabel}
+      />
     </div>
   );
 };

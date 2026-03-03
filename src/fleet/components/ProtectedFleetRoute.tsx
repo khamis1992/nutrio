@@ -44,7 +44,7 @@ async function getFleetManager(userId: string): Promise<FleetManager | null> {
       id: data.id,
       fullName: data.full_name || 'Fleet Manager',
       email: data.email || '',
-      role: data.role,
+      role: data.role as 'super_admin' | 'fleet_manager',
       isActive: data.is_active ?? false,
       assignedCityIds: data.assigned_city_ids || [],
       country: data.country || undefined,

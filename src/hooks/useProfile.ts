@@ -7,7 +7,7 @@ interface Profile {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
-  gender: "male" | "female" | null;
+  gender: "male" | "female" | "prefer_not_to_say" | null;
   age: number | null;
   height_cm: number | null;
   current_weight_kg: number | null;
@@ -18,7 +18,7 @@ interface Profile {
   protein_target_g: number | null;
   carbs_target_g: number | null;
   fat_target_g: number | null;
-  onboarding_completed: boolean;
+  onboarding_completed: boolean | null;
   referral_code: string | null;
   referral_rewards_earned: number | null;
   referred_by: string | null;

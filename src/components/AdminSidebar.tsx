@@ -17,7 +17,8 @@ import {
   UserCheck,
   Trophy,
   Rocket,
-  Flame
+  Flame,
+  TrendingUp
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +47,7 @@ const navItems = [
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
   { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
   { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
+  { icon: TrendingUp, label: "Income & Profit", to: "/admin/income" },
   { icon: UserCheck, label: "Affiliate Payouts", to: "/admin/affiliate-payouts" },
   { icon: Trophy, label: "Affiliate Milestones", to: "/admin/affiliate-milestones" },
   { icon: Flame, label: "Streak Rewards", to: "/admin/streak-rewards" },

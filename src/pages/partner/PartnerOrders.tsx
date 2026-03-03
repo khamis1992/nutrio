@@ -267,6 +267,32 @@ const PartnerOrders = () => {
               description: "A new order has been placed",
             });
           }
+          
+          // Show toast notification for status changes
+          if (payload.eventType === "UPDATE") {
+            const newStatus = (payload.new as { order_status: string }).order_status;
+            const oldStatus = (payload.old as { order_status: string }).order_status;
+            
+            if (newStatus !== oldStatus) {
+              const statusMessages: Record<string, string> = {
+                confirmed: "Order confirmed - preparing to cook",
+                preparing: "Order is being prepared",
+                ready: "Order is ready for pickup",
+                out_for_delivery: "Order has been picked up by driver",
+                delivered: "Order delivered to customer",
+                completed: "Order completed",
+                cancelled: "Order has been cancelled",
+              };
+              
+              if (statusMessages[newStatus]) {
+                toast({
+                  title: "Order Updated",
+                  description: statusMessages[newStatus],
+                });
+              }
+            }
+          }
+          
           // Add small delay to ensure DB transaction is committed
           setTimeout(() => {
             fetchOrders();
@@ -278,7 +304,7 @@ const PartnerOrders = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [restaurantId]);
+  }, [restaurantId, toast]);
 
   const fetchOrders = async () => {
     if (!user) return;

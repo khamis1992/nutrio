@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import flamAvatar from "@/assets/flam.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import { ScheduledMealNotifications } from "@/hooks/useScheduledMealNotification
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
 import { MealLimitUpsellBanner } from "@/components/MealLimitUpsellBanner";
+import { QuotaWarningBanner } from "@/components/QuotaWarningBanner";
 
 interface Restaurant {
   id: string;
@@ -75,6 +77,21 @@ const Dashboard = () => {
   });
   const [progressKey, setProgressKey] = useState(0);
   const [hasRestaurant, setHasRestaurant] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!user) return;
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "unread");
+      setUnreadCount(count ?? 0);
+    };
+    fetchUnread();
+  }, [user]);
 
   // Check if user has a restaurant (for role switcher)
   useEffect(() => {
@@ -189,19 +206,11 @@ const Dashboard = () => {
               <Link to="/profile" className={`relative w-10 h-10 rounded-full overflow-hidden border-2 block ${
                 isVip ? "border-violet-500" : "border-primary/30"
               }`}>
-                {profile?.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
-                    alt={userName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className={`w-full h-full flex items-center justify-center text-sm font-bold ${
-                    isVip ? "bg-violet-100 text-violet-600" : "bg-primary/10 text-primary"
-                  }`}>
-                    {userName.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <img
+                  src={profile?.avatar_url || flamAvatar}
+                  alt={userName}
+                  className="w-full h-full object-contain object-center p-0.5"
+                />
                 {isVip && (
                   <div className="absolute -bottom-1 -right-1 bg-violet-500 rounded-full p-0.5">
                     <Crown className="w-3 h-3 text-white" />
@@ -222,8 +231,9 @@ const Dashboard = () => {
             <Link to="/notifications">
               <Button variant="ghost" size="icon" className="relative hover:bg-primary/10">
                 <Bell className="w-5 h-5" />
-                {/* Notification Badge */}
-                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+                )}
               </Button>
             </Link>
             <Button variant="ghost" size="icon" onClick={handleSignOut} className="hover:bg-destructive/10 hover:text-destructive">
@@ -292,6 +302,9 @@ const Dashboard = () => {
             variant="full"
           />
         )}
+
+        {/* Quota Warning Banner - Shows at 75%+ usage */}
+        <QuotaWarningBanner />
 
         {/* ENHANCED QUICK ACTIONS GRID */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

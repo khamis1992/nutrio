@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -151,9 +152,12 @@ const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
+const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [driverPhone, setDriverPhone] = useState<string | null>(null);
+  const [driverName, setDriverName] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user && id) {
@@ -175,6 +179,26 @@ const OrderDetail = () => {
           filter: `id=eq.${id}`,
         },
         (payload) => {
+          const newStatus = (payload.new as { order_status: string }).order_status;
+          const oldStatus = (payload.old as { order_status: string }).order_status;
+          
+          // Show toast notification when status changes
+          if (newStatus !== oldStatus) {
+            const statusMessages: Record<string, string> = {
+              confirmed: 'Your order has been confirmed!',
+              preparing: 'Your meal is being prepared',
+              ready: 'Your meal is ready for pickup',
+              out_for_delivery: 'Your driver is on the way!',
+              delivered: 'Your meal has been delivered!',
+              completed: 'Order completed. Enjoy your meal!',
+              cancelled: 'Your order has been cancelled',
+            };
+            
+            if (statusMessages[newStatus]) {
+              toast.success(statusMessages[newStatus]);
+            }
+          }
+          
           setOrder((prev) => prev ? {
             ...prev,
             order_status: payload.new.order_status,
@@ -187,7 +211,37 @@ const OrderDetail = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, toast]);
+
+  // Fetch driver info when the order is out for delivery
+  useEffect(() => {
+    if (!id || order?.order_status !== "out_for_delivery") return;
+
+    const fetchDriver = async () => {
+      try {
+        // Fetch any delivery job for this schedule (regardless of job status)
+        const { data } = await supabase
+          .from("delivery_jobs")
+          .select("drivers(full_name, phone_number)")
+          .eq("schedule_id", id)
+          .not("driver_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const driver = (data as any)?.drivers;
+        // Always set driver name; phone may be null (shown as disabled button)
+        if (driver) {
+          setDriverName(driver.full_name || null);
+          setDriverPhone(driver.phone_number || null);
+        }
+      } catch {
+        // best-effort — silently ignore
+      }
+    };
+
+    fetchDriver();
+  }, [id, order?.order_status]);
 
   const fetchOrderDetail = async () => {
     if (!user || !id) return;
@@ -313,11 +367,35 @@ const OrderDetail = () => {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: id,
       });
-      if (error) throw error;
+      
+      // Handle specific error for "preparing" status
+      if (error) {
+        const errorMessage = error.message || "";
+        if (errorMessage.includes('preparing')) {
+          setUpdating(false);
+          toast({
+            title: "Cannot Cancel Order",
+            description: "Your order is already being prepared. Please contact the restaurant for assistance.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
+      
       if (!data?.success) throw new Error("Cancellation failed. Please try again.");
       setOrder(prev => prev ? { ...prev, order_status: "cancelled" } : null);
     } catch (err: any) {
-      alert(err.message || "Failed to cancel order");
+      const errorMessage = err.message || "";
+      if (errorMessage.includes('preparing')) {
+        toast({
+          title: "Cannot Cancel Order",
+          description: "Your order is already being prepared. Please contact the restaurant for assistance.",
+          variant: "destructive",
+        });
+      } else {
+        alert(err.message || "Failed to cancel order");
+      }
     } finally {
       setUpdating(false);
     }
@@ -555,15 +633,33 @@ const OrderDetail = () => {
                 </div>
               </div>
 
-              {order.meal.restaurant.phone && (
-                <a 
+              {isOutForDelivery ? (
+                driverPhone ? (
+                  <a
+                    href={`tel:${driverPhone}`}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 font-medium transition-colors border border-blue-200"
+                  >
+                    <Phone className="h-5 w-5" />
+                    Call Driver{driverName ? ` · ${driverName}` : ""}
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 rounded-xl text-blue-400 font-medium border border-blue-200 opacity-60 cursor-not-allowed"
+                  >
+                    <Phone className="h-5 w-5" />
+                    Call Driver{driverName ? ` · ${driverName}` : ""}
+                  </button>
+                )
+              ) : order.meal.restaurant.phone ? (
+                <a
                   href={`tel:${order.meal.restaurant.phone}`}
                   className="flex items-center justify-center gap-2 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition-colors"
                 >
                   <Phone className="h-5 w-5" />
                   Contact Restaurant
                 </a>
-              )}
+              ) : null}
             </CardContent>
           </Card>
         )}

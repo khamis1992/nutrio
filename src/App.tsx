@@ -37,6 +37,9 @@ const Progress = lazy(() => import("./pages/ProgressRedesigned"));
 const WeightTracking = lazy(() => import("./pages/WeightTracking"));
 
 const Profile = lazy(() => import("./pages/Profile"));
+const Dietary = lazy(() => import("./pages/Dietary"));
+const Policies = lazy(() => import("./pages/Policies"));
+const PersonalInfo = lazy(() => import("./pages/PersonalInfo"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const OrderDetail = lazy(() => import("./pages/OrderDetail"));
 const DeliveryTracking = lazy(() => import("./pages/DeliveryTracking"));
@@ -95,6 +98,7 @@ const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
 const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
 const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
+const AdminIncome = lazy(() => import("./pages/admin/AdminIncome"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -165,30 +169,10 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/meals" 
-              element={
-                <ProtectedRoute>
-                  <Meals />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/restaurant/:id"
-              element={
-                <ProtectedRoute>
-                  <RestaurantDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route 
-              path="/meals/:id" 
-              element={
-                <ProtectedRoute>
-                  <MealDetail />
-                </ProtectedRoute>
-              } 
-            />
+            {/* Public routes - accessible without login (guest browsing) */}
+            <Route path="/meals" element={<Meals />} />
+            <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+            <Route path="/meals/:id" element={<MealDetail />} />
             <Route 
               path="/schedule" 
               element={
@@ -217,8 +201,32 @@ const App = () => (
               path="/goals" 
               element={<Navigate to="/progress?tab=goals" replace />} 
             />
-            <Route 
-              path="/profile" 
+            <Route
+              path="/dietary"
+              element={
+                <ProtectedRoute>
+                  <Dietary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/policies"
+              element={
+                <ProtectedRoute>
+                  <Policies />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/personal-info"
+              element={
+                <ProtectedRoute>
+                  <PersonalInfo />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
               element={
                 <ProtectedRoute>
                   <Profile />
@@ -522,6 +530,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminAnalytics />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/income" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminIncome />
                 </ProtectedRoute>
               } 
             />

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, History, RotateCcw, Upload, Pencil } from "lucide-react";
+import { Loader2, Flame, Search, Plus, Beef, Wheat, Droplets, Camera, X, Check, History, RotateCcw, Upload, Pencil, CalendarCheck } from "lucide-react";
 import { getMealImage } from "@/lib/meal-images";
 
 interface Meal {
@@ -91,15 +91,16 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
     setLoadingHistory(true);
     try {
-      const { data, error } = await supabase
+      // Fetch from meal_history (manually logged + scheduled meals marked done)
+      const { data: historyData, error: historyError } = await supabase
         .from("meal_history")
         .select("id, name, calories, protein_g, carbs_g, fat_g, logged_at")
         .eq("user_id", userId)
         .order("logged_at", { ascending: false })
-        .limit(10);
+        .limit(15);
 
-      if (error) throw error;
-      setMealHistory(data || []);
+      if (historyError) throw historyError;
+      setMealHistory(historyData || []);
     } catch (err) {
       console.error("Error fetching meal history:", err);
       toast({
@@ -702,7 +703,13 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                     <History className="w-7 h-7 text-muted-foreground/50" />
                   </div>
                   <p className="text-sm font-semibold text-foreground">No recent meals</p>
-                  <p className="text-xs text-muted-foreground mt-1">Meals you log will appear here</p>
+                  <p className="text-xs text-muted-foreground mt-2 max-w-[220px] mx-auto leading-relaxed">
+                    Meals you log here <em>and</em> scheduled meals you mark as done will appear here.
+                  </p>
+                  <div className="flex items-center justify-center gap-1.5 mt-3 text-xs text-primary">
+                    <CalendarCheck className="w-3.5 h-3.5" />
+                    <span>Go to Schedule to mark a meal done</span>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">

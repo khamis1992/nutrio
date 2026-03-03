@@ -70,9 +70,11 @@ class PushNotificationService {
         user_id: user.id,
         token,
         platform: Capacitor.getPlatform(),
+        is_active: true,
+        last_used_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" }
+      { onConflict: "user_id,token" }
     );
   }
 

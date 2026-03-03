@@ -16,21 +16,27 @@ import {
   Shield,
   Clock,
   RefreshCcw,
-  BadgePercent
+  BadgePercent,
+  Wallet,
+  CreditCard,
+  BellRing,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useRolloverCredits } from "@/hooks/useRolloverCredits";
 import { useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
+import { useWallet } from "@/hooks/useWallet";
+import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
 import { supabase } from "@/integrations/supabase/client";
 import { RolloverCreditsWidget } from "@/components/RolloverCreditsWidget";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
 import { CancellationFlow } from "@/components/CancellationFlow";
-import { BillingIntervalToggle, calculateSavings, type BillingInterval } from "@/components/BillingIntervalToggle";
-import { format, differenceInDays, addDays } from "date-fns";
+import { BillingIntervalToggle, type BillingInterval } from "@/components/BillingIntervalToggle";
+import { format, differenceInDays } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -40,13 +46,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
-interface SubscriptionPricing {
-  basic_price: number;
-  premium_price: number;
-  family_price: number;
-  vip_price: number;
-}
+import { Switch } from "@/components/ui/switch";
 
 interface PlanType {
   id: string;
@@ -54,7 +54,7 @@ interface PlanType {
   price: number;
   period: string;
   mealsPerMonth: number;
-  tier: 'basic' | 'standard' | 'premium' | 'vip';
+  tier: string;
   description: string;
   icon: typeof Star;
   features: string[];
@@ -63,119 +63,35 @@ interface PlanType {
   color: string;
 }
 
-const getPlans = (pricing: SubscriptionPricing, billingInterval: BillingInterval = "monthly"): PlanType[] => {
-  // Calculate annual prices (10 months = 2 months free, ~17% discount)
-  const getPrice = (monthlyPrice: number) => {
-    if (billingInterval === "annual") {
-      return monthlyPrice * 10; // 10 months price for annual
-    }
-    return monthlyPrice;
-  };
-
-  const getPeriod = () => billingInterval === "annual" ? "year" : "month";
-
-  // Add annual badge to features if annual
-  const getAnnualFeature = (features: string[]) => {
-    if (billingInterval === "annual") {
-      return [...features, "💰 2 months free (17% savings)"];
-    }
-    return features;
-  };
-
-  return [
-    {
-      id: "basic",
-      name: "Basic",
-      price: getPrice(pricing.basic_price),
-      period: getPeriod(),
-      mealsPerMonth: 22,
-      tier: 'basic',
-      description: "Perfect for getting started",
-      icon: Star,
-      features: getAnnualFeature([
-        "22 meals per month",
-        "Basic nutrition tracking",
-        "Email support",
-        "Access to 50+ restaurants",
-        "Weekly meal planning",
-      ]),
-      popular: false,
-      isVip: false,
-      color: "from-slate-500 to-slate-600",
-    },
-    {
-      id: "standard",
-      name: "Standard",
-      price: getPrice(pricing.premium_price),
-      period: getPeriod(),
-      mealsPerMonth: 43,
-      tier: 'standard',
-      description: "Most popular choice",
-      icon: Zap,
-      features: getAnnualFeature([
-        "43 meals per month",
-        "Advanced nutrition analytics",
-        "Priority support",
-        "Access to all restaurants",
-        "Custom meal planning",
-        "Dietitian consultations",
-        "Exclusive recipes",
-      ]),
-      popular: true,
-      isVip: false,
-      color: "from-primary to-primary/80",
-    },
-    {
-      id: "premium",
-      name: "Premium",
-      price: getPrice(pricing.family_price),
-      period: getPeriod(),
-      mealsPerMonth: 65,
-      tier: 'premium',
-      description: "For serious fitness goals",
-      icon: Crown,
-      features: getAnnualFeature([
-        "65 meals per month",
-        "Real-time nutrition coaching",
-        "24/7 priority support",
-        "All restaurants + premium partners",
-        "AI-powered meal recommendations",
-        "Weekly dietitian sessions",
-        "Personalized meal prep guides",
-        "Family sharing (up to 4)",
-      ]),
-      popular: false,
-      isVip: false,
-      color: "from-amber-500 to-amber-600",
-    },
-    {
-      id: "vip",
-      name: "VIP",
-      price: getPrice(pricing.vip_price),
-      period: getPeriod(),
-      mealsPerMonth: 0,
-      tier: 'vip',
-      description: "Unlimited meals",
-      icon: Crown,
-      features: [
-        "♾️ Unlimited meals",
-        "Everything in Premium",
-        "🚀 Priority delivery",
-        "🌟 Exclusive VIP-only meals",
-        "👨‍⚕️ Personal nutrition coach",
-        "📱 1-on-1 weekly coaching",
-        "🏷️ Free delivery on all orders",
-        "⚡ Early access to new restaurants",
-        "💎 Dedicated VIP support",
-        "🎁 Monthly wellness perks",
-        ...(billingInterval === "annual" ? ["💰 2 months free (17% savings)"] : []),
-      ],
-      popular: false,
-      isVip: true,
-      color: "from-violet-500 to-purple-600",
-    },
-  ];
+const TIER_META: Record<string, { icon: typeof Star; color: string; description: string; popular: boolean; isVip: boolean }> = {
+  basic:    { icon: Star,   color: "from-slate-500 to-slate-600",     description: "Perfect for getting started", popular: false, isVip: false },
+  standard: { icon: Zap,   color: "from-primary to-primary/80",       description: "Most popular choice",         popular: true,  isVip: false },
+  premium:  { icon: Crown, color: "from-amber-500 to-amber-600",      description: "For serious fitness goals",   popular: false, isVip: false },
+  vip:      { icon: Crown, color: "from-violet-500 to-purple-600",    description: "Unlimited meals",             popular: false, isVip: true  },
 };
+
+function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval): PlanType {
+  const meta = TIER_META[p.tier] ?? TIER_META.basic;
+  const monthlyPrice = p.price_qar ?? 0;
+  const price = billingInterval === "annual" ? monthlyPrice * 10 : monthlyPrice;
+  const period = billingInterval === "annual" ? "year" : "month";
+  const features = Array.isArray(p.features) ? p.features : [];
+  const annualFeatures = billingInterval === "annual" ? [...features, "💰 2 months free (17% savings)"] : features;
+  return {
+    id: p.id,
+    name: p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
+    price,
+    period,
+    mealsPerMonth: p.meals_per_month ?? 0,
+    tier: p.tier,
+    description: meta.description,
+    icon: meta.icon,
+    features: annualFeatures,
+    popular: meta.popular,
+    isVip: meta.isVip,
+    color: meta.color,
+  };
+}
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
@@ -193,28 +109,130 @@ export default function SubscriptionPage() {
     refetch 
   } = useSubscription();
 
-  const [activeTab, setActiveTab] = useState("overview");
+const [activeTab, setActiveTab] = useState("overview");
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null);
   const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>("monthly");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"card" | "wallet">("card");
+
+  // Promo code state
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<{
+    id: string;
+    name: string;
+    discountType: "percentage" | "fixed";
+    discountValue: number;
+    maxDiscountAmount: number | null;
+    discountAmount: number;
+  } | null>(null);
+
+  // Auto-renewal state — initialised from DB once subscription loads
+  const [autoRenew, setAutoRenew] = useState(true);
+  const [autoRenewLoading, setAutoRenewLoading] = useState(false);
+
+  // Sync with DB value when subscription data arrives
+  useState(() => {
+    if (subscription && (subscription as any).auto_renew !== undefined) {
+      setAutoRenew((subscription as any).auto_renew);
+    }
+  });
+
+  const handleToggleAutoRenew = async (value: boolean) => {
+    if (!subscription?.id) return;
+    setAutoRenewLoading(true);
+    const { error } = await supabase
+      .from("subscriptions")
+      .update({ auto_renew: value } as any)
+      .eq("id", subscription.id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update auto-renewal setting.", variant: "destructive" });
+    } else {
+      setAutoRenew(value);
+      toast({
+        title: value ? "Auto-Renewal Enabled" : "Auto-Renewal Disabled",
+        description: value
+          ? "Your subscription will renew automatically each cycle."
+          : "Your subscription will not renew after the current period ends.",
+      });
+    }
+    setAutoRenewLoading(false);
+  };
+
+  // Fetch wallet balance
+  const { wallet } = useWallet();
 
   // Fetch rollover credits
   const { data: rolloverInfo } = useRolloverCredits(subscription?.id);
   
-  // Fetch freeze info
+// Fetch freeze info
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
 
-  // Unified pricing - showing both weekly and monthly for transparency
-  const pricing: SubscriptionPricing = {
-    basic_price: 215, // ~49.99 * 4.3 (weekly to monthly conversion)
-    premium_price: 430, // ~99.99 * 4.3
-    family_price: 645, // ~149.99 * 4.3
-    vip_price: 860, // ~199.99 * 4.3
-  };
+  const { plans: dbPlans } = useSubscriptionPlans();
+  const plans = dbPlans.map(p => dbPlanToUiPlan(p, selectedBillingInterval));
 
-  const plans = getPlans(pricing, selectedBillingInterval);
+  const applyPromoCode = async () => {
+    if (!promoCode.trim() || !selectedPlan) return;
+    setPromoLoading(true);
+    setPromoError(null);
+    setAppliedPromo(null);
+
+    try {
+      const { data, error } = await supabase
+        .from("promotions")
+        .select("id, name, discount_type, discount_value, max_discount_amount, min_order_amount, max_uses, uses_count, max_uses_per_user, valid_from, valid_until, is_active")
+        .eq("code", promoCode.trim().toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) { setPromoError("Invalid or expired promo code."); return; }
+
+      const now = new Date();
+      if (data.valid_until && new Date(data.valid_until) < now) { setPromoError("This promo code has expired."); return; }
+      if (data.max_uses !== null && data.uses_count >= data.max_uses) { setPromoError("This promo code has reached its usage limit."); return; }
+      if (data.min_order_amount !== null && selectedPlan.price < Number(data.min_order_amount)) {
+        setPromoError(`Minimum order amount is ${formatCurrency(Number(data.min_order_amount))}.`); return;
+      }
+
+      // Check per-user usage limit
+      if (data.max_uses_per_user && user) {
+        const { count } = await supabase
+          .from("promotion_usage")
+          .select("id", { count: "exact", head: true })
+          .eq("promotion_id", data.id)
+          .eq("user_id", user.id);
+        if (count && count >= data.max_uses_per_user) {
+          setPromoError("You have already used this promo code."); return;
+        }
+      }
+
+      const basePrice = selectedPlan.price;
+      let discountAmount = 0;
+      if (data.discount_type === "percentage") {
+        discountAmount = basePrice * (Number(data.discount_value) / 100);
+        if (data.max_discount_amount) discountAmount = Math.min(discountAmount, Number(data.max_discount_amount));
+      } else {
+        discountAmount = Math.min(Number(data.discount_value), basePrice);
+      }
+
+      setAppliedPromo({
+        id: data.id,
+        name: data.name,
+        discountType: data.discount_type as "percentage" | "fixed",
+        discountValue: Number(data.discount_value),
+        maxDiscountAmount: data.max_discount_amount ? Number(data.max_discount_amount) : null,
+        discountAmount: Math.round(discountAmount * 100) / 100,
+      });
+    } catch {
+      setPromoError("Failed to validate promo code. Please try again.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   const handleUpgrade = async () => {
     if (!selectedPlan || !user || !subscription?.id) return;
@@ -227,7 +245,30 @@ export default function SubscriptionPage() {
         newPlan: selectedPlan.tier,
         newMealsPerMonth: selectedPlan.mealsPerMonth,
         billingInterval: selectedBillingInterval,
+        paymentMethod: selectedPaymentMethod,
       });
+
+      // If wallet payment selected, check balance first
+      if (selectedPaymentMethod === "wallet") {
+        const walletBalance = wallet?.balance || 0;
+        
+        if (walletBalance < selectedPlan.price) {
+          throw new Error(`Insufficient wallet balance. You have QAR ${walletBalance.toFixed(2)} but need QAR ${selectedPlan.price}. Please top up your wallet or use a card.`);
+        }
+
+        // Deduct from wallet
+        const { error: walletError } = await (supabase.rpc as any)("credit_wallet", {
+          p_user_id: user.id,
+          p_amount: -selectedPlan.price,
+          p_type: "debit",
+          p_reference_type: "subscription_upgrade",
+          p_reference_id: subscription.id,
+          p_description: `Subscription upgrade to ${selectedPlan.name} plan`,
+          p_metadata: null,
+        });
+
+        if (walletError) throw walletError;
+      }
 
       // Use the upgrade_subscription RPC for proper proration and billing interval handling
       const { data: result, error } = await (supabase.rpc as any)("upgrade_subscription", {
@@ -247,14 +288,46 @@ export default function SubscriptionPage() {
 
       if (upgradeResult.success) {
         const billingText = selectedBillingInterval === "annual" ? " (Annual billing - 17% savings)" : "";
+        const paymentText = selectedPaymentMethod === "wallet" 
+          ? ` Paid QAR ${selectedPlan.price} from your wallet.` 
+          : "";
+        
         toast({
           title: "Plan Updated",
-          description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}. ${upgradeResult.prorated_credit ? `Prorated credit: ${upgradeResult.prorated_credit} QAR` : ""}`,
+          description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}.${paymentText} ${upgradeResult.prorated_credit ? `Prorated credit: ${upgradeResult.prorated_credit} QAR` : ""}`,
         });
+        // Record promo usage if a code was applied (best-effort)
+        if (appliedPromo && user) {
+          try {
+            await supabase.from("promotion_usage").insert({
+              promotion_id: appliedPromo.id,
+              user_id: user.id,
+              discount_applied: appliedPromo.discountAmount,
+            });
+            // Increment uses_count directly
+            const { data: promoRow } = await supabase
+              .from("promotions")
+              .select("uses_count")
+              .eq("id", appliedPromo.id)
+              .single();
+            if (promoRow) {
+              await supabase.from("promotions")
+                .update({ uses_count: (promoRow.uses_count || 0) + 1 })
+                .eq("id", appliedPromo.id);
+            }
+          } catch {
+            // non-critical — don't block the user
+          }
+        }
+
         // Refresh subscription data without page reload
         await refetch();
         setShowUpgradeDialog(false);
         setSelectedPlan(null);
+        setSelectedPaymentMethod("card");
+        setPromoCode("");
+        setAppliedPromo(null);
+        setPromoError(null);
       } else {
         throw new Error(upgradeResult.error || "Failed to update subscription");
       }
@@ -300,7 +373,7 @@ export default function SubscriptionPage() {
       }
     }
     
-    setIsProcessing(false);
+setIsProcessing(false);
   };
 
   // Calculate days remaining in cycle
@@ -551,7 +624,7 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        {/* iOS-style segment tabs */}
+{/* iOS-style segment tabs */}
         <div className="bg-muted rounded-2xl p-1 flex gap-1">
           {[
             { id: "overview", label: "Overview" },
@@ -620,11 +693,15 @@ export default function SubscriptionPage() {
             <RolloverCreditsWidget />
 
             {/* Freeze card */}
-            <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-3">
+            <div className={`bg-card/95 rounded-3xl border shadow-md p-4 space-y-3 ${
+              freezeDays?.remaining === 0 ? "border-muted" : "border-border/70"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <Snowflake className="h-4 w-4 text-blue-600" />
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    freezeDays?.remaining === 0 ? "bg-muted" : "bg-blue-100"
+                  }`}>
+                    <Snowflake className={`h-4 w-4 ${freezeDays?.remaining === 0 ? "text-muted-foreground" : "text-blue-600"}`} />
                   </div>
                   <div>
                     <p className="font-bold text-foreground text-sm">Freeze Subscription</p>
@@ -632,35 +709,57 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
                 {freezeDays && (
-                  <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                  <span className={`text-sm font-bold px-2.5 py-1 rounded-full border ${
+                    freezeDays.remaining === 0
+                      ? "text-muted-foreground bg-muted border-border/50"
+                      : "text-blue-600 bg-blue-50 border-blue-100"
+                  }`}>
                     {freezeDays.remaining}/{freezeDays.total}d
                   </span>
                 )}
               </div>
+
               {freezeDays && (
                 <div className="space-y-1">
-                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                  <div className={`h-2 rounded-full overflow-hidden ${freezeDays.remaining === 0 ? "bg-muted" : "bg-blue-100"}`}>
                     <div
-                      className="h-full bg-blue-500 rounded-full"
+                      className={`h-full rounded-full transition-all ${freezeDays.remaining === 0 ? "bg-muted-foreground/30" : "bg-blue-500"}`}
                       style={{ width: `${((freezeDays.total - freezeDays.remaining) / freezeDays.total) * 100}%` }}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">{freezeDays.remaining} freeze days remaining this cycle</p>
+                  <p className="text-xs text-muted-foreground">
+                    {freezeDays.remaining === 0
+                      ? "All freeze days used this cycle"
+                      : `${freezeDays.remaining} freeze day${freezeDays.remaining !== 1 ? "s" : ""} remaining this cycle`}
+                  </p>
                 </div>
               )}
-              {subscription?.id && (
-                <FreezeSubscriptionModal
-                  subscriptionId={subscription.id}
-                  trigger={
-                    <Button
-                      className="w-full rounded-2xl h-11 font-semibold"
-                      disabled={!freezeDays || freezeDays.remaining === 0}
-                    >
-                      <Snowflake className="h-4 w-4 mr-2" />
-                      Schedule Freeze
-                    </Button>
-                  }
-                />
+
+              {freezeDays?.remaining === 0 ? (
+                <div className="flex items-start gap-3 bg-muted/60 rounded-2xl px-4 py-3">
+                  <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">No freeze days left</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      You've used all {freezeDays.total} freeze days this billing cycle. They'll reset automatically at your next renewal date
+                      {subscription?.next_renewal_date
+                        ? ` on ${format(new Date(subscription.next_renewal_date), "MMM dd, yyyy")}`
+                        : ""}.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                subscription?.id && (
+                  <FreezeSubscriptionModal
+                    subscriptionId={subscription.id}
+                    trigger={
+                      <Button className="w-full rounded-2xl h-11 font-semibold">
+                        <Snowflake className="h-4 w-4 mr-2" />
+                        Schedule Freeze
+                      </Button>
+                    }
+                  />
+                )
               )}
             </div>
 
@@ -717,7 +816,7 @@ export default function SubscriptionPage() {
                 await refetch();
                 setShowCancelDialog(false);
               }}
-            />
+/>
           </div>
         )}
 
@@ -797,12 +896,49 @@ export default function SubscriptionPage() {
                 );
               })}
             </div>
+
+            {/* Auto-Renewal card */}
+            <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <BellRing className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground text-sm">Auto-Renewal</p>
+                    <p className="text-xs text-muted-foreground">
+                      {autoRenew ? "Renews automatically each cycle" : "Subscription ends after current period"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={autoRenew}
+                  onCheckedChange={handleToggleAutoRenew}
+                  disabled={autoRenewLoading || subscription?.status === "cancelled"}
+                />
+              </div>
+              {!autoRenew && subscription?.status !== "cancelled" && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2.5">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700">
+                    Your subscription will expire on{" "}
+                    <span className="font-semibold">
+                      {subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd, yyyy") : "the end of your billing period"}
+                    </span>{" "}
+                    and will not renew automatically.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Change-plan dialog — kept as-is */}
-      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+      <Dialog open={showUpgradeDialog} onOpenChange={(open) => {
+        setShowUpgradeDialog(open);
+        if (!open) { setPromoCode(""); setAppliedPromo(null); setPromoError(null); }
+      }}>
         <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>
             <DialogTitle>
@@ -846,6 +982,132 @@ export default function SubscriptionPage() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Promo Code */}
+          {selectedPlan && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                <BadgePercent className="h-4 w-4 text-primary" />
+                Promo Code
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={promoCode}
+                  onChange={(e) => {
+                    setPromoCode(e.target.value.toUpperCase());
+                    setPromoError(null);
+                    if (appliedPromo) setAppliedPromo(null);
+                  }}
+                  placeholder="Enter promo code"
+                  className="rounded-xl flex-1"
+                  disabled={!!appliedPromo || promoLoading}
+                />
+                {appliedPromo ? (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/5"
+                    onClick={() => { setAppliedPromo(null); setPromoCode(""); setPromoError(null); }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={applyPromoCode}
+                    disabled={!promoCode.trim() || promoLoading}
+                  >
+                    {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                  </Button>
+                )}
+              </div>
+
+              {promoError && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {promoError}
+                </p>
+              )}
+
+              {appliedPromo && (
+                <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-primary">{appliedPromo.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {appliedPromo.discountType === "percentage"
+                        ? `${appliedPromo.discountValue}% off`
+                        : `${formatCurrency(appliedPromo.discountValue)} off`}
+                    </p>
+                  </div>
+                  <span className="text-sm font-bold text-primary">
+                    −{formatCurrency(appliedPromo.discountAmount)}
+                  </span>
+                </div>
+              )}
+
+              {appliedPromo && (
+                <div className="flex items-center justify-between text-sm font-bold border-t pt-2">
+                  <span>Total after discount</span>
+                  <span className="text-primary">
+                    {formatCurrency(Math.max(0, selectedPlan.price - appliedPromo.discountAmount))}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Payment Method Selection */}
+          {selectedPlan && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">Payment Method</p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Card Payment Option */}
+                <button
+                  onClick={() => setSelectedPaymentMethod("card")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
+                    selectedPaymentMethod === "card"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <CreditCard className={`h-6 w-6 mb-2 ${selectedPaymentMethod === "card" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-sm font-semibold ${selectedPaymentMethod === "card" ? "text-primary" : "text-foreground"}`}>
+                    Card
+                  </span>
+                  <span className="text-xs text-muted-foreground">Credit/Debit</span>
+                </button>
+
+                {/* Wallet Payment Option */}
+                <button
+                  onClick={() => setSelectedPaymentMethod("wallet")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${
+                    selectedPaymentMethod === "wallet"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <Wallet className={`h-6 w-6 mb-2 ${selectedPaymentMethod === "wallet" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-sm font-semibold ${selectedPaymentMethod === "wallet" ? "text-primary" : "text-foreground"}`}>
+                    Wallet
+                  </span>
+                  {wallet && (
+                    <span className="text-xs text-muted-foreground">
+                      Balance: {formatCurrency(wallet.balance)}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Wallet Balance Warning */}
+              {selectedPaymentMethod === "wallet" && selectedPlan && wallet && wallet.balance < selectedPlan.price && (
+                <Alert className="rounded-2xl bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800 text-xs">
+                    Insufficient wallet balance. You have {formatCurrency(wallet.balance)} but need {formatCurrency(selectedPlan.price)}.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 

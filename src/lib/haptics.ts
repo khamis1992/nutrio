@@ -1,4 +1,4 @@
-import { Haptics as CapacitorHaptics, ImpactStyle } from "@capacitor/haptics";
+import { Haptics as CapacitorHaptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 
 export const Haptics = {
   async impact(options: { style: "light" | "medium" | "heavy" }) {
@@ -17,11 +17,11 @@ export const Haptics = {
 
   async notification(options: { type: "success" | "warning" | "error" }) {
     try {
-      const typeMap = {
-        success: 1,
-        warning: 2,
-        error: 3,
-      } as const;
+      const typeMap: Record<string, NotificationType> = {
+        success: NotificationType.Success,
+        warning: NotificationType.Warning,
+        error: NotificationType.Error,
+      };
       
       await CapacitorHaptics.notification({ type: typeMap[options.type] });
     } catch {

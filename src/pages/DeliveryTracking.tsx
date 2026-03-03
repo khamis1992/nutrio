@@ -14,16 +14,14 @@ import {
   ArrowLeft, 
   Package, 
   ChefHat, 
-  Truck, 
+  Truck,
   CheckCircle2, 
   Clock,
   MapPin,
   Phone,
   RefreshCw,
   ExternalLink,
-  ChevronRight,
   Check,
-  Utensils,
 } from "lucide-react";
 import flameLogo from "@/assets/flam.png";
 
@@ -68,6 +66,8 @@ interface DeliveryJob {
   driver?: {
     current_lat: number | null;
     current_lng: number | null;
+    full_name: string | null;
+    phone_number: string | null;
   } | null;
 }
 
@@ -83,6 +83,8 @@ interface ActiveOrder {
   total_amount: number;
   delivery_type: string;
   delivery_job?: DeliveryJob | null;
+  driver_name?: string | null;
+  driver_phone?: string | null;
 }
 
 // 5 steps - removed Confirmed to match reference design
@@ -402,9 +404,10 @@ interface ContactSectionProps {
   restaurantAddress?: string | null;
   driverName?: string | null;
   driverPhone?: string | null;
+  isOnTheWay?: boolean;
 }
 
-const ContactSection = ({ restaurantPhone, restaurantAddress, driverPhone }: ContactSectionProps) => (
+const ContactSection = ({ restaurantPhone, restaurantAddress, driverName, driverPhone, isOnTheWay }: ContactSectionProps) => (
   <div className="pt-4 border-t border-border space-y-3">
     {restaurantAddress && (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -412,20 +415,43 @@ const ContactSection = ({ restaurantPhone, restaurantAddress, driverPhone }: Con
         <span className="truncate">{restaurantAddress}</span>
       </div>
     )}
+    
+    {/* Driver Info Card - Show when order is on the way */}
+    {isOnTheWay && driverName && (
+      <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+          <Truck className="w-5 h-5 text-green-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-green-800">Your Driver</p>
+          <p className="text-xs text-green-600">{driverName}</p>
+        </div>
+      </div>
+    )}
+    
     <div className="flex gap-2">
-      {driverPhone && (
-        <Button variant="outline" className="flex-1" asChild>
-          <a href={`tel:${driverPhone}`}>
-            <Phone className="h-4 w-4 mr-2" /> Call Driver
-          </a>
-        </Button>
-      )}
-      {restaurantPhone && (
-        <Button variant="outline" className="flex-1" asChild>
-          <a href={`tel:${restaurantPhone}`}>
-            <Phone className="h-4 w-4 mr-2" /> Call Restaurant
-          </a>
-        </Button>
+      {isOnTheWay ? (
+        driverPhone ? (
+          <Button variant="default" className="flex-1 bg-green-600 hover:bg-green-700" asChild>
+            <a href={`tel:${driverPhone}`}>
+              <Phone className="h-4 w-4 mr-2" />
+              Call Driver{driverName ? ` · ${driverName}` : ""}
+            </a>
+          </Button>
+        ) : (
+          <Button variant="default" className="flex-1 bg-green-600/60 cursor-not-allowed" disabled>
+            <Phone className="h-4 w-4 mr-2" />
+            Call Driver{driverName ? ` · ${driverName}` : ""}
+          </Button>
+        )
+      ) : (
+        restaurantPhone && (
+          <Button variant="outline" className="flex-1" asChild>
+            <a href={`tel:${restaurantPhone}`}>
+              <Phone className="h-4 w-4 mr-2" /> Call Restaurant
+            </a>
+          </Button>
+        )
       )}
     </div>
   </div>
@@ -447,7 +473,24 @@ export default function DeliveryTracking() {
 
     const loadCustomerLocation = async () => {
       try {
-        // 1. Try to get saved default address
+        // 1. Try browser geolocation first (most accurate, no CORS issues)
+        if (navigator.geolocation) {
+          try {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { 
+                enableHighAccuracy: true, 
+                timeout: 5000,
+                maximumAge: 300000 // 5 minutes cache
+              });
+            });
+            setCustomerLocation([position.coords.latitude, position.coords.longitude]);
+            return;
+          } catch {
+            // Geolocation denied or unavailable, continue to address lookup
+          }
+        }
+
+        // 2. Try to geocode saved default address using a CORS proxy
         const { data: addresses } = await supabase
           .from("user_addresses")
           .select("address_line1, city, state, country, postal_code")
@@ -461,39 +504,38 @@ export default function DeliveryTracking() {
           const street = addr.address_line1?.trim() || "";
           const country = addr.country?.toLowerCase() === "united states" ? "Qatar" : (addr.country || "Qatar");
 
-          // Fallback query chain: specific → city + country → city only
-          const queries = [
-            street && city ? `${street}, ${city}, ${country}` : "",
-            city ? `${city}, ${country}` : "",
-            city || "",
-          ].filter(Boolean);
-
-          for (const q of queries) {
+          // Build query string
+          const query = [street, city, country].filter(Boolean).join(", ");
+          
+          if (query) {
             try {
+              // Use a CORS proxy service (allorigins.win is a free public proxy)
               const res = await fetch(
-                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=qa`,
-                { headers: { "Accept-Language": "en" } }
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(
+                  `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=qa`
+                )}`,
+                { 
+                  headers: { 
+                    "Accept-Language": "en",
+                    "User-Agent": "NutrioFuel/1.0"
+                  } 
+                }
               );
               const data = await res.json();
               if (data && data.length > 0) {
                 setCustomerLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
                 return;
               }
-            } catch { /* try next */ }
+            } catch {
+              // Geocoding failed, use default location
+            }
           }
         }
 
-        // 2. Fallback to browser GPS
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            ({ coords }) => setCustomerLocation([coords.latitude, coords.longitude]),
-            () => setCustomerLocation([25.2854, 51.5310]), // Doha fallback
-            { enableHighAccuracy: true, timeout: 8000 }
-          );
-        } else {
-          setCustomerLocation([25.2854, 51.5310]);
-        }
+        // 3. Fallback to Doha, Qatar (default)
+        setCustomerLocation([25.2854, 51.5310]);
       } catch {
+        // Error loading customer location, use default
         setCustomerLocation([25.2854, 51.5310]);
       }
     };
@@ -599,7 +641,9 @@ export default function DeliveryTracking() {
           delivery_lng,
           driver:driver_id(
             current_lat,
-            current_lng
+            current_lng,
+            full_name,
+            phone_number
           )
         `)
         .in("schedule_id", scheduleIds);
@@ -625,6 +669,8 @@ export default function DeliveryTracking() {
           total_amount: (schedule.addons_total || 0),
           delivery_type: schedule.delivery_type || "delivery",
           delivery_job: deliveryJob || null,
+          driver_name: deliveryJob?.driver?.full_name || null,
+          driver_phone: deliveryJob?.driver?.phone_number || null,
         };
       });
 
@@ -1188,8 +1234,9 @@ export default function DeliveryTracking() {
                   <ContactSection
                     restaurantPhone={order.restaurant_phone}
                     restaurantAddress={order.restaurant_address}
-                    driverName={null}
-                    driverPhone={null}
+                    driverName={order.driver_name}
+                    driverPhone={order.driver_phone}
+                    isOnTheWay={order.order_status === "out_for_delivery"}
                   />
                   </> // end non-delivered tracking UI
                   )} {/* end isDelivered ternary */}
