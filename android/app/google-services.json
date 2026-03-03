@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "943404210215",
+    "project_id": "nutrio-fuel",
+    "storage_bucket": "nutrio-fuel.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:943404210215:android:84f763f1fa08a8cf069602",
+        "android_client_info": {
+          "package_name": "com.nutriofuel.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcb6Q06Onp5UWISg1VUkHy0gm0_SuyI4w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
