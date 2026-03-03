@@ -663,13 +663,14 @@ const Schedule = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setShowWizard(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center z-30"
+        className="fixed right-4 w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center z-30"
+        style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
       >
         <Plus className="h-7 w-7 text-primary-foreground" />
       </motion.button>
 
       {/* Swipe Hint */}
-      <div className="fixed bottom-24 left-0 right-0 flex justify-center pointer-events-none">
+      <div className="fixed left-0 right-0 flex justify-center pointer-events-none" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
         <p className="text-xs text-gray-400">Swipe to change week</p>
       </div>
 
