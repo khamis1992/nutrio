@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ScanLine, X, CheckCircle } from "lucide-react";
+import { Loader2, ScanLine, X, CheckCircle, Camera } from "lucide-react";
 
 interface DriverQRScannerProps {
   onScan: (qrData: string) => void;
@@ -19,6 +19,7 @@ export function DriverQRScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCamera, setHasCamera] = useState(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [showManualEntry, setShowManualEntry] = useState(false);
 
@@ -27,6 +28,12 @@ export function DriverQRScanner({
 
     const startCamera = async () => {
       try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setCameraError("Camera API not available on this device.");
+          setHasCamera(false);
+          return;
+        }
+
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
         });
@@ -34,9 +41,16 @@ export function DriverQRScanner({
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Camera access error:", err);
         setHasCamera(false);
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setCameraError("Camera permission denied. Please allow camera access in your device settings, then try again.");
+        } else if (err.name === "NotFoundError") {
+          setCameraError("No camera found on this device.");
+        } else {
+          setCameraError("Could not access camera. Use manual code entry below.");
+        }
       }
     };
 
@@ -124,8 +138,18 @@ export function DriverQRScanner({
                 </>
               ) : (
                 <Card className="w-full h-full flex items-center justify-center bg-muted">
-                  <CardContent className="text-center">
-                    <p className="text-muted-foreground">Camera not available</p>
+                  <CardContent className="text-center p-4 space-y-3">
+                    <Camera className="w-10 h-10 text-muted-foreground mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      {cameraError || "Camera not available"}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowManualEntry(true)}
+                    >
+                      Enter Code Manually
+                    </Button>
                   </CardContent>
                 </Card>
               )}
