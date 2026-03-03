@@ -528,7 +528,7 @@ export const biometricAuth = {
       await NativeBiometric.setCredentials({
         username: email,
         password: password,
-        server: 'com.nutrio.app',
+        server: 'com.nutriofuel.app',
       });
     } catch (error) {
       console.error('Error setting biometric credentials:', error);
@@ -542,7 +542,7 @@ export const biometricAuth = {
     if (!isNative) return null;
     try {
       const credentials = await NativeBiometric.getCredentials({
-        server: 'com.nutrio.app',
+        server: 'com.nutriofuel.app',
       });
       return {
         username: credentials.username,
@@ -560,7 +560,7 @@ export const biometricAuth = {
     if (!isNative) return;
     try {
       await NativeBiometric.deleteCredentials({
-        server: 'com.nutrio.app',
+        server: 'com.nutriofuel.app',
       });
     } catch (error) {
       console.error('Error deleting biometric credentials:', error);
@@ -574,7 +574,7 @@ export const biometricAuth = {
     if (!isNative) return false;
     try {
       const credentials = await NativeBiometric.getCredentials({
-        server: 'com.nutrio.app',
+        server: 'com.nutriofuel.app',
       });
       return !!credentials.username;
     } catch {
@@ -598,10 +598,8 @@ export const initializeNativeApp = async () => {
     await statusBar.setStyle(Style.Light);
     await statusBar.setOverlaysWebView(false);
 
-    // Hide splash screen after a delay
-    setTimeout(() => {
-      splashScreen.hideFadeOut();
-    }, 2000);
+    // Hide native splash screen quickly so the video splash takes over
+    await splashScreen.hideFadeOut(300);
 
     // Request notification permissions
     await pushNotifications.checkPermissions();

@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { initializeNativeApp } from "./lib/capacitor";
+import { initializeNativeApp, isNative } from "./lib/capacitor";
 import { initSentry } from "./lib/sentry";
 import { initPostHog } from "./lib/analytics";
 import { SentryErrorBoundary } from "./components/SentryErrorBoundary";
 import DevelopmentErrorBoundary from "./components/DevelopmentErrorBoundary";
+import { SplashVideo } from "./components/SplashVideo";
 
 // Initialize monitoring and analytics
 initSentry();
@@ -16,9 +17,9 @@ initPostHog();
 initializeNativeApp();
 
 const Root = () => {
-  // In development, use DevelopmentErrorBoundary to catch HMR errors
-  // In production, just use SentryErrorBoundary
   const isDevelopment = import.meta.env.DEV;
+  // Show splash video only on native (Android/iOS) app launch
+  const [splashDone, setSplashDone] = useState(!isNative);
 
   const AppWrapper = (
     <SentryErrorBoundary>
@@ -32,9 +33,14 @@ const Root = () => {
     </SentryErrorBoundary>
   );
 
-  // Disable StrictMode temporarily to fix Leaflet map issues
-  // TODO: Re-enable after fixing MapContainer StrictMode compatibility
-  return AppWrapper;
+  return (
+    <>
+      {!splashDone && (
+        <SplashVideo onComplete={() => setSplashDone(true)} />
+      )}
+      {splashDone && AppWrapper}
+    </>
+  );
 };
 
 createRoot(document.getElementById("root")!).render(<Root />);

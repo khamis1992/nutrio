@@ -24,6 +24,7 @@ import {
   Box,
   ArrowRight,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -186,11 +187,22 @@ const PartnerOrders = () => {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState("active");
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+    setLastUpdate(new Date());
+  };
 
   useEffect(() => {
     if (user) {
@@ -204,6 +216,23 @@ const PartnerOrders = () => {
     audioRef.current = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
     audioRef.current.volume = 0.5;
   }, []);
+
+  // Polling for new orders (fallback for real-time)
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    // Poll every 10 seconds for new orders as a fallback
+    pollIntervalRef.current = setInterval(() => {
+      fetchOrders();
+      setLastUpdate(new Date());
+    }, 10000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [restaurantId]);
 
   // Play notification sound when new orders arrive
   const playNewOrderSound = () => {
@@ -667,7 +696,22 @@ const PartnerOrders = () => {
   };
 
   return (
-    <PartnerLayout title="Orders" subtitle={`${activeOrders.length} active • ${completedOrders.length} completed`}>
+    <PartnerLayout 
+      title="Orders" 
+      subtitle={`${activeOrders.length} active • ${completedOrders.length} completed • Updated ${lastUpdate.toLocaleTimeString()}`}
+      action={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </Button>
+      }
+    >
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-2 w-full mb-6">
           <TabsTrigger value="active" className="relative">

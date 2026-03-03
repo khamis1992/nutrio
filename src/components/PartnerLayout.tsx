@@ -20,9 +20,10 @@ interface PartnerLayoutProps {
   children: ReactNode;
   title?: string;
   subtitle?: string;
+  action?: ReactNode;
 }
 
-export function PartnerLayout({ children, title = "Partner", subtitle }: PartnerLayoutProps) {
+export function PartnerLayout({ children, title = "Partner", subtitle, action }: PartnerLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -121,6 +122,7 @@ export function PartnerLayout({ children, title = "Partner", subtitle }: Partner
                 </Breadcrumb>
                 {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
               </div>
+              {action && <div className="ml-auto">{action}</div>}
             </div>
           </header>
 

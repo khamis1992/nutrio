@@ -78,7 +78,7 @@ interface Announcement {
   title: string;
   message: string;
   type: "info" | "warning" | "success" | "error";
-  target_audience: "all" | "customers" | "partners" | "admins";
+  target_audience: "all" | "users" | "partners";
   is_active: boolean;
   starts_at: string;
   ends_at: string | null;
@@ -97,7 +97,7 @@ interface AnnouncementFormData {
   title: string;
   message: string;
   type: "info" | "warning" | "success" | "error";
-  target_audience: "all" | "customers" | "partners" | "admins";
+  target_audience: "all" | "users" | "partners";
   is_active: boolean;
   starts_at: string;
   ends_at: string;
@@ -130,7 +130,7 @@ export default function AdminNotifications() {
     title: "",
     message: "",
     type: "info",
-    target_audience: "all",
+    target_audience: "all" as "all" | "users" | "partners",
     is_active: true,
     starts_at: new Date().toISOString().slice(0, 16),
     ends_at: "",
@@ -238,7 +238,8 @@ export default function AdminNotifications() {
 
       const count = data || 0;
       if (count > 0) {
-        toast.success(`Notification sent to ${count} ${announcement.target_audience === 'all' ? 'users' : announcement.target_audience}`);
+        const audienceLabel = announcement.target_audience === 'all' ? 'users' : announcement.target_audience === 'users' ? 'customers' : announcement.target_audience;
+        toast.success(`Notification sent to ${count} ${audienceLabel}`);
       } else {
         toast.info('Notifications already sent or no target users found');
       }
@@ -313,7 +314,7 @@ export default function AdminNotifications() {
       title: announcement.title,
       message: announcement.message,
       type: announcement.type as "info" | "warning" | "success" | "error",
-      target_audience: announcement.target_audience as "all" | "customers" | "partners" | "admins",
+      target_audience: announcement.target_audience as "all" | "users" | "partners",
       is_active: announcement.is_active,
       starts_at: announcement.starts_at.slice(0, 16),
       ends_at: announcement.ends_at?.slice(0, 16) || "",
@@ -327,7 +328,7 @@ export default function AdminNotifications() {
       title: "",
       message: "",
       type: "info",
-      target_audience: "all",
+      target_audience: "all" as "all" | "users" | "partners",
       is_active: true,
       starts_at: new Date().toISOString().slice(0, 16),
       ends_at: "",
@@ -474,9 +475,8 @@ export default function AdminNotifications() {
   const getAudienceBadge = (audience: string) => {
     const labels: Record<string, string> = {
       all: "All Users",
-      customers: "Customers",
+      users: "Customers",
       partners: "Partners",
-      admins: "Admins",
     };
     return (
       <div className="flex items-center gap-2">
@@ -945,16 +945,15 @@ export default function AdminNotifications() {
                 <Label>Target Audience</Label>
                 <Select
                   value={formData.target_audience}
-                  onValueChange={(value) => setFormData({ ...formData, target_audience: value as "all" | "customers" | "partners" | "admins" })}
+                  onValueChange={(value) => setFormData({ ...formData, target_audience: value as "all" | "users" | "partners" })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="customers">Customers</SelectItem>
+                    <SelectItem value="users">Customers</SelectItem>
                     <SelectItem value="partners">Partners</SelectItem>
-                    <SelectItem value="admins">Admins</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

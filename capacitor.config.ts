@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.nutrio.app',
+  appId: 'com.nutriofuel.app',
   appName: 'Nutrio',
   webDir: 'dist',
   server: {
@@ -18,9 +18,9 @@ const config: CapacitorConfig = {
   // Plugins configuration
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 300,
       launchAutoHide: true,
-      backgroundColor: '#22c55e',
+      backgroundColor: '#000000',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
@@ -32,6 +32,11 @@ const config: CapacitorConfig = {
     },
     LocalNotifications: {
       sound: 'beep.wav',
+    },
+    NativeBiometric: {
+      biometricsTitle: 'Biometric Authentication',
+      biometricsSubtitle: 'Unlock with your biometrics',
+      biometricsDescription: 'Scan your fingerprint or face to continue',
     },
   },
 };
