@@ -204,8 +204,8 @@ serve(async (req: Request) => {
         title,
         message,
         type,
-        is_read: false,
-        metadata: data ?? {},
+        status: "unread",
+        data: data ?? {},
       });
 
       return new Response(
@@ -252,8 +252,8 @@ serve(async (req: Request) => {
       title,
       message,
       type,
-      is_read: false,
-      metadata: data ?? {},
+      status: "unread",
+      data: data ?? {},
     });
 
     return new Response(
