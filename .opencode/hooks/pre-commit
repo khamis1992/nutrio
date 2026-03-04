@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit hook to enforce coding standards
+
+echo "Running Nutrio code quality checks..."
+
+# TypeScript check
+echo "Checking TypeScript..."
+npm run typecheck
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript errors found! Please fix before committing."
+  exit 1
+fi
+
+# Linting
+echo "Running ESLint..."
+npm run lint
+if [ $? -ne 0 ]; then
+  echo "❌ Linting errors found! Please fix before committing."
+  exit 1
+fi
+
+# Check for Supabase error handling
+echo "Checking Supabase error handling..."
+FILES_WITH_SUPABASE=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "\.(ts|tsx)$")
+MISSING_ERROR_HANDLING=false
+
+for file in $FILES_WITH_SUPABASE; do
+  if [[ -f "$file" ]] && grep -q "supabase\." "$file" && ! grep -q "if (error)" "$file"; then
+    echo "⚠️  Missing Supabase error handling in $file"
+    MISSING_ERROR_HANDLING=true
+  fi
+done
+
+if [ "$MISSING_ERROR_HANDLING" = true ]; then
+  echo "❌ Some files missing Supabase error handling! Please add error checking."
+  exit 1
+fi
+
+echo "✅ All checks passed!"

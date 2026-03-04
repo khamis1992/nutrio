@@ -1,0 +1,11 @@
+{
+  "name": "nutrio-dev-enforcer",
+  "description": "Enforces Nutrio development best practices",
+  "version": "1.0.0",
+  "settings": {
+    "auto_check": true,
+    "pre_commit_hooks": true,
+    "typescript_strict": true,
+    "lint_on_save": true
+  }
+}

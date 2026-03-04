@@ -27,6 +27,7 @@ const FAQ = lazy(() => import("./pages/FAQ"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 // Customer pages
+const WalkthroughScreen = lazy(() => import("./pages/WalkthroughScreen"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Meals = lazy(() => import("./pages/Meals"));
@@ -143,6 +144,7 @@ const App = () => (
                 </NativeRouteRedirect>
               }
             />
+            <Route path="/walkthrough" element={<WalkthroughScreen />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
@@ -155,11 +157,7 @@ const App = () => (
             <Route element={<CustomerLayout />}>
               <Route 
                 path="/onboarding" 
-                element={
-                  <ProtectedRoute>
-                    <Onboarding />
-                  </ProtectedRoute>
-                } 
+                element={<Onboarding />} 
               />
             <Route 
               path="/dashboard" 

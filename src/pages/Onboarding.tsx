@@ -266,12 +266,13 @@ const Onboarding = () => {
   };
 
   // Redirect if not authenticated or if user is a partner
+  // TEMP: auth check disabled for UI editing
   useEffect(() => {
     const checkUserType = async () => {
       if (authLoading) return;
       
       if (!user) {
-        navigate("/auth");
+        // navigate("/auth");
         return;
       }
 
@@ -418,13 +419,14 @@ const Onboarding = () => {
     { id: "very_active" as ActivityLevel, title: "Extra Active", description: "Very hard exercise & physical job" },
   ];
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // TEMP: skip auth loading spinner so page is visible without login
+  // if (authLoading) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center bg-background">
+  //       <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen gradient-hero flex flex-col">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import promoVideo from "@/assets/promo.mp4";
 
 export const PromoVideo = () => {
+  const navigate = useNavigate();
   const [showPromo, setShowPromo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -232,14 +234,14 @@ export const PromoVideo = () => {
 
                 <div className="space-y-2">
                   <Button
-                    onClick={handleClose}
+                    onClick={() => { handleClose(); navigate("/walkthrough"); }}
                     className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-base shadow-lg shadow-primary/30"
                   >
                     Get Started
                   </Button>
 
                   <button
-                    onClick={handleClose}
+                    onClick={() => { handleClose(); navigate("/walkthrough"); }}
                     className="w-full h-10 text-white/60 font-medium text-sm active:text-white transition-colors"
                   >
                     Skip for now
