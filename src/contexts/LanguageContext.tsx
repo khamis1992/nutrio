@@ -18,8 +18,6 @@ export const translations = {
     underweight: "Underweight",
     // Tracker
     starting: "Starting",
-    update: "Update",
-    update_weight: "Update Weight",
     // Profile
     save_changes: "Save Changes",
     profile_settings: "Profile & Settings",
@@ -30,7 +28,6 @@ export const translations = {
     // Profile page
     order_updates: "Order Updates",
     status_changes_orders: "Status changes for your active orders",
-    promotions_offers: "Promotions & Offers",
     discounts_special_deals: "Discounts and special deals",
     choose_notifications: "Choose what you want to be notified about",
     control_data_usage: "Control how your data is used",
@@ -40,6 +37,7 @@ export const translations = {
     // Dashboard
     on_fire_message: "You're on fire! Keep logging your meals.",
     days_to_milestone: "days to next milestone",
+    days_this_week: "days this week",
     weekly_goal: "Weekly Goal",
     no_featured_restaurants: "No featured restaurants yet",
     check_back_restaurants: "Check back soon for our highlighted partner restaurants!",
@@ -47,7 +45,6 @@ export const translations = {
     on_track_nutrition: "On track with your nutrition plan",
     eat_smart: "Eat Smart,",
     live_better: "Live Better",
-    saving: "Saving...",
 
 
 
@@ -357,8 +354,6 @@ export const translations = {
     underweight: "نقص وزن",
     // Tracker
     starting: "البداية",
-    update: "تحديث",
-    update_weight: "تحديث الوزن",
     // Profile
     save_changes: "حفظ التغييرات",
     profile_settings: "الملف الشخصي والإعدادات",
@@ -369,7 +364,6 @@ export const translations = {
     // Profile page
     order_updates: "تحديثات الطلبات",
     status_changes_orders: "تغييرات حالة طلباتك النشطة",
-    promotions_offers: "العروض والتخفيضات",
     discounts_special_deals: "خصومات وصفقات خاصة",
     choose_notifications: "اختر ما تريد الإشعار به",
     control_data_usage: "تحكم في كيفية استخدام بياناتك",
@@ -379,6 +373,7 @@ export const translations = {
     // Dashboard
     on_fire_message: "أنت رائع! استمر في تسجيل وجباتك.",
     days_to_milestone: "أيام حتى الهدف التالي",
+    days_this_week: "أيام هذا الأسبوع",
     weekly_goal: "الهدف الأسبوعي",
     no_featured_restaurants: "لا توجد مطاعم مميزة حتى الآن",
     check_back_restaurants: "تحقق لاحقاً لمطاعمنا الشريكة المميزة!",
@@ -386,7 +381,6 @@ export const translations = {
     on_track_nutrition: "على المسار الصحيح مع خطة تغذيتك",
     eat_smart: "تناول بذكاء،",
     live_better: "عش بشكل أفضل",
-    saving: "جارٍ الحفظ...",
 
 
 
@@ -406,7 +400,6 @@ export const translations = {
     no: "لا",
     back: "رجوع",
     next: "التالي",
-    done: "تم",
     submit: "إرسال",
     update: "تحديث",
     add: "إضافة",

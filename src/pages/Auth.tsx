@@ -477,7 +477,7 @@ const Auth = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="su-email" type="email" placeholder=t("email") value={email}
+                  id="su-email" type="email" placeholder={t("email")} value={email}
                   onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }}
                   className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
                   required disabled={loading}
@@ -492,7 +492,7 @@ const Auth = () => {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="su-password" type={showPassword ? "text" : "password"} placeholder=t("password") value={password}
+                  id="su-password" type={showPassword ? "text" : "password"} placeholder={t("password")} value={password}
                   onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }}
                   className={`h-14 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
                   required disabled={loading}
@@ -808,7 +808,7 @@ const Auth = () => {
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                id="si-email" type="email" placeholder=t("email") value={email}
+                id="si-email" type="email" placeholder={t("email")} value={email}
                 onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }}
                 className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
                 required disabled={loading}
@@ -823,7 +823,7 @@ const Auth = () => {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                id="si-password" type={showPassword ? "text" : "password"} placeholder=t("password") value={password}
+                id="si-password" type={showPassword ? "text" : "password"} placeholder={t("password")} value={password}
                 onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }}
                 className={`h-14 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
                 required disabled={loading}

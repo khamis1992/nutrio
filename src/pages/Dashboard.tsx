@@ -417,7 +417,7 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)} t("of_days_this_week", { total: hasActiveSubscription ? 7 : 5 })
+                  {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)} / {hasActiveSubscription ? 7 : 5} {t("days_this_week")}
                 </p>
               </div>
             </div>
