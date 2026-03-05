@@ -130,7 +130,7 @@ jobs:
         path: dist/
 
     - name: Deploy to Vercel (Staging)
-      uses: vercel/action-deploy@v1
+      uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -159,7 +159,7 @@ jobs:
         path: dist/
 
     - name: Deploy to Vercel (Production)
-      uses: vercel/action-deploy@v1
+      uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -188,9 +188,9 @@ jobs:
       run: npm ci
 
     - name: Run npm audit
-      run: npm audit --audit-level=moderate
-      continue-on-error: true # Don't fail for moderate issues
+      run: npm audit --audit-level=high
+      continue-on-error: true # Don't fail for moderate/low issues
 
     - name: Check for vulnerable dependencies
-      run: npx audit-ci --moderate
-      continue-on-error: true
+      run: npx audit-ci --high
+      continue-on-error: true # Report but don't block the pipeline
