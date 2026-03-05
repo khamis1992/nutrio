@@ -157,7 +157,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Onboarding has no dock/nav */}
-            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
             {/* Customer App Routes - Wrapped with CustomerLayout for background */}
             <Route element={<CustomerLayout />}>

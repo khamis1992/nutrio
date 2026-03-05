@@ -318,13 +318,12 @@ const Onboarding = () => {
   };
 
   // Redirect if not authenticated or if user is a partner
-  // TEMP: auth check disabled for UI editing
   useEffect(() => {
     const checkUserType = async () => {
       if (authLoading) return;
       
       if (!user) {
-        // navigate("/auth");
+        navigate("/auth");
         return;
       }
 
@@ -708,14 +707,13 @@ const Onboarding = () => {
   };
   const handleRulerPointerUp = () => { dragStartX.current = null; };
 
-  // TEMP: skip auth loading spinner so page is visible without login
-  // if (authLoading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-background">
-  //       <Loader2 className="w-8 h-8 animate-spin text-primary" />
-  //     </div>
-  //   );
-  // }
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-hero flex flex-col">
