@@ -380,7 +380,7 @@ export default function Tracker() {
       {bmiDialogOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setBmiDialogOpen(false)} />
-          <div className="relative bg-white rounded-t-3xl" style={{ paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}>
+          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: '90dvh', overflowY: 'auto', paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}>
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-10 h-1 rounded-full bg-gray-200" />
