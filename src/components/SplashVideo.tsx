@@ -22,7 +22,7 @@ export const SplashVideo: React.FC<SplashVideoProps> = ({ onComplete }) => {
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-opacity duration-600 ${
+      className={`fixed inset-0 z-[9999] bg-white flex items-center justify-center transition-opacity duration-600 ${
         fading ? 'opacity-0' : 'opacity-100'
       }`}
     >
@@ -37,7 +37,7 @@ export const SplashVideo: React.FC<SplashVideoProps> = ({ onComplete }) => {
       />
       <button
         onClick={finish}
-        className="absolute bottom-10 right-6 px-4 py-1.5 rounded-full bg-white/20 text-white text-sm backdrop-blur-sm"
+        className="absolute bottom-10 right-6 px-4 py-1.5 rounded-full bg-black/10 text-gray-600 text-sm backdrop-blur-sm"
       >
         Skip
       </button>
