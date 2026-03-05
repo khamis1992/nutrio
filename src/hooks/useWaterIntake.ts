@@ -108,6 +108,30 @@ export function useWaterIntake(userId: string | undefined) {
     }
   }, [userId, fetchTodayIntake]);
 
+  const decrementWater = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data: existing } = await (supabase as any)
+        .from("water_intake")
+        .select("id, glasses")
+        .eq("user_id", userId)
+        .eq("log_date", today)
+        .maybeSingle();
+
+      if (existing && existing.glasses > 0) {
+        await (supabase as any)
+          .from("water_intake")
+          .update({ glasses: Math.max(0, existing.glasses - 1) })
+          .eq("id", existing.id);
+        await fetchTodayIntake();
+      }
+    } catch (error) {
+      console.error("Error decrementing water intake:", error);
+    }
+  }, [userId, fetchTodayIntake]);
+
   useEffect(() => {
     fetchTodayIntake();
   }, [fetchTodayIntake]);
@@ -117,6 +141,7 @@ export function useWaterIntake(userId: string | undefined) {
     loading,
     addWater,
     removeWater,
+    decrementWater,
     refresh: fetchTodayIntake,
   };
 }

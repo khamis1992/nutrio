@@ -184,6 +184,8 @@ const ProgressDashboard = () => {
   // Get today's nutrition data
   const today = new Date().toISOString().split('T')[0];
   const [todayStats, setTodayStats] = useState({ calories: 0, protein: 0 });
+  const [todayBurned, setTodayBurned] = useState(0);
+  const [weeklyBurned, setWeeklyBurned] = useState(0);
   
   useEffect(() => {
     if (!user) return;
@@ -204,7 +206,33 @@ const ProgressDashboard = () => {
       }
     };
     
+    const fetchBurnedCalories = async () => {
+      const { data } = await supabase
+        .from('workout_sessions')
+        .select('calories_burned')
+        .eq('user_id', user.id)
+        .eq('session_date', today);
+      if (data) {
+        setTodayBurned(data.reduce((sum, s) => sum + (s.calories_burned ?? 0), 0));
+      }
+    };
+
+    const fetchWeeklyBurned = async () => {
+      const weekStart = subDays(new Date(), 7).toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('workout_sessions')
+        .select('calories_burned')
+        .eq('user_id', user.id)
+        .gte('session_date', weekStart)
+        .lte('session_date', today);
+      if (data) {
+        setWeeklyBurned(data.reduce((sum, s) => sum + (s.calories_burned ?? 0), 0));
+      }
+    };
+    
     fetchTodayStats();
+    fetchBurnedCalories();
+    fetchWeeklyBurned();
   }, [user, today]);
 
   // Fetch daily data for weekly report
@@ -447,123 +475,96 @@ const ProgressDashboard = () => {
         {/* TODAY TAB */}
         {activeTab === "today" && (
           <>
-            {/* Hero Card - Dark Theme */}
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900 text-white p-6 shadow-2xl">
-              {/* Background decorations */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-500/10 to-cyan-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-              
-              <div className="relative">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
-                      <Flame className="w-5 h-5 text-orange-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-white">Today's Progress</h3>
-                      <p className="text-xs text-white/50">{format(new Date(), "EEEE, MMM d")}</p>
-                    </div>
+            {/* Today Header */}
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <h3 className="font-bold text-slate-900">Today's Progress</h3>
+                <p className="text-xs text-slate-500">{format(new Date(), "EEEE, MMM d")}</p>
+              </div>
+              <div className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white",
+                (calorieProgress + proteinProgress) / 2 >= 80 ? "bg-emerald-500" :
+                (calorieProgress + proteinProgress) / 2 >= 50 ? "bg-amber-500" : "bg-orange-500"
+              )}>
+                <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
+                {(calorieProgress + proteinProgress) / 2 >= 80 ? "Great" :
+                 (calorieProgress + proteinProgress) / 2 >= 50 ? "Good" : "Keep Going"}
+              </div>
+            </div>
+
+            {/* Stats Grid — 4 colored cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Calories — Orange */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 shadow-md">
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-white" />
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur">
-                    <div className={cn("w-2 h-2 rounded-full", 
-                      (calorieProgress + proteinProgress) / 2 >= 80 ? "bg-emerald-400" : 
-                      (calorieProgress + proteinProgress) / 2 >= 50 ? "bg-amber-400" : "bg-orange-400"
-                    )} />
-                    <span className="text-xs font-medium text-white/80">
-                      {(calorieProgress + proteinProgress) / 2 >= 80 ? "Great" : 
-                       (calorieProgress + proteinProgress) / 2 >= 50 ? "Good" : "Keep Going"}
-                    </span>
-                  </div>
+                  <span className="text-xs text-white/80 font-medium">Calories</span>
                 </div>
-
-                {/* Main Stats Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Calories */}
-                  <div className="bg-white/5 backdrop-blur rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                        <Flame className="w-4 h-4 text-orange-400" />
-                      </div>
-                      <span className="text-xs text-white/60">Calories</span>
-                    </div>
-                    <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-2xl font-bold text-white">{todayCalories}</span>
-                      <span className="text-sm text-white/40">/ {dailyCalorieTarget}</span>
-                    </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(calorieProgress, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-white/40 mt-2">{calorieProgress}% of daily goal</p>
-                  </div>
-
-                  {/* Protein */}
-                  <div className="bg-white/5 backdrop-blur rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Target className="w-4 h-4 text-blue-400" />
-                      </div>
-                      <span className="text-xs text-white/60">Protein</span>
-                    </div>
-                    <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-2xl font-bold text-white">{todayProtein}g</span>
-                      <span className="text-sm text-white/40">/ {dailyProteinTarget}g</span>
-                    </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(proteinProgress, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-white/40 mt-2">{proteinProgress}% of daily goal</p>
-                  </div>
-
-                  {/* Water */}
-                  <div className="bg-white/5 backdrop-blur rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                        <Droplets className="w-4 h-4 text-cyan-400" />
-                      </div>
-                      <span className="text-xs text-white/60">Water</span>
-                    </div>
-                    <div className="flex items-baseline gap-1 mb-2">
-                      <span className="text-2xl font-bold text-white">{waterSummary?.total || 0}</span>
-                      <span className="text-sm text-white/40">/ 8 glasses</span>
-                    </div>
-                    <div className="flex gap-1">
-                      {[...Array(8)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-1.5 flex-1 rounded-full transition-all",
-                            i < (waterSummary?.total || 0) ? "bg-cyan-400" : "bg-white/10"
-                          )}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-xs text-white/40 mt-2">{waterProgress}% hydration</p>
-                  </div>
-
-                  {/* Streak */}
-                  <div className="bg-white/5 backdrop-blur rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                        <Flame className="w-4 h-4 text-amber-400" />
-                      </div>
-                      <span className="text-xs text-white/60">Streak</span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-white">{streaks?.logging?.currentStreak || 0}</span>
-                      <span className="text-sm text-white/40">days</span>
-                    </div>
-                    <p className="text-xs text-white/40 mt-2">
-                      Best: {streaks?.logging?.bestStreak || 0} days
-                    </p>
-                  </div>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-2xl font-bold">{todayCalories}</span>
+                  <span className="text-sm text-white/60">/ {dailyCalorieTarget}</span>
                 </div>
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min(calorieProgress, 100)}%` }} />
+                </div>
+                <p className="text-xs text-white/60 mt-2">{calorieProgress}% of goal</p>
+              </div>
+
+              {/* Protein — Blue */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 shadow-md">
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Target className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs text-white/80 font-medium">Protein</span>
+                </div>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-2xl font-bold">{todayProtein}g</span>
+                  <span className="text-sm text-white/60">/ {dailyProteinTarget}g</span>
+                </div>
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min(proteinProgress, 100)}%` }} />
+                </div>
+                <p className="text-xs text-white/60 mt-2">{proteinProgress}% of goal</p>
+              </div>
+
+              {/* Burned — Amber */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 shadow-md">
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs text-white/80 font-medium">Burned</span>
+                </div>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="text-2xl font-bold">{todayBurned}</span>
+                  <span className="text-sm text-white/60">cal</span>
+                </div>
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min((todayBurned / 500) * 100, 100)}%` }} />
+                </div>
+                <p className="text-xs text-white/60 mt-2">{todayBurned > 0 ? "from activities" : "no activities yet"}</p>
+              </div>
+
+              {/* Streak — Emerald */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 shadow-md">
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Flame className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs text-white/80 font-medium">Streak</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">{streaks?.logging?.currentStreak || 0}</span>
+                  <span className="text-sm text-white/60">days</span>
+                </div>
+                <p className="text-xs text-white/60 mt-2">Best: {streaks?.logging?.bestStreak || 0} days</p>
               </div>
             </div>
 
@@ -575,7 +576,7 @@ const ProgressDashboard = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 h-12 border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100"
+                    className="flex-1 h-12 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
                     onClick={() => handleQuickWaterAdd(1)}
                     disabled={waterLoading}
                   >
@@ -617,7 +618,7 @@ const ProgressDashboard = () => {
 
             {/* Recommendation */}
             {recommendations.length > 0 && (
-              <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50">
+              <Card className="border-0 shadow-sm bg-blue-50">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
@@ -659,6 +660,7 @@ const ProgressDashboard = () => {
             dailyData={dailyData}
             onDownload={handleDownloadReport}
             generatingReport={generatingReport}
+            weeklyBurned={weeklyBurned}
           />
         )}
 
@@ -775,8 +777,8 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
     maintenance: {
       label: "Maintenance",
       icon: <Minus className="w-5 h-5" />,
-      color: "text-green-600",
-      bgColor: "bg-green-500",
+      color: "text-amber-600",
+      bgColor: "bg-amber-500",
     },
     general_health: {
       label: "General Health",
@@ -792,7 +794,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
     { label: "Calories", value: activeGoal.daily_calorie_target, unit: "kcal", color: "bg-orange-500", icon: <Flame className="w-4 h-4" /> },
     { label: "Protein", value: activeGoal.protein_target_g, unit: "g", color: "bg-blue-500", icon: <Target className="w-4 h-4" /> },
     { label: "Carbs", value: activeGoal.carbs_target_g, unit: "g", color: "bg-amber-500", icon: <Zap className="w-4 h-4" /> },
-    { label: "Fat", value: activeGoal.fat_target_g, unit: "g", color: "bg-pink-500", icon: <Droplets className="w-4 h-4" /> },
+    { label: "Fat", value: activeGoal.fat_target_g, unit: "g", color: "bg-emerald-500", icon: <Droplets className="w-4 h-4" /> },
   ] : [];
 
   const milestones = [
@@ -804,54 +806,51 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       {/* Hero Goal Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-5 shadow-xl">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        
-        <div className="relative">
-          {currentGoal ? (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center bg-white/20 backdrop-blur", currentGoal.color)}>
-                  {currentGoal.icon}
-                </div>
-                <div>
-                  <p className="text-white/60 text-sm">Active Goal</p>
-                  <h3 className="text-xl font-bold">{currentGoal.label}</h3>
-                </div>
+      {currentGoal ? (
+        <div className={cn("relative overflow-hidden rounded-2xl text-white p-5 shadow-md", currentGoal.bgColor)}>
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full" />
+          <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/10 rounded-full" />
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-white">
+                {currentGoal.icon}
               </div>
-              
-              {activeGoal?.target_weight_kg && (
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="flex-1 bg-white/10 rounded-lg p-3">
-                    <p className="text-white/60 text-xs mb-1">Target Weight</p>
-                    <p className="text-lg font-semibold">{activeGoal.target_weight_kg} kg</p>
-                  </div>
-                  {activeGoal.target_date && (
-                    <div className="flex-1 bg-white/10 rounded-lg p-3">
-                      <p className="text-white/60 text-xs mb-1">Target Date</p>
-                      <p className="text-lg font-semibold">{new Date(activeGoal.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <div className="flex items-center gap-2 text-white/80 text-sm">
-                <Activity className="w-4 h-4" />
-                <span>On track with your nutrition plan</span>
+              <div>
+                <p className="text-white/70 text-sm">Active Goal</p>
+                <h3 className="text-xl font-bold">{currentGoal.label}</h3>
               </div>
-            </>
-          ) : (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
-                <Target className="w-8 h-8 text-white/60" />
-              </div>
-              <h3 className="text-lg font-semibold mb-1">No Active Goal</h3>
-              <p className="text-white/60 text-sm mb-4">Set a goal to start tracking your progress</p>
             </div>
-          )}
+            {activeGoal?.target_weight_kg && (
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 bg-white/15 rounded-xl p-3">
+                  <p className="text-white/70 text-xs mb-1">Target Weight</p>
+                  <p className="text-lg font-bold">{activeGoal.target_weight_kg} kg</p>
+                </div>
+                {activeGoal.target_date && (
+                  <div className="flex-1 bg-white/15 rounded-xl p-3">
+                    <p className="text-white/70 text-xs mb-1">Target Date</p>
+                    <p className="text-lg font-bold">{new Date(activeGoal.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-white/80 text-sm">
+              <Activity className="w-4 h-4" />
+              <span>On track with your nutrition plan</span>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 p-5 shadow-sm">
+          <div className="text-center py-4">
+            <div className="w-16 h-16 rounded-full bg-slate-300 flex items-center justify-center mx-auto mb-3">
+              <Target className="w-8 h-8 text-slate-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">No Active Goal</h3>
+            <p className="text-slate-500 text-sm mb-4">Set a goal to start tracking your progress</p>
+          </div>
+        </div>
+      )}
 
       {/* Daily Targets - Expandable */}
       <Card className="border-0 shadow-sm overflow-hidden">
@@ -860,7 +859,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
           className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
               <Zap className="w-5 h-5" />
             </div>
             <div className="text-left">
@@ -901,7 +900,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
       <Card className="border-0 shadow-sm">
         <div className="p-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white">
               <Scale className="w-5 h-5" />
             </div>
             <div>
@@ -943,7 +942,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
           {/* Header row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white">
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
@@ -1155,7 +1154,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
       <Card className="border-0 shadow-sm">
         <div className="p-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white">
               <Trophy className="w-5 h-5" />
             </div>
             <div>

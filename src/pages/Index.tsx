@@ -24,9 +24,6 @@ import {
   X,
   Zap,
   Crown,
-  Home,
-  Compass,
-  ShoppingBag,
   User,
   Sparkles,
   ChevronRight,
@@ -113,13 +110,6 @@ const featuredMeals = [
   },
 ];
 
-// Bottom nav items
-const bottomNavItems = [
-  { icon: Home, label: "Home", to: "/", active: true },
-  { icon: Compass, label: "Explore", to: "/meals" },
-  { icon: ShoppingBag, label: "Orders", to: "/orders" },
-  { icon: User, label: "Profile", to: "/profile" },
-];
 
 const Index = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -637,34 +627,6 @@ const Index = () => {
         </footer>
       </main>
 
-      {/* Mobile Bottom Navigation - Fixed */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50 safe-area-bottom">
-        {/* Home Indicator Background */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-background" />
-        
-        <div className="flex items-center justify-around px-2 py-2 pb-6">
-          {bottomNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.active;
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-colors ${
-                  isActive 
-                    ? 'text-primary' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <div className={`relative ${isActive ? 'after:absolute after:-bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary' : ''}`}>
-                  <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
-                </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
 
       {/* Floating Action Button - Mobile Only */}
       <div className="md:hidden fixed bottom-24 right-4 z-40">

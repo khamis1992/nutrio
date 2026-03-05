@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +33,7 @@ import { debounce } from "@/lib/debounce";
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
 type Gender = "male" | "female";
-type MetricsSubStep = "basic" | "targets";
+type MetricsSubStep = "age" | "height" | "weight" | "targets";
 
 interface OnboardingData {
   goal: Goal | null;
@@ -82,32 +82,55 @@ const calculateTargetCalories = (tdee: number, goal: Goal): number => {
   }
 };
 
-// Calculate macro targets
-const calculateMacros = (calories: number, goal: Goal) => {
+// Calculate macro targets — dietary preferences override goal-based ratios when relevant
+const calculateMacros = (calories: number, goal: Goal, foodPreferences: string[] = []) => {
+  const prefsLower = foodPreferences.map((p) => p.toLowerCase());
+
+  // Keto: very low carb, high fat
+  if (prefsLower.some((p) => p.includes("keto"))) {
+    return {
+      protein: Math.round((calories * 0.30) / 4),
+      carbs: Math.round((calories * 0.05) / 4),
+      fat: Math.round((calories * 0.65) / 9),
+    };
+  }
+
+  // High protein / bodybuilding
+  if (prefsLower.some((p) => p.includes("high protein") || p.includes("high-protein") || p.includes("bodybuilding"))) {
+    return {
+      protein: Math.round((calories * 0.40) / 4),
+      carbs: Math.round((calories * 0.35) / 4),
+      fat: Math.round((calories * 0.25) / 9),
+    };
+  }
+
+  // Low carb (but not keto)
+  if (prefsLower.some((p) => p.includes("low carb") || p.includes("low-carb") || p.includes("paleo"))) {
+    return {
+      protein: Math.round((calories * 0.35) / 4),
+      carbs: Math.round((calories * 0.20) / 4),
+      fat: Math.round((calories * 0.45) / 9),
+    };
+  }
+
+  // Goal-based defaults
   let proteinRatio: number, carbsRatio: number, fatRatio: number;
-  
   switch (goal) {
     case "lose":
-      proteinRatio = 0.35;
-      carbsRatio = 0.35;
-      fatRatio = 0.30;
+      proteinRatio = 0.35; carbsRatio = 0.35; fatRatio = 0.30;
       break;
     case "gain":
-      proteinRatio = 0.30;
-      carbsRatio = 0.45;
-      fatRatio = 0.25;
+      proteinRatio = 0.30; carbsRatio = 0.45; fatRatio = 0.25;
       break;
     case "maintain":
     default:
-      proteinRatio = 0.30;
-      carbsRatio = 0.40;
-      fatRatio = 0.30;
+      proteinRatio = 0.30; carbsRatio = 0.40; fatRatio = 0.30;
   }
 
   return {
-    protein: Math.round((calories * proteinRatio) / 4), // 4 cal per gram
-    carbs: Math.round((calories * carbsRatio) / 4), // 4 cal per gram
-    fat: Math.round((calories * fatRatio) / 9), // 9 cal per gram
+    protein: Math.round((calories * proteinRatio) / 4),
+    carbs: Math.round((calories * carbsRatio) / 4),
+    fat: Math.round((calories * fatRatio) / 9),
   };
 };
 
@@ -122,6 +145,26 @@ const ONBOARDING_STEPS = [
   { id: 'diet', label: 'Dietary Preferences', icon: Utensils },
 ];
 
+// Tiny helper: runs the loading animation and calls onComplete when done
+const LoadingAdvancer = ({
+  progress, setProgress, onComplete,
+}: {
+  progress: number;
+  setProgress: React.Dispatch<React.SetStateAction<number>>;
+  onComplete: () => void;
+}) => {
+  const completedRef = useRef(false);
+  useEffect(() => {
+    if (progress >= 100) {
+      if (!completedRef.current) { completedRef.current = true; onComplete(); }
+      return;
+    }
+    const id = setTimeout(() => setProgress((p) => Math.min(100, p + 1.5)), 30);
+    return () => clearTimeout(id);
+  }, [progress]);
+  return null;
+};
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -130,8 +173,17 @@ const Onboarding = () => {
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
   
   const [step, setStep] = useState(1);
-  const [metricsSubStep, setMetricsSubStep] = useState<MetricsSubStep>("basic");
+  const [metricsSubStep, setMetricsSubStep] = useState<MetricsSubStep>("age");
+  const [weightUnit, setWeightUnit] = useState<"kg" | "lb">("kg");
+  const rulerRef = useRef<HTMLDivElement>(null);
+  const dragStartX = useRef<number | null>(null);
+  const dragStartWeight = useRef<number>(80);
   const [saving, setSaving] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [computedPlan, setComputedPlan] = useState<{
+    calories: number; protein: number; carbs: number; fat: number;
+    carbsPct: number; proteinPct: number; fatPct: number;
+  } | null>(null);
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [draftData, setDraftData] = useState<{ data: OnboardingData; step: number; savedAt: string } | null>(null);
   const [data, setData] = useState<OnboardingData>({
@@ -304,8 +356,28 @@ const Onboarding = () => {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      // Complete onboarding and save to database
-      await completeOnboarding();
+      // Compute plan for the summary screen, then show loading → plan-ready screens
+      if (data.goal && data.gender && data.activityLevel) {
+        const age = parseInt(data.age) || 25;
+        const height = parseFloat(data.height) || 170;
+        const weight = parseFloat(data.weight) || 70;
+        const bmr = calculateBMR(data.gender, weight, height, age);
+        const tdee = calculateTDEE(bmr, data.activityLevel);
+        const calories = calculateTargetCalories(tdee, data.goal);
+        const macros = calculateMacros(calories, data.goal, data.foodPreferences);
+        const totalCal = macros.carbs * 4 + macros.protein * 4 + macros.fat * 9;
+        setComputedPlan({
+          calories,
+          protein: macros.protein,
+          carbs: macros.carbs,
+          fat: macros.fat,
+          carbsPct: Math.round((macros.carbs * 4 / totalCal) * 100),
+          proteinPct: Math.round((macros.protein * 4 / totalCal) * 100),
+          fatPct: Math.round((macros.fat * 9 / totalCal) * 100),
+        });
+      }
+      setLoadingProgress(0);
+      setStep(6); // loading screen
     }
   };
 
@@ -319,11 +391,11 @@ const Onboarding = () => {
       const weight = parseFloat(data.weight);
       const targetWeight = parseFloat(data.targetWeight) || weight;
 
-      // Calculate nutrition targets
+      // Calculate nutrition targets (food preferences influence macro ratios)
       const bmr = calculateBMR(data.gender, weight, height, age);
       const tdee = calculateTDEE(bmr, data.activityLevel);
       const dailyCalories = calculateTargetCalories(tdee, data.goal);
-      const macros = calculateMacros(dailyCalories, data.goal);
+      const macros = calculateMacros(dailyCalories, data.goal, data.foodPreferences);
 
       const { error } = await updateProfile({
         gender: data.gender,
@@ -337,12 +409,28 @@ const Onboarding = () => {
         protein_target_g: macros.protein,
         carbs_target_g: macros.carbs,
         fat_target_g: macros.fat,
-        // Note: food_preferences, allergies, and training_days are stored in local state
-        // but not in the profile table as those columns don't exist
         onboarding_completed: true,
       });
 
       if (error) throw error;
+
+      // Save dietary preferences + allergies to user_dietary_preferences table
+      if (user) {
+        const allTags = [...dietTags, ...allergyTags];
+        const selectedNames = [...data.foodPreferences, ...data.allergies];
+        const selectedTagIds = selectedNames
+          .map((name) => allTags.find((t) => t.name === name)?.id)
+          .filter((id): id is string => Boolean(id));
+
+        // Replace all existing preferences for this user
+        await supabase.from("user_dietary_preferences").delete().eq("user_id", user.id);
+
+        if (selectedTagIds.length > 0) {
+          await supabase.from("user_dietary_preferences").insert(
+            selectedTagIds.map((diet_tag_id) => ({ user_id: user.id, diet_tag_id }))
+          );
+        }
+      }
 
       // Clear saved progress on successful completion
       clearSavedProgress();
@@ -418,6 +506,207 @@ const Onboarding = () => {
     { id: "active" as ActivityLevel, title: "Very Active", description: "Hard exercise 6-7 days/week" },
     { id: "very_active" as ActivityLevel, title: "Extra Active", description: "Very hard exercise & physical job" },
   ];
+
+  // ── Step 6: Personalizing loading screen ──────────────────────
+  if (step === 6) {
+    const RADIUS = 100;
+    const CIRC = 2 * Math.PI * RADIUS;
+    const offset = CIRC * (1 - loadingProgress / 100);
+
+    return (
+      <div className="fixed inset-0 flex flex-col bg-white" style={{ maxWidth: 430, margin: "0 auto" }}>
+        {/* X button */}
+        <div className="px-5 pt-12 flex-shrink-0">
+          <button type="button" onClick={() => navigate("/dashboard")}
+            className="hover:opacity-70 transition-opacity">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          {/* Title */}
+          <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight text-center mb-16">
+            Personalizing your Nutrio experience...
+          </h1>
+
+          {/* Circular progress ring */}
+          <div className="relative" style={{ width: 240, height: 240 }}>
+            <svg width="240" height="240" viewBox="0 0 240 240">
+              {/* Background track */}
+              <circle cx="120" cy="120" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="14" />
+              {/* Progress arc */}
+              <circle
+                cx="120" cy="120" r={RADIUS} fill="none"
+                stroke="url(#ringGrad)" strokeWidth="14"
+                strokeLinecap="round"
+                strokeDasharray={CIRC}
+                strokeDashoffset={offset}
+                transform="rotate(-90 120 120)"
+                style={{ transition: "stroke-dashoffset 0.05s linear" }}
+              />
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="hsl(90,65%,55%)" />
+                  <stop offset="100%" stopColor="hsl(90,65%,42%)" />
+                </linearGradient>
+              </defs>
+            </svg>
+            {/* Percentage text */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[40px] font-extrabold text-gray-900">{Math.round(loadingProgress)}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer text */}
+        <div className="px-8 pb-12 text-center flex-shrink-0">
+          <p className="text-sm text-gray-400 leading-relaxed">
+            Hang tight! We're crafting a personalized plan just for you.
+          </p>
+        </div>
+
+        {/* Auto-advance effect */}
+        <LoadingAdvancer
+          progress={loadingProgress}
+          setProgress={setLoadingProgress}
+          onComplete={async () => {
+            await completeOnboarding();
+            setStep(7);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // ── Step 7: Plan ready screen ──────────────────────────────────
+  if (step === 7) {
+    const plan = computedPlan ?? { calories: 2000, carbsPct: 40, proteinPct: 30, fatPct: 30, carbs: 200, protein: 150, fat: 67 };
+    const DONUT_R = 90;
+    const DONUT_CIRC = 2 * Math.PI * DONUT_R;
+    const carbsDash = DONUT_CIRC * (plan.carbsPct / 100);
+    const proteinDash = DONUT_CIRC * (plan.proteinPct / 100);
+    const fatDash = DONUT_CIRC * (plan.fatPct / 100);
+    // each segment starts where the previous ends
+    const carbsOffset = 0;
+    const proteinOffset = -carbsDash;
+    const fatOffset = -(carbsDash + proteinDash);
+
+    return (
+      <div className="fixed inset-0 flex flex-col bg-white" style={{ maxWidth: 430, margin: "0 auto" }}>
+        {/* X button */}
+        <div className="px-5 pt-12 flex-shrink-0">
+          <button type="button" onClick={() => navigate("/dashboard")}
+            className="hover:opacity-70 transition-opacity">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          {/* Title */}
+          <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight text-center mb-10">
+            Your personalized calorie plan is ready!
+          </h1>
+
+          {/* Donut chart */}
+          <div className="relative mb-8" style={{ width: 240, height: 240 }}>
+            <svg width="240" height="240" viewBox="0 0 240 240">
+              {/* Carbs — red */}
+              <circle cx="120" cy="120" r={DONUT_R} fill="none" stroke="#EF4444" strokeWidth="22"
+                strokeDasharray={`${carbsDash} ${DONUT_CIRC}`}
+                strokeDashoffset={carbsOffset}
+                transform="rotate(-90 120 120)" strokeLinecap="butt" />
+              {/* Protein — orange */}
+              <circle cx="120" cy="120" r={DONUT_R} fill="none" stroke="#F97316" strokeWidth="22"
+                strokeDasharray={`${proteinDash} ${DONUT_CIRC}`}
+                strokeDashoffset={proteinOffset}
+                transform="rotate(-90 120 120)" strokeLinecap="butt" />
+              {/* Fat — blue */}
+              <circle cx="120" cy="120" r={DONUT_R} fill="none" stroke="#3B82F6" strokeWidth="22"
+                strokeDasharray={`${fatDash} ${DONUT_CIRC}`}
+                strokeDashoffset={fatOffset}
+                transform="rotate(-90 120 120)" strokeLinecap="butt" />
+            </svg>
+            {/* Center label */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[36px] font-extrabold text-gray-900 leading-none">{plan.calories.toLocaleString()}</span>
+              <span className="text-sm font-medium text-gray-400 mt-1">kcal</span>
+            </div>
+
+            {/* Floating percentage labels */}
+            <div className="absolute" style={{ top: "14%", right: "-8%" }}>
+              <div className="bg-white rounded-full shadow-md px-3 py-1 text-sm font-bold text-gray-700">
+                {plan.proteinPct}%
+              </div>
+            </div>
+            <div className="absolute" style={{ top: "38%", left: "-10%" }}>
+              <div className="bg-white rounded-full shadow-md px-3 py-1 text-sm font-bold text-gray-700">
+                {plan.carbsPct}%
+              </div>
+            </div>
+            <div className="absolute" style={{ bottom: "6%", right: "-8%" }}>
+              <div className="bg-white rounded-full shadow-md px-3 py-1 text-sm font-bold text-gray-700">
+                {plan.fatPct}%
+              </div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-6">
+            {[
+              { color: "#EF4444", label: "Carbs" },
+              { color: "#F97316", label: "Protein" },
+              { color: "#3B82F6", label: "Fat" },
+            ].map(({ color, label }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
+                <span className="text-sm text-gray-600 font-medium">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Start button */}
+        <div className="px-6 pb-10 pt-4 flex-shrink-0">
+          <Button variant="gradient" className="w-full rounded-2xl font-bold" style={{ height: 56, fontSize: 16 }}
+            onClick={() => navigate("/dashboard")}>
+            Start Your Plan Now
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // precompute ruler values used inside the main return for step 3
+  const PX_PER_UNIT = 22;
+  const MIN_KG = 30;
+  const MAX_KG = 250;
+  const currentKg = parseFloat(data.weight) || 80;
+  const displayValue = weightUnit === 'kg'
+    ? currentKg.toFixed(1)
+    : (currentKg * 2.20462).toFixed(1);
+  const tickMin = Math.max(MIN_KG, Math.floor(currentKg) - 20);
+  const tickMax = Math.min(MAX_KG, Math.ceil(currentKg) + 20);
+  const rulerTicks: number[] = [];
+  for (let i = tickMin; i <= tickMax; i++) rulerTicks.push(i);
+
+  const handleRulerPointerDown = (e: React.PointerEvent) => {
+    dragStartX.current = e.clientX;
+    dragStartWeight.current = currentKg;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const handleRulerPointerMove = (e: React.PointerEvent) => {
+    if (dragStartX.current === null) return;
+    const dx = dragStartX.current - e.clientX;
+    const newKg = Math.min(MAX_KG, Math.max(MIN_KG,
+      Math.round((dragStartWeight.current + dx / PX_PER_UNIT) * 10) / 10
+    ));
+    setData((prev) => ({ ...prev, weight: newKg.toString() }));
+  };
+  const handleRulerPointerUp = () => { dragStartX.current = null; };
 
   // TEMP: skip auth loading spinner so page is visible without login
   // if (authLoading) {
@@ -550,136 +839,353 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* Step 3: Body Metrics - Split into sub-steps */}
+          {/* Step 3: Weight picker */}
           {step === 3 && (
             <div className="space-y-8">
-              {metricsSubStep === 'basic' && (
-                <div className="space-y-6 animate-in fade-in-50 duration-200">
+              {/* Age sub-step */}
+              {metricsSubStep === 'age' && (() => {
+                const currentAge = parseInt(data.age) || 25;
+                const AGE_PX = 28;
+                const MIN_AGE = 13, MAX_AGE = 100;
+                const ageTickMin = Math.max(MIN_AGE, currentAge - 15);
+                const ageTickMax = Math.min(MAX_AGE, currentAge + 15);
+                const ageTicks: number[] = [];
+                for (let i = ageTickMin; i <= ageTickMax; i++) ageTicks.push(i);
+                const onAgeDown = (e: React.PointerEvent) => {
+                  dragStartX.current = e.clientX;
+                  dragStartWeight.current = currentAge;
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                };
+                const onAgeMove = (e: React.PointerEvent) => {
+                  if (dragStartX.current === null) return;
+                  const newVal = Math.min(MAX_AGE, Math.max(MIN_AGE,
+                    Math.round(dragStartWeight.current + (dragStartX.current - e.clientX) / AGE_PX)
+                  ));
+                  setData((prev) => ({ ...prev, age: newVal.toString() }));
+                };
+                return (
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                        How old are <span className="text-gradient">you?</span>
+                      </h1>
+                      <p className="text-muted-foreground">We use this to personalise your calorie targets</p>
+                    </div>
+
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
+                        {currentAge}
+                      </span>
+                      <span className="text-2xl font-semibold text-muted-foreground">yrs</span>
+                    </div>
+
+                    <div className="relative w-full select-none cursor-grab active:cursor-grabbing"
+                      style={{ height: 90, touchAction: "none" }}
+                      onPointerDown={onAgeDown} onPointerMove={onAgeMove}
+                      onPointerUp={() => { dragStartX.current = null; }} onPointerCancel={() => { dragStartX.current = null; }}>
+                      {ageTicks.map((tick) => {
+                        const offset = (tick - currentAge) * AGE_PX;
+                        const isTen = tick % 10 === 0;
+                        const isFive = tick % 5 === 0 && !isTen;
+                        return (
+                          <div key={tick} className="absolute top-0"
+                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
+                            <div style={{
+                              width: isTen ? 2 : 1,
+                              height: isTen ? 32 : isFive ? 22 : 14,
+                              background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
+                              borderRadius: 2, margin: "0 auto",
+                            }} />
+                          </div>
+                        );
+                      })}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
+                        style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
+                      {ageTicks.filter((t) => t % 10 === 0).map((tick) => {
+                        const offset = (tick - currentAge) * AGE_PX;
+                        return (
+                          <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
+                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
+                            {tick}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <Button className="w-full" onClick={() => setMetricsSubStep('height')} disabled={!data.age}>
+                      Continue
+                    </Button>
+                  </div>
+                );
+              })()}
+
+              {/* Height sub-step */}
+              {metricsSubStep === 'height' && (() => {
+                const currentHeight = parseInt(data.height) || 170;
+                const HEIGHT_PX = 14;
+                const MIN_H = 100, MAX_H = 250;
+                const hTickMin = Math.max(MIN_H, currentHeight - 20);
+                const hTickMax = Math.min(MAX_H, currentHeight + 20);
+                const hTicks: number[] = [];
+                for (let i = hTickMin; i <= hTickMax; i++) hTicks.push(i);
+                const onHeightDown = (e: React.PointerEvent) => {
+                  dragStartX.current = e.clientX;
+                  dragStartWeight.current = currentHeight;
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                };
+                const onHeightMove = (e: React.PointerEvent) => {
+                  if (dragStartX.current === null) return;
+                  const newVal = Math.min(MAX_H, Math.max(MIN_H,
+                    Math.round(dragStartWeight.current + (dragStartX.current - e.clientX) / HEIGHT_PX)
+                  ));
+                  setData((prev) => ({ ...prev, height: newVal.toString() }));
+                };
+                return (
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                        What's your <span className="text-gradient">height?</span>
+                      </h1>
+                      <p className="text-muted-foreground">Drag the ruler to set your height</p>
+                    </div>
+
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
+                        {currentHeight}
+                      </span>
+                      <span className="text-2xl font-semibold text-muted-foreground">cm</span>
+                    </div>
+
+                    <div className="relative w-full select-none cursor-grab active:cursor-grabbing"
+                      style={{ height: 90, touchAction: "none" }}
+                      onPointerDown={onHeightDown} onPointerMove={onHeightMove}
+                      onPointerUp={() => { dragStartX.current = null; }} onPointerCancel={() => { dragStartX.current = null; }}>
+                      {hTicks.map((tick) => {
+                        const offset = (tick - currentHeight) * HEIGHT_PX;
+                        const isTen = tick % 10 === 0;
+                        const isFive = tick % 5 === 0 && !isTen;
+                        return (
+                          <div key={tick} className="absolute top-0"
+                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
+                            <div style={{
+                              width: isTen ? 2 : 1,
+                              height: isTen ? 32 : isFive ? 22 : 14,
+                              background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
+                              borderRadius: 2, margin: "0 auto",
+                            }} />
+                          </div>
+                        );
+                      })}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
+                        style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
+                      {hTicks.filter((t) => t % 10 === 0).map((tick) => {
+                        const offset = (tick - currentHeight) * HEIGHT_PX;
+                        return (
+                          <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
+                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
+                            {tick}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => setMetricsSubStep('age')} className="w-12 h-12 flex-shrink-0 p-0">
+                        <ArrowLeft className="w-5 h-5" />
+                      </Button>
+                      <Button onClick={() => setMetricsSubStep('weight')} className="flex-1" disabled={!data.height}>
+                        Continue
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Weight sub-step */}
+              {metricsSubStep === 'weight' && (
+                <div className="space-y-6">
                   <div className="text-center">
                     <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                      Let's get to know you
+                      What's your current <span className="text-gradient">weight?</span>
                     </h1>
-                    <p className="text-muted-foreground">
-                      We'll calculate your ideal calorie and macro targets
-                    </p>
+                    <p className="text-muted-foreground">Drag the ruler to set your weight</p>
                   </div>
 
-                  <Card variant="elevated">
-                    <CardContent className="p-6 space-y-6">
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="age" className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-muted-foreground" />
-                            Age
-                          </Label>
-                          <Input
-                            id="age"
-                            type="number"
-                            placeholder="25"
-                            value={data.age}
-                            onChange={(e) => setData({ ...data, age: e.target.value })}
-                            className="h-12"
-                            min={13}
-                            max={120}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="height" className="flex items-center gap-2">
-                            <Ruler className="w-4 h-4 text-muted-foreground" />
-                            Height (cm)
-                          </Label>
-                          <Input
-                            id="height"
-                            type="number"
-                            placeholder="175"
-                            value={data.height}
-                            onChange={(e) => setData({ ...data, height: e.target.value })}
-                            className="h-12"
-                            min={100}
-                            max={250}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="weight" className="flex items-center gap-2">
-                            <Scale className="w-4 h-4 text-muted-foreground" />
-                            Current Weight (kg)
-                          </Label>
-                          <Input
-                            id="weight"
-                            type="number"
-                            placeholder="75"
-                            value={data.weight}
-                            onChange={(e) => setData({ ...data, weight: e.target.value })}
-                            className="h-12"
-                            min={30}
-                            max={300}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Button 
-                    onClick={() => setMetricsSubStep('targets')}
-                    className="w-full"
-                    disabled={!data.age || !data.height || !data.weight}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              )}
-
-              {metricsSubStep === 'targets' && (
-                <div className="space-y-6 animate-in fade-in-50 duration-200">
-                  <div className="text-center">
-                    <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                      What's your target weight?
-                    </h1>
-                    <p className="text-muted-foreground">
-                      {data.goal === 'lose' ? 'We recommend losing 0.5-1kg per week' : 
-                       data.goal === 'gain' ? 'Healthy weight gain takes time' : 
-                       'Maintain your current weight'}
-                    </p>
+                  {/* Unit toggle */}
+                  <div className="flex justify-center">
+                    <div className="flex gap-1 p-1 bg-muted rounded-full">
+                      {(['kg', 'lb'] as const).map((u) => (
+                        <button key={u} type="button" onClick={() => setWeightUnit(u)}
+                          className="px-6 py-2 rounded-full font-semibold text-sm transition-all"
+                          style={weightUnit === u
+                            ? { background: "linear-gradient(135deg, hsl(90,65%,50%) 0%, hsl(90,65%,42%) 100%)", color: "#fff" }
+                            : { color: "hsl(var(--muted-foreground))" }}>
+                          {u}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <Card variant="elevated">
-                    <CardContent className="p-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="targetWeight" className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-muted-foreground" />
-                          Target Weight (kg)
-                        </Label>
-                        <Input
-                          id="targetWeight"
-                          type="number"
-                          placeholder="70"
-                          value={data.targetWeight}
-                          onChange={(e) => setData({ ...data, targetWeight: e.target.value })}
-                          className="h-12"
-                          min={30}
-                          max={300}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {/* Large value */}
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
+                      {displayValue}
+                    </span>
+                    <span className="text-2xl font-semibold text-muted-foreground">{weightUnit}</span>
+                  </div>
+
+                  {/* Ruler */}
+                  <div ref={rulerRef} className="relative w-full select-none cursor-grab active:cursor-grabbing"
+                    style={{ height: 90, touchAction: "none" }}
+                    onPointerDown={handleRulerPointerDown} onPointerMove={handleRulerPointerMove}
+                    onPointerUp={handleRulerPointerUp} onPointerCancel={handleRulerPointerUp}>
+                    {rulerTicks.map((tick) => {
+                      const offset = (tick - currentKg) * PX_PER_UNIT;
+                      const isTen = tick % 10 === 0;
+                      const isFive = tick % 5 === 0 && !isTen;
+                      return (
+                        <div key={tick} className="absolute top-0"
+                          style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
+                          <div style={{
+                            width: isTen ? 2 : 1,
+                            height: isTen ? 32 : isFive ? 22 : 14,
+                            background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
+                            borderRadius: 2, margin: "0 auto",
+                          }} />
+                        </div>
+                      );
+                    })}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
+                      style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
+                    {rulerTicks.filter((t) => t % 10 === 0).map((tick) => {
+                      const offset = (tick - currentKg) * PX_PER_UNIT;
+                      const label = weightUnit === 'kg' ? tick : Math.round(tick * 2.20462);
+                      return (
+                        <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
+                          style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setMetricsSubStep('basic')} className="flex-1">
-                      Back
+                    <Button variant="outline" onClick={() => setMetricsSubStep('height')} className="w-12 h-12 flex-shrink-0 p-0">
+                      <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <Button 
-                      onClick={handleNext}
-                      className="flex-1"
-                      disabled={!data.targetWeight}
-                    >
+                    <Button onClick={() => setMetricsSubStep('targets')} className="flex-1" disabled={!data.weight}>
                       Continue
                     </Button>
                   </div>
                 </div>
               )}
+
+              {/* Target weight sub-step — same ruler design */}
+              {metricsSubStep === 'targets' && (() => {
+                const targetKg = parseFloat(data.targetWeight) || 70;
+                const targetDisplay = weightUnit === 'kg'
+                  ? targetKg.toFixed(1)
+                  : (targetKg * 2.20462).toFixed(1);
+                const tMin = Math.max(MIN_KG, Math.floor(targetKg) - 20);
+                const tMax = Math.min(MAX_KG, Math.ceil(targetKg) + 20);
+                const targetTicks: number[] = [];
+                for (let i = tMin; i <= tMax; i++) targetTicks.push(i);
+
+                const onTargetDown = (e: React.PointerEvent) => {
+                  dragStartX.current = e.clientX;
+                  dragStartWeight.current = targetKg;
+                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                };
+                const onTargetMove = (e: React.PointerEvent) => {
+                  if (dragStartX.current === null) return;
+                  const newKg = Math.min(MAX_KG, Math.max(MIN_KG,
+                    Math.round((dragStartWeight.current + (dragStartX.current - e.clientX) / PX_PER_UNIT) * 10) / 10
+                  ));
+                  setData((prev) => ({ ...prev, targetWeight: newKg.toString() }));
+                };
+
+                return (
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                        What's your <span className="text-gradient">target weight?</span>
+                      </h1>
+                      <p className="text-muted-foreground">
+                        {data.goal === 'lose' ? 'We recommend losing 0.5–1 kg per week' :
+                         data.goal === 'gain' ? 'Healthy weight gain takes time and consistency' :
+                         'Maintain your current weight and improve health'}
+                      </p>
+                    </div>
+
+                    {/* Unit toggle */}
+                    <div className="flex justify-center">
+                      <div className="flex gap-1 p-1 bg-muted rounded-full">
+                        {(['kg', 'lb'] as const).map((u) => (
+                          <button key={u} type="button" onClick={() => setWeightUnit(u)}
+                            className="px-6 py-2 rounded-full font-semibold text-sm transition-all"
+                            style={weightUnit === u
+                              ? { background: "linear-gradient(135deg, hsl(90,65%,50%) 0%, hsl(90,65%,42%) 100%)", color: "#fff" }
+                              : { color: "hsl(var(--muted-foreground))" }}>
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Large value */}
+                    <div className="flex items-baseline justify-center gap-2">
+                      <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
+                        {targetDisplay}
+                      </span>
+                      <span className="text-2xl font-semibold text-muted-foreground">{weightUnit}</span>
+                    </div>
+
+                    {/* Ruler */}
+                    <div className="relative w-full select-none cursor-grab active:cursor-grabbing"
+                      style={{ height: 90, touchAction: "none" }}
+                      onPointerDown={onTargetDown} onPointerMove={onTargetMove}
+                      onPointerUp={() => { dragStartX.current = null; }} onPointerCancel={() => { dragStartX.current = null; }}>
+                      {targetTicks.map((tick) => {
+                        const offset = (tick - targetKg) * PX_PER_UNIT;
+                        const isTen = tick % 10 === 0;
+                        const isFive = tick % 5 === 0 && !isTen;
+                        return (
+                          <div key={tick} className="absolute top-0"
+                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
+                            <div style={{
+                              width: isTen ? 2 : 1,
+                              height: isTen ? 32 : isFive ? 22 : 14,
+                              background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
+                              borderRadius: 2, margin: "0 auto",
+                            }} />
+                          </div>
+                        );
+                      })}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
+                        style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
+                      {targetTicks.filter((t) => t % 10 === 0).map((tick) => {
+                        const offset = (tick - targetKg) * PX_PER_UNIT;
+                        const label = weightUnit === 'kg' ? tick : Math.round(tick * 2.20462);
+                        return (
+                          <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
+                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => setMetricsSubStep('weight')} className="w-12 h-12 flex-shrink-0 p-0">
+                        <ArrowLeft className="w-5 h-5" />
+                      </Button>
+                      <Button onClick={handleNext} className="flex-1" disabled={!data.targetWeight}>
+                        Continue
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

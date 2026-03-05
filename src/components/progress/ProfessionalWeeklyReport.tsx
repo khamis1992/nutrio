@@ -65,6 +65,7 @@ interface ProfessionalWeeklyReportProps {
   onDownload: () => Promise<void>;
   generatingReport: boolean;
   onRefreshRecommendations?: () => void;
+  weeklyBurned?: number;
 }
 
 export function ProfessionalWeeklyReport({
@@ -79,6 +80,7 @@ export function ProfessionalWeeklyReport({
   onDownload,
   generatingReport,
   onRefreshRecommendations,
+  weeklyBurned = 0,
 }: ProfessionalWeeklyReportProps) {
   const weekStart = subDays(new Date(), 7);
   const weekEnd = new Date();
@@ -231,131 +233,144 @@ export function ProfessionalWeeklyReport({
 
   return (
     <div className="space-y-4">
-      {/* Card 1: Weekly Overview - Modern Dark Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900 text-white p-6 shadow-2xl">
-        {/* Background decorations */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-500/10 to-violet-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-        
-        <div className="relative">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">Weekly Overview</h3>
-                <p className="text-xs text-white/50">{format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur">
-              <div className={cn("w-2 h-2 rounded-full", stats.overallScore >= 80 ? "bg-emerald-400" : stats.overallScore >= 60 ? "bg-amber-400" : "bg-orange-400")} />
-              <span className="text-xs font-medium text-white/80">{getScoreLabel(stats.overallScore)}</span>
+      {/* Card 1: Weekly Overview Header */}
+      <div className="flex items-center justify-between px-1">
+        <div>
+          <h3 className="font-bold text-slate-900">Weekly Overview</h3>
+          <p className="text-xs text-slate-500">{format(weekStart, "MMM d")} - {format(weekEnd, "MMM d")}</p>
+        </div>
+        <div className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white",
+          stats.overallScore >= 80 ? "bg-emerald-500" : stats.overallScore >= 60 ? "bg-amber-500" : "bg-orange-500"
+        )}>
+          <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
+          {getScoreLabel(stats.overallScore)}
+        </div>
+      </div>
+
+      {/* Score + Progress — Emerald card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-5 shadow-md">
+        <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full" />
+        <div className="flex items-center gap-5">
+          {/* Score ring */}
+          <div className="relative shrink-0">
+            <svg className="w-24 h-24 -rotate-90">
+              <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="7" />
+              <circle
+                cx="48" cy="48" r="40"
+                fill="none"
+                stroke="white"
+                strokeWidth="7"
+                strokeLinecap="round"
+                strokeDasharray={`${stats.overallScore * 2.51} 251`}
+                className="transition-all duration-1000"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold">{stats.overallScore}</span>
+              <span className="text-[10px] text-white/60 uppercase tracking-wider">Score</span>
             </div>
           </div>
-
-          {/* Main Score Display */}
-          <div className="flex items-end gap-4 mb-6">
-            <div className="relative">
-              <svg className="w-28 h-28 -rotate-90">
-                <circle cx="56" cy="56" r="50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                <circle
-                  cx="56"
-                  cy="56"
-                  r="50"
-                  fill="none"
-                  stroke="url(#scoreGradient)"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={`${stats.overallScore * 3.14} 314`}
-                  className="transition-all duration-1000"
+          {/* Days logged */}
+          <div className="flex-1">
+            <p className="text-sm text-white/70 mb-1">Weekly Progress</p>
+            <p className="text-xl font-bold">{stats.daysWithLogs} of 7 days</p>
+            <div className="flex gap-1 mt-2">
+              {[...Array(7)].map((_, i) => (
+                <div
+                  key={i}
+                  className={cn("h-1.5 flex-1 rounded-full transition-all", i < stats.daysWithLogs ? "bg-white" : "bg-white/20")}
                 />
-                <defs>
-                  <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#34d399" />
-                    <stop offset="100%" stopColor="#14b8a6" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-white">{stats.overallScore}</span>
-                <span className="text-[10px] text-white/50 uppercase tracking-wider">Score</span>
-              </div>
+              ))}
             </div>
-            
-            <div className="flex-1 pb-2">
-              <p className="text-sm text-white/60 mb-1">Weekly Progress</p>
-              <p className="text-lg font-semibold text-white">{stats.daysWithLogs} of 7 days</p>
-              <div className="flex gap-1 mt-2">
-                {[...Array(7)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-1.5 flex-1 rounded-full transition-all",
-                      i < stats.daysWithLogs ? "bg-emerald-400" : "bg-white/10"
-                    )}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white/5 backdrop-blur rounded-2xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <Flame className="w-4 h-4 text-orange-400" />
-                </div>
-              </div>
-              <p className="text-lg font-bold text-white">{Math.round(stats.avgCalories)}</p>
-              <p className="text-[10px] text-white/50">Avg Calories</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur rounded-2xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <Target className="w-4 h-4 text-blue-400" />
-                </div>
-              </div>
-              <p className="text-lg font-bold text-white">{stats.quality}</p>
-              <p className="text-[10px] text-white/50">Quality Score</p>
-            </div>
-            <div className="bg-white/5 backdrop-blur rounded-2xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <Flame className="w-4 h-4 text-amber-400" />
-                </div>
-              </div>
-              <p className="text-lg font-bold text-white">{stats.streak}</p>
-              <p className="text-[10px] text-white/50">Day Streak</p>
-            </div>
-          </div>
-
-          {/* Download Button */}
-          <div className="mt-5">
-            <Button
-              className="w-full h-10 text-sm font-medium bg-white/10 hover:bg-white/20 text-white rounded-2xl backdrop-blur border border-white/10"
-              onClick={onDownload}
-              disabled={generatingReport}
-            >
-              {generatingReport ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Report...
-                </>
-              ) : (
-                <>
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Download Weekly Report (PDF)
-                </>
-              )}
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Card 2: Performance Metrics - Modern Stats Grid */}
+      {/* Stats Grid — 3 colored cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Avg Calories — Orange */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white p-3 shadow-md">
+          <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mb-2">
+            <Flame className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-lg font-bold">{Math.round(stats.avgCalories)}</p>
+          <p className="text-[10px] text-white/70">Avg Calories</p>
+        </div>
+        {/* Quality Score — Blue */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-3 shadow-md">
+          <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mb-2">
+            <Target className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-lg font-bold">{stats.quality}</p>
+          <p className="text-[10px] text-white/70">Quality Score</p>
+        </div>
+        {/* Cal Burned — Amber */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-3 shadow-md">
+          <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mb-2">
+            <Flame className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-lg font-bold">{weeklyBurned}</p>
+          <p className="text-[10px] text-white/70">Cal Burned</p>
+        </div>
+      </div>
+
+      {/* Download Button */}
+      <Button
+        className="w-full h-10 text-sm font-medium rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white"
+        onClick={onDownload}
+        disabled={generatingReport}
+      >
+        {generatingReport ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Generating Report...
+          </>
+        ) : (
+          <>
+            <FileDown className="w-4 h-4 mr-2" />
+            Download Weekly Report (PDF)
+          </>
+        )}
+      </Button>
+
+      {/* Card 2: Daily Log Status */}
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">Daily Log Status</h3>
+            <span className="text-xs text-muted-foreground">{stats.daysWithLogs}/7 days logged</span>
+          </div>
+          <div className="flex gap-1.5">
+            {dailyData.map((day, index) => {
+              const logged = day.calories > 0;
+              const onTarget = logged && day.calories >= stats.calorieTarget * 0.9 && day.calories <= stats.calorieTarget * 1.1;
+              return (
+                <div key={index} className="flex-1 text-center">
+                  <div
+                    className={cn(
+                      "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all",
+                      onTarget
+                        ? "bg-emerald-500 text-white"
+                        : logged
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {onTarget ? <CheckCircle2 className="w-4 h-4" /> : format(new Date(day.date), "dd")}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(day.date), "EEE")}</p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card 3: Performance Metrics - Modern Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
         {/* Calories Card */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
@@ -905,37 +920,6 @@ export function ProfessionalWeeklyReport({
         </CardContent>
       </Card>
 
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm">Daily Log Status</h3>
-            <span className="text-xs text-muted-foreground">{stats.daysWithLogs}/7 days logged</span>
-          </div>
-          <div className="flex gap-1.5">
-            {dailyData.map((day, index) => {
-              const logged = day.calories > 0;
-              const onTarget = logged && day.calories >= stats.calorieTarget * 0.9 && day.calories <= stats.calorieTarget * 1.1;
-              return (
-                <div key={index} className="flex-1 text-center">
-                  <div
-                    className={cn(
-                      "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all",
-                      onTarget
-                        ? "bg-emerald-500 text-white"
-                        : logged
-                          ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {onTarget ? <CheckCircle2 className="w-4 h-4" /> : format(new Date(day.date), "dd")}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(day.date), "EEE")}</p>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
 
     </div>
   );

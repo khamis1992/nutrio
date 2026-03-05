@@ -35,6 +35,9 @@ const RestaurantDetail = lazy(() => import("./pages/RestaurantDetail"));
 const MealDetail = lazy(() => import("./pages/MealDetail"));
 const Schedule = lazy(() => import("./pages/Schedule"));
 const Progress = lazy(() => import("./pages/ProgressRedesigned"));
+const Tracker = lazy(() => import("./pages/Tracker"));
+const WaterTracker = lazy(() => import("./pages/WaterTracker"));
+const StepCounter = lazy(() => import("./pages/StepCounter"));
 const WeightTracking = lazy(() => import("./pages/WeightTracking"));
 
 const Profile = lazy(() => import("./pages/Profile"));
@@ -153,12 +156,11 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             
+            {/* Onboarding has no dock/nav */}
+            <Route path="/onboarding" element={<Onboarding />} />
+
             {/* Customer App Routes - Wrapped with CustomerLayout for background */}
             <Route element={<CustomerLayout />}>
-              <Route 
-                path="/onboarding" 
-                element={<Onboarding />} 
-              />
             <Route 
               path="/dashboard" 
               element={
@@ -184,6 +186,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Progress />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/tracker" 
+              element={
+                <ProtectedRoute>
+                  <Tracker />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/water-tracker" 
+              element={
+                <ProtectedRoute>
+                  <WaterTracker />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/step-counter" 
+              element={
+                <ProtectedRoute>
+                  <StepCounter />
                 </ProtectedRoute>
               } 
             />

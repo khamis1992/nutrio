@@ -14,7 +14,7 @@ import {
   Plus,
   Crown,
   Flame,
-  Target,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -308,14 +308,14 @@ const Dashboard = () => {
 
         {/* ENHANCED QUICK ACTIONS GRID */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link to="/schedule" className="group">
+          <Link to="/tracker" className="group">
             <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-primary/10 hover:border-primary/30 hover:-translate-y-0.5">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:scale-110 transition-all">
-                  <Target className="w-6 h-6 text-primary" />
+                  <BarChart3 className="w-6 h-6 text-primary" />
                 </div>
-                <p className="font-semibold text-sm">Schedule</p>
-                <p className="text-xs text-muted-foreground mt-1">Plan meals</p>
+                <p className="font-semibold text-sm">Tracker</p>
+                <p className="text-xs text-muted-foreground mt-1">Track stats</p>
               </CardContent>
             </Card>
           </Link>
