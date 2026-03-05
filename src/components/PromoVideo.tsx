@@ -150,7 +150,7 @@ export const PromoVideo = () => {
               playsInline
               preload="auto"
               onError={handleVideoError}
-              className="w-full h-full object-contain"
+              className="w-full max-h-[65vh] object-contain"
             />
 
             {/* Loading State */}

@@ -495,13 +495,6 @@ const WalkthroughScreen = () => {
         {/* Buttons */}
         <div style={{ display: "flex", gap: 12, width: "100%", marginTop: "auto", paddingTop: 20 }}>
           <Button
-            variant="outline"
-            onClick={handleSkip}
-            style={{ flex: 1, height: 52, borderRadius: 999, fontSize: 15, fontWeight: 600, borderWidth: 2 }}
-          >
-            Skip
-          </Button>
-          <Button
             variant="gradient"
             onClick={handleContinue}
             style={{ flex: 1, height: 52, borderRadius: 999, fontSize: 15, fontWeight: 600 }}
