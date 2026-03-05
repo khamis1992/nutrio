@@ -176,6 +176,7 @@ export function OrderTrackingHub() {
             size="icon"
             onClick={handleRefresh}
             disabled={refreshing}
+            aria-label="Refresh orders"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>

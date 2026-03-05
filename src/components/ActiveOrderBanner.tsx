@@ -182,8 +182,9 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       if (!data?.success) throw new Error("Cancellation failed. Please try again.");
       setActiveOrders(prev => prev.filter(o => o.id !== orderId));
       toast.success("Order cancelled successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to cancel order. Please try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to cancel order. Please try again.";
+      toast.error(message);
     } finally {
       setCancelling(null);
     }

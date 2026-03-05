@@ -384,7 +384,7 @@ describe("OrderTrackingHub", () => {
       renderWithRouter(<OrderTrackingHub />);
 
       await waitFor(() => {
-        const refreshButton = screen.getByRole("button", { name: "" });
+        const refreshButton = screen.getByRole("button", { name: /refresh orders/i });
         expect(refreshButton).toBeInTheDocument();
       });
     });
@@ -402,7 +402,7 @@ describe("OrderTrackingHub", () => {
 
       await waitFor(() => screen.getByText(/No Active Orders/i));
 
-      const refreshButton = screen.getByRole("button", { name: "" });
+      const refreshButton = screen.getByRole("button", { name: /refresh orders/i });
       await userEvent.click(refreshButton);
 
       expect(mockOrder).toHaveBeenCalledTimes(2);
@@ -420,7 +420,7 @@ describe("OrderTrackingHub", () => {
 
       await waitFor(() => screen.getByText(/No Active Orders/i));
 
-      const refreshButton = screen.getByRole("button", { name: "" });
+      const refreshButton = screen.getByRole("button", { name: /refresh orders/i });
       await userEvent.click(refreshButton);
 
       // Check for spin animation class
@@ -452,11 +452,12 @@ describe("OrderTrackingHub", () => {
     });
 
     it("unsubscribes from real-time updates on unmount", async () => {
-      const mockUnsubscribe = vi.fn();
-      vi.mocked(supabase.channel).mockReturnValue({
+      const mockChannel = {
         on: vi.fn().mockReturnThis(),
-        subscribe: vi.fn().mockReturnValue({ unsubscribe: mockUnsubscribe }),
-      } as any);
+        subscribe: vi.fn().mockReturnThis(),
+      };
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.removeChannel).mockImplementation(vi.fn());
 
       vi.mocked(supabase.from).mockReturnValue({
         select: vi.fn().mockReturnThis(),
@@ -471,7 +472,7 @@ describe("OrderTrackingHub", () => {
 
       unmount();
 
-      expect(mockUnsubscribe).toHaveBeenCalled();
+      expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
     });
   });
 

@@ -99,7 +99,7 @@ class PerformanceBenchmark {
 
   private async benchmarkRPC(
     functionName: string,
-    params: Record<string, any>,
+    params: Record<string, unknown>,
     iterations: number,
     targetMs: number
   ): Promise<void> {
@@ -112,6 +112,7 @@ class PerformanceBenchmark {
       const start = performance.now();
       
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await (supabase.rpc as any)(functionName, params);
         const end = performance.now();
         
@@ -131,7 +132,8 @@ class PerformanceBenchmark {
 
   private async benchmarkQuery(
     name: string,
-    query: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query: Promise<{ error: unknown }> | any,
     iterations: number,
     targetMs: number
   ): Promise<void> {
@@ -202,7 +204,7 @@ class PerformanceBenchmark {
     };
   }
 
-  private isExpectedError(error: any): boolean {
+  private isExpectedError(error: { message?: string }): boolean {
     // Expected errors in test environment (e.g., missing test data)
     const expectedMessages = [
       'not found',

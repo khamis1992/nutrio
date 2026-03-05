@@ -50,6 +50,7 @@ export function CancellationFlow({
       if (!subscriptionId || !user) return;
 
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await (supabase.rpc as any)("get_win_back_offers", {
           p_user_id: user.id,
           p_subscription_id: subscriptionId,
@@ -101,6 +102,7 @@ export function CancellationFlow({
 
     setIsLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.rpc as any)("process_cancellation", {
         p_subscription_id: subscriptionId,
         p_step: 2,
@@ -151,6 +153,7 @@ export function CancellationFlow({
 
     setIsLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.rpc as any)("process_cancellation", {
         p_subscription_id: subscriptionId,
         p_step: 3,
@@ -194,6 +197,7 @@ export function CancellationFlow({
 
     setIsLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.rpc as any)("process_cancellation", {
         p_subscription_id: subscriptionId,
         p_step: 4,
@@ -237,6 +241,7 @@ export function CancellationFlow({
 
     setIsLoading(true);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.rpc as any)("process_cancellation", {
         p_subscription_id: subscriptionId,
         p_step: 4,
