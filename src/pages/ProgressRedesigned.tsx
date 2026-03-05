@@ -538,8 +538,8 @@ const ProgressDashboard = () => {
                 (calorieProgress + proteinProgress) / 2 >= 50 ? "bg-amber-500" : "bg-orange-500"
               )}>
                 <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
-                {(calorieProgress + proteinProgress) / 2 >= 80 ? "Great" :
-                 (calorieProgress + proteinProgress) / 2 >= 50 ? "Good" : "Keep Going"}
+                {(calorieProgress + proteinProgress) / 2 >= 80 ? t("great") :
+                 (calorieProgress + proteinProgress) / 2 >= 50 ? t("good") : t("keep_going")}
               </div>
             </div>
 
@@ -787,25 +787,25 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
 
   const goalTypeConfig: Record<string, { label: string; icon: React.ReactNode; color: string; bgColor: string }> = {
     weight_loss: {
-      label: "Weight Loss",
+      label: "weight_loss",
       icon: <TrendingDown className="w-5 h-5" />,
       color: "text-orange-600",
       bgColor: "bg-orange-500",
     },
     muscle_gain: {
-      label: "Muscle Gain",
+      label: "muscle_gain",
       icon: <Zap className="w-5 h-5" />,
       color: "text-blue-600",
       bgColor: "bg-blue-500",
     },
     maintenance: {
-      label: "Maintenance",
+      label: "maintenance_goal",
       icon: <Minus className="w-5 h-5" />,
       color: "text-amber-600",
       bgColor: "bg-amber-500",
     },
     general_health: {
-      label: "General Health",
+      label: "general_health",
       icon: <Sparkles className="w-5 h-5" />,
       color: "text-emerald-600",
       bgColor: "bg-emerald-500",
@@ -815,16 +815,16 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
   const currentGoal = activeGoal ? goalTypeConfig[activeGoal.goal_type] || goalTypeConfig.general_health : null;
 
   const macroData = activeGoal ? [
-    { label: "Calories", value: activeGoal.daily_calorie_target, unit: "kcal", color: "bg-orange-500", icon: <Flame className="w-4 h-4" /> },
-    { label: "Protein", value: activeGoal.protein_target_g, unit: "g", color: "bg-blue-500", icon: <Target className="w-4 h-4" /> },
-    { label: "Carbs", value: activeGoal.carbs_target_g, unit: "g", color: "bg-amber-500", icon: <Zap className="w-4 h-4" /> },
-    { label: "Fat", value: activeGoal.fat_target_g, unit: "g", color: "bg-emerald-500", icon: <Droplets className="w-4 h-4" /> },
+    { label: t("calories"), value: activeGoal.daily_calorie_target, unit: "kcal", color: "bg-orange-500", icon: <Flame className="w-4 h-4" /> },
+    { label: t("protein"), value: activeGoal.protein_target_g, unit: "g", color: "bg-blue-500", icon: <Target className="w-4 h-4" /> },
+    { label: t("carbs"), value: activeGoal.carbs_target_g, unit: "g", color: "bg-amber-500", icon: <Zap className="w-4 h-4" /> },
+    { label: t("fat"), value: activeGoal.fat_target_g, unit: "g", color: "bg-emerald-500", icon: <Droplets className="w-4 h-4" /> },
   ] : [];
 
   const milestones = [
-    { id: 1, title: "First Week Complete", description: "Logged meals for 7 days", achieved: true, icon: "🎯" },
-    { id: 2, title: "Protein Pro", description: "Hit protein goal 5 days", achieved: true, icon: "💪" },
-    { id: 3, title: "Hydration Hero", description: "Drank 8 glasses for a week", achieved: false, icon: "💧" },
+    { id: 1, title: t("first_week_complete"), description: t("logged_meals_7_days"), achieved: true, icon: "🎯" },
+    { id: 2, title: t("protein_pro"), description: t("hit_protein_goal_5_days"), achieved: true, icon: "💪" },
+    { id: 3, title: t("hydration_hero"), description: t("drank_8_glasses"), achieved: false, icon: "💧" },
   ];
 
   return (
@@ -841,7 +841,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               </div>
               <div>
                 <p className="text-white/70 text-sm">Active Goal</p>
-                <h3 className="text-xl font-bold">{currentGoal.label}</h3>
+                <h3 className="text-xl font-bold">{t(currentGoal.label)}</h3>
               </div>
             </div>
             {activeGoal?.target_weight_kg && (
@@ -974,7 +974,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                 <p className="text-sm text-slate-500">
                   {suggestions.length > 0
                     ? `${suggestions.length} suggestion${suggestions.length !== 1 ? "s" : ""} based on ${suggestions[0]?.daysAnalyzed ?? 0} days`
-                    : "Goal optimization based on your data"}
+                    : t("goal_optimization")}
                 </p>
               </div>
             </div>
@@ -1030,17 +1030,17 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               {adjustLoading ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Analyzing your last 21 days…
+                  {t("analyzing_21_days")}
                 </div>
               ) : suggestions.length === 0 ? (
                 <div className="text-sm text-slate-500 text-center py-3 space-y-1">
                   <p className="font-medium">
-                    {activeGoal ? "Not enough data yet" : "No active goal"}
+                    {activeGoal ? t("not_enough_data") : t("no_active_goal")}
                   </p>
                   <p className="text-xs text-slate-400">
                     {activeGoal
-                      ? "Log meals for at least 4 days to unlock personalized suggestions."
-                      : "Set a nutrition goal first so we can analyze your progress."}
+                      ? t("log_meals_4_days")
+                      : t("set_nutrition_goal_first")}
                   </p>
                 </div>
               ) : (
@@ -1054,7 +1054,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                     >
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <CheckCheck className="w-4 h-4" />
-                        Apply {highConfidenceSuggestions.length} high-confidence changes
+                        {t("apply")} {highConfidenceSuggestions.length} {t("high_confidence_changes")}
                       </div>
                       {applyingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
@@ -1091,7 +1091,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                                   "bg-amber-100 text-amber-700": s.confidence === "medium",
                                   "bg-slate-100 text-slate-500": s.confidence === "low",
                                 })}>
-                                  {s.confidence === "high" ? "High confidence" : s.confidence === "medium" ? "Suggestion" : "Exploratory"}
+                                  {s.confidence === "high" ? t("high_confidence") : s.confidence === "medium" ? t("suggestion") : t("exploratory")}
                                 </span>
                               )}
                               <span className="text-xs text-slate-400 capitalize">{s.category}</span>
@@ -1142,7 +1142,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                               onClick={() => setExpandedImpact(isExpanded ? null : s.id)}
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                              {isExpanded ? "Hide impact" : "Expected impact"}
+                              {isExpanded ? t("hide_impact") : t("expected_impact")}
                             </button>
                             {!s.safetyBlock && (
                               <Button
@@ -1152,7 +1152,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                                 disabled={applyingId === s.id}
                                 onClick={() => applyAdjustment(s)}
                               >
-                                {applyingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Apply"}
+                                {applyingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t("apply")}
                               </Button>
                             )}
                           </div>

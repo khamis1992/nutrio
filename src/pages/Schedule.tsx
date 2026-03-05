@@ -58,7 +58,7 @@ const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 const MEAL_TYPE_CONFIG = {
   breakfast: { 
     icon: Coffee, 
-    label: "Breakfast", 
+    label: "breakfast", 
     color: "from-amber-400 to-orange-400",
     bgColor: "bg-amber-50",
     textColor: "text-amber-700",
@@ -66,7 +66,7 @@ const MEAL_TYPE_CONFIG = {
   },
   lunch: { 
     icon: Sun, 
-    label: "Lunch", 
+    label: "lunch", 
     color: "from-orange-400 to-red-400",
     bgColor: "bg-orange-50",
     textColor: "text-orange-700",
@@ -74,7 +74,7 @@ const MEAL_TYPE_CONFIG = {
   },
   dinner: { 
     icon: Moon, 
-    label: "Dinner", 
+    label: "dinner", 
     color: "from-indigo-400 to-purple-400",
     bgColor: "bg-indigo-50",
     textColor: "text-indigo-700",
@@ -82,7 +82,7 @@ const MEAL_TYPE_CONFIG = {
   },
   snack: { 
     icon: Apple, 
-    label: "Snack", 
+    label: "snack", 
     color: "from-emerald-400 to-teal-400",
     bgColor: "bg-emerald-50",
     textColor: "text-emerald-700",
@@ -675,7 +675,7 @@ const Schedule = () => {
                         <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${config.color} flex items-center justify-center`}>
                           <Icon className="h-4 w-4 text-white" />
                         </div>
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{config.label}</span>
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t(config.label)}</span>
                       </div>
 
                       {/* Meals */}
@@ -750,7 +750,7 @@ const Schedule = () => {
                                   <Clock className="h-3 w-3" />
                                   {schedule.delivery_time_slot 
                                     ? schedule.delivery_time_slot.charAt(0).toUpperCase() + schedule.delivery_time_slot.slice(1)
-                                    : "Set delivery time"
+                                    : t("set_delivery_time")
                                   }
                                 </button>
                               </div>
@@ -781,10 +781,10 @@ const Schedule = () => {
             setShowWizard(true);
           } else {
             promptLogin({
-              title: "Sign in to schedule meals",
-              description: "Create an account to start planning your healthy meals and track your nutrition goals!",
-              actionLabel: "Sign In",
-              signUpLabel: "Create Free Account"
+              title: t("sign_in_to_schedule"),
+              description: t("sign_in_to_schedule_desc"),
+              actionLabel: t("sign_in"),
+              signUpLabel: t("create_free_account")
             });
           }
         }}
@@ -796,7 +796,7 @@ const Schedule = () => {
 
       {/* Swipe Hint */}
       <div className="fixed left-0 right-0 flex justify-center pointer-events-none" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
-        <p className="text-xs text-gray-400">Swipe to change week</p>
+        <p className="text-xs text-gray-400">{t("swipe_to_change_week")}</p>
       </div>
 
       {/* Meal Wizard */}
@@ -850,7 +850,7 @@ const Schedule = () => {
                         const Icon = MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG].icon;
                         return <Icon className="h-3 w-3" />;
                       })()}
-                      {MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG].label}
+                      {t(MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG].label)}
                     </span>
                     <h2 className="text-2xl font-bold mt-2">{selectedMeal.meal.name}</h2>
                   </div>
@@ -947,7 +947,7 @@ const Schedule = () => {
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
-              Schedule Delivery
+              {t("schedule_delivery")}
             </DialogTitle>
           </DialogHeader>
           <DeliveryScheduler

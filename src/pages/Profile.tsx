@@ -103,10 +103,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { value: "profile",  label: "Profile",  icon: User },
-  { value: "wallet",   label: "Wallet",   icon: Wallet },
-  { value: "rewards",  label: "Rewards",  icon: Gift },
-  { value: "settings", label: "Settings", icon: Settings },
+  { value: "profile",  label: "profile_tab",  icon: User },
+  { value: "wallet",   label: "wallet",   icon: Wallet },
+  { value: "rewards",  label: "rewards",  icon: Gift },
+  { value: "settings", label: "settings", icon: Settings },
 ];
 
 // Animation variants
@@ -182,7 +182,7 @@ const GenderCard = ({
             {gender}
           </p>
           <p className="text-sm text-muted-foreground">
-            {isMale ? "He/Him" : "She/Her"}
+            {isMale ? t("he_him") : t("she_her")}
           </p>
         </div>
         <AnimatePresence>
@@ -535,7 +535,7 @@ const Profile = () => {
                   transition={{ delay: 0.1 }}
                   className="text-2xl sm:text-3xl font-bold mb-1"
                 >
-                  {fullName || "Your Name"}
+                  {fullName || t("your_name")}
                 </motion.h2>
                 <motion.p
                   initial={{ opacity: 0, y: 10 }}
@@ -601,7 +601,7 @@ const Profile = () => {
                     )}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <span className="font-medium">{t(item.label)}</span>
                     {isActive && (
                       <motion.div
                         layoutId="activeIndicator"
@@ -639,7 +639,7 @@ const Profile = () => {
                     )}
                   >
                     <Icon className="w-4 h-4" />
-                    {item.label}
+                    {t(item.label)}
                   </motion.button>
                 );
               })}
@@ -701,7 +701,7 @@ const Profile = () => {
                                     id="fullName"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    placeholder="Enter your full name"
+                                    placeholder={t("enter_full_name")}
                                     className="h-12 rounded-xl pr-12"
                                   />
                                   <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -1209,7 +1209,7 @@ const Profile = () => {
                               <Link to={isApprovedAffiliate ? "/affiliate" : "/profile"}>
                                 <Button variant="outline" className="w-full border-violet-500/30 text-violet-600 hover:bg-violet-500/10">
                                   <TrendingUp className="h-4 w-4 mr-2" />
-                                  {isApprovedAffiliate ? "View Affiliate Dashboard" : "Apply for Affiliate Program"}
+                                  {isApprovedAffiliate ? t("view_affiliate_dashboard") : t("apply_affiliate_program")}
                                 </Button>
                               </Link>
                             </div>
@@ -1283,7 +1283,7 @@ const Profile = () => {
                             type={showPassword ? "text" : "password"}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Enter new password"
+                            placeholder={t("enter_new_password")}
                             className="h-12 rounded-xl pr-12"
                           />
                           <button
@@ -1317,7 +1317,7 @@ const Profile = () => {
                             type={showPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Confirm new password"
+                            placeholder={t("confirm_new_password")}
                             className="h-12 rounded-xl"
                           />
                           <Shield

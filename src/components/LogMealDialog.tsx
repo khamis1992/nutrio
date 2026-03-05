@@ -551,8 +551,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           <Loader2 className="w-7 h-7 text-white animate-spin" />
                         </div>
                         <div className="text-center">
-                          <p className="font-bold text-gray-900">Analyzing your food…</p>
-                          <p className="text-sm text-gray-400 mt-1">AI is detecting ingredients and nutrients</p>
+                          <p className="font-bold text-gray-900">{t("analyzing_food")}</p>
+                          <p className="text-sm text-gray-400 mt-1">{t("ai_detecting_ingredients")}</p>
                         </div>
                       </div>
                     </div>
@@ -569,7 +569,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                       )}
                       <div className="flex items-center justify-between">
                         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                          {scanResults.length} item{scanResults.length > 1 ? "s" : ""} detected
+                          {scanResults.length} {scanResults.length > 1 ? t("items_detected") : t("item_detected")}
                         </p>
                         <button
                           onClick={() => {
@@ -584,7 +584,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           }}
                           className="text-xs text-primary font-semibold"
                         >
-                          Scan again
+                          {t("scan_again")}
                         </button>
                       </div>
                       {scanResults.map((item) => {
@@ -615,9 +615,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                             {/* Macro breakdown */}
                             <div className="grid grid-cols-3 gap-2">
                               {[
-                                { label: "Protein", value: item.protein_g, color: "bg-blue-50 text-blue-600" },
-                                { label: "Carbs", value: item.carbs_g, color: "bg-amber-50 text-amber-600" },
-                                { label: "Fat", value: item.fat_g, color: "bg-red-50 text-red-500" },
+                                { label: t("protein"), value: item.protein_g, color: "bg-blue-50 text-blue-600" },
+                                { label: t("carbs"), value: item.carbs_g, color: "bg-amber-50 text-amber-600" },
+                                { label: t("fat"), value: item.fat_g, color: "bg-red-50 text-red-500" },
                               ].map(({ label, value, color }) => (
                                 <div key={label} className={`rounded-xl px-3 py-2 text-center ${color}`}>
                                   <p className="font-bold text-sm">{Math.round(value)}g</p>
@@ -639,7 +639,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                       </div>
                       <div className="text-center">
                         <p className="font-bold text-gray-900 text-base">{t("scan_your_food")}</p>
-                        <p className="text-sm text-gray-400 mt-1">Take a photo or upload from your gallery to identify the food and log it instantly.</p>
+                        <p className="text-sm text-gray-400 mt-1">{t("scan_food_desc")}</p>
                       </div>
                       <div className="flex flex-col gap-3 w-full mt-2">
                         <button
@@ -676,7 +676,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
               {tab !== "Scan" && !searchQuery.trim() && (loadingScheduled || scheduledItems.length > 0) && (
                 <div className="mb-3">
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    📅 Today's Schedule
+                    📅 {t("todays_schedule")}
                     {loadingScheduled && <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
                   </p>
                   <div className="divide-y divide-primary/10 bg-primary/5 rounded-2xl px-3">
@@ -710,17 +710,17 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 </div>
               ) : listItems.length === 0 && !searchQuery.trim() && tab === "Recent" ? (
                 <div className="text-center py-8 text-gray-400 text-sm">
-                  No recent meals yet. Start logging!
+                  {t("no_recent_meals")}
                 </div>
               ) : listItems.length === 0 && searchQuery.trim() ? (
                 <div className="text-center py-8 text-gray-400 text-sm">
-                  No results for "{searchQuery}". Try Quick Log to add it manually.
+                  {t("no_results_for")} "{searchQuery}". {t("try_quick_log")}
                 </div>
               ) : listItems.length > 0 ? (
                 <>
                   {!searchQuery.trim() && (
                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                      {tab === "Recent" ? "Recently Logged" : "Favorites"}
+                      {tab === "Recent" ? t("recently_logged") : t("favorites")}
                     </p>
                   )}
                   <div className="divide-y divide-gray-100">
@@ -776,7 +776,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                   onClick={() => setView("quicklog")}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 text-xs font-bold text-primary whitespace-nowrap hover:bg-primary/10 transition-colors"
                 >
-                  <Zap className="w-3.5 h-3.5" /> Manual Log
+                  <Zap className="w-3.5 h-3.5" /> {t("manual_log")}
                 </button>
               )}
               <Button
@@ -788,8 +788,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 {logging
                   ? <Loader2 className="w-5 h-5 animate-spin" />
                   : selected.size > 0
-                    ? <><Check className="w-4 h-4 mr-1.5" /> Add {selected.size} item{selected.size > 1 ? "s" : ""}</>
-                    : "Select items to add"}
+                    ? <><Check className="w-4 h-4 mr-1.5" /> {t("add")} {selected.size} {selected.size > 1 ? t("items") : t("item")}</>
+                    : t("select_items_to_add")}
               </Button>
             </div>
           </>
@@ -886,9 +886,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                   {/* Legend */}
                   <div className="flex flex-col gap-3 flex-1">
                     {[
-                      { label: "Carbs",   value: scaledCarb, pct: Math.round(carbPct * 100), color: "bg-red-500" },
-                      { label: "Protein", value: scaledProt, pct: Math.round(protPct * 100), color: "bg-orange-500" },
-                      { label: "Fat",     value: scaledFat,  pct: Math.round(fatPct  * 100), color: "bg-blue-500" },
+                      { label: t("carbs"),   value: scaledCarb, pct: Math.round(carbPct * 100), color: "bg-red-500" },
+                      { label: t("protein"), value: scaledProt, pct: Math.round(protPct * 100), color: "bg-orange-500" },
+                      { label: t("fat"),     value: scaledFat,  pct: Math.round(fatPct  * 100), color: "bg-blue-500" },
                     ].map(({ label, value, pct, color }) => (
                       <div key={label} className="flex items-center gap-2">
                         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${color}`} />
@@ -903,11 +903,11 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 {/* Nutrient rows */}
                 <div className="divide-y divide-gray-100 mb-4">
                   {[
-                    { label: "Calories",  value: `${scaledCal} kcal` },
-                    { label: "Protein",   value: `${scaledProt} g` },
-                    { label: "Carbs",     value: `${scaledCarb} g` },
-                    { label: "Fat",       value: `${scaledFat} g` },
-                    { label: "Total Weight", value: `${Math.round((item.protein_g + item.carbs_g + item.fat_g) * detailQty)} g` },
+                    { label: t("calories"),  value: `${scaledCal} kcal` },
+                    { label: t("protein"),   value: `${scaledProt} g` },
+                    { label: t("carbs"),     value: `${scaledCarb} g` },
+                    { label: t("fat"),       value: `${scaledFat} g` },
+                    { label: t("total_weight"), value: `${Math.round((item.protein_g + item.carbs_g + item.fat_g) * detailQty)} g` },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between py-3">
                       <span className="text-sm text-gray-500">{label}</span>
@@ -928,7 +928,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                     variant="destructive"
                     className="w-full h-12 rounded-full font-bold"
                   >
-                    <Trash2 className="w-4 h-4 mr-1.5" /> Delete
+                    <Trash2 className="w-4 h-4 mr-1.5" /> {t("delete")}
                   </Button>
                 ) : (
                   <Button
@@ -942,7 +942,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                     }}
                     className="w-full h-12 rounded-full font-bold text-white gradient-primary shadow-lg shadow-primary/20"
                   >
-                    <Plus className="w-4 h-4 mr-1.5" /> Add
+                    <Plus className="w-4 h-4 mr-1.5" /> {t("add")}
                   </Button>
                 )}
               </div>
@@ -962,16 +962,16 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 <X className="w-5 h-5 text-gray-500" />
               </button>
               <h2 className="font-bold text-lg text-gray-900">
-                {view === "quicklog" ? "Quick Log" : "Create Food"}
+                {view === "quicklog" ? t("quick_log") : t("create_food")}
               </h2>
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
               {/* Name */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Food name</Label>
+                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("food_name")}</Label>
                 <Input
-                  placeholder="e.g. Chicken salad"
+                  placeholder={t("food_name_placeholder")}
                   value={quickEntry.name}
                   onChange={(e) => setQuickEntry((p) => ({ ...p, name: e.target.value }))}
                   className="rounded-2xl h-12 bg-gray-50 border-0 focus-visible:ring-1"
@@ -981,7 +981,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
               {/* Calories — prominent */}
               <div className="bg-primary/5 rounded-2xl p-4">
                 <Label className="text-xs font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                  <Flame className="w-3.5 h-3.5" /> Calories
+                  <Flame className="w-3.5 h-3.5" /> {t("calories")}
                 </Label>
                 <div className="flex items-baseline gap-2">
                   <Input
@@ -1000,9 +1000,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
               {/* Macros row */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { key: "protein", label: "Protein", icon: Beef, color: "text-orange-500", bg: "bg-orange-50" },
-                  { key: "carbs",   label: "Carbs",   icon: Wheat, color: "text-yellow-500", bg: "bg-yellow-50" },
-                  { key: "fat",     label: "Fat",     icon: Droplets, color: "text-blue-500", bg: "bg-blue-50" },
+                  { key: "protein", label: t("protein"), icon: Beef, color: "text-orange-500", bg: "bg-orange-50" },
+                  { key: "carbs",   label: t("carbs"),   icon: Wheat, color: "text-yellow-500", bg: "bg-yellow-50" },
+                  { key: "fat",     label: t("fat"),     icon: Droplets, color: "text-blue-500", bg: "bg-blue-50" },
                 ].map(({ key, label, icon: Icon, color, bg }) => (
                   <div key={key} className={`${bg} rounded-2xl p-3`}>
                     <Label className={`text-[10px] font-semibold ${color} uppercase tracking-wide flex items-center gap-1 mb-1`}>
@@ -1035,7 +1035,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                   ? <Loader2 className="w-5 h-5 animate-spin" />
                   : <>
                       <Pencil className="w-4 h-4 mr-2" />
-                      Log {quickEntry.calories ? `${quickEntry.calories} cal` : "Meal"}
+                      {t("log")} {quickEntry.calories ? `${quickEntry.calories} cal` : t("meal")}
                     </>}
               </Button>
             </div>

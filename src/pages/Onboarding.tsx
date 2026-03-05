@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
 import { OnboardingRecoveryDialog } from "@/components/OnboardingRecoveryDialog";
 import { debounce } from "@/lib/debounce";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
@@ -171,6 +172,7 @@ const Onboarding = () => {
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
+  const { t } = useLanguage();
   
   const [step, setStep] = useState(1);
   const [metricsSubStep, setMetricsSubStep] = useState<MetricsSubStep>("age");
@@ -478,32 +480,32 @@ const Onboarding = () => {
     { 
       id: "lose" as Goal, 
       icon: Scale, 
-      title: "Lose Weight", 
-      description: "Reduce body fat while maintaining muscle",
+      title: t("lose_weight"), 
+      description: t("lose_weight_desc"),
       color: "text-destructive"
     },
     { 
       id: "gain" as Goal, 
       icon: Dumbbell, 
-      title: "Build Muscle", 
-      description: "Gain lean muscle mass with proper nutrition",
+      title: t("build_muscle"), 
+      description: t("build_muscle_desc"),
       color: "text-primary"
     },
     { 
       id: "maintain" as Goal, 
       icon: Target, 
-      title: "Maintain", 
-      description: "Keep your current weight and improve health",
+      title: t("maintain"), 
+      description: t("maintain_desc"),
       color: "text-accent"
     },
   ];
 
   const activityLevels = [
-    { id: "sedentary" as ActivityLevel, title: "Sedentary", description: "Little or no exercise" },
-    { id: "light" as ActivityLevel, title: "Lightly Active", description: "Light exercise 1-3 days/week" },
-    { id: "moderate" as ActivityLevel, title: "Moderately Active", description: "Moderate exercise 3-5 days/week" },
-    { id: "active" as ActivityLevel, title: "Very Active", description: "Hard exercise 6-7 days/week" },
-    { id: "very_active" as ActivityLevel, title: "Extra Active", description: "Very hard exercise & physical job" },
+    { id: "sedentary" as ActivityLevel, title: t("sedentary"), description: t("sedentary_desc") },
+    { id: "light" as ActivityLevel, title: t("lightly_active"), description: t("lightly_active_desc") },
+    { id: "moderate" as ActivityLevel, title: t("moderately_active"), description: t("moderately_active_desc") },
+    { id: "active" as ActivityLevel, title: t("very_active"), description: t("very_active_desc") },
+    { id: "very_active" as ActivityLevel, title: t("extra_active"), description: t("extra_active_desc") },
   ];
 
   // ── Step 6: Personalizing loading screen ──────────────────────
@@ -812,8 +814,8 @@ const Onboarding = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { id: "male" as Gender, icon: User, title: "Male" },
-                  { id: "female" as Gender, icon: User, title: "Female" },
+                  { id: "male" as Gender, icon: User, title: t("male") },
+                  { id: "female" as Gender, icon: User, title: t("female") },
                 ].map((option) => (
                   <Card
                     key={option.id}
@@ -1421,11 +1423,11 @@ const Onboarding = () => {
             {saving ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Saving...
+                {t("saving")}
               </>
             ) : (
               <>
-                {step === totalSteps ? "Complete" : "Continue"}
+                {step === totalSteps ? t("complete") : t("continue")}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </>
             )}

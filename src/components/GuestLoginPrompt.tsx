@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LogIn, UserPlus } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface GuestLoginPromptProps {
   open: boolean;
@@ -22,12 +23,18 @@ interface GuestLoginPromptProps {
 export const GuestLoginPrompt = ({
   open,
   onOpenChange,
-  title = "Sign in required",
-  description = "Please sign in or create an account to continue.",
-  actionLabel = "Sign In",
-  signUpLabel = "Create Account",
+  title,
+  description,
+  actionLabel,
+  signUpLabel,
 }: GuestLoginPromptProps) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
+
+  const resolvedTitle = title ?? t("sign_in_required");
+  const resolvedDescription = description ?? t("sign_in_required_desc");
+  const resolvedActionLabel = actionLabel ?? t("sign_in");
+  const resolvedSignUpLabel = signUpLabel ?? t("create_account");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,8 +43,8 @@ export const GuestLoginPrompt = ({
           <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <LogIn className="w-7 h-7 text-primary" />
           </div>
-          <DialogTitle className="text-xl">{title}</DialogTitle>
-          <DialogDescription className="text-sm">{description}</DialogDescription>
+          <DialogTitle className="text-xl">{resolvedTitle}</DialogTitle>
+          <DialogDescription className="text-sm">{resolvedDescription}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 mt-2">
           <Button
@@ -48,7 +55,7 @@ export const GuestLoginPrompt = ({
             }}
           >
             <LogIn className="w-4 h-4 mr-2" />
-            {actionLabel}
+            {resolvedActionLabel}
           </Button>
           <Button
             variant="outline"
@@ -59,7 +66,7 @@ export const GuestLoginPrompt = ({
             }}
           >
             <UserPlus className="w-4 h-4 mr-2" />
-            {signUpLabel}
+            {resolvedSignUpLabel}
           </Button>
         </div>
       </DialogContent>
@@ -77,10 +84,10 @@ interface LoginPromptConfig {
 export const useGuestLoginPrompt = () => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [loginPromptConfig, setLoginPromptConfig] = useState<LoginPromptConfig>({
-    title: "Sign in required",
-    description: "Please sign in or create an account to continue.",
-    actionLabel: "Sign In",
-    signUpLabel: "Create Account",
+    title: "",
+    description: "",
+    actionLabel: "",
+    signUpLabel: "",
   });
 
   const promptLogin = useCallback((config?: Partial<LoginPromptConfig>) => {

@@ -365,7 +365,7 @@ const Auth = () => {
             {t("eat_smart")}<br />{t("live_better")}
           </h1>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.5, padding: "0 32px" }}>
-            Personalized nutrition & meal plans<br />tailored to your health goals
+            {t("personalized_nutrition_tagline")}
           </p>
         </div>
 
@@ -384,9 +384,9 @@ const Auth = () => {
           {/* Feature highlights */}
           <div className="flex flex-col gap-3 mb-8">
             {[
-              { icon: "🎯", title: "Personalized Plans", desc: "Calorie & macro targets built for your body" },
-              { icon: "🍽️", title: "50+ Restaurant Partners", desc: "Order healthy meals delivered to your door" },
-              { icon: "📈", title: "Track Your Progress", desc: "Charts, streaks & insights to keep you on track" },
+              { icon: "🎯", title: t("feature_personalized_plans"), desc: t("feature_personalized_plans_desc") },
+              { icon: "🍽️", title: t("feature_restaurant_partners"), desc: t("feature_restaurant_partners_desc") },
+              { icon: "📈", title: t("feature_track_progress"), desc: t("feature_track_progress_desc") },
             ].map((f) => (
               <div
                 key={f.title}
@@ -415,7 +415,7 @@ const Auth = () => {
               style={{ height: 54, fontSize: 16 }}
               onClick={() => setView("signup")}
             >
-              Create Free Account
+              {t("create_free_account")}
             </Button>
             <button
               type="button"
@@ -423,15 +423,15 @@ const Auth = () => {
               className="w-full rounded-2xl font-semibold transition-colors hover:bg-gray-100 active:bg-gray-200"
               style={{ height: 54, fontSize: 15, background: "#f5f5f5", border: "none", cursor: "pointer", color: "#374151" }}
             >
-              Sign In
+              {t("sign_in")}
             </button>
           </div>
 
           {/* Footer */}
           <p className="mt-5 text-xs text-gray-400 text-center">
-            <Link to="/privacy" className="hover:text-gray-600 transition-colors">Privacy Policy</Link>
+            <Link to="/privacy" className="hover:text-gray-600 transition-colors">{t("privacy_policy")}</Link>
             {" · "}
-            <Link to="/terms" className="hover:text-gray-600 transition-colors">Terms of Service</Link>
+            <Link to="/terms" className="hover:text-gray-600 transition-colors">{t("terms")}</Link>
           </p>
         </div>
       </div>
@@ -463,17 +463,17 @@ const Auth = () => {
 
           {/* Title */}
           <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
-            Join Nutrio Today
+            {t("join_nutrio_today")}
           </h1>
           <p className="text-sm text-gray-400 leading-relaxed mb-8">
-            Create a Nutrio account to track your meals, stay active, and achieve your health goals.
+            {t("create_account_desc")}
           </p>
 
           {/* Form */}
           <form id="signup-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Email */}
             <div className="space-y-1.5">
-              <Label htmlFor="su-email" className="text-sm font-semibold text-gray-800">Email</Label>
+              <Label htmlFor="su-email" className="text-sm font-semibold text-gray-800">{t("email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -488,7 +488,7 @@ const Auth = () => {
 
             {/* Password */}
             <div className="space-y-1.5">
-              <Label htmlFor="su-password" className="text-sm font-semibold text-gray-800">Password</Label>
+              <Label htmlFor="su-password" className="text-sm font-semibold text-gray-800">{t("password")}</Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -518,9 +518,9 @@ const Auth = () => {
                 )}
               </div>
               <span className="text-sm text-gray-600 leading-relaxed">
-                I agree to Nutrio{" "}
+                {t("i_agree_to_nutrio")}{" "}
                 <Link to="/terms" className="font-semibold" style={{ color: "#7DC200" }}>
-                  Terms & Conditions
+                  {t("terms")}
                 </Link>
                 .
               </span>
@@ -528,9 +528,9 @@ const Auth = () => {
 
             {/* Already have account */}
             <p className="text-sm text-gray-500 text-center">
-              Already have an account?{" "}
+              {t("already_have_account")}{" "}
               <button type="button" onClick={() => setView("signin")} className="font-semibold hover:underline" style={{ color: "#7DC200" }} disabled={loading}>
-                Sign in
+                {t("sign_in")}
               </button>
             </p>
           </form>
@@ -546,7 +546,7 @@ const Auth = () => {
             style={{ height: 56, fontSize: 16 }}
             disabled={loading || !agreedToTerms}
           >
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Creating account...</> : "Sign up"}
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("creating_account")}</> : t("sign_up")}
           </Button>
         </div>
       </div>
@@ -580,10 +580,10 @@ const Auth = () => {
 
           {/* Title */}
           <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
-            Enter OTP Code 🔓
+            {t("enter_otp_code")}
           </h1>
           <p className="text-sm text-gray-400 leading-relaxed mb-10">
-            We've sent a 4-digit OTP code to your email address. Please enter it below to verify and continue with password reset.
+            {t("otp_sent_desc")}
           </p>
 
           {/* OTP boxes */}
@@ -615,9 +615,9 @@ const Auth = () => {
           <div className="text-center mb-8">
             {otpCountdown > 0 ? (
               <p className="text-sm text-gray-500">
-                You can resend the code in{" "}
+                {t("resend_code_in")}{" "}
                 <span className="font-semibold" style={{ color: "#7DC200" }}>{otpCountdown}</span>
-                {" "}seconds
+                {" "}{t("seconds")}
               </p>
             ) : (
               <button
@@ -626,7 +626,7 @@ const Auth = () => {
                 className="text-sm font-semibold"
                 style={{ color: "#7DC200" }}
               >
-                Resend code
+                {t("resend_code")}
               </button>
             )}
             {otpCountdown > 0 && (
@@ -635,7 +635,7 @@ const Auth = () => {
                 disabled
                 className="block mx-auto mt-1 text-sm text-gray-300 cursor-not-allowed"
               >
-                Resend code
+                {t("resend_code")}
               </button>
             )}
           </div>
@@ -678,7 +678,7 @@ const Auth = () => {
               disabled={otpLoading || filledCount < 4}
               onClick={handleOtpVerify}
             >
-              {otpLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Verifying...</> : "Verify OTP"}
+              {otpLoading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("verifying")}</> : t("verify_otp")}
             </Button>
           </div>
         </div>
@@ -705,17 +705,17 @@ const Auth = () => {
 
           {/* Title */}
           <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
-            Forgot Password? 🔑
+            {t("forgot_password")}
           </h1>
           <p className="text-sm text-gray-400 leading-relaxed mb-8">
-            Please enter your registered email address below. We'll send you a One-Time Password (OTP) to reset your password securely.
+            {t("forgot_password_desc")}
           </p>
 
           {/* Form */}
           <form id="forgot-form" onSubmit={handleForgotSubmit} className="flex flex-col gap-5">
             <div className="space-y-1.5">
               <Label htmlFor="forgot-email" className="text-sm font-semibold text-gray-800">
-                Registered Email Address
+                {t("registered_email")}
               </Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -746,7 +746,7 @@ const Auth = () => {
             style={{ height: 56, fontSize: 16 }}
             disabled={forgotLoading}
           >
-            {forgotLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Sending...</> : "Send OTP Code"}
+            {forgotLoading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("sending")}</> : t("send_otp_code")}
           </Button>
         </div>
       </div>
@@ -777,11 +777,11 @@ const Auth = () => {
 
         {/* Title */}
         <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
-          Welcome Back!
-        </h1>
-        <p className="text-sm text-gray-400 leading-relaxed mb-8">
-          Sign in to continue your journey towards a healthier you.
-        </p>
+          {t("welcome_back")}
+          </h1>
+          <p className="text-sm text-gray-400 leading-relaxed mb-8">
+            {t("signin_desc")}
+          </p>
 
         {/* Biometric (native only) */}
         {biometricAvailable && (
@@ -804,7 +804,7 @@ const Auth = () => {
 
           {/* Email */}
           <div className="space-y-1.5">
-            <Label htmlFor="si-email" className="text-sm font-semibold text-gray-800">Email</Label>
+              <Label htmlFor="si-email" className="text-sm font-semibold text-gray-800">{t("email")}</Label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -819,7 +819,7 @@ const Auth = () => {
 
           {/* Password */}
           <div className="space-y-1.5">
-            <Label htmlFor="si-password" className="text-sm font-semibold text-gray-800">Password</Label>
+              <Label htmlFor="si-password" className="text-sm font-semibold text-gray-800">{t("password")}</Label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
@@ -850,7 +850,7 @@ const Auth = () => {
                   </svg>
                 )}
               </div>
-              <span className="text-sm text-gray-700">Remember me</span>
+              <span className="text-sm text-gray-700">{t("remember_me")}</span>
             </label>
             <button
               type="button"
@@ -858,7 +858,7 @@ const Auth = () => {
               className="text-sm font-semibold hover:underline"
               style={{ color: "#7DC200" }}
             >
-              Forgot Password?
+              {t("forgot_password")}
             </button>
           </div>
 
@@ -872,10 +872,10 @@ const Auth = () => {
 
           {/* Don't have an account */}
           <p className="text-sm text-gray-500 text-center pt-1">
-            Don't have an account?{" "}
-            <button type="button" onClick={() => setView("signup")} className="font-semibold hover:underline" style={{ color: "#7DC200" }} disabled={loading}>
-              Sign up
-            </button>
+            {t("dont_have_account")}{" "}
+              <button type="button" onClick={() => setView("signup")} className="font-semibold hover:underline" style={{ color: "#7DC200" }} disabled={loading}>
+                {t("sign_up")}
+              </button>
           </p>
         </form>
       </div>
@@ -890,7 +890,7 @@ const Auth = () => {
           style={{ height: 56, fontSize: 16 }}
           disabled={loading}
         >
-          {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Signing in...</> : "Sign in"}
+          {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("signing_in")}</> : t("sign_in")}
         </Button>
       </div>
     </div>

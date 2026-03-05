@@ -33,6 +33,7 @@ import { format } from "date-fns";
 import { getMealImage } from "@/lib/meal-images";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Meal {
   id: string;
@@ -70,14 +71,15 @@ interface MealWizardProps {
 }
 
 const STEPS = [
-  { id: "breakfast", label: "Breakfast", icon: Coffee, color: "bg-amber-500", lightColor: "bg-amber-50", description: "Start your day with energy" },
-  { id: "lunch", label: "Lunch", icon: Sun, color: "bg-orange-500", lightColor: "bg-orange-50", description: "Fuel your afternoon" },
-  { id: "dinner", label: "Dinner", icon: Moon, color: "bg-indigo-500", lightColor: "bg-indigo-50", description: "End your day right" },
-  { id: "snack", label: "Snacks & Salad", icon: Apple, color: "bg-emerald-500", lightColor: "bg-emerald-50", description: "Healthy extras" },
+  { id: "breakfast", labelKey: "breakfast", icon: Coffee, color: "bg-amber-500", lightColor: "bg-amber-50", descKey: "breakfast_desc" },
+  { id: "lunch", labelKey: "lunch", icon: Sun, color: "bg-orange-500", lightColor: "bg-orange-50", descKey: "lunch_desc" },
+  { id: "dinner", labelKey: "dinner", icon: Moon, color: "bg-indigo-500", lightColor: "bg-indigo-50", descKey: "dinner_desc" },
+  { id: "snack", labelKey: "snacks_salad", icon: Apple, color: "bg-emerald-500", lightColor: "bg-emerald-50", descKey: "snacks_desc" },
 ];
 
 const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState(0);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
@@ -765,7 +767,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                       animate={{ opacity: 1, width: "auto" }}
                       className="text-sm font-bold whitespace-nowrap pr-1"
                     >
-                      {step.label}
+                      {t(step.labelKey)}
                     </motion.span>
                   )}
 
@@ -802,8 +804,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               <CurrentIcon className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">{currentStepData.label}</h2>
-              <p className="text-sm text-muted-foreground">{currentStepData.description}</p>
+              <h2 className="text-xl font-bold">{t(currentStepData.labelKey)}</h2>
+              <p className="text-sm text-muted-foreground">{t(currentStepData.descKey)}</p>
             </div>
            </div>
         </motion.div>
@@ -827,7 +829,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                   <StepIcon className="h-4 w-4 shrink-0 opacity-60" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{meal.name}</p>
-                    <p className="text-xs opacity-70">{step.label} · {meal.restaurant?.name}</p>
+                    <p className="text-xs opacity-70">{t(step.labelKey)} · {meal.restaurant?.name}</p>
                   </div>
                   <button
                     onClick={() => {
@@ -881,7 +883,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                       <StepIcon className="h-5 w-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{step.label}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t(step.labelKey)}</p>
                       <p className="font-semibold text-sm text-slate-900 truncate">{meal.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{meal.restaurant?.name}</p>
                     </div>
@@ -958,7 +960,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
               className="flex items-center gap-1 mb-4 px-3 py-2 -ml-2 text-primary font-medium text-sm active:opacity-60 transition-opacity"
             >
               <ChevronLeft className="h-5 w-5" />
-              <span>Back to Restaurants</span>
+              <span>{t("back_to_restaurants")}</span>
             </button>
 
             {/* Restaurant Header */}
@@ -1024,7 +1026,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                             </motion.div>
                             <p className="text-white font-bold text-base">{meal.name}</p>
                             {meal.calories && (
-                              <p className="text-white/80 text-sm">{meal.calories} cal · {currentStepData.label}</p>
+                              <p className="text-white/80 text-sm">{meal.calories} cal · {t(currentStepData.labelKey)}</p>
                             )}
                           </motion.div>
                         )}
@@ -1703,7 +1705,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                                 <div className="flex items-center gap-1.5 mt-1">
                                   <Store className="h-3.5 w-3.5 text-primary" />
                                   <p className="text-sm text-primary font-medium truncate">
-                                    {item.restaurant?.name || "Partner Restaurant"}
+                                    {item.restaurant?.name || t("partner_restaurant")}
                                   </p>
                                 </div>
                                 

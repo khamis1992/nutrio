@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => ({
   base: process.env.VERCEL ? '/' : (mode === 'production' ? './' : '/'),
   server: {
     host: "::",
-    port: 8080,
+    port: 5173,
+    allowedHosts: true,
     // Allow access from local network for mobile testing
     strictPort: true,
     // Improve HMR reliability

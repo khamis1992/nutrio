@@ -7,6 +7,7 @@ import {
   LineChart, Line, Dot,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DaySteps { day: string; date: string; steps: number; }
@@ -135,6 +136,7 @@ function SectionCard({ title, accent, children }: { title: string; accent: strin
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, measurements, bmi, profile }: Props) {
+  const { t } = useLanguage();
   const [period, setPeriod] = useState<Period>("Weekly");
   const [weekRef, setWeekRef] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [monthRef, setMonthRef] = useState(() => startOfMonth(new Date()));
@@ -223,18 +225,21 @@ export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, meas
     <div className="space-y-4">
       {/* Period selector */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-        {(["Weekly", "Monthly", "Yearly"] as Period[]).map((p) => (
+        {([t("weekly"), t("monthly"), t("yearly")] as string[]).map((p, i) => {
+          const periodKey = (["Weekly", "Monthly", "Yearly"] as Period[])[i];
+          return (
           <button
             key={p}
-            onClick={() => setPeriod(p)}
+            onClick={() => setPeriod(periodKey)}
             className={cn(
               "flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all",
-              period === p ? "bg-emerald-500 text-white shadow-sm" : "text-gray-500"
+              period === periodKey ? "bg-emerald-500 text-white shadow-sm" : "text-gray-500"
             )}
           >
             {p}
           </button>
-        ))}
+        );
+        })}
       </div>
 
       {/* Date range nav */}
@@ -249,13 +254,13 @@ export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, meas
       </div>
 
       {/* Calorie Chart */}
-      <SectionCard title="Calorie (kcal)" accent="#22c55e">
+      <SectionCard title={t("calorie_kcal")} accent="#22c55e">
         <ResponsiveContainer width="100%" height={CHART_H}>
           <BarChart data={chartData} margin={{ left: -20, right: 8, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 8 : 18}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
-            <Tooltip formatter={(v: number) => [`${v} kcal`, "Calories"]} />
+            <Tooltip formatter={(v: number) => [`${v} kcal`, t("calories")]} />
             <ReferenceLine y={Math.round(stepGoal * 0.04)} stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1.5} />
             <Bar dataKey="cal" fill="#bbf7d0" radius={[4, 4, 0, 0]}
               label={false}
@@ -264,58 +269,58 @@ export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, meas
           </BarChart>
         </ResponsiveContainer>
         <div className="flex items-center gap-4 px-4 pb-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-200 inline-block" /> Calorie</span>
-          <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-emerald-500 inline-block" /> Calorie Intake Goal</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-200 inline-block" /> {t("calorie")}</span>
+          <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-emerald-500 inline-block" /> {t("calorie_intake_goal")}</span>
         </div>
       </SectionCard>
 
       {/* Water Chart */}
-      <SectionCard title="Water (mL)" accent="#3b82f6">
+      <SectionCard title={t("water_ml")} accent="#3b82f6">
         <ResponsiveContainer width="100%" height={CHART_H}>
           <BarChart data={waterData} margin={{ left: -20, right: 8, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 8 : 18}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
-            <Tooltip formatter={(v: number) => [`${v} mL`, "Water"]} />
+            <Tooltip formatter={(v: number) => [`${v} mL`, t("water")]} />
             <ReferenceLine y={waterTargetMl} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1.5} />
             <Bar dataKey="water" fill="#bfdbfe" radius={[4, 4, 0, 0]} activeBar={{ fill: "#3b82f6" }} />
           </BarChart>
         </ResponsiveContainer>
         <div className="flex items-center gap-4 px-4 pb-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-200 inline-block" /> Water</span>
-          <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-blue-500 inline-block" /> Water Intake Goal</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-200 inline-block" /> {t("water")}</span>
+          <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-blue-500 inline-block" /> {t("water_intake_goal")}</span>
         </div>
       </SectionCard>
 
       {/* Step Chart */}
-      <SectionCard title="Step" accent="#f97316">
+      <SectionCard title={t("steps")} accent="#f97316">
         <ResponsiveContainer width="100%" height={CHART_H}>
           <BarChart data={chartData} margin={{ left: -20, right: 8, top: 8, bottom: 0 }} barSize={period === "Monthly" ? 8 : 18}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
-            <Tooltip formatter={(v: number) => [`${v.toLocaleString()}`, "Steps"]} />
+            <Tooltip formatter={(v: number) => [`${v.toLocaleString()}`, t("steps")]} />
             <ReferenceLine y={stepGoal} stroke="#f97316" strokeDasharray="4 4" strokeWidth={1.5} />
             <Bar dataKey="steps" fill="#fed7aa" radius={[4, 4, 0, 0]} activeBar={{ fill: "#f97316" }} />
           </BarChart>
         </ResponsiveContainer>
         <div className="flex items-center gap-4 px-4 pb-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-200 inline-block" /> Selected</span>
-          <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-orange-500 inline-block" /> Step Goal</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-200 inline-block" /> {t("selected")}</span>
+          <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-orange-500 inline-block" /> {t("step_goal")}</span>
         </div>
       </SectionCard>
 
       {/* Weight Chart */}
-      <SectionCard title="Weight (kg)" accent="#ef4444">
+      <SectionCard title={t("weight_kg")} accent="#ef4444">
         {weightData.length < 2 ? (
-          <p className="text-sm text-gray-400 px-4 pb-4">Log more weight entries to see your trend.</p>
+          <p className="text-sm text-gray-400 px-4 pb-4">{t("log_more_weight")}</p>
         ) : (
           <ResponsiveContainer width="100%" height={CHART_H}>
             <LineChart data={weightData} margin={{ left: -20, right: 8, top: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} domain={["auto", "auto"]} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(1)} kg`, "Weight"]} />
+              <Tooltip formatter={(v: number) => [`${v.toFixed(1)} kg`, t("weight")]} />
               {profile?.target_weight_kg && (
                 <ReferenceLine y={profile.target_weight_kg} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} />
               )}
@@ -331,9 +336,9 @@ export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, meas
           </ResponsiveContainer>
         )}
         <div className="flex items-center gap-4 px-4 pb-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-200 inline-block" /> Selected</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-red-200 inline-block" /> {t("selected")}</span>
           {profile?.target_weight_kg && (
-            <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-red-400 inline-block" /> Weight Goal</span>
+            <span className="flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-red-400 inline-block" /> {t("weight_goal")}</span>
           )}
         </div>
       </SectionCard>
@@ -341,16 +346,16 @@ export function TrackerInsights({ userId, stepGoal, waterTargetMl, waterMl, meas
       {/* BMI Gauge */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <p className="font-bold text-gray-900">BMI (kg/m²)</p>
+          <p className="font-bold text-gray-900">{t("bmi")}</p>
           {bmi != null && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-              {bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese"}
+              {bmi < 18.5 ? t("underweight") : bmi < 25 ? t("normal") : bmi < 30 ? t("overweight") : t("obese")}
             </span>
           )}
         </div>
         <div className="px-4 pb-4">
           {bmi != null ? <BmiGauge bmi={bmi} /> : (
-            <p className="text-sm text-gray-400 py-4 text-center">Set your height and weight to see BMI.</p>
+            <p className="text-sm text-gray-400 py-4 text-center">{t("set_height_weight_bmi")}</p>
           )}
         </div>
       </div>

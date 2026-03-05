@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useSubscription } from "@/hooks/useSubscription";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MenuSection {
   title: string;
@@ -26,10 +27,11 @@ export function MainMenu() {
   const { favoriteIds } = useFavoriteRestaurants();
   const { hasActiveSubscription, isVip } = useSubscription();
   const { settings: platformSettings } = usePlatformSettings();
+  const { t } = useLanguage();
 
   const menuSections: MenuSection[] = [
     {
-      title: "Food & Meals",
+      title: t("food_and_meals"),
       items: [
         {
           icon: ({ className }) => (
@@ -37,8 +39,8 @@ export function MainMenu() {
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
           ),
-          label: "Favorites",
-          description: `${favoriteIds.size} saved restaurants`,
+          label: t("favorites"),
+          description: `${favoriteIds.size} ${t("saved_restaurants")}`,
           to: "/favorites",
         },
         ...(platformSettings.features.meal_scheduling ? [{
@@ -50,8 +52,8 @@ export function MainMenu() {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           ),
-          label: "Schedule",
-          description: "Plan your weekly meals",
+          label: t("schedule"),
+          description: t("plan_weekly_meals"),
           to: "/schedule",
         }] : []),
         {
@@ -60,14 +62,14 @@ export function MainMenu() {
               <path d="M3 3h18v18H3zM9 9h6M9 15h6M9 12h6" />
             </svg>
           ),
-          label: "Restaurants",
-          description: "Browse all restaurants",
+          label: t("restaurants"),
+          description: t("browse_all_restaurants"),
           to: "/meals",
         },
       ],
     },
     {
-      title: "Progress & Goals",
+      title: t("progress_and_goals"),
       items: [
         {
           icon: ({ className }) => (
@@ -77,16 +79,16 @@ export function MainMenu() {
               <line x1="6" y1="20" x2="6" y2="16" />
             </svg>
           ),
-          label: "Progress",
-          description: "Track weight, nutrition & health metrics",
+          label: t("progress"),
+          description: t("track_weight_nutrition"),
           to: "/progress",
-          badge: "Updated",
+          badge: t("updated"),
           badgeVariant: "success" as const,
         },
       ],
     },
     {
-      title: "Orders & Subscription",
+      title: t("orders_and_subscription"),
       items: [
         {
           icon: ({ className }) => (
@@ -98,14 +100,14 @@ export function MainMenu() {
               <polyline points="10 9 9 9 8 9" />
             </svg>
           ),
-          label: "Order History",
-          description: "View past orders",
+          label: t("order_history"),
+          description: t("view_past_orders"),
           to: "/orders",
         },
         {
           icon: ({ className }) => <Crown className={className} />,
-          label: "Subscription",
-          description: hasActiveSubscription ? "Manage your plan" : "Upgrade your plan",
+          label: t("subscription"),
+          description: hasActiveSubscription ? t("manage_your_plan") : t("upgrade_your_plan"),
           to: "/subscription",
           ...(isVip ? {
             badge: "VIP",
@@ -121,14 +123,14 @@ export function MainMenu() {
               <circle cx="18.5" cy="18.5" r="2.5" />
             </svg>
           ),
-          label: "Live Tracking",
-          description: "Track your orders",
+          label: t("live_tracking"),
+          description: t("track_your_orders"),
           to: "/tracking",
         }] : []),
       ],
     },
     {
-      title: "Settings & Account",
+      title: t("settings_and_account"),
       items: [
         {
           icon: ({ className }) => (
@@ -137,8 +139,8 @@ export function MainMenu() {
               <circle cx="12" cy="7" r="4" />
             </svg>
           ),
-          label: "Profile",
-          description: "Personal info & preferences",
+          label: t("profile"),
+          description: t("personal_info_preferences"),
           to: "/profile",
         },
         {
@@ -149,8 +151,8 @@ export function MainMenu() {
               <path d="m4.93 4.93 4.24 4.24m5.66 5.66 4.24 4.24M1 12h6m6 0h6M4.93 19.07l4.24-4.24m5.66-5.66 4.24-4.24" />
             </svg>
           ),
-          label: "Settings",
-          description: "App preferences",
+          label: t("settings"),
+          description: t("app_preferences"),
           to: "/settings",
         },
         {
@@ -160,14 +162,14 @@ export function MainMenu() {
               <circle cx="12" cy="10" r="3" />
             </svg>
           ),
-          label: "Addresses",
-          description: "Delivery locations",
+          label: t("addresses"),
+          description: t("delivery_locations"),
           to: "/addresses",
         },
       ],
     },
     ...(platformSettings.features.referral_program ? [{
-      title: "Earn Rewards",
+      title: t("earn_rewards"),
       items: [
         {
           icon: ({ className }) => (
@@ -176,8 +178,8 @@ export function MainMenu() {
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           ),
-          label: "Affiliate",
-          description: "Earn with your audience",
+          label: t("affiliate"),
+          description: t("earn_with_audience"),
           to: "/affiliate",
         },
       ],
@@ -189,12 +191,12 @@ export function MainMenu() {
       <SheetTrigger asChild>
         <Button variant="gradient" size="lg" className="gap-2 shadow-glow">
           <MenuIcon className="w-5 h-5" />
-          <span className="hidden sm:inline">Menu</span>
+          <span className="hidden sm:inline">{t("menu")}</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[80vh] sm:max-w-lg mx-auto rounded-t-3xl safe-bottom-nav">
         <SheetHeader className="mb-6">
-          <SheetTitle className="text-center text-2xl font-bold">Menu</SheetTitle>
+          <SheetTitle className="text-center text-2xl font-bold">{t("menu")}</SheetTitle>
         </SheetHeader>
 
         <div className="space-y-6 overflow-y-auto pb-8">
