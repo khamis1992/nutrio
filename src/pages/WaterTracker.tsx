@@ -423,7 +423,7 @@ export default function WaterTracker() {
       </div>
 
       {/* Bottom action bar - above nav */}
-      <div className="fixed bottom-20 left-0 right-0 bg-background border-t border-gray-100 p-4 z-40">
+      <div className="fixed bottom-20 left-0 right-0 bg-background border-t border-gray-100 p-4 z-40" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
         <div className="container mx-auto flex items-center gap-3">
           <button
             onClick={() => setAddWaterSheetOpen(true)}

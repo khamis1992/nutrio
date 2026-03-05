@@ -173,7 +173,7 @@ export default function StepCounter() {
               </button>
             ))}
           </div>
-          <div className="flex justify-center mt-2">
+          <div className="flex justify-end mt-2">
             <button
               onClick={() => {
                 if (!calendarOpen) setCalendarMonth(selectedDate);
@@ -262,7 +262,7 @@ export default function StepCounter() {
             </div>
 
             {/* Collapse button */}
-            <div className="flex justify-center mt-2">
+            <div className="flex justify-end mt-2">
               <button onClick={() => setCalendarOpen(false)}
                 className="p-1 rounded-full hover:bg-gray-100 transition-colors">
                 <ChevronUp className="w-5 h-5 text-gray-400" />

@@ -694,7 +694,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
             </div>
 
             {/* ── Bottom bar ── */}
-            <div className="flex-shrink-0 px-5 py-3 border-t border-gray-100 bg-white flex items-center gap-3">
+            <div className="flex-shrink-0 px-5 py-3 pb-safe border-t border-gray-100 bg-white flex items-center gap-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
               {selected.size > 0 ? (
                 <div className="text-left">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide leading-none">cal</p>

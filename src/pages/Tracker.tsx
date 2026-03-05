@@ -347,7 +347,7 @@ export default function Tracker() {
 
       {/* Weight Update Dialog */}
       <Dialog open={weightDialogOpen} onOpenChange={setWeightDialogOpen}>
-        <DialogContent className="rounded-2xl">
+        <DialogContent className="rounded-2xl" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
           <DialogHeader>
             <DialogTitle>Update Weight</DialogTitle>
           </DialogHeader>
@@ -380,7 +380,7 @@ export default function Tracker() {
       {bmiDialogOpen && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setBmiDialogOpen(false)} />
-          <div className="relative bg-white rounded-t-3xl pb-28">
+          <div className="relative bg-white rounded-t-3xl" style={{ paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}>
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-10 h-1 rounded-full bg-gray-200" />
@@ -426,7 +426,7 @@ export default function Tracker() {
             </div>
 
             {/* Cancel / Save */}
-            <div className="flex gap-3 px-4">
+            <div className="flex gap-3 px-4 pb-2">
               <button
                 onClick={() => setBmiDialogOpen(false)}
                 className="flex-1 py-3.5 rounded-full border-2 border-purple-600 text-purple-600 font-bold text-base hover:bg-purple-50 transition-all"

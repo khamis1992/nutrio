@@ -402,16 +402,13 @@ const Schedule = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24 overflow-hidden">
+    <div className="min-h-screen pb-24">
       {/* Native iOS-style Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800"
+        className="sticky top-0 z-20 bg-background border-b border-gray-200 dark:border-gray-800"
       >
-        {/* Status Bar Space */}
-        <div className="h-safe-top" />
-        
         {/* Navigation Bar */}
         <div className="flex items-center justify-between px-4 h-14">
           <button
@@ -447,7 +444,7 @@ const Schedule = () => {
 
       {/* Main Content with Swipe */}
       <motion.div 
-        className="flex-1 overflow-y-auto scrollbar-hide"
+        className="overflow-hidden"
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.2}
@@ -842,7 +839,7 @@ const Schedule = () => {
                 <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
               </div>
 
-              <div className="p-6 pb-28">
+              <div className="p-6" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div>

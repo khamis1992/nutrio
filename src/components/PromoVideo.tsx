@@ -139,7 +139,10 @@ export const PromoVideo = () => {
           </div>
 
           {/* Video Container */}
-          <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
+          <div
+            className="relative flex items-center justify-center bg-black overflow-hidden"
+            style={{ height: '58vh' }}
+          >
             <video
               ref={videoRef}
               src={promoVideo}
@@ -148,8 +151,7 @@ export const PromoVideo = () => {
               playsInline
               preload="auto"
               onError={handleVideoError}
-              className="w-full h-full max-w-full max-h-full object-contain"
-              style={{ maxHeight: 'calc(100vh - 200px)' }}
+              className="w-full h-full object-contain"
             />
 
             {/* Loading State */}
@@ -222,27 +224,27 @@ export const PromoVideo = () => {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="flex-none bg-gradient-to-t from-black via-black/90 to-transparent pb-safe-bottom"
             >
-              <div className="px-6 pt-6 pb-6">
-                <div className="w-12 h-1 bg-white/30 rounded-full mx-auto mb-4" />
+              <div className="px-6 pt-4 pb-4">
+                <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-3" />
 
-                <h2 className="text-xl font-bold text-white text-center mb-1">
+                <h2 className="text-lg font-bold text-white text-center mb-1">
                   Eat Smart, Live Better
                 </h2>
-                <p className="text-white/70 text-center text-sm mb-4">
+                <p className="text-white/70 text-center text-xs mb-3">
                   Personalized meal plans delivered to your door
                 </p>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Button
                     onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-base shadow-lg shadow-primary/30"
+                    className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-lg shadow-primary/30"
                   >
                     Get Started
                   </Button>
 
                   <button
                     onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-10 text-white/60 font-medium text-sm active:text-white transition-colors"
+                    className="w-full h-8 text-white/60 font-medium text-xs active:text-white transition-colors"
                   >
                     Skip for now
                   </button>
