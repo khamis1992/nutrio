@@ -125,22 +125,22 @@ export const PromoVideo = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black flex flex-col"
+          className="fixed inset-0 z-[100] bg-white flex flex-col"
         >
           {/* Top Bar */}
-          <div className="flex-none pt-safe-top px-4 py-3 flex items-center justify-between bg-black/50 backdrop-blur-sm z-20">
-            <span className="text-white/60 text-sm font-medium">NUTRIO</span>
+          <div className="flex-none pt-safe-top px-4 py-3 flex items-center justify-between bg-white/80 backdrop-blur-sm z-20">
+            <span className="text-black/60 text-sm font-medium">NUTRIO</span>
             <button
               onClick={handleClose}
-              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform"
+              className="w-10 h-10 rounded-full bg-black/10 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform"
             >
-              <X className="w-5 h-5 text-white" />
+              <X className="w-5 h-5 text-black" />
             </button>
           </div>
 
           {/* Video Container — flex-1 + min-h-0 fills all space between top bar and bottom sheet */}
           <div
-            className="relative flex flex-1 min-h-0 items-center justify-center bg-black overflow-hidden"
+            className="relative flex flex-1 min-h-0 items-center justify-center bg-white overflow-hidden"
           >
             <video
               ref={videoRef}
@@ -155,9 +155,9 @@ export const PromoVideo = () => {
 
             {/* Loading State */}
             {isLoading && !hasError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
                 <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-white/60 text-sm">Loading...</p>
+                <p className="text-black/60 text-sm">Loading...</p>
               </div>
             )}
 
@@ -167,20 +167,20 @@ export const PromoVideo = () => {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 onClick={handleManualPlay}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-black/60"
+                className="absolute inset-0 flex flex-col items-center justify-center bg-white/60"
               >
                 <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/50 active:scale-95 transition-transform mb-4">
                   <Play className="w-8 h-8 text-white ml-1" />
                 </div>
-                <span className="text-white font-semibold text-lg">Tap to Play</span>
+                <span className="text-black font-semibold text-lg">Tap to Play</span>
               </motion.button>
             )}
 
             {/* Error State */}
             {hasError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black px-6">
-                <p className="text-white text-lg font-semibold mb-2">Video unavailable</p>
-                <p className="text-white/60 text-sm text-center mb-6">Could not load the promotional video.</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white px-6">
+                <p className="text-black text-lg font-semibold mb-2">Video unavailable</p>
+                <p className="text-black/60 text-sm text-center mb-6">Could not load the promotional video.</p>
                 <Button onClick={handleClose} className="rounded-full px-8">
                   Continue to App
                 </Button>
@@ -198,7 +198,7 @@ export const PromoVideo = () => {
                 <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <VolumeX className="w-7 h-7 text-white" />
                 </div>
-                <span className="bg-black/60 text-white text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm">
+                <span className="bg-black/10 text-black text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm">
                   🔊 Tap for sound
                 </span>
               </motion.button>
@@ -208,9 +208,9 @@ export const PromoVideo = () => {
             {isPlaying && !isMuted && !hasError && (
               <button
                 onClick={toggleMute}
-                className="absolute top-4 right-4 w-12 h-12 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform z-10"
+                className="absolute top-4 right-4 w-12 h-12 rounded-full bg-black/10 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform z-10"
               >
-                <Volume2 className="w-5 h-5 text-white" />
+                <Volume2 className="w-5 h-5 text-black" />
               </button>
             )}
           </div>
@@ -221,15 +221,15 @@ export const PromoVideo = () => {
               initial={{ y: 100 }}
               animate={{ y: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="flex-none bg-gradient-to-t from-black via-black/90 to-transparent pb-safe-bottom"
+              className="flex-none bg-gradient-to-t from-white via-white/90 to-transparent pb-safe-bottom"
             >
               <div className="px-5 pt-2 pb-2">
-                <div className="w-8 h-1 bg-white/30 rounded-full mx-auto mb-2" />
+                <div className="w-8 h-1 bg-black/20 rounded-full mx-auto mb-2" />
 
-                <h2 className="text-sm font-bold text-white text-center mb-0.5">
+                <h2 className="text-sm font-bold text-black text-center mb-0.5">
                   Eat Smart, Live Better
                 </h2>
-                <p className="text-white/70 text-center text-xs mb-2">
+                <p className="text-black/60 text-center text-xs mb-2">
                   Personalized meal plans delivered to your door
                 </p>
 
@@ -243,7 +243,7 @@ export const PromoVideo = () => {
 
                   <button
                     onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-7 text-white/60 font-medium text-xs active:text-white transition-colors"
+                    className="w-full h-7 text-black/50 font-medium text-xs active:text-black transition-colors"
                   >
                     Skip for now
                   </button>
