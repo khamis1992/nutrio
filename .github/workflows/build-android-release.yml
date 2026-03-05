@@ -106,6 +106,7 @@ jobs:
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: nutrio-fuel-release-apk
           path: |
@@ -114,6 +115,7 @@ jobs:
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: nutrio-fuel-release-aab
           path: |

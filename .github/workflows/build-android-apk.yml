@@ -90,6 +90,7 @@ jobs:
       - name: Upload Debug APK
         if: github.event.inputs.build_type != 'release' || github.event.inputs.build_type == ''
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: nutrio-fuel-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
@@ -98,6 +99,7 @@ jobs:
       - name: Upload Release APK
         if: github.event.inputs.build_type == 'release'
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: nutrio-fuel-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
