@@ -264,36 +264,40 @@ export class NutrioReportPDF {
     this.doc.setFont("helvetica", "normal");
     this.doc.text(d.userEmail, lx, 207, { align: "center" });
 
-    // ── Overall score ring ──
+     // ── Overall score ring ──
+    // Ring center at Y=232, radius=22 → bottom edge at Y=254
+    // Labels start at Y=260 — well clear of the ring
     const score = this.overallScore(d);
     const sc = scoreColor(score);
     const sl = scoreLabel(score);
+    const ringCY = 232;
+    const ringR  = 22;
 
-    // Outer ring
+    // Outer ring (colored)
     this.doc.setFillColor(...sc);
-    this.doc.circle(lx, 248, 24, "F");
-    // Inner ring
+    this.doc.circle(lx, ringCY, ringR, "F");
+    // Inner ring (dark fill — creates the donut effect)
     this.doc.setFillColor(...C.slate);
-    this.doc.circle(lx, 248, 19, "F");
-    // Score number
+    this.doc.circle(lx, ringCY, ringR - 5, "F");
+    // Score number — vertically centred inside the ring
     this.doc.setTextColor(...C.white);
-    this.doc.setFontSize(22);
+    this.doc.setFontSize(20);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${score}`, lx, 254, { align: "center" });
-    // Label below ring
+    this.doc.text(`${score}`, lx, ringCY + 3.5, { align: "center" });
+    // Score quality label — below the ring with a clear gap
     this.doc.setTextColor(...sc);
     this.doc.setFontSize(7.5);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(sl.toUpperCase(), lx, 268, { align: "center" });
+    this.doc.text(sl.toUpperCase(), lx, ringCY + ringR + 8, { align: "center" });
+    // "OVERALL SCORE" subtitle
     this.doc.setTextColor(...C.subtle);
     this.doc.setFontSize(6.5);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("OVERALL SCORE", lx, 274, { align: "center" });
-
-    // Generated
+    this.doc.text("OVERALL SCORE", lx, ringCY + ringR + 15, { align: "center" });
+    // Generated timestamp
     this.doc.setTextColor(...C.subtle);
     this.doc.setFontSize(6.5);
-    this.doc.text(`Generated ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}`, lx, 285, { align: "center" });
+    this.doc.text(`Generated ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}`, lx, ringCY + ringR + 26, { align: "center" });
 
     // Bottom gradient bar
     gradientRect(this.doc, 0, 291, W, 6, C.green, C.teal);
