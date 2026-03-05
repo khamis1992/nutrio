@@ -28,6 +28,8 @@ jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -87,21 +89,25 @@ jobs:
           cd android
           ./gradlew assembleRelease --no-daemon
 
-      - name: Upload Debug APK
+      - name: Publish Debug APK as GitHub Release
         if: github.event.inputs.build_type != 'release' || github.event.inputs.build_type == ''
-        uses: actions/upload-artifact@v4
+        uses: softprops/action-gh-release@v2
         with:
-          name: nutrio-fuel-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
+          tag_name: apk-debug-${{ github.sha }}
+          name: "Debug APK – ${{ github.sha }}"
+          body: "Auto-generated debug APK from commit ${{ github.sha }} on branch ${{ github.ref_name }}"
+          prerelease: true
+          files: android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload Release APK
+      - name: Publish Release APK as GitHub Release
         if: github.event.inputs.build_type == 'release'
-        uses: actions/upload-artifact@v4
+        uses: softprops/action-gh-release@v2
         with:
-          name: nutrio-fuel-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 14
+          tag_name: apk-release-${{ github.sha }}
+          name: "Release APK – ${{ github.sha }}"
+          body: "Auto-generated release APK from commit ${{ github.sha }} on branch ${{ github.ref_name }}"
+          prerelease: false
+          files: android/app/build/outputs/apk/release/app-release.apk
 
       - name: Get APK info
         run: |
@@ -121,5 +127,5 @@ jobs:
             echo "- **Build Type:** ${{ github.event.inputs.build_type || 'debug' }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Download the APK from the artifacts section above." >> $GITHUB_STEP_SUMMARY
+            echo "Download the APK from the GitHub Releases section of this repository." >> $GITHUB_STEP_SUMMARY
           fi
