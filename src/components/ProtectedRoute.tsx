@@ -191,8 +191,9 @@ export const ProtectedRoute = ({
   // Show loading state
   if (authLoading || checkingRole) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
+        <img src="/logo.png" alt="Nutrio" className="h-12 w-auto object-contain opacity-80" />
+        <Loader2 className="w-7 h-7 animate-spin text-primary" />
       </div>
     );
   }

@@ -806,10 +806,6 @@ const Schedule = () => {
             onComplete={() => {
               setShowWizard(false);
               fetchSchedules();
-              toast({
-                title: "Success",
-                description: "Your meals have been scheduled!",
-              });
             }}
             onCancel={() => setShowWizard(false)}
           />

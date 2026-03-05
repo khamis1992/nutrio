@@ -115,6 +115,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
   const [lockedMeals, setLockedMeals] = useState<any[]>([]);
   const [showPlanSummary, setShowPlanSummary] = useState(false);
   const [showDeliveryScheduler, setShowDeliveryScheduler] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const currentStepData = STEPS[currentStep];
   const CurrentIcon = currentStepData.icon;
@@ -466,12 +467,10 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
 
       if (error) throw error;
 
-      toast({
-        title: "Success!",
-        description: `${allSelectedMeals.length} meal${allSelectedMeals.length > 1 ? 's' : ''} scheduled for ${format(selectedDate, "EEEE, MMM d")}`,
-      });
-
-      onComplete();
+      setSuccess(true);
+      setTimeout(() => {
+        onComplete();
+      }, 1500);
     } catch (err) {
       console.error("Error scheduling meals:", err);
       toast({
@@ -1798,6 +1797,43 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
           />
         </DialogContent>
       </Dialog>
+
+      {/* Success Overlay */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center"
+          >
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center mb-6"
+            >
+              <Check className="w-12 h-12 text-white" />
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-2xl font-bold mb-2"
+            >
+              Added to Schedule!
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-muted-foreground"
+            >
+              Redirecting to your schedule...
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -137,7 +137,7 @@ export const PromoVideo = () => {
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
             onClick={(e) => e.stopPropagation()}
             className="w-full bg-white rounded-t-3xl overflow-hidden"
-            style={{ maxHeight: "80vh" }}
+            style={{ maxHeight: "80dvh" }}
           >
             {/* Drag handle + close */}
             <div className="flex items-center justify-between px-4 pt-3 pb-1">
@@ -220,7 +220,7 @@ export const PromoVideo = () => {
             </div>
 
             {/* Bottom content */}
-            <div className="px-5 pt-3 pb-6">
+            <div className="px-5 pt-3" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
               <h2 className="text-base font-bold text-black text-center mb-1">
                 Eat Smart, Live Better
               </h2>
