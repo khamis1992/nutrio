@@ -275,7 +275,7 @@ const Index = () => {
                 <img 
                   src={heroFood} 
                   alt="Healthy meals and nutrition" 
-                  className="w-full h-auto object-contain rounded-2xl"
+                  className="w-full object-contain rounded-2xl max-h-52 md:max-h-96"
                 />
               </div>
               

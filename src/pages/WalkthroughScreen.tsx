@@ -404,7 +404,7 @@ const WalkthroughScreen = () => {
             transition={{ type: "spring", stiffness: 340, damping: 34 }}
             style={{ position: "absolute", bottom: -28 }}
           >
-            <PhoneMockup size={Math.min(Math.max(window.innerWidth * 0.48, 160), 210)}>
+            <PhoneMockup size={Math.min(Math.max(window.innerWidth * 0.4, 140), 180)}>
               <Screen />
             </PhoneMockup>
           </motion.div>
