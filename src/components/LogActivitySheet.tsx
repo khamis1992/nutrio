@@ -186,15 +186,15 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
         {view === "list" && (
           <>
             {/* Header */}
-            <div className="gradient-primary px-5 pt-5 pb-4">
+            <div className="bg-white px-5 pt-5 pb-4 border-b border-gray-100">
               <SheetHeader>
-                <SheetTitle className="text-white text-xl font-bold text-left">Log Activity</SheetTitle>
-                <p className="text-white/70 text-sm">Track your calories burned today</p>
+                <SheetTitle className="text-gray-900 text-xl font-bold text-left">Log Activity</SheetTitle>
+                <p className="text-gray-500 text-sm">Track your calories burned today</p>
               </SheetHeader>
               {totalBurned > 0 && (
-                <div className="mt-3 inline-flex items-center gap-2 bg-white/20 rounded-2xl px-4 py-2">
-                  <Flame className="w-4 h-4 text-orange-200" />
-                  <span className="text-white font-semibold text-sm">{totalBurned} cal burned today</span>
+                <div className="mt-3 inline-flex items-center gap-2 bg-orange-50 rounded-2xl px-4 py-2">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <span className="text-orange-600 font-semibold text-sm">{totalBurned} cal burned today</span>
                 </div>
               )}
             </div>
@@ -236,7 +236,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
               )}
 
               {/* Search */}
-              <div className="px-5 pb-3">
+              <div className="px-5 pb-3 pt-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input

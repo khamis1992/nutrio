@@ -9,6 +9,8 @@ import {
   Loader2, Search, Plus, Check, ChevronRight,
   X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2,
 } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -333,6 +335,59 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   // ── AI scan ────────────────────────────────────────────────────────────────
+  // Native camera via Capacitor (avoids WebView navigation-back bug on Android)
+  const handleTakePhoto = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const photo = await Camera.getPhoto({
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Camera,
+          quality: 85,
+        });
+        if (!photo.dataUrl) return;
+        setScanning(true);
+        setScanResults([]);
+        setScanPreviewUrl(photo.dataUrl);
+        setTab("Scan");
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
+            body: { imageUrl: photo.dataUrl, mode: "quick_scan" },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (error) throw error;
+          if (data?.success && data?.detectedItems?.length > 0) {
+            const items: FoodItem[] = data.detectedItems.map((item: any, i: number) => ({
+              id: `scan-${Date.now()}-${i}`,
+              name: item.name,
+              calories: item.calories,
+              protein_g: item.protein_g,
+              carbs_g: item.carbs_g,
+              fat_g: item.fat_g,
+              source: "meal" as const,
+            }));
+            setScanResults(items);
+            const newSelected = new Map(selected);
+            items.forEach((item) => newSelected.set(item.id, { ...item, quantity: 1 }));
+            setSelected(newSelected);
+          } else {
+            toast({ title: "Nothing detected", description: "Try a clearer photo or log manually.", variant: "destructive" });
+          }
+        } catch {
+          toast({ title: "Scan failed", description: "Try again or enter manually.", variant: "destructive" });
+        } finally {
+          setScanning(false);
+        }
+      } catch {
+        // User cancelled camera — do nothing
+      }
+    } else {
+      // Web fallback — use file input
+      cameraInputRef.current?.click();
+    }
+  };
+
   const handleScanImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -572,7 +627,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                       </div>
                       <div className="flex flex-col gap-3 w-full mt-2">
                         <button
-                          onClick={() => cameraInputRef.current?.click()}
+                          onClick={handleTakePhoto}
                           className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
                         >
                           <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0">

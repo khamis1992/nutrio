@@ -1,6 +1,9 @@
 import jsPDF from "jspdf";
 import { format, subDays } from "date-fns";
 import type { WeeklyReportData } from "./professional-weekly-report-pdf";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 
 // ─────────────────────────────────────────────
 //  DESIGN TOKENS
@@ -1044,7 +1047,24 @@ export class NutrioReportPDF {
     this.doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
     const pdf = this.generate(data);
     const fn = filename ?? `nutrio-weekly-report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
-    pdf.save(fn);
+
+    if (Capacitor.isNativePlatform()) {
+      // On Android/iOS WebView, browser downloads don't work — save to device then share
+      const base64 = pdf.output("datauristring").split(",")[1];
+      const saved = await Filesystem.writeFile({
+        path: fn,
+        data: base64,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        title: "Nutrio Weekly Report",
+        text: "Your Nutrio weekly nutrition report",
+        url: saved.uri,
+        dialogTitle: "Save or share your report",
+      });
+    } else {
+      pdf.save(fn);
+    }
   }
 
   async getBlob(data: WeeklyReportData): Promise<Blob> {

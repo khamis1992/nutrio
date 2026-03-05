@@ -287,34 +287,31 @@ export function ProfessionalWeeklyReport({
         </div>
       </div>
 
-      {/* Stats Grid — 3 colored cards */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Stats — 3 circles */}
+      <div className="flex justify-around items-center py-2">
         {/* Avg Calories — Orange */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white p-3 shadow-md">
-          <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mb-2">
-            <Flame className="w-4 h-4 text-white" />
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-200 flex flex-col items-center justify-center">
+            <Flame className="w-4 h-4 text-white/80 mb-0.5" />
+            <p className="text-base font-extrabold text-white leading-none">{Math.round(stats.avgCalories)}</p>
           </div>
-          <p className="text-lg font-bold">{Math.round(stats.avgCalories)}</p>
-          <p className="text-[10px] text-white/70">Avg Calories</p>
+          <p className="text-[10px] font-medium text-gray-500 text-center">Avg Calories</p>
         </div>
         {/* Quality Score — Blue */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-3 shadow-md">
-          <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mb-2">
-            <Target className="w-4 h-4 text-white" />
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-lg shadow-blue-200 flex flex-col items-center justify-center">
+            <Target className="w-4 h-4 text-white/80 mb-0.5" />
+            <p className="text-base font-extrabold text-white leading-none">{stats.quality}</p>
           </div>
-          <p className="text-lg font-bold">{stats.quality}</p>
-          <p className="text-[10px] text-white/70">Quality Score</p>
+          <p className="text-[10px] font-medium text-gray-500 text-center">Quality Score</p>
         </div>
         {/* Cal Burned — Amber */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-3 shadow-md">
-          <div className="absolute -top-3 -right-3 w-12 h-12 bg-white/10 rounded-full" />
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center mb-2">
-            <Flame className="w-4 h-4 text-white" />
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-200 flex flex-col items-center justify-center">
+            <Flame className="w-4 h-4 text-white/80 mb-0.5" />
+            <p className="text-base font-extrabold text-white leading-none">{weeklyBurned}</p>
           </div>
-          <p className="text-lg font-bold">{weeklyBurned}</p>
-          <p className="text-[10px] text-white/70">Cal Burned</p>
+          <p className="text-[10px] font-medium text-gray-500 text-center">Cal Burned</p>
         </div>
       </div>
 

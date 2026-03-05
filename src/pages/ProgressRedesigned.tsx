@@ -568,33 +568,6 @@ const ProgressDashboard = () => {
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Quick Add</h3>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 h-12 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    onClick={() => handleQuickWaterAdd(1)}
-                    disabled={waterLoading}
-                  >
-                    <Droplets className="w-4 h-4 mr-1" />
-                    +1 Water
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 h-12"
-                    onClick={() => setLogMealOpen(true)}
-                  >
-                    <Utensils className="w-4 h-4 mr-1" />
-                    Log Meal
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Meal Quality */}
             {!qualityLoading && (

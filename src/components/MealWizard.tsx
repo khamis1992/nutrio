@@ -1126,7 +1126,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
                 animate={{ opacity: 1, y: 0 }}
                 onClick={() => handleAutoFillDay(false)}
                 disabled={autoFillLoading}
-                className="w-full mb-4 py-3 px-4 bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50"
+                className="w-full mb-4 py-3 px-4 bg-gradient-to-r from-warning/10 to-orange-400/10 border border-warning/30 rounded-xl flex items-center justify-center gap-2 text-warning font-medium hover:bg-warning/10 transition-colors disabled:opacity-50"
               >
                 {autoFillLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -1327,7 +1327,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
       <motion.div 
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-16 left-0 right-0 p-4 bg-background/95 backdrop-blur-lg border-t border-border z-40"
+        className="fixed bottom-16 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-40"
+        style={{ padding: '16px 16px max(16px, env(safe-area-inset-bottom))' }}
       >
 
         <div className="flex items-center gap-3">

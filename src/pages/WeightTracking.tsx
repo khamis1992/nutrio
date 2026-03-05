@@ -284,7 +284,7 @@ export default function WeightTracking() {
             </div>
 
             {/* Cancel / Save */}
-            <div className="flex gap-3 px-4 mb-4">
+            <div className="flex gap-3 px-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
               <button
                 onClick={() => setSheetOpen(false)}
                 className="flex-1 h-12 rounded-full border-2 border-orange-500 text-orange-500 font-bold text-base hover:bg-orange-50 transition-all"

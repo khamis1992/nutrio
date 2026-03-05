@@ -386,6 +386,7 @@ const WalkthroughScreen = () => {
         style={{
           height: "58%",
           background: "linear-gradient(150deg, #9DD63F 0%, #7DC200 100%)",
+          paddingTop: 'env(safe-area-inset-top)',
         }}
       >
         {/* Decorative circles */}
@@ -420,7 +421,7 @@ const WalkthroughScreen = () => {
           borderTopRightRadius: 28,
           marginTop: -24,
           zIndex: 10,
-          padding: "32px 24px 28px",
+          padding: `32px 24px max(28px, env(safe-area-inset-bottom))`,
         }}
       >
         {/* Slide text */}

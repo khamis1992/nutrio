@@ -141,7 +141,7 @@ export const PromoVideo = () => {
           {/* Video Container */}
           <div
             className="relative flex items-center justify-center bg-black overflow-hidden"
-            style={{ height: '58vh' }}
+            style={{ height: '30vh' }}
           >
             <video
               ref={videoRef}
@@ -224,27 +224,27 @@ export const PromoVideo = () => {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="flex-none bg-gradient-to-t from-black via-black/90 to-transparent pb-safe-bottom"
             >
-              <div className="px-6 pt-4 pb-4">
-                <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-3" />
+              <div className="px-5 pt-2 pb-2">
+                <div className="w-8 h-1 bg-white/30 rounded-full mx-auto mb-2" />
 
-                <h2 className="text-lg font-bold text-white text-center mb-1">
+                <h2 className="text-sm font-bold text-white text-center mb-0.5">
                   Eat Smart, Live Better
                 </h2>
-                <p className="text-white/70 text-center text-xs mb-3">
+                <p className="text-white/70 text-center text-xs mb-2">
                   Personalized meal plans delivered to your door
                 </p>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Button
                     onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-lg shadow-primary/30"
+                    className="w-full h-9 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-xs shadow-lg shadow-primary/30"
                   >
                     Get Started
                   </Button>
 
                   <button
                     onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-8 text-white/60 font-medium text-xs active:text-white transition-colors"
+                    className="w-full h-7 text-white/60 font-medium text-xs active:text-white transition-colors"
                   >
                     Skip for now
                   </button>

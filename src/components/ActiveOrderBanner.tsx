@@ -154,6 +154,83 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
 
+  const fetchActiveOrders = useCallback(async () => {
+    try {
+      const { data: schedules, error: schedulesError } = await supabase
+        .from("meal_schedules")
+        .select(`
+          id,
+          scheduled_date,
+          order_status,
+          meal_id,
+          addons_total,
+          delivery_fee,
+          delivery_type
+        `)
+        .eq("user_id", userId)
+        .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered"])
+        .order("scheduled_date", { ascending: true })
+        .limit(3);
+
+      if (schedulesError) throw schedulesError;
+      if (!schedules || schedules.length === 0) {
+        setActiveOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      const mealIds = [...new Set(schedules.map(s => s.meal_id).filter(Boolean))];
+
+      let mealsData: (Meal & { restaurant?: { name: string } })[] = [];
+      if (mealIds.length > 0) {
+        const { data: meals, error: mealsError } = await supabase
+          .from("meals")
+          .select(`id, name, restaurant_id`)
+          .in("id", mealIds);
+
+        if (!mealsError && meals) {
+          const restaurantIds = [...new Set(meals.map((m: Meal) => m.restaurant_id).filter(Boolean))] as string[];
+
+          let restaurantsData: Restaurant[] = [];
+          if (restaurantIds.length > 0) {
+            const { data: restaurants, error: restaurantsError } = await supabase
+              .from("restaurants")
+              .select("id, name")
+              .in("id", restaurantIds);
+
+            if (!restaurantsError && restaurants) {
+              restaurantsData = restaurants as Restaurant[];
+            }
+          }
+
+          mealsData = (meals as Meal[]).map(meal => ({
+            ...meal,
+            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: "Restaurant" },
+          }));
+        }
+      }
+
+      const orders: ActiveOrder[] = (schedules as MealSchedule[]).map((schedule) => {
+        const meal = mealsData.find(m => m.id === schedule.meal_id);
+        return {
+          id: schedule.id,
+          order_status: schedule.order_status,
+          scheduled_date: schedule.scheduled_date,
+          meal_name: meal?.name || "Meal",
+          restaurant_name: meal?.restaurant?.name || "Restaurant",
+          total_amount: schedule.addons_total || 0,
+          delivery_type: schedule.delivery_type || "pickup",
+        };
+      });
+
+      setActiveOrders(orders);
+    } catch (err) {
+      console.error("Error fetching active orders:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
   const handleCancelOrder = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -163,24 +240,39 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: orderId,
       });
-      
-      // Handle specific error for "preparing" status
+
       if (error) {
         const errorMessage = error.message || "";
-        if (errorMessage.includes('preparing')) {
+        if (errorMessage.includes("preparing")) {
           toast({
             title: "Cannot Cancel Order",
             description: "Your order is already being prepared. Please contact the restaurant for assistance.",
             variant: "destructive",
           });
-          setCancelling(null);
           return;
         }
         throw error;
       }
-      
+
       if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+
+      // Optimistically remove from UI
       setActiveOrders(prev => prev.filter(o => o.id !== orderId));
+
+      // Verify the DB write actually persisted (wait for transaction to be visible)
+      await new Promise(r => setTimeout(r, 600));
+      const { data: check } = await supabase
+        .from("meal_schedules")
+        .select("order_status")
+        .eq("id", orderId)
+        .single();
+
+      if (check && check.order_status !== "cancelled") {
+        // DB didn't save the cancel — restore the real list and show error
+        await fetchActiveOrders();
+        throw new Error("Cancellation did not save. Please try again.");
+      }
+
       toast.success("Order cancelled successfully");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to cancel order. Please try again.";
@@ -191,87 +283,6 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
   };
 
   useEffect(() => {
-    const fetchActiveOrders = async () => {
-      try {
-        const { data: schedules, error: schedulesError } = await supabase
-          .from("meal_schedules")
-          .select(`
-            id,
-            scheduled_date,
-            order_status,
-            meal_id,
-            addons_total,
-            delivery_fee,
-            delivery_type
-          `)
-          .eq("user_id", userId)
-          .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered"])
-          .order("scheduled_date", { ascending: true })
-          .limit(3);
-
-        if (schedulesError) throw schedulesError;
-        if (!schedules || schedules.length === 0) {
-          setActiveOrders([]);
-          setLoading(false);
-          return;
-        }
-
-        const mealIds = [...new Set(schedules.map(s => s.meal_id).filter(Boolean))];
-
-        let mealsData: (Meal & { restaurant?: { name: string } })[] = [];
-        if (mealIds.length > 0) {
-          const { data: meals, error: mealsError } = await supabase
-            .from("meals")
-            .select(`
-              id,
-              name,
-              restaurant_id
-            `)
-            .in("id", mealIds);
-
-          if (!mealsError && meals) {
-            const restaurantIds = [...new Set(meals.map((m: Meal) => m.restaurant_id).filter(Boolean))] as string[];
-
-            let restaurantsData: Restaurant[] = [];
-            if (restaurantIds.length > 0) {
-              const { data: restaurants, error: restaurantsError } = await supabase
-                .from("restaurants")
-                .select("id, name")
-                .in("id", restaurantIds);
-
-              if (!restaurantsError && restaurants) {
-                restaurantsData = restaurants as Restaurant[];
-              }
-            }
-
-            mealsData = (meals as Meal[]).map(meal => ({
-              ...meal,
-              restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: "Restaurant" }
-            }));
-          }
-        }
-
-        const orders: ActiveOrder[] = (schedules as MealSchedule[]).map((schedule) => {
-          const meal = mealsData.find(m => m.id === schedule.meal_id);
-          return {
-            id: schedule.id,
-            order_status: schedule.order_status,
-            scheduled_date: schedule.scheduled_date,
-            meal_name: meal?.name || "Meal",
-            restaurant_name: meal?.restaurant?.name || "Restaurant",
-            total_amount: (schedule.addons_total || 0),
-            delivery_type: schedule.delivery_type || "pickup",
-          };
-        });
-
-        setActiveOrders(orders);
-      } catch (err) {
-        console.error("Error fetching active orders:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchActiveOrders();
 
     const subscription = supabase
@@ -285,7 +296,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          fetchActiveOrders();
+          // Small delay so the DB write is visible before re-reading
+          setTimeout(() => fetchActiveOrders(), 300);
         }
       )
       .subscribe();
@@ -293,7 +305,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [userId]);
+  }, [userId, fetchActiveOrders]);
 
   if (loading || activeOrders.length === 0) {
     return null;
@@ -430,11 +442,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                         </div>
                       </div>
 
-                      {/* Status Icon — top right (flashing) */}
+                      {/* Status Icon — top right */}
                       <div className="relative flex-shrink-0">
-                        {/* Ping rings */}
-                        <span className="absolute inset-0 rounded-full bg-green-600 opacity-40 animate-ping" />
-                        <span className="absolute inset-0 rounded-full bg-green-500 opacity-20 animate-ping [animation-delay:0.4s]" />
                         <motion.div
                           className="relative w-12 h-12 rounded-full bg-green-800 flex items-center justify-center shadow-lg"
                           animate={{ scale: [1, 1.08, 1] }}
@@ -481,7 +490,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                                 {/* Step Circle */}
                                 {isCurrent ? (
                                   <div className="relative flex items-center justify-center w-11 h-11">
-                                    {/* Ping rings */}
+                                    {/* Ping rings — current step only */}
                                     <span className="absolute inset-0 rounded-full bg-green-400 opacity-40 animate-ping" />
                                     <span className="absolute inset-0 rounded-full bg-green-300 opacity-20 animate-ping [animation-delay:0.4s]" />
                                     <motion.div
