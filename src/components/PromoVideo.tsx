@@ -138,10 +138,9 @@ export const PromoVideo = () => {
             </button>
           </div>
 
-          {/* Video Container */}
+          {/* Video Container — flex-1 + min-h-0 fills all space between top bar and bottom sheet */}
           <div
-            className="relative flex items-center justify-center bg-black overflow-hidden"
-            style={{ height: '30vh' }}
+            className="relative flex flex-1 min-h-0 items-center justify-center bg-black overflow-hidden"
           >
             <video
               ref={videoRef}

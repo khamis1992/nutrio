@@ -7,27 +7,51 @@ import { isNative } from '@/lib/capacitor';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Guard: prevent crash if env vars are missing (e.g. APK built without secrets configured)
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error(
+    '[Nutrio] Missing Supabase configuration. ' +
+    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set in your build environment.'
+  );
+}
+
 // Custom storage adapter for Capacitor that uses native Preferences
 const capacitorStorage = {
   getItem: async (key: string): Promise<string | null> => {
-    const { value } = await Preferences.get({ key });
-    return value;
+    try {
+      const { value } = await Preferences.get({ key });
+      return value;
+    } catch {
+      return null;
+    }
   },
   setItem: async (key: string, value: string): Promise<void> => {
-    await Preferences.set({ key, value });
+    try {
+      await Preferences.set({ key, value });
+    } catch {
+      // Silently fail — session will be lost on restart but app won't crash
+    }
   },
   removeItem: async (key: string): Promise<void> => {
-    await Preferences.remove({ key });
+    try {
+      await Preferences.remove({ key });
+    } catch {
+      // Silently fail
+    }
   },
 };
 
 // Use Capacitor Preferences for native apps, localStorage for web
 const storage = isNative ? capacitorStorage : localStorage;
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage,
-    persistSession: true,
-    autoRefreshToken: true,
+export const supabase = createClient<Database>(
+  SUPABASE_URL ?? 'https://placeholder.supabase.co',
+  SUPABASE_PUBLISHABLE_KEY ?? 'placeholder-key',
+  {
+    auth: {
+      storage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
   }
-});
+);
