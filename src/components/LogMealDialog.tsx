@@ -89,11 +89,16 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const [showScanMenu, setShowScanMenu] = useState(false);
   const [scanResults, setScanResults] = useState<FoodItem[]>([]);
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
+  // Flag to prevent state reset when Android resumes after camera activity
+  const isTakingPhotoRef = useRef(false);
 
 
   // ── Reset on open ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
+      // Skip reset if we are returning from the native camera — the camera
+      // handler will set the scan state itself after getPhoto() resolves.
+      if (isTakingPhotoRef.current) return;
       setView("main");
       setSearchQuery("");
       setSearchResults([]);
@@ -339,12 +344,20 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const handleTakePhoto = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
+        // Set flag BEFORE launching camera so the reset effect is skipped
+        // when Android briefly suspends/resumes the WebView activity.
+        isTakingPhotoRef.current = true;
         const photo = await Camera.getPhoto({
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
           quality: 85,
         });
-        if (!photo.dataUrl) return;
+        if (!photo.dataUrl) {
+          isTakingPhotoRef.current = false;
+          return;
+        }
+        // Clear the flag now that we have the photo and are about to process it
+        isTakingPhotoRef.current = false;
         setScanning(true);
         setScanResults([]);
         setScanPreviewUrl(photo.dataUrl);
@@ -380,7 +393,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
           setScanning(false);
         }
       } catch {
-        // User cancelled camera — do nothing
+        // User cancelled camera or error — clear flag and do nothing
+        isTakingPhotoRef.current = false;
       }
     } else {
       // Web fallback — use file input
