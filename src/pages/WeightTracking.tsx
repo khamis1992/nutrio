@@ -215,86 +215,91 @@ export default function WeightTracking() {
 
       {/* ── Update Weight Bottom Sheet ── */}
       {sheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-[200] flex flex-col justify-end">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setSheetOpen(false)} />
 
-          <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: "92vh" }}>
+          <div className="relative bg-white rounded-t-3xl flex flex-col overflow-hidden" style={{ maxHeight: "92vh" }}>
             {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
+            <div className="flex-none flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-gray-200" />
             </div>
 
             {/* Title */}
-            <h2 className="text-center text-lg font-bold text-gray-900 py-4">Update Weight</h2>
+            <h2 className="flex-none text-center text-lg font-bold text-gray-900 py-3">Update Weight</h2>
 
-            {/* Week date selector */}
-            <div className="px-4 pb-4">
-              {/* Month nav */}
-              <div className="flex items-center justify-between mb-3">
-                <button onClick={() => setWeekStart(subWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
-                </button>
-                <span className="font-semibold text-gray-900 text-sm">{format(sheetDate, "MMMM yyyy")}</span>
-                <button onClick={() => setWeekStart(addWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                  <ChevronRight className="w-5 h-5 text-gray-600" />
-                </button>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-4 pb-2">
+              {/* Week date selector */}
+              <div className="pb-4">
+                {/* Month nav */}
+                <div className="flex items-center justify-between mb-3">
+                  <button onClick={() => setWeekStart(subWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <span className="font-semibold text-gray-900 text-sm">{format(sheetDate, "MMMM yyyy")}</span>
+                  <button onClick={() => setWeekStart(addWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+
+                {/* Day strip */}
+                <div className="flex gap-1">
+                  {weekDays.map((d) => {
+                    const selected = isSameDay(d, sheetDate);
+                    return (
+                      <button
+                        key={d.toISOString()}
+                        onClick={() => setSheetDate(d)}
+                        className={cn(
+                          "flex-1 flex flex-col items-center py-2 rounded-xl transition-all",
+                          selected ? "bg-orange-500" : "hover:bg-gray-50"
+                        )}
+                      >
+                        <span className={cn("text-xs font-medium", selected ? "text-white/80" : "text-gray-400")}>
+                          {format(d, "EEE")}
+                        </span>
+                        <span className={cn("text-base font-bold mt-0.5", selected ? "text-white" : "text-gray-800")}>
+                          {format(d, "d")}
+                        </span>
+                        {selected && <span className="w-1.5 h-1.5 rounded-full bg-orange-200 mt-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Day strip */}
-              <div className="flex gap-1">
-                {weekDays.map((d) => {
-                  const selected = isSameDay(d, sheetDate);
-                  return (
-                    <button
-                      key={d.toISOString()}
-                      onClick={() => setSheetDate(d)}
-                      className={cn(
-                        "flex-1 flex flex-col items-center py-2 rounded-xl transition-all",
-                        selected ? "bg-orange-500" : "hover:bg-gray-50"
-                      )}
-                    >
-                      <span className={cn("text-xs font-medium", selected ? "text-white/80" : "text-gray-400")}>
-                        {format(d, "EEE")}
-                      </span>
-                      <span className={cn("text-base font-bold mt-0.5", selected ? "text-white" : "text-gray-800")}>
-                        {format(d, "d")}
-                      </span>
-                      {selected && <span className="w-1.5 h-1.5 rounded-full bg-orange-200 mt-1" />}
-                    </button>
-                  );
-                })}
+              {/* Weight input */}
+              <div className="bg-gray-50 rounded-2xl flex items-center justify-center gap-3 py-6">
+                <input
+                  type="number"
+                  min="20"
+                  max="300"
+                  step="0.1"
+                  autoFocus
+                  placeholder="0.0"
+                  value={sheetWeight}
+                  onChange={(e) => setSheetWeight(e.target.value)}
+                  className="text-6xl font-black text-gray-900 tracking-tight bg-transparent border-none outline-none w-40 text-center"
+                />
+                <span className="text-2xl font-semibold text-gray-400">kg</span>
               </div>
             </div>
 
-            {/* Weight input */}
-            <div className="mx-4 bg-gray-50 rounded-2xl flex items-center justify-center gap-3 py-5 mb-4">
-              <input
-                type="number"
-                min="20"
-                max="300"
-                step="0.1"
-                autoFocus
-                placeholder="0.0"
-                value={sheetWeight}
-                onChange={(e) => setSheetWeight(e.target.value)}
-                className="text-6xl font-black text-gray-900 tracking-tight bg-transparent border-none outline-none w-40 text-center"
-              />
-              <span className="text-2xl font-semibold text-gray-400">kg</span>
-            </div>
-
-            {/* Cancel / Save */}
-            <div className="flex gap-3 px-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+            {/* Cancel / Save — pinned to bottom with safe space */}
+            <div className="flex-none flex gap-3 px-4 pt-3 pb-8 bg-white border-t border-gray-100">
               <button
                 onClick={() => setSheetOpen(false)}
-                className="flex-1 h-12 rounded-full border-2 border-orange-500 text-orange-500 font-bold text-base hover:bg-orange-50 transition-all"
+                className="flex-1 rounded-full border-2 border-orange-500 text-orange-500 font-bold text-base hover:bg-orange-50 transition-all"
+                style={{ height: 52 }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={submitting || !sheetWeight || parseFloat(sheetWeight) <= 0}
-                className="flex-1 h-12 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-base transition-all active:scale-[0.98]"
+                className="flex-1 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-base transition-all active:scale-[0.98]"
+                style={{ height: 52 }}
               >
                 {submitting ? "Saving…" : "Save"}
               </button>

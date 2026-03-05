@@ -360,10 +360,10 @@ const WalkthroughScreen = () => {
     setCurrent(next);
   };
 
-  const handleSkip = () => navigate("/");
+  const handleSkip = () => navigate("/", { replace: true });
   const handleContinue = () => {
     if (current < SLIDES.length - 1) goTo(current + 1);
-    else navigate("/auth");
+    else navigate("/auth", { replace: true });
   };
 
   const variants = {

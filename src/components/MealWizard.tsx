@@ -1123,10 +1123,26 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
             {getTotalSelectedMeals() < STEPS.length && (
               <motion.button
                 initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={autoFillLoading ? { opacity: 1, y: 0 } : {
+                  opacity: 1,
+                  y: 0,
+                  boxShadow: [
+                    "0 0 0px 0px #EA580C00",
+                    "0 0 12px 4px #EA580C66",
+                    "0 0 0px 0px #EA580C00",
+                  ],
+                }}
+                transition={autoFillLoading ? {} : {
+                  boxShadow: { duration: 1.4, repeat: Infinity, ease: "easeInOut" },
+                }}
                 onClick={() => handleAutoFillDay(false)}
                 disabled={autoFillLoading}
-                className="w-full mb-4 py-3 px-4 bg-gradient-to-r from-warning/10 to-orange-400/10 border border-warning/30 rounded-xl flex items-center justify-center gap-2 text-warning font-medium hover:bg-warning/10 transition-colors disabled:opacity-50"
+                className="w-full mb-4 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors disabled:opacity-50"
+                style={{
+                  background: "linear-gradient(to right, #EA580C1A, #EA580C2A)",
+                  border: "2px solid #EA580C66",
+                  color: "#EA580C",
+                }}
               >
                 {autoFillLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />

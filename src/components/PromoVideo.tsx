@@ -121,136 +121,129 @@ export const PromoVideo = () => {
   return (
     <AnimatePresence>
       {showPromo && (
+        /* Dark backdrop */
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-white flex flex-col"
+          className="fixed inset-0 z-[100] bg-black/60 flex items-end justify-center"
+          onClick={handleClose}
         >
-          {/* Top Bar */}
-          <div className="flex-none pt-safe-top px-4 py-3 flex items-center justify-between bg-white/80 backdrop-blur-sm z-20">
-            <span className="text-black/60 text-sm font-medium">NUTRIO</span>
-            <button
-              onClick={handleClose}
-              className="w-10 h-10 rounded-full bg-black/10 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform"
-            >
-              <X className="w-5 h-5 text-black" />
-            </button>
-          </div>
-
-          {/* Video Container — flex-1 + min-h-0 fills all space between top bar and bottom sheet */}
-          <div
-            className="relative flex flex-1 min-h-0 items-center justify-center bg-white overflow-hidden"
+          {/* Card — stops click propagation so tapping inside doesn't close */}
+          <motion.div
+            initial={{ y: 300 }}
+            animate={{ y: 0 }}
+            exit={{ y: 300 }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full bg-white rounded-t-3xl overflow-hidden"
+            style={{ maxHeight: "80vh" }}
           >
-            <video
-              ref={videoRef}
-              src={promoVideo}
-              autoPlay
-              muted={isMuted}
-              playsInline
-              preload="auto"
-              onError={handleVideoError}
-              className="w-full max-h-[65vh] object-contain"
-            />
-
-            {/* Loading State */}
-            {isLoading && !hasError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
-                <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-black/60 text-sm">Loading...</p>
-              </div>
-            )}
-
-            {/* Play Button - When Autoplay Blocked */}
-            {needsUserInteraction && !isLoading && !hasError && (
-              <motion.button
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                onClick={handleManualPlay}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-white/60"
-              >
-                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/50 active:scale-95 transition-transform mb-4">
-                  <Play className="w-8 h-8 text-white ml-1" />
-                </div>
-                <span className="text-black font-semibold text-lg">Tap to Play</span>
-              </motion.button>
-            )}
-
-            {/* Error State */}
-            {hasError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white px-6">
-                <p className="text-black text-lg font-semibold mb-2">Video unavailable</p>
-                <p className="text-black/60 text-sm text-center mb-6">Could not load the promotional video.</p>
-                <Button onClick={handleClose} className="rounded-full px-8">
-                  Continue to App
-                </Button>
-              </div>
-            )}
-
-            {/* Unmute Button - Prominent */}
-            {isPlaying && isMuted && !hasError && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                onClick={toggleMute}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3 z-20"
-              >
-                <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <VolumeX className="w-7 h-7 text-white" />
-                </div>
-                <span className="bg-black/10 text-black text-sm font-semibold px-4 py-2 rounded-full backdrop-blur-sm">
-                  🔊 Tap for sound
-                </span>
-              </motion.button>
-            )}
-
-            {/* Sound Toggle (when unmuted) */}
-            {isPlaying && !isMuted && !hasError && (
+            {/* Drag handle + close */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-1">
+              <div className="w-8 h-1 bg-black/20 rounded-full mx-auto absolute left-1/2 -translate-x-1/2" />
+              <span className="text-black/50 text-xs font-semibold tracking-widest">NUTRIO</span>
               <button
-                onClick={toggleMute}
-                className="absolute top-4 right-4 w-12 h-12 rounded-full bg-black/10 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform z-10"
+                onClick={handleClose}
+                className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center active:scale-95 transition-transform"
               >
-                <Volume2 className="w-5 h-5 text-black" />
+                <X className="w-4 h-4 text-black" />
               </button>
-            )}
-          </div>
+            </div>
 
-          {/* Bottom Action Sheet */}
-          {!hasError && (
-            <motion.div
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="flex-none bg-gradient-to-t from-white via-white/90 to-transparent pb-safe-bottom"
-            >
-              <div className="px-5 pt-2 pb-2">
-                <div className="w-8 h-1 bg-black/20 rounded-full mx-auto mb-2" />
+            {/* Video — fixed height, never expands */}
+            <div className="relative w-full bg-white overflow-hidden" style={{ height: 220 }}>
+              <video
+                ref={videoRef}
+                src={promoVideo}
+                autoPlay
+                muted={isMuted}
+                playsInline
+                preload="auto"
+                onError={handleVideoError}
+                className="w-full h-full object-contain"
+              />
 
-                <h2 className="text-sm font-bold text-black text-center mb-0.5">
-                  Eat Smart, Live Better
-                </h2>
-                <p className="text-black/60 text-center text-xs mb-2">
-                  Personalized meal plans delivered to your door
-                </p>
-
-                <div className="space-y-1">
-                  <Button
-                    onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-9 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-xs shadow-lg shadow-primary/30"
-                  >
-                    Get Started
-                  </Button>
-
-                  <button
-                    onClick={() => { handleClose(); navigate("/walkthrough"); }}
-                    className="w-full h-7 text-black/50 font-medium text-xs active:text-black transition-colors"
-                  >
-                    Skip for now
-                  </button>
+              {/* Loading State */}
+              {isLoading && !hasError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
+                  <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-black/60 text-xs">Loading...</p>
                 </div>
+              )}
+
+              {/* Play Button - When Autoplay Blocked */}
+              {needsUserInteraction && !isLoading && !hasError && (
+                <motion.button
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  onClick={handleManualPlay}
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-white/70"
+                >
+                  <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40 active:scale-95 transition-transform mb-2">
+                    <Play className="w-6 h-6 text-white ml-1" />
+                  </div>
+                  <span className="text-black font-semibold text-sm">Tap to Play</span>
+                </motion.button>
+              )}
+
+              {/* Error State */}
+              {hasError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white px-6">
+                  <p className="text-black text-sm font-semibold mb-1">Video unavailable</p>
+                  <p className="text-black/50 text-xs text-center">Could not load the promotional video.</p>
+                </div>
+              )}
+
+              {/* Unmute Button */}
+              {isPlaying && isMuted && !hasError && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onClick={toggleMute}
+                  className="absolute bottom-3 right-3 flex items-center gap-2 bg-black/20 backdrop-blur-sm px-3 py-1.5 rounded-full z-20"
+                >
+                  <VolumeX className="w-4 h-4 text-black" />
+                  <span className="text-black text-xs font-semibold">Tap for sound</span>
+                </motion.button>
+              )}
+
+              {/* Sound Toggle (when unmuted) */}
+              {isPlaying && !isMuted && !hasError && (
+                <button
+                  onClick={toggleMute}
+                  className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform z-10"
+                >
+                  <Volume2 className="w-4 h-4 text-black" />
+                </button>
+              )}
+            </div>
+
+            {/* Bottom content */}
+            <div className="px-5 pt-3 pb-6">
+              <h2 className="text-base font-bold text-black text-center mb-1">
+                Eat Smart, Live Better
+              </h2>
+              <p className="text-black/60 text-center text-xs mb-4">
+                Personalized meal plans delivered to your door
+              </p>
+
+              <div className="space-y-2">
+                <Button
+                  onClick={() => { handleClose(); navigate("/walkthrough"); }}
+                  className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold text-sm shadow-lg shadow-primary/30"
+                >
+                  Get Started
+                </Button>
+                <button
+                  onClick={() => { handleClose(); navigate("/walkthrough"); }}
+                  className="w-full h-8 text-black/50 font-medium text-xs active:text-black transition-colors"
+                >
+                  Skip for now
+                </button>
               </div>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
