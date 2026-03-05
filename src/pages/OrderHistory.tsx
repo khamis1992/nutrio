@@ -29,6 +29,7 @@ import {
   Pencil
 } from "lucide-react";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Restaurant {
   id: string;
@@ -112,6 +113,7 @@ const statusConfig: Record<string, { label: string; icon: React.ElementType; col
 };
 
 const OrderHistory = () => {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -821,7 +823,7 @@ const OrderHistory = () => {
                     <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-4 shadow-sm">
                       <ShoppingBag className="h-9 w-9 text-muted-foreground/50" />
                     </div>
-                    <h3 className="font-bold text-lg text-foreground mb-1">No orders yet</h3>
+                    <h3 className="font-bold text-lg text-foreground mb-1">{t("no_data")}</h3>
                     <p className="text-sm text-muted-foreground mb-6 max-w-xs">
                       Start exploring our delicious meals and place your first order!
                     </p>

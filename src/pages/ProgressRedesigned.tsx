@@ -56,10 +56,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 
 
 const ProgressDashboard = () => {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -459,10 +461,10 @@ const ProgressDashboard = () => {
       };
 
       await nutrioReportPDF.download(reportData);
-      toast({ title: "Report downloaded!", description: "Your Nutrition Performance & Habit Intelligence report has been saved." });
+      toast({ title: t("report_downloaded"), description: "Your Nutrition Performance & Habit Intelligence report has been saved." });
     } catch (error) {
       console.error("Error generating report:", error);
-      toast({ title: "Failed to generate report", variant: "destructive" });
+      toast({ title: t("report_failed"), variant: "destructive" });
     } finally {
       setGeneratingReport(false);
     }
@@ -494,7 +496,7 @@ const ProgressDashboard = () => {
           >
             <ArrowLeft className="w-6 h-6 text-slate-700" />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900">Progress</h1>
+          <h1 className="text-lg font-semibold text-slate-900">{t("progress")}</h1>
           <div className="w-10" /> {/* Spacer for balance */}
         </div>
 
@@ -858,7 +860,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
             )}
             <div className="flex items-center gap-2 text-white/80 text-sm">
               <Activity className="w-4 h-4" />
-              <span>On track with your nutrition plan</span>
+              <span>{t("on_track_nutrition")}</span>
             </div>
           </div>
         </div>

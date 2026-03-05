@@ -33,7 +33,7 @@ export const SplashVideo: React.FC<SplashVideoProps> = ({ onComplete }) => {
         playsInline
         onEnded={finish}
         onError={finish}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
       />
       <button
         onClick={finish}

@@ -217,7 +217,7 @@ export default function Tracker() {
           {/* Step Card */}
           <Card className="rounded-2xl shadow-sm border-gray-100 overflow-hidden">
             <CardContent className="p-5">
-              <p className="font-bold text-gray-900 mb-1">Step</p>
+              <p className="font-bold text-gray-900 mb-1">{t("steps")}</p>
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{steps.toLocaleString()} steps</p>
@@ -280,7 +280,7 @@ export default function Tracker() {
                   onClick={() => navigate("/weight-tracking")}
                   className="rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold"
                 >
-                  Update
+                  {t("update")}
                 </Button>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -290,8 +290,8 @@ export default function Tracker() {
                 />
               </div>
               <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Starting: {startWeight} kg</span>
-                <span>Goal: {goalWeight} kg</span>
+                <span>{t("starting")}: {startWeight} kg</span>
+                <span>{t("goal")}: {goalWeight} kg</span>
               </div>
             </CardContent>
           </Card>
@@ -336,7 +336,7 @@ export default function Tracker() {
                 )}
               </div>
               <p className="text-[10px] text-gray-400 mt-1">
-                Underweight · Normal · Overweight · Obese
+                {t("underweight")} · {t("normal")} · {t("overweight")} · {t("obese")}
               </p>
             </CardContent>
           </Card>
@@ -351,7 +351,7 @@ export default function Tracker() {
       <Dialog open={weightDialogOpen} onOpenChange={setWeightDialogOpen}>
         <DialogContent className="rounded-2xl" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
           <DialogHeader>
-            <DialogTitle>Update Weight</DialogTitle>
+            <DialogTitle>{t("update_weight")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
@@ -372,7 +372,7 @@ export default function Tracker() {
               disabled={submitting || !weightInput}
               className="w-full h-12 rounded-xl font-semibold bg-orange-500 hover:bg-orange-600"
             >
-              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save"}
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : t("save")}
             </Button>
           </div>
         </DialogContent>
@@ -433,7 +433,7 @@ export default function Tracker() {
                 onClick={() => setBmiDialogOpen(false)}
                 className="flex-1 py-3.5 rounded-full border-2 border-purple-600 text-purple-600 font-bold text-base hover:bg-purple-50 transition-all"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={async () => {
@@ -454,7 +454,7 @@ export default function Tracker() {
                 disabled={submitting}
                 className="flex-1 py-3.5 rounded-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-base transition-all active:scale-[0.98]"
               >
-                {submitting ? "Saving…" : "Save"}
+                {submitting ? "Saving…" : t("save")}
               </button>
             </div>
           </div>

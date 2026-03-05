@@ -11,6 +11,45 @@ export const translations = {
     nav_schedule: "Schedule",
     nav_affiliate: "Affiliate",
     nav_profile: "Profile",
+    // BMI labels
+    normal: "Normal",
+    overweight: "Overweight",
+    obese: "Obese",
+    underweight: "Underweight",
+    // Tracker
+    starting: "Starting",
+    update: "Update",
+    update_weight: "Update Weight",
+    // Profile
+    save_changes: "Save Changes",
+    profile_settings: "Profile & Settings",
+    when_restaurants_add_items: "When restaurants add new items",
+    tailor_meals_offers: "Tailor meals and offers to your habits",
+    help_improve_app: "Help us improve the app with anonymous data",
+    notification_settings: "Notification Settings",
+    // Profile page
+    order_updates: "Order Updates",
+    status_changes_orders: "Status changes for your active orders",
+    promotions_offers: "Promotions & Offers",
+    discounts_special_deals: "Discounts and special deals",
+    choose_notifications: "Choose what you want to be notified about",
+    control_data_usage: "Control how your data is used",
+    manage_account_status: "Manage your account status",
+    manage_addresses: "Manage your saved delivery locations",
+    delete_account_warning: "This action cannot be undone. All your data including meal schedules, progress logs, and preferences will be permanently deleted.",
+    // Dashboard
+    on_fire_message: "You're on fire! Keep logging your meals.",
+    days_to_milestone: "days to next milestone",
+    weekly_goal: "Weekly Goal",
+    no_featured_restaurants: "No featured restaurants yet",
+    check_back_restaurants: "Check back soon for our highlighted partner restaurants!",
+    // Auth & Progress
+    on_track_nutrition: "On track with your nutrition plan",
+    eat_smart: "Eat Smart,",
+    live_better: "Live Better",
+    saving: "Saving...",
+
+
 
     // Common
     save: "Save",
@@ -311,6 +350,45 @@ export const translations = {
     nav_schedule: "الجدول",
     nav_affiliate: "الشراكة",
     nav_profile: "الملف الشخصي",
+    // BMI labels
+    normal: "طبيعي",
+    overweight: "زيادة وزن",
+    obese: "سمنة",
+    underweight: "نقص وزن",
+    // Tracker
+    starting: "البداية",
+    update: "تحديث",
+    update_weight: "تحديث الوزن",
+    // Profile
+    save_changes: "حفظ التغييرات",
+    profile_settings: "الملف الشخصي والإعدادات",
+    when_restaurants_add_items: "عند إضافة المطاعم لعناصر جديدة",
+    tailor_meals_offers: "تخصيص الوجبات والعروض حسب عاداتك",
+    help_improve_app: "ساعدنا في تحسين التطبيق ببيانات مجهولة",
+    notification_settings: "إعدادات الإشعارات",
+    // Profile page
+    order_updates: "تحديثات الطلبات",
+    status_changes_orders: "تغييرات حالة طلباتك النشطة",
+    promotions_offers: "العروض والتخفيضات",
+    discounts_special_deals: "خصومات وصفقات خاصة",
+    choose_notifications: "اختر ما تريد الإشعار به",
+    control_data_usage: "تحكم في كيفية استخدام بياناتك",
+    manage_account_status: "إدارة حالة حسابك",
+    manage_addresses: "إدارة عناوين التوصيل المحفوظة",
+    delete_account_warning: "لا يمكن التراجع عن هذا الإجراء. سيتم حذف جميع بياناتك بما في ذلك جداول الوجبات وسجلات التقدم والتفضيلات بشكل دائم.",
+    // Dashboard
+    on_fire_message: "أنت رائع! استمر في تسجيل وجباتك.",
+    days_to_milestone: "أيام حتى الهدف التالي",
+    weekly_goal: "الهدف الأسبوعي",
+    no_featured_restaurants: "لا توجد مطاعم مميزة حتى الآن",
+    check_back_restaurants: "تحقق لاحقاً لمطاعمنا الشريكة المميزة!",
+    // Auth & Progress
+    on_track_nutrition: "على المسار الصحيح مع خطة تغذيتك",
+    eat_smart: "تناول بذكاء،",
+    live_better: "عش بشكل أفضل",
+    saving: "جارٍ الحفظ...",
+
+
 
     // Common
     save: "حفظ",

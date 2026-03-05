@@ -37,6 +37,7 @@ import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
 import { MealLimitUpsellBanner } from "@/components/MealLimitUpsellBanner";
 import { QuotaWarningBanner } from "@/components/QuotaWarningBanner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Restaurant {
   id: string;
@@ -63,6 +64,7 @@ const Dashboard = () => {
     dismissAdjustment
   } = useAdaptiveGoals();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [restaurantsLoading, setRestaurantsLoading] = useState(true);
@@ -170,8 +172,8 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await signOut();
     toast({
-      title: "Signed out",
-      description: "You have been successfully signed out.",
+      title: t("signed_out"),
+      description: t("signed_out_desc"),
     });
     navigate("/");
   };
@@ -219,8 +221,8 @@ const Dashboard = () => {
               </Link>
               <div>
                 <p className="text-xs text-muted-foreground">
-                  {new Date().getHours() < 12 ? "Good morning ☀️" : 
-                   new Date().getHours() < 18 ? "Good afternoon 🌤️" : "Good evening 🌙"}
+                  {new Date().getHours() < 12 ? t("good_morning") : 
+                   new Date().getHours() < 18 ? t("good_afternoon") : t("good_evening")}
                 </p>
                 <p className="font-semibold text-sm">{userName}</p>
               </div>
@@ -274,7 +276,7 @@ const Dashboard = () => {
           targetProtein={userStats.protein.target}
           targetCarbs={userStats.carbs.target}
           targetFat={userStats.fat.target}
-          dayLabel="Today's Progress"
+          dayLabel={t("todays_progress")}
         />
 
         {/* Log Meal Button */}
@@ -288,7 +290,7 @@ const Dashboard = () => {
             } shadow-lg font-semibold h-10 sm:h-12 text-sm sm:text-base backdrop-blur-sm border-0`}
           >
             <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-            Log a Meal
+            {t("log_meal")}
           </Button>
         </div>
 
@@ -314,8 +316,8 @@ const Dashboard = () => {
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:scale-110 transition-all">
                   <BarChart3 className="w-6 h-6 text-primary" />
                 </div>
-                <p className="font-semibold text-sm">Tracker</p>
-                <p className="text-xs text-muted-foreground mt-1">Track stats</p>
+                <p className="font-semibold text-sm">{t("tracker")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("tracker")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -326,8 +328,8 @@ const Dashboard = () => {
                 <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center mb-3 group-hover:bg-violet-200 group-hover:scale-110 transition-all">
                   <Crown className="w-6 h-6 text-violet-600" />
                 </div>
-                <p className="font-semibold text-sm">Subscription</p>
-                <p className="text-xs text-muted-foreground mt-1">Manage plan</p>
+                <p className="font-semibold text-sm">{t("subscription")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("manage_account")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -340,8 +342,8 @@ const Dashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
-                <p className="font-semibold text-sm">Favorites</p>
-                <p className="text-xs text-muted-foreground mt-1">Saved items</p>
+                <p className="font-semibold text-sm">{t("favorites")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("favorites")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -354,8 +356,8 @@ const Dashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <p className="font-semibold text-sm">Progress</p>
-                <p className="text-xs text-muted-foreground mt-1">Track stats</p>
+                <p className="font-semibold text-sm">{t("progress")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("tracker")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -384,17 +386,17 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">{profile?.streak_days || 0} Day Streak!</h3>
-                  <p className="text-sm text-muted-foreground">You're on fire! Keep logging your meals.</p>
+                  <h3 className="font-bold text-lg">{profile?.streak_days || 0} {t("day")} {t("streak")}!</h3>
+                  <p className="text-sm text-muted-foreground">{t("on_fire_message")}</p>
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="outline" className="bg-white/50 text-amber-700 border-amber-300">
-                      🔥 {7 - (profile?.streak_days || 0) % 7} days to next milestone
+                      🔥 {7 - (profile?.streak_days || 0) % 7} {t("days_to_milestone")}
                     </Badge>
                   </div>
                 </div>
               </div>
               <div className="text-right hidden sm:block">
-                <p className="text-sm text-muted-foreground">Weekly Goal</p>
+                <p className="text-sm text-muted-foreground">{t("weekly_goal")}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="w-24 bg-muted rounded-full h-2">
                     <div 
@@ -415,7 +417,7 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)} of {hasActiveSubscription ? 7 : 5} days this week
+                  {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)} t("of_days_this_week", { total: hasActiveSubscription ? 7 : 5 })
                 </p>
               </div>
             </div>
@@ -426,12 +428,12 @@ const Dashboard = () => {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold">Featured Restaurants</h2>
-              <p className="text-sm text-muted-foreground">Top-rated places near you</p>
+                <h2 className="text-lg font-bold">{t("top_rated")} {t("restaurants")}</h2>
+              <p className="text-sm text-muted-foreground">{t("delicious_healthy_meals")}</p>
             </div>
             <Link to="/meals">
               <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
-                View All <ChevronRight className="w-4 h-4 ml-1" />
+                {t("view_all")} <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </div>
@@ -446,9 +448,9 @@ const Dashboard = () => {
               ) : restaurants.length === 0 ? (
                 <Card className="w-full min-w-[300px]">
                   <CardContent className="p-8 text-center">
-                    <h3 className="font-semibold mb-2">No featured restaurants yet</h3>
+                    <h3 className="font-semibold mb-2">{t("no_featured_restaurants")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Check back soon for our highlighted partner restaurants!
+                      {t("check_back_restaurants")}
                     </p>
                   </CardContent>
                 </Card>
@@ -505,7 +507,7 @@ const Dashboard = () => {
                             {restaurant.name}
                           </h3>
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                            {restaurant.description || "Delicious healthy meals"}
+                            {restaurant.description || t("delicious_healthy_meals") || "Delicious healthy meals"}
                           </p>
                           
                           {/* Stats Row */}

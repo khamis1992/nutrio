@@ -35,6 +35,7 @@ import ketoFilterImage from "@/assets/keto.png";
 import proteinFilterImage from "@/assets/protein.png";
 import lowCarbFilterImage from "@/assets/low carb.png";
 import breakfastFilterImage from "@/assets/breakfast.png";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Restaurant {
   id: string;
@@ -403,7 +404,7 @@ const FilterSheet = ({
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-foreground">Filters</h3>
+                  <h3 className="text-xl font-bold text-foreground">{t("filters")}</h3>
                   <p className="text-sm text-muted-foreground">{resultCount} {resultLabel}</p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -643,6 +644,7 @@ const CuisineScroller = ({
 // MAIN MEALS COMPONENT - NATIVE MOBILE DESIGN
 // ============================================
 const Meals = () => {
+  const { t, isRTL } = useLanguage();
   const [searchParams] = useSearchParams();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [meals, setMeals] = useState<MealResult[]>([]);
@@ -917,7 +919,7 @@ const Meals = () => {
                 </Button>
               </motion.div>
             </Link>
-            <h1 className="text-lg font-bold tracking-tight">Restaurants</h1>
+            <h1 className="text-lg font-bold tracking-tight">{t("restaurants")}</h1>
           </div>
           <div className="flex items-center gap-1">
             <motion.div whileTap={{ scale: 0.9 }}>
@@ -1051,7 +1053,7 @@ const Meals = () => {
             <h2 className="font-semibold text-foreground">
               {isCalorieFilterActive
                 ? (showFavoritesOnly ? "Favorite Meals" : "Filtered Meals")
-                : (showFavoritesOnly ? "Your Favorites" : "All Restaurants")}
+                : (showFavoritesOnly ? "Your Favorites" : t("all_restaurants"))}
             </h2>
             <span className="text-xs text-muted-foreground bg-card/90 border border-border/70 px-2 py-0.5 rounded-full">
               {displayedCount}

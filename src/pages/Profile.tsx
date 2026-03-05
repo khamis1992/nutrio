@@ -491,7 +491,7 @@ const Profile = () => {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-bold">Profile & Settings</h1>
+          <h1 className="text-lg font-bold">{t("profile_settings")}</h1>
         </div>
       </motion.header>
 
@@ -675,7 +675,7 @@ const Profile = () => {
                           <User className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">Personal Information</p>
+                          <p className="font-semibold text-foreground">{t("personal_info")}</p>
                           <p className="text-sm text-muted-foreground">Name, gender, age and email address</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "personal" ? 90 : 0 }} transition={{ duration: 0.2 }}>
@@ -747,7 +747,7 @@ const Profile = () => {
                                 disabled={saving}
                                 className="w-full h-12 rounded-xl"
                               >
-                                {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Check className="w-4 h-4 mr-2" />Save Changes</>}
+                                {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />t("saving")</> : <><Check className="w-4 h-4 mr-2" />{t("save_changes")}</>}
                               </Button>
                             </div>
                           </motion.div>
@@ -769,7 +769,7 @@ const Profile = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-foreground">Delivery Addresses</p>
-                          <p className="text-sm text-muted-foreground">Manage your saved delivery locations</p>
+                          <p className="text-sm text-muted-foreground">{t("manage_addresses")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "addresses" ? 90 : 0 }} transition={{ duration: 0.2 }}>
                           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -1353,16 +1353,16 @@ const Profile = () => {
                           <Bell className="w-5 h-5 text-blue-500" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Notification Settings</CardTitle>
-                          <p className="text-sm text-muted-foreground">Choose what you want to be notified about</p>
+                          <CardTitle className="text-lg">{t("notification_settings")}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{t("choose_notifications")}</p>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {[
-                        { label: "Order Updates", desc: "Status changes for your active orders", value: notifOrderUpdates, set: setNotifOrderUpdates },
-                        { label: "Promotions & Offers", desc: "Discounts and special deals", value: notifPromotions, set: setNotifPromotions },
-                        { label: "New Meals Available", desc: "When restaurants add new items", value: notifNewMeals, set: setNotifNewMeals },
+                        { label: t("order_updates"), desc: t("status_changes_orders"), value: notifOrderUpdates, set: setNotifOrderUpdates },
+                        { label: t("promotions_offers"), desc: t("discounts_special_deals"), value: notifPromotions, set: setNotifPromotions },
+                        { label: t("new_meals_available"), desc: t("when_restaurants_add_items"), value: notifNewMeals, set: setNotifNewMeals },
                       ].map(({ label, desc, value, set }) => (
                         <div key={label} className="flex items-center justify-between gap-4">
                           <div>
@@ -1383,15 +1383,15 @@ const Profile = () => {
                           <Shield className="w-5 h-5 text-green-500" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Privacy Settings</CardTitle>
-                          <p className="text-sm text-muted-foreground">Control how your data is used</p>
+                          <CardTitle className="text-lg">{t("privacy_settings")}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{t("control_data_usage")}</p>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {[
-                        { label: "Usage Analytics", desc: "Help us improve the app with anonymous data", value: privacyAnalytics, set: setPrivacyAnalytics },
-                        { label: "Personalised Recommendations", desc: "Tailor meals and offers to your habits", value: privacyPersonalised, set: setPrivacyPersonalised },
+                        { label: t("usage_analytics"), desc: t("help_improve_app"), value: privacyAnalytics, set: setPrivacyAnalytics },
+                        { label: t("personalised_recommendations"), desc: t("tailor_meals_offers"), value: privacyPersonalised, set: setPrivacyPersonalised },
                       ].map(({ label, desc, value, set }) => (
                         <div key={label} className="flex items-center justify-between gap-4">
                           <div>
@@ -1438,8 +1438,8 @@ const Profile = () => {
                           <Settings className="w-5 h-5 text-destructive" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Account Actions</CardTitle>
-                          <p className="text-sm text-muted-foreground">Manage your account status</p>
+                          <CardTitle className="text-lg">{t("account_actions")}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{t("manage_account_status")}</p>
                         </div>
                       </div>
                     </CardHeader>
@@ -1451,7 +1451,7 @@ const Profile = () => {
                           onClick={handleSignOut}
                         >
                           <LogOut className="w-5 h-5 text-muted-foreground" />
-                          <span>Sign Out</span>
+                          <span>{t("sign_out")}</span>
                         </Button>
                       </motion.div>
                       <AlertDialog>
@@ -1462,7 +1462,7 @@ const Profile = () => {
                               className="w-full h-12 rounded-xl justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive"
                             >
                               <Trash2 className="w-5 h-5" />
-                              <span>Delete Account</span>
+                              <span>{t("delete_account")}</span>
                             </Button>
                           </motion.div>
                         </AlertDialogTrigger>
@@ -1471,13 +1471,13 @@ const Profile = () => {
                             <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-2">
                               <Trash2 className="w-6 h-6 text-destructive" />
                             </div>
-                            <AlertDialogTitle className="text-center">Delete Account?</AlertDialogTitle>
+                            <AlertDialogTitle className="text-center">{t("delete_account")}?</AlertDialogTitle>
                             <AlertDialogDescription className="text-center">
-                              This action cannot be undone. All your data including meal schedules, progress logs, and preferences will be permanently deleted.
+                              {t("delete_account_warning")}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter className="gap-2">
-                            <AlertDialogCancel className="rounded-xl h-11">Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="rounded-xl h-11">{t("cancel")}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={handleDeleteAccount}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-11"

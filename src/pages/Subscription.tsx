@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface PlanType {
   id: string;
@@ -94,6 +95,7 @@ function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval)
 }
 
 export default function SubscriptionPage() {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -856,7 +858,7 @@ setIsProcessing(false);
 
                 let buttonText = "Upgrade";
                 let isPrimary = true;
-                if (isCurrentPlan) { buttonText = "Current Plan"; isPrimary = false; }
+                if (isCurrentPlan) { buttonText = t("current_plan"); isPrimary = false; }
                 else if (planTierRank < currentTierRank) { buttonText = "Downgrade"; isPrimary = false; }
 
                 return (

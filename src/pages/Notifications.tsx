@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Notification {
   id: string;
@@ -53,6 +54,7 @@ const notificationColors = {
 };
 
 export default function Notifications() {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -206,7 +208,7 @@ export default function Notifications() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold">Notifications</h1>
+              <h1 className="text-lg font-bold">{t("notifications")}</h1>
               {unreadCount > 0 && (
                 <Badge variant="destructive" className="text-xs">
                   {unreadCount} new

@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Gender = "male" | "female" | "prefer_not_to_say";
 
@@ -37,6 +38,7 @@ const GenderCard = ({
 };
 
 const PersonalInfo = () => {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();

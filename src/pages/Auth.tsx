@@ -13,6 +13,7 @@ import { Logo } from "@/components/Logo";
 import { biometricAuth, isNative } from "@/lib/capacitor";
 import { z } from "zod";
 import { checkIPLocation } from "@/lib/ipCheck";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
@@ -72,6 +73,7 @@ const SocialButton = ({
 
 /* ─── Main component ────────────────────────────────────────────── */
 const Auth = () => {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signIn, signUp, loading: authLoading } = useAuth();
@@ -360,7 +362,7 @@ const Auth = () => {
 
           {/* Hero text */}
           <h1 style={{ fontSize: 30, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.2, marginBottom: 8, letterSpacing: -0.5, padding: "0 24px" }}>
-            Eat Smart,<br />Live Better
+            {t("eat_smart")}<br />{t("live_better")}
           </h1>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.5, padding: "0 32px" }}>
             Personalized nutrition & meal plans<br />tailored to your health goals
@@ -475,7 +477,7 @@ const Auth = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="su-email" type="email" placeholder="Email" value={email}
+                  id="su-email" type="email" placeholder=t("email") value={email}
                   onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }}
                   className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
                   required disabled={loading}
@@ -490,7 +492,7 @@ const Auth = () => {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="su-password" type={showPassword ? "text" : "password"} placeholder="Password" value={password}
+                  id="su-password" type={showPassword ? "text" : "password"} placeholder=t("password") value={password}
                   onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }}
                   className={`h-14 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
                   required disabled={loading}
@@ -806,7 +808,7 @@ const Auth = () => {
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                id="si-email" type="email" placeholder="Email" value={email}
+                id="si-email" type="email" placeholder=t("email") value={email}
                 onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }}
                 className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
                 required disabled={loading}
@@ -821,7 +823,7 @@ const Auth = () => {
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                id="si-password" type={showPassword ? "text" : "password"} placeholder="Password" value={password}
+                id="si-password" type={showPassword ? "text" : "password"} placeholder=t("password") value={password}
                 onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }}
                 className={`h-14 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
                 required disabled={loading}

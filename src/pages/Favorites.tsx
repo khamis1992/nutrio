@@ -27,6 +27,7 @@ import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useToast } from "@/hooks/use-toast";
 import { useTopMeals } from "@/hooks/useTopMeals";
 import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface FavoriteRestaurant {
   id: string;
@@ -39,6 +40,7 @@ interface FavoriteRestaurant {
 }
 
 const Favorites = () => {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();

@@ -34,6 +34,7 @@ import {
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import MealWizard from "@/components/MealWizard";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ScheduledMeal {
   id: string;
@@ -93,6 +94,7 @@ const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 // Native Mobile Schedule Component
 const Schedule = () => {
+  const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -374,7 +376,7 @@ const Schedule = () => {
             <button onClick={() => navigate("/dashboard")} className="p-2 -ml-2">
               <ChevronLeft className="h-6 w-6 text-primary" />
             </button>
-            <h1 className="text-lg font-semibold">Schedule</h1>
+            <h1 className="text-lg font-semibold">{t("schedule")}</h1>
             <div className="w-10" />
           </div>
         </div>
@@ -418,7 +420,7 @@ const Schedule = () => {
             <ChevronLeft className="h-6 w-6 text-primary" />
           </button>
           <div className="flex flex-col items-center">
-            <h1 className="text-lg font-semibold">Schedule</h1>
+            <h1 className="text-lg font-semibold">{t("schedule")}</h1>
             <p className="text-xs text-gray-500">{format(currentWeekStart, "MMMM yyyy")}</p>
           </div>
           <div className="w-10" />
