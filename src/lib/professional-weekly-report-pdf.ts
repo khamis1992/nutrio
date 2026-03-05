@@ -112,6 +112,16 @@ export interface WeeklyReportData {
   };
   mealPlan?: MealPlanDay[];
   mealImages?: Map<string, string>; // Map of meal ID to base64 image
+  trackerInsights?: {
+    dailySteps: Array<{ date: string; steps: number }>;
+    dailyWater: Array<{ date: string; waterMl: number }>;
+    weightHistory: Array<{ date: string; weight_kg: number | null }>;
+    bmi: number | null;
+    bmiLabel: string | null;
+    heightCm: number | null;
+    stepGoal: number;
+    waterTargetMl: number;
+  };
 }
 
 export class ProfessionalWeeklyReportPDF {
@@ -162,6 +172,7 @@ export class ProfessionalWeeklyReportPDF {
     this.addCalorieOverview(data);
     this.addMacroDistribution(data);
     this.addHydrationConsistency(data);
+    if (data.trackerInsights) this.addTrackerInsights(data);
     this.addMealPlanningRecommendations(data);
     this.addMealPlan(data);
     this.addTrendAnalysis(data);
@@ -1825,6 +1836,200 @@ export class ProfessionalWeeklyReportPDF {
     }
     
     return recs.slice(0, 3);
+  }
+
+  private addTrackerInsights(data: WeeklyReportData) {
+    const insights = data.trackerInsights!;
+    this.doc.addPage();
+    this.pageNumber++;
+    let y = 45;
+
+    this.addSectionHeader("TRACKER INSIGHTS");
+
+    // ── BMI Card ──
+    if (insights.bmi !== null) {
+      this.doc.setFillColor(...COLORS.card);
+      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 50, 8, 8, "F");
+
+      this.doc.setTextColor(...COLORS.textPrimary);
+      this.setFontSize(11);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text("BMI (Body Mass Index)", MARGIN + 10, y + 14);
+
+      // BMI value
+      this.doc.setTextColor(...COLORS.primary);
+      this.setFontSize(22);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(insights.bmi.toFixed(1), MARGIN + 10, y + 34);
+
+      // BMI label
+      const bmiColor = insights.bmi < 18.5 ? COLORS.accent
+        : insights.bmi < 25 ? COLORS.success
+        : insights.bmi < 30 ? COLORS.warning
+        : COLORS.danger;
+      this.doc.setFillColor(...bmiColor);
+      this.doc.roundedRect(MARGIN + 40, y + 24, 55, 14, 7, 7, "F");
+      this.doc.setTextColor(...COLORS.white);
+      this.setFontSize(8);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(insights.bmiLabel || "Normal", MARGIN + 67.5, y + 33, { align: "center" });
+
+      // Height
+      if (insights.heightCm) {
+        this.doc.setTextColor(...COLORS.textSecondary);
+        this.setFontSize(8);
+        this.doc.setFont("helvetica", "normal");
+        this.doc.text(`Height: ${insights.heightCm} cm`, MARGIN + 110, y + 20);
+      }
+
+      // BMI range bar
+      const barX = MARGIN + 10;
+      const barY = y + 43;
+      const barW = CONTENT_WIDTH - 20;
+      const barH = 4;
+      const segments = [
+        { color: COLORS.accent, label: "Under" },
+        { color: COLORS.success, label: "Normal" },
+        { color: COLORS.warning, label: "Over" },
+        { color: [255, 120, 50] as [number,number,number], label: "Obese I" },
+        { color: COLORS.danger, label: "Obese II" },
+      ];
+      segments.forEach((seg, i) => {
+        this.doc.setFillColor(...seg.color);
+        this.doc.roundedRect(barX + i * (barW / 5), barY, barW / 5 - 1, barH, 2, 2, "F");
+      });
+      // BMI needle
+      const needleX = barX + Math.min(Math.max((insights.bmi - 15) / 25, 0), 1) * barW;
+      this.doc.setFillColor(...COLORS.textPrimary);
+      this.doc.circle(needleX, barY + barH / 2, 2, "F");
+
+      y += 60;
+    }
+
+    // ── Weekly Steps Chart ──
+    if (insights.dailySteps.length > 0) {
+      this.doc.setFillColor(...COLORS.card);
+      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 70, 8, 8, "F");
+
+      this.doc.setTextColor(...COLORS.textPrimary);
+      this.setFontSize(11);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text("Daily Steps", MARGIN + 10, y + 14);
+
+      const totalSteps = insights.dailySteps.reduce((s, d) => s + d.steps, 0);
+      const avgSteps = Math.round(totalSteps / Math.max(insights.dailySteps.length, 1));
+      this.doc.setTextColor(...COLORS.textSecondary);
+      this.setFontSize(8);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(`Weekly Avg: ${avgSteps.toLocaleString()} steps/day  |  Goal: ${insights.stepGoal.toLocaleString()} steps`, MARGIN + 10, y + 22);
+
+      // Bar chart
+      const chartX = MARGIN + 10;
+      const chartY = y + 28;
+      const chartH = 30;
+      const chartW = CONTENT_WIDTH - 20;
+      const maxSteps = Math.max(...insights.dailySteps.map(d => d.steps), insights.stepGoal, 1);
+      const barW2 = chartW / insights.dailySteps.length - 2;
+
+      insights.dailySteps.forEach((d, i) => {
+        const barH2 = (d.steps / maxSteps) * chartH;
+        const bx = chartX + i * (chartW / insights.dailySteps.length);
+        const by = chartY + chartH - barH2;
+        const barColor = d.steps >= insights.stepGoal ? COLORS.success : COLORS.primary;
+        this.doc.setFillColor(...barColor);
+        this.doc.roundedRect(bx, by, barW2, barH2, 2, 2, "F");
+
+        // Day label
+        this.doc.setTextColor(...COLORS.textMuted);
+        this.setFontSize(6);
+        this.doc.setFont("helvetica", "normal");
+        const dayLabel = format(new Date(d.date), "EEE");
+        this.doc.text(dayLabel, bx + barW2 / 2, chartY + chartH + 6, { align: "center" });
+      });
+
+      // Goal line
+      const goalY = chartY + chartH - (insights.stepGoal / maxSteps) * chartH;
+      this.doc.setDrawColor(...COLORS.warning);
+      this.doc.setLineDashPattern([2, 2], 0);
+      this.doc.line(chartX, goalY, chartX + chartW, goalY);
+      this.doc.setLineDashPattern([], 0);
+
+      y += 80;
+    }
+
+    // ── Weekly Water Chart ──
+    if (insights.dailyWater.length > 0) {
+      this.doc.setFillColor(...COLORS.card);
+      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 70, 8, 8, "F");
+
+      this.doc.setTextColor(...COLORS.textPrimary);
+      this.setFontSize(11);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text("Daily Water Intake (mL)", MARGIN + 10, y + 14);
+
+      const avgWater = Math.round(insights.dailyWater.reduce((s, d) => s + d.waterMl, 0) / Math.max(insights.dailyWater.length, 1));
+      this.doc.setTextColor(...COLORS.textSecondary);
+      this.setFontSize(8);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(`Weekly Avg: ${avgWater.toLocaleString()} mL/day  |  Goal: ${insights.waterTargetMl.toLocaleString()} mL`, MARGIN + 10, y + 22);
+
+      const chartX = MARGIN + 10;
+      const chartY = y + 28;
+      const chartH = 30;
+      const chartW = CONTENT_WIDTH - 20;
+      const maxWater = Math.max(...insights.dailyWater.map(d => d.waterMl), insights.waterTargetMl, 1);
+      const barW3 = chartW / insights.dailyWater.length - 2;
+
+      insights.dailyWater.forEach((d, i) => {
+        const barH3 = (d.waterMl / maxWater) * chartH;
+        const bx = chartX + i * (chartW / insights.dailyWater.length);
+        const by = chartY + chartH - barH3;
+        const barColor = d.waterMl >= insights.waterTargetMl ? COLORS.success : COLORS.accent;
+        this.doc.setFillColor(...barColor);
+        this.doc.roundedRect(bx, by, barW3, barH3, 2, 2, "F");
+
+        this.doc.setTextColor(...COLORS.textMuted);
+        this.setFontSize(6);
+        this.doc.setFont("helvetica", "normal");
+        const dayLabel = format(new Date(d.date), "EEE");
+        this.doc.text(dayLabel, bx + barW3 / 2, chartY + chartH + 6, { align: "center" });
+      });
+
+      // Goal line
+      const goalY2 = chartY + chartH - (insights.waterTargetMl / maxWater) * chartH;
+      this.doc.setDrawColor(...COLORS.warning);
+      this.doc.setLineDashPattern([2, 2], 0);
+      this.doc.line(chartX, goalY2, chartX + chartW, goalY2);
+      this.doc.setLineDashPattern([], 0);
+
+      y += 80;
+    }
+
+    // ── Weight History Table ──
+    const validWeights = insights.weightHistory.filter(w => w.weight_kg !== null);
+    if (validWeights.length > 0) {
+      this.doc.setFillColor(...COLORS.card);
+      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 14 + validWeights.length * 10, 8, 8, "F");
+
+      this.doc.setTextColor(...COLORS.textPrimary);
+      this.setFontSize(11);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text("Weight History (kg)", MARGIN + 10, y + 14);
+
+      autoTable(this.doc, {
+        startY: y + 18,
+        head: [["Date", "Weight (kg)"]],
+        body: validWeights.map(w => [
+          format(new Date(w.date), "MMM d, yyyy"),
+          w.weight_kg!.toFixed(1),
+        ]),
+        theme: "plain",
+        headStyles: { fillColor: COLORS.primary, textColor: [255, 255, 255], fontSize: 8, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8, textColor: COLORS.textPrimary },
+        alternateRowStyles: { fillColor: COLORS.background },
+        margin: { left: MARGIN + 5, right: MARGIN + 5 },
+      });
+    }
   }
 
   async download(data: WeeklyReportData, filename?: string) {

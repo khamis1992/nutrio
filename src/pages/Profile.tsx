@@ -92,6 +92,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { type Gender } from "@/lib/nutrition-calculator";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type TabValue = "profile" | "wallet" | "rewards" | "settings";
 
@@ -276,7 +277,7 @@ const Profile = () => {
   const [notifNewMeals, setNotifNewMeals] = useState(false);
   const [privacyAnalytics, setPrivacyAnalytics] = useState(true);
   const [privacyPersonalised, setPrivacyPersonalised] = useState(true);
-  const [language, setLanguage] = useState("en");
+  const { language, setLanguage, t } = useLanguage();
 
   // Dietary state
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
@@ -1411,19 +1412,19 @@ const Profile = () => {
                           <Globe className="w-5 h-5 text-amber-500" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Language</CardTitle>
-                          <p className="text-sm text-muted-foreground">Select your preferred language</p>
+                          <CardTitle className="text-lg">{t("language")}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{t("select_language")}</p>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <Select value={language} onValueChange={setLanguage}>
+                      <Select value={language} onValueChange={(v) => setLanguage(v as "en" | "ar")}>
                         <SelectTrigger className="h-12 rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="en">🇬🇧 English</SelectItem>
-                          <SelectItem value="ar">🇶🇦 العربية</SelectItem>
+                          <SelectItem value="en">🇬🇧 {t("english")}</SelectItem>
+                          <SelectItem value="ar">🇶🇦 {t("arabic")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </CardContent>

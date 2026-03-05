@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -62,6 +63,7 @@ interface LogMealDialogProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogMealDialogProps) {
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [tab, setTab] = useState<Tab>("Recent");
   const [searchQuery, setSearchQuery] = useState("");
@@ -484,7 +486,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 >
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
-                <span className="font-bold text-gray-900 text-base">Log Meal</span>
+                <span className="font-bold text-gray-900 text-base">{t("log_meal")}</span>
                 <div className="w-8" />
               </div>
 
@@ -497,7 +499,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="Search food..."
+                    placeholder={t("search_food")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 pr-4 rounded-2xl h-11 bg-gray-50 border-0 focus-visible:ring-1 text-sm"
@@ -515,7 +517,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                         tab === "Recent" ? "gradient-primary text-white shadow-sm" : "text-gray-500"
                       }`}
                     >
-                      Recent
+                      {t("recent")}
                     </button>
                     <button
                       onClick={() => setTab("Scan")}
@@ -523,7 +525,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                         tab === "Scan" ? "gradient-primary text-white shadow-sm" : "text-gray-500"
                       }`}
                     >
-                      <ScanLine className="w-3.5 h-3.5" /> Scan Food
+                      <ScanLine className="w-3.5 h-3.5" /> {t("scan_food")}
                     </button>
                   </div>
                 </div>
@@ -636,7 +638,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                         <ScanLine className="w-10 h-10 text-primary" />
                       </div>
                       <div className="text-center">
-                        <p className="font-bold text-gray-900 text-base">Scan Your Food</p>
+                        <p className="font-bold text-gray-900 text-base">{t("scan_your_food")}</p>
                         <p className="text-sm text-gray-400 mt-1">Take a photo or upload from your gallery to identify the food and log it instantly.</p>
                       </div>
                       <div className="flex flex-col gap-3 w-full mt-2">
@@ -648,8 +650,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                             <ScanLine className="w-5 h-5 text-white" />
                           </div>
                           <div className="text-left">
-                            <p className="font-bold text-sm text-gray-900">Take Photo</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Use your camera to capture food</p>
+                            <p className="font-bold text-sm text-gray-900">{t("take_photo")}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{t("use_camera_to_capture")}</p>
                           </div>
                         </button>
                         <button
@@ -660,8 +662,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                             <Search className="w-5 h-5 text-gray-500" />
                           </div>
                           <div className="text-left">
-                            <p className="font-bold text-sm text-gray-900">Upload from Gallery</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Pick an existing photo</p>
+                            <p className="font-bold text-sm text-gray-900">{t("upload_from_gallery")}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{t("pick_existing_photo")}</p>
                           </div>
                         </button>
                       </div>

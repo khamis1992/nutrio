@@ -3,11 +3,13 @@ import { Salad, Utensils, Calendar, Users, User } from "lucide-react";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { hapticFeedback } from "@/lib/capacitor";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function CustomerNavigation() {
   const location = useLocation();
   const { isApprovedAffiliate } = useAffiliateApplication();
   const { settings: platformSettings } = usePlatformSettings();
+  const { t } = useLanguage();
 
   const isActive = (path: string) => {
     if (path === "/dashboard") {
@@ -25,11 +27,11 @@ export function CustomerNavigation() {
   const showAffiliateTab = isApprovedAffiliate && platformSettings.features.referral_program;
 
   const navItems = [
-    { icon: Salad, label: "Home", to: "/dashboard" },
-    { icon: Utensils, label: "Restaurants", to: "/meals" },
-    { icon: Calendar, label: "Schedule", to: "/schedule" },
-    ...(showAffiliateTab ? [{ icon: Users, label: "Affiliate", to: "/affiliate" }] : []),
-    { icon: User, label: "Profile", to: "/profile" },
+    { icon: Salad, label: t("nav_home"), to: "/dashboard" },
+    { icon: Utensils, label: t("nav_restaurants"), to: "/meals" },
+    { icon: Calendar, label: t("nav_schedule"), to: "/schedule" },
+    ...(showAffiliateTab ? [{ icon: Users, label: t("nav_affiliate"), to: "/affiliate" }] : []),
+    { icon: User, label: t("nav_profile"), to: "/profile" },
   ];
 
   return (

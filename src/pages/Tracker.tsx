@@ -21,6 +21,7 @@ import { Droplets, Minus, Plus, Pencil, Loader2 } from "lucide-react";
 import { TrackerInsights } from "@/components/TrackerInsights";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const STEP_GOAL = 6000;
 
@@ -42,6 +43,7 @@ export default function Tracker() {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const today = format(new Date(), "yyyy-MM-dd");
   const {
     totalMl: waterMl,
@@ -141,7 +143,7 @@ export default function Tracker() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="container mx-auto px-4 py-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-4">Tracker</h1>
+        <h1 className="text-xl font-bold text-gray-900 mb-4">{t("tracker")}</h1>
 
         {/* Tab bar */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
@@ -156,7 +158,7 @@ export default function Tracker() {
                   : "text-gray-500 hover:text-gray-700"
               )}
             >
-              {tab === "today" ? "Today" : "Insights"}
+              {tab === "today" ? t("today") : t("insights")}
             </button>
           ))}
         </div>
@@ -181,7 +183,7 @@ export default function Tracker() {
           {/* Water Card */}
           <Card className="rounded-2xl shadow-sm border-gray-100 overflow-hidden">
             <CardContent className="p-5">
-              <p className="font-bold text-gray-900 mb-1">Water</p>
+              <p className="font-bold text-gray-900 mb-1">{t("water")}</p>
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{waterMl} mL</p>
@@ -250,7 +252,7 @@ export default function Tracker() {
                 className="w-full mt-3 text-white"
                 style={{ backgroundColor: "#EA580C", borderColor: "#EA580C" }}
               >
-                <Link to="/step-counter">Add steps</Link>
+                <Link to="/step-counter">{t("add_steps")}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -258,7 +260,7 @@ export default function Tracker() {
           {/* Weight Card */}
           <Card className="rounded-2xl shadow-sm border-gray-100 overflow-hidden">
             <CardContent className="p-5">
-              <p className="font-bold text-gray-900 mb-2">Weight</p>
+              <p className="font-bold text-gray-900 mb-2">{t("weight")}</p>
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div>
                   <p className="text-2xl font-bold text-gray-900">
@@ -297,7 +299,7 @@ export default function Tracker() {
           {/* BMI Card */}
           <Card className="rounded-2xl shadow-sm border-gray-100 overflow-hidden">
             <CardContent className="p-5">
-              <p className="font-bold text-gray-900 mb-2">BMI (kg/m²)</p>
+              <p className="font-bold text-gray-900 mb-2">{t("bmi")} (kg/m²)</p>
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div>
                   <p className="text-2xl font-bold text-gray-900">
@@ -353,7 +355,7 @@ export default function Tracker() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <Label>Weight (kg)</Label>
+              <Label>{t("weight")} (kg)</Label>
               <Input
                 type="number"
                 step="0.1"
@@ -387,11 +389,11 @@ export default function Tracker() {
             </div>
 
             {/* Title */}
-            <h2 className="text-center text-lg font-bold text-gray-900 pb-5">Edit BMI</h2>
+            <h2 className="text-center text-lg font-bold text-gray-900 pb-5">{t("edit_bmi")}</h2>
 
             {/* Height field */}
             <div className="border-t border-b border-gray-100 py-5 px-6 mb-1">
-              <p className="text-sm text-gray-400 text-center mb-2">Height</p>
+              <p className="text-sm text-gray-400 text-center mb-2">{t("height")}</p>
               <div className="flex items-baseline justify-center gap-2">
                 <input
                   type="number"
@@ -409,7 +411,7 @@ export default function Tracker() {
 
             {/* Weight field */}
             <div className="border-b border-gray-100 py-5 px-6 mb-6">
-              <p className="text-sm text-gray-400 text-center mb-2">Weight</p>
+              <p className="text-sm text-gray-400 text-center mb-2">{t("weight")}</p>
               <div className="flex items-baseline justify-center gap-2">
                   <input
                     type="number"

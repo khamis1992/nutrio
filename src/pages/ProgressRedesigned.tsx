@@ -409,6 +409,55 @@ const ProgressDashboard = () => {
         mealImages,
       };
 
+      // ── Fetch Tracker Insights ──
+      const { data: weightHistory } = await (supabase as any)
+        .from('body_measurements')
+        .select('log_date, weight_kg')
+        .eq('user_id', user.id)
+        .gte('log_date', weekStart.toISOString().split('T')[0])
+        .lte('log_date', weekEnd.toISOString().split('T')[0])
+        .order('log_date');
+
+      // Steps are stored in localStorage keyed by user ID + date
+      const dailySteps = Array.from({ length: 7 }, (_, i) => {
+        const d = subDays(weekEnd, 6 - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const steps = parseInt(localStorage.getItem(`tracker_steps_${user.id}_${dateStr}`) || '0', 10);
+        return { date: dateStr, steps };
+      });
+
+      // Water in mL (glasses * 250)
+      const dailyWater = Array.from({ length: 7 }, (_, i) => {
+        const d = subDays(weekEnd, 6 - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        return { date: dateStr, waterMl: (waterLog?.glasses || 0) * 250 };
+      });
+
+      // BMI calculation
+      const heightCm = profile?.height_cm || null;
+      const currentWeightKg = profile?.current_weight_kg || null;
+      const bmi = heightCm && currentWeightKg
+        ? parseFloat((currentWeightKg / Math.pow(heightCm / 100, 2)).toFixed(1))
+        : null;
+      const bmiLabel = bmi === null ? null
+        : bmi < 18.5 ? 'Underweight'
+        : bmi < 25 ? 'Normal'
+        : bmi < 30 ? 'Overweight'
+        : bmi < 35 ? 'Obese I'
+        : 'Obese II';
+
+      reportData.trackerInsights = {
+        dailySteps,
+        dailyWater,
+        weightHistory: (weightHistory || []).map((w: any) => ({ date: w.log_date, weight_kg: w.weight_kg })),
+        bmi,
+        bmiLabel,
+        heightCm,
+        stepGoal: 6000,
+        waterTargetMl: 2500,
+      };
+
       await nutrioReportPDF.download(reportData);
       toast({ title: "Report downloaded!", description: "Your Nutrition Performance & Habit Intelligence report has been saved." });
     } catch (error) {
