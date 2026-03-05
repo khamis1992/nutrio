@@ -93,20 +93,30 @@ jobs:
         if: github.event.inputs.build_type != 'release' || github.event.inputs.build_type == ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-debug-${{ github.sha }}
-          name: "Debug APK – ${{ github.sha }}"
-          body: "Auto-generated debug APK from commit ${{ github.sha }} on branch ${{ github.ref_name }}"
-          prerelease: true
+          tag_name: latest-debug
+          name: "Latest Debug APK"
+          body: |
+            Latest debug APK — auto-updated on every push.
+            - **Branch:** ${{ github.ref_name }}
+            - **Commit:** ${{ github.sha }}
+            - **Built:** ${{ github.run_id }}
+          prerelease: false
+          make_latest: true
           files: android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Publish Release APK as GitHub Release
         if: github.event.inputs.build_type == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: apk-release-${{ github.sha }}
-          name: "Release APK – ${{ github.sha }}"
-          body: "Auto-generated release APK from commit ${{ github.sha }} on branch ${{ github.ref_name }}"
+          tag_name: latest-release
+          name: "Latest Release APK"
+          body: |
+            Latest release APK — auto-updated on every release build.
+            - **Branch:** ${{ github.ref_name }}
+            - **Commit:** ${{ github.sha }}
+            - **Built:** ${{ github.run_id }}
           prerelease: false
+          make_latest: true
           files: android/app/build/outputs/apk/release/app-release.apk
 
       - name: Get APK info
