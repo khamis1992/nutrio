@@ -67,6 +67,7 @@ jobs:
       with:
         name: coverage-report
         path: coverage/
+        retention-days: 3
 
   # ==========================================
   # JOB 3: Build Application
@@ -103,6 +104,7 @@ jobs:
       with:
         name: production-build
         path: dist/
+        retention-days: 3
 
   # ==========================================
   # JOB 4: Deploy to Staging (Vercel)

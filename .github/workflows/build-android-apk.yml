@@ -93,7 +93,7 @@ jobs:
         with:
           name: nutrio-fuel-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          retention-days: 7
 
       - name: Upload Release APK
         if: github.event.inputs.build_type == 'release'
@@ -101,7 +101,7 @@ jobs:
         with:
           name: nutrio-fuel-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 90
+          retention-days: 14
 
       - name: Get APK info
         run: |
