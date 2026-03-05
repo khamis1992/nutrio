@@ -87,7 +87,23 @@ jobs:
           cd android
           ./gradlew assembleRelease --no-daemon
 
-      - name: Confirm APK built
+      - name: Upload Debug APK
+        if: github.event.inputs.build_type != 'release' || github.event.inputs.build_type == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: nutrio-fuel-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: Upload Release APK
+        if: github.event.inputs.build_type == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nutrio-fuel-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+
+      - name: Get APK info
         run: |
           if [ "${{ github.event.inputs.build_type }}" == "release" ]; then
             APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
@@ -99,13 +115,11 @@ jobs:
 
           if [ -f "$APK_PATH" ]; then
             APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
-            echo "APK built successfully: $APK_NAME ($APK_SIZE)"
-            echo "## APK Built Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "## APK Built Successfully!" >> $GITHUB_STEP_SUMMARY
             echo "- **File:** $APK_NAME" >> $GITHUB_STEP_SUMMARY
             echo "- **Size:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+            echo "- **Build Type:** ${{ github.event.inputs.build_type || 'debug' }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Note:** Artifact upload skipped (storage quota full - run Cleanup Old Artifacts workflow to restore uploads)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "APK file not found at $APK_PATH"
-            exit 1
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download the APK from the artifacts section above." >> $GITHUB_STEP_SUMMARY
           fi
