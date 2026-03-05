@@ -1054,27 +1054,18 @@ export class NutrioReportPDF {
 
     if (Capacitor.isNativePlatform()) {
       const base64 = pdf.output("datauristring").split(",")[1];
-      if (Capacitor.getPlatform() === "android") {
-        // On Android, save directly to the user-visible Documents folder
-        await Filesystem.writeFile({
-          path: fn,
-          data: base64,
-          directory: Directory.Documents,
-        });
-      } else {
-        // On iOS, use share sheet so the user can save to Files app
-        const saved = await Filesystem.writeFile({
-          path: fn,
-          data: base64,
-          directory: Directory.Cache,
-        });
-        await Share.share({
-          title: "Nutrio Weekly Report",
-          text: "Your Nutrio weekly nutrition report",
-          url: saved.uri,
-          dialogTitle: "Save or share your report",
-        });
-      }
+      // Write to Cache (no permissions needed on Android or iOS) then share
+      const saved = await Filesystem.writeFile({
+        path: fn,
+        data: base64,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        title: "Nutrio Weekly Report",
+        text: "Your Nutrio weekly nutrition report",
+        url: saved.uri,
+        dialogTitle: "Save or share your report",
+      });
     } else {
       pdf.save(fn);
     }

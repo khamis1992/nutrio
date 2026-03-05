@@ -218,7 +218,7 @@ export function useSmartRecommendations(userId: string | undefined) {
           title: `${currentStreak}-Day Streak! 🔥`,
           description: `You've logged every day for ${currentStreak} days in a row${bestStreak > currentStreak ? ` — your best is ${bestStreak}. Keep pushing!` : " — this is your personal best!"}`,
           action_text: "View Progress",
-          action_link: "/progress",
+          action_link: "/tracker",
         });
       }
 
@@ -230,7 +230,7 @@ export function useSmartRecommendations(userId: string | undefined) {
           title: "Excellent Week!",
           description: `You've tracked ${daysLogged} out of 7 days this week. Your consistency is building powerful nutrition awareness.`,
           action_text: "Download Report",
-          action_link: "/progress",
+          action_link: null,
         });
       }
 
@@ -242,7 +242,7 @@ export function useSmartRecommendations(userId: string | undefined) {
           title: "Strong Protein Game",
           description: `You're hitting ${Math.round(proteinRatio * 100)}% of your protein target this week. Consistent protein intake supports muscle retention and satiety.`,
           action_text: "View Nutrition",
-          action_link: "/progress",
+          action_link: "/tracker",
         });
       }
 

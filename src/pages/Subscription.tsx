@@ -176,6 +176,15 @@ const [activeTab, setActiveTab] = useState("overview");
   const { plans: dbPlans } = useSubscriptionPlans();
   const plans = dbPlans.map(p => dbPlanToUiPlan(p, selectedBillingInterval));
 
+  // VIP monthly price (used for annual savings display)
+  const vipPlan = plans.find(p => p.tier === "vip");
+  const vipMonthlyPrice = vipPlan
+    ? selectedBillingInterval === "annual"
+      ? vipPlan.price / 10
+      : vipPlan.price
+    : 0;
+  const vipAnnualSavings = vipMonthlyPrice * 2;
+
   const applyPromoCode = async () => {
     if (!promoCode.trim() || !selectedPlan) return;
     setPromoLoading(true);
@@ -440,7 +449,7 @@ setIsProcessing(false);
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">Save 17% — 2 months free</p>
-                <p className="text-xs text-muted-foreground">Pay 10 months, save up to {(pricing.vip_price * 2).toLocaleString()} QAR/yr</p>
+                <p className="text-xs text-muted-foreground">Pay 10 months, save up to {vipAnnualSavings.toLocaleString()} QAR/yr</p>
               </div>
             </div>
           )}
@@ -843,7 +852,7 @@ setIsProcessing(false);
                 </div>
                 <div>
                   <p className="text-sm font-bold text-foreground">Save 17% — 2 months free</p>
-                  <p className="text-xs text-muted-foreground">Save up to {(pricing.vip_price * 2).toLocaleString()} QAR per year</p>
+                  <p className="text-xs text-muted-foreground">Save up to {vipAnnualSavings.toLocaleString()} QAR per year</p>
                 </div>
               </div>
             )}

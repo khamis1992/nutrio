@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -877,14 +878,14 @@ export function ProfessionalWeeklyReport({
                         )}
 
                         {/* Action */}
-                        {rec.action_link && (
-                          <a
-                            href={rec.action_link}
+                        {rec.action_link && rec.action_text !== "Download Report" && (
+                          <Link
+                            to={rec.action_link}
                             className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                           >
                             {rec.action_text}
                             <ArrowRight className="w-3 h-3" />
-                          </a>
+                          </Link>
                         )}
                       </div>
 

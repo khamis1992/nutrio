@@ -380,7 +380,7 @@ export default function Tracker() {
 
       {/* Edit BMI Bottom Sheet */}
       {bmiDialogOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setBmiDialogOpen(false)} />
           <div className="relative bg-white rounded-t-3xl flex flex-col" style={{ maxHeight: '90dvh', overflowY: 'auto', paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}>
             {/* Handle */}
@@ -428,7 +428,7 @@ export default function Tracker() {
             </div>
 
             {/* Cancel / Save */}
-            <div className="flex gap-3 px-4 pb-2">
+            <div className="flex gap-3 px-4 pb-2" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
               <button
                 onClick={() => setBmiDialogOpen(false)}
                 className="flex-1 py-3.5 rounded-full border-2 border-purple-600 text-purple-600 font-bold text-base hover:bg-purple-50 transition-all"

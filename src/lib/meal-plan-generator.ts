@@ -385,14 +385,19 @@ export async function loadMealPlanImages(mealPlan: MealPlanDay[]): Promise<Map<s
     }
   }
 
-  // Load all images in parallel (each has its own 8s timeout)
+  // Load all images in parallel with a 15s overall cap so mobile never hangs
   const entries = Array.from(uniqueMeals.entries());
-  const results = await Promise.all(
-    entries.map(async ([id, url]) => {
-      const base64 = await loadImageAsBase64(url);
-      return [id, base64] as const;
-    })
-  );
+  const results = await Promise.race([
+    Promise.all(
+      entries.map(async ([id, url]) => {
+        const base64 = await loadImageAsBase64(url);
+        return [id, base64] as const;
+      })
+    ),
+    new Promise<[string, string | null][]>((resolve) =>
+      setTimeout(() => resolve(entries.map(([id]) => [id, null])), 15000)
+    ),
+  ]);
 
   for (const [id, base64] of results) {
     if (base64) imageMap.set(id, base64);

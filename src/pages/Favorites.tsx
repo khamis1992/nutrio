@@ -60,7 +60,7 @@ const Favorites = () => {
 
   useEffect(() => {
     fetchRestaurants();
-  }, [user, favoriteIds]);
+  }, [user]);
 
   const fetchRestaurants = async () => {
     if (!user) return;
