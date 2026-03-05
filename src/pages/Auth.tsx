@@ -456,7 +456,7 @@ const Auth = () => {
 
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <Logo size="lg" />
+            <Logo size="xl" />
           </div>
 
           {/* Title */}

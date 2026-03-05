@@ -25,8 +25,8 @@ export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
         if (user) {
           navigate("/dashboard", { replace: true });
         } else {
-          // If not logged in, go to auth
-          navigate("/auth", { replace: true });
+          // If not logged in, show walkthrough first (same as web flow)
+          navigate("/walkthrough", { replace: true });
         }
       }
     }
