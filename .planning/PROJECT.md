@@ -6,7 +6,7 @@ Nutrio Fuel is a healthy meal delivery and nutrition tracking platform for Qatar
 
 ## Core Value
 
-Users can seamlessly switch between English and Arabic languages throughout the app, with all text properly localized and accessible through the translation context.
+Users can seamlessly switch between English and Arabic languages on the Profile page, with all text properly localized and accessible through the translation context.
 
 ## Requirements
 
@@ -22,10 +22,6 @@ Users can seamlessly switch between English and Arabic languages throughout the 
 - [ ] **TRANS-03**: Verify Arabic text renders correctly for RTL language support
 - [ ] **TRANS-04**: Test language switching works without breaking existing functionality
 - [ ] **TRANS-05**: Profile page displays correctly in both English and Arabic
-
-### Out of Scope
-
-- Other pages translation - Deferred to subsequent phases after Profile page is complete
 
 ### Out of Scope
 
@@ -55,6 +51,6 @@ Users can seamlessly switch between English and Arabic languages throughout the 
 | Profile page first | Smallest scope for MVP, easier to verify | ✓ Good - focused iteration |
 | Manual testing initially | Faster for early validation, automated tests added later | — Pending |
 | RTL support required | Arabic requires right-to-left layout | ✓ Good - proper internationalization |
-
 ---
-*Last updated: 2026-03-06 after initialization*
+
+*Last updated: 2026-03-06 - Roadmap created for Phase 1*
