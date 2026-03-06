@@ -1,141 +1,104 @@
 # Technology Stack
 
-**Analysis Date:** 2025-02-14
+**Analysis Date:** 2026-03-06
 
 ## Languages
 
 **Primary:**
-- TypeScript [5.8.3] - All source files (`.ts`, `.tsx`)
-- JavaScript - Build dependencies and Node.js modules
+- TypeScript 5.8.3 - All frontend (React), build tools, and configuration files
 
 **Secondary:**
-- Python 3.x - Build/reporting scripts (e.g., `create_report.py`)
-- SQL - Supabase database schema and functions
+- SQL - Database migrations in `supabase/migrations/`
+- TypeScript (Deno runtime) - Supabase Edge Functions in `supabase/functions/`
+- JavaScript - Build scripts in `.opencode/scripts/`
 
 ## Runtime
 
 **Environment:**
-- Node.js [v22.x] - Development runtime
-- Browser - ES2020+ support targeted
+- Node.js 22.16.5 (devDependencies reference)
+- Vite 7.3.1 - Build tool and dev server
+- React 18.3.1 + React DOM 18.3.1 - UI framework
 
 **Package Manager:**
-- npm (via package-lock.json present)
-- Lockfile: present (package-lock.json, 291KB)
+- npm (based on package.json scripts and structure)
+- Lockfile: `package-lock.json` (implied, standard for npm)
 
 ## Frameworks
 
 **Core:**
-- React [18.3.1] - UI framework with hooks
-- React Router [6.30.1] - Client-side routing
-- Vite [5.4.19] - Build tool and dev server
-
-**Mobile:**
-- Capacitor [8.0.0] - Native app wrapper
-  - @capacitor/android, @capacitor/ios
-  - @capacitor/core, @capacitor/cli
-  - @capacitor/app, @capacitor/device
-  - @capacitor/haptics, @capacitor/keyboard
-  - @capacitor/local-notifications, @capacitor/push-notifications
-  - @capacitor/splash-screen, @capacitor/status-bar
-  - @capgo/capacitor-native-biometric [8.0.3]
+- React 18.3.1 - UI framework
+- React Router DOM 7.13.0 - Client-side routing
+- TanStack Query 5.83.0 - Server state management
 
 **UI:**
-- Radix UI - Headless component primitives (@radix-ui/*)
-- shadcn/ui - Component library built on Radix
-- Tailwind CSS [3.4.17] - Utility-first CSS
-- Lucide React [0.462.0] - Icon library
-- Recharts [2.15.4] - Charting library
-
-**State Management:**
-- TanStack Query [5.83.0] - Server state management
-- React Context API - Client state (AuthContext)
-
-**Forms & Validation:**
-- React Hook Form [7.61.1]
-- Zod [3.25.76] - Schema validation
-- @hookform/resolvers [3.10.0]
+- shadcn/ui + Radix UI - Component primitives
+- Tailwind CSS 3.4.17 - Styling system
+- Framer Motion 12.34.3 - Animations
+- Recharts 2.15.4 - Charts and data visualization
 
 **Testing:**
-- None configured (no test framework detected in project)
+- Vitest 4.0.18 + React Testing Library - Unit and integration tests
+- Playwright 1.58.2 - E2E testing framework
 
 **Build/Dev:**
-- @vitejs/plugin-react-swc [3.11.0] - Fast React refresh
-- Terser [5.44.1] - JavaScript minification
-- Autoprefixer [10.4.21]
-- PostCSS [8.5.6]
-- ESLint [9.32.0] - Linting
-- TypeScript ESLint [8.38.0]
+- Vite 7.3.1 - Build tool and dev server
+- SWC - Transpiler via `@vitejs/plugin-react-swc`
+- ESLint 9.32.0 - Code linting
 
 ## Key Dependencies
 
-**Backend Integration:**
-- @supabase/supabase-js [2.89.0] - Supabase client (auth, database, storage)
-- class-variance-authority [0.7.1] - Component variant utilities
-- clsx [2.1.1], tailwind-merge [2.6.0] - Class name utilities
+**Critical:**
+- `@supabase/supabase-js` 2.89.0 - Supabase client for Postgres, Auth, and Edge Functions
+- `tanstack/react-query` 5.83.0 - Server state management for API data
+- `zod` 3.25.76 - Schema validation
+- `react-hook-form` 7.61.1 - Form management with Zod validation
 
-**Utilities:**
-- date-fns [3.6.0] - Date manipulation
-- sonner [1.7.4] - Toast notifications
-- next-themes [0.3.0] - Theme/dark mode support
+**Infrastructure:**
+- `posthog-js` 1.351.1 - Analytics and product insights
+- `@sentry/react` 10.39.0 - Error tracking and performance monitoring
+- `@capacitor/core` 8.0.0 - Native mobile bridge for iOS/Android
 
 **UI Components:**
-- cmdk [1.1.1] - Command palette
-- embla-carousel-react [8.6.0] - Carousel/slider
-- input-otp [1.4.2] - OTP input
-- react-resizable-panels [2.1.9] - Resizable layouts
-- vaul [0.9.9] - Drawer/sheet component
-- react-day-picker [8.10.1] - Calendar date picker
+- `@radix-ui/react-*` 1.2.x - 26+ Radix UI primitives (dialog, dropdown, select, toast, etc.)
+- `lucide-react` 0.462.0 - Icon library
+- `class-variance-authority` 0.7.1 - Classname utility for variants
+- `clsx` 2.1.1 - Conditional classnames
 
 ## Configuration
 
 **Environment:**
-- Environment variables via `.env` file
-- Required vars:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-- Configured through Vite's env system
+- Vite injects `import.meta.env.*` variables at build time
+- All client-side env vars prefixed with `VITE_`
+- Server-side env vars (for Edge Functions) use `Deno.env.get()`
+- Resend API key uses `RESEND_API_KEY` (not prefixed) for server-side functions
 
 **Build:**
-- `vite.config.ts` - Vite configuration
-  - Base path: `./` (production), `/` (development)
-  - Dev server: port 8080
-  - Build target: ESNext
-  - Code splitting configured for vendors
-  - Terser minification (drops console in production)
+- `vite.config.ts` - Vite configuration with path alias `@/` → `./src`
+- `tsconfig.json` - Base TypeScript config with path aliases and strict mode
+- `tailwind.config.ts` - Tailwind CSS configuration with custom design tokens
+- `vitest.config.ts` - Vitest test configuration with jsdom and V8 coverage
 
-**TypeScript:**
-- `tsconfig.json` - Project references setup
-- `tsconfig.app.json` - Application code
-- `tsconfig.node.json` - Build scripts
-- Path alias: `@/*` → `./src/*`
-- Strict mode disabled (noImplicitAny: false)
-
-**Styling:**
-- `tailwind.config.ts` - Tailwind configuration
-- `postcss.config.js` - PostCSS processing
-- CSS variables for theming (HSL color system)
-- Custom animations and keyframes
-
-**Linting:**
-- `eslint.config.js` - Flat config format
-- React hooks and refresh plugins enabled
+**Environment Variables (required):**
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
+- `VITE_POSTHOG_KEY` - PostHog analytics key
+- `VITE_SENTRY_DSN` - Sentry error tracking DSN
+- `VITE_ULTRAMSG_INSTANCE_ID`, `VITE_ULTRAMSG_TOKEN` - WhatsApp API credentials
+- `VITE_SADAD_*` - Sadad payment gateway credentials
+- `RESEND_API_KEY` - Email service API key
+- `VITE_OPENROUTER_API_KEY` - OpenRouter AI API for reports
 
 ## Platform Requirements
 
 **Development:**
-- Node.js 22.x or later
+- Node.js 22.x
 - npm or compatible package manager
-- Modern browser with ES2020+ support
-- For mobile: Android Studio (Android) / Xcode (iOS)
+- Access to Supabase project (local development mode supported)
 
 **Production:**
-- Any modern browser (Chrome, Firefox, Safari, Edge)
-- Supabase project (free tier compatible)
-- For mobile apps:
-  - Android API 21+ (Lollipop)
-  - iOS 12+
-- Static hosting (Vercel, Netlify, etc.) or any CDN
+- Web: Any modern browser supporting ES2020+ (Vite target: `esnext`)
+- Mobile: iOS 13+ and Android 8+ (Capacitor native containers)
 
 ---
 
-*Stack analysis: 2025-02-14*
+*Stack analysis: 2026-03-06*

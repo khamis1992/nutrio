@@ -1,143 +1,148 @@
 # External Integrations
 
-**Analysis Date:** 2025-02-14
+**Analysis Date:** 2026-03-06
 
 ## APIs & External Services
 
-**Authentication:**
-- Supabase Auth - User authentication and session management
-  - SDK: @supabase/supabase-js
-  - Auth methods: Email/password sign-in and sign-up
-  - Session persistence: localStorage
-  - Auto-refresh enabled
-  - Env vars: VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
+**Resend (Email):**
+- Service - Email delivery platform
+- SDK/Client: Custom HTTP client in `src/lib/resend.ts`
+- Auth: `RESEND_API_KEY` environment variable
+- Usage: Welcome emails, invoice emails, notification emails via `resendService.sendEmail()`
 
-**Database:**
-- Supabase PostgreSQL - Managed PostgreSQL database
-  - Client: Supabase JS client v2.89.0
-  - Connection: Automatic via SDK
-  - Realtime subscriptions: Available but not extensively used
-  - Row Level Security (RLS): Enabled on Supabase
+**Ultramsg (WhatsApp):**
+- Service - WhatsApp Business API via Ultramsg
+- SDK/Client: Custom HTTP client in `src/lib/whatsapp.ts`
+- Auth: `VITE_ULTRAMSG_INSTANCE_ID` and `VITE_ULTRAMSG_TOKEN`
+- Usage: Order confirmations, driver assignments, partner notifications, driver delivery alerts
 
-**File Storage:**
-- Supabase Storage - Meal images, restaurant logos, user avatars
-  - Client: Supabase JS client
-  - Buckets: meals, restaurants, avatars (implied from usage)
-  - Public URL generation for images
+**Sadad (Payment Gateway):**
+- Service - Qatar-based payment processing
+- SDK/Client: Custom HTTP client in `src/lib/sadad.ts`
+- Auth: `VITE_SADAD_MERCHANT_ID` and `VITE_SADAD_SECRET_KEY`
+- Usage: Wallet top-up payments via `initiateSadadPayment()` helper
 
-**Push Notifications:**
-- Capacitor Push Notifications - Native push notifications
-  - Provider: Firebase/FCM (Android), APNs (iOS)
-  - Plugin: @capacitor/push-notifications
-  - Local notifications: @capacitor/local-notifications
+**Sentry (Error Tracking):**
+- Service - Application monitoring and error tracking
+- SDK/Client: `@sentry/react` 10.39.0
+- Auth: `VITE_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`
+- Usage: Error reporting via `captureError()` in `src/lib/sentry.ts`
 
-**Biometric Auth:**
-- @capgo/capacitor-native-biometric - Biometric authentication (native apps)
-  - Fingerprint/Face ID support
-  - Plugin: @capgo/capacitor-native-biometric v8.0.3
+**PostHog (Analytics):**
+- Service - Product analytics and session replay
+- SDK/Client: `posthog-js` 1.351.1
+- Auth: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST`
+- Usage: Event tracking, user identification, feature flags in `src/lib/analytics.ts`
+
+**OpenRouter AI:**
+- Service - Access to multiple LLMs (Mistral, Gemma, etc.)
+- Usage: OpenRouter API for AI-generated nutrition reports
+- Auth: `VITE_OPENROUTER_API_KEY`
 
 ## Data Storage
 
 **Databases:**
-- Supabase PostgreSQL (managed)
-  - Connection: Supabase client auto-configuration
-  - ORM/client: Supabase JS client (not a traditional ORM)
-  - Type-safe queries via generated TypeScript types
-  - Database functions: `get_user_role`, `has_role`, `generate_partner_payout`, etc.
+- Supabase Postgres
+  - Connection: `VITE_SUPABASE_URL` - Supabase project URL
+  - Client: `@supabase/supabase-js` 2.89.0
+  - Types: Auto-generated in `src/integrations/supabase/types.ts`
+  - RLS: Enabled on all tables
+  - Migration tool: `npx supabase db push`
 
 **File Storage:**
-- Supabase Storage
-  - Buckets:
-    - meals (meal images)
-    - restaurants (logos)
-    - avatars (user profile photos)
-  - Public access enabled for images
-  - Upload functionality in components (MealImageUpload, LogoUpload)
+- Supabase Storage (implied from typical Supabase setup)
+- Capacitor Filesystem for native mobile file operations
+- Capacitor Camera for image capture
 
 **Caching:**
-- TanStack Query (React Query) - Server state caching
-  - Cache duration: Configured per query
-  - Stale-while-revalidate pattern
-  - Background refetching enabled
+- localStorage for web sessions
+- Capacitor Preferences for native mobile sessions
+- Custom cache utility in `src/lib/cache.ts`
 
 ## Authentication & Identity
 
 **Auth Provider:**
 - Supabase Auth
-  - Implementation: Custom React Context (AuthContext.tsx)
-  - Session management: Supabase client with localStorage persistence
-  - Auth state listener: `onAuthStateChange`
-  - Methods:
-    - `signUp(email, password, fullName)` - User registration
-    - `signIn(email, password)` - User login
-    - `signOut()` - User logout
-  - Protected routes: ProtectedRoute component
-  - Redirects: /auth for unauthenticated users
+  - Implementation: Email/password, social providers (Google, GitHub via Supabase)
+  - Storage: localStorage (web) / Capacitor Preferences (native)
+  - Location: `src/integrations/supabase/client.ts`
+  - Custom Auth Context: `src/contexts/AuthContext` with IP-based geo-restriction
 
-**User Roles:**
-- Custom role system via Supabase database
-  - Roles: user, partner, admin
-  - Storage: `user_roles` table
-  - Authorization: Database function `has_role(_role, _user_id)`
-  - Role checking: Component-level (RoleIndicator, route guards)
+**IP Geo-Restriction:**
+- Service: IP-based geographic restriction to Qatar
+- Implementation: `src/lib/ipCheck.ts` - Checks user IP location
+- Integration: AuthContext enforces Qatar-only access
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None configured (no Sentry or similar service)
+- Sentry - Production error monitoring with source map support
+  - Configured in `src/lib/sentry.ts`
+  - Disabled in development mode
 
 **Logs:**
-- Console-based logging
-- Development: Console logs preserved
-- Production: Console logs dropped via Terser
-
-**Analytics:**
-- None detected (no Google Analytics, Mixpanel, etc.)
+- Console logging in development (`console.log`, `console.error`)
+- Sentry for production error aggregation
+- Supabase Edge Functions log to Deno console
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Platform-agnostic (static build)
-- Recommended: Vercel, Netlify, or any static host
-- Build output: `dist/` directory
+- Vercel (implied from vite.config.ts support for `VERCEL` env variable)
+- Capacitor for native mobile apps (iOS/Android)
 
 **CI Pipeline:**
-- GitHub Actions (configured in `.github/`)
-- Scripts in `package.json`:
-  - `npm run dev` - Development server
-  - `npm run build` - Production build
-  - `npm run build:dev` - Development build
-  - `npm run lint` - ESLint check
-  - `npm run preview` - Preview production build
-  - `npm run cap:sync` - Sync Capacitor
-  - `npm run cap:android` - Build and open Android
-  - `npm run cap:ios` - Build and open iOS
-  - `npm run cap:dev:android` - Run on Android device
-  - `npm run cap:dev:ios` - Run on iOS device
+- Local pre-commit hook via `.opencode/scripts/enforce-patterns.js`
+- Commands checked: TypeScript typechecking, ESLint, pattern enforcement
 
 ## Environment Configuration
 
 **Required env vars:**
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anonymous/public key
+```env
+# Supabase
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+
+# Analytics & Monitoring
+VITE_POSTHOG_KEY
+VITE_SENTRY_DSN
+
+# WhatsApp
+VITE_ULTRAMSG_INSTANCE_ID
+VITE_ULTRAMSG_TOKEN
+
+# Payments
+VITE_SADAD_API_URL
+VITE_SADAD_MERCHANT_ID
+VITE_SADAD_SECRET_KEY
+
+# Email
+RESEND_API_KEY
+
+# AI Reports
+VITE_OPENROUTER_API_KEY
+
+# App
+VITE_APP_NAME
+VITE_APP_ID
+VITE_APP_VERSION
+```
 
 **Secrets location:**
-- `.env` file (root directory, not committed)
-- No secrets in client code (all VITE_ prefixed for build-time injection)
+- Environment variables (`.env.production`, `.env.local` - gitignored)
+- `.env.production.template` included in repo with placeholder values
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- Supabase Auth callbacks
-  - Email confirmation redirects to `/dashboard`
-  - Password reset redirects
-- No custom webhook endpoints detected
+- Sadad payment callback at `/api/payment/callback`
+- Resend webhooks (for email delivery status) - configured on Resend dashboard
 
 **Outgoing:**
-- No external webhook calls detected
-- Database functions handle internal logic
-- No payment processor integrations (Stripe references in DB but not implemented)
+- WhatsApp messages via Ultramsg API to customer/partner/driver numbers
+- Supabase Edge Functions trigger on database events (insert, update, delete)
+- PostHog events sent automatically on page views and tracked actions
 
 ---
 
-*Integration audit: 2025-02-14*
+*Integration audit: 2026-03-06*

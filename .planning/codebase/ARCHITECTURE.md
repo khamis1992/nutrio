@@ -1,170 +1,182 @@
 # Architecture
 
-**Analysis Date:** 2025-02-14
+**Analysis Date:** 2026-03-06
 
 ## Pattern Overview
 
-**Overall:** Client-side SPA with Context-based state management
+**Overall:** Monorepo Single Page Application (SPA) with Multi-Portal Architecture
 
 **Key Characteristics:**
-- Single Page Application (SPA) using React Router
-- Three-tier architecture: UI → Business Logic → Data Layer
-- Context-based global state (Auth)
-- TanStack Query for server state caching
-- Component composition with shared UI library
-- Route-based code splitting (implicit via React Router)
-- Multi-role application (Customer, Partner, Admin portals)
+- Single codebase serving four distinct user portals (Customer, Partner, Admin, Driver)
+- All portals share the same React application with role-based route protection
+- Backend-as-a-Service using Supabase (Postgres, Auth, Edge Functions, Storage)
+- Native mobile targeting via Capacitor wrapper
+- Server-side rendering not used - pure client-side React
 
 ## Layers
 
-**Presentation Layer (UI):**
-- Purpose: Render UI components and handle user interactions
+### presentation Layer
+- Purpose: User interface components and page routing
 - Location: `src/pages/`, `src/components/`
-- Contains: Page components, UI components, layout components
-- Depends on: Business logic layer (hooks, contexts), Data layer (Supabase client)
-- Used by: End users
+- Contains: Route-level page components, feature components, UI primitives
+- Depends on: Hooks, Contexts, Services, Integrations
+- Used by: App routes and navigation
 
-**Business Logic Layer:**
-- Purpose: Encapsulate business rules and data operations
-- Location: `src/hooks/`, `src/contexts/`, `src/lib/`
-- Contains: Custom hooks, React contexts, utility functions
-- Depends on: Data layer (Supabase client)
-- Used by: Presentation layer
+**Sub-Layers:**
+- **Pages (`src/pages/`):** Route-level components, organized by portal (`admin/`, `partner/`, `driver/`, top-level for customer)
+- **Components (`src/components/`):** Reusable UI components, organized by feature (`wallet/`, `driver/`, `customer/`, `CancellationFlow/`)
+- **UI Primitives (`src/components/ui/`):** shadcn/ui components based on Radix primitives
 
-**Data Layer:**
-- Purpose: Abstract external data sources (Supabase)
-- Location: `src/integrations/supabase/`
-- Contains: Supabase client initialization, TypeScript type definitions
-- Depends on: Supabase infrastructure (auth, database, storage)
-- Used by: Business logic layer
+### business-logic Layer
+- Purpose: Domain-specific logic and data fetching
+- Location: `src/hooks/`, `src/services/`, `src/lib/`
+- Contains: Custom React hooks (TanStack Query), service clients, utilities
+- Depends on: Integrations, Contexts
+
+**Sub-Layers:**
+- **Hooks (`src/hooks/`):** Custom hooks using `@tanstack/react-query` for server state (e.g., `useSubscription`, `useWallet`, `useUserOrders`, `usePartnerAnalytics`)
+- **Services (`src/services/`):** Business service layer (e.g., `walletService.ts`)
+- **Libraries (`src/lib/`):** Utility functions and third-party integrations (analytics, email, payment, utilities)
+
+### integration Layer
+- Purpose: External service connections and platform APIs
+- Location: `src/integrations/`, `src/contexts/`
+- Contains: Supabase client, platform contexts, third-party SDK wrappers
+
+**Sub-Layers:**
+- **Supabase (`src/integrations/supabase/`):** `client.ts` (single typed client), `types.ts` (auto-generated DB types)
+- **Contexts (`src/contexts/`):** `AuthContext`, `AnalyticsContext`, `LanguageContext` - global state providers
+- **Fleet (`src/fleet/`):** Fleet management integration (tracking, drivers, vehicles)
+
+### platform Layer
+- Purpose: Application entry and platform initialization
+- Location: `src/main.tsx`, `src/App.tsx`
+- Contains: Root component, routing, platform feature initialization
 
 ## Data Flow
 
-**Authentication Flow:**
+### Authentication Flow
 
-1. User initiates auth action (sign in/up/out)
-2. AuthContext handles action via Supabase client
-3. Supabase auth state changes trigger `onAuthStateChange` callback
-4. Context updates user/session state
-5. ProtectedRoute guards redirect or render based on auth state
-6. Components access auth state via `useAuth()` hook
+1. User navigates to `/auth` or attempts to access protected route
+2. `AuthProvider` initializes Supabase client with custom Capacitor storage adapter
+3. `onAuthStateChange` listener maintains session state
+4. `/auth` endpoint renders `Auth` page with email/password or OTP signup/login
+5. On successful auth, Supabase stores session in Capacitor Preferences (native) or localStorage (web)
+6. `ProtectedRoute` component checks auth state and redirects to `/dashboard` or `/auth`
+7. IP-based geo-restriction (`checkIPLocation()`) runs before password login to enforce Qatar-only access
 
-**Query Flow (TanStack Query):**
+### State Management Flow
 
-1. Component calls custom hook (e.g., `useProfile`)
-2. Hook initiates Supabase query
-3. TanStack Query caches response
-4. Component receives data, loading, error states
-5. Background refetch on window focus/reconnect
+**Global State (Context):**
+- User session (`AuthContext`)
+- Analytics instance (`AnalyticsContext`)
+- Language preferences (`LanguageContext`)
 
-**Order Placement Flow:**
+**Server State (TanStack Query):**
+- All API calls use custom hooks in `src/hooks/`
+- Hooks return `{ data, error, isLoading, refetch }` pattern
+- Cache key patterns: `[entity, id, params]` (e.g., `['orders', userId]`)
 
-1. User browses meals (/meals, /restaurants/:id)
-2. User selects meal and addons
-3. Order data saved to `meal_schedules` or `orders`
-4. Subscription quota checked/incremented
-5. Notification sent to user and partner
-6. Real-time UI updates
+**Client State (React):**
+- Local form state (`react-hook-form`)
+- UI state (modals, filters, selection)
+- Capacitor native feature state
 
-**State Management:**
-- Global state: React Context (AuthContext)
-- Server state: TanStack Query (useQuery, useMutation)
-- Local component state: useState, useReducer
-- Form state: React Hook Form
+### Route Navigation Flow
+
+1. User clicks navigation link (e.g., `/dashboard`)
+2. `react-router-dom` matches route in `App.tsx`
+3. `ProtectedRoute` wrapper checks auth state (via `AuthContext`)
+4. If authenticated, renders lazy-loaded page component
+5. If not authenticated, redirects to `/auth`
+6. Portal-specific routes check `requiredRole` prop (`admin`, `partner`, `driver`)
+7. Customer routes wrapped in `CustomerLayout` for consistent background/navigation
+8. Partner routes use `PartnerLayout`, Admin uses `AdminLayout`, Driver uses `DriverLayout`
+
+### API Data Flow
+
+1. Hook calls Supabase client from `@/integrations/supabase/client`
+2. Supabase client uses typed `Database` type from `src/integrations/supabase/types.ts`
+3. Query executes with RLS policies enforced on database
+4. Response returned as typed data (TypeScript inferred from DB schema)
+5. Hook returns data to component, triggering re-render
+6. Error handling via Supabase `error` property in response
 
 ## Key Abstractions
 
-**Custom Hooks Pattern:**
-- Purpose: Encapsulate data fetching and business logic
-- Examples: `src/hooks/useProfile.ts`, `src/hooks/useSubscription.ts`
-- Pattern: `const { data, loading, error, refetch } = useHook()`
-- Return values: Data, loading state, error, actions
-- Used in: Page components and shared components
+### ProtectedRoute
+- Purpose: Role-based access control
+- Examples: `src/components/ProtectedRoute.tsx`
+- Pattern: Wrapped routes check `user` from context and `requiredRole` prop
+- Redirects unauthenticated users to `/auth`
 
-**UI Component Pattern:**
-- Purpose: Reusable, composable UI elements
-- Examples: `src/components/ui/button.tsx`, `src/components/ui/card.tsx`
-- Pattern: Radix UI primitives + Tailwind styling + variant support
-- Compound components for complex UI (Dialog, Dropdown, etc.)
-- Used in: All page and feature components
+### Supabase Client
+- Purpose: Single typed Supabase instance across app
+- Examples: `src/integrations/supabase/client.ts`
+- Pattern: Custom storage adapter uses Capacitor Preferences for native apps, localStorage for web
+- Auth session persisted across app restarts
 
-**Protected Route Pattern:**
-- Purpose: Route-level authentication guards
-- Implementation: `src/components/ProtectedRoute.tsx`
-- Pattern: Wrap route element, check auth, redirect if needed
-- Used in: `src/App.tsx` for protected routes
+### Layout System
+- Purpose: Portal-specific navigation and branding
+- Examples: `src/components/CustomerLayout.tsx`, `src/components/PartnerLayout.tsx`
+- Pattern: Layout components wrap portal routes, provide sidebar/header, handle logout
+- Admin uses `AdminLayout` + `AdminSidebar.tsx` for complex admin panel navigation
+
+### Toast Notification System
+- Purpose: User-facing notifications
+- Examples: `@/components/ui/sonner.tsx` (Sonner), `@/components/ui/toast.tsx` (Radix)
+- Pattern: Two toast systems coexist - Sonner primary for user alerts, Radix for internal UI states
+- Use `toast()` from `sonner` for user notifications
 
 ## Entry Points
 
-**Application Entry:**
+### Main Entry
 - Location: `src/main.tsx`
-- Triggers: Application initialization
-- Responsibilities:
-  - Initialize Capacitor native features
-  - Create React root
-  - Render App component
+- Triggers: App launch (native or web)
+- Responsibilities: Initialize Sentry, PostHog, Capacitor native features; render root with providers
 
-**Router Entry:**
+### App Entry
 - Location: `src/App.tsx`
-- Triggers: Browser navigation
-- Responsibilities:
-  - Define all routes
-  - Set up providers (QueryClientProvider, AuthProvider, etc.)
-  - Configure route protection
-  - Handle 404s
+- Triggers: After main initialization completes
+- Responsibilities: Define all routes, wrap with provider hierarchy (QueryClient, Tooltip, Toaster, Auth, Analytics)
+- Routes defined with lazy-loaded page imports for code splitting
 
-**Page Routes:**
-- Customer Portal: `/dashboard`, `/meals`, `/schedule`, `/progress`, etc.
-- Partner Portal: `/partner/*`, `/partner/auth`
-- Admin Portal: `/admin/*`
-- Public: `/`, `/about`, `/contact`, `/auth`
+### Capacitor Native Entry
+- Location: `src/lib/capacitor.ts`
+- Triggers: When `isNative` platform detected
+- Responsibilities: Initialize native plugins (camera, haptics, biometrics, etc.)
 
 ## Error Handling
 
-**Strategy:** Graceful degradation with user feedback
+**Strategy:** Centralized error boundary with per-page fallbacks
 
 **Patterns:**
-- Try-catch blocks in async operations
-- Error state in custom hooks (return `{ error }`)
-- Toast notifications for user feedback (Sonner)
-- Loading states with spinners (Loader2 from lucide-react)
-- Error boundaries: Not configured (React default behavior)
-- Console logging in development only
-
-**Auth Errors:**
-- Redirect to `/auth` if unauthenticated
-- Error toasts for sign-in/sign-up failures
-- Session refresh handled by Supabase client
+- `SentryErrorBoundary` (production): Wraps app, sends errors to Sentry
+- `DevelopmentErrorBoundary` (dev): Shows inline error UI
+- Supabase queries: Check `error` property and throw for UI to handle
+- Hooks: Return `{ error }` or throw based on pattern
+- Routes: `NotFound` page catches 404s
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- Console-based logging (dropped in production)
-- No structured logging service
+**Logging:** 
+- Console.log only in development (production build removes with terser)
+- Error tracking via `@/lib/sentry.ts` using Sentry React integration
 
 **Validation:**
-- Client-side: Zod schemas for form validation
-- React Hook Form resolvers for form integration
-- Server-side: Supabase RLS policies and constraints
+- `zod` schemas for form validation (`react-hook-form`)
+- Server-side validation via Supabase DB constraints and RLS
 
 **Authentication:**
-- Supabase Auth for user identity
-- Custom role-based access control via `user_roles` table
-- Protected routes component pattern
-- Role checking throughout app (admin, partner, customer)
+- Supabase Auth with email/password or OTP
+- Role-based access via `requiredRole` prop on `ProtectedRoute`
+- Session stored in Capacitor Preferences (native) or localStorage (web)
 
-**Theming:**
-- CSS variables for colors (HSL system)
-- Dark mode support via next-themes
-- Tailwind utility classes for styling
-- Consistent design tokens via Tailwind config
-
-**Mobile Responsiveness:**
-- Tailwind responsive breakpoints (sm, md, lg, xl)
-- Capacitor for native app wrapper
-- Mobile-optimized layouts (bottom navigation on mobile)
-- Native features (biometrics, notifications, haptics)
+**Geo-restriction:**
+- IP-based country check (`@/lib/ipCheck.ts`)
+- Enforces Qatar-only access via `checkIPLocation()`
+- Runs before partner login, may fail silently (log but don't block)
 
 ---
 
-*Architecture analysis: 2025-02-14*
+*Architecture analysis: 2026-03-06*
