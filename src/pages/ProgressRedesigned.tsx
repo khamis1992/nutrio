@@ -294,9 +294,23 @@ const ProgressDashboard = () => {
   const proteinProgress = Math.min(100, Math.round((todayProtein / dailyProteinTarget) * 100));
   const waterProgress = waterSummary?.percentage || 0;
 
+  // BMI
+  const bmiValue = (() => {
+    const h = profile?.height_cm;
+    const w = profile?.current_weight_kg;
+    if (!h || !w) return null;
+    return parseFloat((w / Math.pow(h / 100, 2)).toFixed(1));
+  })();
+  const bmiLabelValue = bmiValue === null ? null
+    : bmiValue < 18.5 ? "Underweight"
+    : bmiValue < 25   ? "Normal"
+    : bmiValue < 30   ? "Overweight"
+    : bmiValue < 35   ? "Obese I"
+    : "Obese II";
+
   const handleDownloadReport = async () => {
     if (!user || !weeklySummary) {
-      toast({ title: "No data available", variant: "destructive" });
+      toast({ title: t("no_data_available"), variant: "destructive" });
       return;
     }
 
@@ -474,12 +488,12 @@ const ProgressDashboard = () => {
     try {
       await addWater(amount);
       toast({
-        title: "Water added",
-        description: `+${amount} glasses`,
+        title: t("water_added"),
+        description: `+${amount} ${t("glasses")}`,
       });
     } catch (error) {
       toast({
-        title: "Failed to add water",
+        title: t("failed_add_water"),
         variant: "destructive",
       });
     }
@@ -489,12 +503,12 @@ const ProgressDashboard = () => {
     <div className="min-h-screen bg-slate-50 pb-20">
       {/* Native App Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 safe-area-top">
-        <div className="flex items-center justify-between px-4 h-14">
+        <div className="flex items-center justify-between px-4 h-14 rtl:flex-row-reverse">
           <button
             onClick={() => navigate("/dashboard")}
             className="p-2 -ml-2 rounded-full hover:bg-slate-100 active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-6 h-6 text-slate-700" />
+            <ArrowLeft className="w-6 h-6 text-slate-700 rtl-flip-back" />
           </button>
           <h1 className="text-lg font-semibold text-slate-900">{t("progress")}</h1>
           <div className="w-10" /> {/* Spacer for balance */}
@@ -514,7 +528,7 @@ const ProgressDashboard = () => {
                     : "text-slate-500 hover:text-slate-700"
                 )}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === "today" ? t("today") : tab === "week" ? t("week") : t("goals_tab")}
               </button>
             ))}
           </div>
@@ -529,7 +543,7 @@ const ProgressDashboard = () => {
             {/* Today Header */}
             <div className="flex items-center justify-between px-1">
               <div>
-                <h3 className="font-bold text-slate-900">Today's Progress</h3>
+                <h3 className="font-bold text-slate-900">{t("todays_progress")}</h3>
                 <p className="text-xs text-slate-500">{format(new Date(), "EEEE, MMM d")}</p>
               </div>
               <div className={cn(
@@ -552,7 +566,7 @@ const ProgressDashboard = () => {
                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                     <Flame className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-xs text-white/80 font-medium">Calories</span>
+                  <span className="text-xs text-white/80 font-medium">{t("calories")}</span>
                 </div>
                 <div className="flex items-baseline gap-1 mb-2">
                   <span className="text-2xl font-bold">{todayCalories}</span>
@@ -561,7 +575,7 @@ const ProgressDashboard = () => {
                 <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
                   <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min(calorieProgress, 100)}%` }} />
                 </div>
-                <p className="text-xs text-white/60 mt-2">{calorieProgress}% of goal</p>
+                <p className="text-xs text-white/60 mt-2">{calorieProgress}% {t("of_goal")}</p>
               </div>
 
               {/* Protein — Blue */}
@@ -571,7 +585,7 @@ const ProgressDashboard = () => {
                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                     <Target className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-xs text-white/80 font-medium">Protein</span>
+                  <span className="text-xs text-white/80 font-medium">{t("protein")}</span>
                 </div>
                 <div className="flex items-baseline gap-1 mb-2">
                   <span className="text-2xl font-bold">{todayProtein}g</span>
@@ -580,7 +594,7 @@ const ProgressDashboard = () => {
                 <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
                   <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min(proteinProgress, 100)}%` }} />
                 </div>
-                <p className="text-xs text-white/60 mt-2">{proteinProgress}% of goal</p>
+                <p className="text-xs text-white/60 mt-2">{proteinProgress}% {t("of_goal")}</p>
               </div>
 
               {/* Burned — Amber */}
@@ -590,7 +604,7 @@ const ProgressDashboard = () => {
                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                     <Flame className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-xs text-white/80 font-medium">Burned</span>
+                  <span className="text-xs text-white/80 font-medium">{t("burned")}</span>
                 </div>
                 <div className="flex items-baseline gap-1 mb-2">
                   <span className="text-2xl font-bold">{todayBurned}</span>
@@ -599,7 +613,7 @@ const ProgressDashboard = () => {
                 <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
                   <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min((todayBurned / 500) * 100, 100)}%` }} />
                 </div>
-                <p className="text-xs text-white/60 mt-2">{todayBurned > 0 ? "from activities" : "no activities yet"}</p>
+                <p className="text-xs text-white/60 mt-2">{todayBurned > 0 ? t("from_activities") : t("no_activities_yet")}</p>
               </div>
 
               {/* Streak — Emerald */}
@@ -609,13 +623,13 @@ const ProgressDashboard = () => {
                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
                     <Flame className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-xs text-white/80 font-medium">Streak</span>
+                  <span className="text-xs text-white/80 font-medium">{t("streak")}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold">{streaks?.logging?.currentStreak || 0}</span>
-                  <span className="text-sm text-white/60">days</span>
+                  <span className="text-sm text-white/60">{t("days")}</span>
                 </div>
-                <p className="text-xs text-white/60 mt-2">Best: {streaks?.logging?.bestStreak || 0} days</p>
+                <p className="text-xs text-white/60 mt-2">{t("best_streak")}: {streaks?.logging?.bestStreak || 0} {t("days")}</p>
               </div>
             </div>
 
@@ -630,8 +644,8 @@ const ProgressDashboard = () => {
                         {averageScore || 0}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900">Meal Quality</p>
-                        <p className="text-sm text-slate-500">Today's score</p>
+                        <p className="font-semibold text-slate-900">{t("meal_quality")}</p>
+                        <p className="text-sm text-slate-500">{t("todays_score")}</p>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-300" />
@@ -685,6 +699,8 @@ const ProgressDashboard = () => {
             onDownload={handleDownloadReport}
             generatingReport={generatingReport}
             weeklyBurned={weeklyBurned}
+            bmi={bmiValue}
+            bmiLabel={bmiLabelValue}
           />
         )}
 
@@ -732,6 +748,7 @@ interface GoalsTabProps {
 
 const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: GoalsTabProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showCreateGoal, setShowCreateGoal] = useState(false);
   const [smartAdjustment, setSmartAdjustment] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -760,11 +777,11 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
     setApplyingId(null);
     if (ok) {
       recordApply(s);
-      toast({ title: "Goal updated!", description: `${s.label} applied successfully.` });
+      toast({ title: t("goal_updated"), description: `${s.label} ${t("applied_successfully")}` });
       onGoalUpdated();
       refreshAdjustments();
     } else {
-      toast({ title: "Failed to update", description: "Please try again.", variant: "destructive" });
+      toast({ title: t("failed_to_update"), description: t("please_try_again"), variant: "destructive" });
     }
   };
 
@@ -777,11 +794,11 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
     setApplyingAll(false);
     if (ok) {
       highConfidenceSuggestions.forEach(s => recordApply(s));
-      toast({ title: `${highConfidenceSuggestions.length} goals adjusted!`, description: "All high-confidence suggestions applied." });
+      toast({ title: `${highConfidenceSuggestions.length} ${t("goals_adjusted")}`, description: t("all_high_confidence_applied") });
       onGoalUpdated();
       refreshAdjustments();
     } else {
-      toast({ title: "Failed", description: "Some updates failed. Please try again.", variant: "destructive" });
+      toast({ title: t("failed_to_update"), description: t("some_updates_failed"), variant: "destructive" });
     }
   };
 
@@ -840,19 +857,19 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                 {currentGoal.icon}
               </div>
               <div>
-                <p className="text-white/70 text-sm">Active Goal</p>
+                <p className="text-white/70 text-sm">{t("active_goal")}</p>
                 <h3 className="text-xl font-bold">{t(currentGoal.label)}</h3>
               </div>
             </div>
             {activeGoal?.target_weight_kg && (
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 bg-white/15 rounded-xl p-3">
-                  <p className="text-white/70 text-xs mb-1">Target Weight</p>
+                  <p className="text-white/70 text-xs mb-1">{t("target_weight")}</p>
                   <p className="text-lg font-bold">{activeGoal.target_weight_kg} kg</p>
                 </div>
                 {activeGoal.target_date && (
                   <div className="flex-1 bg-white/15 rounded-xl p-3">
-                    <p className="text-white/70 text-xs mb-1">Target Date</p>
+                    <p className="text-white/70 text-xs mb-1">{t("target_date")}</p>
                     <p className="text-lg font-bold">{new Date(activeGoal.target_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                   </div>
                 )}
@@ -870,8 +887,8 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
             <div className="w-16 h-16 rounded-full bg-slate-300 flex items-center justify-center mx-auto mb-3">
               <Target className="w-8 h-8 text-slate-500" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-800 mb-1">No Active Goal</h3>
-            <p className="text-slate-500 text-sm mb-4">Set a goal to start tracking your progress</p>
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">{t("no_active_goal")}</h3>
+            <p className="text-slate-500 text-sm mb-4">{t("set_goal_hint")}</p>
           </div>
         </div>
       )}
@@ -887,8 +904,8 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               <Zap className="w-5 h-5" />
             </div>
             <div className="text-left">
-              <h3 className="font-semibold text-slate-900">Daily Targets</h3>
-              <p className="text-sm text-slate-500">Your nutrition goals</p>
+              <h3 className="font-semibold text-slate-900">{t("daily_targets")}</h3>
+              <p className="text-sm text-slate-500">{t("your_nutrition_goals")}</p>
             </div>
           </div>
           {expandedSection === "macros" ? (
@@ -928,14 +945,14 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               <Scale className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900">Body Metrics</h3>
-              <p className="text-sm text-slate-500">Track your physical progress</p>
+              <h3 className="font-semibold text-slate-900">{t("body_metrics")}</h3>
+              <p className="text-sm text-slate-500">{t("track_physical_progress")}</p>
             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="text-sm text-slate-600">Current Weight</Label>
+              <Label className="text-sm text-slate-600">{t("current_weight")}</Label>
               <div className="relative">
                 <Input 
                   type="number" 
@@ -946,7 +963,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm text-slate-600">Height</Label>
+              <Label className="text-sm text-slate-600">{t("height")}</Label>
               <div className="relative">
                 <Input 
                   type="number" 
@@ -970,10 +987,10 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">Smart Adjustments</h3>
+                <h3 className="font-semibold text-slate-900">{t("smart_adjustments")}</h3>
                 <p className="text-sm text-slate-500">
                   {suggestions.length > 0
-                    ? `${suggestions.length} suggestion${suggestions.length !== 1 ? "s" : ""} based on ${suggestions[0]?.daysAnalyzed ?? 0} days`
+                    ? t("suggestions_based_on_days", { count: suggestions.length, plural: suggestions.length !== 1 ? "s" : "", days: suggestions[0]?.daysAnalyzed ?? 0 })
                     : t("goal_optimization")}
                 </p>
               </div>
@@ -995,7 +1012,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
           {/* History panel */}
           {showHistory && adjustHistory.length > 0 && (
             <div className="mt-3 pt-3 border-t border-emerald-200/50">
-              <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Applied History</p>
+              <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">{t("applied_history")}</p>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {adjustHistory.slice(0, 8).map(h => (
                   <div key={h.id} className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2">
@@ -1079,11 +1096,11 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {s.id === "on-track" ? (
                                 <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                  <CheckCheck className="w-3 h-3" /> On track
+                                  <CheckCheck className="w-3 h-3" /> {t("on_track")}
                                 </span>
                               ) : s.safetyBlock ? (
                                 <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                  <ShieldAlert className="w-3 h-3" /> Safety tip
+                                  <ShieldAlert className="w-3 h-3" /> {t("safety_tip")}
                                 </span>
                               ) : (
                                 <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full", {
@@ -1094,7 +1111,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                                   {s.confidence === "high" ? t("high_confidence") : s.confidence === "medium" ? t("suggestion") : t("exploratory")}
                                 </span>
                               )}
-                              <span className="text-xs text-slate-400 capitalize">{s.category}</span>
+                              <span className="text-xs text-slate-400 capitalize">{t(s.category)}</span>
                             </div>
                             <button
                               className="text-slate-300 hover:text-slate-500 p-0.5"
@@ -1182,8 +1199,8 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               <Trophy className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900">Milestones</h3>
-              <p className="text-sm text-slate-500">{milestones.filter(m => m.achieved).length} of {milestones.length} achieved</p>
+              <h3 className="font-semibold text-slate-900">{t("milestones")}</h3>
+              <p className="text-sm text-slate-500">{milestones.filter(m => m.achieved).length} / {milestones.length} {t("achieved")}</p>
             </div>
           </div>
           
@@ -1218,7 +1235,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
         className="w-full h-14 text-base font-semibold rounded-xl shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-primary/90 hover:opacity-90 transition-opacity"
       >
         <Plus className="w-5 h-5 mr-2" />
-        Create New Goal
+        {t("create_new_goal")}
       </Button>
 
       {/* Create Goal Modal */}
@@ -1227,7 +1244,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
           <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold">Create New Goal</h3>
+                <h3 className="text-xl font-bold">{t("create_new_goal")}</h3>
                 <button 
                   onClick={() => setShowCreateGoal(false)}
                   className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"
@@ -1238,7 +1255,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
               
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm text-slate-600 mb-2 block">Goal Type</Label>
+                  <Label className="text-sm text-slate-600 mb-2 block">{t("goal_type")}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(goalTypeConfig).map(([key, config]) => (
                       <button
@@ -1248,7 +1265,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2", config.color.replace("text-", "bg-").replace("600", "100"))}>
                           <div className={config.color}>{config.icon}</div>
                         </div>
-                        <p className="font-medium text-sm">{config.label}</p>
+                        <p className="font-medium text-sm">{t(config.label as any)}</p>
                       </button>
                     ))}
                   </div>
@@ -1256,17 +1273,17 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm text-slate-600 mb-2 block">Target Weight (kg)</Label>
+                    <Label className="text-sm text-slate-600 mb-2 block">{t("target_weight_kg")}</Label>
                     <Input type="number" placeholder="70" className="h-12 rounded-xl" />
                   </div>
                   <div>
-                    <Label className="text-sm text-slate-600 mb-2 block">Target Date</Label>
+                    <Label className="text-sm text-slate-600 mb-2 block">{t("target_date")}</Label>
                     <Input type="date" className="h-12 rounded-xl" />
                   </div>
                 </div>
                 
                 <Button className="w-full h-12 rounded-xl">
-                  Create Goal
+                  {t("create_goal")}
                 </Button>
               </div>
             </div>

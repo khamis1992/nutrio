@@ -1016,6 +1016,323 @@ export class NutrioReportPDF {
   }
 
   // ─────────────────────────────────────────────
+  //  PAGE — ANALYTICS
+  // ─────────────────────────────────────────────
+  private analyticsPage(d: WeeklyReportData) {
+    this.newPage("Analytics");
+    let y = 24;
+
+    // ── Page title ──
+    this.doc.setTextColor(...C.ink);
+    this.doc.setFontSize(13);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Analytics", MX, y);
+    this.doc.setTextColor(...C.subtle);
+    this.doc.setFontSize(7.5);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text("Weekly water intake and macro nutrient breakdown", MX, y + 7);
+    y += 18;
+
+    const days = d.dailyData.slice(); // oldest → newest (already ordered)
+
+    // ══════════════════════════════════════════
+    //  1. WATER INTAKE BAR CHART
+    // ══════════════════════════════════════════
+    this.doc.setTextColor(...C.ink);
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Water Intake", MX, y);
+    this.doc.setTextColor(...C.subtle);
+    this.doc.setFontSize(7);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text("(glasses / day)", MX + 32, y);
+    y += 6;
+
+    const waterChartH = 48;
+    const waterChartW = CW;
+    const waterTarget = 8; // glasses
+    const maxWater = Math.max(waterTarget * 1.3, ...days.map(dd => dd.water), 1);
+    const wBarW = waterChartW / days.length;
+
+    // Chart background
+    this.doc.setFillColor(...C.surface);
+    this.doc.roundedRect(MX, y, waterChartW, waterChartH, 4, 4, "F");
+
+    // Target dashed line
+    const wTargetY = y + waterChartH - (waterTarget / maxWater) * (waterChartH - 10) - 4;
+    this.doc.setDrawColor(...C.cyan);
+    this.doc.setLineWidth(0.4);
+    this.doc.setLineDashPattern([2, 2], 0);
+    this.doc.line(MX + 2, wTargetY, MX + waterChartW - 2, wTargetY);
+    this.doc.setLineDashPattern([], 0);
+    this.doc.setTextColor(...C.cyan);
+    this.doc.setFontSize(5.5);
+    this.doc.text(`Target ${waterTarget} glasses`, MX + waterChartW - 3, wTargetY - 1, { align: "right" });
+
+    days.forEach((dd, i) => {
+      const val = dd.water;
+      const bh = val > 0 ? Math.max(2, (val / maxWater) * (waterChartH - 10)) : 2;
+      const bx = MX + i * wBarW + wBarW * 0.2;
+      const bwi = wBarW * 0.6;
+      const by = y + waterChartH - bh - 4;
+      const col: [number,number,number] = val >= waterTarget ? C.cyan : val > 0 ? C.teal : C.border;
+      this.doc.setFillColor(...col);
+      this.doc.roundedRect(bx, by, bwi, bh, 1, 1, "F");
+      // Value label on top of bar
+      if (val > 0) {
+        this.doc.setTextColor(...C.muted);
+        this.doc.setFontSize(5);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text(`${val}`, bx + bwi / 2, by - 1, { align: "center" });
+      }
+      // Day label
+      this.doc.setTextColor(...C.subtle);
+      this.doc.setFontSize(5.5);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(format(new Date(dd.date), "EEE"), bx + bwi / 2, y + waterChartH - 1, { align: "center" });
+    });
+
+    // Legend
+    y += waterChartH + 4;
+    this.doc.setFillColor(...C.cyan);
+    this.doc.roundedRect(MX, y, 3, 3, 0.5, 0.5, "F");
+    this.doc.setTextColor(...C.subtle);
+    this.doc.setFontSize(6);
+    this.doc.text("Met target", MX + 5, y + 2.5);
+    this.doc.setFillColor(...C.teal);
+    this.doc.roundedRect(MX + 26, y, 3, 3, 0.5, 0.5, "F");
+    this.doc.text("Below target", MX + 31, y + 2.5);
+    y += 10;
+
+    // ══════════════════════════════════════════
+    //  2. DAILY MACROS GROUPED BAR CHART
+    // ══════════════════════════════════════════
+    this.doc.setTextColor(...C.ink);
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Daily Macros Breakdown", MX, y);
+    this.doc.setTextColor(...C.subtle);
+    this.doc.setFontSize(7);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text("(grams — protein / carbs / fat)", MX + 56, y);
+    y += 6;
+
+    const macroChartH = 52;
+    const macroChartW = CW;
+    const maxMacro = Math.max(
+      ...days.map(dd => Math.max(dd.protein, dd.carbs, dd.fat)), 1
+    );
+    const groupW = macroChartW / days.length;
+    const barGap = 0.8;
+    const mBarW = (groupW * 0.75 - barGap * 2) / 3;
+
+    // Chart background
+    this.doc.setFillColor(...C.surface);
+    this.doc.roundedRect(MX, y, macroChartW, macroChartH, 4, 4, "F");
+
+    const macroCols: [number,number,number][] = [C.violet, C.amber, C.teal];
+
+    days.forEach((dd, i) => {
+      const gx = MX + i * groupW + groupW * 0.125;
+      const macroVals = [dd.protein, dd.carbs, dd.fat];
+      macroVals.forEach((val, mi) => {
+        const bh = val > 0 ? Math.max(2, (val / maxMacro) * (macroChartH - 12)) : 2;
+        const bx = gx + mi * (mBarW + barGap);
+        const by = y + macroChartH - bh - 6;
+        this.doc.setFillColor(...macroCols[mi]);
+        this.doc.roundedRect(bx, by, mBarW, bh, 0.8, 0.8, "F");
+      });
+      // Day label
+      this.doc.setTextColor(...C.subtle);
+      this.doc.setFontSize(5.5);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(format(new Date(dd.date), "EEE"), gx + (mBarW * 3 + barGap * 2) / 2, y + macroChartH - 1.5, { align: "center" });
+    });
+
+    // Legend
+    y += macroChartH + 4;
+    const macroLabels = ["Protein", "Carbs", "Fat"];
+    macroLabels.forEach((lbl, i) => {
+      const lx = MX + i * 28;
+      this.doc.setFillColor(...macroCols[i]);
+      this.doc.roundedRect(lx, y, 3, 3, 0.5, 0.5, "F");
+      this.doc.setTextColor(...C.subtle);
+      this.doc.setFontSize(6);
+      this.doc.text(lbl, lx + 5, y + 2.5);
+    });
+    y += 10;
+
+    // ══════════════════════════════════════════
+    //  3. SUMMARY NUMBERS ROW
+    // ══════════════════════════════════════════
+    const totalWater = days.reduce((s, dd) => s + dd.water, 0);
+    const avgWater = days.length > 0 ? (totalWater / days.length).toFixed(1) : "0";
+    const avgProtein = days.length > 0 ? Math.round(days.reduce((s, dd) => s + dd.protein, 0) / days.length) : 0;
+    const avgCarbs   = days.length > 0 ? Math.round(days.reduce((s, dd) => s + dd.carbs,   0) / days.length) : 0;
+    const avgFat     = days.length > 0 ? Math.round(days.reduce((s, dd) => s + dd.fat,     0) / days.length) : 0;
+
+    const summaryItems = [
+      { label: "Avg Water/day", value: `${avgWater} glasses`, color: C.cyan },
+      { label: "Avg Protein",   value: `${avgProtein}g`,      color: C.violet },
+      { label: "Avg Carbs",     value: `${avgCarbs}g`,        color: C.amber },
+      { label: "Avg Fat",       value: `${avgFat}g`,          color: C.teal },
+    ];
+
+    const cardW = (CW - 6) / 4;
+    summaryItems.forEach((item, i) => {
+      const cx = MX + i * (cardW + 2);
+      this.doc.setFillColor(...C.white);
+      this.doc.roundedRect(cx, y, cardW, 30, 4, 4, "F");
+      this.doc.setDrawColor(...C.border);
+      this.doc.setLineWidth(0.3);
+      this.doc.roundedRect(cx, y, cardW, 30, 4, 4, "S");
+      gradientRect(this.doc, cx, y, cardW, 2.5, item.color, item.color);
+      this.doc.setTextColor(...C.subtle);
+      this.doc.setFontSize(6);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(item.label, cx + cardW / 2, y + 11, { align: "center" });
+      this.doc.setTextColor(...C.ink);
+      this.doc.setFontSize(11);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(item.value, cx + cardW / 2, y + 23, { align: "center" });
+    });
+
+    y += 38;
+
+    // ══════════════════════════════════════════
+    //  4. BMI GAUGE — new page to avoid overflow
+    // ══════════════════════════════════════════
+    const bmi = d.trackerInsights?.bmi ?? null;
+    if (bmi !== null) {
+      this.newPage("Analytics — BMI");
+      y = 24;
+
+      this.doc.setTextColor(...C.ink);
+      this.doc.setFontSize(13);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text("BMI — Body Mass Index", MX, y);
+      this.doc.setTextColor(...C.subtle);
+      this.doc.setFontSize(7.5);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text("Body Mass Index based on height and current weight", MX, y + 7);
+      y += 18;
+
+      // Semicircle gauge drawn with jsPDF arcs
+      // We draw thick arc segments using many thin lines approximating arcs
+      const gaugeCX = MX + CW / 2; // center X
+      const gaugeCY = y + 38;      // center Y (bottom of arc area)
+      const gaugeR  = 34;          // radius mm
+      const strokeW = 5;           // segment thickness
+
+      // 6 color segments across 180° (left=180° to right=0°)
+      const segColors: { startDeg: number; endDeg: number; rgb: [number,number,number] }[] = [
+        { startDeg: 180, endDeg: 150, rgb: [99,  102, 241] }, // indigo  (BMI <16)
+        { startDeg: 150, endDeg: 120, rgb: [59,  130, 246] }, // blue    (16-18.4)
+        { startDeg: 120, endDeg:  90, rgb: [34,  197,  94] }, // green   (18.5-24.9)
+        { startDeg:  90, endDeg:  60, rgb: [245, 158,  11] }, // amber   (25-29.9)
+        { startDeg:  60, endDeg:  30, rgb: [249, 115,  22] }, // orange  (30-34.9)
+        { startDeg:  30, endDeg:   0, rgb: [239,  68,  68] }, // red     (35+)
+      ];
+
+      // Draw track (grey background)
+      this.doc.setDrawColor(226, 232, 240);
+      this.doc.setLineWidth(strokeW);
+      for (let deg = 0; deg <= 180; deg += 2) {
+        const a1 = ((180 - deg) * Math.PI) / 180;
+        const a2 = ((180 - (deg + 2)) * Math.PI) / 180;
+        const x1 = gaugeCX + gaugeR * Math.cos(a1);
+        const y1 = gaugeCY - gaugeR * Math.sin(a1);
+        const x2 = gaugeCX + gaugeR * Math.cos(a2);
+        const y2 = gaugeCY - gaugeR * Math.sin(a2);
+        this.doc.line(x1, y1, x2, y2);
+      }
+
+      // Draw colored segments
+      segColors.forEach(seg => {
+        this.doc.setDrawColor(...seg.rgb);
+        this.doc.setLineWidth(strokeW);
+        const fromDeg = Math.min(seg.startDeg, seg.endDeg);
+        const toDeg   = Math.max(seg.startDeg, seg.endDeg);
+        for (let deg = fromDeg; deg <= toDeg; deg += 2) {
+          const a1 = (deg * Math.PI) / 180;
+          const a2 = ((deg + 2) * Math.PI) / 180;
+          const x1 = gaugeCX + gaugeR * Math.cos(a1);
+          const y1 = gaugeCY - gaugeR * Math.sin(a1);
+          const x2 = gaugeCX + gaugeR * Math.cos(a2);
+          const y2 = gaugeCY - gaugeR * Math.sin(a2);
+          this.doc.line(x1, y1, x2, y2);
+        }
+      });
+
+      // Needle
+      const clampedBmi = Math.max(15, Math.min(40, bmi));
+      // Map BMI 15→40 to angle 180°→0°
+      const needleAngleDeg = 180 - ((clampedBmi - 15) / 25) * 180;
+      const needleRad = (needleAngleDeg * Math.PI) / 180;
+      const needleLen = gaugeR - 2;
+      const nx = gaugeCX + needleLen * Math.cos(needleRad);
+      const ny = gaugeCY - needleLen * Math.sin(needleRad);
+      this.doc.setDrawColor(...C.ink);
+      this.doc.setLineWidth(1);
+      this.doc.line(gaugeCX, gaugeCY, nx, ny);
+      this.doc.setFillColor(...C.ink);
+      this.doc.circle(gaugeCX, gaugeCY, 2, "F");
+
+      // BMI value label
+      this.doc.setTextColor(...C.ink);
+      this.doc.setFontSize(16);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(bmi.toFixed(1), gaugeCX, gaugeCY - 10, { align: "center" });
+      this.doc.setTextColor(...C.subtle);
+      this.doc.setFontSize(6.5);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text("BMI (kg/m\u00B2)", gaugeCX, gaugeCY + 7, { align: "center" });
+
+      // Status pill
+      const bmiColor: [number,number,number] = bmi < 18.5 ? [59,130,246] : bmi < 25 ? [34,197,94] : bmi < 30 ? [245,158,11] : bmi < 35 ? [249,115,22] : [239,68,68];
+      const bmiLabelText = d.trackerInsights?.bmiLabel ?? (bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : bmi < 35 ? "Obese I" : "Obese II");
+      pill(this.doc, gaugeCX - 18, gaugeCY + 10, 36, 8, bmiColor, bmiLabelText);
+
+      // Legend starts well below the pill (pill bottom = gaugeCY + 18)
+      y = gaugeCY + 28;
+
+      // Divider
+      this.doc.setDrawColor(...C.border);
+      this.doc.setLineWidth(0.3);
+      this.doc.line(MX, y, W - MX, y);
+      y += 6;
+
+      // BMI legend — single-column, full-width rows
+      const bmiRanges = [
+        { label: "Underweight II", range: "BMI < 16.0",      rgb: [99,102,241]  as [number,number,number] },
+        { label: "Underweight I",  range: "BMI 16.0 – 18.4", rgb: [59,130,246]  as [number,number,number] },
+        { label: "Normal",         range: "BMI 18.5 – 24.9", rgb: [34,197,94]   as [number,number,number] },
+        { label: "Overweight",     range: "BMI 25.0 – 29.9", rgb: [245,158,11]  as [number,number,number] },
+        { label: "Obese I",        range: "BMI 30.0 – 34.9", rgb: [249,115,22]  as [number,number,number] },
+        { label: "Obese II",       range: "BMI 35.0 – 39.9", rgb: [239,68,68]   as [number,number,number] },
+      ];
+
+      bmiRanges.forEach((row, i) => {
+        const ly = y + i * 9;
+        // Alternating row background
+        if (i % 2 === 0) {
+          this.doc.setFillColor(...C.surface);
+          this.doc.rect(MX, ly - 2, CW, 9, "F");
+        }
+        this.doc.setFillColor(...row.rgb);
+        this.doc.circle(MX + 4, ly + 2.5, 2.5, "F");
+        this.doc.setTextColor(...C.muted);
+        this.doc.setFontSize(7.5);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text(row.label, MX + 10, ly + 4);
+        this.doc.setTextColor(...C.subtle);
+        this.doc.setFont("helvetica", "normal");
+        this.doc.text(row.range, W - MX, ly + 4, { align: "right" });
+      });
+    }
+  }
+
+  // ─────────────────────────────────────────────
   //  GENERATE + DOWNLOAD
   // ─────────────────────────────────────────────
   generate(d: WeeklyReportData): jsPDF {
@@ -1033,7 +1350,10 @@ export class NutrioReportPDF {
     // Page 4 — Habit Intelligence
     this.habitIntelligence(d);
 
-    // Page 5+ — Meal Plan & Timeline
+    // Page 5 — Analytics (التحليلات)
+    this.analyticsPage(d);
+
+    // Page 6+ — Meal Plan & Timeline
     this.mealPlanAndTimeline(d);
 
     // Stamp footers on all inner pages (skip cover)
