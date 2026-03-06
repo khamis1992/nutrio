@@ -141,10 +141,12 @@ const GenderCard = ({
   gender,
   selected,
   onClick,
+  t,
 }: {
   gender: Gender;
   selected: boolean;
   onClick: () => void;
+  t: (key: string) => string;
 }) => {
   const isMale = gender === "male";
 
@@ -179,7 +181,7 @@ const GenderCard = ({
               selected ? "text-primary" : "text-foreground"
             )}
           >
-            {gender}
+            {gender === "male" ? t("male") : t("female")}
           </p>
           <p className="text-sm text-muted-foreground">
             {isMale ? t("he_him") : t("she_her")}
@@ -294,7 +296,7 @@ const Profile = () => {
         .eq("user_id", user.id);
       setUserDietPreferences(prefs?.map((p: { diet_tag_id: string }) => p.diet_tag_id) || []);
     } catch {
-      toast({ title: "Error", description: "Failed to load dietary preferences", variant: "destructive" });
+      toast({ title: t("error"), description: t("failed_load_dietary_preferences"), variant: "destructive" });
     } finally {
       setDietaryLoading(false);
     }
@@ -319,9 +321,9 @@ const Profile = () => {
         if (error) throw error;
         setUserDietPreferences(prev => [...prev, tagId]);
       }
-      toast({ title: isSelected ? "Removed" : "Added", description: `Dietary preference ${isSelected ? "removed" : "added"}` });
+      toast({ title: isSelected ? t("removed") : t("added"), description: isSelected ? t("dietary_preference_removed") : t("dietary_preference_added") });
     } catch {
-      toast({ title: "Error", description: "Failed to update dietary preference", variant: "destructive" });
+      toast({ title: t("error"), description: t("failed_update_dietary_preference"), variant: "destructive" });
     }
   };
 
@@ -379,13 +381,13 @@ const Profile = () => {
       if (error) throw error;
 
       toast({
-        title: "Profile updated",
-        description: "Your personal information has been saved.",
+        title: t("profile_updated"),
+        description: t("profile_updated_description"),
       });
     } catch (err) {
       toast({
-        title: "Error saving profile",
-        description: "Please try again.",
+        title: t("error_saving_profile"),
+        description: t("please_try_again"),
         variant: "destructive",
       });
     } finally {
@@ -396,8 +398,8 @@ const Profile = () => {
   const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Passwords don't match",
-        description: "Please make sure your new passwords match.",
+        title: t("passwords_dont_match"),
+        description: t("passwords_match_warning"),
         variant: "destructive",
       });
       return;
@@ -405,8 +407,8 @@ const Profile = () => {
 
     if (newPassword.length < 6) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters.",
+        title: t("password_too_short"),
+        description: t("password_must_be_at_least_6_characters"),
         variant: "destructive",
       });
       return;
@@ -424,13 +426,13 @@ const Profile = () => {
       setConfirmPassword("");
 
       toast({
-        title: "Password updated",
-        description: "Your password has been changed successfully.",
+        title: t("password_updated"),
+        description: t("password_changed_success"),
       });
     } catch (err) {
       toast({
-        title: "Error updating password",
-        description: "Please try again.",
+        title: t("error_updating_password"),
+        description: t("please_try_again"),
         variant: "destructive",
       });
     } finally {
@@ -445,8 +447,8 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     toast({
-      title: "Contact support",
-      description: "Please contact support to delete your account.",
+      title: t("contact_support"),
+      description: t("contact_support_delete_account"),
     });
   };
 
@@ -468,7 +470,7 @@ const Profile = () => {
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-          <p className="text-muted-foreground animate-pulse">Loading profile...</p>
+           <p className="text-muted-foreground animate-pulse">{t("loading_profile")}</p>
         </motion.div>
       </div>
     );
@@ -554,16 +556,16 @@ const Profile = () => {
                   transition={{ delay: 0.3 }}
                   className="flex items-center justify-center sm:justify-start gap-4 mt-4"
                 >
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                    <Crown className="w-4 h-4" />
-                    <span>Free Plan</span>
-                  </div>
-                  {profile?.created_at && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-sm">
-                      <Calendar className="w-4 h-4" />
-                      <span>Joined {formatDate(profile.created_at)}</span>
-                    </div>
-                  )}
+                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                     <Crown className="w-4 h-4" />
+                     <span>{t("free_plan")}</span>
+                   </div>
+                   {profile?.created_at && (
+                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-sm">
+                       <Calendar className="w-4 h-4" />
+                       <span>{t("joined")} {formatDate(profile.created_at)}</span>
+                     </div>
+                   )}
                 </motion.div>
               </div>
             </div>
@@ -674,10 +676,10 @@ const Profile = () => {
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                           <User className="w-5 h-5 text-primary" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">{t("personal_info")}</p>
-                          <p className="text-sm text-muted-foreground">Name, gender, age and email address</p>
-                        </div>
+                       <div className="flex-1 min-w-0">
+                           <p className="font-semibold text-foreground">{t("personal_info")}</p>
+                           <p className="text-sm text-muted-foreground">{t("personal_info_desc")}</p>
+                         </div>
                         <motion.div animate={{ rotate: openSection === "personal" ? 90 : 0 }} transition={{ duration: 0.2 }}>
                           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                         </motion.div>
@@ -694,8 +696,8 @@ const Profile = () => {
                           >
                             <div className="px-5 pb-5 pt-1 space-y-5 border-t border-border/50">
                               {/* Full Name */}
-                              <div className="space-y-2">
-                                <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
+                               <div className="space-y-2">
+                                 <Label htmlFor="fullName" className="text-sm font-medium">{t("full_name_label")}</Label>
                                 <div className="relative">
                                   <Input
                                     id="fullName"
@@ -707,35 +709,35 @@ const Profile = () => {
                                   <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                                 </div>
                               </div>
-                              {/* Gender */}
-                              <div className="space-y-3">
-                                <Label className="text-sm font-medium">Gender</Label>
+                               {/* Gender */}
+                               <div className="space-y-3">
+                                  <Label className="text-sm font-medium">{t("gender" as any)}</Label>
                                 <div className="grid grid-cols-2 gap-3">
-                                  {(["male", "female"] as Gender[]).map((g) => (
-                                    <GenderCard key={g} gender={g} selected={gender === g} onClick={() => setGender(g)} />
-                                  ))}
-                                </div>
+                                   {(["male", "female"] as Gender[]).map((g) => (
+                                     <GenderCard key={g} gender={g} selected={gender === g} onClick={() => setGender(g)} t={t} />
+                                   ))}
+                                 </div>
                               </div>
-                              {/* Age */}
-                              <div className="space-y-2">
-                                <Label htmlFor="age" className="text-sm font-medium">Age</Label>
-                                <div className="relative">
-                                  <Input
-                                    id="age"
-                                    type="number"
-                                    value={age}
-                                    onChange={(e) => setAge(e.target.value)}
-                                    placeholder="25"
-                                    min={13}
-                                    max={120}
-                                    className="h-12 rounded-xl"
-                                  />
-                                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">years</span>
-                                </div>
-                              </div>
+                               {/* Age */}
+                               <div className="space-y-2">
+                                 <Label htmlFor="age" className="text-sm font-medium">{t("age_label")}</Label>
+                                 <div className="relative">
+                                   <Input
+                                     id="age"
+                                     type="number"
+                                     value={age}
+                                     onChange={(e) => setAge(e.target.value)}
+                                      placeholder={t("age_default_placeholder")}
+                                     min={13}
+                                     max={120}
+                                     className="h-12 rounded-xl"
+                                   />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{t("years_label")}</span>
+                                 </div>
+                               </div>
                               {/* Email */}
                               <div className="space-y-2">
-                                <Label className="text-sm font-medium">Email Address</Label>
+                                 <Label className="text-sm font-medium">{t("email_address")}</Label>
                                 <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl">
                                   <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
                                   <p className="font-medium text-sm">{user?.email}</p>
@@ -768,7 +770,7 @@ const Profile = () => {
                           <MapPin className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">Delivery Addresses</p>
+                           <p className="font-semibold text-foreground">{t("delivery_addresses")}</p>
                           <p className="text-sm text-muted-foreground">{t("manage_addresses")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "addresses" ? 90 : 0 }} transition={{ duration: 0.2 }}>
@@ -792,7 +794,7 @@ const Profile = () => {
                                 onClick={() => navigate("/addresses")}
                               >
                                 <MapPin className="w-5 h-5 text-muted-foreground" />
-                                <span>Manage Addresses</span>
+                                 <span>{t("manage_addresses_action")}</span>
                                 <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
                               </Button>
                             </div>
@@ -814,8 +816,8 @@ const Profile = () => {
                           <Utensils className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">Dietary & Allergies</p>
-                          <p className="text-sm text-muted-foreground">Manage dietary preferences and intolerances</p>
+                           <p className="font-semibold text-foreground">{t("dietary_and_allergies")}</p>
+                           <p className="text-sm text-muted-foreground">{t("manage_dietary_preferences")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "dietary" ? 90 : 0 }} transition={{ duration: 0.2 }}>
                           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -834,11 +836,11 @@ const Profile = () => {
                             <div className="px-5 pb-5 pt-3 space-y-4 border-t border-border/50">
                               {/* Diet tags */}
                               <div>
-                                <p className="text-sm font-medium mb-2">Dietary Preferences</p>
+                                 <p className="text-sm font-medium mb-2">{t("dietary_preferences")}</p>
                                 {(dietaryLoading || dietTagsLoading) ? (
                                   <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                                 ) : dietTags.length === 0 ? (
-                                  <p className="text-sm text-muted-foreground">No dietary tags available</p>
+                                   <p className="text-sm text-muted-foreground">{t("no_dietary_tags_available")}</p>
                                 ) : (
                                   <div className="flex flex-wrap gap-2">
                                     {dietTags.map(tag => {
@@ -863,7 +865,7 @@ const Profile = () => {
                               {/* Allergy tags */}
                               {!dietTagsLoading && allergyTags.length > 0 && (
                                 <div>
-                                  <p className="text-sm font-medium mb-2">Allergies & Intolerances</p>
+                                   <p className="text-sm font-medium mb-2">{t("allergies_and_intolerances")}</p>
                                   <div className="flex flex-wrap gap-2">
                                     {allergyTags.map(tag => {
                                       const isSelected = userDietPreferences.includes(tag.id);
@@ -903,8 +905,8 @@ const Profile = () => {
                           <FileText className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">Policies</p>
-                          <p className="text-sm text-muted-foreground">Terms and conditions, privacy policy</p>
+                           <p className="font-semibold text-foreground">{t("policies")}</p>
+                           <p className="text-sm text-muted-foreground">{t("terms_and_conditions")}, {t("privacy_policy_label")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "policies" ? 90 : 0 }} transition={{ duration: 0.2 }}>
                           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -927,7 +929,7 @@ const Profile = () => {
                                 onClick={() => navigate("/terms")}
                               >
                                 <FileText className="w-5 h-5 text-muted-foreground" />
-                                <span>Terms and Conditions</span>
+                                 <span>{t("terms_and_conditions")}</span>
                                 <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
                               </Button>
                               <Button
@@ -936,7 +938,7 @@ const Profile = () => {
                                 onClick={() => navigate("/privacy")}
                               >
                                 <ShieldAlert className="w-5 h-5 text-muted-foreground" />
-                                <span>Privacy Policy</span>
+                                 <span>{t("privacy_policy_label")}</span>
                                 <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
                               </Button>
                             </div>
@@ -958,8 +960,8 @@ const Profile = () => {
                           <HelpCircle className="w-5 h-5 text-sky-500" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">Support</p>
-                          <p className="text-sm text-muted-foreground">Get help, report issues, contact us</p>
+                           <p className="font-semibold text-foreground">{t("support")}</p>
+                           <p className="text-sm text-muted-foreground">{t("get_help_report_issues")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "support" ? 90 : 0 }} transition={{ duration: 0.2 }}>
                           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -984,7 +986,7 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <MessageCircle className="w-5 h-5 text-green-500 shrink-0" />
-                                <span className="flex-1 text-left">Chat on WhatsApp</span>
+                                 <span className="flex-1 text-left">{t("chat_on_whatsapp")}</span>
                                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
                               </a>
 
@@ -994,7 +996,7 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <Mail className="w-5 h-5 text-sky-500 shrink-0" />
-                                <span className="flex-1 text-left">Email Support</span>
+                                 <span className="flex-1 text-left">{t("email_support")}</span>
                                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
                               </a>
 
@@ -1004,8 +1006,8 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <Phone className="w-5 h-5 text-violet-500 shrink-0" />
-                                <span className="flex-1 text-left">Call Us</span>
-                                <span className="text-xs text-muted-foreground">+974 1234 5678</span>
+                                 <span className="flex-1 text-left">{t("call_us")}</span>
+                                 <span className="text-xs text-muted-foreground">{t("phone_number")}</span>
                               </a>
 
                               {/* Submit a Ticket */}
@@ -1014,7 +1016,7 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <Ticket className="w-5 h-5 text-amber-500 shrink-0" />
-                                <span className="flex-1 text-left">Submit a Ticket</span>
+                                 <span className="flex-1 text-left">{t("submit_a_ticket")}</span>
                                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
                               </button>
 
@@ -1024,14 +1026,14 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <BookOpen className="w-5 h-5 text-primary shrink-0" />
-                                <span className="flex-1 text-left">View FAQ</span>
+                                 <span className="flex-1 text-left">{t("view_faq")}</span>
                                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
                               </button>
 
                               {/* App version note */}
-                              <p className="text-xs text-center text-muted-foreground pt-2">
-                                Nutrio Fuel · Support hours: 8 AM – 10 PM (Qatar)
-                              </p>
+                               <p className="text-xs text-center text-muted-foreground pt-2">
+                                 {t("support_hours")}
+                               </p>
                             </div>
                           </motion.div>
                         )}
@@ -1054,8 +1056,8 @@ const Profile = () => {
                   <motion.div variants={itemVariants}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h2 className="text-xl font-bold">My Wallet</h2>
-                        <p className="text-muted-foreground text-sm">Top-up & manage balance</p>
+                         <h2 className="text-xl font-bold">{t("my_wallet")}</h2>
+                         <p className="text-muted-foreground text-sm">{t("top_up_manage_balance")}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
                         <Wallet className="h-6 w-6 text-green-600" />
@@ -1065,26 +1067,26 @@ const Profile = () => {
                     {paymentStatus === 'success' && (
                       <Alert className="mb-4 bg-green-50 border-green-200">
                         <CheckCircle className="h-4 w-4 text-green-600" />
-                        <AlertDescription className="text-green-700">
-                          Payment successful! Your wallet has been credited.
-                        </AlertDescription>
+                           <AlertDescription className="text-green-700">
+                             {t("payment_successful")}
+                           </AlertDescription>
                       </Alert>
                     )}
 
                     {paymentStatus === 'failed' && (
                       <Alert className="mb-4 bg-red-50 border-red-200" variant="destructive">
                         <XCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          Payment failed. Please try again.
-                        </AlertDescription>
+                         <AlertDescription>
+                           {t("payment_failed")}
+                         </AlertDescription>
                       </Alert>
                     )}
 
                     <Alert className="mb-4 bg-amber-50 border-amber-200">
                       <AlertCircle className="h-4 w-4 text-amber-600" />
-                      <AlertDescription className="text-amber-700">
-                        SIMULATION MODE: All payments are simulated. No real money will be charged.
-                      </AlertDescription>
+                         <AlertDescription className="text-amber-700">
+                           {t("simulation_mode")}
+                         </AlertDescription>
                     </Alert>
 
                     <div className="space-y-6">
@@ -1114,10 +1116,10 @@ const Profile = () => {
                   <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Confirm Top-up</DialogTitle>
-                        <DialogDescription>
-                          Review your top-up details before proceeding to payment.
-                        </DialogDescription>
+                         <DialogTitle>{t("confirm_top_up")}</DialogTitle>
+                         <DialogDescription>
+                           {t("review_top_up_details")}
+                         </DialogDescription>
                       </DialogHeader>
 
                       {selectedPackage && (
@@ -1126,21 +1128,21 @@ const Profile = () => {
                             <CardContent className="p-4">
                               <div className="space-y-2">
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Package</span>
+                                   <span className="text-muted-foreground">{t("package_label")}</span>
                                   <span className="font-medium">{selectedPackage.name}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Top-up Amount</span>
+                                   <span className="text-muted-foreground">{t("top_up_amount")}</span>
                                   <span>{formatCurrency(selectedPackage.amount)}</span>
                                 </div>
                                 {selectedPackage.bonus_amount > 0 && (
                                   <div className="flex justify-between text-purple-600">
-                                    <span>Bonus Credit</span>
+                                     <span>{t("bonus_credit")}</span>
                                     <span>+{formatCurrency(selectedPackage.bonus_amount)}</span>
                                   </div>
                                 )}
                                 <div className="border-t pt-2 flex justify-between font-semibold">
-                                  <span>Total Credit</span>
+                                   <span>{t("total_credit")}</span>
                                   <span className="text-green-600">{formatCurrency(totalAmount)}</span>
                                 </div>
                               </div>
@@ -1148,19 +1150,19 @@ const Profile = () => {
                           </Card>
 
                           <p className="text-sm text-muted-foreground text-center">
-                            You will be redirected to Sadad to complete the payment securely.
+                             {t("redirected_to_sadad")}
                           </p>
                         </div>
                       )}
 
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Pay {formatCurrency(selectedPackage?.amount ?? 0)}
-                        </Button>
+                           <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                             {t("cancel")}
+                           </Button>
+                           <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
+                             <CreditCard className="h-4 w-4 mr-2" />
+                             {t("pay_with_amount")} {formatCurrency(selectedPackage?.amount ?? 0)}
+                           </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -1200,12 +1202,12 @@ const Profile = () => {
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-lg">Affiliate Program</h3>
-                                <Badge className="bg-violet-500 text-white">Earn More</Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground mb-4">
-                                Become an affiliate and earn multi-tier commissions (up to 3 levels deep) from your referrals.
-                              </p>
+                                 <h3 className="font-semibold text-lg">{t("affiliate_program")}</h3>
+                                 <Badge className="bg-violet-500 text-white">{t("earn_more")}</Badge>
+                               </div>
+                               <p className="text-sm text-muted-foreground mb-4">
+                                 {t("become_affiliate")}
+                               </p>
                               <Link to={isApprovedAffiliate ? "/affiliate" : "/profile"}>
                                 <Button variant="outline" className="w-full border-violet-500/30 text-violet-600 hover:bg-violet-500/10">
                                   <TrendingUp className="h-4 w-4 mr-2" />
@@ -1229,8 +1231,8 @@ const Profile = () => {
                               <Flame className="h-5 w-5 text-amber-600" />
                             </div>
                             <div>
-                              <p className="font-medium">Daily Streaks</p>
-                              <p className="text-xs text-muted-foreground">Order daily to earn bonus credits</p>
+                               <p className="font-medium">{t("daily_streaks")}</p>
+                               <p className="text-xs text-muted-foreground">{t("order_daily_earn_bonuses")}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -1243,8 +1245,8 @@ const Profile = () => {
                               <Star className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
-                              <p className="font-medium">Wallet Bonuses</p>
-                              <p className="text-xs text-muted-foreground">Get bonus credits on top-ups</p>
+                               <p className="font-medium">{t("wallet_bonuses")}</p>
+                               <p className="text-xs text-muted-foreground">{t("get_bonus_credits")}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -1270,14 +1272,14 @@ const Profile = () => {
                           <Lock className="w-5 h-5 text-purple-500" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Change Password</CardTitle>
-                          <p className="text-sm text-muted-foreground">Update your account password</p>
+                           <CardTitle className="text-lg">{t("change_password")}</CardTitle>
+                           <p className="text-sm text-muted-foreground">{t("update_account_password")}</p>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">New Password</Label>
+                         <Label className="text-sm font-medium">{t("new_password_label")}</Label>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
@@ -1311,7 +1313,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Confirm Password</Label>
+                         <Label className="text-sm font-medium">{t("confirm_password")}</Label>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
@@ -1335,11 +1337,11 @@ const Profile = () => {
                           variant="outline"
                           className="w-full h-12 rounded-xl"
                         >
-                          {saving ? (
-                            <><Loader2 className="w-5 h-5 animate-spin mr-2" />Updating...</>
-                          ) : (
-                            <><Lock className="w-5 h-5 mr-2" />Update Password</>
-                          )}
+                           {saving ? (
+                             <><Loader2 className="w-5 h-5 animate-spin mr-2" />{t("updating")}</>
+                           ) : (
+                             <><Lock className="w-5 h-5 mr-2" />{t("update_password_btn")}</>
+                           )}
                         </Button>
                       </motion.div>
                     </CardContent>
@@ -1478,12 +1480,12 @@ const Profile = () => {
                           </AlertDialogHeader>
                           <AlertDialogFooter className="gap-2">
                             <AlertDialogCancel className="rounded-xl h-11">{t("cancel")}</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleDeleteAccount}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-11"
-                            >
-                              Delete Account
-                            </AlertDialogAction>
+                               <AlertDialogAction
+                                 onClick={handleDeleteAccount}
+                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl h-11"
+                               >
+                                 {t("delete_account")}
+                               </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
