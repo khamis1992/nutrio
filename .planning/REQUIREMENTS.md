@@ -13,10 +13,29 @@
 The LanguageContext.tsx file already contains most required English/Arabic translation keys. An analysis found that the following Profile page-specific keys need verification or addition for TRANS-01:
 
 **Existing keys that cover Profile page:**
-- `loading_profile`, `free_plan`, `joined`, `personal_info_desc`, `full_name_label`, `years_label`, `age_label`, `age_default_placeholder`, `email_address`, `manage_addresses_action`, `delivery_addresses`, `dietary_and_allergies`, `manage_dietary_preferences`, `dietary_preferences`, `no_dietary_tags_available`, `allergies_and_intolerances`, `terms_and_conditions`, `privacy_policy_label`, `get_help_report_issues`, `chat_on_whatsapp`, `email_support`, `call_us`, `submit_a_ticket`, `view_faq`, `support_hours`, `my_wallet`, `top_up_manage_balance`, `payment_successful`, `payment_failed`, `simulation_mode`, `confirm_top_up`, `review_top_up_details`, `package_label`, `top_up_amount`, `bonus_credit`, `total_credit`, `bonus`, `credit`, `debit`, `refund`, `cashback`, `redirected_to_sadad`, `daily_streaks`, `order_daily_earn_bonuses`, `wallet_bonuses`, `get_bonus_credits`, `affiliate_program`, `earn_more`, `referrals`, `become_affiliate`, `change_password`, `update_account_password`, `new_password_label`, `updating`, `update_password_btn`, `phone_number`, `affiliateApproved`, `affiliateApprovedDescription`, `affiliatePending`, `affiliatePendingDescription`, `affiliateNotApproved`, `affiliateNotApprovedDescription`, `affiliateRejectionReason`, `affiliateJoinProgram`, `affiliateJoinDescription`, `affiliateEarnCommissions`, `affiliate3TierRewards`, `affiliateMonthlyPayouts`, `affiliateNotePlaceholder`, `submitApplication`, `applyNow`, `affiliateApplicationSubmitted`, `affiliateApplicationSubmittedDescription`, `affiliateApplicationFailed`, `notification_settings`, `order_updates`, `status_changes_orders`, `discounts_special_deals`, `choose_notifications`, `control_data_usage`, `manage_account_status`, `delete_account_warning`, `delete_account`, `account_actions`, `enter_full_name`, `enter_new_password`, `confirm_new_password`
+- `loading_profile`, `free_plan`, `joined`, `personal_info_desc`, `full_name_label`, `years_label`, `age_label`, `age_default_placeholder`, `email_address`, `manage_addresses_action`, `delivery_addresses`, `dietary_and_allergies`, `manage_dietary_preferences`, `dietary_preferences`, `no_dietary_tags_available`, `allergies_and_intolerances`, `terms_and_conditions`, `privacy_policy_label`, `get_help_report_issues`, `chat_on_whatsapp`, `email_support`, `call_us`, `submit_a_ticket`, `view_faq`, `support_hours`, `my_wallet`, `top_up_manage_balance`, `payment_successful`, `payment_failed`, `simulation_mode`, `confirm_top_up`, `review_top_up_details`, `package_label`, `top_up_amount`, `bonus_credit`, `total_credit`, `bonus`, `credit`, `debit`, `refund`, `cashback`, `redirected_to_sadad`, `daily_streaks`, `order_daily_earn_bonuses`, `wallet_bonuses`, `get_bonus_credits`, `affiliate_program`, `earn_more`, `referrals`, `become_affiliate`, `change_password`, `update_account_password`, `new_password_label`, `updating`, `update_password_btn`, `phone_number`
+- Common keys: `error`, `success`, `warning`, `info`, `save`, `cancel`, `close`, `edit`, `delete`, `confirm`, `loading`, `saving`, `search`, `filter`, `all`, `yes`, `no`, `back`, `next`, `done`, `submit`, `update`, `add`, `remove`, `view`, `share`, `download`, `upload`, `select`, `change`, `apply`, `reset`, `clear`, `ok`, `retry`, `reload`
+
+**Profile page-specific keys added in Phase 1 (TRANS-01):**
+- `removed` / `تم الإزالة`
+- `added` / `تم الإضافة`
+- `profile_updated` / `تم تحديث الملف الشخصي`
+- `profile_updated_description` / `تم حفظ معلوماتك الشخصية.`
+- `password_too_short` / `كلمة المرور قصيرة جداً`
+- `password_updated` / `تم تحديث كلمة المرور`
+- `contact_support` / `التواصل مع الدعم`
+- `please_try_again` / `يرجى المحاولة مرة أخرى.`
+- `error_updating_password` / `خطأ في تحديث كلمة المرور`
+- `failed_load_dietary_preferences` / `فشل تحميل التفضيلات الغذائية`
+- `failed_update_dietary_preference` / `فشل تحديث التفضيل الغذائي`
+- `dietary_preference_removed` / `تمت إزالة التفضيل الغذائي`
+- `dietary_preference_added` / `تمت إضافة التفضيل الغذائي`, `affiliateApproved`, `affiliateApprovedDescription`, `affiliatePending`, `affiliatePendingDescription`, `affiliateNotApproved`, `affiliateNotApprovedDescription`, `affiliateRejectionReason`, `affiliateJoinProgram`, `affiliateJoinDescription`, `affiliateEarnCommissions`, `affiliate3TierRewards`, `affiliateMonthlyPayouts`, `affiliateNotePlaceholder`, `submitApplication`, `applyNow`, `affiliateApplicationSubmitted`, `affiliateApplicationSubmittedDescription`, `affiliateApplicationFailed`, `notification_settings`, `order_updates`, `status_changes_orders`, `discounts_special_deals`, `choose_notifications`, `control_data_usage`, `manage_account_status`, `delete_account_warning`, `delete_account`, `account_actions`, `enter_full_name`, `enter_new_password`, `confirm_new_password`
 
 **Keys identified for TRANS-01 verification:**
 - `password_updated`, `passwords_dont_match`, `password_min_length`, `profile_updated`, `personal_info_saved`, `error_saving_profile`, `removed`, `added`, `failed_update_dietary_preference`, `passwords_match_warning`, `password_changed_success`, `error_updating_password`, `contact_support`, `successful`, `please_try_again`, `password_too_short`, `password_must_be_at_least_6_characters`, `password_updated_description`, `updated_successfully`, `added_successfully`, `removed_successfully`, `failed_load_dietary_preferences`, `contact_support_delete_account`
+
+**Phase 1计划:**
+- `01-01-PLAN.md` created to add missing translation keys for Profile page error/success messages
 
 ---
 

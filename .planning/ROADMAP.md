@@ -47,7 +47,8 @@ Phase 1: Profile page Arabic translation implementation and validation.
 3. Translation keys are properly organized under the "Profile page extensions" section of LanguageContext.tsx
 4. No duplicate translation keys exist for Profile page specific messages
 
-**Plans**: TBD
+**Plans:**
+- [x] 01-01-PLAN.md — Add missing translation keys for Profile page error/success messages
 
 ---
 
@@ -130,7 +131,7 @@ Phase 1: Profile page Arabic translation implementation and validation.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1 - Translation Keys | 0/0 | Not started | - |
+| 1 - Translation Keys | 1/1 | Planned | - |
 | 2 - Profile Implementation | 0/0 | Not started | - |
 | 3 - RTL Verification | 0/0 | Not started | - |
 | 4 - Language Switching | 0/0 | Not started | - |
