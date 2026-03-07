@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -98,17 +99,11 @@ interface ScheduledMealDetail {
   } | null;
 }
 
-const statusSteps: { key: OrderStatus; label: string; icon: React.ElementType }[] = [
-  { key: 'pending', label: 'Order Placed', icon: Package },
-  { key: 'confirmed', label: 'Order Confirmed', icon: CheckCircle2 },
-  { key: 'preparing', label: 'Preparing', icon: ChefHat },
-  { key: 'ready', label: 'Ready', icon: Box },
-  { key: 'out_for_delivery', label: 'Out for Delivery', icon: Truck },
-  { key: 'delivered', label: 'Delivered', icon: CheckCheck },
-];
+
+const statusOrder: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
 
 const getStatusIndex = (status: OrderStatus) => {
-  const index = statusSteps.findIndex(s => s.key === status);
+  const index = statusOrder.indexOf(status);
   return index === -1 ? 0 : index;
 };
 
@@ -140,7 +135,7 @@ const getEstimatedArrival = (status: OrderStatus, scheduledDate: string) => {
       break;
     case 'delivered':
     case 'completed':
-      return "Delivered";
+      return "__delivered__";
     default:
       estimatedTime = new Date(now.getTime() + 45 * 60000);
   }
@@ -152,7 +147,18 @@ const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
+  const { t } = useLanguage();
+
+  const statusSteps: { key: OrderStatus; label: string; icon: React.ElementType }[] = [
+    { key: 'pending', label: t("order_status_placed"), icon: Package },
+    { key: 'confirmed', label: t("order_status_confirmed"), icon: CheckCircle2 },
+    { key: 'preparing', label: t("order_status_preparing"), icon: ChefHat },
+    { key: 'ready', label: t("order_status_ready"), icon: Box },
+    { key: 'out_for_delivery', label: t("order_status_on_the_way"), icon: Truck },
+    { key: 'delivered', label: t("order_status_delivered"), icon: CheckCheck },
+  ];
+
+  const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [driverPhone, setDriverPhone] = useState<string | null>(null);
@@ -185,13 +191,13 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
           // Show toast notification when status changes
           if (newStatus !== oldStatus) {
             const statusMessages: Record<string, string> = {
-              confirmed: 'Your order has been confirmed!',
-              preparing: 'Your meal is being prepared',
-              ready: 'Your meal is ready for pickup',
-              out_for_delivery: 'Your driver is on the way!',
-              delivered: 'Your meal has been delivered!',
-              completed: 'Order completed. Enjoy your meal!',
-              cancelled: 'Your order has been cancelled',
+              confirmed: t("order_toast_confirmed"),
+              preparing: t("order_toast_preparing_msg"),
+              ready: t("order_toast_ready_msg"),
+              out_for_delivery: t("order_toast_on_way"),
+              delivered: t("order_toast_delivered_msg"),
+              completed: t("order_toast_completed_msg"),
+              cancelled: t("order_cancelled_desc"),
             };
             
             if (statusMessages[newStatus]) {
@@ -361,7 +367,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
 
   const handleCancelOrder = async () => {
     if (!order || !id) return;
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    if (!confirm(t("order_cancel_confirm"))) return;
     setUpdating(true);
     try {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
@@ -374,8 +380,8 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
         if (errorMessage.includes('preparing')) {
           setUpdating(false);
           toast({
-            title: "Cannot Cancel Order",
-            description: "Your order is already being prepared. Please contact the restaurant for assistance.",
+            title: t("order_cannot_cancel"),
+            description: t("order_preparing_cancel_desc"),
             variant: "destructive",
           });
           return;
@@ -383,18 +389,18 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
         throw error;
       }
       
-      if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+      if (!data?.success) throw new Error(t("order_cancel_fail"));
       setOrder(prev => prev ? { ...prev, order_status: "cancelled" } : null);
     } catch (err: any) {
       const errorMessage = err.message || "";
       if (errorMessage.includes('preparing')) {
         toast({
-          title: "Cannot Cancel Order",
-          description: "Your order is already being prepared. Please contact the restaurant for assistance.",
+          title: t("order_cannot_cancel"),
+          description: t("order_preparing_cancel_desc"),
           variant: "destructive",
         });
       } else {
-        alert(err.message || "Failed to cancel order");
+        alert(err.message || t("order_cancel_fail"));
       }
     } finally {
       setUpdating(false);
@@ -436,7 +442,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
           </Button>
           <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm font-medium">Real-time order tracking</span>
+            <span className="text-sm font-medium">{t("order_realtime_tracking")}</span>
           </div>
           <div className="w-10" />
         </div>
@@ -447,7 +453,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
         {order.meal?.restaurant && (
           <div className="text-center py-4">
             <h1 className="text-2xl font-bold text-gray-900">{order.meal.restaurant.name}</h1>
-            <p className="text-sm text-gray-500 mt-1">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+            <p className="text-sm text-gray-500 mt-1">{t("order_number_prefix")}{order.id.slice(0, 8).toUpperCase()}</p>
           </div>
         )}
 
@@ -460,8 +466,8 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                   <Clock className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium opacity-90">Arriving soon</p>
-                  <p className="text-xl font-bold">{estimatedArrival}</p>
+                  <p className="text-sm font-medium opacity-90">{t("order_arriving_soon")}</p>
+                  <p className="text-xl font-bold">{estimatedArrival === "__delivered__" ? t("order_status_delivered") : estimatedArrival}</p>
                 </div>
               </div>
             </CardContent>
@@ -513,12 +519,12 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                         </p>
                         {isCurrent && (
                           <p className="text-sm text-gray-500 mt-0.5">
-                            {index === 0 && "Waiting for restaurant confirmation"}
-                            {index === 1 && "Restaurant accepted your order"}
-                            {index === 2 && "Chef is preparing your meal"}
-                            {index === 3 && "Ready for pickup or delivery"}
-                            {index === 4 && "Driver is on the way"}
-                            {index === 5 && "Enjoy your meal!"}
+                            {index === 0 && t("order_step_waiting")}
+                            {index === 1 && t("order_step_accepted")}
+                            {index === 2 && t("order_step_preparing_desc")}
+                            {index === 3 && t("order_step_ready_desc")}
+                            {index === 4 && t("order_step_on_way")}
+                            {index === 5 && t("order_step_enjoy")}
                           </p>
                         )}
                       </div>
@@ -539,9 +545,9 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                   <XCircle className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-red-600">Order Cancelled</p>
+                  <p className="font-semibold text-red-600">{t("order_cancelled_title")}</p>
                   <p className="text-sm text-red-600/70">
-                    This order has been cancelled and will not be processed.
+                    {t("order_cancelled_message")}
                   </p>
                 </div>
               </div>
@@ -589,17 +595,17 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                 <div className="text-center p-3 rounded-xl bg-red-50">
                   <Beef className="h-5 w-5 mx-auto mb-1 text-red-500" />
                   <p className="text-lg font-bold text-gray-900">{order.meal.protein_g}g</p>
-                  <p className="text-xs text-gray-500">Protein</p>
+                  <p className="text-xs text-gray-500">{t("protein")}</p>
                 </div>
                 <div className="text-center p-3 rounded-xl bg-amber-50">
                   <Wheat className="h-5 w-5 mx-auto mb-1 text-amber-500" />
                   <p className="text-lg font-bold text-gray-900">{order.meal.carbs_g}g</p>
-                  <p className="text-xs text-gray-500">Carbs</p>
+                  <p className="text-xs text-gray-500">{t("carbs")}</p>
                 </div>
                 <div className="text-center p-3 rounded-xl bg-blue-50">
                   <Droplets className="h-5 w-5 mx-auto mb-1 text-blue-500" />
                   <p className="text-lg font-bold text-gray-900">{order.meal.fat_g}g</p>
-                  <p className="text-xs text-gray-500">Fat</p>
+                  <p className="text-xs text-gray-500">{t("fat")}</p>
                 </div>
               </div>
             </CardContent>
@@ -640,7 +646,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                     className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 font-medium transition-colors border border-blue-200"
                   >
                     <Phone className="h-5 w-5" />
-                    Call Driver{driverName ? ` · ${driverName}` : ""}
+                    {t("order_call_driver")}{driverName ? ` · ${driverName}` : ""}
                   </a>
                 ) : (
                   <button
@@ -648,7 +654,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                     className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 rounded-xl text-blue-400 font-medium border border-blue-200 opacity-60 cursor-not-allowed"
                   >
                     <Phone className="h-5 w-5" />
-                    Call Driver{driverName ? ` · ${driverName}` : ""}
+                    {t("order_call_driver")}{driverName ? ` · ${driverName}` : ""}
                   </button>
                 )
               ) : order.meal.restaurant.phone ? (
@@ -657,7 +663,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                   className="flex items-center justify-center gap-2 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition-colors"
                 >
                   <Phone className="h-5 w-5" />
-                  Contact Restaurant
+                  {t("order_contact_restaurant")}
                 </a>
               ) : null}
             </CardContent>
@@ -672,7 +678,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                 <Clock className="h-5 w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">Scheduled Delivery</p>
+                <p className="text-sm font-medium text-gray-900">{t("order_scheduled_delivery")}</p>
                 <p className="text-sm text-gray-500">
                   {format(new Date(order.scheduled_date), "EEEE, MMMM d, yyyy")}
                 </p>
@@ -683,9 +689,9 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                 <Truck className="h-5 w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">Delivery Type</p>
+                <p className="text-sm font-medium text-gray-900">{t("order_delivery_type_label")}</p>
                 <p className="text-sm text-gray-500 capitalize">
-                  {order.delivery_type === "free" ? "Free Delivery" : `${order.delivery_type || "Standard"} Delivery`}
+                  {order.delivery_type === "free" ? t("order_free_delivery") : `${order.delivery_type || "Standard"} ${t("order_delivery_suffix")}`}
                 </p>
               </div>
             </div>
@@ -694,7 +700,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
                 <CheckCircle2 className="h-5 w-5 text-green-500" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Order Total</p>
+                <p className="text-sm font-medium text-gray-900">{t("order_total_label")}</p>
                 <p className="text-lg font-bold text-gray-900">
                   {formatCurrency((order.addons_total || 0))}
                 </p>
@@ -716,7 +722,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
             ) : (
               <X className="h-4 w-4 mr-2" />
             )}
-            Cancel Order
+            {t("order_cancel_order")}
           </Button>
         )}
 
@@ -731,7 +737,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
             ) : (
               <CheckCheck className="h-4 w-4 mr-2" />
             )}
-            I Received My Order
+            {t("order_received")}
           </Button>
         )}
 
@@ -746,7 +752,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
             ) : (
               <CheckCircle2 className="h-4 w-4 mr-2" />
             )}
-            Mark as Completed
+            {t("order_mark_completed")}
           </Button>
         )}
 
@@ -756,7 +762,7 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
             variant="ghost" 
             className="w-full text-gray-500"
           >
-            View All Orders
+            {t("order_view_all")}
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </Link>
