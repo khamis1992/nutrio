@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { format, subDays, isSameDay, isToday, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { ArrowLeft, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Play, Footprints, AlertTriangle, Clock, Flame, MapPin } from "lucide-react";
@@ -26,6 +27,7 @@ function getStepsSessionKey(userId: string | undefined, dateStr: string) {
 export default function StepCounter() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [steps, setSteps] = useState(0);
   const [goalSteps, setGoalSteps] = useState<number>(() => {
@@ -78,7 +80,7 @@ export default function StepCounter() {
         .insert({
           user_id: user.id,
           session_date: todayStr,
-          workout_type: "Walking (steps)",
+          workout_type: t('workout_type_walking_steps') || "Walking (steps)",
           duration_minutes: mins,
           calories_burned: cal,
         })
@@ -86,7 +88,7 @@ export default function StepCounter() {
         .single();
       if (data?.id) localStorage.setItem(sessionKey, data.id);
     }
-  }, [user, todayStr]);
+  }, [user, todayStr, t]);
 
   const saveSteps = (value: number) => {
     const val = Math.max(0, value);
@@ -140,14 +142,14 @@ export default function StepCounter() {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-gray-100">
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
           <button
             onClick={() => navigate(-1)}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+            <ArrowLeft className="w-5 h-5 text-gray-700 rtl-flip-back" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Step Counter</h1>
+          <h1 className="text-lg font-bold text-gray-900">{t('steps_title')}</h1>
           <div className="w-10 h-10" />
         </div>
 
@@ -196,7 +198,7 @@ export default function StepCounter() {
         const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
         const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
         const calDays = eachDayOfInterval({ start: calStart, end: calEnd });
-        const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const DAY_HEADERS = [t('day_mon'), t('day_tue'), t('day_wed'), t('day_thu'), t('day_fri'), t('day_sat'), t('day_sun')];
         const R = 14; const CIRC = 2 * Math.PI * R;
 
         return (
@@ -278,7 +280,7 @@ export default function StepCounter() {
           <div className="flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
             <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
             <p className="text-sm font-medium">
-              You're {(goalSteps - steps).toLocaleString()} steps away from your daily goal!
+              {t('steps_keep_going', { count: (goalSteps - steps).toLocaleString() })}
             </p>
           </div>
         )}
@@ -310,13 +312,14 @@ export default function StepCounter() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-sm font-medium text-gray-500">Steps</span>
+              <span className="text-sm font-medium text-gray-500">{t('steps_today')}</span>
               <span className="text-4xl font-bold text-gray-900">{steps.toLocaleString()}</span>
               <span className="text-sm text-gray-500">/ {goalSteps.toLocaleString()}</span>
             </div>
             <button
               onClick={handleAddSteps}
               className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 w-14 h-14 rounded-full bg-orange-500 flex items-center justify-center shadow-lg hover:bg-orange-600 active:scale-95 transition-all text-white"
+              aria-label={t('steps_add')}
             >
               <Play className="w-6 h-6 fill-white ml-0.5" />
             </button>
@@ -325,7 +328,7 @@ export default function StepCounter() {
           {/* Goal selector */}
           <div className="mt-10 w-full">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 text-center">
-              Daily Goal
+              {t('steps_goal')}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               {GOAL_OPTIONS.map((option) => (
@@ -352,9 +355,9 @@ export default function StepCounter() {
                 <Flame className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-xs text-orange-400 font-medium">Calories burned today</p>
+                <p className="text-xs text-orange-400 font-medium">{t('steps_calories')}</p>
                 <p className="text-lg font-black text-orange-600">
-                  {burnedCal} <span className="text-xs font-semibold">cal</span>
+                  {burnedCal} <span className="text-xs font-semibold">{t('steps_cal_unit')}</span>
                 </p>
               </div>
             </div>
@@ -364,7 +367,7 @@ export default function StepCounter() {
         {/* History */}
         <div className="mt-10">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-900">History</h2>
+            <h2 className="font-bold text-gray-900">{t('steps_history')}</h2>
           </div>
           <p className="text-xs text-gray-500 mb-3">{weekLabel}</p>
           <div className="rounded-2xl bg-gray-50 overflow-hidden divide-y divide-gray-100">
@@ -400,7 +403,7 @@ export default function StepCounter() {
 
             {/* Totals row */}
             <div className="px-4 pt-3 pb-1 bg-gray-100">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</span>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('steps_total')}</span>
             </div>
             <div className="flex items-center pb-3 px-4 bg-gray-100 gap-2">
               <span className="text-xs font-semibold text-gray-400 w-8 shrink-0" />

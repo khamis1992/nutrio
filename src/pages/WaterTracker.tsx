@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useWaterEntries } from "@/hooks/useWaterEntries";
 import { format, subDays, isSameDay, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isToday } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
@@ -117,6 +118,8 @@ function CalendarView({
   goalMl: number;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
+  const dayHeaders = [t('water_mon'), t('water_tue'), t('water_wed'), t('water_thu'), t('water_fri'), t('water_sat'), t('water_sun')];
   const weekStartsOn = 1; // Monday
   const monthStart = startOfMonth(calendarMonth);
   const monthEnd = endOfMonth(calendarMonth);
@@ -128,8 +131,6 @@ function CalendarView({
     days.push(d);
     d = addDays(d, 1);
   }
-
-  const dayHeaders = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
     <div className="space-y-4">
@@ -197,6 +198,7 @@ function CalendarView({
 export default function WaterTracker() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const {
     totalMl,
@@ -240,13 +242,13 @@ export default function WaterTracker() {
 
   const handleDrink = async (ml: number) => {
     if (!user) {
-      toast({ title: "Please sign in", description: "Sign in to log water intake", variant: "destructive" });
+      toast({ title: t('auth_sign_in_required'), description: t('water_sign_in_to_log'), variant: "destructive" });
       return;
     }
     setAdding(true);
     try {
       await addEntry(selectedDateStr, ml);
-      toast({ title: "Logged", description: `${ml} mL added` });
+      toast({ title: t('water_logged'), description: `${ml} ${t('water_ml_added')}` });
       if (calendarOpen) {
         const y = calendarMonth.getFullYear();
         const m = calendarMonth.getMonth() + 1;
@@ -258,11 +260,11 @@ export default function WaterTracker() {
           ? (err as { message: string }).message
           : err instanceof Error
             ? err.message
-            : "Failed to add";
+            : t('water_failed_to_add');
       const isTableMissing = typeof msg === "string" && (msg.includes("relation") || msg.includes("does not exist"));
       toast({
-        title: "Failed to add",
-        description: isTableMissing ? "Water tracking may not be set up. Run: npx supabase db push" : msg,
+        title: t('water_failed_to_add'),
+        description: isTableMissing ? t('water_table_missing') : msg,
         variant: "destructive",
       });
     } finally {
@@ -295,7 +297,7 @@ export default function WaterTracker() {
     setGoalMl(ml);
     setGoalDialogOpen(false);
     setGoalInput("");
-    toast({ title: "Goal updated", description: `Daily goal: ${ml.toLocaleString()} mL` });
+    toast({ title: t('water_goal_updated'), description: `${t('water_daily_goal')}: ${ml.toLocaleString()} ${t('water_ml')}` });
   };
 
   const fillHeight = Math.min(100, percentage);
@@ -306,14 +308,14 @@ export default function WaterTracker() {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-gray-100">
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
           <button
             onClick={() => navigate(-1)}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+            <ArrowLeft className="w-5 h-5 text-gray-700 rtl-flip-back" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Water Tracker</h1>
+          <h1 className="text-lg font-bold text-gray-900">{t('water_title')}</h1>
           <div className="w-10 h-10" />
         </div>
 
@@ -404,9 +406,9 @@ export default function WaterTracker() {
             <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
           ) : (
             <>
-              <p className="text-3xl font-bold text-gray-900">{totalMl.toLocaleString()} mL</p>
+              <p className="text-3xl font-bold text-gray-900">{totalMl.toLocaleString()} {t('water_ml')}</p>
               <div className="flex items-center gap-3 mt-2">
-                <p className="text-sm text-gray-500">Daily goal: {goalMl.toLocaleString()} mL</p>
+                <p className="text-sm text-gray-500">{t('water_daily_goal')}: {goalMl.toLocaleString()} {t('water_ml')}</p>
                 <button
                   onClick={() => {
                     setGoalInput(String(goalMl));
@@ -436,7 +438,7 @@ export default function WaterTracker() {
             disabled={adding}
             className="flex-1 h-12 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white"
           >
-            {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : `Drink (${DEFAULT_DRINK_ML} mL)`}
+            {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : `${t('water_drink')} (${DEFAULT_DRINK_ML} ${t('water_ml')})`}
           </Button>
         </div>
       </div>
@@ -447,11 +449,11 @@ export default function WaterTracker() {
       <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Daily goal</DialogTitle>
+            <DialogTitle>{t('water_daily_goal')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <Label>Goal (mL)</Label>
+              <Label>{t('water_goal_ml')}</Label>
               <Input
                 type="number"
                 min="500"
@@ -464,7 +466,7 @@ export default function WaterTracker() {
               />
             </div>
             <Button onClick={handleSaveGoal} disabled={!goalInput} className="w-full h-12 rounded-xl">
-              Save
+              {t('water_save')}
             </Button>
           </div>
         </DialogContent>
@@ -474,7 +476,7 @@ export default function WaterTracker() {
       <Sheet open={addWaterSheetOpen} onOpenChange={setAddWaterSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-3xl pb-safe">
           <SheetHeader className="pb-6">
-            <SheetTitle className="text-center">Add water</SheetTitle>
+            <SheetTitle className="text-center">{t('water_add_water')}</SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-4 gap-4">
             {PRESET_ML.map((ml) => (
@@ -487,7 +489,7 @@ export default function WaterTracker() {
                 <div className="w-14 h-14 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                   <WaterCupIcon fillPercent={(ml / MAX_PRESET) * 100} />
                 </div>
-                <span className="text-sm font-medium text-gray-700">{ml} mL</span>
+                <span className="text-sm font-medium text-gray-700">{ml} {t('water_ml')}</span>
               </button>
             ))}
             <button
@@ -497,7 +499,7 @@ export default function WaterTracker() {
               <div className="w-14 h-14 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                 <Plus className="w-6 h-6 text-blue-500" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Add New</span>
+              <span className="text-sm font-medium text-gray-700">{t('water_add_new')}</span>
             </button>
           </div>
         </SheetContent>
@@ -507,11 +509,11 @@ export default function WaterTracker() {
       <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Add water</DialogTitle>
+            <DialogTitle>{t('water_add_water')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <Label>Amount (mL)</Label>
+              <Label>{t('water_amount_ml')}</Label>
               <Input
                 type="number"
                 min="50"
@@ -528,7 +530,7 @@ export default function WaterTracker() {
               disabled={!customMl || parseInt(customMl, 10) <= 0}
               className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
-              Add
+              {t('water_add')}
             </Button>
           </div>
         </DialogContent>

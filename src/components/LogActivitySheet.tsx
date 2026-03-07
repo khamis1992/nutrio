@@ -302,7 +302,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                 onClick={() => setView("list")}
                 className="flex items-center gap-1.5 text-white/80 text-sm mb-3 hover:text-white transition-colors"
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-4 h-4 rtl-flip-back" /> Back
               </button>
               <div className="flex items-center gap-3">
                 <span className="text-4xl">{selected.emoji}</span>

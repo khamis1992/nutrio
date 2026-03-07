@@ -116,8 +116,8 @@ const Favorites = () => {
     } catch (err) {
       console.error("Error fetching favorites:", err);
       toast({
-        title: "Error",
-        description: "Failed to load favorites",
+        title: t("error"),
+        description: t("failed_to_load_favorites"),
         variant: "destructive",
       });
     } finally {
@@ -134,8 +134,8 @@ const Favorites = () => {
     const success = await removeFromTopMeals(topMealId);
     if (success) {
       toast({
-        title: "Removed from Top Meals",
-        description: `${mealName} has been removed from your top meals.`,
+        title: t("removed_from_top_meals"),
+        description: `${mealName} ${t("removed")}.`,
       });
     }
   };
@@ -143,8 +143,8 @@ const Favorites = () => {
   const handleRefreshTopMeals = async () => {
     await fetchTopMeals();
     toast({
-      title: "Refreshed",
-      description: "Top meals list has been updated.",
+      title: t("refreshed_toast"),
+      description: t("top_meals_refreshed_desc"),
     });
   };
 
@@ -152,15 +152,15 @@ const Favorites = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-4 rtl:flex-row-reverse">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/dashboard")}
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 rtl-flip-back" />
           </Button>
-          <h1 className="text-lg font-semibold">My Favorites</h1>
+          <h1 className="text-lg font-semibold">{t("my_favorites")}</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -171,11 +171,11 @@ const Favorites = () => {
           <TabsList className="w-full mb-4">
             <TabsTrigger value="restaurants" className="flex-1">
               <Utensils className="w-4 h-4 mr-2" />
-              Restaurants ({restaurants.length})
+              {t("favorites_restaurants_tab")} ({restaurants.length})
             </TabsTrigger>
             <TabsTrigger value="meals" className="flex-1">
               <TrendingUp className="w-4 h-4 mr-2" />
-              Top Meals ({topMeals.length})
+              {t("favorites_meals_tab")} ({topMeals.length})
             </TabsTrigger>
           </TabsList>
 
@@ -190,12 +190,12 @@ const Favorites = () => {
                   <Card>
                     <CardContent className="p-8 text-center">
                       <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="font-semibold mb-2">No favorite restaurants yet</h3>
+                      <h3 className="font-semibold mb-2">{t("no_favorite_restaurants_title")}</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Start exploring and save your favorite restaurants!
+                        {t("no_favorite_restaurants_desc")}
                       </p>
                       <Button onClick={() => navigate("/meals")}>
-                        Browse Restaurants
+                        {t("browse_restaurants_btn")}
                       </Button>
                     </CardContent>
                   </Card>
@@ -233,8 +233,8 @@ const Favorites = () => {
                                 <Star className="w-4 h-4 fill-warning text-warning" />
                                 {restaurant.rating.toFixed(1)}
                               </span>
-                              <span>{restaurant.meal_count} meals</span>
-                              <span>{restaurant.total_orders} orders</span>
+                              <span>{restaurant.meal_count} {t("meals")}</span>
+                              <span>{restaurant.total_orders} {t("orders_label")}</span>
                             </div>
                           </div>
                           <Button
@@ -259,11 +259,11 @@ const Favorites = () => {
                     <div className="flex items-start gap-3">
                       <TrendingUp className="w-5 h-5 text-primary mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="font-medium text-sm">How Top Meals Work</h3>
+                        <h3 className="font-medium text-sm">{t("how_top_meals_work")}</h3>
                         <ul className="text-xs text-muted-foreground mt-1 space-y-1">
-                          <li>• Meals ordered in the last 3 days appear automatically</li>
-                          <li>• Meals ordered 5+ times are always shown</li>
-                          <li>• You can manually add or remove meals anytime</li>
+                          <li>• {t("top_meals_rule_1")}</li>
+                          <li>• {t("top_meals_rule_2")}</li>
+                          <li>• {t("top_meals_rule_3")}</li>
                         </ul>
                       </div>
                       <Button 
@@ -282,12 +282,12 @@ const Favorites = () => {
                   <Card>
                     <CardContent className="p-8 text-center">
                       <UtensilsCrossed className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="font-semibold mb-2">No top meals yet</h3>
+                      <h3 className="font-semibold mb-2">{t("no_top_meals_title")}</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Start ordering meals to see your favorites here!
+                        {t("no_top_meals_desc")}
                       </p>
                       <Button onClick={() => navigate("/meals")}>
-                        Browse Meals
+                        {t("browse_meals_btn")}
                       </Button>
                     </CardContent>
                   </Card>
@@ -320,15 +320,15 @@ const Favorites = () => {
                             <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                               <span className="flex items-center gap-1">
                                 <Flame className="w-3 h-3" />
-                                {meal.calories} cal
+                                {meal.calories} {t("cal")}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Beef className="w-3 h-3" />
-                                {meal.protein_g}g protein
+                                {meal.protein_g}g {t("protein")}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {meal.prep_time_minutes} min
+                                {meal.prep_time_minutes} {t("min_label")}
                               </span>
                             </div>
 
@@ -339,12 +339,12 @@ const Favorites = () => {
                                 className="text-xs"
                               >
                                 <TrendingUp className="w-3 h-3 mr-1" />
-                                {meal.order_count} orders
+                                {meal.order_count} {t("orders_label")}
                               </Badge>
                               {meal.last_ordered_at && (
                                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
-                                  Last: {formatDistanceToNow(new Date(meal.last_ordered_at), { addSuffix: true })}
+                                  {t("last_ordered")} {formatDistanceToNow(new Date(meal.last_ordered_at), { addSuffix: true })}
                                 </span>
                               )}
                             </div>

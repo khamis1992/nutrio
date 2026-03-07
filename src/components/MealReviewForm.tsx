@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { StarRating } from "@/components/StarRating";
-import { Camera, X, Loader2, Upload, Check } from "lucide-react";
+import { Camera, X, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { captureError } from "@/lib/sentry";
 
@@ -20,20 +20,21 @@ interface MealReviewFormProps {
 }
 
 const REVIEW_TAGS = [
-  "Delicious",
-  "Fresh",
-  "Good portion",
-  "Healthy",
-  "Quick delivery",
-  "Well packaged",
-  "Tasty",
-  "Nutritious",
-  "Great value",
-  "Perfect macros",
+  "tag_delicious",
+  "tag_fresh",
+  "tag_good_portion",
+  "tag_healthy",
+  "tag_quick_delivery",
+  "tag_well_packaged",
+  "tag_tasty",
+  "tag_nutritious",
+  "tag_great_value",
+  "tag_perfect_macros",
 ];
 
 export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: MealReviewFormProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState("");
   const [reviewText, setReviewText] = useState("");
@@ -42,7 +43,22 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
   const [photos, setPhotos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hoverRating, setHoverRating] = useState(0);
+
+  const getTagDisplayName = (tagKey: string): string => {
+    const displayMap: Record<string, string> = {
+      tag_delicious: t("tag_delicious"),
+      tag_fresh: t("tag_fresh"),
+      tag_good_portion: t("tag_good_portion"),
+      tag_healthy: t("tag_healthy"),
+      tag_quick_delivery: t("tag_quick_delivery"),
+      tag_well_packaged: t("tag_well_packaged"),
+      tag_tasty: t("tag_tasty"),
+      tag_nutritious: t("tag_nutritious"),
+      tag_great_value: t("tag_great_value"),
+      tag_perfect_macros: t("tag_perfect_macros"),
+    };
+    return displayMap[tagKey] || tagKey;
+  };
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -54,7 +70,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
     const files = e.target.files;
     if (!files || files.length === 0) return;
     if (!user) {
-      toast.error("Please sign in to upload photos");
+      toast.error(t("sign_in_to_upload_photos"));
       return;
     }
 
@@ -62,29 +78,25 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
 
     try {
       for (const file of Array.from(files)) {
-        // Validate file
         if (file.size > 5 * 1024 * 1024) {
-          toast.error(`${file.name} is too large. Max size is 5MB.`);
+          toast.error(t("file_too_large").replace("{fileName}", file.name));
           continue;
         }
 
         if (!file.type.startsWith("image/")) {
-          toast.error(`${file.name} is not an image.`);
+          toast.error(t("not_an_image").replace("{fileName}", file.name));
           continue;
         }
 
-        // Generate unique filename
         const fileExt = file.name.split(".").pop();
         const fileName = `${user.id}/${mealId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-        // Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage
           .from("review-photos")
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        // Get public URL
         const {
           data: { publicUrl },
         } = supabase.storage.from("review-photos").getPublicUrl(fileName);
@@ -92,9 +104,9 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
         setPhotos((prev) => [...prev, publicUrl]);
       }
 
-      toast.success("Photos uploaded successfully");
+      toast.success(t("photos_uploaded_success"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to upload photos";
+      const message = err instanceof Error ? err.message : t("failed_to_upload_photos");
       captureError(err instanceof Error ? err : new Error(message), {
         context: "MealReviewForm.handlePhotoUpload",
       });
@@ -110,12 +122,12 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
 
   const handleSubmit = async () => {
     if (!user) {
-      toast.error("Please sign in to submit a review");
+      toast.error(t("sign_in_to_submit_review"));
       return;
     }
 
     if (rating === 0) {
-      toast.error("Please select a rating");
+      toast.error(t("select_rating"));
       return;
     }
 
@@ -146,20 +158,20 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
       if (result.success) {
         toast.success(
           result.action === "updated"
-            ? "Review updated successfully!"
-            : "Review submitted successfully!",
+            ? t("review_updated_success")
+            : t("review_submitted_success"),
           {
             description: result.is_verified
-              ? "Thanks for your verified purchase review!"
-              : "Thanks for your feedback!",
+              ? t("thanks_verified_review")
+              : t("thanks_feedback"),
           }
         );
         onSubmitted?.();
       } else {
-        throw new Error(result.error || "Failed to submit review");
+        throw new Error(result.error || t("failed_to_submit_review"));
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to submit review";
+      const message = err instanceof Error ? err.message : t("failed_to_submit_review");
       captureError(err instanceof Error ? err : new Error(message), {
         context: "MealReviewForm.handleSubmit",
       });
@@ -169,34 +181,39 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
     }
   };
 
+  const getRatingLabel = (rating: number): string => {
+    const labels = [t("rating_poor"), t("rating_fair"), t("rating_good"), t("rating_very_good"), t("rating_excellent")];
+    return labels[rating - 1] || "";
+  };
+
   return (
     <Card className="w-full">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg">Review {mealName}</CardTitle>
+        <CardTitle className="text-lg">{t("review_title")} {mealName}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Rating */}
         <div className="space-y-2">
-          <Label>How would you rate this meal?</Label>
+          <Label>{t("review_rate_meal")}</Label>
           <div className="flex items-center gap-4">
             <StarRating
-              rating={hoverRating || rating}
+              rating={rating}
               size="lg"
               interactive
               onRate={setRating}
             />
             <span className="text-sm text-muted-foreground">
-              {rating > 0 ? ["Poor", "Fair", "Good", "Very Good", "Excellent"][rating - 1] : "Select a rating"}
+              {rating > 0 ? getRatingLabel(rating) : t("select_rating_label")}
             </span>
           </div>
         </div>
 
         {/* Title */}
         <div className="space-y-2">
-          <Label htmlFor="title">Title (optional)</Label>
+          <Label htmlFor="title">{t("review_title_optional")}</Label>
           <Input
             id="title"
-            placeholder="Summarize your experience"
+            placeholder={t("review_title_placeholder")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={200}
@@ -205,10 +222,10 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
 
         {/* Review Text */}
         <div className="space-y-2">
-          <Label htmlFor="review">Your review</Label>
+          <Label htmlFor="review">{t("review_your_review")}</Label>
           <Textarea
             id="review"
-            placeholder="What did you like or dislike? How was the taste, portion size, and freshness?"
+            placeholder={t("review_placeholder")}
             value={reviewText}
             onChange={(e) => setReviewText(e.target.value)}
             rows={4}
@@ -221,7 +238,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
 
         {/* Would Recommend */}
         <div className="space-y-2">
-          <Label>Would you recommend this meal?</Label>
+          <Label>{t("would_recommend")}</Label>
           <div className="flex gap-4">
             <Button
               type="button"
@@ -230,7 +247,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
               onClick={() => setWouldRecommend(true)}
             >
               <Check className="mr-2 h-4 w-4" />
-              Yes
+              {t("yes")}
             </Button>
             <Button
               type="button"
@@ -239,14 +256,14 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
               onClick={() => setWouldRecommend(false)}
             >
               <X className="mr-2 h-4 w-4" />
-              No
+              {t("no")}
             </Button>
           </div>
         </div>
 
         {/* Tags */}
         <div className="space-y-2">
-          <Label>Select tags that describe this meal</Label>
+          <Label>{t("review_tags_title")}</Label>
           <div className="flex flex-wrap gap-2">
             {REVIEW_TAGS.map((tag) => (
               <button
@@ -259,7 +276,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
               >
-                {tag}
+                {getTagDisplayName(tag)}
               </button>
             ))}
           </div>
@@ -267,13 +284,13 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
 
         {/* Photo Upload */}
         <div className="space-y-2">
-          <Label>Add photos (optional)</Label>
+          <Label>{t("add_photos_optional")}</Label>
           <div className="flex flex-wrap gap-2">
             {photos.map((photo, index) => (
               <div key={index} className="relative w-20 h-20">
                 <img
                   src={photo}
-                  alt={`Review photo ${index + 1}`}
+                  alt={t("review_photo_alt").replace("{index}", String(index + 1))}
                   className="w-full h-full object-cover rounded-lg"
                 />
                 <button
@@ -304,7 +321,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Upload up to 5 photos. Max 5MB each.
+            {t("photo_upload_hint")}
           </p>
         </div>
 
@@ -318,7 +335,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
               className="flex-1"
               disabled={isSubmitting}
             >
-              Cancel
+              {t("cancel")}
             </Button>
           )}
           <Button
@@ -329,10 +346,10 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
+                {t("submitting")}
               </>
             ) : (
-              "Submit Review"
+              t("review_submit")
             )}
           </Button>
         </div>

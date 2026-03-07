@@ -13,6 +13,7 @@ import {
   Legend,
 } from "recharts";
 import { TrendingUp, Info } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ChartPoint {
   date: string;
@@ -43,6 +44,7 @@ export const WeightPredictionChart = ({
   targetWeight,
   startWeight
 }: WeightPredictionChartProps) => {
+  const { t } = useLanguage();
   // Use rich chart data if provided, otherwise fall back to old predictions-only path
   const hasRichData = weightChartData && weightChartData.length > 0;
 
@@ -57,9 +59,9 @@ export const WeightPredictionChart = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
-            Weight Forecast
+            {t("weight_forecast")}
           </CardTitle>
-          <CardDescription>4-week AI prediction based on your progress</CardDescription>
+          <CardDescription>{t("four_week_ai_prediction")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[200px] flex flex-col items-center justify-center gap-4">
@@ -87,12 +89,10 @@ export const WeightPredictionChart = ({
             <div className="text-center space-y-1">
               <Info className="h-6 w-6 mx-auto text-muted-foreground/50" />
               <p className="text-sm font-semibold text-foreground">
-                {weightNotSet ? "Set your current weight" : "Log weight for 7+ days"}
+                {weightNotSet ? t("set_current_weight") : t("log_weight_days")}
               </p>
               <p className="text-xs text-muted-foreground max-w-xs">
-                {weightNotSet
-                  ? "Go to Profile → update your current & target weight to unlock AI predictions."
-                  : "Keep logging daily and your personalised forecast will appear here."}
+                {weightNotSet ? t("set_weight_profile_hint") : t("keep_logging_hint")}
               </p>
             </div>
 
@@ -101,7 +101,7 @@ export const WeightPredictionChart = ({
                 href="/profile"
                 className="text-xs font-bold text-primary bg-primary/10 hover:bg-primary/15 px-4 py-2 rounded-full transition-colors"
               >
-                Set Up Weight Goal →
+                {t("set_up_weight_goal")} →
               </a>
             )}
           </div>
@@ -144,10 +144,10 @@ export const WeightPredictionChart = ({
           <div>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Weight Forecast
+              {t("weight_forecast")}
             </CardTitle>
             <CardDescription>
-              {actualPoints.length} data point{actualPoints.length !== 1 ? "s" : ""} · 4-week projection
+              {actualPoints.length} {t("data_points")} · {t("four_week_projection")}
             </CardDescription>
           </div>
           {targetWeight > 0 && lastPredicted && (
@@ -155,7 +155,7 @@ export const WeightPredictionChart = ({
               <p className="text-2xl font-bold text-primary">
                 {lastPredicted > 0 ? `${lastPredicted.toFixed(1)} kg` : "—"}
               </p>
-              <p className="text-xs text-muted-foreground">in 4 weeks</p>
+              <p className="text-xs text-muted-foreground">{t("in_4_weeks")}</p>
             </div>
           )}
         </div>
@@ -164,15 +164,15 @@ export const WeightPredictionChart = ({
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-muted p-3 rounded-xl">
-            <p className="text-xs text-muted-foreground mb-1">Current</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("current_weight")}</p>
             <p className="text-lg font-bold">{latestActual > 0 ? `${latestActual.toFixed(1)}` : "—"} kg</p>
           </div>
           <div className="bg-primary/10 p-3 rounded-xl">
-            <p className="text-xs text-primary mb-1">Target</p>
+            <p className="text-xs text-primary mb-1">{t("target_weight")}</p>
             <p className="text-lg font-bold text-primary">{targetWeight > 0 ? `${targetWeight.toFixed(1)}` : "—"} kg</p>
           </div>
           <div className="bg-muted p-3 rounded-xl">
-            <p className="text-xs text-muted-foreground mb-1">Progress</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("progress")}</p>
             <p className="text-lg font-bold">{progressPercent}%</p>
           </div>
         </div>
@@ -216,7 +216,7 @@ export const WeightPredictionChart = ({
                 }}
                 formatter={(value: number, name: string) => [
                   `${Number(value).toFixed(1)} kg`,
-                  name === "actual" ? "Logged weight" : name === "predicted" ? "Forecast" : name,
+                  name === "actual" ? t("logged_weight") : name === "predicted" ? t("forecast") : name,
                 ]}
               />
 
@@ -256,7 +256,7 @@ export const WeightPredictionChart = ({
                   stroke="#22c55e"
                   strokeDasharray="6 3"
                   strokeOpacity={0.5}
-                  label={{ value: "Goal", fill: "#22c55e", fontSize: 11, position: "insideTopRight" }}
+                  label={{ value: t("goal"), fill: "#22c55e", fontSize: 11, position: "insideTopRight" }}
                 />
               )}
             </ComposedChart>
@@ -267,22 +267,22 @@ export const WeightPredictionChart = ({
         <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-0.5 bg-green-500 rounded-full inline-block" />
-            Logged weight
+            {t("logged_weight")}
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-0.5 border-t-2 border-dashed border-teal-500 inline-block" />
-            4-week forecast
+            {t("four_week_forecast")}
           </span>
           {targetWeight > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-0.5 border-t-2 border-dashed border-green-400 opacity-60 inline-block" />
-              Goal
+              {t("goal")}
             </span>
           )}
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Forecast based on your actual logged weight trend.
+          {t("forecast_based_on")}
         </p>
       </CardContent>
     </Card>

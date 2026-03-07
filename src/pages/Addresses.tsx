@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
@@ -94,8 +95,6 @@ const emptyForm: AddressFormData = {
   is_default: false
 };
 
-const labelOptions = ["Home", "Work", "Office", "Other"];
-
 // ── Map sub-components ────────────────────────────────────────────────────
 
 // Imperatively moves the map view whenever `position` changes
@@ -125,6 +124,7 @@ const Addresses = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -141,6 +141,8 @@ const Addresses = () => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null); // metres
   const watchIdRef = useRef<number | null>(null);
+  
+  const labelOptions = [t("label_home"), t("label_work"), t("label_office"), t("label_other")];
 
   // Forward-geocode with fallback chain using Nominatim
   const forwardGeocode = useCallback(async (queries: string[]) => {
@@ -273,21 +275,21 @@ const Addresses = () => {
         setGpsLoading(false);
         onDone?.();
         toast({
-          title: "Location denied",
-          description: "Please allow location access and try again.",
+          title: t("location_denied"),
+          description: t("location_denied_desc"),
           variant: "destructive",
         });
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  }, [reverseGeocode, stopWatch]);
+  }, [reverseGeocode, stopWatch, t]);
 
   // Clean up watch on unmount
   useEffect(() => () => stopWatch(), [stopWatch]);
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
-      toast({ title: "GPS not supported", description: "Your browser doesn't support location.", variant: "destructive" });
+      toast({ title: t("gps_not_supported"), description: t("gps_not_supported_desc"), variant: "destructive" });
       return;
     }
     detectLocation();
@@ -347,8 +349,8 @@ const Addresses = () => {
     } catch (error) {
       console.error("Error fetching addresses:", error);
       toast({
-        title: "Error",
-        description: "Failed to load addresses",
+        title: t("error"),
+        description: "Failed to load addresses", // TODO: Add key for this
         variant: "destructive"
       });
     } finally {
@@ -424,14 +426,14 @@ const Addresses = () => {
           .eq("id", editingAddress.id);
 
         if (error) throw error;
-        toast({ title: "Address updated" });
+        toast({ title: t("address_updated") });
       } else {
         const { error } = await supabase
           .from("user_addresses")
           .insert(addressData);
 
         if (error) throw error;
-        toast({ title: "Address added" });
+        toast({ title: t("address_added") });
       }
 
       setDialogOpen(false);
@@ -439,8 +441,8 @@ const Addresses = () => {
     } catch (error) {
       console.error("Error saving address:", error);
       toast({
-        title: "Error",
-        description: "Failed to save address",
+        title: t("error"),
+        description: t("error_saving_profile"), // Closest generic error
         variant: "destructive"
       });
     } finally {
@@ -464,15 +466,15 @@ const Addresses = () => {
 
       if (error) throw error;
       
-      toast({ title: "Address deleted" });
+      toast({ title: t("address_deleted") });
       setDeleteDialogOpen(false);
       setAddressToDelete(null);
       fetchAddresses();
     } catch (error) {
       console.error("Error deleting address:", error);
       toast({
-        title: "Error",
-        description: "Failed to delete address",
+        title: t("error"),
+        description: "Failed to delete address", // TODO: Add key
         variant: "destructive"
       });
     }
@@ -487,27 +489,26 @@ const Addresses = () => {
 
       if (error) throw error;
       
-      toast({ title: "Default address updated" });
+      toast({ title: t("default_address_updated") });
       fetchAddresses();
     } catch (error) {
       console.error("Error setting default:", error);
       toast({
-        title: "Error",
-        description: "Failed to update default address",
+        title: t("error"),
+        description: "Failed to update default address", // TODO: Add key
         variant: "destructive"
       });
     }
   };
 
   const getLabelIcon = (label: string) => {
-    switch (label.toLowerCase()) {
-      case "home":
-        return <Home className="h-4 w-4" />;
-      case "work":
-      case "office":
-        return <Briefcase className="h-4 w-4" />;
-      default:
-        return <MapPin className="h-4 w-4" />;
+    const lowerLabel = label.toLowerCase();
+    if (lowerLabel.includes("home") || lowerLabel.includes("المنزل")) {
+      return <Home className="h-4 w-4" />;
+    } else if (lowerLabel.includes("work") || lowerLabel.includes("العمل") || lowerLabel.includes("office") || lowerLabel.includes("المكتب")) {
+      return <Briefcase className="h-4 w-4" />;
+    } else {
+      return <MapPin className="h-4 w-4" />;
     }
   };
 
@@ -535,13 +536,13 @@ const Addresses = () => {
                 size="icon"
                 onClick={() => navigate(-1)}
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 rtl-flip-back" />
               </Button>
-              <h1 className="text-xl font-semibold">Delivery Addresses</h1>
+              <h1 className="text-xl font-semibold">{t("delivery_addresses_title")}</h1>
             </div>
             <Button size="sm" onClick={openAddDialog}>
               <Plus className="h-4 w-4 mr-1" />
-              Add
+              {t("add_btn")}
             </Button>
           </div>
         </div>
@@ -552,10 +553,10 @@ const Addresses = () => {
           <Card>
             <CardContent className="py-12 text-center">
               <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-muted-foreground mb-4">No addresses saved yet</p>
+              <p className="text-muted-foreground mb-4">{t("no_addresses_saved")}</p>
               <Button onClick={openAddDialog}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Your First Address
+                {t("add_first_address")}
               </Button>
             </CardContent>
           </Card>
@@ -571,7 +572,7 @@ const Addresses = () => {
                       {address.is_default && (
                         <Badge variant="secondary" className="text-xs">
                           <Star className="h-3 w-3 mr-1" />
-                          Default
+                          {t("default_badge")}
                         </Badge>
                       )}
                     </div>
@@ -605,7 +606,7 @@ const Addresses = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => setAsDefault(address)}
-                        title="Set as default"
+                        title={t("set_as_default")}
                       >
                         <Star className="h-4 w-4" />
                       </Button>
@@ -638,10 +639,10 @@ const Addresses = () => {
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingAddress ? "Edit Address" : "Add New Address"}
+              {editingAddress ? t("edit_address_title") : t("add_address_title")}
             </DialogTitle>
             <DialogDescription>
-              {editingAddress ? "Update your address details." : "Add a new delivery address to your account."}
+              {editingAddress ? t("edit_address_desc") : t("add_address_desc")}
             </DialogDescription>
           </DialogHeader>
           
@@ -649,7 +650,7 @@ const Addresses = () => {
             {/* ── Location Picker ── */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Pin Your Location</Label>
+                <Label className="text-sm font-semibold">{t("pin_location")}</Label>
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
@@ -659,14 +660,14 @@ const Addresses = () => {
                   {gpsLoading ? (
                     <>
                       <Navigation className="h-3.5 w-3.5 animate-spin" />
-                      {gpsAccuracy !== null ? `±${gpsAccuracy}m…` : "Locating…"}
+                      {gpsAccuracy !== null ? `±${gpsAccuracy}m…` : t("locating")}
                     </>
                   ) : (
-                    <><Locate className="h-3.5 w-3.5" />Use My Location</>
+                    <><Locate className="h-3.5 w-3.5" />{t("use_my_location")}</>
                   )}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">Tap the map or use GPS to pin your location — address fields fill automatically.</p>
+              <p className="text-xs text-muted-foreground">{t("tap_map_hint")} — address fields fill automatically.</p>
               <div className="relative rounded-2xl overflow-hidden border border-border/70 shadow-sm" style={{ height: 240 }}>
                 {/* GPS loading overlay */}
                 {gpsLoading && (
@@ -674,14 +675,14 @@ const Addresses = () => {
                     <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
                       <Navigation className="h-5 w-5 text-primary animate-pulse" />
                     </div>
-                    <p className="text-xs font-semibold text-foreground">Detecting your location…</p>
+                    <p className="text-xs font-semibold text-foreground">{t("detecting_location")}</p>
                   </div>
                 )}
                 {/* No-pin hint */}
                 {!pinPosition && !gpsLoading && (
                   <div className="absolute inset-0 z-[999] flex items-end justify-center pb-3 pointer-events-none">
                     <span className="text-xs bg-background/90 text-muted-foreground px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
-                      Tap the map to drop a pin
+                      {t("tap_map_hint")}
                     </span>
                   </div>
                 )}
@@ -735,10 +736,10 @@ const Addresses = () => {
                   <MapPin className="h-3 w-3 shrink-0" />
                   {pinPosition[0].toFixed(5)}, {pinPosition[1].toFixed(5)}
                   {gpsAccuracy !== null && !gpsLoading && (
-                    <span className="text-muted-foreground font-normal">· ±{gpsAccuracy}m accuracy</span>
+                    <span className="text-muted-foreground font-normal">· ±{gpsAccuracy}m {t("accuracy")}</span>
                   )}
                   {!gpsLoading && (
-                    <span className="text-muted-foreground font-normal">· drag or tap to adjust</span>
+                    <span className="text-muted-foreground font-normal">· {t("drag_map_hint")}</span>
                   )}
                 </p>
               )}
@@ -762,9 +763,9 @@ const Addresses = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Address Line 1 *</Label>
+              <Label>{t("address_line1_label")} *</Label>
               <Input
-                placeholder="Street address"
+                placeholder={t("street_address_placeholder")}
                 value={formData.address_line1}
                 onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
                 className={formErrors.address_line1 ? "border-destructive" : ""}
@@ -775,9 +776,9 @@ const Addresses = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Address Line 2</Label>
+              <Label>{t("address_line2_label")}</Label>
               <Input
-                placeholder="Apartment, suite, etc. (optional)"
+                placeholder={t("apartment_placeholder")}
                 value={formData.address_line2}
                 onChange={(e) => setFormData({ ...formData, address_line2: e.target.value })}
               />
@@ -785,9 +786,9 @@ const Addresses = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>City *</Label>
+                <Label>{t("city_label")} *</Label>
                 <Input
-                  placeholder="City"
+                  placeholder={t("city_placeholder")}
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className={formErrors.city ? "border-destructive" : ""}
@@ -797,9 +798,9 @@ const Addresses = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>State</Label>
+                <Label>{t("state_label")}</Label>
                 <Input
-                  placeholder="State"
+                  placeholder={t("state_placeholder")}
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                 />
@@ -808,9 +809,9 @@ const Addresses = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Postal Code *</Label>
+                <Label>{t("postal_code_label")} *</Label>
                 <Input
-                  placeholder="Zip code"
+                  placeholder={t("zip_code_placeholder")}
                   value={formData.postal_code}
                   onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
                   className={formErrors.postal_code ? "border-destructive" : ""}
@@ -820,9 +821,9 @@ const Addresses = () => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Country *</Label>
+                <Label>{t("country_label")} *</Label>
                 <Input
-                  placeholder="Country"
+                  placeholder={t("country_placeholder")}
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   className={formErrors.country ? "border-destructive" : ""}
@@ -831,18 +832,18 @@ const Addresses = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Phone Number</Label>
+              <Label>{t("phone_number_label")}</Label>
               <Input
-                placeholder="Contact phone (optional)"
+                placeholder={t("phone_placeholder")}
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Delivery Instructions</Label>
+              <Label>{t("delivery_instructions_label")}</Label>
               <Textarea
-                placeholder="Gate code, building instructions, etc."
+                placeholder={t("instructions_placeholder")}
                 value={formData.delivery_instructions}
                 onChange={(e) => setFormData({ ...formData, delivery_instructions: e.target.value })}
                 rows={2}
@@ -850,7 +851,7 @@ const Addresses = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="default">Set as default address</Label>
+              <Label htmlFor="default">{t("set_default_label")}</Label>
               <Switch
                 id="default"
                 checked={formData.is_default}
@@ -861,10 +862,10 @@ const Addresses = () => {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button onClick={handleSubmit} disabled={saving}>
-              {saving ? "Saving..." : editingAddress ? "Update" : "Add Address"}
+              {saving ? t("saving") : editingAddress ? t("update") : t("add_address")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -874,15 +875,15 @@ const Addresses = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Address</AlertDialogTitle>
+            <AlertDialogTitle>{t("delete_address_title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this address? This action cannot be undone.
+              {t("delete_address_confirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {t("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -894,19 +895,19 @@ const Addresses = () => {
           <div className="flex justify-around py-2">
             <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/dashboard")}>
               <Home className="h-5 w-5" />
-              <span className="text-xs mt-1">Home</span>
+              <span className="text-xs mt-1">{t("nav_home")}</span>
             </Button>
             <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/meals")}>
               <MapPin className="h-5 w-5" />
-              <span className="text-xs mt-1">Meals</span>
+              <span className="text-xs mt-1">{t("nav_restaurants")}</span>
             </Button>
             <Button variant="ghost" className="flex-col h-auto py-2 text-primary" onClick={() => navigate("/addresses")}>
               <MapPin className="h-5 w-5" />
-              <span className="text-xs mt-1">Addresses</span>
+              <span className="text-xs mt-1">{t("addresses")}</span>
             </Button>
             <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/profile")}>
               <Home className="h-5 w-5" />
-              <span className="text-xs mt-1">Profile</span>
+              <span className="text-xs mt-1">{t("nav_profile")}</span>
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SmartRecommendation {
   id: string;
@@ -15,6 +16,7 @@ interface SmartRecommendation {
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 export function useSmartRecommendations(userId: string | undefined) {
+  const { t, language } = useLanguage();
   const [recommendations, setRecommendations] = useState<SmartRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -96,9 +98,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "low-logging",
           category: "general",
           priority: "high",
-          title: "Start Tracking Daily",
-          description: `You've only logged ${daysLogged} day${daysLogged === 1 ? "" : "s"} this week. Aim for at least 5 days to unlock accurate insights and recommendations.`,
-          action_text: "Log Today's Meals",
+          title: t("rec_start_tracking_title"),
+          description: t("rec_start_tracking_desc", { days: daysLogged, plural: daysLogged === 1 ? "" : "s" }),
+          action_text: t("rec_start_tracking_action"),
           action_link: "/dashboard",
         });
       }
@@ -108,9 +110,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "protein-low",
           category: "nutrition",
           priority: "high",
-          title: "Protein Needs Attention",
-          description: `You're averaging ${Math.round(avgProtein)}g protein — only ${Math.round(proteinRatio * 100)}% of your ${proteinTarget}g target. Add eggs, chicken, fish, or Greek yogurt to each meal.`,
-          action_text: "Browse High-Protein Meals",
+          title: t("rec_protein_low_title"),
+          description: t("rec_protein_low_desc", { avg: Math.round(avgProtein), pct: Math.round(proteinRatio * 100), target: proteinTarget }),
+          action_text: t("rec_protein_low_action"),
           action_link: "/meals?filter=high-protein",
           progress: { value: Math.round(avgProtein), max: proteinTarget, unit: "g" },
         });
@@ -121,9 +123,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "calories-over",
           category: "nutrition",
           priority: "high",
-          title: "Calorie Surplus Detected",
-          description: `Your intake averages ${Math.round(calorieDiff)} kcal over your ${calorieTarget} kcal target. Try reducing portion sizes or swapping high-calorie snacks.`,
-          action_text: "View Meal Plan",
+          title: t("rec_calories_over_title"),
+          description: t("rec_calories_over_desc", { diff: Math.round(calorieDiff), target: calorieTarget }),
+          action_text: t("rec_calories_over_action"),
           action_link: "/schedule",
           progress: { value: Math.round(avgCalories), max: calorieTarget, unit: "kcal" },
         });
@@ -134,9 +136,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "calories-under",
           category: "nutrition",
           priority: "high",
-          title: "Not Eating Enough for Muscle Gain",
-          description: `You're eating ${Math.round(Math.abs(calorieDiff))} kcal below your target. A calorie surplus is essential for muscle growth — add a protein-rich snack or larger meals.`,
-          action_text: "Browse High-Calorie Meals",
+          title: t("rec_calories_under_title"),
+          description: t("rec_calories_under_desc", { diff: Math.round(Math.abs(calorieDiff)) }),
+          action_text: t("rec_calories_under_action"),
           action_link: "/meals",
           progress: { value: Math.round(avgCalories), max: calorieTarget, unit: "kcal" },
         });
@@ -149,9 +151,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "protein-boost",
           category: "nutrition",
           priority: "medium",
-          title: "Boost Protein to Hit Your Goal",
-          description: `You're at ${Math.round(avgProtein)}g protein — close to your ${proteinTarget}g target. Try a protein shake or an extra serving of lean meat to close the gap.`,
-          action_text: "Find Protein Meals",
+          title: t("rec_protein_boost_title"),
+          description: t("rec_protein_boost_desc", { avg: Math.round(avgProtein), target: proteinTarget }),
+          action_text: t("rec_protein_boost_action"),
           action_link: "/meals?filter=high-protein",
           progress: { value: Math.round(avgProtein), max: proteinTarget, unit: "g" },
         });
@@ -162,9 +164,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "hydration",
           category: "hydration",
           priority: "medium",
-          title: "Drink More Water",
-          description: `You're averaging ${avgWater.toFixed(1)} glasses per day — below the recommended 8. Start each meal with a full glass to build the habit.`,
-          action_text: "Track Water Intake",
+          title: t("rec_hydration_title"),
+          description: t("rec_hydration_desc", { avg: avgWater.toFixed(1) }),
+          action_text: t("rec_hydration_action"),
           action_link: null,
           progress: { value: parseFloat(avgWater.toFixed(1)), max: 8, unit: "glasses" },
         });
@@ -175,9 +177,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "consistency",
           category: "general",
           priority: "medium",
-          title: "Build a Logging Habit",
-          description: `You're tracking ${consistencyPct}% of days this week. Set a daily reminder after breakfast to log what you eat while it's fresh.`,
-          action_text: "Set a Reminder",
+          title: t("rec_consistency_title"),
+          description: t("rec_consistency_desc", { pct: consistencyPct }),
+          action_text: t("rec_consistency_action"),
           action_link: null,
         });
       }
@@ -187,9 +189,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "fat-high",
           category: "nutrition",
           priority: "medium",
-          title: "Reduce Saturated Fat",
-          description: `Your fat intake is averaging ${Math.round(avgFat)}g/day. Swap fried foods and heavy sauces for grilled options and olive oil-based dressings.`,
-          action_text: "Browse Lighter Meals",
+          title: t("rec_fat_high_title"),
+          description: t("rec_fat_high_desc", { avg: Math.round(avgFat) }),
+          action_text: t("rec_fat_high_action"),
           action_link: "/meals?filter=low-fat",
           progress: { value: Math.round(avgFat), max: 80, unit: "g" },
         });
@@ -200,9 +202,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "carbs-high",
           category: "nutrition",
           priority: "medium",
-          title: "Moderate Your Carb Intake",
-          description: `You're averaging ${Math.round(avgCarbs)}g carbs/day. For weight loss, try swapping white rice or bread for vegetables or legumes.`,
-          action_text: "Browse Low-Carb Meals",
+          title: t("rec_carbs_high_title"),
+          description: t("rec_carbs_high_desc", { avg: Math.round(avgCarbs) }),
+          action_text: t("rec_carbs_high_action"),
           action_link: "/meals?filter=low-carb",
           progress: { value: Math.round(avgCarbs), max: 300, unit: "g" },
         });
@@ -215,9 +217,11 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "streak-fire",
           category: "general",
           priority: "low",
-          title: `${currentStreak}-Day Streak! 🔥`,
-          description: `You've logged every day for ${currentStreak} days in a row${bestStreak > currentStreak ? ` — your best is ${bestStreak}. Keep pushing!` : " — this is your personal best!"}`,
-          action_text: "View Progress",
+          title: t("rec_streak_title", { days: currentStreak }),
+          description: bestStreak > currentStreak
+            ? t("rec_streak_desc_with_best", { days: currentStreak, best: bestStreak })
+            : t("rec_streak_desc_personal_best", { days: currentStreak }),
+          action_text: t("rec_streak_action"),
           action_link: "/tracker",
         });
       }
@@ -227,9 +231,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "great-week",
           category: "general",
           priority: "low",
-          title: "Excellent Week!",
-          description: `You've tracked ${daysLogged} out of 7 days this week. Your consistency is building powerful nutrition awareness.`,
-          action_text: "Download Report",
+          title: t("rec_great_week_title"),
+          description: t("rec_great_week_desc", { days: daysLogged }),
+          action_text: t("rec_great_week_action"),
           action_link: null,
         });
       }
@@ -239,9 +243,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "protein-great",
           category: "nutrition",
           priority: "low",
-          title: "Strong Protein Game",
-          description: `You're hitting ${Math.round(proteinRatio * 100)}% of your protein target this week. Consistent protein intake supports muscle retention and satiety.`,
-          action_text: "View Nutrition",
+          title: t("rec_protein_great_title"),
+          description: t("rec_protein_great_desc", { pct: Math.round(proteinRatio * 100) }),
+          action_text: t("rec_protein_great_action"),
           action_link: "/tracker",
         });
       }
@@ -251,9 +255,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "hydration-great",
           category: "hydration",
           priority: "low",
-          title: "Well Hydrated!",
-          description: `You're averaging ${avgWater.toFixed(1)} glasses per day — above the recommended 8. Great hydration supports metabolism and energy.`,
-          action_text: "Keep It Up",
+          title: t("rec_hydration_great_title"),
+          description: t("rec_hydration_great_desc", { avg: avgWater.toFixed(1) }),
+          action_text: t("rec_hydration_great_action"),
           action_link: null,
         });
       }
@@ -264,9 +268,9 @@ export function useSmartRecommendations(userId: string | undefined) {
           id: "start-tracking",
           category: "general",
           priority: "low",
-          title: "Log Your First Meal",
-          description: "Start logging meals to unlock personalized nutrition recommendations tailored to your goals.",
-          action_text: "Log a Meal",
+          title: t("rec_fallback_title"),
+          description: t("rec_fallback_desc"),
+          action_text: t("rec_fallback_action"),
           action_link: "/dashboard",
         });
       }
@@ -278,7 +282,7 @@ export function useSmartRecommendations(userId: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, language, t]);
 
   useEffect(() => {
     generateRecommendations();

@@ -852,14 +852,14 @@ export default function DeliveryTracking() {
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 rtl:flex-row-reverse">
               <Button 
                 variant="ghost" 
                 size="icon" 
                 onClick={() => navigate(-1)}
                 className="rounded-full"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 rtl-flip-back" />
               </Button>
               <div>
                 <h1 className="text-xl font-bold">Track Orders</h1>

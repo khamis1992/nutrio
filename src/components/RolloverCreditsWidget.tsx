@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { differenceInDays, format } from 'date-fns';
 
 interface RolloverCredit {
@@ -31,6 +32,7 @@ interface RolloverCredit {
 export function RolloverCreditsWidget() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [rollovers, setRollovers] = useState<RolloverCredit[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalRollover, setTotalRollover] = useState(0);
@@ -45,7 +47,7 @@ export function RolloverCreditsWidget() {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('subscription_rollovers')
         .select('*')
         .eq('user_id', user?.id)
@@ -65,7 +67,7 @@ export function RolloverCreditsWidget() {
       const total = mapped.reduce((sum, r) => sum + (r.rollover_credits || 0), 0);
       setTotalRollover(total);
 
-      const expiring = mapped.filter(r => {
+      const expiring = mapped.filter((r: RolloverCredit) => {
         const daysUntilExpiry = differenceInDays(new Date(r.expiry_date), new Date());
         return daysUntilExpiry <= 7 && daysUntilExpiry > 0;
       }).reduce((sum, r) => sum + (r.rollover_credits || 0), 0);
@@ -80,7 +82,7 @@ export function RolloverCreditsWidget() {
 
   const calculateRollover = async () => {
     try {
-      const { data: subscription, error: subError } = await supabase
+      const { data: subscription, error: subError } = await (supabase as any)
         .from('subscriptions')
         .select('id')
         .eq('user_id', user?.id)
@@ -89,14 +91,14 @@ export function RolloverCreditsWidget() {
 
       if (subError || !subscription) {
         toast({
-          title: 'No active subscription',
-          description: 'You need an active subscription to calculate rollover credits.',
+          title: t('rollover_no_active'),
+          description: t('rollover_no_active_desc'),
           variant: 'destructive',
         });
         return;
       }
 
-      const { data, error } = await supabase.rpc('calculate_rollover_credits', {
+      const { data, error } = await (supabase.rpc as any)('calculate_rollover_credits', {
         p_subscription_id: subscription.id,
         p_user_id: user?.id,
       });
@@ -107,28 +109,28 @@ export function RolloverCreditsWidget() {
 
       if (result.success) {
         toast({
-          title: '🎉 Rollover Credits Granted!',
-          description: `${result.rollover_credits} credits rolled over from your unused meals. They expire at the end of next billing cycle.`,
+          title: t('rollover_granted_title'),
+          description: t('rollover_granted_desc').replace('{count}', String(result.rollover_credits || 0)),
         });
         fetchRolloverCredits();
       } else {
-        let friendlyMsg = result.message || result.error || 'No rollover credits available.';
+        let friendlyMsg = result.message || result.error || t('rollover_not_available');
         if (friendlyMsg.includes('payment')) {
-          friendlyMsg = 'Rollover credits are granted automatically when your subscription renews. Check back after your next billing cycle.';
+          friendlyMsg = t('rollover_payment_cycle');
         } else if (friendlyMsg.includes('initial subscription')) {
-          friendlyMsg = 'Rollover credits apply from your second billing cycle onwards once you have unused meals to carry forward.';
+          friendlyMsg = t('rollover_initial_cycle');
         } else if (friendlyMsg.includes('not found')) {
-          friendlyMsg = 'No active subscription found. Please subscribe first.';
+          friendlyMsg = t('rollover_no_subscription');
         }
         toast({
-          title: 'Rollover Not Available Yet',
+          title: t('rollover_not_available'),
           description: friendlyMsg,
         });
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Please try again later.';
+      const errorMessage = err instanceof Error ? err.message : t('rollover_could_not_check');
       toast({
-        title: 'Could Not Check Rollover',
+        title: t('rollover_could_not_check'),
         description: errorMessage,
         variant: 'destructive',
       });
@@ -148,24 +150,24 @@ export function RolloverCreditsWidget() {
               <RefreshCw className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-bold text-emerald-900">Rollover Credits</h3>
-              <p className="text-emerald-600 text-sm">Carry forward unused meals</p>
+              <h3 className="font-bold text-emerald-900">{t('rollover_credits_title')}</h3>
+              <p className="text-emerald-600 text-sm">{t('rollover_carry_forward_desc')}</p>
             </div>
           </div>
 
           {/* Info Box */}
           <div className="bg-white/60 rounded-xl p-4 space-y-2 border border-emerald-100">
             <p className="text-sm text-emerald-800">
-              Unused meals at the end of your billing cycle roll over automatically — up to 20% of your monthly allocation.
+              {t('rollover_how_it_works')}
             </p>
           </div>
 
           {/* Steps */}
           <div className="space-y-2">
             {[
-              { step: 1, text: 'End each cycle with unused meals' },
-              { step: 2, text: 'Up to 20% carry forward on renewal' },
-              { step: 3, text: 'Use them in the next cycle' },
+              { step: 1, text: t('rollover_step_1') },
+              { step: 2, text: t('rollover_step_2') },
+              { step: 3, text: t('rollover_step_3') },
             ].map((item) => (
               <div key={item.step} className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600">
@@ -183,7 +185,7 @@ export function RolloverCreditsWidget() {
             onClick={calculateRollover}
             className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400"
           >
-            Check Eligibility
+            {t('rollover_check_eligibility')}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </CardContent>
@@ -202,14 +204,14 @@ export function RolloverCreditsWidget() {
               <Sparkles className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-bold text-emerald-900">Rollover Credits</h3>
-              <p className="text-emerald-600 text-sm">Your unused meals</p>
+              <h3 className="font-bold text-emerald-900">{t('rollover_credits_title')}</h3>
+              <p className="text-emerald-600 text-sm">{t('rollover_credits_subtitle')}</p>
             </div>
           </div>
           {totalExpiring > 0 && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200">
               <AlertTriangle className="w-3 h-3 mr-1" />
-              {totalExpiring} expiring
+              {totalExpiring} {t('rollover_expiring')}
             </Badge>
           )}
         </div>
@@ -217,10 +219,10 @@ export function RolloverCreditsWidget() {
         {/* Main Stats */}
         <div className="flex items-end justify-between">
           <div className="space-y-1">
-            <p className="text-emerald-600 text-sm">Available Credits</p>
+            <p className="text-emerald-600 text-sm">{t('rollover_available_credits')}</p>
             <div className="flex items-baseline gap-1">
               <span className="text-5xl font-bold text-emerald-700">{totalRollover}</span>
-              <span className="text-emerald-600 text-lg">meals</span>
+              <span className="text-emerald-600 text-lg">{t('rollover_meals')}</span>
             </div>
           </div>
           <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center">
@@ -234,7 +236,7 @@ export function RolloverCreditsWidget() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-emerald-600 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4" />
-                Next expiry
+                {t('rollover_next_expiry')}
               </span>
               <span className="font-medium text-emerald-800">
                 {format(new Date(rollovers[0].expiry_date), 'MMM d, yyyy')}
@@ -250,7 +252,7 @@ export function RolloverCreditsWidget() {
         {/* Individual Credits List */}
         {rollovers.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-medium text-emerald-700">Active Credits</p>
+            <p className="text-sm font-medium text-emerald-700">{t('rollover_active_credits')}</p>
             <div className="grid gap-2">
               {rollovers.slice(0, 3).map((rollover) => {
                 const daysUntilExpiry = differenceInDays(new Date(rollover.expiry_date), new Date());
@@ -277,12 +279,12 @@ export function RolloverCreditsWidget() {
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold text-emerald-900">{rollover.rollover_credits} credits</p>
+                        <p className="font-semibold text-emerald-900">{t('rollover_credits_count').replace('{count}', String(rollover.rollover_credits))}</p>
                         <p className={`text-xs ${isExpiringSoon ? 'text-amber-600' : 'text-emerald-600'}`}>
                           {isExpiringSoon ? (
-                            <>Expires in {daysUntilExpiry} days</>
+                            <>{t('rollover_expires_in_days').replace('{days}', String(daysUntilExpiry))}</>
                           ) : (
-                            <>Valid until {format(new Date(rollover.expiry_date), 'MMM d')}</>
+                            <>{t('rollover_valid_until').replace('{date}', format(new Date(rollover.expiry_date), 'MMM d'))}</>
                           )}
                         </p>
                       </div>
@@ -307,7 +309,7 @@ export function RolloverCreditsWidget() {
         <div className="pt-3 border-t border-emerald-200">
           <div className="flex items-start gap-2 text-xs text-emerald-600">
             <Info className="w-4 h-4 shrink-0 mt-0.5" />
-            <p>Rollover credits expire at the end of your next billing cycle. Use them before they expire!</p>
+            <p>{t('rollover_footer_note')}</p>
           </div>
         </div>
       </CardContent>

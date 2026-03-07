@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Milestone {
   id: string;
@@ -24,6 +25,7 @@ interface Achievement {
 
 export function ReferralMilestones() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [currentReferrals, setCurrentReferrals] = useState(0);
@@ -123,12 +125,12 @@ export function ReferralMilestones() {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
             <Gift className="w-5 h-5 text-primary" />
-            Milestone Bonuses
+            {t("affiliate_milestone_bonuses")}
           </CardTitle>
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            {achievedCount}/{milestones.length} Unlocked
+            {achievedCount}/{milestones.length} {t("affiliate_unlocked")}
           </Badge>
         </div>
       </CardHeader>
@@ -137,12 +139,12 @@ export function ReferralMilestones() {
         {nextMilestone && (
           <div className="bg-muted/50 rounded-lg p-4">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-muted-foreground">Progress to {nextMilestone.name}</span>
-              <span className="font-medium">{currentReferrals}/{nextMilestone.referral_count} referrals</span>
+              <span className="text-muted-foreground">{t("affiliate_progress_to")} {nextMilestone.name}</span>
+              <span className="font-medium">{currentReferrals}/{nextMilestone.referral_count} {t("referrals")}</span>
             </div>
             <Progress value={getProgressToNext()} className="h-2 mb-2" />
             <p className="text-xs text-muted-foreground">
-              {nextMilestone.referral_count - currentReferrals} more referral{nextMilestone.referral_count - currentReferrals !== 1 ? "s" : ""} to earn {formatCurrency(nextMilestone.bonus_amount)} bonus!
+              {nextMilestone.referral_count - currentReferrals} {nextMilestone.referral_count - currentReferrals !== 1 ? t("affiliate_more_referrals") : t("affiliate_more_referral")} {t("affiliate_to_earn")} {formatCurrency(nextMilestone.bonus_amount)} {t("affiliate_bonus")}!
             </p>
           </div>
         )}
@@ -150,7 +152,7 @@ export function ReferralMilestones() {
         {/* Total bonus earned */}
         {totalBonusEarned > 0 && (
           <div className="flex items-center justify-between bg-green-500/10 rounded-lg p-3">
-            <span className="text-sm text-green-700">Total Milestone Bonuses Earned</span>
+            <span className="text-sm text-green-700">{t("affiliate_total_milestone_bonuses_earned")}</span>
             <span className="font-bold text-green-600">{formatCurrency(totalBonusEarned)}</span>
           </div>
         )}
@@ -198,17 +200,17 @@ export function ReferralMilestones() {
                     </p>
                     {achieved && (
                       <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
-                        Achieved!
+                        {t("affiliate_achieved")}
                       </Badge>
                     )}
                     {isNext && (
                       <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
-                        Next Goal
+                        {t("affiliate_next_goal")}
                       </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {milestone.referral_count} referrals • {formatCurrency(milestone.bonus_amount)} bonus
+                    {milestone.referral_count} {t("referrals")} • {formatCurrency(milestone.bonus_amount)} {t("affiliate_bonus")}
                   </p>
                 </div>
 

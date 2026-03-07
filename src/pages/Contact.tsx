@@ -15,9 +15,11 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/Logo";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Contact = () => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -34,8 +36,8 @@ const Contact = () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     toast({
-      title: "Message sent!",
-      description: "We'll get back to you as soon as possible.",
+      title: t("contact_success_title"),
+      description: t("contact_success_message"),
     });
     
     setFormData({ name: "", email: "", subject: "", message: "" });
@@ -52,17 +54,17 @@ const Contact = () => {
           </Link>
           
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-medium text-primary transition-colors">Contact</Link>
-            <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">For Restaurants</Link>
+            <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t("nav_about")}</Link>
+            <Link to="/contact" className="text-sm font-medium text-primary transition-colors">{t("nav_contact")}</Link>
+            <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t("nav_for_restaurants")}</Link>
           </div>
 
           <div className="flex items-center gap-3">
             <Link to="/auth">
-              <Button variant="ghost" size="sm">Log in</Button>
+              <Button variant="ghost" size="sm">{t("nav_login")}</Button>
             </Link>
             <Link to="/onboarding">
-              <Button variant="gradient" size="sm">Get Started</Button>
+              <Button variant="gradient" size="sm">{t("nav_get_started")}</Button>
             </Link>
           </div>
         </div>
@@ -73,15 +75,14 @@ const Contact = () => {
         <div className="container mx-auto text-center max-w-3xl">
           <Badge variant="soft" className="mb-4">
             <MessageSquare className="w-3 h-3 mr-1" />
-            Get in Touch
+            {t("contact_badge")}
           </Badge>
           <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-6">
-            We'd Love to{" "}
-            <span className="text-gradient">Hear From You</span>
+            {t("contact_title_part1")}{" "}
+            <span className="text-gradient">{t("contact_title_part2")}</span>
           </h1>
           <p className="text-lg text-muted-foreground">
-            Have questions, feedback, or partnership inquiries? 
-            We're here to help!
+            {t("contact_subtitle")}
           </p>
         </div>
       </section>
@@ -97,8 +98,8 @@ const Contact = () => {
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <Mail className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-semibold mb-2">Email Us</h3>
-                  <p className="text-sm text-muted-foreground mb-2">For general inquiries</p>
+                  <h3 className="font-semibold mb-2">{t("contact_email_title")}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{t("contact_email_description")}</p>
                   <a href="mailto:hello@nutrio.com" className="text-sm text-primary hover:underline">
                     hello@nutrio.com
                   </a>
@@ -110,8 +111,8 @@ const Contact = () => {
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <Phone className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-semibold mb-2">Call Us</h3>
-                  <p className="text-sm text-muted-foreground mb-2">Mon-Fri, 9am-6pm EST</p>
+                  <h3 className="font-semibold mb-2">{t("contact_phone_title")}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{t("contact_hours")}</p>
                   <a href="tel:+1-800-NUTRIO" className="text-sm text-primary hover:underline">
                     +1-800-NUTRIO
                   </a>
@@ -123,7 +124,7 @@ const Contact = () => {
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <MapPin className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-semibold mb-2">Visit Us</h3>
+                  <h3 className="font-semibold mb-2">{t("contact_address_title")}</h3>
                   <p className="text-sm text-muted-foreground">
                     123 Health Street<br />
                     San Francisco, CA 94102
@@ -136,16 +137,16 @@ const Contact = () => {
             <div className="md:col-span-2">
               <Card variant="elevated">
                 <CardHeader>
-                  <CardTitle>Send us a Message</CardTitle>
+                  <CardTitle>{t("contact_form_title")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Your Name</Label>
+                        <Label htmlFor="name">{t("contact_name")}</Label>
                         <Input
                           id="name"
-                          placeholder="John Doe"
+                          placeholder={t("contact_name_placeholder")}
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           required
@@ -153,11 +154,11 @@ const Contact = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email">{t("contact_email")}</Label>
                         <Input
                           id="email"
                           type="email"
-                          placeholder="john@example.com"
+                          placeholder={t("contact_email_placeholder")}
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
@@ -167,10 +168,10 @@ const Contact = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="subject">Subject</Label>
+                      <Label htmlFor="subject">{t("contact_subject")}</Label>
                       <Input
                         id="subject"
-                        placeholder="How can we help?"
+                        placeholder={t("contact_subject_placeholder")}
                         value={formData.subject}
                         onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                         required
@@ -179,10 +180,10 @@ const Contact = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="message">Message</Label>
+                      <Label htmlFor="message">{t("contact_message")}</Label>
                       <Textarea
                         id="message"
-                        placeholder="Tell us more about your inquiry..."
+                        placeholder={t("contact_message_placeholder")}
                         rows={5}
                         value={formData.message}
                         onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -197,10 +198,10 @@ const Contact = () => {
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? (
-                        "Sending..."
+                        t("contact_sending")
                       ) : (
                         <>
-                          Send Message
+                          {t("contact_submit")}
                           <Send className="w-4 h-4 ml-2" />
                         </>
                       )}
@@ -216,14 +217,13 @@ const Contact = () => {
       {/* FAQ Teaser */}
       <section className="py-16 px-4 bg-card/50">
         <div className="container mx-auto text-center max-w-2xl">
-          <h2 className="text-2xl font-bold mb-4">Have More Questions?</h2>
+          <h2 className="text-2xl font-bold mb-4">{t("contact_faq_title")}</h2>
           <p className="text-muted-foreground mb-6">
-            Check out our support center for answers to frequently asked questions, 
-            or reach out to our customer support team.
+            {t("contact_faq_description")}
           </p>
           <Link to="/auth">
             <Button variant="outline">
-              Log in to Access Support
+              {t("contact_faq_button")}
             </Button>
           </Link>
         </div>
@@ -236,16 +236,16 @@ const Contact = () => {
             <Logo size="sm" />
             <div className="flex items-center gap-6">
               <Link to="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                About
+                {t("footer_about")}
               </Link>
               <Link to="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Contact
+                {t("footer_contact")}
               </Link>
               <Link to="/partner/auth" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Partner Portal
+                {t("footer_partner_portal")}
               </Link>
               <p className="text-sm text-muted-foreground">
-                © 2026 NUTRIO. All rights reserved.
+                {t("footer_copyright")}
               </p>
             </div>
           </div>

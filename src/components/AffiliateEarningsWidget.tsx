@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/currency";
 import { TrendingUp, Wallet, ChevronRight, Users } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Commission {
   id: string;
@@ -19,6 +20,7 @@ interface Commission {
 
 export function AffiliateEarningsWidget() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
@@ -89,13 +91,13 @@ export function AffiliateEarningsWidget() {
               <TrendingUp className="w-5 h-5 text-violet-500" />
             </div>
             <div>
-              <p className="font-semibold">Affiliate Earnings</p>
-              <p className="text-xs text-muted-foreground">Your commission balance</p>
+            <p className="font-semibold">{t('affiliate_earnings')}</p>
+            <p className="text-xs text-muted-foreground">{t('commission_balance')}</p>
             </div>
           </div>
           <Link to="/affiliate">
             <Button variant="ghost" size="sm" className="text-violet-500">
-              View All <ChevronRight className="w-4 h-4" />
+              {t("view_all")} <ChevronRight className="w-4 h-4" />
             </Button>
           </Link>
         </div>
@@ -107,28 +109,28 @@ export function AffiliateEarningsWidget() {
               <Wallet className="w-4 h-4" />
             </div>
             <p className="text-lg font-bold">{formatCurrency(balance)}</p>
-            <p className="text-xs text-muted-foreground">Available</p>
+            <p className="text-xs text-muted-foreground">{t('available')}</p>
           </div>
           <div className="bg-background/50 rounded-lg p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-green-500 mb-1">
               <TrendingUp className="w-4 h-4" />
             </div>
             <p className="text-lg font-bold">{formatCurrency(totalEarnings)}</p>
-            <p className="text-xs text-muted-foreground">Total Earned</p>
+            <p className="text-xs text-muted-foreground">{t('total_earned')}</p>
           </div>
           <div className="bg-background/50 rounded-lg p-3 text-center">
             <div className="flex items-center justify-center gap-1 text-blue-500 mb-1">
               <Users className="w-4 h-4" />
             </div>
             <p className="text-lg font-bold">{referralCount}</p>
-            <p className="text-xs text-muted-foreground">Referrals</p>
+            <p className="text-xs text-muted-foreground">{t('referrals')}</p>
           </div>
         </div>
 
         {/* Recent Commissions */}
         {recentCommissions.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Commissions</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('recent_commissions')}</p>
             <div className="space-y-2">
               {recentCommissions.map((commission) => (
                 <div
@@ -137,7 +139,7 @@ export function AffiliateEarningsWidget() {
                 >
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs bg-violet-500/10 text-violet-600 border-violet-500/30">
-                      Tier {commission.tier}
+                      {t(`affiliate_tier${commission.tier}_label` as any)}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       {new Date(commission.created_at).toLocaleDateString()}

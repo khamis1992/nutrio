@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { captureError } from "@/lib/sentry";
 import { posthog } from "posthog-js";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { Step1Survey, type CancellationReason } from "./Step1Survey";
 import { Step2PauseOffer } from "./Step2PauseOffer";
@@ -28,6 +29,7 @@ export function CancellationFlow({
   onCancelled,
 }: CancellationFlowProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [currentStep, setCurrentStep] = useState<FlowStep>(1);
   const [reason, setReason] = useState<CancellationReason | null>(null);
   const [reasonDetails, setReasonDetails] = useState("");
@@ -349,7 +351,7 @@ export function CancellationFlow({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader className="sr-only">
-          <DialogTitle>Cancel Subscription</DialogTitle>
+          <DialogTitle>{t("cancel_subscription")}</DialogTitle>
         </DialogHeader>
         {renderStep()}
       </DialogContent>

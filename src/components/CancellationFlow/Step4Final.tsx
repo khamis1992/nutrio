@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import type { WinBackOffer } from "@/hooks/useSubscriptionManagement";
 import { useSubscription } from "@/hooks/useSubscription";
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Step4FinalProps {
   offers: WinBackOffer[];
@@ -22,6 +23,7 @@ export function Step4Final({
   onBack,
   onClose,
 }: Step4FinalProps) {
+  const { t } = useLanguage();
   const { subscription, remainingMeals } = useSubscription();
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -41,21 +43,21 @@ export function Step4Final({
     <Card className="border-0 shadow-none">
       <CardHeader className="space-y-1 pb-4">
         <div className="flex items-center gap-2 text-muted-foreground mb-2">
-          <span className="text-sm font-medium">Step 4 of 4</span>
+          <span className="text-sm font-medium">{t("step_4_of_4")}</span>
           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div className="h-full w-full bg-primary rounded-full" />
           </div>
         </div>
-        <CardTitle className="text-xl text-red-600">Final Step: Cancel Subscription</CardTitle>
+        <CardTitle className="text-xl text-red-600">{t("final_step_cancel")}</CardTitle>
         <CardDescription>
-          We're sorry to see you go. Here are your final options.
+          {t("sorry_to_see_you_go")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Downgrade Options */}
         {downgradeOffers.length > 0 && (
           <div className="space-y-3">
-            <h3 className="font-medium text-sm">Consider a downgrade instead:</h3>
+            <h3 className="font-medium text-sm">{t("consider_downgrade")}</h3>
             {downgradeOffers.map((offer) => (
               <div
                 key={offer.offer_code}
@@ -76,7 +78,7 @@ export function Step4Final({
                       className="mt-3 w-full"
                       size="sm"
                     >
-                      Switch to {offer.target_tier} Plan
+                      {t("switch_to_plan").replace("{tier}", offer.target_tier || "")}
                     </Button>
                   </div>
                 </div>
@@ -88,7 +90,7 @@ export function Step4Final({
         {/* Bonus Credits Option */}
         {bonusOffers.length > 0 && (
           <div className="space-y-3">
-            <h3 className="font-medium text-sm">Or take bonus credits:</h3>
+            <h3 className="font-medium text-sm">{t("take_bonus_credits")}</h3>
             {bonusOffers.map((offer) => (
               <div
                 key={offer.offer_code}
@@ -109,7 +111,7 @@ export function Step4Final({
                       className="mt-3 w-full border-amber-500 text-amber-700 hover:bg-amber-100"
                       size="sm"
                     >
-                      Accept {offer.bonus_credits} QAR Bonus
+                      {t("accept_bonus").replace("{amount}", String(offer.bonus_credits || 0))}
                     </Button>
                   </div>
                 </div>
@@ -123,18 +125,17 @@ export function Step4Final({
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <h4 className="font-medium text-red-900">Confirm Cancellation</h4>
+              <h4 className="font-medium text-red-900">{t("confirm_cancellation")}</h4>
               <div className="text-sm text-red-700 mt-2 space-y-1">
-                <p>You'll lose access to:</p>
+                <p>{t("you_will_lose_access")}</p>
                 <ul className="list-disc list-inside pl-2 space-y-1">
-                  <li>Your remaining {remainingMeals} meals this cycle</li>
-                  <li>All subscription benefits</li>
-                  <li>Discounted meal pricing</li>
-                  <li>Priority delivery</li>
+                  <li>{t("remaining_meals").replace("{count}", String(remainingMeals))}</li>
+                  <li>{t("all_subscription_benefits")}</li>
+                  <li>{t("discounted_pricing")}</li>
+                  <li>{t("priority_delivery")}</li>
                 </ul>
                 <p className="mt-2">
-                  Your access continues until{" "}
-                  <strong>{format(endDate, "MMM dd, yyyy")}</strong>
+                  {t("access_continues_until").replace("{date}", format(endDate, "MMM dd, yyyy"))}
                 </p>
               </div>
             </div>
@@ -143,15 +144,15 @@ export function Step4Final({
 
         <div className="flex gap-3 pt-4">
           <Button variant="outline" onClick={onBack} className="flex-1">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            <ArrowLeft className="mr-2 h-4 w-4 rtl-flip-back" />
+            {t("back")}
           </Button>
           <Button
             variant="outline"
             onClick={onClose}
             className="flex-1"
           >
-            Keep Subscription
+            {t("keep_subscription")}
           </Button>
           <Button
             onClick={handleConfirmCancel}
@@ -160,11 +161,11 @@ export function Step4Final({
             className="flex-1"
           >
             {isConfirming ? (
-              "Cancelling..."
+              t("cancelling")
             ) : (
               <>
                 <X className="mr-2 h-4 w-4" />
-                Cancel
+                {t("cancel")}
               </>
             )}
           </Button>

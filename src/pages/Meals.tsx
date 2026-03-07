@@ -37,6 +37,20 @@ import lowCarbFilterImage from "@/assets/low carb.png";
 import breakfastFilterImage from "@/assets/breakfast.png";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+// Cuisine name to translation key mapping
+const getCuisineTranslationKey = (cuisine: string): string => {
+  const keyMap: Record<string, string> = {
+    "Healthy": "cuisine_healthy",
+    "Vegetarian": "cuisine_vegetarian",
+    "Vegan": "cuisine_vegan",
+    "Keto": "cuisine_keto",
+    "Protein": "cuisine_protein",
+    "Low Carb": "cuisine_low_carb",
+    "Breakfast": "cuisine_breakfast",
+  };
+  return keyMap[cuisine] || cuisine;
+};
+
 interface Restaurant {
   id: string;
   name: string;
@@ -138,6 +152,7 @@ const RestaurantListCard = ({
     Haptics.impact({ style: "medium" });
     onToggleFavorite(restaurant.id, restaurant.name);
   };
+  const { t } = useLanguage();
 
   return (
     <motion.div
@@ -193,7 +208,7 @@ const RestaurantListCard = ({
                 )}
                 
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                  {restaurant.description || "Healthy & delicious meals"}
+                  {restaurant.description || t("healthy_and_delicious")}
                 </p>
               </div>
 
@@ -241,6 +256,7 @@ const MealListCard = ({
   onToggleFavorite: (id: string, name: string) => void;
   index: number;
 }) => {
+  const { t } = useLanguage();
   const handleFavoriteClick = (e: React.MouseEvent) => {
     if (!meal.restaurant_id) return;
     e.preventDefault();
@@ -295,7 +311,7 @@ const MealListCard = ({
                   {meal.restaurant_name}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {meal.is_available === false ? "Currently unavailable" : "Available now"}
+                  {meal.is_available === false ? t("currently_unavailable") : t("available_now")}
                 </p>
               </div>
 
@@ -336,7 +352,8 @@ const FilterSheet = ({
   activeSort,
   onChangeSort,
   calorieRange,
-  onChangeCalorieRange
+  onChangeCalorieRange,
+  t
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -348,6 +365,7 @@ const FilterSheet = ({
   onChangeSort: (sort: "rating" | "fastest" | "popular") => void;
   calorieRange: CalorieRange;
   onChangeCalorieRange: (range: CalorieRange) => void;
+  t: ReturnType<typeof useLanguage>["t"];
 }) => {
   const handleSortChange = (sort: "rating" | "fastest" | "popular") => {
     Haptics.impact({ style: "light" });
@@ -414,14 +432,14 @@ const FilterSheet = ({
               
               {/* Sort Options */}
               <div className="mb-6">
-                <label className="text-sm font-semibold text-foreground mb-3 block">
-                  Sort by
+              <label className="text-sm font-semibold text-foreground mb-3 block">
+                  {t("sort_by")}
                 </label>
                 <div className="flex gap-2 flex-wrap">
-                  {[
-                    { id: "rating", icon: Star, label: "Top Rated" },
-                    { id: "fastest", icon: Clock, label: "Fastest" },
-                    { id: "popular", icon: Flame, label: "Popular" },
+{[
+                    { id: "rating", icon: Star, label: t("top_rated_filter") },
+                    { id: "fastest", icon: Clock, label: t("fastest_filter") },
+                    { id: "popular", icon: Flame, label: t("popular") },
                   ].map((sort) => (
                     <motion.button
                       key={sort.id}
@@ -444,16 +462,16 @@ const FilterSheet = ({
 
               {/* Calorie Range Filter */}
               <div className="mb-6">
-                <label className="text-sm font-semibold text-foreground mb-3 block">
-                  Filter by Calories
+<label className="text-sm font-semibold text-foreground mb-3 block">
+                  {t("filter_by_calories")}
                 </label>
                 <div className="flex gap-2 flex-wrap">
-                  {[
-                    { id: "all", label: "All" },
-                    { id: "under300", label: "Under 300" },
-                    { id: "300-500", label: "300-500" },
-                    { id: "500-700", label: "500-700" },
-                    { id: "700plus", label: "700+" },
+{[
+                    { id: "all", label: t("all_cuisine") },
+                    { id: "under300", label: t("under_300") },
+                    { id: "300-500", label: t("range_300_500") },
+                    { id: "500-700", label: t("range_500_700") },
+                    { id: "700plus", label: t("over_700") },
                   ].map((range) => (
                     <motion.button
                       key={range.id}
@@ -476,8 +494,8 @@ const FilterSheet = ({
 
               {/* Favorites Toggle */}
               <div className="mb-6">
-                <label className="text-sm font-semibold text-foreground mb-3 block">
-                  Other Filters
+<label className="text-sm font-semibold text-foreground mb-3 block">
+                  {t("other_filters")}
                 </label>
                 <motion.button
                   onClick={handleFavoritesToggle}
@@ -494,9 +512,9 @@ const FilterSheet = ({
                     }`}>
                       <Heart className={`w-5 h-5 ${showFavoritesOnly ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`} />
                     </div>
-                    <div className="text-left">
-                      <span className="font-semibold block text-foreground">Favorites Only</span>
-                      <span className="text-xs text-muted-foreground">Show only saved restaurants</span>
+<div className="text-left">
+                      <span className="font-semibold block text-foreground">{t("favorites_only")}</span>
+                      <span className="text-xs text-muted-foreground">{t("favorites_only_desc")}</span>
                     </div>
                   </div>
                   <div className={`w-11 h-6 rounded-full p-1 transition-colors ${
@@ -518,7 +536,7 @@ const FilterSheet = ({
                 onClick={onClose}
                 className="w-full h-12 rounded-xl font-semibold text-base bg-primary hover:bg-primary/90"
               >
-                Show {resultCount} {resultLabel === "restaurants" ? "Restaurants" : "Meals"}
+                {t("show_results")} {resultCount} {resultLabel === "restaurants" ? t("restaurants") : t("meals")}
               </Button>
             </div>
           </motion.div>
@@ -582,10 +600,12 @@ const FilterChip = ({
 // ============================================
 const CuisineScroller = ({ 
   selectedCuisine, 
-  onSelectCuisine 
+  onSelectCuisine,
+  t
 }: { 
   selectedCuisine: string | null;
   onSelectCuisine: (cuisine: string | null) => void;
+  t: ReturnType<typeof useLanguage>["t"];
 }) => {
   const cuisines = Object.keys(cuisineEmojis);
 
@@ -605,7 +625,7 @@ const CuisineScroller = ({
           }`}
         >
           <LayoutGrid className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-semibold whitespace-nowrap">All</span>
+          <span className="text-sm font-semibold whitespace-nowrap">{t("all_cuisine")}</span>
         </motion.button>
 
         {cuisines.map((cuisine) => {
@@ -631,7 +651,7 @@ const CuisineScroller = ({
                   </span>
                 )}
               </div>
-              <span className="text-sm font-semibold whitespace-nowrap">{cuisine}</span>
+              <span className="text-sm font-semibold whitespace-nowrap">{t(getCuisineTranslationKey(cuisine) as any)}</span>
             </motion.button>
           );
         })}
@@ -644,7 +664,7 @@ const CuisineScroller = ({
 // MAIN MEALS COMPONENT - NATIVE MOBILE DESIGN
 // ============================================
 const Meals = () => {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [meals, setMeals] = useState<MealResult[]>([]);
@@ -679,10 +699,10 @@ const Meals = () => {
   const handleToggleFavorite = useCallback((restaurantId: string, restaurantName: string) => {
     if (!user) {
       promptLogin({
-        title: "Save your favorites",
-        description: "Create an account to save your favorite restaurants and get personalized recommendations!",
-        actionLabel: "Sign In",
-        signUpLabel: "Create Free Account"
+        title: t("save_your_favorites"),
+        description: t("save_favorites_desc"),
+        actionLabel: t("sign_in"),
+        signUpLabel: t("create_free_account")
       });
       return;
     }
@@ -947,12 +967,12 @@ const Meals = () => {
         >
           <div className="flex items-center gap-2 mb-1.5">
             <Leaf className="w-4 h-4 text-primary" />
-            <span className="text-xs font-semibold text-primary uppercase tracking-wide">Discover</span>
+            <span className="text-xs font-semibold text-primary uppercase tracking-wide">{t("discover")}</span>
           </div>
-          <h2 className="text-xl font-bold text-foreground leading-tight">
-            Choose your next healthy meal
+<h2 className="text-xl font-bold text-foreground leading-tight">
+            {t("choose_next_meal")}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Top-rated restaurants near you</p>
+          <p className="text-sm text-muted-foreground mt-1">{t("top_rated_nearby")}</p>
         </motion.div>
 
         {/* Search Bar - Native Style */}
@@ -966,7 +986,7 @@ const Meals = () => {
             <Search className="w-5 h-5" />
           </div>
           <Input
-            placeholder="Search restaurants, cuisines..."
+            placeholder={t("search_restaurants_placeholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-12 pr-10 h-12 rounded-2xl bg-card/95 border border-border/70 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
@@ -993,9 +1013,10 @@ const Meals = () => {
           transition={{ delay: 0.1 }}
           className="mb-5"
         >
-          <CuisineScroller 
+<CuisineScroller 
             selectedCuisine={selectedCuisine}
             onSelectCuisine={setSelectedCuisine}
+            t={t}
           />
         </motion.div>
 
@@ -1012,32 +1033,32 @@ const Meals = () => {
               Haptics.impact({ style: "light" });
               setFilterSheetOpen(true);
             }}
-            icon={SlidersHorizontal}
-            label="Filters"
+icon={SlidersHorizontal}
+            label={t("filters")}
             color="primary"
           />
           
           <FilterChip
             active={activeChip === "rating"}
             onClick={() => selectChip("rating")}
-            icon={Star}
-            label="Top Rated"
+icon={Star}
+            label={t("top_rated_filter")}
             color="amber"
           />
           
           <FilterChip
             active={activeChip === "fastest"}
             onClick={() => selectChip("fastest")}
-            icon={Clock}
-            label="Fastest"
+icon={Clock}
+            label={t("fastest_filter")}
             color="blue"
           />
           
           <FilterChip
             active={activeChip === "favorites"}
             onClick={() => selectChip("favorites")}
-            icon={Heart}
-            label="Favorites"
+icon={Heart}
+            label={t("favorites_filter")}
             color="rose"
           />
         </motion.div>
@@ -1052,8 +1073,8 @@ const Meals = () => {
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-foreground">
               {isCalorieFilterActive
-                ? (showFavoritesOnly ? "Favorite Meals" : "Filtered Meals")
-                : (showFavoritesOnly ? "Your Favorites" : t("all_restaurants"))}
+                ? (showFavoritesOnly ? t("favorite_meals") : t("filtered_meals"))
+                : (showFavoritesOnly ? t("your_favorites") : t("all_restaurants"))}
             </h2>
             <span className="text-xs text-muted-foreground bg-card/90 border border-border/70 px-2 py-0.5 rounded-full">
               {displayedCount}
@@ -1069,12 +1090,12 @@ const Meals = () => {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <span className="text-xs text-muted-foreground">Active:</span>
+            <span className="text-xs text-muted-foreground">{t("active_filters")}</span>
             <button
               onClick={clearFilters}
-              className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline"
+className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline"
             >
-              Clear all
+              {t("clear_all_filters")}
               <X className="w-3 h-3" />
             </button>
           </motion.div>
@@ -1102,25 +1123,25 @@ const Meals = () => {
               >
                 <Store className="w-10 h-10 text-muted-foreground/50" />
               </motion.div>
-              <h3 className="font-semibold text-lg text-foreground mb-1">
+<h3 className="font-semibold text-lg text-foreground mb-1">
                 {isCalorieFilterActive
-                  ? (showFavoritesOnly ? "No favorite meals yet" : "No meals found")
-                  : (showFavoritesOnly ? "No favorites yet" : "No restaurants found")}
+                  ? (showFavoritesOnly ? t("no_favorite_meals") : t("no_meals_found"))
+                  : (showFavoritesOnly ? t("no_favorites_yet") : t("no_restaurants_found"))}
               </h3>
-              <p className="text-sm text-muted-foreground mb-4 px-8">
+<p className="text-sm text-muted-foreground mb-4 px-8">
                 {isCalorieFilterActive
-                  ? "Try a different calorie range or clear filters."
+                  ? t("try_adjust_search")
                   : showFavoritesOnly
-                    ? "Save your favorite restaurants to find them quickly"
-                    : "Try adjusting your search or filters"}
+                    ? t("favorites_empty_hint")
+                    : t("try_adjust_search")}
               </p>
               {hasActiveFilters && (
                 <Button 
                   onClick={clearFilters}
                   variant="outline"
                   className="rounded-full"
-                >
-                  Clear all filters
+>
+                  {t("clear_all_filters")}
                 </Button>
               )}
             </motion.div>
@@ -1152,7 +1173,7 @@ const Meals = () => {
       <CustomerNavigation />
 
       {/* Filter Sheet */}
-      <FilterSheet
+<FilterSheet
         isOpen={filterSheetOpen}
         onClose={() => setFilterSheetOpen(false)}
         showFavoritesOnly={showFavoritesOnly}
@@ -1169,6 +1190,7 @@ const Meals = () => {
         }}
         calorieRange={calorieRange}
         onChangeCalorieRange={setCalorieRange}
+        t={t}
       />
 
       {/* Guest Login Prompt */}

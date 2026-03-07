@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CuisineChipsProps {
   selectedCuisine: string | null;
@@ -17,9 +18,17 @@ const cuisines = [
 ];
 
 export function CuisineChips({ selectedCuisine, onSelect }: CuisineChipsProps) {
+  const { t } = useLanguage();
+  
+  // Translate cuisine labels
+  const translatedCuisines = cuisines.map(cuisine => {
+    const labelKey = `category_${cuisine.id}`;
+    const translatedLabel = t(labelKey) !== labelKey ? t(labelKey) : cuisine.label;
+    return { ...cuisine, label: translatedLabel };
+  });
   return (
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin hide-scrollbar">
-      {cuisines.map((cuisine, index) => {
+      {translatedCuisines.map((cuisine, index) => {
         const isSelected = selectedCuisine === cuisine.id || (cuisine.id === "all" && !selectedCuisine);
         
         return (

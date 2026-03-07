@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen } from "lucide-react";
+import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen, Utensils, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +25,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { AdaptiveGoalsSettings } from "@/components/AdaptiveGoalsSettings";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface NotificationPreferences {
   id: string;
@@ -44,6 +45,7 @@ const Settings = () => {
   const { user } = useAuth();
   const { subscription, hasActiveSubscription, isPaused, pauseSubscription, resumeSubscription, refetch: refetchSubscription } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
+  const { t } = useLanguage();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -97,8 +99,8 @@ const Settings = () => {
     } catch (error) {
       console.error("Error fetching settings:", error);
       toast({
-        title: "Error",
-        description: "Failed to load settings",
+        title: t('settings_error_loading'),
+        description: t('settings_error_loading_desc'),
         variant: "destructive"
       });
     } finally {
@@ -122,14 +124,14 @@ const Settings = () => {
       setNotificationPrefs(prev => prev ? { ...prev, [key]: value } : null);
       
       toast({
-        title: "Saved",
-        description: "Notification preferences updated"
+        title: t('settings_saved'),
+        description: t('settings_preferences_updated')
       });
     } catch (error) {
       console.error("Error updating notification pref:", error);
       toast({
-        title: "Error",
-        description: "Failed to update preference",
+        title: t('settings_error_updating'),
+        description: t('settings_error_updating_desc'),
         variant: "destructive"
       });
     } finally {
@@ -138,14 +140,14 @@ const Settings = () => {
   };
 
   const reminderTimeOptions = [
-    { value: "06:00:00", label: "6:00 AM" },
-    { value: "07:00:00", label: "7:00 AM" },
-    { value: "08:00:00", label: "8:00 AM" },
-    { value: "09:00:00", label: "9:00 AM" },
-    { value: "10:00:00", label: "10:00 AM" },
-    { value: "12:00:00", label: "12:00 PM" },
-    { value: "18:00:00", label: "6:00 PM" },
-    { value: "20:00:00", label: "8:00 PM" }
+    { value: "06:00:00", label: t('settings_time_6am') },
+    { value: "07:00:00", label: t('settings_time_7am') },
+    { value: "08:00:00", label: t('settings_time_8am') },
+    { value: "09:00:00", label: t('settings_time_9am') },
+    { value: "10:00:00", label: t('settings_time_10am') },
+    { value: "12:00:00", label: t('settings_time_12pm') },
+    { value: "18:00:00", label: t('settings_time_6pm') },
+    { value: "20:00:00", label: t('settings_time_8pm') }
   ];
 
   if (loading) {
@@ -171,9 +173,9 @@ const Settings = () => {
               size="icon"
               onClick={() => navigate(-1)}
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 rtl-flip-back" />
             </Button>
-            <h1 className="text-xl font-semibold">Settings</h1>
+            <h1 className="text-xl font-semibold">{t('settings_title')}</h1>
           </div>
         </div>
       </header>
@@ -185,29 +187,29 @@ const Settings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Crown className="h-5 w-5 text-primary" />
-                Subscription
+                {t('settings_subscription')}
               </CardTitle>
               <CardDescription>
-                Manage your subscription settings
+                {t('settings_subscription_description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium capitalize">{subscription.plan} Plan</p>
+                  <p className="font-medium capitalize">{subscription.plan} {t('settings_plan')}</p>
                   <p className="text-sm text-muted-foreground">
                     {isPaused ? (
                       <span className="flex items-center gap-1 text-amber-600">
                         <Pause className="h-3 w-3" />
-                        Subscription paused
+                        {t('settings_subscription_paused_status')}
                       </span>
                     ) : (
-                      `Renews on ${new Date(subscription.end_date).toLocaleDateString()}`
+                      `${t('settings_renews_on')} ${new Date(subscription.end_date).toLocaleDateString()}`
                     )}
                   </p>
                 </div>
                 <Badge variant={isPaused ? "outline" : "default"} className={isPaused ? "border-amber-500 text-amber-600" : ""}>
-                  {isPaused ? "Paused" : "Active"}
+                  {isPaused ? t('settings_paused') : t('settings_active')}
                 </Badge>
               </div>
 
@@ -216,9 +218,9 @@ const Settings = () => {
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-amber-600">Subscription Paused</p>
+                      <p className="text-sm font-medium text-amber-600">{t('settings_subscription_paused_title')}</p>
                       <p className="text-sm text-muted-foreground">
-                        You won't be charged and can't order meals while paused. Resume anytime to continue.
+                        {t('settings_subscription_paused_desc')}
                       </p>
                     </div>
                   </div>
@@ -234,13 +236,13 @@ const Settings = () => {
                       setPausingSubscription(false);
                       if (success) {
                         toast({
-                          title: "Subscription Resumed",
-                          description: "Your subscription is now active again.",
+                          title: t('settings_subscription_resumed'),
+                          description: t('settings_subscription_resumed_desc'),
                         });
                       } else {
                         toast({
-                          title: "Error",
-                          description: "Failed to resume subscription. Please try again.",
+                          title: t('settings_error'),
+                          description: t('settings_resume_error_desc'),
                           variant: "destructive",
                         });
                       }
@@ -253,26 +255,25 @@ const Settings = () => {
                     ) : (
                       <Play className="h-4 w-4 mr-2" />
                     )}
-                    Resume Subscription
+                    {t('settings_resume_subscription')}
                   </Button>
                 ) : (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="flex-1">
                         <Pause className="h-4 w-4 mr-2" />
-                        Pause Subscription
+                        {t('settings_pause_subscription')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Pause your subscription?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('settings_pause_dialog_title')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          While paused, you won't be charged and won't be able to order meals.
-                          You can resume your subscription at any time.
+                          {t('settings_pause_dialog_desc')}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{t('settings_cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={async () => {
                             setPausingSubscription(true);
@@ -280,26 +281,26 @@ const Settings = () => {
                             setPausingSubscription(false);
                             if (success) {
                               toast({
-                                title: "Subscription Paused",
-                                description: "Your subscription has been paused. Resume anytime.",
+                                title: t('settings_subscription_paused'),
+                                description: t('settings_subscription_paused_toast_desc'),
                               });
                             } else {
                               toast({
-                                title: "Error",
-                                description: "Failed to pause subscription. Please try again.",
+                                title: t('settings_error'),
+                                description: t('settings_pause_error_desc'),
                                 variant: "destructive",
                               });
                             }
                           }}
                         >
-                          Pause Subscription
+                          {t('settings_pause_subscription')}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
                 <Button variant="ghost" onClick={() => navigate("/subscription")}>
-                  Change Plan
+                  {t('settings_change_plan')}
                 </Button>
               </div>
             </CardContent>
@@ -314,10 +315,10 @@ const Settings = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
-              Notification Preferences
+              {t('settings_notifications')}
             </CardTitle>
             <CardDescription>
-              Manage how and when you receive notifications
+              {t('settings_notifications_description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -326,9 +327,9 @@ const Settings = () => {
               <div className="flex items-center gap-3 flex-1">
                 <Smartphone className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <Label htmlFor="push" className="cursor-pointer">Push Notifications</Label>
+                  <Label htmlFor="push" className="cursor-pointer">{t('settings_push_notifications')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive push notifications on your device
+                    {t('settings_push_notifications_desc')}
                   </p>
                 </div>
               </div>
@@ -345,9 +346,9 @@ const Settings = () => {
               <div className="flex items-center gap-3 flex-1">
                 <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <Label htmlFor="email" className="cursor-pointer">Email Notifications</Label>
+                  <Label htmlFor="email" className="cursor-pointer">{t('settings_email_notifications')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive important updates via email
+                    {t('settings_email_notifications_desc')}
                   </p>
                 </div>
               </div>
@@ -364,9 +365,9 @@ const Settings = () => {
               <div className="flex items-center gap-3 flex-1">
                 <Utensils className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <Label htmlFor="reminders" className="cursor-pointer">Meal Reminders</Label>
+                  <Label htmlFor="reminders" className="cursor-pointer">{t('settings_meal_reminders')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Get reminded about scheduled meals
+                    {t('settings_meal_reminders_desc')}
                   </p>
                 </div>
               </div>
@@ -384,9 +385,9 @@ const Settings = () => {
                 <div className="flex items-center gap-3 flex-1">
                   <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1">
-                    <Label htmlFor="reminder-time" className="cursor-pointer">Reminder Time</Label>
+                    <Label htmlFor="reminder-time" className="cursor-pointer">{t('settings_reminder_time')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      When to send meal reminders
+                      {t('settings_reminder_time_desc')}
                     </p>
                   </div>
                 </div>
@@ -414,9 +415,9 @@ const Settings = () => {
               <div className="flex items-center gap-3 flex-1">
                 <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <Label htmlFor="orders" className="cursor-pointer">Order Updates</Label>
+                  <Label htmlFor="orders" className="cursor-pointer">{t('settings_order_updates')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Updates about your order status
+                    {t('settings_order_updates_desc')}
                   </p>
                 </div>
               </div>
@@ -433,9 +434,9 @@ const Settings = () => {
               <div className="flex items-center gap-3 flex-1">
                 <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <Label htmlFor="weekly" className="cursor-pointer">Weekly Summary</Label>
+                  <Label htmlFor="weekly" className="cursor-pointer">{t('settings_weekly_summary')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Weekly progress and nutrition report
+                    {t('settings_weekly_summary_desc')}
                   </p>
                 </div>
               </div>
@@ -452,9 +453,9 @@ const Settings = () => {
               <div className="flex items-center gap-3 flex-1">
                 <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <Label htmlFor="promo" className="cursor-pointer">Promotional Emails</Label>
+                  <Label htmlFor="promo" className="cursor-pointer">{t('settings_promotional_emails')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Deals, offers, and new features
+                    {t('settings_promotional_emails_desc')}
                   </p>
                 </div>
               </div>
@@ -477,8 +478,8 @@ const Settings = () => {
             <div className="flex items-center gap-3">
               <HelpCircle className="h-5 w-5 text-primary" />
               <div>
-                <p className="font-medium">Help & Support</p>
-                <p className="text-sm text-muted-foreground">Get help or submit a support ticket</p>
+                <p className="font-medium">{t('settings_help')}</p>
+                <p className="text-sm text-muted-foreground">{t('settings_help_desc')}</p>
               </div>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -494,8 +495,8 @@ const Settings = () => {
             <div className="flex items-center gap-3">
               <BookOpen className="h-5 w-5 text-primary" />
               <div>
-                <p className="font-medium">View FAQ</p>
-                <p className="text-sm text-muted-foreground">Frequently asked questions</p>
+                <p className="font-medium">{t('settings_about')}</p>
+                <p className="text-sm text-muted-foreground">{t('settings_about_desc')}</p>
               </div>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -509,19 +510,19 @@ const Settings = () => {
           <div className="flex justify-around py-2">
             <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/dashboard")}>
               <Utensils className="h-5 w-5" />
-              <span className="text-xs mt-1">Home</span>
+              <span className="text-xs mt-1">{t('nav_home')}</span>
             </Button>
             <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/meals")}>
               <Utensils className="h-5 w-5" />
-              <span className="text-xs mt-1">Meals</span>
+              <span className="text-xs mt-1">{t('nav_meals')}</span>
             </Button>
             <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/schedule")}>
               <Clock className="h-5 w-5" />
-              <span className="text-xs mt-1">Schedule</span>
+              <span className="text-xs mt-1">{t('nav_schedule')}</span>
             </Button>
             <Button variant="ghost" className="flex-col h-auto py-2 text-primary" onClick={() => navigate("/settings")}>
               <Bell className="h-5 w-5" />
-              <span className="text-xs mt-1">Settings</span>
+              <span className="text-xs mt-1">{t('nav_settings')}</span>
             </Button>
           </div>
         </div>

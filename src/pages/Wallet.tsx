@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,6 +33,7 @@ export default function Wallet() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const {
     wallet,
@@ -54,16 +56,16 @@ export default function Wallet() {
     if (paymentParam === 'success' && orderParam) {
       setPaymentStatus('success');
       toast({
-        title: "Payment Successful!",
-        description: "Your wallet has been credited.",
+        title: t("payment_successful"),
+        description: t("wallet_credited"),
       });
       refresh();
       navigate('/wallet', { replace: true });
     } else if (paymentParam === 'failed') {
       setPaymentStatus('failed');
       toast({
-        title: "Payment Failed",
-        description: "Please try again or contact support.",
+        title: t("payment_failed"),
+        description: t("payment_failed_description"),
         variant: "destructive",
       });
       navigate('/wallet', { replace: true });
@@ -103,8 +105,8 @@ export default function Wallet() {
       <main className="container max-w-md mx-auto px-4 py-6 pb-24">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Wallet</h1>
-            <p className="text-muted-foreground">Manage your balance</p>
+            <h1 className="text-2xl font-bold">{t("wallet_title")}</h1>
+            <p className="text-muted-foreground">{t("wallet_subtitle")}</p>
           </div>
           <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
             <WalletIcon className="h-6 w-6 text-green-600" />
@@ -115,7 +117,7 @@ export default function Wallet() {
           <Alert className="mb-4 bg-green-50 border-green-200">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-700">
-              Payment successful! Your wallet has been credited.
+              {t("payment_success_alert")}
             </AlertDescription>
           </Alert>
         )}
@@ -124,7 +126,7 @@ export default function Wallet() {
           <Alert className="mb-4 bg-red-50 border-red-200" variant="destructive">
             <XCircle className="h-4 w-4" />
             <AlertDescription>
-              Payment failed. Please try again.
+              {t("payment_failed_alert")}
             </AlertDescription>
           </Alert>
         )}
@@ -133,7 +135,7 @@ export default function Wallet() {
         <Alert className="mb-4 bg-amber-50 border-amber-200">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-700">
-            SIMULATION MODE: All payments are simulated. No real money will be charged.
+            {t("simulation_mode_notice")}
           </AlertDescription>
         </Alert>
 
@@ -163,9 +165,9 @@ export default function Wallet() {
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Top-up</DialogTitle>
+            <DialogTitle>{t("wallet_confirm_topup")}</DialogTitle>
             <DialogDescription>
-              Review your top-up details before proceeding to payment.
+              {t("wallet_confirm_topup_description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -175,21 +177,21 @@ export default function Wallet() {
                 <CardContent className="p-4">
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Package</span>
+                      <span className="text-muted-foreground">{t("wallet_package_label")}</span>
                       <span className="font-medium">{selectedPackage.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Top-up Amount</span>
+                      <span className="text-muted-foreground">{t("wallet_topup_amount")}</span>
                       <span>{formatCurrency(selectedPackage.amount)}</span>
                     </div>
                     {selectedPackage.bonus_amount > 0 && (
                       <div className="flex justify-between text-purple-600">
-                        <span>Bonus Credit</span>
+                        <span>{t("wallet_bonus_credit")}</span>
                         <span>+{formatCurrency(selectedPackage.bonus_amount)}</span>
                       </div>
                     )}
                     <div className="border-t pt-2 flex justify-between font-semibold">
-                      <span>Total Credit</span>
+                      <span>{t("wallet_total_credit")}</span>
                       <span className="text-green-600">{formatCurrency(totalAmount)}</span>
                     </div>
                   </div>
@@ -197,18 +199,18 @@ export default function Wallet() {
               </Card>
 
               <p className="text-sm text-muted-foreground text-center">
-                You will be redirected to Sadad to complete the payment securely.
+                {t("wallet_redirect_notice")}
               </p>
             </div>
           )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
-              Cancel
+              {t("button_cancel")}
             </Button>
             <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
               <CreditCard className="h-4 w-4 mr-2" />
-              Pay {formatCurrency(selectedPackage?.amount ?? 0)}
+              {t("button_pay")} {formatCurrency(selectedPackage?.amount ?? 0)}
             </Button>
           </DialogFooter>
         </DialogContent>

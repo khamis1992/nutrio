@@ -25,11 +25,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const STEP_GOAL = 6000;
 
-function getBmiStatus(bmi: number): { label: string; color: string } {
-  if (bmi < 18.5) return { label: "Underweight", color: "bg-slate-700" };
-  if (bmi < 25) return { label: "Normal", color: "bg-emerald-500" };
-  if (bmi < 30) return { label: "Overweight", color: "bg-amber-500" };
-  return { label: "Obese", color: "bg-red-500" };
+function getBmiStatus(bmi: number, t: any): { label: string; color: string } {
+  if (bmi < 18.5) return { label: t("underweight"), color: "bg-slate-700" };
+  if (bmi < 25) return { label: t("normal"), color: "bg-emerald-500" };
+  if (bmi < 30) return { label: t("overweight"), color: "bg-amber-500" };
+  return { label: t("obese"), color: "bg-red-500" };
 }
 
 function getBmiBarPosition(bmi: number): number {
@@ -98,7 +98,7 @@ export default function Tracker() {
   // BMI
   const heightM = (profile?.height_cm ?? 170) / 100;
   const bmi = currentWeight ? currentWeight / (heightM * heightM) : null;
-  const bmiStatus = bmi ? getBmiStatus(bmi) : null;
+  const bmiStatus = bmi ? getBmiStatus(bmi, t) : null;
 
   const handleUpdateWeight = async () => {
     const kg = parseFloat(weightInput);
@@ -114,11 +114,11 @@ export default function Tracker() {
       if (error) throw error;
       await updateProfile({ current_weight_kg: kg });
       await fetchMeasurements();
-      toast({ title: "Weight updated", description: `${kg} kg logged.` });
+      toast({ title: t("weight_updated_toast"), description: `${kg} ${t("kg_logged")}` });
       setWeightDialogOpen(false);
       setWeightInput("");
     } catch {
-      toast({ title: "Failed to update", variant: "destructive" });
+      toast({ title: t("failed_to_update"), variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -130,11 +130,11 @@ export default function Tracker() {
     setSubmitting(true);
     try {
       await updateProfile({ height_cm: cm });
-      toast({ title: "Height updated", description: "BMI recalculated." });
+      toast({ title: t("height_updated_toast"), description: t("bmi_recalculated") });
       setBmiDialogOpen(false);
       setHeightInput("");
     } catch {
-      toast({ title: "Failed to update", variant: "destructive" });
+      toast({ title: t("failed_to_update"), variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -220,8 +220,8 @@ export default function Tracker() {
               <p className="font-bold text-gray-900 mb-1">{t("steps")}</p>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{steps.toLocaleString()} steps</p>
-                  <p className="text-sm text-gray-500">/ {STEP_GOAL.toLocaleString()} steps</p>
+                  <p className="text-2xl font-bold text-gray-900">{steps.toLocaleString()} {t("steps")}</p>
+                  <p className="text-sm text-gray-500">/ {STEP_GOAL.toLocaleString()} {t("steps")}</p>
                 </div>
                 <div className="relative w-20 h-20 flex-shrink-0">
                   <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
@@ -361,7 +361,7 @@ export default function Tracker() {
                 step="0.1"
                 min="20"
                 max="300"
-                placeholder="e.g. 78.5"
+                placeholder={t("weight_placeholder")}
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}
                 className="mt-2 rounded-xl h-12"
@@ -454,7 +454,7 @@ export default function Tracker() {
                 disabled={submitting}
                 className="flex-1 py-3.5 rounded-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-base transition-all active:scale-[0.98]"
               >
-                {submitting ? "Saving…" : t("save")}
+                {submitting ? t("saving_progress") : t("save")}
               </button>
             </div>
           </div>

@@ -143,7 +143,7 @@ export function ForgotPasswordDialog({ trigger, redirectTo }: ForgotPasswordDial
                   className="flex-1"
                   disabled={loading}
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  <ArrowLeft className="w-4 h-4 mr-2 rtl-flip-back" />
                   Back
                 </Button>
                 <Button type="submit" className="flex-1" disabled={loading}>

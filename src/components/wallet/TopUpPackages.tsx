@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { TopUpPackage } from "@/hooks/useWallet";
 
 interface TopUpPackagesProps {
@@ -20,10 +21,12 @@ export function TopUpPackages({
   selectedPackageId,
   processingId 
 }: TopUpPackagesProps) {
+  const { t } = useLanguage();
+  
   if (loading) {
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Top-up Packages</h2>
+        <h2 className="text-lg font-semibold">{t('top_up_packages')}</h2>
         <div className="grid grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -46,16 +49,16 @@ export function TopUpPackages({
   };
 
   const getPackageBadge = (pkg: TopUpPackage) => {
-    if (pkg.bonus_amount >= 100) return { text: "Best Value", color: "bg-purple-500" };
-    if (pkg.bonus_amount >= 30) return { text: "Popular", color: "bg-amber-500" };
+    if (pkg.bonus_amount >= 100) return { text: t('best_value'), color: "bg-purple-500" };
+    if (pkg.bonus_amount >= 30) return { text: t('popular'), color: "bg-amber-500" };
     return null;
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Top-up Packages</h2>
-        <p className="text-sm text-muted-foreground">Get bonus credits!</p>
+        <h2 className="text-lg font-semibold">{t('top_up_packages')}</h2>
+        <p className="text-sm text-muted-foreground">{t('get_bonus_credits')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -105,14 +108,14 @@ export function TopUpPackages({
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
-                    "Processing..."
+                    t('processing')
                   ) : isSelected ? (
                     <>
                       <Check className="h-4 w-4 mr-1" />
-                      Selected
+                      {t('selected')}
                     </>
                   ) : (
-                    "Select"
+                    t('select')
                   )}
                 </Button>
               </CardContent>
@@ -122,7 +125,7 @@ export function TopUpPackages({
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        Secure payment via Sadad • Credits never expire
+        {t('secure_payment_sadad_credits_never_expire')}
       </p>
     </div>
   );

@@ -2,27 +2,29 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, Shield, HelpCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Policies = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const policyLinks = [
     {
       icon: FileText,
-      title: "Terms of Service",
-      description: "Read our terms and conditions",
+      titleKey: "terms_of_service_card",
+      descriptionKey: "terms_of_service_desc",
       path: "/terms",
     },
     {
       icon: Shield,
-      title: "Privacy Policy",
-      description: "How we handle your data",
+      titleKey: "privacy_policy_card",
+      descriptionKey: "privacy_policy_desc",
       path: "/privacy",
     },
     {
       icon: HelpCircle,
-      title: "FAQ",
-      description: "Frequently asked questions",
+      titleKey: "faq_card",
+      descriptionKey: "faq_desc",
       path: "/faq",
     },
   ];
@@ -31,13 +33,13 @@ const Policies = () => {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="flex items-center gap-3 px-4 py-4">
+        <div className="flex items-center gap-3 px-4 py-4 rtl:flex-row-reverse">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold">Policies & Legal</h1>
-            <p className="text-xs text-muted-foreground">Terms, privacy, and legal information</p>
+            <h1 className="text-lg font-semibold">{t("policies_legal")}</h1>
+            <p className="text-xs text-muted-foreground">{t("policies_subtitle")}</p>
           </div>
         </div>
       </div>
@@ -56,8 +58,8 @@ const Policies = () => {
                   <Icon className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">{item.description}</p>
+                  <p className="font-medium text-sm">{t(item.titleKey)}</p>
+                  <p className="text-xs text-muted-foreground">{t(item.descriptionKey)}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
               </CardContent>

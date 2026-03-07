@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -666,12 +667,13 @@ const MealDetail = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { 
-    hasActiveSubscription, 
-    remainingMeals, 
-    isUnlimited, 
-    canOrderMeal, 
-    incrementMealUsage 
+  const { t } = useLanguage();
+  const {
+    hasActiveSubscription,
+    remainingMeals,
+    isUnlimited,
+    canOrderMeal,
+    incrementMealUsage
   } = useSubscription();
 
   const [meal, setMeal] = useState<MealDetail | null>(null);
@@ -742,7 +744,7 @@ const MealDetail = () => {
           price: mealData.price ? Number(mealData.price) : null,
           restaurant: restaurantData || {
             id: "",
-            name: "Unknown Restaurant",
+            name: t("unknown_restaurant"),
             address: null,
             logo_url: null
           }
@@ -751,8 +753,8 @@ const MealDetail = () => {
     } catch (error) {
       console.error("Error fetching meal:", error);
       toast({
-        title: "Error",
-        description: "Failed to load meal details",
+        title: t("error"),
+        description: t("failed_load_meal"),
         variant: "destructive",
       });
     } finally {

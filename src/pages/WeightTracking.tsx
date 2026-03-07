@@ -14,6 +14,7 @@ import {
 } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface WeightEntry {
   id: string;
@@ -21,10 +22,10 @@ interface WeightEntry {
   log_date: string;
 }
 
-function formatEntryDate(dateStr: string): string {
+function formatEntryDate(dateStr: string, t: (key: string) => string): string {
   const d = parseISO(dateStr);
-  if (isToday(d)) return `Today, ${format(d, "MMM d, yyyy")}`;
-  if (isYesterday(d)) return `Yesterday, ${format(d, "MMM d, yyyy")}`;
+  if (isToday(d)) return `${t('today')}, ${format(d, "MMM d, yyyy")}`;
+  if (isYesterday(d)) return `${t('yesterday')}, ${format(d, "MMM d, yyyy")}`;
   return format(d, "MMM d, yyyy");
 }
 
@@ -33,6 +34,7 @@ export default function WeightTracking() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
+  const { t } = useLanguage();
 
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -90,11 +92,11 @@ export default function WeightTracking() {
       if (isToday(sheetDate)) {
         await supabase.from("profiles").update({ current_weight_kg: kg }).eq("id", user.id);
       }
-      toast.success("Weight updated");
+      toast.success(t('weight_updated'));
       setSheetOpen(false);
       fetchEntries();
     } catch {
-      toast.error("Failed to update weight");
+      toast.error(t('failed_to_update'));
     } finally {
       setSubmitting(false);
     }
@@ -103,7 +105,7 @@ export default function WeightTracking() {
   const handleDelete = async (id: string) => {
     if (!user) return;
     const { error } = await supabase.from("body_measurements").delete().eq("id", id).eq("user_id", user.id);
-    if (!error) { toast.success("Entry deleted"); fetchEntries(); }
+    if (!error) { toast.success(t('delete_success')); fetchEntries(); }
     setOpenMenuId(null);
   };
 
@@ -114,11 +116,11 @@ export default function WeightTracking() {
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
           <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+            <ArrowLeft className="w-5 h-5 text-gray-700 rtl-flip-back" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">Weight Tracker</h1>
+          <h1 className="text-lg font-bold text-gray-900">{t('weight_tracker')}</h1>
           <div className="w-10" />
         </div>
       </div>
@@ -126,17 +128,17 @@ export default function WeightTracking() {
       <div className="px-4 py-5 space-y-4">
         {/* Current weight card */}
         <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-semibold text-gray-500 mb-1">Current</p>
+          <p className="text-sm font-semibold text-gray-500 mb-1">{t('current')}</p>
 
           <div className="flex items-baseline gap-3 mb-4">
             <span className="text-5xl font-black text-gray-900">{currentWeight?.toFixed(1) ?? "--"}</span>
-            <span className="text-lg font-semibold text-gray-400">kg</span>
+            <span className="text-lg font-semibold text-gray-400">{t('kg')}</span>
             {change != null && (
               <span className={cn("flex items-center gap-1.5 text-sm font-semibold", change <= 0 ? "text-emerald-600" : "text-red-500")}>
                 <span className={cn("w-5 h-5 rounded-full flex items-center justify-center", change <= 0 ? "bg-emerald-500" : "bg-red-500")}>
                   {change <= 0 ? <ArrowDown className="w-3 h-3 text-white" /> : <ArrowUp className="w-3 h-3 text-white" />}
                 </span>
-                {change > 0 ? "+" : ""}{change.toFixed(1)} kg
+                {change > 0 ? "+" : ""}{change.toFixed(1)} {t('kg')}
               </span>
             )}
           </div>
@@ -145,31 +147,31 @@ export default function WeightTracking() {
             <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="flex justify-between text-xs text-gray-400 mb-5">
-            <span>Starting: {startWeight?.toFixed(1) ?? "--"} kg</span>
-            <span>Goal: {goalWeight?.toFixed(1) ?? "--"} kg</span>
+            <span>{t('starting')}: {startWeight?.toFixed(1) ?? "--"} {t('kg')}</span>
+            <span>{t('goal')}: {goalWeight?.toFixed(1) ?? "--"} {t('kg')}</span>
           </div>
 
           <button
             onClick={openSheet}
             className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-base transition-all"
           >
-            Update
+            {t('update')}
           </button>
         </div>
 
         {/* History */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
-            <h2 className="font-bold text-gray-900">History</h2>
+            <h2 className="font-bold text-gray-900">{t('history')}</h2>
             {entries.length > 7 && (
               <button onClick={() => setShowAll((p) => !p)} className="text-sm text-orange-500 font-semibold flex items-center gap-1">
-                {showAll ? "Show Less" : "View All"} →
+                {showAll ? t('show_less') : t('view_all')} →
               </button>
             )}
           </div>
 
           {displayed.length === 0 ? (
-            <p className="text-sm text-gray-400 px-5 pb-5">No entries yet. Tap Update to log your first weight.</p>
+            <p className="text-sm text-gray-400 px-5 pb-5">{t('no_entries_yet')}</p>
           ) : (
             <div className="divide-y divide-gray-50">
               {displayed.map((entry, i) => {
@@ -178,8 +180,8 @@ export default function WeightTracking() {
                 return (
                   <div key={entry.id} className="flex items-center px-5 py-3.5 relative">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900">{entry.weight_kg.toFixed(1)} kg</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{formatEntryDate(entry.log_date)}</p>
+                      <p className="font-bold text-gray-900">{entry.weight_kg.toFixed(1)} {t('kg')}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{formatEntryDate(entry.log_date, t)}</p>
                     </div>
 
                     {diff != null && (
@@ -187,7 +189,7 @@ export default function WeightTracking() {
                         <span className={cn("w-6 h-6 rounded-full flex items-center justify-center shrink-0", diff <= 0 ? "bg-emerald-500" : "bg-red-500")}>
                           {diff <= 0 ? <ArrowDown className="w-3.5 h-3.5 text-white" /> : <ArrowUp className="w-3.5 h-3.5 text-white" />}
                         </span>
-                        {diff > 0 ? "+" : ""}{diff.toFixed(1)} kg
+                        {diff > 0 ? "+" : ""}{diff.toFixed(1)} {t('kg')}
                       </span>
                     )}
 
@@ -198,7 +200,7 @@ export default function WeightTracking() {
                       {openMenuId === entry.id && (
                         <div className="absolute right-0 top-9 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[120px]">
                           <button onClick={() => handleDelete(entry.id)} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                            <Trash2 className="w-3.5 h-3.5" /> {t('delete')}
                           </button>
                         </div>
                       )}
@@ -226,7 +228,7 @@ export default function WeightTracking() {
             </div>
 
             {/* Title */}
-            <h2 className="flex-none text-center text-lg font-bold text-gray-900 py-3">Update Weight</h2>
+            <h2 className="flex-none text-center text-lg font-bold text-gray-900 py-3">{t('update_weight')}</h2>
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-4 pb-2">
@@ -282,7 +284,7 @@ export default function WeightTracking() {
                   onChange={(e) => setSheetWeight(e.target.value)}
                   className="text-6xl font-black text-gray-900 tracking-tight bg-transparent border-none outline-none w-40 text-center"
                 />
-                <span className="text-2xl font-semibold text-gray-400">kg</span>
+                <span className="text-2xl font-semibold text-gray-400">{t('kg')}</span>
               </div>
             </div>
 
@@ -293,7 +295,7 @@ export default function WeightTracking() {
                 className="flex-1 rounded-full border-2 border-orange-500 text-orange-500 font-bold text-base hover:bg-orange-50 transition-all"
                 style={{ height: 52 }}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -301,7 +303,7 @@ export default function WeightTracking() {
                 className="flex-1 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-base transition-all active:scale-[0.98]"
                 style={{ height: 52 }}
               >
-                {submitting ? "Saving…" : "Save"}
+                {submitting ? t('saving') : t('save')}
               </button>
             </div>
 

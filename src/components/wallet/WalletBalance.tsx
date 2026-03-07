@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Wallet, TrendingUp, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface WalletBalanceProps {
   balance: number;
@@ -10,6 +11,8 @@ interface WalletBalanceProps {
 }
 
 export function WalletBalance({ balance, totalCredits, totalDebits, loading }: WalletBalanceProps) {
+  const { t } = useLanguage();
+  
   if (loading) {
     return (
       <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
@@ -30,10 +33,10 @@ export function WalletBalance({ balance, totalCredits, totalDebits, loading }: W
           <div>
             <p className="text-green-100 text-sm font-medium flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              Available Balance
+              {t("available_balance")}
             </p>
             <p className="text-4xl font-bold mt-2">{formatCurrency(balance)}</p>
-            <p className="text-green-100 text-xs mt-1">Available for orders</p>
+            <p className="text-green-100 text-xs mt-1">{t("available_for_orders")}</p>
           </div>
           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center">
             <Wallet className="h-8 w-8" />
@@ -46,7 +49,7 @@ export function WalletBalance({ balance, totalCredits, totalDebits, loading }: W
               <ArrowDownLeft className="h-4 w-4 text-green-200" />
             </div>
             <div>
-              <p className="text-xs text-green-100">Total Credits</p>
+              <p className="text-xs text-green-100">{t("total_credits")}</p>
               <p className="font-semibold">{formatCurrency(totalCredits)}</p>
             </div>
           </div>
@@ -55,7 +58,7 @@ export function WalletBalance({ balance, totalCredits, totalDebits, loading }: W
               <ArrowUpRight className="h-4 w-4 text-green-200" />
             </div>
             <div>
-              <p className="text-xs text-green-100">Total Spent</p>
+              <p className="text-xs text-green-100">{t("total_spent")}</p>
               <p className="font-semibold">{formatCurrency(totalDebits)}</p>
             </div>
           </div>

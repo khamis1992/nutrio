@@ -90,11 +90,13 @@ const MEAL_TYPE_CONFIG = {
   },
 };
 
-const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const DAYS_EN = ["S", "M", "T", "W", "T", "F", "S"];
+const DAYS_AR = ["أ", "إ", "ث", "أ", "خ", "ج", "س"];
 
 // Native Mobile Schedule Component
 const Schedule = () => {
   const { t, isRTL } = useLanguage();
+  const DAYS = isRTL ? DAYS_AR : DAYS_EN;
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -186,7 +188,7 @@ const Schedule = () => {
       delivery_time_slot: schedule.delivery_time_slot || null,
       meal: mealsMap[schedule.meal_id] || {
         id: schedule.meal_id,
-        name: "Unknown Meal",
+        name: t("unknown_meal"),
         calories: 0,
         protein_g: 0,
         carbs_g: 0,
@@ -264,8 +266,8 @@ const Schedule = () => {
     } catch (err: any) {
       console.error('Error toggling meal completion:', err);
       toast({ 
-        title: "Error", 
-        description: err.message || "Failed to update meal status", 
+        title: t("error"), 
+        description: err.message || t("failed_update_status"), 
         variant: "destructive" 
       });
     }
@@ -274,11 +276,11 @@ const Schedule = () => {
   const deleteMeal = async (scheduleId: string) => {
     const { error } = await supabase.from("meal_schedules").delete().eq("id", scheduleId);
     if (error) {
-      toast({ title: "Error", description: "Failed to remove meal", variant: "destructive" });
+      toast({ title: t("error"), description: t("failed_to_remove_meal"), variant: "destructive" });
     } else {
       setSchedules(prev => prev.filter(s => s.id !== scheduleId));
       setShowMealSheet(false);
-      toast({ title: "Removed", description: "Meal removed from schedule" });
+      toast({ title: t("meal_removed"), description: t("meal_removed") });
     }
   };
 
@@ -297,14 +299,14 @@ const Schedule = () => {
       ));
 
       toast({ 
-        title: "Delivery Time Set", 
-        description: `Your meal will be delivered during the selected time slot.` 
+        title: t("delivery_time_set"), 
+        description: t("delivery_time_set_desc") 
       });
     } catch (err) {
       console.error("Error updating time slot:", err);
       toast({ 
-        title: "Error", 
-        description: "Failed to set delivery time. Please try again.", 
+        title: t("error"), 
+        description: t("failed_set_delivery"), 
         variant: "destructive" 
       });
     }
@@ -384,9 +386,9 @@ const Schedule = () => {
           <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center mb-4">
             <AlertTriangle className="h-10 w-10 text-amber-500" />
           </div>
-          <h2 className="text-xl font-bold mb-2">Scheduling Unavailable</h2>
-          <p className="text-gray-500 text-center mb-6">Meal scheduling is currently disabled.</p>
-          <Button onClick={() => navigate("/dashboard")} className="rounded-full px-8">Go Back</Button>
+          <h2 className="text-xl font-bold mb-2">{t("scheduling_unavailable")}</h2>
+          <p className="text-gray-500 text-center mb-6">{t("scheduling_disabled_desc")}</p>
+          <Button onClick={() => navigate("/dashboard")} className="rounded-full px-8">{t("go_back")}</Button>
         </div>
       {/* Guest Login Prompt */}
       <GuestLoginPrompt
@@ -438,7 +440,7 @@ const Schedule = () => {
           >
             <div className="bg-white dark:bg-gray-900 rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-sm">Refreshing...</span>
+              <span className="text-sm">{t("refreshing")}</span>
             </div>
           </motion.div>
         )}
@@ -459,13 +461,13 @@ const Schedule = () => {
           className="mx-4 mt-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden"
         >
           <div className="p-4 space-y-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">This Week</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">{t("this_week")}</p>
 
             {/* Stats row */}
             <div className="flex items-center gap-3">
               {/* Meals completed */}
               <div className="flex-1 bg-primary/5 rounded-xl px-3 py-2.5">
-                <p className="text-xs text-muted-foreground mb-0.5">Meals completed</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t("meals_completed")}</p>
                 <p className="text-xl font-bold text-foreground leading-none">
                   {weekProgress.completed}
                   <span className="text-sm font-medium text-muted-foreground ml-1">
@@ -476,7 +478,7 @@ const Schedule = () => {
 
               {/* Calories burned */}
               <div className="flex-1 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-3 py-2.5">
-                <p className="text-xs text-muted-foreground mb-0.5">Calories consumed</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{t("calories_consumed")}</p>
                 <p className="text-xl font-bold text-orange-500 leading-none">
                   {weekProgress.calories.toLocaleString()}
                   <span className="text-xs font-medium text-muted-foreground ml-1">kcal</span>
@@ -487,8 +489,8 @@ const Schedule = () => {
             {/* Progress Bar */}
             <div>
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>{weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0}% done</span>
-                <span>{weekProgress.total - weekProgress.completed} meals remaining</span>
+                <span>{weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0}{t("percent_done")}</span>
+                <span>{weekProgress.total - weekProgress.completed} {t("meals_remaining")}</span>
               </div>
               <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <motion.div
@@ -587,14 +589,14 @@ const Schedule = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-2xl font-bold">
-                {isToday(selectedDate) ? 'Today' : format(selectedDate, "EEEE")}
+                {isToday(selectedDate) ? t("today") : t(format(selectedDate, "EEEE").toLowerCase() as any)}
               </h2>
               <p className="text-sm text-gray-500">{format(selectedDate, "MMMM d, yyyy")}</p>
             </div>
             {dailyNutrition.total > 0 && (
               <div className="text-right">
                 <p className="text-2xl font-bold">{dailyNutrition.calories}</p>
-                <p className="text-xs text-gray-500">calories</p>
+                <p className="text-xs text-gray-500">{t("calories").toLowerCase()}</p>
               </div>
             )}
           </div>
@@ -608,7 +610,7 @@ const Schedule = () => {
                 </div>
                 <div>
                   <p className="text-lg font-bold">{dailyNutrition.calories}</p>
-                  <p className="text-xs text-gray-500">calories</p>
+                  <p className="text-xs text-gray-500">{t("calories").toLowerCase()}</p>
                 </div>
               </div>
               <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-3 flex items-center gap-3 shadow-sm">
@@ -617,7 +619,7 @@ const Schedule = () => {
                 </div>
                 <div>
                   <p className="text-lg font-bold">{dailyNutrition.protein}g</p>
-                  <p className="text-xs text-gray-500">protein</p>
+                  <p className="text-xs text-gray-500">{t("protein").toLowerCase()}</p>
                 </div>
               </div>
             </div>
@@ -647,8 +649,8 @@ const Schedule = () => {
                 <div className="w-24 h-24 rounded-3xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                   <CalendarIcon className="h-12 w-12 text-gray-400" />
                 </div>
-                <p className="text-gray-500 text-center mb-2">No meals scheduled</p>
-                <p className="text-sm text-gray-400 text-center mb-6">Tap + to add your first meal</p>
+                <p className="text-gray-500 text-center mb-2">{t("no_meals_scheduled")}</p>
+                <p className="text-sm text-gray-400 text-center mb-6">{t("tap_to_add_meal")}</p>
               </motion.div>
             ) : (
               <motion.div
@@ -850,7 +852,7 @@ const Schedule = () => {
                         const Icon = MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG].icon;
                         return <Icon className="h-3 w-3" />;
                       })()}
-                      {t(MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG].label)}
+                      {t(MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG].label as any)}
                     </span>
                     <h2 className="text-2xl font-bold mt-2">{selectedMeal.meal.name}</h2>
                   </div>
@@ -878,12 +880,12 @@ const Schedule = () => {
                     {selectedMeal.is_completed ? (
                       <>
                         <Circle className="h-5 w-5" />
-                        Mark as Not Done
+                        {t("mark_not_done")}
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="h-5 w-5" />
-                        Mark as Completed
+                        {t("mark_completed")}
                       </>
                     )}
                   </button>
@@ -893,7 +895,7 @@ const Schedule = () => {
                     className="w-full py-4 rounded-2xl font-semibold bg-primary text-primary-foreground flex items-center justify-center gap-2"
                   >
                     <Utensils className="h-5 w-5" />
-                    View Meal Details
+                    {t("view_meal_details")}
                   </button>
 
                   <button
@@ -901,7 +903,7 @@ const Schedule = () => {
                     className="w-full py-4 rounded-2xl font-semibold bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center gap-2"
                   >
                     <Trash2 className="h-5 w-5" />
-                    Remove from Schedule
+                    {t("remove_from_schedule")}
                   </button>
                 </div>
 
@@ -923,14 +925,14 @@ const Schedule = () => {
                   <div className="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <Flame className="h-5 w-5 text-orange-500" />
-                      <span className="text-sm text-orange-600 dark:text-orange-400">Calories</span>
+                      <span className="text-sm text-orange-600 dark:text-orange-400">{t("calories")}</span>
                     </div>
                     <p className="text-2xl font-bold">{selectedMeal.meal.calories}</p>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <Beef className="h-5 w-5 text-red-500" />
-                      <span className="text-sm text-red-600 dark:text-red-400">Protein</span>
+                      <span className="text-sm text-red-600 dark:text-red-400">{t("protein")}</span>
                     </div>
                     <p className="text-2xl font-bold">{selectedMeal.meal.protein_g}g</p>
                   </div>

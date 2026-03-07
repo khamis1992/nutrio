@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
@@ -44,6 +45,7 @@ interface ReferralDetail {
 export default function ReferralTracking() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [referrals, setReferrals] = useState<ReferralDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -217,9 +219,9 @@ export default function ReferralTracking() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 rtl:flex-row-reverse">
             <Button variant="ghost" size="icon" onClick={() => navigate("/affiliate")}>
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5 rtl-flip-back" />
             </Button>
             <div className="flex-1">
               <h1 className="text-xl font-semibold">Referral Tracking</h1>
@@ -282,9 +284,9 @@ export default function ReferralTracking() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tiers</SelectItem>
-                  <SelectItem value="1">Tier 1</SelectItem>
-                  <SelectItem value="2">Tier 2</SelectItem>
-                  <SelectItem value="3">Tier 3</SelectItem>
+                  <SelectItem value="1">{t("affiliate_tier1_label")}</SelectItem>
+                  <SelectItem value="2">{t("affiliate_tier2_label")}</SelectItem>
+                  <SelectItem value="3">{t("affiliate_tier3_label")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={setSortBy}>

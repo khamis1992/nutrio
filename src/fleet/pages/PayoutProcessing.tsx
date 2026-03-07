@@ -97,9 +97,9 @@ export default function PayoutProcessing() {
   if (showConfirmation) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 rtl:flex-row-reverse">
           <Button variant="outline" size="icon" onClick={() => setShowConfirmation(false)}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 rtl-flip-back" />
           </Button>
           <h1 className="text-2xl font-bold">Confirm Payouts</h1>
         </div>
@@ -189,9 +189,9 @@ export default function PayoutProcessing() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 rtl:flex-row-reverse">
         <Button variant="outline" size="icon" onClick={() => navigate("/fleet/payouts")}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 rtl-flip-back" />
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Process Payouts</h1>

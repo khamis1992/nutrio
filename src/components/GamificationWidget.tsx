@@ -14,6 +14,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UserGamification {
@@ -34,81 +35,6 @@ interface Badge {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
-const BADGES: Badge[] = [
-  {
-    id: 'first_meal',
-    name: 'First Bite',
-    description: 'Log your first meal',
-    icon: <Star className="w-6 h-6" />,
-    xpReward: 50,
-    unlocked: false,
-    rarity: 'common',
-  },
-  {
-    id: 'week_warrior',
-    name: 'Week Warrior',
-    description: 'Log meals for 7 days straight',
-    icon: <Flame className="w-6 h-6" />,
-    xpReward: 100,
-    unlocked: false,
-    rarity: 'common',
-  },
-  {
-    id: 'nutrition_ninja',
-    name: 'Nutrition Ninja',
-    description: 'Hit your calorie goal 5 days in a row',
-    icon: <Target className="w-6 h-6" />,
-    xpReward: 150,
-    unlocked: false,
-    rarity: 'rare',
-  },
-  {
-    id: 'streak_master',
-    name: 'Streak Master',
-    description: 'Maintain a 30-day streak',
-    icon: <Zap className="w-6 h-6" />,
-    xpReward: 300,
-    unlocked: false,
-    rarity: 'epic',
-  },
-  {
-    id: 'variety_king',
-    name: 'Variety King',
-    description: 'Order from 10 different restaurants',
-    icon: <Crown className="w-6 h-6" />,
-    xpReward: 200,
-    unlocked: false,
-    rarity: 'rare',
-  },
-  {
-    id: 'goal_crusher',
-    name: 'Goal Crusher',
-    description: 'Reach your target weight',
-    icon: <Trophy className="w-6 h-6" />,
-    xpReward: 500,
-    unlocked: false,
-    rarity: 'legendary',
-  },
-  {
-    id: 'social_butterfly',
-    name: 'Social Butterfly',
-    description: 'Refer 3 friends who subscribe',
-    icon: <Award className="w-6 h-6" />,
-    xpReward: 250,
-    unlocked: false,
-    rarity: 'rare',
-  },
-  {
-    id: 'subscription_hero',
-    name: 'Subscription Hero',
-    description: 'Maintain subscription for 6 months',
-    icon: <Medal className="w-6 h-6" />,
-    xpReward: 400,
-    unlocked: false,
-    rarity: 'epic',
-  },
-];
-
 const RARITY_COLORS = {
   common: 'from-gray-400 to-gray-500',
   rare: 'from-blue-400 to-blue-600',
@@ -125,14 +51,90 @@ const RARITY_BG = {
 
 export function GamificationWidget() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [gamification, setGamification] = useState<UserGamification>({
     xp: 0,
     level: 1,
     xpToNextLevel: 100,
     totalBadges: 0,
   });
-  const [badges, setBadges] = useState<Badge[]>(BADGES);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const BADGES: Badge[] = [
+    {
+      id: 'first_meal',
+      name: t('badge_first_bite'),
+      description: t('badge_first_bite_desc'),
+      icon: <Star className="w-6 h-6" />,
+      xpReward: 50,
+      unlocked: false,
+      rarity: 'common',
+    },
+    {
+      id: 'week_warrior',
+      name: t('badge_week_warrior'),
+      description: t('badge_week_warrior_desc'),
+      icon: <Flame className="w-6 h-6" />,
+      xpReward: 100,
+      unlocked: false,
+      rarity: 'common',
+    },
+    {
+      id: 'nutrition_ninja',
+      name: t('badge_nutrition_ninja'),
+      description: t('badge_nutrition_ninja_desc'),
+      icon: <Target className="w-6 h-6" />,
+      xpReward: 150,
+      unlocked: false,
+      rarity: 'rare',
+    },
+    {
+      id: 'streak_master',
+      name: t('badge_streak_master'),
+      description: t('badge_streak_master_desc'),
+      icon: <Zap className="w-6 h-6" />,
+      xpReward: 300,
+      unlocked: false,
+      rarity: 'epic',
+    },
+    {
+      id: 'variety_king',
+      name: t('badge_variety_king'),
+      description: t('badge_variety_king_desc'),
+      icon: <Crown className="w-6 h-6" />,
+      xpReward: 200,
+      unlocked: false,
+      rarity: 'rare',
+    },
+    {
+      id: 'goal_crusher',
+      name: t('badge_goal_crusher'),
+      description: t('badge_goal_crusher_desc'),
+      icon: <Trophy className="w-6 h-6" />,
+      xpReward: 500,
+      unlocked: false,
+      rarity: 'legendary',
+    },
+    {
+      id: 'social_butterfly',
+      name: t('badge_social_butterfly'),
+      description: t('badge_social_butterfly_desc'),
+      icon: <Award className="w-6 h-6" />,
+      xpReward: 250,
+      unlocked: false,
+      rarity: 'rare',
+    },
+    {
+      id: 'subscription_hero',
+      name: t('badge_subscription_hero'),
+      description: t('badge_subscription_hero_desc'),
+      icon: <Medal className="w-6 h-6" />,
+      xpReward: 400,
+      unlocked: false,
+      rarity: 'epic',
+    },
+  ];
 
   useEffect(() => {
     if (!user) return;
@@ -200,7 +202,7 @@ export function GamificationWidget() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-violet-600" />
-            <CardTitle className="text-base font-semibold">Level {gamification.level}</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('level_label', { level: gamification.level })}</CardTitle>
           </div>
           <Badge variant="outline" className="bg-white/50">
             <Star className="w-3 h-3 mr-1 text-amber-500" />
@@ -213,7 +215,7 @@ export function GamificationWidget() {
         {/* XP Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Progress to Level {gamification.level + 1}</span>
+            <span className="text-muted-foreground">{t('progress_to_level', { level: gamification.level + 1 })}</span>
             <span className="font-medium">{gamification.xp} / {gamification.xpToNextLevel} XP</span>
           </div>
           <Progress value={xpProgress} className="h-2" />
@@ -222,7 +224,7 @@ export function GamificationWidget() {
         {/* Badges */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <p className="text-sm font-medium">Badges ({gamification.totalBadges}/{badges.length})</p>
+            <p className="text-sm font-medium">{t('badges_title', { unlocked: gamification.totalBadges, total: badges.length })}</p>
           </div>
           
           <div className="grid grid-cols-4 gap-2">
@@ -234,7 +236,7 @@ export function GamificationWidget() {
                     ? `${RARITY_BG[badge.rarity]} cursor-pointer hover:scale-105` 
                     : 'bg-gray-100 border-gray-200 opacity-50'
                 }`}
-                title={badge.unlocked ? `${badge.name}: ${badge.description}` : 'Locked'}
+                title={badge.unlocked ? `${badge.name}: ${badge.description}` : t('badge_locked')}
               >
                 <div className={`${badge.unlocked ? '' : 'grayscale'}`}>
                   {badge.icon}
@@ -253,7 +255,7 @@ export function GamificationWidget() {
         {/* Recent Achievement */}
         {badges.find(b => b.unlocked)?.unlockedAt && (
           <div className="bg-white/60 p-3 rounded-lg border border-violet-200">
-            <p className="text-xs text-muted-foreground mb-1">Latest Achievement</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('latest_achievement')}</p>
             {(() => {
               const latestBadge = badges
                 .filter(b => b.unlocked)
@@ -278,12 +280,12 @@ export function GamificationWidget() {
 
         {/* How to earn XP */}
         <div className="text-xs text-muted-foreground">
-          <p className="font-medium mb-1">Ways to earn XP:</p>
+          <p className="font-medium mb-1">{t('ways_to_earn_xp')}:</p>
           <ul className="space-y-0.5 list-disc list-inside">
-            <li>Log a meal (+10 XP)</li>
-            <li>Maintain streak (+20 XP/day)</li>
-            <li>Hit nutrition goals (+30 XP)</li>
-            <li>Unlock badges (+50-500 XP)</li>
+            <li>{t('earn_xp_log_meal')}</li>
+            <li>{t('earn_xp_maintain_streak')}</li>
+            <li>{t('earn_xp_hit_goals')}</li>
+            <li>{t('earn_xp_unlock_badges')}</li>
           </ul>
         </div>
       </CardContent>

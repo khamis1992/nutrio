@@ -203,9 +203,9 @@ export default function Notifications() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 rtl:flex-row-reverse">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5 rtl-flip-back" />
             </Button>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-bold">{t("notifications")}</h1>

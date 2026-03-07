@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Check, X, TrendingUp, TrendingDown, Minus, Info } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AdaptiveGoalCardProps {
   recommendation: {
@@ -35,6 +36,8 @@ export const AdaptiveGoalCard = ({
   onDismiss,
   loading
 }: AdaptiveGoalCardProps) => {
+  const { t } = useLanguage();
+
   if (!recommendation) return null;
 
   const calorieDiff = recommendation.new_calories - currentCalories;
@@ -53,7 +56,7 @@ export const AdaptiveGoalCard = ({
               <Check className="h-5 w-5 text-green-600" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-green-900">Great Progress!</h3>
+              <h3 className="font-semibold text-green-900">{t('adaptiveGoals_greatProgress')}</h3>
               <p className="text-sm text-green-700 mt-1">{recommendation.reason}</p>
               <p className="text-xs text-green-600 mt-2">{recommendation.suggested_action}</p>
             </div>
@@ -71,9 +74,9 @@ export const AdaptiveGoalCard = ({
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
             </div>
             <div>
-              <CardTitle className="text-lg">AI Suggestion Ready</CardTitle>
+              <CardTitle className="text-lg">{t('adaptiveGoals_aiSuggestion')}</CardTitle>
               <CardDescription>
-                Based on your progress analysis
+                {t('adaptiveGoals_basedOnProgress')}
               </CardDescription>
             </div>
           </div>
@@ -81,11 +84,11 @@ export const AdaptiveGoalCard = ({
             {recommendation.plateau_detected && (
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" />
-                Plateau Detected
+                {t('adaptiveGoals_plateauDetected')}
               </Badge>
             )}
             <Badge variant={recommendation.confidence > 0.8 ? "default" : "secondary"}>
-              {Math.round(recommendation.confidence * 100)}% confidence
+              {Math.round(recommendation.confidence * 100)}{t('adaptiveGoals_confidence')}
             </Badge>
           </div>
         </div>
@@ -95,7 +98,7 @@ export const AdaptiveGoalCard = ({
         {/* Main Calorie Change */}
         <div className="bg-muted p-4 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Daily Calorie Target</span>
+            <span className="text-sm text-muted-foreground">{t('adaptiveGoals_dailyCalorieTarget')}</span>
             {calorieDiff !== 0 && (
               <Badge 
                 variant={calorieDiff > 0 ? "default" : "destructive"}
@@ -112,9 +115,9 @@ export const AdaptiveGoalCard = ({
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold">{recommendation.new_calories}</span>
-            <span className="text-muted-foreground">calories/day</span>
+            <span className="text-muted-foreground">{t('adaptiveGoals_caloriesPerDay')}</span>
             <span className="text-sm text-muted-foreground ml-2">
-              (was {currentCalories})
+              ({t('adaptiveGoals_was')} {currentCalories})
             </span>
           </div>
         </div>
@@ -123,7 +126,7 @@ export const AdaptiveGoalCard = ({
         {(proteinDiff !== 0 || carbsDiff !== 0 || fatDiff !== 0) && (
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-blue-50 p-3 rounded-lg text-center">
-              <p className="text-xs text-blue-600 mb-1">Protein</p>
+              <p className="text-xs text-blue-600 mb-1">{t('adaptiveGoals_protein')}</p>
               <p className="text-lg font-semibold text-blue-700">
                 {recommendation.new_protein}g
               </p>
@@ -134,7 +137,7 @@ export const AdaptiveGoalCard = ({
               )}
             </div>
             <div className="bg-amber-50 p-3 rounded-lg text-center">
-              <p className="text-xs text-amber-600 mb-1">Carbs</p>
+              <p className="text-xs text-amber-600 mb-1">{t('adaptiveGoals_carbs')}</p>
               <p className="text-lg font-semibold text-amber-700">
                 {recommendation.new_carbs}g
               </p>
@@ -145,7 +148,7 @@ export const AdaptiveGoalCard = ({
               )}
             </div>
             <div className="bg-rose-50 p-3 rounded-lg text-center">
-              <p className="text-xs text-rose-600 mb-1">Fat</p>
+              <p className="text-xs text-rose-600 mb-1">{t('adaptiveGoals_fat')}</p>
               <p className="text-lg font-semibold text-rose-700">
                 {recommendation.new_fat}g
               </p>
@@ -162,7 +165,7 @@ export const AdaptiveGoalCard = ({
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Why this change?</p>
+            <p className="text-sm font-medium">{t('adaptiveGoals_whyThisChange')}</p>
           </div>
           <p className="text-sm text-muted-foreground pl-6">{recommendation.reason}</p>
         </div>
@@ -170,14 +173,14 @@ export const AdaptiveGoalCard = ({
         {/* Suggested Action */}
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
           <p className="text-sm text-amber-800">
-            <strong>💡 Tip:</strong> {recommendation.suggested_action}
+            <strong>{t('adaptiveGoals_tip')}:</strong> {recommendation.suggested_action}
           </p>
         </div>
 
         {/* Safety Notice */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Minus className="h-3 w-3" />
-          <span>Changes stay within safe range (1200-4000 calories)</span>
+          <span>{t('adaptiveGoals_safetyRange')}</span>
         </div>
 
         {/* Actions */}
@@ -190,12 +193,12 @@ export const AdaptiveGoalCard = ({
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="animate-spin">⏳</span>
-                Applying...
+                {t('adaptiveGoals_applying')}
               </span>
             ) : (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Apply Changes
+                {t('adaptiveGoals_applyChanges')}
               </>
             )}
           </Button>
@@ -205,7 +208,7 @@ export const AdaptiveGoalCard = ({
             disabled={loading}
           >
             <X className="h-4 w-4 mr-2" />
-            Dismiss
+            {t('adaptiveGoals_dismiss')}
           </Button>
         </div>
       </CardContent>

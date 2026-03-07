@@ -94,6 +94,18 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+const dietTagTranslationKeys: Record<string, string> = {
+  "High-Protein": "high_protein",
+  "Low-Carb": "low_carb",
+  "Gluten-Free": "gluten_free",
+  "Dairy-Free": "dairy_free",
+  "Nut-Free": "nut_free",
+  "Organic": "organic",
+  "Vegetarian": "vegetarian",
+  "Vegan": "vegan",
+  "Keto": "keto",
+};
+
 type TabValue = "profile" | "wallet" | "rewards" | "settings";
 
 interface NavItem {
@@ -280,6 +292,28 @@ const Profile = () => {
   const [privacyAnalytics, setPrivacyAnalytics] = useState(true);
   const [privacyPersonalised, setPrivacyPersonalised] = useState(true);
   const { language, setLanguage, t } = useLanguage();
+
+  const getTranslatedTagName = (tagName: string): string => {
+    // Try the original name first (handles "High-Protein", "Low-Carb", etc.)
+    if (dietTagTranslationKeys[tagName]) {
+      const key = dietTagTranslationKeys[tagName];
+      const translated = t(key as any);
+      return translated !== key ? translated : tagName;
+    }
+    // Try normalized (spaces → Title-Case-Hyphenated) for names like "High Protein"
+    if (tagName.includes(' ')) {
+      const normalized = tagName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
+      if (dietTagTranslationKeys[normalized]) {
+        const key = dietTagTranslationKeys[normalized];
+        const translated = t(key as any);
+        return translated !== key ? translated : tagName;
+      }
+    }
+    // Fallback: try category_* key
+    const categoryKey = `category_${tagName.toLowerCase()}`;
+    const categoryTranslated = t(categoryKey as any);
+    return categoryTranslated !== categoryKey ? categoryTranslated : tagName;
+  };
 
   // Dietary state
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
@@ -855,7 +889,7 @@ const Profile = () => {
                                           )}
                                         >
                                           {isSelected && <Check className="w-3 h-3" />}
-                                          {tag.name}
+                                          {getTranslatedTagName(tag.name)}
                                         </button>
                                       );
                                     })}
@@ -879,7 +913,7 @@ const Profile = () => {
                                           )}
                                         >
                                           {isSelected && <Check className="w-3 h-3" />}
-                                          {tag.name}
+                                          {getTranslatedTagName(tag.name)}
                                         </button>
                                       );
                                     })}

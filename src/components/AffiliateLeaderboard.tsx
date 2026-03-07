@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface LeaderboardEntry {
   id: string;
@@ -18,6 +19,7 @@ interface LeaderboardEntry {
 
 export function AffiliateLeaderboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"earnings" | "referrals">("earnings");
   const [topEarners, setTopEarners] = useState<LeaderboardEntry[]>([]);
   const [topReferrers, setTopReferrers] = useState<LeaderboardEntry[]>([]);
@@ -101,7 +103,7 @@ export function AffiliateLeaderboard() {
   };
 
   const maskName = (name: string | null) => {
-    if (!name) return "Anonymous";
+    if (!name) return t("affiliate_anonymous");
     const parts = name.split(" ");
     if (parts.length === 1) {
       return name[0] + "***";
@@ -122,10 +124,10 @@ export function AffiliateLeaderboard() {
   const renderLeaderboardList = (entries: LeaderboardEntry[], type: 'earnings' | 'referrals') => {
     if (entries.length === 0) {
       return (
-        <div className="py-8 text-center">
+          <div className="py-8 text-center">
           <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-          <p className="text-muted-foreground">No leaderboard data yet</p>
-          <p className="text-sm text-muted-foreground">Be the first to climb the ranks!</p>
+          <p className="text-muted-foreground">{t("affiliate_no_leaderboard_data")}</p>
+          <p className="text-sm text-muted-foreground">{t("affiliate_be_first_climb")}</p>
         </div>
       );
     }
@@ -154,8 +156,8 @@ export function AffiliateLeaderboard() {
               
               <div className="flex-1 min-w-0">
                 <p className={`font-medium truncate ${isCurrentUser ? "text-primary" : ""}`}>
-                  {isCurrentUser ? entry.full_name || "You" : maskName(entry.full_name)}
-                  {isCurrentUser && <span className="text-xs text-primary ml-1">(You)</span>}
+                  {isCurrentUser ? entry.full_name || t("you") : maskName(entry.full_name)}
+                  {isCurrentUser && <span className="text-xs text-primary ml-1">({t("you")})</span>}
                 </p>
                 <div className="flex items-center gap-2">
                   <Badge 
@@ -171,7 +173,7 @@ export function AffiliateLeaderboard() {
                 {type === 'earnings' ? (
                   <p className="font-bold text-green-600">{formatCurrency(entry.total_affiliate_earnings)}</p>
                 ) : (
-                  <p className="font-bold">{entry.referral_count} <span className="text-xs text-muted-foreground">referrals</span></p>
+                  <p className="font-bold">{entry.referral_count} <span className="text-xs text-muted-foreground">{t("referrals")}</span></p>
                 )}
               </div>
             </div>
@@ -185,13 +187,13 @@ export function AffiliateLeaderboard() {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
             <Trophy className="w-5 h-5 text-yellow-500" />
-            Leaderboard
+            {t("affiliate_leaderboard")}
           </CardTitle>
           {userRank && (
             <Badge variant="outline" className="text-xs">
-              Your rank: #{userRank.earnings}
+              {t("affiliate_your_rank")}: #{userRank.earnings}
             </Badge>
           )}
         </div>
@@ -200,9 +202,9 @@ export function AffiliateLeaderboard() {
         <div className="w-full">
           {/* iOS-style segment tabs */}
           <div className="bg-muted rounded-2xl p-1 flex gap-1 mb-4">
-            {([
-              { id: "earnings", label: "Top Earners", icon: TrendingUp },
-              { id: "referrals", label: "Top Referrers", icon: Users },
+          {([
+              { id: "earnings", label: t("affiliate_top_earners"), icon: TrendingUp },
+              { id: "referrals", label: t("affiliate_top_referrers"), icon: Users },
             ] as const).map(({ id, label, icon: Icon }) => (
               <button
                 key={id}

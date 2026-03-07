@@ -7,6 +7,7 @@ import { Utensils, ArrowRight, TrendingUp } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { posthog } from "posthog-js";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { captureError } from "@/lib/sentry";
 
 interface MealLimitUpsellBannerProps {
@@ -20,6 +21,7 @@ export function MealLimitUpsellBanner({
 }: MealLimitUpsellBannerProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { subscription, mealsUsed, totalMeals, remainingMeals, loading } = useSubscription();
   const [hasBeenDismissed, setHasBeenDismissed] = useState(false);
   const [impressionTracked, setImpressionTracked] = useState(false);
@@ -100,8 +102,8 @@ export function MealLimitUpsellBanner({
           <div className="flex-1 min-w-0">
             <AlertTitle className={`text-base font-semibold ${isCritical ? 'text-amber-900' : 'text-blue-900'}`}>
               {isCritical 
-                ? "Almost out of meals!" 
-                : `You've used ${usagePercent}% of your meals`}
+                ? t("mealLimit.almostOut") 
+                : t("mealLimit.usagePercent", { percent: usagePercent })}
             </AlertTitle>
 
             <AlertDescription className={`mt-1 text-sm ${isCritical ? 'text-amber-700' : 'text-blue-700'}`}>
@@ -109,17 +111,20 @@ export function MealLimitUpsellBanner({
                 {/* Progress bar */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
-                    <span>Meal usage</span>
-                    <span className="font-medium">{mealsUsed} / {totalMeals} meals</span>
+                    <span>{t("mealLimit.mealUsage")}</span>
+                    <span className="font-medium">{t("mealLimit.mealsCount", { used: mealsUsed, total: totalMeals })}</span>
                   </div>
                   <Progress 
                     value={usagePercent} 
                     className={`h-2 ${isCritical ? '[&>div]:bg-amber-500' : '[&>div]:bg-blue-500'}`}
                   />
                   <p className={`text-xs ${isCritical ? 'text-amber-600' : 'text-blue-600'}`}>
-                    {remainingMeals} meals remaining until {subscription?.next_renewal_date 
-                      ? new Date(subscription.next_renewal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                      : 'next renewal'}
+                    {subscription?.next_renewal_date 
+                      ? t("mealLimit.mealsRemainingUntil", { 
+                          count: remainingMeals, 
+                          date: new Date(subscription.next_renewal_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        })
+                      : t("mealLimit.mealsRemainingUntilNextRenewal", { count: remainingMeals })}
                   </p>
                 </div>
 
@@ -127,8 +132,8 @@ export function MealLimitUpsellBanner({
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between pt-2">
                   <p className={`text-xs ${isCritical ? 'text-amber-800 font-medium' : 'text-blue-800'}`}>
                     {isCritical 
-                      ? "Upgrade now to keep enjoying healthy meals without interruption!"
-                      : "Running low? Upgrade your plan for more meals per month."}
+                      ? t("mealLimit.criticalUpgradeMessage")
+                      : t("mealLimit.lowUpgradeMessage")}
                   </p>
                   
                   <div className="flex gap-2">
@@ -138,7 +143,7 @@ export function MealLimitUpsellBanner({
                       onClick={handleDismiss}
                       className={`text-xs ${isCritical ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-100' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'}`}
                     >
-                      Dismiss
+                      {t("common.dismiss")}
                     </Button>
                     <Button
                       size="sm"
@@ -148,7 +153,7 @@ export function MealLimitUpsellBanner({
                         : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
                     >
                       <TrendingUp className="mr-1 h-3 w-3" />
-                      Upgrade Plan
+                      {t("mealLimit.upgradePlan")}
                       <ArrowRight className="ml-1 h-3 w-3" />
                     </Button>
                   </div>

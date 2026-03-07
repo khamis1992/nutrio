@@ -174,7 +174,7 @@ const ResetPassword = () => {
           onClick={() => navigate("/auth")}
           className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
-          <ArrowLeft className="w-6 h-6 text-gray-800" />
+          <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
         </button>
 
         {/* Logo */}

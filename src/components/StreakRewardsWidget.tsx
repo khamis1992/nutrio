@@ -11,6 +11,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface StreakReward {
   id: string;
@@ -23,6 +24,7 @@ interface StreakReward {
 
 export function StreakRewardsWidget() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [streakDays, setStreakDays] = useState(0);
   const [claimedRewards, setClaimedRewards] = useState<string[]>([]);
@@ -98,15 +100,15 @@ export function StreakRewardsWidget() {
           p_type: 'bonus',
           p_reference_type: 'streak_reward',
           p_reference_id: reward.id,
-          p_description: `Streak reward: ${reward.streak_days} days`,
+          p_description: `${t('streakRewardTitle')}: ${reward.streak_days} ${t('days')}`,
         });
 
         if (walletError) {
           console.error('Wallet credit error:', walletError);
           // Don't throw - the claim was already recorded
           toast({
-            title: 'Reward Claimed',
-            description: 'Your reward has been recorded. Wallet credit will be applied shortly.',
+            title: t('rewardClaimed'),
+            description: t('walletCreditApplied'),
           });
         }
       }
@@ -114,13 +116,13 @@ export function StreakRewardsWidget() {
       setClaimedRewards([...claimedRewards, reward.id]);
 
       toast({
-        title: 'Reward Claimed!',
-        description: `You've earned ${reward.reward_description}`,
+        title: t('rewardClaimed'),
+        description: t('earnedReward', { description: reward.reward_description }),
       });
     } catch (err) {
       toast({
-        title: 'Error',
-        description: 'Failed to claim reward. Please try again.',
+        title: t('error'),
+        description: t('failedToClaimReward'),
         variant: 'destructive',
       });
     }
@@ -133,12 +135,17 @@ export function StreakRewardsWidget() {
   const formatRewardValue = (reward: StreakReward) => {
     switch (reward.reward_type) {
       case 'bonus_credit':
-        return `QAR ${reward.reward_value} bonus credit`;
+        return t('streak_reward_credit', { amount: reward.reward_value });
       case 'discount':
-        return `${reward.reward_value}% off next order`;
+        return t('streak_reward_discount', { value: reward.reward_value });
       case 'free_meal':
-        return `${reward.reward_value} free meal${reward.reward_value > 1 ? 's' : ''}`;
+        return t('streak_reward_free_meal');
       case 'badge':
+        // Use translation key based on streak days
+        if (reward.streak_days === 7) return t('streak_7_day_desc');
+        if (reward.streak_days === 30) return t('streak_30_day_desc');
+        if (reward.streak_days === 60) return t('streak_60_day_desc');
+        if (reward.streak_days === 90) return t('streak_90_day_desc');
         return reward.reward_description;
       default:
         return reward.reward_description;
@@ -158,11 +165,11 @@ export function StreakRewardsWidget() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-600" />
-            <CardTitle className="text-base font-semibold">Streak Rewards</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('streakRewards')}</CardTitle>
           </div>
           <Badge variant="outline" className="bg-white/50">
             <Flame className="w-3 h-3 mr-1 text-orange-500" />
-            {streakDays} days
+            {streakDays} {t('days')}
           </Badge>
         </div>
       </CardHeader>
@@ -172,8 +179,8 @@ export function StreakRewardsWidget() {
         {nextMilestone && (
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Next reward</span>
-              <span className="font-medium">{nextMilestone.streak_days} days</span>
+              <span className="text-muted-foreground">{t('nextReward')}</span>
+              <span className="font-medium">{nextMilestone.streak_days} {t('days')}</span>
             </div>
             <div className="w-full bg-amber-200 rounded-full h-2">
               <div
@@ -182,14 +189,14 @@ export function StreakRewardsWidget() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {Math.max(0, nextMilestone.streak_days - streakDays)} more days to unlock {formatRewardValue(nextMilestone)}
+              {t('daysToUnlock', { days: Math.max(0, nextMilestone.streak_days - streakDays), reward: formatRewardValue(nextMilestone) })}
             </p>
           </div>
         )}
 
         {/* Available rewards */}
         <div className="space-y-2">
-          <p className="text-sm font-medium">Available Rewards</p>
+          <p className="text-sm font-medium">{t('availableRewards')}</p>
           <div className="space-y-2">
             {rewards.filter(r => r.streak_days <= streakDays && !claimedRewards.includes(r.id)).map((reward) => (
               <div
@@ -201,18 +208,18 @@ export function StreakRewardsWidget() {
                     <Gift className="w-5 h-5 text-amber-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{reward.streak_days} Day Streak</p>
+                    <p className="font-medium text-sm">{reward.streak_days} {t('dayStreak')}</p>
                     <p className="text-xs text-muted-foreground">{formatRewardValue(reward)}</p>
                   </div>
                 </div>
                 <Button size="sm" onClick={() => claimReward(reward)}>
-                  Claim
+                  {t('claim')}
                 </Button>
               </div>
             ))}
             {rewards.filter(r => r.streak_days <= streakDays && !claimedRewards.includes(r.id)).length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-2">
-                No rewards available to claim. Keep logging meals!
+                {t('noRewardsAvailable')}
               </p>
             )}
           </div>
@@ -220,7 +227,7 @@ export function StreakRewardsWidget() {
 
         {/* Locked rewards preview */}
         <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">Upcoming</p>
+          <p className="text-sm font-medium text-muted-foreground">{t('upcoming')}</p>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {rewards.filter(r => r.streak_days > streakDays).slice(0, 3).map((reward) => (
               <div
@@ -229,13 +236,13 @@ export function StreakRewardsWidget() {
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Lock className="w-3 h-3" />
-                  <span className="text-xs font-medium">{reward.streak_days} days</span>
+                  <span className="text-xs font-medium">{reward.streak_days} {t('days')}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{formatRewardValue(reward)}</p>
               </div>
             ))}
             {rewards.filter(r => r.streak_days > streakDays).length === 0 && (
-              <p className="text-xs text-muted-foreground">All rewards unlocked! Amazing work!</p>
+              <p className="text-xs text-muted-foreground">{t('allRewardsUnlocked')}</p>
             )}
           </div>
         </div>

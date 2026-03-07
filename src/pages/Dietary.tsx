@@ -6,16 +6,69 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDietTags } from "@/hooks/useDietTags";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+
+// Mapping for translation keys
+const dietTagTranslationKeys: Record<string, string> = {
+  "High-Protein": "high_protein",
+  "Low-Carb": "low_carb",
+  "Gluten-Free": "gluten_free",
+  "Dairy-Free": "dairy_free",
+  "Nut-Free": "nut_free",
+  "Organic": "organic",
+  "Vegetarian": "vegetarian",
+  "Vegan": "vegan",
+  "Keto": "keto",
+};
+
+// For items that might use category_* key as fallback
 
 const Dietary = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { dietTags, allergyTags, loading: dietTagsLoading } = useDietTags();
   const [userDietPreferences, setUserDietPreferences] = useState<string[]>([]);
   const [dietaryLoading, setDietaryLoading] = useState(false);
+
+  // Translate tag name
+  const getTranslatedTagName = (tagName: string): string => {
+    // Normalize tag name: convert to title case with hyphens for lookup
+    // e.g., "High Protein" -> "High-Protein", "keto" -> "Keto"
+    const normalizeName = (name: string): string => {
+      // Handle names with spaces (high protein -> High-Protein)
+      if (name.includes(' ')) {
+        return name.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join('-');
+      }
+      // Handle camelCase or other formats
+      return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    };
+    
+    const normalizedTag = normalizeName(tagName);
+    
+    // First, try direct translation key mapping
+    if (dietTagTranslationKeys[normalizedTag]) {
+      const translationKey = dietTagTranslationKeys[normalizedTag];
+      const translated = t(translationKey);
+      // Return translation if found, otherwise return original
+      return translated !== translationKey ? translated : tagName;
+    }
+    
+    // For tags without hyphens (Keto, Vegan, Organic, Vegetarian), try category_* key
+    const categoryKey = `category_${normalizedTag.toLowerCase()}`;
+    const categoryTranslated = t(categoryKey);
+    if (categoryTranslated !== categoryKey) {
+      return categoryTranslated;
+    }
+    
+    // Return original if no translation found
+    return tagName;
+  };
 
   const fetchDietaryData = async () => {
     if (!user) return;
@@ -27,7 +80,7 @@ const Dietary = () => {
         .eq("user_id", user.id);
       setUserDietPreferences(prefs?.map((p: { diet_tag_id: string }) => p.diet_tag_id) || []);
     } catch {
-      toast({ title: "Error", description: "Failed to load dietary preferences", variant: "destructive" });
+      toast({ title: t("error"), description: t("failed_load_dietary_preferences"), variant: "destructive" });
     } finally {
       setDietaryLoading(false);
     }
@@ -53,11 +106,11 @@ const Dietary = () => {
         setUserDietPreferences(prev => [...prev, tagId]);
       }
       toast({
-        title: isSelected ? "Removed" : "Added",
-        description: `Dietary preference ${isSelected ? "removed" : "added"}`,
+        title: isSelected ? t("removed") : t("added"),
+        description: isSelected ? t("dietary_preference_removed") : t("dietary_preference_added"),
       });
     } catch {
-      toast({ title: "Error", description: "Failed to update dietary preference", variant: "destructive" });
+      toast({ title: t("error"), description: t("failed_update_dietary_preference"), variant: "destructive" });
     }
   };
 
@@ -71,13 +124,13 @@ const Dietary = () => {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="flex items-center gap-3 px-4 py-4">
+        <div className="flex items-center gap-3 px-4 py-4 rtl:flex-row-reverse">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold">Dietary & Allergies</h1>
-            <p className="text-xs text-muted-foreground">Manage your dietary preferences and intolerances</p>
+            <h1 className="text-lg font-semibold">{t("dietary_and_allergies")}</h1>
+            <p className="text-xs text-muted-foreground">{t("manage_dietary_preferences")}</p>
           </div>
         </div>
       </div>
@@ -92,16 +145,17 @@ const Dietary = () => {
             {/* Dietary Preferences */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Dietary Preferences</CardTitle>
-                <CardDescription>Select the dietary styles that match your lifestyle</CardDescription>
+                <CardTitle className="text-base">{t("dietary_preferences")}</CardTitle>
+                <CardDescription>{t("select_dietary_styles")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {dietTags.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No dietary tags available</p>
+                  <p className="text-sm text-muted-foreground">{t("no_dietary_tags_available")}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {dietTags.map(tag => {
                       const isSelected = userDietPreferences.includes(tag.id);
+                      const translatedName = getTranslatedTagName(tag.name);
                       return (
                         <button
                           key={tag.id}
@@ -114,7 +168,7 @@ const Dietary = () => {
                           )}
                         >
                           {isSelected && <Check className="w-3 h-3" />}
-                          {tag.name}
+                          {translatedName}
                         </button>
                       );
                     })}
@@ -127,13 +181,14 @@ const Dietary = () => {
             {allergyTags.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Allergies & Intolerances</CardTitle>
-                  <CardDescription>Select any food allergies or intolerances you have</CardDescription>
+                  <CardTitle className="text-base">{t("allergies_and_intolerances")}</CardTitle>
+                  <CardDescription>{t("select_food_allergies")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {allergyTags.map(tag => {
                       const isSelected = userDietPreferences.includes(tag.id);
+                      const translatedName = getTranslatedTagName(tag.name);
                       return (
                         <button
                           key={tag.id}
@@ -146,7 +201,7 @@ const Dietary = () => {
                           )}
                         >
                           {isSelected && <Check className="w-3 h-3" />}
-                          {tag.name}
+                          {translatedName}
                         </button>
                       );
                     })}

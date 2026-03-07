@@ -1,6 +1,7 @@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { BadgePercent, Calendar } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export type BillingInterval = "monthly" | "annual";
 
@@ -19,6 +20,7 @@ export function BillingIntervalToggle({
   disabled = false,
   showSavingsBadge = true,
 }: BillingIntervalToggleProps) {
+  const { t } = useLanguage();
   const isAnnual = value === "annual";
 
   return (
@@ -30,19 +32,19 @@ export function BillingIntervalToggle({
         <div>
           <div className="flex items-center gap-2">
             <Label htmlFor="billing-toggle" className="font-medium cursor-pointer">
-              Annual Billing
+              {t("annual_billing")}
             </Label>
             {showSavingsBadge && isAnnual && (
               <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                 <BadgePercent className="h-3 w-3" />
-                Save {savingsPercent}%
+                {t("save_percent").replace("{percent}", String(savingsPercent))}
               </span>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
             {isAnnual 
-              ? `Pay for 10 months, get 2 months free (${savingsPercent}% savings)` 
-              : "Switch to annual and save 2 months worth"}
+              ? t("annual_billing_pay_10_get_12").replace("{percent}", String(savingsPercent))
+              : t("switch_annual_save")}
           </p>
         </div>
       </div>
@@ -70,6 +72,7 @@ export function BillingSavingsDisplay({
   billingInterval,
   className = "",
 }: BillingSavingsDisplayProps) {
+  const { t } = useLanguage();
   const annualEquivalent = monthlyPrice * 12;
   const savings = annualEquivalent - annualPrice;
   const savingsPercent = Math.round((savings / annualEquivalent) * 100);
@@ -78,7 +81,7 @@ export function BillingSavingsDisplay({
     return (
       <div className={`text-sm text-muted-foreground ${className}`}>
         <span className="text-slate-500">
-          Annual equivalent: {(annualPrice / 12).toFixed(0)} QAR/month
+          {t("annual_equivalent")} {(annualPrice / 12).toFixed(0)} QAR/month
         </span>
       </div>
     );
@@ -93,10 +96,12 @@ export function BillingSavingsDisplay({
         </span>
       </div>
       <p className="text-sm text-green-600">
-        You save {savings.toLocaleString()} QAR ({savingsPercent}%) with annual billing!
+        {t("you_save_with_annual")
+          .replace("{amount}", savings.toLocaleString())
+          .replace("{percent}", String(savingsPercent))}
       </p>
       <p className="text-xs text-muted-foreground">
-        That's like getting 2 months completely free
+        {t("like_getting_free")}
       </p>
     </div>
   );

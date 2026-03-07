@@ -17,10 +17,12 @@ const GenderCard = ({
   gender,
   selected,
   onClick,
+  t,
 }: {
   gender: Gender;
   selected: boolean;
   onClick: () => void;
+  t: (key: string) => string;
 }) => {
   const isMale = gender === "male";
   return (
@@ -32,13 +34,15 @@ const GenderCard = ({
       )}
     >
       <span className="text-2xl">{isMale ? "👨" : "👩"}</span>
-      <span className="text-sm font-medium capitalize">{gender === "prefer_not_to_say" ? "Prefer not to say" : gender}</span>
+      <span className="text-sm font-medium capitalize">
+        {gender === "prefer_not_to_say" ? t("prefer_not_to_say") : t(gender)}
+      </span>
     </button>
   );
 };
 
 const PersonalInfo = () => {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -93,9 +97,9 @@ const PersonalInfo = () => {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="flex items-center gap-3 px-4 py-4">
+        <div className="flex items-center gap-3 px-4 py-4 rtl:flex-row-reverse">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
           </Button>
           <div>
             <h1 className="text-lg font-semibold">Personal Information</h1>
@@ -127,10 +131,10 @@ const PersonalInfo = () => {
 
             {/* Gender */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Gender</Label>
+              <Label className="text-sm font-medium">{t("gender")}</Label>
               <div className="grid grid-cols-2 gap-3">
                 {(["male", "female"] as Gender[]).map((g) => (
-                  <GenderCard key={g} gender={g} selected={gender === g} onClick={() => setGender(g)} />
+                  <GenderCard key={g} gender={g} selected={gender === g} onClick={() => setGender(g)} t={t} />
                 ))}
               </div>
             </div>

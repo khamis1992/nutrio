@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ScheduledMeal {
   id: string;
@@ -42,13 +43,6 @@ interface ModifyOrderModalProps {
   schedule: ScheduledMeal | null;
   onModified: () => void;
 }
-
-const MEAL_TYPES = [
-  { value: "breakfast", label: "Breakfast" },
-  { value: "lunch", label: "Lunch" },
-  { value: "dinner", label: "Dinner" },
-  { value: "snack", label: "Snack" },
-];
 
 // Generate next 14 days as selectable dates
 const getAvailableDates = () => {
@@ -75,11 +69,19 @@ export const ModifyOrderModal = ({
   onModified,
 }: ModifyOrderModalProps) => {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [saving, setSaving] = useState(false);
   const [newDate, setNewDate] = useState<string>("");
   const [newMealType, setNewMealType] = useState<string>("");
 
   const availableDates = getAvailableDates();
+
+  const MEAL_TYPES = [
+    { value: "breakfast", label: t("breakfast") },
+    { value: "lunch", label: t("lunch") },
+    { value: "dinner", label: t("dinner") },
+    { value: "snack", label: t("snack") },
+  ];
 
   const handleSave = async () => {
     if (!schedule) return;
@@ -90,7 +92,7 @@ export const ModifyOrderModal = ({
       if (newMealType) updates.meal_type = newMealType;
 
       if (Object.keys(updates).length === 0) {
-        toast({ title: "No changes", description: "Please select a new date or meal type." });
+        toast({ title: t("no_changes"), description: t("select_new_date_or_meal_type") });
         setSaving(false);
         return;
       }
@@ -102,7 +104,7 @@ export const ModifyOrderModal = ({
 
       if (error) throw error;
 
-      toast({ title: "Order modified", description: "Your order has been updated successfully." });
+      toast({ title: t("order_modified"), description: t("order_updated_successfully") });
       onModified();
       onClose();
       setNewDate("");
@@ -110,8 +112,8 @@ export const ModifyOrderModal = ({
     } catch (err) {
       console.error("Modify order error:", err);
       toast({
-        title: "Failed to modify order",
-        description: "Please try again.",
+        title: t("failed_to_modify_order"),
+        description: t("please_try_again"),
         variant: "destructive",
       });
     } finally {
@@ -129,11 +131,11 @@ export const ModifyOrderModal = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle>Modify Order</DialogTitle>
+          <DialogTitle>{t("modify_order")}</DialogTitle>
           <DialogDescription>
             {schedule?.meal?.name
-              ? `Change the date or meal type for "${schedule.meal.name}"`
-              : "Change the date or meal type for this order"}
+              ? t("change_date_or_meal_type_for", { mealName: schedule.meal.name })
+              : t("change_date_or_meal_type")}
           </DialogDescription>
         </DialogHeader>
 
@@ -141,21 +143,21 @@ export const ModifyOrderModal = ({
           {/* Current details */}
           <div className="p-3 bg-muted/50 rounded-xl text-sm space-y-1">
             <p className="text-muted-foreground">
-              Current date:{" "}
+              {t("current_date")}{" "}
               <span className="font-medium text-foreground">{schedule?.scheduled_date}</span>
             </p>
             <p className="text-muted-foreground">
-              Current meal type:{" "}
+              {t("current_meal_type")}{" "}
               <span className="font-medium text-foreground capitalize">{schedule?.meal_type}</span>
             </p>
           </div>
 
           {/* New date */}
           <div className="space-y-2">
-            <Label>New Date (optional)</Label>
+            <Label>{t("new_date_optional")}</Label>
             <Select value={newDate} onValueChange={setNewDate}>
               <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder="Keep current date" />
+                <SelectValue placeholder={t("keep_current_date")} />
               </SelectTrigger>
               <SelectContent>
                 {availableDates.map((d) => (
@@ -169,15 +171,15 @@ export const ModifyOrderModal = ({
 
           {/* New meal type */}
           <div className="space-y-2">
-            <Label>New Meal Type (optional)</Label>
+            <Label>{t("new_meal_type_optional")}</Label>
             <Select value={newMealType} onValueChange={setNewMealType}>
               <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder="Keep current meal type" />
+                <SelectValue placeholder={t("keep_current_meal_type")} />
               </SelectTrigger>
               <SelectContent>
-                {MEAL_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
+                {MEAL_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -187,11 +189,11 @@ export const ModifyOrderModal = ({
 
         <DialogFooter className="flex gap-2">
           <Button variant="outline" onClick={handleClose} className="flex-1 rounded-xl">
-            Cancel
+            {t("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={saving} className="flex-1 rounded-xl">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Save Changes
+            {t("save_changes")}
           </Button>
         </DialogFooter>
       </DialogContent>

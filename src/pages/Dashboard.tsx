@@ -497,7 +497,7 @@ const Dashboard = () => {
                           </Button>
                           {/* Featured Badge */}
                           <Badge className="absolute top-2 left-2 bg-amber-500 text-white border-0">
-                            Featured
+                            {t("featured_badge")}
                           </Badge>
                         </div>
                         
@@ -519,9 +519,9 @@ const Dashboard = () => {
                               <span className="text-sm font-medium">{restaurant.rating.toFixed(1)}</span>
                             </div>
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                              <span>{restaurant.meal_count} meals</span>
-                              <span>•</span>
-                              <span>{restaurant.total_orders} orders</span>
+                            <span>{restaurant.meal_count} {t("meals_label")}</span>
+                            <span>•</span>
+                            <span>{restaurant.total_orders} {t("orders_label")}</span>
                             </div>
                           </div>
                         </CardContent>

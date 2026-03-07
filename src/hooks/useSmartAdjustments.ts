@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ export function useSmartAdjustments(
   activeGoal: GoalSnapshot | null,
   enabled: boolean
 ) {
+  const { t, language } = useLanguage();
   const [suggestions, setSuggestions] = useState<AdjustmentSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<AdjustmentHistory[]>([]);
@@ -236,9 +238,9 @@ export function useSmartAdjustments(
             id: "cal-down",
             field: calField,
             category: "calories",
-            label: "Lower Calorie Target",
-            reason: `You've averaged ${Math.round(avgCal)} kcal over ${n} days — ${Math.round(calRatio * 100)}% of your ${activeGoal.daily_calorie_target} kcal goal. ${calConsistency > 0.6 ? "Your eating pattern is consistent, so this isn't random." : ""} A realistic target builds sustainable habits.`,
-            impact: `Expected adherence improvement: ~${Math.round((1 - calRatio) * 60)}%. Easier to hit, easier to track progress.`,
+            label: t("adj_label_cal_down"),
+            reason: t("adj_reason_cal_down", { avg: Math.round(avgCal), days: n, pct: Math.round(calRatio * 100), target: activeGoal.daily_calorie_target, note: calConsistency > 0.6 ? t("adj_consistency_note") : "" }),
+            impact: t("adj_impact_cal_down", { pct: Math.round((1 - calRatio) * 60) }),
             currentValue: activeGoal.daily_calorie_target,
             suggestedValue: suggested,
             direction: "down",
@@ -254,9 +256,9 @@ export function useSmartAdjustments(
             id: "cal-up",
             field: calField,
             category: "calories",
-            label: "Adjust Calorie Target Up",
-            reason: `You're averaging ${Math.round(avgCal)} kcal — ${Math.round((calRatio - 1) * 100)}% over your ${activeGoal.daily_calorie_target} kcal target. Your actual intake is your real baseline.`,
-            impact: `Sets a realistic ceiling. Makes over-eating more visible and trackable.`,
+            label: t("adj_label_cal_up"),
+            reason: t("adj_reason_cal_up", { avg: Math.round(avgCal), pct: Math.round((calRatio - 1) * 100), target: activeGoal.daily_calorie_target }),
+            impact: t("adj_impact_cal_up"),
             currentValue: activeGoal.daily_calorie_target,
             suggestedValue: suggested,
             direction: "up",
@@ -272,9 +274,9 @@ export function useSmartAdjustments(
             id: "cal-muscle",
             field: calField,
             category: "calories",
-            label: "Match Target to Muscle-Gain Intake",
-            reason: `You're eating ${Math.round(avgCal)} kcal — a healthy surplus for muscle gain. Aligning your target lets you track surplus vs. goal more accurately.`,
-            impact: `Surplus tracking becomes more precise, helping you avoid unintentional fat gain.`,
+            label: t("adj_label_cal_muscle"),
+            reason: t("adj_reason_cal_muscle", { avg: Math.round(avgCal) }),
+            impact: t("adj_impact_cal_muscle"),
             currentValue: activeGoal.daily_calorie_target,
             suggestedValue: Math.min(suggested, activeGoal.daily_calorie_target + SAFETY.maxCalorieStepUp),
             direction: "up",
@@ -297,9 +299,9 @@ export function useSmartAdjustments(
             id: "prot-down",
             field: protField,
             category: "protein",
-            label: "Step Down Protein Target",
-            reason: `You're hitting ${Math.round(avgProt)}g protein — ${Math.round(protRatio * 100)}% of your ${activeGoal.protein_target_g}g target. A stepping-stone target of ${suggested}g gives you wins while you build the habit.`,
-            impact: `Higher perceived achievement. After 2-4 weeks of hitting ${suggested}g, you can step up again.`,
+            label: t("adj_label_prot_down"),
+            reason: t("adj_reason_prot_down", { avg: Math.round(avgProt), pct: Math.round(protRatio * 100), target: activeGoal.protein_target_g, suggested }),
+            impact: t("adj_impact_prot_down", { suggested }),
             currentValue: activeGoal.protein_target_g,
             suggestedValue: suggested,
             direction: "down",
@@ -315,9 +317,9 @@ export function useSmartAdjustments(
             id: "prot-up",
             field: protField,
             category: "protein",
-            label: "Increase Protein for Continued Growth",
-            reason: `You're consistently hitting ${Math.round(avgProt)}g protein — ${Math.round(protRatio * 100)}% of target. Your muscles have adapted. A progressive increase to ${suggested}g can stimulate further gains.`,
-            impact: `Muscle protein synthesis peaks with ~2.0-2.2g/kg body weight. Increasing provides a new growth stimulus.`,
+            label: t("adj_label_prot_up"),
+            reason: t("adj_reason_prot_up", { avg: Math.round(avgProt), pct: Math.round(protRatio * 100), suggested }),
+            impact: t("adj_impact_prot_up"),
             currentValue: activeGoal.protein_target_g,
             suggestedValue: suggested,
             direction: "up",
@@ -340,9 +342,9 @@ export function useSmartAdjustments(
             id: "carbs-down",
             field: carbField,
             category: "carbs",
-            label: "Reduce Carb Target",
-            reason: `You're averaging ${Math.round(avgCarb)}g carbs — ${Math.round((carbRatio - 1) * 100)}% over your ${activeGoal.carbs_target_g}g target. For ${goalType === "weight_loss" ? "weight loss" : "maintenance"}, managing carbs closely matters.`,
-            impact: `A ${Math.round(avgCarb - suggested)}g reduction cuts ~${Math.round((avgCarb - suggested) * 4)} kcal from carb sources.`,
+            label: t("adj_label_carbs_down"),
+            reason: t(goalType === "weight_loss" ? "adj_reason_carbs_down_loss" : "adj_reason_carbs_down_maintain", { avg: Math.round(avgCarb), pct: Math.round((carbRatio - 1) * 100), target: activeGoal.carbs_target_g }),
+            impact: t("adj_impact_carbs_down", { reduction: Math.round(avgCarb - suggested), kcal: Math.round((avgCarb - suggested) * 4) }),
             currentValue: activeGoal.carbs_target_g,
             suggestedValue: suggested,
             direction: "down",
@@ -365,9 +367,9 @@ export function useSmartAdjustments(
             id: "fat-adjust",
             field: fatField,
             category: "fat",
-            label: "Adjust Fat Target",
-            reason: `Your fat intake averages ${Math.round(avgFat)}g — only ${Math.round(fatRatio * 100)}% of your ${activeGoal.fat_target_g}g target. Healthy fats support hormones, vitamins, and satiety.`,
-            impact: `Aligning your target makes fat tracking meaningful and prevents ignoring this macro.`,
+            label: t("adj_label_fat_adjust"),
+            reason: t("adj_reason_fat_adjust", { avg: Math.round(avgFat), pct: Math.round(fatRatio * 100), target: activeGoal.fat_target_g }),
+            impact: t("adj_impact_fat_adjust"),
             currentValue: activeGoal.fat_target_g,
             suggestedValue: suggested,
             direction: "down",
@@ -391,9 +393,9 @@ export function useSmartAdjustments(
           id: "on-track",
           field: "daily_calorie_target",
           category: "calories",
-          label: "You're On Track",
-          reason: `Analyzed ${rows.length} days of data — your macro averages are all within healthy ranges of your goals. Keep up the consistency!`,
-          impact: `Maintaining current intake and logging habits will help you reach your ${goalType.replace("_", " ")} goal on schedule.`,
+          label: t("adj_label_on_track"),
+          reason: t("adj_reason_on_track", { days: rows.length }),
+          impact: t("adj_impact_on_track"),
           currentValue: activeGoal.daily_calorie_target,
           suggestedValue: activeGoal.daily_calorie_target,
           direction: "up",
@@ -410,7 +412,7 @@ export function useSmartAdjustments(
     } finally {
       setLoading(false);
     }
-  }, [userId, activeGoal, enabled]);
+  }, [userId, activeGoal, enabled, language, t]);
 
   useEffect(() => { analyze(); }, [analyze]);
   useEffect(() => { reloadLocal(); }, [reloadLocal]);

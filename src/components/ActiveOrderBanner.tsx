@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -20,6 +18,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import flameLogo from "@/assets/flam.png";
 
 type OrderStatus =
@@ -73,72 +72,6 @@ interface Restaurant {
   name: string;
 }
 
-// Journey steps with icons for each step
-const journeySteps: { status: OrderStatus; label: string; sublabel?: string; Icon: React.ElementType }[] = [
-  { status: "pending",          label: "Order Placed", Icon: CircleCheck },
-  { status: "confirmed",        label: "Confirmed",    Icon: Check },
-  { status: "preparing",        label: "Preparing",    sublabel: "In Queue",           Icon: ChefHat },
-  { status: "ready",            label: "Ready",        Icon: Package },
-  { status: "out_for_delivery", label: "On the Way",   sublabel: "Near Your Location", Icon: Truck },
-  { status: "delivered",        label: "Delivered",    Icon: MapPin },
-];
-
-const statusConfig: Record<OrderStatus, {
-  label: string;
-  shortLabel: string;
-  badgeClass: string;
-  textClass: string;
-}> = {
-  pending: {
-    label: "Pending",
-    shortLabel: "PENDING",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  confirmed: {
-    label: "Confirmed",
-    shortLabel: "CONFIRMED",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  preparing: {
-    label: "Preparing",
-    shortLabel: "PREPARING",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  ready: {
-    label: "Ready",
-    shortLabel: "READY",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  out_for_delivery: {
-    label: "On the Way",
-    shortLabel: "ON THE WAY",
-    badgeClass: "bg-green-700",
-    textClass: "text-[#bef264]",
-  },
-  delivered: {
-    label: "Delivered",
-    shortLabel: "DELIVERED",
-    badgeClass: "bg-green-700",
-    textClass: "text-white",
-  },
-  completed: {
-    label: "Completed",
-    shortLabel: "COMPLETED",
-    badgeClass: "bg-green-700",
-    textClass: "text-white",
-  },
-  cancelled: {
-    label: "Cancelled",
-    shortLabel: "CANCELLED",
-    badgeClass: "bg-red-500",
-    textClass: "text-white",
-  },
-};
-
 const FoodEmoji = () => (
   <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-green-100 text-xs mr-2">
     🥗
@@ -150,9 +83,76 @@ interface ActiveOrderBannerProps {
 }
 
 export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
+  const { t } = useLanguage();
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+
+  // Journey steps with icons for each step
+  const journeySteps: { status: OrderStatus; label: string; sublabel?: string; Icon: React.ElementType }[] = [
+    { status: "pending",          label: t("order_status_placed"), Icon: CircleCheck },
+    { status: "confirmed",        label: t("order_status_confirmed"),    Icon: Check },
+    { status: "preparing",        label: t("order_status_preparing"),    sublabel: t("order_status_in_queue"),           Icon: ChefHat },
+    { status: "ready",            label: t("order_status_ready"),        Icon: Package },
+    { status: "out_for_delivery", label: t("order_status_on_the_way"),   sublabel: t("order_status_near_location"), Icon: Truck },
+    { status: "delivered",        label: t("order_status_delivered"),    Icon: MapPin },
+  ];
+
+  const statusConfig: Record<OrderStatus, {
+    label: string;
+    shortLabel: string;
+    badgeClass: string;
+    textClass: string;
+  }> = {
+    pending: {
+      label: t("order_status_pending"),
+      shortLabel: t("order_status_pending_short"),
+      badgeClass: "bg-[#bef264]",
+      textClass: "text-green-900",
+    },
+    confirmed: {
+      label: t("order_status_confirmed"),
+      shortLabel: t("order_status_confirmed_short"),
+      badgeClass: "bg-[#bef264]",
+      textClass: "text-green-900",
+    },
+    preparing: {
+      label: t("order_status_preparing"),
+      shortLabel: t("order_status_preparing_short"),
+      badgeClass: "bg-[#bef264]",
+      textClass: "text-green-900",
+    },
+    ready: {
+      label: t("order_status_ready"),
+      shortLabel: t("order_status_ready_short"),
+      badgeClass: "bg-[#bef264]",
+      textClass: "text-green-900",
+    },
+    out_for_delivery: {
+      label: t("order_status_on_the_way"),
+      shortLabel: t("order_status_on_the_way_short"),
+      badgeClass: "bg-green-700",
+      textClass: "text-[#bef264]",
+    },
+    delivered: {
+      label: t("order_status_delivered"),
+      shortLabel: t("order_status_delivered_short"),
+      badgeClass: "bg-green-700",
+      textClass: "text-white",
+    },
+    completed: {
+      label: t("order_status_completed"),
+      shortLabel: t("order_status_completed_short"),
+      badgeClass: "bg-green-700",
+      textClass: "text-white",
+    },
+    cancelled: {
+      label: t("order_status_cancelled"),
+      shortLabel: t("order_status_cancelled_short"),
+      badgeClass: "bg-red-500",
+      textClass: "text-white",
+    },
+  };
 
   const fetchActiveOrders = useCallback(async () => {
     try {
@@ -205,7 +205,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
           mealsData = (meals as Meal[]).map(meal => ({
             ...meal,
-            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: "Restaurant" },
+            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: t("order_restaurant_default") },
           }));
         }
       }
@@ -216,8 +216,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           id: schedule.id,
           order_status: schedule.order_status,
           scheduled_date: schedule.scheduled_date,
-          meal_name: meal?.name || "Meal",
-          restaurant_name: meal?.restaurant?.name || "Restaurant",
+          meal_name: meal?.name || t("order_meal_default"),
+          restaurant_name: meal?.restaurant?.name || t("order_restaurant_default"),
           total_amount: schedule.addons_total || 0,
           delivery_type: schedule.delivery_type || "pickup",
         };
@@ -229,12 +229,12 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, t]);
 
   const handleCancelOrder = async (orderId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    if (!confirm(t("order_cancel_confirm"))) return;
     setCancelling(orderId);
     try {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
@@ -244,17 +244,15 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       if (error) {
         const errorMessage = error.message || "";
         if (errorMessage.includes("preparing")) {
-          toast({
-            title: "Cannot Cancel Order",
-            description: "Your order is already being prepared. Please contact the restaurant for assistance.",
-            variant: "destructive",
+          toast.error(t("order_cannot_cancel_title"), {
+            description: t("order_cannot_cancel_description"),
           });
           return;
         }
         throw error;
       }
 
-      if (!data?.success) throw new Error("Cancellation failed. Please try again.");
+      if (!data || !(data as { success?: boolean }).success) throw new Error(t("order_cancel_failed"));
 
       // Optimistically remove from UI
       setActiveOrders(prev => prev.filter(o => o.id !== orderId));
@@ -270,12 +268,12 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       if (check && check.order_status !== "cancelled") {
         // DB didn't save the cancel — restore the real list and show error
         await fetchActiveOrders();
-        throw new Error("Cancellation did not save. Please try again.");
+        throw new Error(t("order_cancel_not_saved"));
       }
 
-      toast.success("Order cancelled successfully");
+      toast.success(t("order_cancel_success"));
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to cancel order. Please try again.";
+      const message = err instanceof Error ? err.message : t("order_cancel_error");
       toast.error(message);
     } finally {
       setCancelling(null);
@@ -313,8 +311,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
   const getDateLabel = (dateStr: string) => {
     const date = new Date(dateStr);
-    if (isToday(date)) return "Today";
-    if (isTomorrow(date)) return "Tomorrow";
+    if (isToday(date)) return t("date_today");
+    if (isTomorrow(date)) return t("date_tomorrow");
     return format(date, "MMM dd");
   };
 
@@ -366,7 +364,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           <span className="text-green-600">
             <Utensils className="w-5 h-5" />
           </span>
-          Active Orders ({groupedOrders.length})
+          {t("order_active_orders")} ({groupedOrders.length})
         </h3>
         <Link to="/orders">
           <Button 
@@ -374,7 +372,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
             size="sm" 
             className="h-8 text-sm font-medium hover:bg-green-50 hover:text-green-700 transition-colors text-slate-600"
           >
-            View All
+            {t("order_view_all")}
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </Link>
@@ -416,7 +414,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                             {config.shortLabel}
                           </span>
                           <span className="text-sm text-slate-500 font-medium">
-                            {group.latest_status === "out_for_delivery" ? "ETA" : "est."} {getDateLabel(group.earliest_date)}
+                            {group.latest_status === "out_for_delivery" ? t("order_eta") : t("order_est")} {getDateLabel(group.earliest_date)}
                           </span>
                         </div>
 
@@ -436,7 +434,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                           ))}
                           {group.meal_names.length > 2 && (
                             <p className="text-xs text-green-700/60 ml-6">
-                              +{group.meal_names.length - 2} more meals
+                              +{group.meal_names.length - 2} {t("order_more_meals")}
                             </p>
                           )}
                         </div>
@@ -556,7 +554,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                         className="flex items-center gap-1 text-sm font-semibold text-green-900 bg-white/80 hover:bg-white border border-green-200 px-4 py-2 rounded-xl transition-colors cursor-pointer shadow-sm"
                         whileHover={{ x: 2 }}
                       >
-                        <span>Track Order</span>
+                        <span>{t("order_track")}</span>
                         <ChevronRight className="w-4 h-4" />
                       </motion.div>
                     </div>
@@ -576,7 +574,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                   ) : (
                     <X className="h-4 w-4" />
                   )}
-                  Cancel Order
+                  {t("order_cancel")}
                 </button>
               )}
             </motion.div>

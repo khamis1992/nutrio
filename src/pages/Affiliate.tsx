@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useAffiliateProgram } from "@/hooks/useAffiliateProgram";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { useProfile } from "@/hooks/useProfile";
@@ -52,12 +53,12 @@ import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard"
 function NativeHeader({ title, onBack, right }: { title: string; onBack: () => void; right?: ReactNode }) {
   return (
     <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
-      <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between">
+      <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between rtl:flex-row-reverse">
         <button
           onClick={onBack}
           className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
         >
-          <ArrowLeft className="h-5 w-5 text-foreground" />
+          <ArrowLeft className="h-5 w-5 text-foreground rtl-flip-back" />
         </button>
         <h1 className="text-lg font-bold tracking-tight">{title}</h1>
         <div className="w-10 flex justify-end">{right}</div>
@@ -70,6 +71,7 @@ export default function Affiliate() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { profile } = useProfile();
   const { isApprovedAffiliate, loading: applicationLoading } = useAffiliateApplication();
   const { 
@@ -99,17 +101,17 @@ export default function Affiliate() {
     try {
       await navigator.clipboard.writeText(referralLink);
       setCopied(true);
-      toast({ title: "Copied!", description: "Referral link copied to clipboard" });
+      toast({ title: t("affiliate_copied"), description: t("affiliate_link_copied_message") });
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to copy link", variant: "destructive" });
+      toast({ title: t("affiliate_error"), description: t("affiliate_copy_failed"), variant: "destructive" });
     }
   };
 
   const shareReferral = async () => {
     const shareData = {
-      title: "Join NUTRIO",
-      text: `Join NUTRIO with my link and we both earn rewards!`,
+      title: t("affiliate_share_title"),
+      text: t("affiliate_share_text"),
       url: referralLink
     };
 
@@ -127,7 +129,7 @@ export default function Affiliate() {
   const handleRequestPayout = async () => {
     const amount = parseFloat(payoutAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast({ title: "Invalid amount", variant: "destructive" });
+      toast({ title: t("affiliate_invalid_amount"), variant: "destructive" });
       return;
     }
 
@@ -136,11 +138,11 @@ export default function Affiliate() {
     setProcessingPayout(false);
 
     if (result.success) {
-      toast({ title: "Payout requested!", description: "Your payout request has been submitted." });
+      toast({ title: t("affiliate_payout_requested"), description: t("affiliate_payout_submitted") });
       setPayoutDialogOpen(false);
       setPayoutAmount("");
     } else {
-      toast({ title: "Error", description: result.error, variant: "destructive" });
+      toast({ title: t("affiliate_error"), description: result.error, variant: "destructive" });
     }
   };
 
@@ -159,7 +161,7 @@ export default function Affiliate() {
         <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
-        <p className="text-sm text-muted-foreground">Loading affiliate data…</p>
+        <p className="text-sm text-muted-foreground">{t("affiliate_loading_data")}</p>
       </div>
     );
   }
@@ -168,7 +170,7 @@ export default function Affiliate() {
   if (!isApprovedAffiliate) {
     return (
       <div className="min-h-screen pb-24">
-        <NativeHeader title="Affiliate Program" onBack={() => navigate(-1)} />
+        <NativeHeader title={t("affiliate_title")} onBack={() => navigate(-1)} />
         <div className="px-4 pt-5 space-y-4">
           <AffiliateApplicationCard />
         </div>
@@ -181,13 +183,13 @@ export default function Affiliate() {
   if (!settings.enabled) {
     return (
       <div className="min-h-screen pb-24">
-        <NativeHeader title="Affiliate Program" onBack={() => navigate(-1)} />
+        <NativeHeader title={t("affiliate_title")} onBack={() => navigate(-1)} />
         <div className="px-4 pt-8 flex flex-col items-center text-center gap-4">
           <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center">
             <AlertTriangle className="h-10 w-10 text-amber-500" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Program Unavailable</h2>
-          <p className="text-sm text-muted-foreground max-w-xs">The affiliate program is currently disabled. Check back soon!</p>
+          <h2 className="text-xl font-bold text-foreground">{t("affiliate_program_unavailable")}</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">{t("affiliate_program_disabled_message")}</p>
         </div>
         <CustomerNavigation />
       </div>
@@ -200,7 +202,7 @@ export default function Affiliate() {
     <div className="min-h-screen pb-24">
       {/* Native header with tier badge */}
       <NativeHeader
-        title="Affiliate"
+        title={t("affiliate_title")}
         onBack={() => navigate(-1)}
         right={
           <span className={`text-xs font-bold text-white px-2.5 py-1 rounded-full bg-gradient-to-r ${tierInfo.color}`}>
@@ -215,18 +217,18 @@ export default function Affiliate() {
         <div className="gradient-primary rounded-3xl px-5 py-5 text-white shadow-lg shadow-primary/20">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="h-4 w-4 text-white/70" />
-            <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Total Earnings</span>
+            <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">{t("affiliate_total_earnings")}</span>
           </div>
           <p className="text-4xl font-bold mb-5">{formatCurrency(stats.totalEarnings)}</p>
 
           {/* Available / Pending chips */}
           <div className="flex gap-3 mb-5">
             <div className="flex-1 bg-white/15 rounded-2xl px-4 py-3">
-              <p className="text-xs text-white/70 mb-0.5">Available</p>
+              <p className="text-xs text-white/70 mb-0.5">{t("affiliate_available")}</p>
               <p className="text-lg font-bold">{formatCurrency(stats.availableBalance)}</p>
             </div>
             <div className="flex-1 bg-white/15 rounded-2xl px-4 py-3">
-              <p className="text-xs text-white/70 mb-0.5">Pending</p>
+              <p className="text-xs text-white/70 mb-0.5">{t("affiliate_pending")}</p>
               <p className="text-lg font-bold">{formatCurrency(stats.pendingBalance)}</p>
             </div>
           </div>
@@ -237,11 +239,11 @@ export default function Affiliate() {
             className="w-full flex items-center justify-center gap-2 bg-white text-primary font-bold rounded-2xl py-3 active:scale-[0.98] transition-all disabled:opacity-50 shadow-sm"
           >
             <Wallet className="h-4 w-4" />
-            Request Payout
+            {t("affiliate_request_payout")}
           </button>
           {stats.availableBalance < settings.min_payout_threshold && (
             <p className="text-xs text-center text-white/60 mt-2">
-              Minimum payout: {formatCurrency(settings.min_payout_threshold)}
+              {t("affiliate_minimum_payout")}: {formatCurrency(settings.min_payout_threshold)}
             </p>
           )}
         </div>
@@ -254,7 +256,7 @@ export default function Affiliate() {
                 <Trophy className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="font-bold text-foreground">Your Tier</p>
+                <p className="font-bold text-foreground">{t("affiliate_your_tier")}</p>
                 <p className="text-xs text-muted-foreground">{tierInfo.name}</p>
               </div>
             </div>
@@ -266,7 +268,7 @@ export default function Affiliate() {
           {nextTierInfo && (
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Progress to {nextTierInfo.name}</span>
+                <span>{t("affiliate_progress_to")} {nextTierInfo.name}</span>
                 <span className="font-semibold">{stats.tier1Referrals}/{nextTierInfo.minReferrals}</span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -281,9 +283,9 @@ export default function Affiliate() {
           {/* 3 tier stats */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { n: stats.tier1Referrals, label: "Tier 1", rate: settings.tier1_commission, color: "text-primary bg-primary/10" },
-              { n: stats.tier2Referrals, label: "Tier 2", rate: settings.tier2_commission, color: "text-violet-600 bg-violet-500/10" },
-              { n: stats.tier3Referrals, label: "Tier 3", rate: settings.tier3_commission, color: "text-cyan-600 bg-cyan-500/10" },
+              { n: stats.tier1Referrals, label: t("affiliate_tier1_label"), rate: settings.tier1_commission, color: "text-primary bg-primary/10" },
+              { n: stats.tier2Referrals, label: t("affiliate_tier2_label"), rate: settings.tier2_commission, color: "text-violet-600 bg-violet-500/10" },
+              { n: stats.tier3Referrals, label: t("affiliate_tier3_label"), rate: settings.tier3_commission, color: "text-cyan-600 bg-cyan-500/10" },
             ].map(({ n, label, rate, color }) => (
               <div key={label} className={`rounded-2xl p-3 text-center ${color}`}>
                 <p className="text-xl font-bold">{n}</p>
@@ -301,16 +303,16 @@ export default function Affiliate() {
               <Gift className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold text-foreground">Share & Earn</p>
+              <p className="font-bold text-foreground">{t("affiliate_share_and_earn")}</p>
               <p className="text-xs text-muted-foreground">
-                {settings.tier1_commission}% · {settings.tier2_commission}% · {settings.tier3_commission}% commission tiers
+                {settings.tier1_commission}% · {settings.tier2_commission}% · {settings.tier3_commission}% {t("affiliate_commission_tiers")}
               </p>
             </div>
           </div>
 
           {/* Referral code display */}
           <div className="bg-primary/5 border border-primary/15 rounded-2xl px-4 py-4 text-center">
-            <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wider">Your Referral Code</p>
+            <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wider">{t("affiliate_your_referral_code")}</p>
             <div className="flex items-center justify-center gap-3">
               <span className="text-3xl font-mono font-extrabold tracking-widest text-primary">
                 {referralCode}
@@ -331,14 +333,14 @@ export default function Affiliate() {
               className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold rounded-2xl py-3 active:scale-[0.98] transition-all shadow-sm shadow-primary/20"
             >
               <Copy className="h-4 w-4" />
-              Copy Link
+              {t("affiliate_copy_link")}
             </button>
             <button
               onClick={shareReferral}
               className="flex-1 flex items-center justify-center gap-2 bg-muted text-foreground font-semibold rounded-2xl py-3 active:scale-[0.98] transition-all border border-border/70"
             >
               <Share2 className="h-4 w-4" />
-              Share
+              {t("affiliate_share")}
             </button>
           </div>
         </div>
@@ -357,7 +359,7 @@ export default function Affiliate() {
                 activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab}
+              {t(`affiliate_tab_${tab}`)}
             </button>
           ))}
         </div>
@@ -370,8 +372,8 @@ export default function Affiliate() {
                 <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
                   <DollarSign className="h-8 w-8 text-muted-foreground/40" />
                 </div>
-                <p className="font-semibold text-foreground">No commissions yet</p>
-                <p className="text-sm text-muted-foreground">Start sharing to earn!</p>
+                <p className="font-semibold text-foreground">{t("affiliate_no_commissions")}</p>
+                <p className="text-sm text-muted-foreground">{t("affiliate_start_sharing")}</p>
               </div>
             ) : commissions.map((commission) => {
               const tierColor = commission.tier === 1 ? "bg-primary/10 text-primary" : commission.tier === 2 ? "bg-violet-500/10 text-violet-600" : "bg-cyan-500/10 text-cyan-600";
@@ -381,13 +383,13 @@ export default function Affiliate() {
                     <Star className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">Tier {commission.tier} Commission</p>
-                    <p className="text-xs text-muted-foreground">{commission.commission_rate}% of {formatCurrency(commission.order_amount)}</p>
+                    <p className="font-semibold text-foreground">{t("affiliate_tier_commission", { tier: commission.tier })}</p>
+                    <p className="text-xs text-muted-foreground">{commission.commission_rate}% {t("affiliate_of")} {formatCurrency(commission.order_amount)}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-primary">+{formatCurrency(commission.commission_amount)}</p>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${commission.status === "approved" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      {commission.status}
+                      {commission.status === "approved" ? t("affiliate_approved") : t("affiliate_pending")}
                     </span>
                   </div>
                 </div>
@@ -407,7 +409,7 @@ export default function Affiliate() {
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </div>
-                <span className="flex-1 text-sm font-semibold text-left text-foreground">View Detailed Referral Stats</span>
+                <span className="flex-1 text-sm font-semibold text-left text-foreground">{t("affiliate_view_stats")}</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -416,8 +418,8 @@ export default function Affiliate() {
                 <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
                   <Network className="h-8 w-8 text-muted-foreground/40" />
                 </div>
-                <p className="font-semibold text-foreground">No network yet</p>
-                <p className="text-sm text-muted-foreground">Share your link to grow your network!</p>
+                <p className="font-semibold text-foreground">{t("affiliate_no_network")}</p>
+                <p className="text-sm text-muted-foreground">{t("affiliate_grow_network")}</p>
               </div>
             ) : network.map((member) => {
               const tierColor = member.tier === 1 ? "bg-primary/10 text-primary" : member.tier === 2 ? "bg-violet-500/10 text-violet-600" : "bg-cyan-500/10 text-cyan-600";
@@ -427,11 +429,11 @@ export default function Affiliate() {
                     <Users className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate">{member.full_name || "Anonymous"}</p>
-                    <p className="text-xs text-muted-foreground">Joined {new Date(member.created_at).toLocaleDateString()}</p>
+                    <p className="font-semibold text-foreground truncate">{member.full_name || t("affiliate_anonymous")}</p>
+                    <p className="text-xs text-muted-foreground">{t("affiliate_joined")} {new Date(member.created_at).toLocaleDateString()}</p>
                   </div>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${tierColor}`}>
-                    Tier {member.tier}
+                    {t("affiliate_tier")} {member.tier}
                   </span>
                 </div>
               );
@@ -447,8 +449,8 @@ export default function Affiliate() {
                 <div className="w-16 h-16 rounded-3xl bg-muted flex items-center justify-center">
                   <Wallet className="h-8 w-8 text-muted-foreground/40" />
                 </div>
-                <p className="font-semibold text-foreground">No payout history</p>
-                <p className="text-sm text-muted-foreground">Request your first payout when eligible!</p>
+                <p className="font-semibold text-foreground">{t("affiliate_no_payouts")}</p>
+                <p className="text-sm text-muted-foreground">{t("affiliate_request_first_payout")}</p>
               </div>
             ) : payouts.map((payout) => (
               <div key={payout.id} className="bg-card/95 rounded-3xl border border-border/70 shadow-sm p-4 flex items-center gap-3">
@@ -464,7 +466,8 @@ export default function Affiliate() {
                     payout.status === "completed" ? "bg-primary/10 text-primary" :
                     payout.status === "processing" ? "bg-amber-100 text-amber-600" : "bg-muted text-muted-foreground"
                   }`}>
-                    {payout.status}
+                    {payout.status === "completed" ? t("affiliate_status_completed") :
+                     payout.status === "processing" ? t("affiliate_status_processing") : t("affiliate_status_pending")}
                   </span>
                   <p className="text-xs text-muted-foreground mt-1">{new Date(payout.requested_at).toLocaleDateString()}</p>
                 </div>
@@ -475,11 +478,11 @@ export default function Affiliate() {
 
         {/* ── How it works ── */}
         <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-4">
-          <p className="font-bold text-foreground">How Multi-Tier Earning Works</p>
+          <p className="font-bold text-foreground">{t("affiliate_how_it_works")}</p>
           {[
-            { n: "1", label: `Tier 1 — Direct Referrals (${settings.tier1_commission}%)`, desc: "Earn on every order from people you directly refer", color: "bg-primary/10 text-primary" },
-            { n: "2", label: `Tier 2 — Their Referrals (${settings.tier2_commission}%)`, desc: "Earn when your referrals refer others", color: "bg-violet-500/10 text-violet-600" },
-            { n: "3", label: `Tier 3 — Extended Network (${settings.tier3_commission}%)`, desc: "Earn from 3 levels deep in your network", color: "bg-cyan-500/10 text-cyan-600" },
+            { n: "1", label: t("affiliate_tier1_desc", { rate: settings.tier1_commission }), desc: t("affiliate_tier1_explanation"), color: "bg-primary/10 text-primary" },
+            { n: "2", label: t("affiliate_tier2_desc", { rate: settings.tier2_commission }), desc: t("affiliate_tier2_explanation"), color: "bg-violet-500/10 text-violet-600" },
+            { n: "3", label: t("affiliate_tier3_desc", { rate: settings.tier3_commission }), desc: t("affiliate_tier3_explanation"), color: "bg-cyan-500/10 text-cyan-600" },
           ].map(({ n, label, desc, color }) => (
             <div key={n} className="flex items-start gap-3">
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm ${color}`}>{n}</div>
@@ -496,25 +499,25 @@ export default function Affiliate() {
       <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-md rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Request Payout</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{t("affiliate_request_payout")}</DialogTitle>
             <DialogDescription>
-              Available: <span className="font-semibold text-primary">{formatCurrency(stats.availableBalance)}</span>
+              {t("affiliate_available_label")}: <span className="font-semibold text-primary">{formatCurrency(stats.availableBalance)}</span>
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5">
-              <Label htmlFor="amount" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</Label>
-              <Input id="amount" type="number" placeholder="Enter amount" value={payoutAmount} onChange={(e) => setPayoutAmount(e.target.value)} className="rounded-2xl h-12" />
+              <Label htmlFor="amount" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("affiliate_amount_label")}</Label>
+              <Input id="amount" type="number" placeholder={t("affiliate_amount_placeholder")} value={payoutAmount} onChange={(e) => setPayoutAmount(e.target.value)} className="rounded-2xl h-12" />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="method" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payout Method</Label>
+              <Label htmlFor="method" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("affiliate_payout_method_label")}</Label>
               <Select value={payoutMethod} onValueChange={setPayoutMethod}>
                 <SelectTrigger className="rounded-2xl h-12"><SelectValue /></SelectTrigger>
                 <SelectContent className="rounded-2xl">
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="bank_transfer">{t("affiliate_payout_bank_transfer")}</SelectItem>
+                  <SelectItem value="paypal">{t("affiliate_payout_paypal")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -522,9 +525,9 @@ export default function Affiliate() {
             {payoutMethod === "bank_transfer" && (
               <>
                 {[
-                  { id: "accountName", label: "Account Name", field: "accountName" as const },
-                  { id: "bankName",    label: "Bank Name",    field: "bankName" as const },
-                  { id: "accountNumber", label: "Account Number", field: "accountNumber" as const },
+                  { id: "accountName", label: t("affiliate_account_name_label"), field: "accountName" as const },
+                  { id: "bankName",    label: t("affiliate_bank_name_label"),    field: "bankName" as const },
+                  { id: "accountNumber", label: t("affiliate_account_number_label"), field: "accountNumber" as const },
                 ].map(({ id, label, field }) => (
                   <div key={id} className="space-y-1.5">
                     <Label htmlFor={id} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</Label>
@@ -536,10 +539,10 @@ export default function Affiliate() {
           </div>
 
           <DialogFooter className="gap-2 mt-2">
-            <Button variant="outline" className="rounded-2xl flex-1" onClick={() => setPayoutDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" className="rounded-2xl flex-1" onClick={() => setPayoutDialogOpen(false)}>{t("affiliate_cancel")}</Button>
             <Button className="rounded-2xl flex-1 shadow-sm shadow-primary/20" onClick={handleRequestPayout} disabled={processingPayout}>
               {processingPayout && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Request Payout
+              {t("affiliate_request_payout_button")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -16,14 +16,14 @@ export default function MealPlan() {
     <div className="min-h-screen bg-slate-50 pb-24">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
-        <div className="flex items-center px-4 h-14">
+        <div className="flex items-center px-4 h-14 rtl:flex-row-reverse">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/progress?tab=week")}
             className="mr-3"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
           </Button>
           <h1 className="text-lg font-semibold">Weekly Meal Plan</h1>
         </div>

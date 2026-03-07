@@ -103,13 +103,13 @@ interface RawScheduledMeal {
   meal_id: string;
 }
 
-const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  pending: { label: "Pending", icon: CircleDot, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  confirmed: { label: "Confirmed", icon: CheckCircle2, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  preparing: { label: "Preparing", icon: ChefHat, color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  out_for_delivery: { label: "Out for Delivery", icon: Truck, color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-  delivered: { label: "Delivered", icon: CheckCircle2, color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  cancelled: { label: "Cancelled", icon: XCircle, color: "bg-red-500/10 text-red-600 border-red-500/20" },
+const statusConfig: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
+  pending: { labelKey: "status_pending", icon: CircleDot, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  confirmed: { labelKey: "status_confirmed", icon: CheckCircle2, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  preparing: { labelKey: "status_preparing", icon: ChefHat, color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
+  out_for_delivery: { labelKey: "status_out_for_delivery", icon: Truck, color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
+  delivered: { labelKey: "status_delivered", icon: CheckCircle2, color: "bg-green-500/10 text-green-600 border-green-500/20" },
+  cancelled: { labelKey: "status_cancelled", icon: XCircle, color: "bg-red-500/10 text-red-600 border-red-500/20" },
 };
 
 const OrderHistory = () => {
@@ -365,7 +365,7 @@ const OrderHistory = () => {
     ]);
     setRefreshing(false);
     toast({
-      title: "Refreshed",
+      title: t("refreshed_toast"),
       description: "Your orders have been updated.",
     });
   };
@@ -411,13 +411,13 @@ const OrderHistory = () => {
       }
       
       toast({
-        title: "Order Cancelled",
-        description: "Your order has been cancelled successfully.",
+        title: t("order_cancelled_toast"),
+        description: t("order_cancelled_desc"),
       });
     } catch (error) {
       console.error("Error cancelling order:", error);
       toast({
-        title: "Error",
+        title: t("error"),
         description: "Failed to cancel order. Please try again.",
         variant: "destructive",
       });
@@ -455,13 +455,13 @@ const OrderHistory = () => {
           // Show toast notification when status changes
           if (newStatus !== oldStatus) {
             const statusMessages: Record<string, string> = {
-              confirmed: 'Your order has been confirmed!',
-              preparing: 'Your meal is being prepared',
-              ready: 'Your meal is ready for pickup',
-              out_for_delivery: 'Your driver is on the way!',
-              delivered: 'Your meal has been delivered!',
-              completed: 'Order completed. Enjoy your meal!',
-              cancelled: 'Your order has been cancelled',
+              confirmed: t("status_update_confirmed"),
+              preparing: t("status_update_preparing"),
+              ready: t("status_update_ready"),
+              out_for_delivery: t("status_update_out_for_delivery"),
+              delivered: t("status_update_delivered"),
+              completed: t("status_update_completed"),
+              cancelled: t("status_update_cancelled"),
             };
             
             if (statusMessages[newStatus]) {
@@ -546,8 +546,8 @@ const OrderHistory = () => {
       }
 
       toast({
-        title: "Order placed!",
-        description: "Your reorder has been placed successfully.",
+        title: t("order_placed_toast"),
+        description: t("reorder_placed_desc"),
       });
 
       // Refresh orders
@@ -555,7 +555,7 @@ const OrderHistory = () => {
     } catch (error) {
       console.error("Error reordering:", error);
       toast({
-        title: "Error",
+        title: t("error"),
         description: "Failed to place reorder. Please try again.",
         variant: "destructive",
       });
@@ -565,7 +565,8 @@ const OrderHistory = () => {
   };
 
   const getStatusInfo = (status: string) => {
-    return statusConfig[status] || statusConfig.pending;
+    const config = statusConfig[status] || statusConfig.pending;
+    return { ...config, label: t(config.labelKey as any) };
   };
 
   const getTotalCalories = (items: OrderItem[]) => {
@@ -588,12 +589,12 @@ const OrderHistory = () => {
           <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-4 shadow-sm">
             <ShoppingBag className="h-9 w-9 text-muted-foreground/50" />
           </div>
-          <h3 className="font-bold text-lg text-foreground mb-1">No scheduled meals</h3>
+          <h3 className="font-bold text-lg text-foreground mb-1">{t("no_scheduled_meals_title")}</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            Schedule meals from your favourite restaurants to see them here.
+            {t("schedule_meals_cta")}
           </p>
           <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 shadow-sm shadow-primary/20">
-            Browse Meals
+            {t("browse_meals_btn")}
           </Button>
         </div>
       );
@@ -655,7 +656,7 @@ const OrderHistory = () => {
                     </span>
                   ) : null}
                   <span className="ml-auto text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                    Included
+                    {t("included_badge")}
                   </span>
                 </div>
               </div>
@@ -668,7 +669,7 @@ const OrderHistory = () => {
                     onClick={(e) => { e.stopPropagation(); setModifyingSchedule(schedule); }}
                   >
                     <Pencil className="h-4 w-4" />
-                    Modify
+                    {t("modify_btn")}
                   </button>
                   <button
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50"
@@ -680,7 +681,7 @@ const OrderHistory = () => {
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
-                    Cancel
+                    {t("cancel_btn")}
                   </button>
                 </div>
               )}
@@ -710,7 +711,7 @@ const OrderHistory = () => {
               style={{ transform: `rotate(${pullDistance * 2}deg)` }}
             />
             <span className="text-sm font-medium">
-              {pullDistance > minPullDistance ? 'Release to refresh' : 'Pull to refresh'}
+              {pullDistance > minPullDistance ? t("release_to_refresh") : t("pull_to_refresh")}
             </span>
           </div>
         </div>
@@ -720,20 +721,20 @@ const OrderHistory = () => {
       {refreshing && (
         <div className="flex items-center justify-center py-3 bg-primary/5 border-b border-primary/10">
           <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
-          <span className="text-sm font-medium text-primary">Refreshing…</span>
+          <span className="text-sm font-medium text-primary">{t("refreshing_label")}</span>
         </div>
       )}
 
       {/* Native header */}
       <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
-        <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between">
+          <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between rtl:flex-row-reverse">
           <button
             onClick={() => navigate("/dashboard")}
             className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground" />
+            <ArrowLeft className="h-5 w-5 text-foreground rtl-flip-back" />
           </button>
-          <h1 className="text-lg font-bold tracking-tight">Orders</h1>
+          <h1 className="text-lg font-bold tracking-tight">{t("orders_page_title")}</h1>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -751,16 +752,16 @@ const OrderHistory = () => {
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-            <p className="text-sm text-muted-foreground">Loading your orders…</p>
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
           </div>
         ) : (
           <>
             {/* iOS-style segment control */}
             <div className="bg-muted rounded-2xl p-1 flex gap-1 mb-5">
               {[
-                { id: "scheduled", label: "Upcoming", count: upcomingMeals.length },
-                { id: "completed", label: "Completed", count: completedMeals.length },
-                { id: "orders",    label: "Orders",    count: orders.length },
+                { id: "scheduled", label: t("upcoming_tab"), count: upcomingMeals.length },
+                { id: "completed", label: t("completed_tab"), count: completedMeals.length },
+                { id: "orders",    label: t("orders_tab"),    count: orders.length },
               ].map(({ id, label, count }) => (
                 <button
                   key={id}
@@ -793,7 +794,7 @@ const OrderHistory = () => {
                     onClick={loadMoreScheduled}
                     disabled={scheduledLoading}
                   >
-                    {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
+                    {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("load_more_btn")}
                   </button>
                 )}
               </>
@@ -809,7 +810,7 @@ const OrderHistory = () => {
                     onClick={loadMoreScheduled}
                     disabled={scheduledLoading}
                   >
-                    {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load more"}
+                    {scheduledLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("load_more_btn")}
                   </button>
                 )}
               </>
@@ -825,10 +826,10 @@ const OrderHistory = () => {
                     </div>
                     <h3 className="font-bold text-lg text-foreground mb-1">{t("no_data")}</h3>
                     <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-                      Start exploring our delicious meals and place your first order!
+                      {t("no_data_desc_orders")}
                     </p>
                     <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 shadow-sm shadow-primary/20">
-                      Browse Meals
+                      {t("browse_meals_btn")}
                     </Button>
                   </div>
                 ) : (
@@ -907,7 +908,7 @@ const OrderHistory = () => {
                                 </span>
                               )}
                               <span className="ml-auto text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                                Subscription
+                                {t("subscription")}
                               </span>
                             </div>
 
@@ -944,7 +945,7 @@ const OrderHistory = () => {
                     onClick={loadMoreOrders}
                     disabled={ordersLoading}
                   >
-                    {ordersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `Load more (${ordersPage * 10}+ orders)`}
+                    {ordersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : `${t("load_more_btn")} (${ordersPage * 10}+ ${t("orders_label")})`}
                   </button>
                 )}
               </>

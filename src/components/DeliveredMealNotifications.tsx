@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDeliveredMealNotifications } from "@/hooks/useDeliveredMealNotifications";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Loader2, Plus, X, Utensils, Flame } from "lucide-react";
 
 export function DeliveredMealNotifications() {
   const { pendingMeals, loading, addToProgress, dismissNotification } = useDeliveredMealNotifications();
+  const { t } = useLanguage();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   if (pendingMeals.length === 0) {
@@ -28,7 +30,7 @@ export function DeliveredMealNotifications() {
     <div className="space-y-3">
       <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
         <Utensils className="w-4 h-4" />
-        Delivered Meals - Add to Progress
+        {t('delivered_meals_title')}
       </h3>
       
       {pendingMeals.map((meal) => (
@@ -38,16 +40,16 @@ export function DeliveredMealNotifications() {
               <div className="flex-1">
                 <p className="font-medium text-sm">{meal.meal_name}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your order has been delivered! Add it to your progress?
+                  {t('delivered_meal_prompt')}
                 </p>
                 <div className="flex items-center gap-3 mt-2 text-xs">
                   <span className="flex items-center gap-1 text-orange-600">
                     <Flame className="w-3 h-3" />
-                    {meal.calories} cal
+                    {meal.calories} {t('calories_label')}
                   </span>
-                  <span className="text-emerald-600">P: {meal.protein_g}g</span>
-                  <span className="text-amber-600">C: {meal.carbs_g}g</span>
-                  <span className="text-blue-600">F: {meal.fat_g}g</span>
+                  <span className="text-emerald-600">{t('protein_abbr')}: {meal.protein_g}{t('g')}</span>
+                  <span className="text-amber-600">{t('carbs_abbr')}: {meal.carbs_g}{t('g')}</span>
+                  <span className="text-blue-600">{t('fat_abbr')}: {meal.fat_g}{t('g')}</span>
                 </div>
               </div>
               
@@ -76,9 +78,9 @@ export function DeliveredMealNotifications() {
                   {processingId === meal.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>
+                  <>
                       <Plus className="w-4 h-4 mr-1" />
-                      Add
+                      {t('add')}
                     </>
                   )}
                 </Button>

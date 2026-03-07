@@ -64,20 +64,20 @@ interface PlanType {
   color: string;
 }
 
-const TIER_META: Record<string, { icon: typeof Star; color: string; description: string; popular: boolean; isVip: boolean }> = {
-  basic:    { icon: Star,   color: "from-slate-500 to-slate-600",     description: "Perfect for getting started", popular: false, isVip: false },
-  standard: { icon: Zap,   color: "from-primary to-primary/80",       description: "Most popular choice",         popular: true,  isVip: false },
-  premium:  { icon: Crown, color: "from-amber-500 to-amber-600",      description: "For serious fitness goals",   popular: false, isVip: false },
-  vip:      { icon: Crown, color: "from-violet-500 to-purple-600",    description: "Unlimited meals",             popular: false, isVip: true  },
+const TIER_META: Record<string, { icon: typeof Star; color: string; descriptionKey: string; popular: boolean; isVip: boolean }> = {
+  basic:    { icon: Star,   color: "from-slate-500 to-slate-600",     descriptionKey: "plan_basic_desc", popular: false, isVip: false },
+  standard: { icon: Zap,   color: "from-primary to-primary/80",       descriptionKey: "plan_standard_desc",         popular: true,  isVip: false },
+  premium:  { icon: Crown, color: "from-amber-500 to-amber-600",      descriptionKey: "plan_premium_desc",   popular: false, isVip: false },
+  vip:      { icon: Crown, color: "from-violet-500 to-purple-600",    descriptionKey: "plan_vip_desc",             popular: false, isVip: true  },
 };
 
-function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval): PlanType {
+function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval, t: any): PlanType {
   const meta = TIER_META[p.tier] ?? TIER_META.basic;
   const monthlyPrice = p.price_qar ?? 0;
   const price = billingInterval === "annual" ? monthlyPrice * 10 : monthlyPrice;
   const period = billingInterval === "annual" ? "year" : "month";
   const features = Array.isArray(p.features) ? p.features : [];
-  const annualFeatures = billingInterval === "annual" ? [...features, "💰 2 months free (17% savings)"] : features;
+  const annualFeatures = billingInterval === "annual" ? [...features, `💰 ${t("save_17_percent_banner")}`] : features;
   return {
     id: p.id,
     name: p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
@@ -85,7 +85,7 @@ function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval)
     period,
     mealsPerMonth: p.meals_per_month ?? 0,
     tier: p.tier,
-    description: meta.description,
+    description: t(meta.descriptionKey as any),
     icon: meta.icon,
     features: annualFeatures,
     popular: meta.popular,
@@ -151,14 +151,14 @@ const [activeTab, setActiveTab] = useState("overview");
       .update({ auto_renew: value } as any)
       .eq("id", subscription.id);
     if (error) {
-      toast({ title: "Error", description: "Failed to update auto-renewal setting.", variant: "destructive" });
+      toast({ title: t("error"), description: t("auto_renewal_error"), variant: "destructive" });
     } else {
       setAutoRenew(value);
       toast({
-        title: value ? "Auto-Renewal Enabled" : "Auto-Renewal Disabled",
+        title: value ? t("auto_renew_enabled") : t("auto_renew_disabled"),
         description: value
-          ? "Your subscription will renew automatically each cycle."
-          : "Your subscription will not renew after the current period ends.",
+          ? t("auto_renewal_on_desc")
+          : t("auto_renewal_off_desc"),
       });
     }
     setAutoRenewLoading(false);
@@ -174,7 +174,7 @@ const [activeTab, setActiveTab] = useState("overview");
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
 
   const { plans: dbPlans } = useSubscriptionPlans();
-  const plans = dbPlans.map(p => dbPlanToUiPlan(p, selectedBillingInterval));
+  const plans = dbPlans.map(p => dbPlanToUiPlan(p, selectedBillingInterval, t));
 
   // VIP monthly price (used for annual savings display)
   const vipPlan = plans.find(p => p.tier === "vip");
@@ -304,7 +304,7 @@ const [activeTab, setActiveTab] = useState("overview");
           : "";
         
         toast({
-          title: "Plan Updated",
+          title: t("plan_updated_toast"),
           description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}.${paymentText} ${upgradeResult.prorated_credit ? `Prorated credit: ${upgradeResult.prorated_credit} QAR` : ""}`,
         });
         // Record promo usage if a code was applied (best-effort)
@@ -377,7 +377,7 @@ const [activeTab, setActiveTab] = useState("overview");
         });
       } else {
         toast({
-          title: "Subscription Reactivated",
+          title: t("subscription_reactivated_toast"),
           description: "Your subscription has been successfully reactivated!",
         });
         await refetch();
@@ -401,7 +401,7 @@ setIsProcessing(false);
         <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
-        <p className="text-sm text-muted-foreground">Loading your subscription…</p>
+        <p className="text-sm text-muted-foreground">{t("loading_subscription")}</p>
       </div>
     );
   }
@@ -412,14 +412,14 @@ setIsProcessing(false);
       <div className="min-h-screen pb-10">
         {/* Native header */}
         <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
-          <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3">
+          <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3 rtl:flex-row-reverse">
             <button
               onClick={() => navigate(-1)}
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
             >
-              <ArrowLeft className="h-5 w-5 text-foreground" />
+            <ArrowLeft className="h-5 w-5 text-foreground rtl-flip-back" />
             </button>
-            <h1 className="text-lg font-bold tracking-tight">Choose a Plan</h1>
+            <h1 className="text-lg font-bold tracking-tight">{t("choose_plan")}</h1>
           </div>
         </header>
 
@@ -428,10 +428,10 @@ setIsProcessing(false);
           <div className="gradient-primary rounded-3xl px-5 py-6 text-white shadow-lg shadow-primary/20">
             <div className="flex items-center gap-2 mb-2">
               <Zap className="h-4 w-4 text-white/80" />
-              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Start Your Journey</span>
+              <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">{t("start_your_journey")}</span>
             </div>
-            <h2 className="text-2xl font-bold leading-tight mb-1">Fuel Your Health</h2>
-            <p className="text-sm text-white/70">Pick the perfect plan for your lifestyle and goals.</p>
+            <h2 className="text-2xl font-bold leading-tight mb-1">{t("fuel_your_health")}</h2>
+            <p className="text-sm text-white/70">{t("plan_hero_desc")}</p>
           </div>
 
           {/* Billing toggle */}
@@ -448,8 +448,8 @@ setIsProcessing(false);
                 <BadgePercent className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Save 17% — 2 months free</p>
-                <p className="text-xs text-muted-foreground">Pay 10 months, save up to {vipAnnualSavings.toLocaleString()} QAR/yr</p>
+                <p className="text-sm font-bold text-foreground">{t("save_17_percent_banner")}</p>
+                <p className="text-xs text-muted-foreground">{t("pay_annual_desc")} {vipAnnualSavings.toLocaleString()} QAR/yr</p>
               </div>
             </div>
           )}
@@ -472,17 +472,17 @@ setIsProcessing(false);
                   {/* Badge ribbon */}
                   {plan.popular && (
                     <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-2xl">
-                      Most Popular
+                      {t("most_popular")}
                     </div>
                   )}
                   {plan.isVip && (
                     <div className="absolute top-0 right-0 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-bl-2xl">
-                      VIP Elite
+                      {t("vip_elite")}
                     </div>
                   )}
                   {selectedBillingInterval === "annual" && !plan.popular && !plan.isVip && (
                     <div className="absolute top-0 right-0 bg-primary/80 text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-2xl">
-                      Save 17%
+                      {t("save_17_percent")}
                     </div>
                   )}
 
@@ -504,7 +504,7 @@ setIsProcessing(false);
                     <div className={`flex items-center gap-2 px-3 py-2 rounded-2xl mb-3 ${plan.isVip ? "bg-violet-500/10" : "bg-primary/8"}`}>
                       <Utensils className={`h-4 w-4 ${plan.isVip ? "text-violet-500" : "text-primary"}`} />
                       <p className={`text-sm font-semibold ${plan.isVip ? "text-violet-600" : "text-primary"}`}>
-                        {plan.mealsPerMonth === 0 ? "Unlimited meals" : `${plan.mealsPerMonth} meals / month`}
+                        {plan.mealsPerMonth === 0 ? t("unlimited_meals") : `${plan.mealsPerMonth} ${t("meals_per_month")}`}
                       </p>
                     </div>
 
@@ -518,7 +518,7 @@ setIsProcessing(false);
                         </li>
                       ))}
                       {plan.features.length > 4 && (
-                        <li className="text-xs text-muted-foreground pl-7">+{plan.features.length - 4} more benefits</li>
+                        <li className="text-xs text-muted-foreground pl-7">+{plan.features.length - 4} {t("more_benefits")}</li>
                       )}
                     </ul>
 
@@ -533,7 +533,7 @@ setIsProcessing(false);
                       variant={plan.popular || plan.isVip ? "default" : "outline"}
                       onClick={() => navigate("/subscription/plans")}
                     >
-                      Get Started
+                      {t("get_started_btn")}
                     </Button>
                   </div>
                 </div>
@@ -559,7 +559,7 @@ setIsProcessing(false);
           >
             <ArrowLeft className="h-5 w-5 text-foreground" />
           </button>
-          <h1 className="text-lg font-bold tracking-tight">My Subscription</h1>
+          <h1 className="text-lg font-bold tracking-tight">{t("my_subscription")}</h1>
         </div>
       </header>
 
@@ -576,7 +576,7 @@ setIsProcessing(false);
                 {isVip ? <Crown className="h-6 w-6 text-white" /> : <Zap className="h-6 w-6 text-white" />}
               </div>
               <div>
-                <h2 className="text-lg font-bold capitalize">{subscription?.plan || 'Standard'} Plan</h2>
+                <h2 className="text-lg font-bold capitalize">{subscription?.plan || 'Standard'} {t("plan_label")}</h2>
                 <p className="text-xs text-white/70 mt-0.5 capitalize">
                   {subscription?.status === 'cancelled'
                     ? `Cancelled · ends ${subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd") : ""}`
@@ -587,7 +587,7 @@ setIsProcessing(false);
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold">{isUnlimited ? '∞' : remainingMeals}</p>
-              <p className="text-xs text-white/70">{isUnlimited ? 'unlimited' : 'meals left'}</p>
+              <p className="text-xs text-white/70">{isUnlimited ? t("unlimited") : t("meals_left")}</p>
             </div>
           </div>
 
@@ -595,8 +595,8 @@ setIsProcessing(false);
           {!isUnlimited && (
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-white/80">
-                <span>{mealsUsed} of {totalMeals} used</span>
-                <span>{daysRemaining}d until reset</span>
+                <span>{mealsUsed} {t("of")} {totalMeals} {t("used")}</span>
+                <span>{daysRemaining}d {t("until_reset")}</span>
               </div>
               <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                 <div
@@ -614,14 +614,14 @@ setIsProcessing(false);
             <Calendar className="h-4 w-4 text-primary" />
             <div>
               <p className="text-base font-bold text-foreground leading-none">{daysRemaining}</p>
-              <p className="text-xs text-muted-foreground">Days left</p>
+              <p className="text-xs text-muted-foreground">{t("days_left")}</p>
             </div>
           </div>
           <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
             <Utensils className="h-4 w-4 text-primary" />
             <div>
               <p className="text-base font-bold text-foreground leading-none">{isUnlimited ? '∞' : totalMeals}</p>
-              <p className="text-xs text-muted-foreground">Monthly meals</p>
+              <p className="text-xs text-muted-foreground">{t("monthly_meals")}</p>
             </div>
           </div>
           {rolloverInfo && rolloverInfo.rollover_credits > 0 && (
@@ -629,7 +629,7 @@ setIsProcessing(false);
               <RotateCcw className="h-4 w-4 text-amber-600" />
               <div>
                 <p className="text-base font-bold text-amber-600 leading-none">{rolloverInfo.rollover_credits}</p>
-                <p className="text-xs text-amber-600">Rollover</p>
+                <p className="text-xs text-amber-600">{t("rollover")}</p>
               </div>
             </div>
           )}
@@ -638,9 +638,9 @@ setIsProcessing(false);
 {/* iOS-style segment tabs */}
         <div className="bg-muted rounded-2xl p-1 flex gap-1">
           {[
-            { id: "overview", label: "Overview" },
-            { id: "manage",   label: "Manage" },
-            { id: "plans",    label: "Plans" },
+            { id: "overview", label: t("overview") },
+            { id: "manage",   label: t("manage") },
+            { id: "plans",    label: t("plans") },
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -664,28 +664,28 @@ setIsProcessing(false);
             <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden">
               <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border/60">
                 <Shield className="h-4 w-4 text-primary" />
-                <h3 className="font-bold text-foreground">Subscription Details</h3>
+                <h3 className="font-bold text-foreground">{t("subscription_details")}</h3>
               </div>
               {[
-                { label: "Plan", value: <span className="font-semibold capitalize">{subscription?.plan || "Standard"}</span> },
+                { label: t("plan_label"), value: <span className="font-semibold capitalize">{subscription?.plan || "Standard"}</span> },
                 {
-                  label: "Status",
+                  label: t("status_label"),
                   value: (
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                       subscription?.status === "cancelled"
                         ? "bg-red-100 text-red-600"
                         : "bg-primary/10 text-primary"
                     }`}>
-                      {subscription?.status === "cancelled" ? "Cancelled (Active)" : subscription?.status}
+                      {subscription?.status === "cancelled" ? t("cancelled_active") : subscription?.status === "active" ? t("status_active") : subscription?.status === "paused" ? t("paused") : subscription?.status}
                     </span>
                   ),
                 },
                 {
-                  label: "Start Date",
+                  label: t("start_date_label"),
                   value: <span className="font-semibold">{subscription?.start_date ? format(new Date(subscription.start_date), "MMM dd, yyyy") : "—"}</span>,
                 },
                 {
-                  label: "End Date",
+                  label: t("end_date_label"),
                   value: <span className="font-semibold">{subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd, yyyy") : "—"}</span>,
                 },
               ].map(({ label, value }, idx, arr) => (
@@ -715,8 +715,8 @@ setIsProcessing(false);
                     <Snowflake className={`h-4 w-4 ${freezeDays?.remaining === 0 ? "text-muted-foreground" : "text-blue-600"}`} />
                   </div>
                   <div>
-                    <p className="font-bold text-foreground text-sm">Freeze Subscription</p>
-                    <p className="text-xs text-muted-foreground">Pause deliveries temporarily</p>
+                    <p className="font-bold text-foreground text-sm">{t("freeze_subscription")}</p>
+                    <p className="text-xs text-muted-foreground">{t("freeze_desc")}</p>
                   </div>
                 </div>
                 {freezeDays && (
@@ -740,8 +740,8 @@ setIsProcessing(false);
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {freezeDays.remaining === 0
-                      ? "All freeze days used this cycle"
-                      : `${freezeDays.remaining} freeze day${freezeDays.remaining !== 1 ? "s" : ""} remaining this cycle`}
+                      ? t("all_freeze_days_used")
+                      : `${freezeDays.remaining} ${t("freeze_days_remaining")}`}
                   </p>
                 </div>
               )}
@@ -750,9 +750,9 @@ setIsProcessing(false);
                 <div className="flex items-start gap-3 bg-muted/60 rounded-2xl px-4 py-3">
                   <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-foreground">No freeze days left</p>
+                    <p className="text-sm font-semibold text-foreground">{t("no_freeze_days")}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      You've used all {freezeDays.total} freeze days this billing cycle. They'll reset automatically at your next renewal date
+                      {t("all_freeze_days_used")}
                       {subscription?.next_renewal_date
                         ? ` on ${format(new Date(subscription.next_renewal_date), "MMM dd, yyyy")}`
                         : ""}.
@@ -766,7 +766,7 @@ setIsProcessing(false);
                     trigger={
                       <Button className="w-full rounded-2xl h-11 font-semibold">
                         <Snowflake className="h-4 w-4 mr-2" />
-                        Schedule Freeze
+                        {t("schedule_freeze_btn")}
                       </Button>
                     }
                   />
@@ -782,8 +782,8 @@ setIsProcessing(false);
                     <RefreshCcw className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-bold text-foreground text-sm">Reactivate Plan</p>
-                    <p className="text-xs text-muted-foreground">Restore your subscription benefits</p>
+                    <p className="font-bold text-foreground text-sm">{t("reactivate_plan")}</p>
+                    <p className="text-xs text-muted-foreground">{t("reactivate_desc")}</p>
                   </div>
                 </div>
                 <Button
@@ -792,9 +792,9 @@ setIsProcessing(false);
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Reactivating…</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("reactivating")}</>
                   ) : (
-                    <><RefreshCcw className="h-4 w-4 mr-2" />Reactivate Subscription</>
+                    <><RefreshCcw className="h-4 w-4 mr-2" />{t("reactivate_subscription")}</>
                   )}
                 </Button>
               </div>
@@ -805,8 +805,8 @@ setIsProcessing(false);
                     <AlertCircle className="h-4 w-4 text-red-600" />
                   </div>
                   <div>
-                    <p className="font-bold text-foreground text-sm">Cancel Subscription</p>
-                    <p className="text-xs text-muted-foreground">Access continues until billing period ends</p>
+                    <p className="font-bold text-foreground text-sm">{t("cancel_subscription")}</p>
+                    <p className="text-xs text-muted-foreground">{t("cancel_desc")}</p>
                   </div>
                 </div>
                 <button
@@ -814,7 +814,7 @@ setIsProcessing(false);
                   onClick={() => setShowCancelDialog(true)}
                 >
                   <X className="h-4 w-4" />
-                  Cancel Subscription
+                  {t("cancel_subscription")}
                 </button>
               </div>
             )}
@@ -835,8 +835,8 @@ setIsProcessing(false);
         {activeTab === "plans" && (
           <div className="space-y-4">
             <div className="text-center">
-              <h3 className="font-bold text-foreground">Available Plans</h3>
-              <p className="text-sm text-muted-foreground">Upgrade or change anytime</p>
+              <h3 className="font-bold text-foreground">{t("available_plans")}</h3>
+              <p className="text-sm text-muted-foreground">{t("upgrade_anytime")}</p>
             </div>
 
             <BillingIntervalToggle
@@ -865,10 +865,10 @@ setIsProcessing(false);
                 const currentTierRank = tierOrder[currentTier as keyof typeof tierOrder] || 1;
                 const planTierRank = tierOrder[plan.tier];
 
-                let buttonText = "Upgrade";
+                let buttonText = t("upgrade");
                 let isPrimary = true;
                 if (isCurrentPlan) { buttonText = t("current_plan"); isPrimary = false; }
-                else if (planTierRank < currentTierRank) { buttonText = "Downgrade"; isPrimary = false; }
+                else if (planTierRank < currentTierRank) { buttonText = t("downgrade_btn"); isPrimary = false; }
 
                 return (
                   <div
@@ -885,10 +885,10 @@ setIsProcessing(false);
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-foreground">{plan.name}</h3>
                           {isCurrentPlan && (
-                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Current</span>
+                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{t("current_badge")}</span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">{plan.mealsPerMonth === 0 ? "Unlimited meals" : `${plan.mealsPerMonth} meals / month`}</p>
+                        <p className="text-xs text-muted-foreground">{plan.mealsPerMonth === 0 ? t("unlimited_meals") : `${plan.mealsPerMonth} ${t("meals_per_month_spaced")}`}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-foreground">{formatCurrency(plan.price)}</p>
@@ -916,9 +916,9 @@ setIsProcessing(false);
                     <BellRing className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-bold text-foreground text-sm">Auto-Renewal</p>
+                    <p className="font-bold text-foreground text-sm">{t("auto_renewal_title")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {autoRenew ? "Renews automatically each cycle" : "Subscription ends after current period"}
+                      {autoRenew ? t("auto_renewal_on_desc") : t("auto_renewal_off_desc")}
                     </p>
                   </div>
                 </div>
@@ -932,9 +932,9 @@ setIsProcessing(false);
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2.5">
                   <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700">
-                    Your subscription will expire on{" "}
+                    {t("subscription_expire_warning")}{" "}
                     <span className="font-semibold">
-                      {subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd, yyyy") : "the end of your billing period"}
+                      {subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd, yyyy") : t("end_of_billing_period")}
                     </span>{" "}
                     and will not renew automatically.
                   </p>
@@ -954,29 +954,29 @@ setIsProcessing(false);
           <DialogHeader>
             <DialogTitle>
               {(() => {
-                if (!selectedPlan || !subscription) return "Change Plan";
+                if (!selectedPlan || !subscription) return t("change_plan");
                 const currentRank = tierOrder[subscription.tier as keyof typeof tierOrder] || 1;
                 const selectedRank = tierOrder[selectedPlan.tier];
-                return selectedRank > currentRank ? "Upgrade Subscription" : "Downgrade Subscription";
+                return selectedRank > currentRank ? `${t("upgrade")} ${t("subscription")}` : `${t("downgrade_btn")} ${t("subscription")}`;
               })()}
             </DialogTitle>
             <DialogDescription>
               {selectedPlan ? (() => {
                 const currentRank = tierOrder[subscription?.tier as keyof typeof tierOrder] || 1;
                 const selectedRank = tierOrder[selectedPlan.tier];
-                return `${selectedRank > currentRank ? "Upgrade" : "Downgrade"} to ${selectedPlan.name} plan`;
-              })() : "Select a plan to change"}
+                return `${selectedRank > currentRank ? t("upgrade") : t("downgrade_btn")} - ${selectedPlan.name}`;
+              })() : t("select_plan_to_change")}
             </DialogDescription>
           </DialogHeader>
 
           {selectedPlan && (
             <div className="bg-muted rounded-2xl p-4 space-y-3">
               <div className="flex justify-between items-center">
-                <span className="font-semibold">{selectedPlan.name} Plan</span>
+                <span className="font-semibold">{selectedPlan.name} {t("plan_label")}</span>
                 <span className="font-bold">{formatCurrency(selectedPlan.price)}/{selectedPlan.period}</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                {selectedPlan.mealsPerMonth === 0 ? "Unlimited meals" : `${selectedPlan.mealsPerMonth} meals per month`}
+                {selectedPlan.mealsPerMonth === 0 ? t("unlimited_meals") : `${selectedPlan.mealsPerMonth} ${t("meals_per_month")}`}
               </p>
               <div className="pt-2 border-t border-border/50">
                 <div className="flex items-center gap-2 text-sm">
@@ -1001,7 +1001,7 @@ setIsProcessing(false);
             <div className="space-y-2">
               <p className="text-sm font-semibold flex items-center gap-1.5">
                 <BadgePercent className="h-4 w-4 text-primary" />
-                Promo Code
+                {t("promo_code_label")}
               </p>
               <div className="flex gap-2">
                 <Input
@@ -1011,7 +1011,7 @@ setIsProcessing(false);
                     setPromoError(null);
                     if (appliedPromo) setAppliedPromo(null);
                   }}
-                  placeholder="Enter promo code"
+                  placeholder={t("enter_promo_code")}
                   className="rounded-xl flex-1"
                   disabled={!!appliedPromo || promoLoading}
                 />
@@ -1030,7 +1030,7 @@ setIsProcessing(false);
                     onClick={applyPromoCode}
                     disabled={!promoCode.trim() || promoLoading}
                   >
-                    {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                    {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("apply_btn")}
                   </Button>
                 )}
               </div>
@@ -1059,7 +1059,7 @@ setIsProcessing(false);
 
               {appliedPromo && (
                 <div className="flex items-center justify-between text-sm font-bold border-t pt-2">
-                  <span>Total after discount</span>
+                  <span>{t("total_after_discount")}</span>
                   <span className="text-primary">
                     {formatCurrency(Math.max(0, selectedPlan.price - appliedPromo.discountAmount))}
                   </span>
@@ -1071,7 +1071,7 @@ setIsProcessing(false);
           {/* Payment Method Selection */}
           {selectedPlan && (
             <div className="space-y-3">
-              <p className="text-sm font-semibold">Payment Method</p>
+              <p className="text-sm font-semibold">{t("payment_method_label")}</p>
               <div className="grid grid-cols-2 gap-3">
                 {/* Card Payment Option */}
                 <button
@@ -1084,7 +1084,7 @@ setIsProcessing(false);
                 >
                   <CreditCard className={`h-6 w-6 mb-2 ${selectedPaymentMethod === "card" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className={`text-sm font-semibold ${selectedPaymentMethod === "card" ? "text-primary" : "text-foreground"}`}>
-                    Card
+                    {t("card_label")}
                   </span>
                   <span className="text-xs text-muted-foreground">Credit/Debit</span>
                 </button>
@@ -1100,11 +1100,11 @@ setIsProcessing(false);
                 >
                   <Wallet className={`h-6 w-6 mb-2 ${selectedPaymentMethod === "wallet" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className={`text-sm font-semibold ${selectedPaymentMethod === "wallet" ? "text-primary" : "text-foreground"}`}>
-                    Wallet
+                    {t("wallet_label")}
                   </span>
                   {wallet && (
                     <span className="text-xs text-muted-foreground">
-                      Balance: {formatCurrency(wallet.balance)}
+                      {t("balance")}: {formatCurrency(wallet.balance)}
                     </span>
                   )}
                 </button>
@@ -1115,7 +1115,7 @@ setIsProcessing(false);
                 <Alert className="rounded-2xl bg-amber-50 border-amber-200">
                   <AlertCircle className="h-4 w-4 text-amber-600" />
                   <AlertDescription className="text-amber-800 text-xs">
-                    Insufficient wallet balance. You have {formatCurrency(wallet.balance)} but need {formatCurrency(selectedPlan.price)}.
+                    {t("insufficient_wallet_balance")} {t("balance")}: {formatCurrency(wallet.balance)}.
                   </AlertDescription>
                 </Alert>
               )}
@@ -1134,17 +1134,17 @@ setIsProcessing(false);
 
           <DialogFooter className="mt-2 gap-2">
             <Button variant="outline" className="rounded-2xl" onClick={() => setShowUpgradeDialog(false)}>
-              Cancel
+              {t("cancel_btn")}
             </Button>
             <Button className="rounded-2xl" onClick={handleUpgrade} disabled={isProcessing || !selectedPlan}>
               {isProcessing ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing…</>
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("processing")}</>
               ) : (
                 (() => {
-                  if (!selectedPlan || !subscription) return "Confirm";
+                  if (!selectedPlan || !subscription) return t("confirm");
                   const currentRank = tierOrder[subscription.tier as keyof typeof tierOrder] || 1;
                   const selectedRank = tierOrder[selectedPlan.tier];
-                  return selectedRank > currentRank ? "Confirm Upgrade" : "Confirm Downgrade";
+                  return selectedRank > currentRank ? t("confirm_upgrade") : t("confirm_downgrade");
                 })()
               )}
             </Button>

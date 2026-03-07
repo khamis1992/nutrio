@@ -15,63 +15,6 @@ import { z } from "zod";
 import { checkIPLocation } from "@/lib/ipCheck";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const emailSchema = z.string().email("Please enter a valid email address");
-const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
-
-type AuthView = "welcome" | "signin" | "signup" | "forgot" | "otp";
-
-/* ─── Brand icons ───────────────────────────────────────────────── */
-const GoogleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
-    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-  </svg>
-);
-
-const AppleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-  </svg>
-);
-
-const FacebookIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-  </svg>
-);
-
-const XIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
-
-/* ─── Social button ─────────────────────────────────────────────── */
-const SocialButton = ({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="w-full flex items-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors"
-    style={{ height: 52, padding: "0 20px", gap: 12 }}
-  >
-    <span className="flex-shrink-0">{icon}</span>
-    <span className="flex-1 text-center text-sm font-semibold text-gray-800">
-      {label}
-    </span>
-  </button>
-);
-
-/* ─── Main component ────────────────────────────────────────────── */
 const Auth = () => {
   const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
@@ -160,6 +103,9 @@ const Auth = () => {
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
+    const emailSchema = z.string().email(t("invalid_email"));
+    const passwordSchema = z.string().min(8, t("password_min_chars"));
+    
     try { emailSchema.parse(email); } catch (err) { if (err instanceof z.ZodError) newErrors.email = err.errors[0].message; }
     try { passwordSchema.parse(password); } catch (err) { if (err instanceof z.ZodError) newErrors.password = err.errors[0].message; }
     setErrors(newErrors);
@@ -171,7 +117,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/auth` } });
       if (error) throw error;
     } catch {
-      toast({ title: "Coming soon", description: `${provider} login will be available shortly.`, variant: "destructive" });
+      toast({ title: t("coming_soon"), description: `${provider} ${t("provider_login_soon")}`, variant: "destructive" });
     }
   };
 
@@ -179,19 +125,19 @@ const Auth = () => {
     setBiometricLoading(true);
     try {
       const credentials = await biometricAuth.getCredentials();
-      if (!credentials) { toast({ title: "No saved credentials", description: "Please sign in with your email and password first.", variant: "destructive" }); return; }
+      if (!credentials) { toast({ title: t("no_saved_credentials"), description: t("signin_first_desc"), variant: "destructive" }); return; }
       const authenticated = await biometricAuth.authenticate();
-      if (!authenticated) { toast({ title: "Authentication failed", description: "Biometric authentication was canceled or failed.", variant: "destructive" }); return; }
+      if (!authenticated) { toast({ title: t("auth_failed"), description: t("biometric_canceled"), variant: "destructive" }); return; }
       const { error } = await signIn(credentials.username, credentials.password);
       if (error) {
-        toast({ title: "Sign in failed", description: "Invalid credentials. Please sign in again.", variant: "destructive" });
+        toast({ title: t("signin_failed"), description: t("invalid_credentials_retry"), variant: "destructive" });
         await biometricAuth.deleteCredentials();
         setEnableBiometric(false);
       } else {
-        toast({ title: "Welcome back!", description: `Signed in with ${biometricType}.` });
+        toast({ title: t("welcome_back"), description: `${t("signed_in_with")} ${biometricType}.` });
       }
     } catch {
-      toast({ title: "Biometric login failed", description: "An error occurred. Please try again.", variant: "destructive" });
+      toast({ title: t("biometric_error"), description: t("biometric_error_desc"), variant: "destructive" });
     } finally {
       setBiometricLoading(false);
     }
@@ -205,29 +151,29 @@ const Auth = () => {
       if (view === "signin") {
         const { error } = await signIn(email, password);
         if (error) {
-          toast({ title: "Sign in failed", description: error.message.includes("Invalid login credentials") ? "Invalid email or password." : error.message, variant: "destructive" });
+          toast({ title: t("signin_failed"), description: error.message.includes("Invalid login credentials") ? t("invalid_credentials") : error.message, variant: "destructive" });
         } else {
           if (enableBiometric) await biometricAuth.setCredentials(email, password);
           if (rememberMe) localStorage.setItem("remembered_email", email);
           else localStorage.removeItem("remembered_email");
-          toast({ title: "Welcome back!", description: "You have successfully signed in." });
+          toast({ title: t("welcome_back"), description: t("sign_in_success") });
         }
       } else {
         const ipCheck = await checkIPLocation();
         if (!ipCheck.allowed) {
-          toast({ title: "Signup blocked", description: ipCheck.blocked ? "Your IP has been blocked." : (ipCheck.reason || "Signups are only allowed from Qatar."), variant: "destructive" });
+          toast({ title: t("signup_blocked"), description: ipCheck.blocked ? t("ip_blocked") : (ipCheck.reason || t("signup_qatar_only")), variant: "destructive" });
           return;
         }
         const { error } = await signUp(email, password, name);
         if (error) {
-          toast({ title: "Sign up failed", description: error.message.includes("User already registered") ? "An account with this email already exists." : error.message, variant: "destructive" });
+          toast({ title: t("signup_failed"), description: error.message.includes("User already registered") ? t("email_exists") : error.message, variant: "destructive" });
         } else {
-          toast({ title: "Account created!", description: "Welcome to NUTRIO. Let's set up your profile." });
+          toast({ title: t("account_created"), description: t("welcome_setup_profile") });
           navigate("/onboarding");
         }
       }
     } catch {
-      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
+      toast({ title: t("error"), description: t("unexpected_error"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -263,7 +209,7 @@ const Auth = () => {
       startOtpCountdown();
       setView("otp");
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to send reset email.", variant: "destructive" });
+      toast({ title: t("error"), description: err.message || t("failed_send_reset"), variant: "destructive" });
     } finally {
       setForgotLoading(false);
     }
@@ -286,7 +232,7 @@ const Auth = () => {
 
   const handleOtpVerify = async () => {
     const code = otpDigits.join("");
-    if (code.length < 4) { setOtpError("Please enter all 4 digits."); return; }
+    if (code.length < 4) { setOtpError(t("enter_4_digits")); return; }
     setOtpLoading(true);
     try {
       const { error } = await supabase.auth.verifyOtp({
@@ -295,10 +241,10 @@ const Auth = () => {
         type: "recovery",
       });
       if (error) throw error;
-      toast({ title: "Verified!", description: "You can now reset your password." });
+      toast({ title: t("verified"), description: t("can_reset_password") });
       navigate("/reset-password");
     } catch (err: any) {
-      setOtpError("Invalid code. Please try again.");
+      setOtpError(t("invalid_code"));
       setOtpDigits(["", "", "", ""]);
     } finally {
       setOtpLoading(false);
@@ -314,9 +260,9 @@ const Auth = () => {
       setOtpDigits(["", "", "", ""]);
       setOtpError("");
       startOtpCountdown();
-      toast({ title: "Code resent!", description: "Check your inbox." });
+      toast({ title: t("code_resent"), description: t("check_inbox") });
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to resend.", variant: "destructive" });
+      toast({ title: t("error"), description: err.message || t("failed_resend"), variant: "destructive" });
     }
   };
 
@@ -453,7 +399,7 @@ const Auth = () => {
             onClick={() => setView("welcome")}
             className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-800" />
+            <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
           </button>
 
           {/* Logo */}
@@ -575,7 +521,7 @@ const Auth = () => {
             onClick={() => { setView("forgot"); setForgotSent(false); if (countdownRef.current) clearInterval(countdownRef.current); }}
             className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-800" />
+            <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
           </button>
 
           {/* Title */}
@@ -700,7 +646,7 @@ const Auth = () => {
             onClick={() => { setView("signin"); setForgotEmail(""); setForgotSent(false); setForgotError(""); }}
             className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-800" />
+            <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
           </button>
 
           {/* Title */}
@@ -767,7 +713,7 @@ const Auth = () => {
           onClick={() => setView("welcome")}
           className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
-          <ArrowLeft className="w-6 h-6 text-gray-800" />
+          <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
         </button>
 
         {/* Logo */}
@@ -788,12 +734,12 @@ const Auth = () => {
           <div className="mb-6">
             <Button type="button" variant="outline" className="w-full h-12 rounded-2xl gap-2" onClick={handleBiometricLogin} disabled={biometricLoading}>
               {biometricLoading
-                ? <><Loader2 className="w-5 h-5 animate-spin" />Authenticating...</>
-                : <><Fingerprint className="w-5 h-5" />Sign in with {biometricType}</>}
+                ? <><Loader2 className="w-5 h-5 animate-spin" />{t("authenticating")}</>
+                : <><Fingerprint className="w-5 h-5" />{t("sign_in_with_action")} {biometricType}</>}
             </Button>
             <div className="flex items-center mt-4 mb-2">
               <div className="h-px bg-gray-200 flex-1" />
-              <span className="px-3 text-xs text-gray-400 uppercase">or</span>
+              <span className="px-3 text-xs text-gray-400 uppercase">{t("or_divider")}</span>
               <div className="h-px bg-gray-200 flex-1" />
             </div>
           </div>
@@ -866,7 +812,7 @@ const Auth = () => {
           {biometricAvailable && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" checked={enableBiometric} onChange={(e) => setEnableBiometric(e.target.checked)} className="w-4 h-4 rounded accent-primary" disabled={loading} />
-              <span className="text-sm text-gray-600">Enable {biometricType} for faster login</span>
+              <span className="text-sm text-gray-600">{t("enable_biometric_login")}</span>
             </label>
           )}
 

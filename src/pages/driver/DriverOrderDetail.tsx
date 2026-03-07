@@ -315,15 +315,17 @@ export default function DriverOrderDetail() {
   return (
     <DriverLayout title="Order Details">
       <div className="space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/driver")}
-          className="mb-2"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
+        <div className="flex justify-start rtl:flex-row-reverse">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/driver")}
+            className="mb-2"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1 rtl-flip-back" />
+            Back
+          </Button>
+        </div>
 
         <Card>
           <CardContent className="p-4">

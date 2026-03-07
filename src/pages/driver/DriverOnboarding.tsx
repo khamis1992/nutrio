@@ -159,7 +159,7 @@ export default function DriverOnboarding() {
     <div className="min-h-screen bg-gradient-to-br from-green-500/5 via-background to-emerald-500/10">
       <div className="container max-w-2xl mx-auto px-4 py-8">
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6">
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 rtl-flip-back" />
           Back to home
         </Link>
 

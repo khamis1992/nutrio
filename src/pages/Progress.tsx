@@ -24,6 +24,7 @@ import {
 import { format, subDays } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { ProgressRings } from "@/components/progress/ProgressRings";
 import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
 import { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
@@ -44,6 +45,7 @@ const ProgressNative = () => {
   const { user } = useAuth();
   useProfile();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") as "today" | "week" | "weight" | "goals" | null;
   const [activeTab, setActiveTab] = useState<"today" | "week" | "weight" | "goals">(initialTab || "today");
@@ -151,15 +153,15 @@ const ProgressNative = () => {
   const handleQuickWaterAdd = async (amount: number) => {
     try {
       await addWater(amount);
-      toast({ title: "Water added", description: `+${amount} glasses` });
+      toast({ title: t("water_added"), description: `+${amount} ${t("glasses")}` });
     } catch (error) {
-      toast({ title: "Failed to add water", variant: "destructive" });
+      toast({ title: t("failed_add_water"), variant: "destructive" });
     }
   };
 
   const handleDownloadReport = async () => {
     if (!user || !weeklySummary) {
-      toast({ title: "No data available", variant: "destructive" });
+      toast({ title: t("no_data_available"), variant: "destructive" });
       return;
     }
 
@@ -283,10 +285,10 @@ const ProgressNative = () => {
       reportData.mealImages = mealImages;
 
       await nutrioReportPDF.download(reportData);
-      toast({ title: "Report downloaded!", description: "Your weekly progress report has been saved." });
+      toast({ title: t("report_downloaded"), description: t("report_saved") });
     } catch (error) {
       console.error("Error generating report:", error);
-      toast({ title: "Failed to generate report", variant: "destructive" });
+      toast({ title: t("failed_generate_report"), variant: "destructive" });
     } finally {
       setGeneratingReport(false);
     }
@@ -325,14 +327,14 @@ return (
     <div className="min-h-screen bg-background pb-24">
       {/* Native App Header with App Colors */}
       <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-accent">
-        <div className="flex items-center justify-between px-4 h-14">
+        <div className="flex items-center justify-between px-4 h-14 rtl:flex-row-reverse">
           <button
             onClick={() => navigate("/dashboard")}
             className="p-2 -ml-2 rounded-full hover:bg-white/20 active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-6 h-6 text-white" />
+            <ArrowLeft className="w-6 h-6 text-white rtl-flip-back" />
           </button>
-          <h1 className="text-lg font-semibold text-white tracking-wide">Progress</h1>
+          <h1 className="text-lg font-semibold text-white tracking-wide">{t("progress")}</h1>
           <div className="w-10" />
         </div>
 
@@ -350,7 +352,7 @@ return (
                     : "text-white/80 hover:text-white"
                 )}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === "today" ? t("today") : tab === "week" ? t("week") : t("goals_tab")}
               </button>
             ))}
           </div>
@@ -367,16 +369,16 @@ return (
                 {/* Weight View Header */}
                 <div className="flex items-center gap-3 mb-4">
                   <button onClick={() => setShowWeightView(false)} className="p-2 -ml-2 rounded-full hover:bg-muted">
-                    <ArrowLeft className="w-6 h-6" />
+                    <ArrowLeft className="w-6 h-6 rtl-flip-back" />
                   </button>
-                  <h2 className="text-lg font-semibold">Weight Tracking</h2>
+                  <h2 className="text-lg font-semibold">{t("weight_tracking")}</h2>
                 </div>
 
                 {/* Current Weight Card */}
                 <Card className="border-0 overflow-hidden bg-gradient-to-br from-primary to-accent">
                   <CardContent className="p-6">
                     <div className="text-center">
-                      <p className="text-white/80 text-sm mb-1">Current Weight</p>
+                      <p className="text-white/80 text-sm mb-1">{t("current_weight")}</p>
                       <div className="flex items-baseline justify-center gap-2">
                         <span className="text-5xl font-bold text-white">{weightStats.current?.toFixed(1) || latestMeasurement?.weight_kg || "--"}</span>
                         <span className="text-lg text-white/80">kg</span>
@@ -384,13 +386,13 @@ return (
                       {weightStats.change !== 0 && (
                         <div className={`flex items-center justify-center gap-1 mt-2 px-3 py-1 rounded-full bg-white/20 w-fit mx-auto ${weightStats.change < 0 ? 'text-green-300' : 'text-red-300'}`}>
                           {weightStats.change < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-                          <span className="text-sm font-medium">{Math.abs(weightStats.change).toFixed(1)} kg {weightStats.change < 0 ? 'lost' : 'gained'}</span>
+                          <span className="text-sm font-medium">{Math.abs(weightStats.change).toFixed(1)} kg {weightStats.change < 0 ? t("weight_lost") : t("weight_gained")}</span>
                         </div>
                       )}
                     </div>
                     <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/20">
-                      <div className="text-center"><p className="text-white/70 text-xs">Goal</p><p className="text-white font-bold">{activeGoal?.target_weight_kg || "--"}</p></div>
-                      <div className="text-center"><p className="text-white/70 text-xs">Entries</p><p className="text-white font-bold">{weightStats.count}</p></div>
+                      <div className="text-center"><p className="text-white/70 text-xs">{t("goal")}</p><p className="text-white font-bold">{activeGoal?.target_weight_kg || "--"}</p></div>
+                      <div className="text-center"><p className="text-white/70 text-xs">{t("entries")}</p><p className="text-white font-bold">{weightStats.count}</p></div>
                       <div className="text-center"><p className="text-white/70 text-xs">BMI</p><p className="text-white font-bold">--</p></div>
                     </div>
                   </CardContent>
@@ -399,11 +401,11 @@ return (
                 {/* Log Weight Form */}
                 <Card className="border-0">
                   <CardContent className="p-4 space-y-3">
-                    <div><Label className="text-sm">Date</Label><Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1" /></div>
-                    <div><Label className="text-sm">Weight (kg)</Label>
+                    <div><Label className="text-sm">{t("weight_date_label")}</Label><Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1" /></div>
+                    <div><Label className="text-sm">{t("weight_input_label")}</Label>
                       <div className="flex gap-2 mt-1">
                         <Input type="number" step="0.1" placeholder="0.0" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} className="flex-1" />
-                        <Button onClick={handleAddWeight} disabled={isSubmitting || !currentWeight}>{isSubmitting ? "..." : "Add"}</Button>
+                        <Button onClick={handleAddWeight} disabled={isSubmitting || !currentWeight}>{isSubmitting ? "..." : t("add_entry")}</Button>
                       </div>
                     </div>
                   </CardContent>
@@ -413,8 +415,8 @@ return (
                 <Card className="border-0">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">History</CardTitle>
-                      <Button variant="ghost" size="sm" onClick={() => setShowAllEntries(!showAllEntries)}>{showAllEntries ? "Show Less" : "Show All"}</Button>
+                      <CardTitle className="text-base">{t("history")}</CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => setShowAllEntries(!showAllEntries)}>{showAllEntries ? t("show_less") : t("show_all")}</Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -431,7 +433,7 @@ return (
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteWeight(entry.id)}><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       ))}
-                      {weightEntries.length === 0 && <p className="text-center text-muted-foreground py-4">No entries yet. Start tracking!</p>}
+                      {weightEntries.length === 0 && <p className="text-center text-muted-foreground py-4">{t("no_weight_entries")}</p>}
                     </div>
                   </CardContent>
                 </Card>
@@ -443,13 +445,13 @@ return (
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Current Weight</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t("current_weight")}</p>
                     <p className="text-3xl font-bold mt-1 text-foreground">
                       {latestMeasurement?.weight_kg || "--"} 
                       <span className="text-lg font-normal text-muted-foreground">kg</span>
                     </p>
                     {activeGoal?.target_weight_kg && (
-                      <p className="text-xs mt-1 text-accent">Goal: {activeGoal.target_weight_kg}kg</p>
+                      <p className="text-xs mt-1 text-accent">{t("goal")}: {activeGoal.target_weight_kg}kg</p>
                     )}
                   </div>
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -469,7 +471,7 @@ return (
 
             {/* Nutrition Dashboard - 2x2 Grid */}
             <div>
-              <h2 className="text-sm font-semibold mb-3 px-1 text-foreground">Today's Nutrition</h2>
+              <h2 className="text-sm font-semibold mb-3 px-1 text-foreground">{t("today_nutrition")}</h2>
               <div className="grid grid-cols-2 gap-3">
                 {/* Calories */}
                 <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
@@ -478,7 +480,7 @@ return (
                       <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center">
                         <Flame className="w-4 h-4 text-warning" />
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground">Calories</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("calories")}</span>
                     </div>
                     <p className="text-2xl font-bold text-foreground">
                       {todayStats.calories}
@@ -502,7 +504,7 @@ return (
                       <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                         <Target className="w-4 h-4 text-primary" />
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground">Protein</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("protein")}</span>
                     </div>
                     <p className="text-2xl font-bold text-foreground">
                       {Math.round(todayStats.protein)}g
@@ -526,7 +528,7 @@ return (
                       <div className="w-8 h-8 rounded-full bg-cyan-500/15 flex items-center justify-center">
                         <Droplet className="w-4 h-4 text-cyan-500" />
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground">Water</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("water")}</span>
                     </div>
                     <p className="text-2xl font-bold text-foreground">
                       {waterSummary?.total || 0}
@@ -555,7 +557,7 @@ return (
                       <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                         <Trophy className="w-4 h-4 text-primary" />
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground">Quality</span>
+                      <span className="text-xs font-medium text-muted-foreground">{t("quality")}</span>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <p className="text-2xl font-bold text-foreground">
@@ -564,8 +566,8 @@ return (
                       <span className="text-xs text-muted-foreground">/100</span>
                     </div>
                     <p className="text-xs mt-2 text-muted-foreground">
-                      {averageScore && averageScore >= 80 ? "Excellent!" : 
-                       averageScore && averageScore >= 60 ? "Good progress" : "Keep improving"}
+                      {averageScore && averageScore >= 80 ? t("excellent_quality") : 
+                       averageScore && averageScore >= 60 ? t("good_progress_quality") : t("keep_improving_quality")}
                     </p>
                   </CardContent>
                 </Card>
@@ -575,7 +577,7 @@ return (
             {/* Quick Actions */}
             <Card className="border-0 shadow-lg bg-gradient-to-r from-primary to-accent">
               <CardContent className="p-4">
-                <p className="text-sm font-medium text-white/90 mb-3">Quick Log</p>
+                <p className="text-sm font-medium text-white/90 mb-3">{t("quick_log")}</p>
                 <div className="flex gap-2">
                   <Button
                     variant="secondary"
@@ -585,7 +587,7 @@ return (
                     disabled={waterLoading}
                   >
                     <Droplets className="w-4 h-4 mr-1.5" />
-                    Water
+                    {t("water")}
                   </Button>
                   <Button
                     variant="secondary"
@@ -594,7 +596,7 @@ return (
                     onClick={() => { setShowWeightView(true); fetchWeightEntries(); }}
                   >
                     <Scale className="w-4 h-4 mr-1.5" />
-                    Weight
+                    {t("weight")}
                   </Button>
                 </div>
               </CardContent>
@@ -610,10 +612,10 @@ return (
                     </div>
                     <div>
                       <p className="font-semibold text-foreground">
-                        {streaks?.logging?.currentStreak || 0} Day Streak
+                        {streaks?.logging?.currentStreak || 0} {t("day_streak")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Best: {streaks?.logging?.bestStreak || 0} days
+                        {t("best_streak")}: {streaks?.logging?.bestStreak || 0} {t("days")}
                       </p>
                     </div>
                   </div>
@@ -621,7 +623,7 @@ return (
                     <p className="text-2xl font-bold text-primary">
                       {weeklySummary?.consistency.percentage || 0}%
                     </p>
-                    <p className="text-xs text-muted-foreground">Consistency</p>
+                    <p className="text-xs text-muted-foreground">{t("consistency")}</p>
                   </div>
                 </div>
               </CardContent>

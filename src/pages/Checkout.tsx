@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { useSimulatedPayment } from '@/hooks/useSimulatedPayment';
 import { PaymentMethodSelector } from '@/components/payment/PaymentMethodSelector';
@@ -17,6 +18,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   
   // Parse query params for amount and type
@@ -53,7 +55,7 @@ export default function Checkout() {
         }
         
         toast({
-          title: 'Payment Successful! 🎉',
+          title: t('payment_successful'),
           description: `QAR ${amount} has been added to your wallet. New balance: QAR ${result.new_balance || amount}`,
         });
       }
@@ -66,7 +68,7 @@ export default function Checkout() {
     } catch (err: any) {
       console.error('Payment processing error:', err);
       toast({
-        title: 'Payment Processing Error',
+        title: t('payment_processing_error'),
         description: err.message || 'Failed to process payment. Please try again or contact support.',
         variant: 'destructive',
       });
@@ -77,7 +79,7 @@ export default function Checkout() {
 
   const handlePaymentFailure = (error: string) => {
     toast({
-      title: 'Payment Failed',
+      title: t('payment_failed_title'),
       description: error,
       variant: 'destructive',
     });
@@ -106,7 +108,7 @@ export default function Checkout() {
     <div className="bg-emerald-50 border-b border-emerald-200 p-2 text-center">
       <div className="flex items-center justify-center gap-2 text-emerald-800">
         <span className="text-sm font-medium">
-          🔒 Secure Payment - Your payment information is encrypted
+          🔒 {t('secure_payment_badge')}
         </span>
       </div>
     </div>
@@ -162,22 +164,22 @@ export default function Checkout() {
       
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-8 rtl:flex-row-reverse">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
           </Button>
-          <h1 className="text-2xl font-bold">Checkout</h1>
+          <h1 className="text-2xl font-bold">{t('checkout_title')}</h1>
         </div>
 
         {/* Order Summary */}
         <div className="bg-muted p-4 rounded-lg mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <p className="text-sm text-muted-foreground">Paying for</p>
+              <p className="text-sm text-muted-foreground">{t('paying_for')}</p>
               <p className="font-medium capitalize">{type.replace('_', ' ')}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Total Amount</p>
+              <p className="text-sm text-muted-foreground">{t('total_amount')}</p>
               <p className="text-2xl font-bold">QAR {amount}</p>
             </div>
           </div>
@@ -219,8 +221,8 @@ export default function Checkout() {
               className="mb-4" 
               onClick={() => navigate(-1)}
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Change Payment Method
+              <ArrowLeft className="w-4 h-4 mr-2 rtl-flip-back" />
+              {t('change_payment_method')}
             </Button>
 
             {(selectedMethod === 'credit_card' || selectedMethod === 'debit_card') && (
@@ -271,7 +273,7 @@ export default function Checkout() {
         isOpen={step === 'processing'}
         step="processing"
         progress={progress}
-        message="Please don't close this window"
+        message={t('please_dont_close')}
       />
 
       {/* 3D Secure Modal */}

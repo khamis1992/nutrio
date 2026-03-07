@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { Bell, Mail, MessageSquare, Smartphone } from "lucide-react";
 
@@ -37,6 +38,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
 
 export function NotificationPreferences() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
 
@@ -73,17 +75,17 @@ export function NotificationPreferences() {
       .eq("id", user?.id);
 
     if (error) {
-      toast.error("Failed to update preferences");
+      toast.error(t("failed_update_preferences"));
       setPreferences(preferences); // Revert
     } else {
-      toast.success("Preferences updated");
+      toast.success(t("preferences_updated"));
     }
   };
 
   const categories = [
     {
-      title: "Order Updates",
-      description: "Get notified when your order status changes",
+      title: t("order_updates_title"),
+      description: t("order_updates_desc"),
       icon: Bell,
       keys: {
         push: "order_updates_push" as const,
@@ -92,8 +94,8 @@ export function NotificationPreferences() {
       },
     },
     {
-      title: "Delivery Updates",
-      description: "Track your delivery in real-time",
+      title: t("delivery_updates_title"),
+      description: t("delivery_updates_desc"),
       icon: Bell,
       keys: {
         push: "delivery_updates_push" as const,
@@ -102,16 +104,16 @@ export function NotificationPreferences() {
       },
     },
     {
-      title: "Promotions",
-      description: "Special offers and discounts",
+      title: t("promotions_title"),
+      description: t("promotions_desc"),
       icon: Bell,
       keys: {
         email: "promotions_email" as const,
       },
     },
     {
-      title: "Meal Reminders",
-      description: "Reminders to schedule your meals",
+      title: t("meal_reminders_title"),
+      description: t("meal_reminders_desc"),
       icon: Bell,
       keys: {
         push: "reminders_push" as const,
@@ -123,8 +125,8 @@ export function NotificationPreferences() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Notification Preferences</CardTitle>
-          <CardDescription>Loading...</CardDescription>
+          <CardTitle>{t("notification_preferences")}</CardTitle>
+          <CardDescription>{t("loading")}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -135,9 +137,9 @@ export function NotificationPreferences() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-5 w-5" />
-          Notification Preferences
+          {t("notification_preferences")}
         </CardTitle>
-        <CardDescription>Choose how you want to receive updates</CardDescription>
+        <CardDescription>{t("choose_receive_updates")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {categories.map((category) => (
@@ -151,7 +153,7 @@ export function NotificationPreferences() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor={category.keys.push} className="flex items-center gap-2">
                     <Smartphone className="h-4 w-4" />
-                    Push
+                    {t("push")}
                   </Label>
                   <Switch
                     id={category.keys.push}
@@ -164,7 +166,7 @@ export function NotificationPreferences() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor={category.keys.email} className="flex items-center gap-2">
                     <Mail className="h-4 w-4" />
-                    Email
+                    {t("email")}
                   </Label>
                   <Switch
                     id={category.keys.email}
@@ -177,7 +179,7 @@ export function NotificationPreferences() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor={category.keys.whatsapp} className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
-                    WhatsApp
+                    {t("whatsapp")}
                   </Label>
                   <Switch
                     id={category.keys.whatsapp}

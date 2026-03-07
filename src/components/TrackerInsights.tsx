@@ -32,6 +32,7 @@ function getStepsForDate(userId: string | undefined, dateStr: string): number {
 
 // ─── BMI Gauge ────────────────────────────────────────────────────────────────
 function BmiGauge({ bmi }: { bmi: number }) {
+  const { t } = useLanguage();
   const clampedBmi = Math.max(15, Math.min(40, bmi));
   // 0° = left (BMI 15), 180° = right (BMI 40)
   const angleDeg = ((clampedBmi - 15) / 25) * 180;
@@ -41,12 +42,12 @@ function BmiGauge({ bmi }: { bmi: number }) {
   const needleY = cy + r * Math.sin(angleRad);
 
   const bmiRanges = [
-    { label: "Very severely underweight", range: "BMI < 0.0",  color: "#6366f1" },
-    { label: "Severely underweight",      range: "BMI < 0.0",  color: "#3b82f6" },
-    { label: "Normal",                    range: "BMI 18.5 - 24.9", color: "#22c55e" },
-    { label: "Overweight",                range: "BMI 25.0 - 29.9", color: "#f59e0b" },
-    { label: "Obese Class I",             range: "BMI 30.0 - 34.9", color: "#f97316" },
-    { label: "Obese Class II",            range: "BMI 35.0 - 39.9", color: "#ef4444" },
+    { label: `${t("underweight")} II`,   range: "BMI < 16.0",      color: "#6366f1" },
+    { label: `${t("underweight")} I`,    range: "BMI 16.0 - 18.4", color: "#3b82f6" },
+    { label: t("normal"),                range: "BMI 18.5 - 24.9", color: "#22c55e" },
+    { label: t("overweight"),            range: "BMI 25.0 - 29.9", color: "#f59e0b" },
+    { label: `${t("obese")} I`,          range: "BMI 30.0 - 34.9", color: "#f97316" },
+    { label: `${t("obese")} II`,         range: "BMI 35.0 - 39.9", color: "#ef4444" },
   ];
 
   const getBmiColor = (b: number) => {
@@ -108,7 +109,7 @@ function BmiGauge({ bmi }: { bmi: number }) {
       </div>
       <div className="mt-2 text-center">
         <span className="text-xs font-semibold px-3 py-1 rounded-full text-white" style={{ background: getBmiColor(bmi) }}>
-          {bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : bmi < 35 ? "Obese I" : "Obese II"}
+          {bmi < 18.5 ? t("underweight") : bmi < 25 ? t("normal") : bmi < 30 ? t("overweight") : bmi < 35 ? `${t("obese")} I` : `${t("obese")} II`}
         </span>
       </div>
     </div>

@@ -394,7 +394,7 @@ export function CustomerDeliveryTracker({
           <div className="flex items-center gap-2">
             {onBack && (
               <Button variant="ghost" size="icon" onClick={onBack}>
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-5 w-5 rtl-flip-back" />
               </Button>
             )}
             <CardTitle className="text-lg flex items-center gap-2">

@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Loader2, Check, Clock, X, Gift, TrendingUp, DollarSign } from "lucide-react";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function AffiliateApplicationCard() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const {
     application,
@@ -30,15 +32,15 @@ export function AffiliateApplicationCard() {
 
     if (result.success) {
       toast({
-        title: "Application Submitted!",
-        description: "We'll review your application and get back to you soon.",
+        title: t("affiliateApplicationSubmitted"),
+        description: t("affiliateApplicationSubmittedDescription"),
       });
       setShowForm(false);
       setNote("");
     } else {
       toast({
-        title: "Error",
-        description: result.error || "Failed to submit application",
+        title: t("error"),
+        description: result.error || t("affiliateApplicationFailed"),
         variant: "destructive",
       });
     }
@@ -64,9 +66,9 @@ export function AffiliateApplicationCard() {
               <Check className="w-6 h-6 text-green-500" />
             </div>
             <div>
-              <p className="font-semibold text-green-600">You're an Approved Affiliate!</p>
+              <p className="font-semibold text-green-600">{t("affiliateApproved")}</p>
               <p className="text-sm text-muted-foreground">
-                Access the Affiliate tab to view your earnings and referrals.
+                {t("affiliateApprovedDescription")}
               </p>
             </div>
           </div>
@@ -85,9 +87,9 @@ export function AffiliateApplicationCard() {
               <Clock className="w-6 h-6 text-amber-500" />
             </div>
             <div>
-              <p className="font-semibold text-amber-600">Application Pending</p>
+              <p className="font-semibold text-amber-600">{t("affiliatePending")}</p>
               <p className="text-sm text-muted-foreground">
-                Your affiliate application is under review. We'll notify you once it's approved.
+                {t("affiliatePendingDescription")}
               </p>
             </div>
           </div>
@@ -106,13 +108,13 @@ export function AffiliateApplicationCard() {
               <X className="w-6 h-6 text-destructive" />
             </div>
             <div>
-              <p className="font-semibold text-destructive">Application Not Approved</p>
+              <p className="font-semibold text-destructive">{t("affiliateNotApproved")}</p>
               <p className="text-sm text-muted-foreground">
-                Unfortunately, your affiliate application was not approved.
+                {t("affiliateNotApprovedDescription")}
               </p>
               {application?.rejection_reason && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  Reason: {application.rejection_reason}
+                  {t("affiliateRejectionReason", { reason: application.rejection_reason })}
                 </p>
               )}
             </div>
@@ -128,10 +130,10 @@ export function AffiliateApplicationCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="w-5 h-5 text-primary" />
-          Join Our Affiliate Program
+          {t("affiliateJoinProgram")}
         </CardTitle>
         <CardDescription>
-          Earn commissions by referring friends and family to our platform.
+          {t("affiliateJoinDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -139,22 +141,22 @@ export function AffiliateApplicationCard() {
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 bg-muted rounded-lg text-center">
             <Gift className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-xs font-medium">Earn Commissions</p>
+            <p className="text-xs font-medium">{t("affiliateEarnCommissions")}</p>
           </div>
           <div className="p-3 bg-muted rounded-lg text-center">
             <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-xs font-medium">3-Tier Rewards</p>
+            <p className="text-xs font-medium">{t("affiliate3TierRewards")}</p>
           </div>
           <div className="p-3 bg-muted rounded-lg text-center">
             <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-xs font-medium">Monthly Payouts</p>
+            <p className="text-xs font-medium">{t("affiliateMonthlyPayouts")}</p>
           </div>
         </div>
 
         {showForm ? (
           <div className="space-y-3">
             <Textarea
-              placeholder="Tell us why you'd like to become an affiliate (optional)"
+              placeholder={t("affiliateNotePlaceholder")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
@@ -168,20 +170,20 @@ export function AffiliateApplicationCard() {
                 {submitting ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : null}
-                Submit Application
+                {t("submitApplication")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowForm(false)}
                 disabled={submitting}
               >
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           </div>
         ) : (
           <Button className="w-full" onClick={() => setShowForm(true)}>
-            Apply Now
+            {t("applyNow")}
           </Button>
         )}
       </CardContent>

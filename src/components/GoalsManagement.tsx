@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { activityLevelLabels, goalLabels } from "@/lib/nutrition-calculator";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Goal = "lose" | "gain" | "maintain";
 type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
@@ -42,10 +43,10 @@ interface DietTag {
 }
 
 const goalTypes = [
-  { value: "weight_loss", label: "Weight Loss", icon: Flame, color: "text-orange-500" },
-  { value: "muscle_gain", label: "Muscle Gain", icon: Target, color: "text-blue-500" },
-  { value: "maintenance", label: "Maintenance", icon: Check, color: "text-green-500" },
-  { value: "general_health", label: "General Health", icon: Leaf, color: "text-emerald-500" },
+  { value: "weight_loss", labelKey: "goal_weight_loss", icon: Flame, color: "text-orange-500" },
+  { value: "muscle_gain", labelKey: "goal_muscle_gain", icon: Target, color: "text-blue-500" },
+  { value: "maintenance", labelKey: "goal_maintenance", icon: Check, color: "text-green-500" },
+  { value: "general_health", labelKey: "goal_general_health", icon: Leaf, color: "text-emerald-500" },
 ];
 
 // Diet tag component
@@ -248,6 +249,7 @@ const HealthGoalCard = ({
 };
 
 export const GoalsManagement = () => {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const { user } = useAuth();
   const { goals, activeGoal, loading, setGoal } = useNutritionGoals(user?.id);
@@ -346,8 +348,8 @@ export const GoalsManagement = () => {
       }
     } catch (err) {
       toast({
-        title: "Error updating preferences",
-        description: "Please try again.",
+        title: t("error_updating_preferences"),
+        description: t("please_try_again"),
         variant: "destructive",
       });
     }
@@ -387,8 +389,8 @@ export const GoalsManagement = () => {
       });
 
       toast({
-        title: "Goal created successfully",
-        description: "Your new nutrition goal is now active",
+        title: t("goal_created_successfully"),
+        description: t("new_nutrition_goal_active"),
       });
 
       setShowCreateDialog(false);
@@ -404,8 +406,8 @@ export const GoalsManagement = () => {
       });
     } catch (error) {
       toast({
-        title: "Failed to create goal",
-        description: "Please try again",
+        title: t("failed_to_create_goal"),
+        description: t("please_try_again"),
         variant: "destructive",
       });
     } finally {
@@ -431,13 +433,13 @@ export const GoalsManagement = () => {
       if (error) throw error;
 
       toast({
-        title: "Profile updated",
-        description: "Your body metrics and goals have been saved.",
+        title: t("profile_updated"),
+        description: t("body_metrics_goals_saved"),
       });
     } catch (err) {
       toast({
-        title: "Error saving profile",
-        description: "Please try again.",
+        title: t("error_saving_profile"),
+        description: t("please_try_again"),
         variant: "destructive",
       });
     } finally {
@@ -469,13 +471,13 @@ export const GoalsManagement = () => {
                   })()}
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Active Goal</CardTitle>
+                  <CardTitle className="text-lg">{t("goal_active")}</CardTitle>
                   <CardDescription>
-                    {getGoalTypeInfo(activeGoal.goal_type).label}
+                    {t(getGoalTypeInfo(activeGoal.goal_type).labelKey)}
                   </CardDescription>
                 </div>
               </div>
-              <Badge variant="default" className="bg-primary">Active</Badge>
+              <Badge variant="default" className="bg-primary">{t("active")}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -484,34 +486,34 @@ export const GoalsManagement = () => {
               <div className="bg-background rounded-lg p-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <Flame className="h-4 w-4" />
-                  <span className="text-xs">Calories</span>
+                  <span className="text-xs">{t("nutrient_calories")}</span>
                 </div>
                 <p className="text-xl font-bold">{activeGoal.daily_calorie_target.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">kcal/day</p>
+                <p className="text-xs text-muted-foreground">{t("kcal_per_day")}</p>
               </div>
               <div className="bg-background rounded-lg p-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <Target className="h-4 w-4" />
-                  <span className="text-xs">Protein</span>
+                  <span className="text-xs">{t("nutrient_protein")}</span>
                 </div>
                 <p className="text-xl font-bold">{activeGoal.protein_target_g}g</p>
-                <p className="text-xs text-muted-foreground">per day</p>
+                <p className="text-xs text-muted-foreground">{t("per_day")}</p>
               </div>
               <div className="bg-background rounded-lg p-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <WheatIcon className="h-4 w-4" />
-                  <span className="text-xs">Carbs</span>
+                  <span className="text-xs">{t("nutrient_carbs")}</span>
                 </div>
                 <p className="text-xl font-bold">{activeGoal.carbs_target_g}g</p>
-                <p className="text-xs text-muted-foreground">per day</p>
+                <p className="text-xs text-muted-foreground">{t("per_day")}</p>
               </div>
               <div className="bg-background rounded-lg p-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <Droplet className="h-4 w-4" />
-                  <span className="text-xs">Fat</span>
+                  <span className="text-xs">{t("nutrient_fat")}</span>
                 </div>
                 <p className="text-xl font-bold">{activeGoal.fat_target_g}g</p>
-                <p className="text-xs text-muted-foreground">per day</p>
+                <p className="text-xs text-muted-foreground">{t("per_day")}</p>
               </div>
             </div>
 
@@ -520,13 +522,13 @@ export const GoalsManagement = () => {
               <div className="flex gap-4 pt-2 border-t">
                 {activeGoal.target_weight_kg && (
                   <div>
-                    <p className="text-xs text-muted-foreground">Target Weight</p>
+                    <p className="text-xs text-muted-foreground">{t("target_weight")}</p>
                     <p className="font-medium">{activeGoal.target_weight_kg} kg</p>
                   </div>
                 )}
                 {activeGoal.target_date && (
                   <div>
-                    <p className="text-xs text-muted-foreground">Target Date</p>
+                    <p className="text-xs text-muted-foreground">{t("target_date")}</p>
                     <p className="font-medium">{format(new Date(activeGoal.target_date), "MMM d, yyyy")}</p>
                   </div>
                 )}
@@ -544,34 +546,34 @@ export const GoalsManagement = () => {
               <Scale className="w-5 h-5 text-blue-500" />
             </div>
             <div>
-              <CardTitle className="text-lg">Body Metrics</CardTitle>
-              <CardDescription>Your physical measurements</CardDescription>
+              <CardTitle className="text-lg">{t("body_metrics_title")}</CardTitle>
+              <CardDescription>{t("body_metrics_description")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Current Weight (kg)</Label>
+              <Label className="text-sm font-medium">{t("body_metrics_current_weight")}</Label>
               <div className="relative">
                 <Input
                   type="number"
                   value={currentWeight}
                   onChange={(e) => setCurrentWeight(e.target.value)}
-                  placeholder="75"
+                  placeholder={t("body_metrics_current_weight_placeholder")}
                   className="h-12 rounded-xl"
                 />
                 <Scale className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Target Weight (kg)</Label>
+              <Label className="text-sm font-medium">{t("body_metrics_target_weight")}</Label>
               <div className="relative">
                 <Input
                   type="number"
                   value={targetWeight}
                   onChange={(e) => setTargetWeight(e.target.value)}
-                  placeholder="70"
+                  placeholder={t("body_metrics_target_weight_placeholder")}
                   className="h-12 rounded-xl"
                 />
                 <Target className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -579,13 +581,13 @@ export const GoalsManagement = () => {
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Height (cm)</Label>
+            <Label className="text-sm font-medium">{t("body_metrics_height")}</Label>
             <div className="relative">
               <Input
                 type="number"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
-                placeholder="175"
+                placeholder={t("body_metrics_height_placeholder")}
                 className="h-12 rounded-xl"
               />
               <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -602,8 +604,8 @@ export const GoalsManagement = () => {
               <Flame className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <CardTitle className="text-lg">Health Goal</CardTitle>
-              <CardDescription>What do you want to achieve?</CardDescription>
+              <CardTitle className="text-lg">{t("health_goal_title")}</CardTitle>
+              <CardDescription>{t("health_goal_description")}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -629,8 +631,8 @@ export const GoalsManagement = () => {
               <Activity className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <CardTitle className="text-lg">Activity Level</CardTitle>
-              <CardDescription>How active are you on a typical week?</CardDescription>
+              <CardTitle className="text-lg">{t("activity_level_title")}</CardTitle>
+              <CardDescription>{t("activity_level_description")}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -656,12 +658,12 @@ export const GoalsManagement = () => {
           {savingProfile ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Saving...
+              {t("saving")}
             </>
           ) : (
             <>
               <Check className="w-5 h-5 mr-2" />
-              Save Body Metrics & Goals
+              {t("save_body_metrics_goals")}
             </>
           )}
         </Button>
@@ -674,8 +676,8 @@ export const GoalsManagement = () => {
       {goals.length > 1 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Previous Goals</CardTitle>
-            <CardDescription>Your goal history</CardDescription>
+            <CardTitle className="text-lg">{t("previous_goals_title")}</CardTitle>
+            <CardDescription>{t("previous_goals_description")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -693,9 +695,9 @@ export const GoalsManagement = () => {
                           <GoalIcon className={cn("h-5 w-5", getGoalTypeInfo(goal.goal_type).color)} />
                         </div>
                         <div>
-                          <p className="font-medium">{getGoalTypeInfo(goal.goal_type).label}</p>
+                          <p className="font-medium">{t(getGoalTypeInfo(goal.goal_type).labelKey)}</p>
                           <p className="text-sm text-muted-foreground">
-                            {goal.daily_calorie_target.toLocaleString()} kcal/day
+                            {goal.daily_calorie_target.toLocaleString()} {t("kcal_per_day")}
                           </p>
                         </div>
                       </div>
@@ -712,20 +714,20 @@ export const GoalsManagement = () => {
         <DialogTrigger asChild>
           <Button className="w-full h-12 text-base font-medium" size="lg">
             <Plus className="w-5 h-5 mr-2" />
-            Create New Goal
+            {t("goal_create_new")}
           </Button>
         </DialogTrigger>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New Nutrition Goal</DialogTitle>
+            <DialogTitle>{t("create_new_nutrition_goal")}</DialogTitle>
             <DialogDescription>
-              Set up your personalized nutrition goal to track your progress.
+              {t("create_goal_description")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {/* Goal Type */}
             <div className="space-y-2">
-              <Label>Goal Type</Label>
+              <Label>{t("goal_type_label")}</Label>
               <Select
                 value={formData.goal_type}
                 onValueChange={(value: typeof formData.goal_type) =>
@@ -740,7 +742,7 @@ export const GoalsManagement = () => {
                     <SelectItem key={type.value} value={type.value}>
                       <div className="flex items-center gap-2">
                         <type.icon className={cn("h-4 w-4", type.color)} />
-                        {type.label}
+                        {t(type.labelKey)}
                       </div>
                     </SelectItem>
                   ))}
@@ -750,11 +752,11 @@ export const GoalsManagement = () => {
 
             {/* Target Weight (Optional) */}
             <div className="space-y-2">
-              <Label>Target Weight (kg) <span className="text-muted-foreground">(Optional)</span></Label>
+              <Label>{t("target_weight_label")} <span className="text-muted-foreground">({t("optional")})</span></Label>
               <Input
                 type="number"
                 step="0.1"
-                placeholder="e.g., 70"
+                placeholder={t("target_weight_placeholder")}
                 value={formData.target_weight_kg}
                 onChange={(e) => setFormData({ ...formData, target_weight_kg: e.target.value })}
               />
@@ -762,7 +764,7 @@ export const GoalsManagement = () => {
 
             {/* Target Date (Optional) */}
             <div className="space-y-2">
-              <Label>Target Date <span className="text-muted-foreground">(Optional)</span></Label>
+              <Label>{t("target_date_label")} <span className="text-muted-foreground">({t("optional")})</span></Label>
               <Input
                 type="date"
                 value={formData.target_date}
@@ -772,15 +774,15 @@ export const GoalsManagement = () => {
 
             {/* Daily Targets */}
             <div className="space-y-3 pt-2 border-t">
-              <Label className="text-base">Daily Nutrition Targets</Label>
+              <Label className="text-base">{t("daily_nutrition_targets")}</Label>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm flex items-center gap-2">
                     <Flame className="h-4 w-4 text-orange-500" />
-                    Calories
+                    {t("nutrient_calories")}
                   </Label>
-                  <span className="text-sm font-medium">{formData.daily_calorie_target} kcal</span>
+                  <span className="text-sm font-medium">{formData.daily_calorie_target} {t("kcal")}</span>
                 </div>
                 <Input
                   type="range"
@@ -798,7 +800,7 @@ export const GoalsManagement = () => {
                 <div className="flex items-center justify-between">
                   <Label className="text-sm flex items-center gap-2">
                     <Target className="h-4 w-4 text-blue-500" />
-                    Protein
+                    {t("nutrient_protein")}
                   </Label>
                   <span className="text-sm font-medium">{formData.protein_target_g}g</span>
                 </div>
@@ -818,7 +820,7 @@ export const GoalsManagement = () => {
                 <div className="flex items-center justify-between">
                   <Label className="text-sm flex items-center gap-2">
                     <WheatIcon className="h-4 w-4 text-yellow-500" />
-                    Carbs
+                    {t("nutrient_carbs")}
                   </Label>
                   <span className="text-sm font-medium">{formData.carbs_target_g}g</span>
                 </div>
@@ -838,7 +840,7 @@ export const GoalsManagement = () => {
                 <div className="flex items-center justify-between">
                   <Label className="text-sm flex items-center gap-2">
                     <Droplet className="h-4 w-4 text-cyan-500" />
-                    Fat
+                    {t("nutrient_fat")}
                   </Label>
                   <span className="text-sm font-medium">{formData.fat_target_g}g</span>
                 </div>
@@ -858,7 +860,7 @@ export const GoalsManagement = () => {
                 <div className="flex items-center justify-between">
                   <Label className="text-sm flex items-center gap-2">
                     <Leaf className="h-4 w-4 text-green-500" />
-                    Fiber
+                    {t("nutrient_fiber")}
                   </Label>
                   <span className="text-sm font-medium">{formData.fiber_target_g}g</span>
                 </div>
@@ -880,7 +882,7 @@ export const GoalsManagement = () => {
               onClick={handleCreateGoal}
               disabled={creating}
             >
-              {creating ? "Creating..." : "Create Goal"}
+              {creating ? t("creating") : t("create_goal")}
             </Button>
           </div>
         </DialogContent>
@@ -894,9 +896,9 @@ export const GoalsManagement = () => {
               <Utensils className="w-5 h-5 text-teal-500" />
             </div>
             <div>
-              <CardTitle className="text-lg">Dietary Preferences</CardTitle>
+              <CardTitle className="text-lg">{t("dietary_preferences_title")}</CardTitle>
               <CardDescription>
-                Select the diets and preferences that match your lifestyle
+                {t("dietary_preferences_description")}
               </CardDescription>
             </div>
           </div>
@@ -912,7 +914,7 @@ export const GoalsManagement = () => {
                 <Utensils className="w-8 h-8 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground">
-                No dietary preferences available yet.
+                {t("no_dietary_preferences")}
               </p>
             </div>
           ) : (

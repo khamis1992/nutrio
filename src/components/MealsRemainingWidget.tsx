@@ -1,6 +1,7 @@
 import { Crown, Utensils, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MealsRemainingWidgetProps {
   remainingMeals: number;
@@ -19,6 +20,8 @@ export function MealsRemainingWidget({
   className,
   variant = "full",
 }: MealsRemainingWidgetProps) {
+  const { t } = useLanguage();
+  
   // Percentage of meals already used (bar fills as meals are consumed)
   const usedMeals = totalMeals - remainingMeals;
   const usedPercentage = isUnlimited ? 0 : Math.round((usedMeals / totalMeals) * 100);
@@ -68,7 +71,7 @@ export function MealsRemainingWidget({
           <Utensils className={cn("w-3.5 h-3.5", statusColor)} />
         )}
         <span className={cn("text-sm font-semibold", statusColor)}>
-          {isUnlimited ? "Unlimited" : `${remainingMeals}/${totalMeals} meals`}
+          {isUnlimited ? t("unlimited") : `${remainingMeals}/${totalMeals} ${t("meals")}`}
         </span>
       </div>
     );
@@ -99,21 +102,21 @@ export function MealsRemainingWidget({
               <div>
                 <p className="font-semibold text-base">
                   {isUnlimited ? (
-                    <span className="text-violet-500">Unlimited Meals</span>
+                    <span className="text-violet-500">{t("meals_remaining_unlimited")}</span>
                   ) : (
                     <span className={statusColor}>
-                      {remainingMeals} of {totalMeals} meals remaining
+                      {remainingMeals} {t("of")} {totalMeals} {t("meals_remaining_count")}
                     </span>
                   )}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {isUnlimited 
-                    ? "Enjoy unlimited meals with your VIP plan!"
+                    ? t("meals_enjoy_unlimited")
                     : remainingMeals === 0 
-                      ? "You've used all your meals for this week"
+                      ? t("meals_all_used")
                       : remainingMeals <= 2
-                        ? "Running low! Order wisely"
-                        : `${percentage}% of your weekly meals remaining`
+                        ? t("meals_running_low")
+                        : `${percentage}${t("meals_percentage_remaining")}`
                   }
                 </p>
               </div>
@@ -123,7 +126,7 @@ export function MealsRemainingWidget({
                 <div className={cn("text-2xl font-bold", statusColor)}>
                   {remainingMeals}
                 </div>
-                <div className="text-xs text-muted-foreground">left</div>
+                <div className="text-xs text-muted-foreground">{t("meals_left_count")}</div>
               </div>
             )}
           </div>
@@ -137,9 +140,9 @@ export function MealsRemainingWidget({
                 />
               </div>
               <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                <span>0 used</span>
-                <span>{usedMeals} used</span>
-                <span>{totalMeals} total</span>
+                <span>0 {t("meals_remaining_used")}</span>
+                <span>{usedMeals} {t("meals_remaining_used")}</span>
+                <span>{totalMeals} {t("meals_remaining_total")}</span>
               </div>
             </div>
           )}
@@ -173,12 +176,12 @@ export function MealsRemainingWidget({
             </div>
             <div>
               <h3 className="font-semibold text-lg">
-                {isUnlimited ? "Unlimited Meals" : "Weekly Meals"}
+                {isUnlimited ? t("meals_remaining_unlimited") : t("meals_weekly_label")}
               </h3>
                 <p className="text-sm text-muted-foreground">
                 {isUnlimited
-                  ? "VIP Plan - No limits"
-                  : `Resets weekly`
+                  ? t("meals_vip_plan")
+                  : t("meals_resets_weekly")
                 }
               </p>
             </div>
@@ -189,7 +192,7 @@ export function MealsRemainingWidget({
               <div className={cn("text-4xl font-bold leading-none", statusColor)}>
                 {remainingMeals}
               </div>
-              <div className="text-sm text-muted-foreground mt-1">remaining</div>
+              <div className="text-sm text-muted-foreground mt-1">{t("meals_remaining_left")}</div>
             </div>
           )}
         </div>
@@ -211,13 +214,13 @@ export function MealsRemainingWidget({
               {/* Progress markers */}
               <div className="flex justify-between mt-2 text-xs">
                 <span className="text-muted-foreground">
-                  {totalMeals - remainingMeals} used
+                  {totalMeals - remainingMeals} {t("meals_remaining_used")}
                 </span>
                 <span className={cn("font-medium", statusColor)}>
-                  {percentage}% remaining
+                  {percentage}{t("meals_percentage_remaining")}
                 </span>
                 <span className="text-muted-foreground">
-                  {totalMeals} total
+                  {totalMeals} {t("meals_remaining_total")}
                 </span>
               </div>
             </div>
@@ -232,22 +235,22 @@ export function MealsRemainingWidget({
               {remainingMeals === 0 ? (
                 <>
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>You've used all your meals for this week.</span>
+                  <span>{t("meals_all_used")}</span>
                 </>
               ) : remainingMeals <= 2 ? (
                 <>
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Running low! Only {remainingMeals} meal{remainingMeals !== 1 ? 's' : ''} left. Choose your next meals wisely.</span>
+                  <span>{t("running_low_meals").replace("{count}", String(remainingMeals))}</span>
                 </>
               ) : remainingMeals <= Math.ceil(totalMeals * 0.3) ? (
                 <>
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Getting low on meals. You have {remainingMeals} remaining out of {totalMeals}.</span>
+                  <span>{t("getting_low_meals").replace("{remaining}", String(remainingMeals)).replace("{total}", String(totalMeals))}</span>
                 </>
               ) : (
                 <>
                   <Utensils className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>Doing great! You have plenty of meals remaining this week.</span>
+                  <span>{t("meals_doing_great")}</span>
                 </>
               )}
             </div>
@@ -256,7 +259,7 @@ export function MealsRemainingWidget({
 
         {isUnlimited && (
           <div className="mt-4 p-3 rounded-lg bg-violet-500/10 text-violet-700 text-sm">
-            <span>Enjoy unlimited meals with your VIP subscription! No restrictions, order whenever you want.</span>
+            <span>{t("meals_enjoy_unlimited")}</span>
           </div>
         )}
       </CardContent>

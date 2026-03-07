@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Flame, Plus, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
 
 interface DailyNutritionCardProps {
@@ -76,6 +77,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   targetFat = 64,
 }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [totalBurned, setTotalBurned] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -138,7 +140,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
           <div className="flex items-center justify-between px-6 py-5">
             {/* Eaten */}
             <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
-              <span className="text-xs text-gray-400 font-medium">Eaten</span>
+              <span className="text-xs text-gray-400 font-medium">{t("nutrition_eaten")}</span>
               <motion.span
                 className="text-2xl font-bold text-gray-800"
                 initial={{ opacity: 0 }}
@@ -147,7 +149,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               >
                 {totalCalories}
               </motion.span>
-              <span className="text-xs text-gray-400">cal</span>
+              <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
             </div>
 
             {/* Big ring */}
@@ -177,7 +179,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                 >
                   {calLeft}
                 </motion.span>
-                <span className="text-xs text-gray-400 mt-1">cal left</span>
+                <span className="text-xs text-gray-400 mt-1">{t("nutrition_cal_left")}</span>
               </div>
             </div>
 
@@ -185,7 +187,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
               <div className="flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 text-orange-400" />
-                <span className="text-xs text-gray-400 font-medium">Burned</span>
+                <span className="text-xs text-gray-400 font-medium">{t("nutrition_burned")}</span>
               </div>
               <motion.span
                 className="text-2xl font-bold text-gray-800"
@@ -195,23 +197,23 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               >
                 {totalBurned}
               </motion.span>
-              <span className="text-xs text-gray-400">cal</span>
+              <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
             </div>
           </div>
 
           {/* ── Macro circles ── */}
           <div className="px-5 pb-4">
-            <p className="text-xs text-gray-400 font-medium mb-4">Eaten</p>
+            <p className="text-xs text-gray-400 font-medium mb-4">{t("nutrition_eaten")}</p>
             <div className="flex justify-around">
-              <MacroRing value={totalCarbs}   max={targetCarbs}   label="Carbs"   color="#eab308" />
-              <MacroRing value={totalProtein} max={targetProtein} label="Protein" color="#f97316" />
-              <MacroRing value={totalFat}     max={targetFat}     label="Fat"     color="#94a3b8" />
+              <MacroRing value={totalCarbs}   max={targetCarbs}   label={t("macro_carbs")}   color="#eab308" />
+              <MacroRing value={totalProtein} max={targetProtein} label={t("macro_protein")} color="#f97316" />
+              <MacroRing value={totalFat}     max={targetFat}     label={t("macro_fat")}     color="#94a3b8" />
             </div>
           </div>
 
           {/* ── Burned section ── */}
           <div className="px-5 pb-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium mt-4 mb-3">Burned</p>
+            <p className="text-xs text-gray-400 font-medium mt-4 mb-3">{t("nutrition_burned")}</p>
             <div className="flex items-center gap-3">
               {/* Total burned summary */}
               <div className="flex-1 bg-gray-50 rounded-2xl p-3 flex items-center gap-3">
@@ -219,9 +221,13 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                   <Flame className="w-5 h-5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-gray-400">Total burned</p>
+                  <p className="text-[11px] text-gray-400">{t("nutrition_total_burned")}</p>
                   <p className="text-base font-bold text-gray-800 leading-none">{totalBurned}</p>
-                  <p className="text-[10px] text-gray-400">cal from {totalBurned > 0 ? "activities" : "no activities yet"}</p>
+                  <p className="text-[10px] text-gray-400">
+                    {totalBurned > 0 
+                      ? t("nutrition_cal_from_activities") 
+                      : t("nutrition_no_activities")}
+                  </p>
                 </div>
               </div>
 

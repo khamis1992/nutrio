@@ -277,9 +277,9 @@ export default function AddDriver() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 rtl:flex-row-reverse">
         <Button variant="outline" size="icon" onClick={() => navigate('/fleet/drivers')}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 rtl-flip-back" />
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Add New Driver</h1>

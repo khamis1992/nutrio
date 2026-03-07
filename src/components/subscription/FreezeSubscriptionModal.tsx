@@ -13,6 +13,7 @@ import { format, addDays } from "date-fns";
 import { CalendarDate } from "@internationalized/date";
 import { RangeCalendar, CalendarGrid, CalendarGridBody, CalendarGridHeader, CalendarHeaderCell, CalendarHeading, CalendarCell } from "@/components/ui/range-calendar";
 import { useRequestFreeze, useFreezeDaysRemaining } from "@/hooks/useSubscriptionFreeze";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface FreezeSubscriptionModalProps {
   subscriptionId: string;
@@ -24,6 +25,7 @@ export function FreezeSubscriptionModal({
   trigger 
 }: FreezeSubscriptionModalProps) {
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   
   // Use react-aria CalendarDate for the range calendar
   const [range, setRange] = useState<{ start: CalendarDate | null; end: CalendarDate | null }>({
@@ -108,7 +110,7 @@ export function FreezeSubscriptionModal({
         {trigger || (
           <Button variant="outline" disabled={!canFreeze} className="w-full sm:w-auto">
             <Pause className="mr-2 h-4 w-4" />
-            Freeze Subscription
+            {t("freeze_subscription")}
           </Button>
         )}
       </DialogTrigger>
@@ -117,23 +119,23 @@ export function FreezeSubscriptionModal({
 
           {/* Native-style hero header */}
           <div className="relative bg-gradient-to-br from-primary to-accent px-6 pt-8 pb-6 text-white">
-            <DialogTitle className="sr-only">Freeze Your Subscription</DialogTitle>
-            <DialogDescription className="sr-only">Pause your subscription for up to {daysRemaining} days.</DialogDescription>
+            <DialogTitle className="sr-only">{t("freeze_subscription")}</DialogTitle>
+            <DialogDescription className="sr-only">{t("pause_delivery_days")}</DialogDescription>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="bg-white/20 rounded-full p-1.5">
                     <Snowflake className="h-4 w-4 text-white" />
                   </div>
-                  <span className="text-white/80 text-xs font-medium uppercase tracking-widest">Subscription</span>
+                  <span className="text-white/80 text-xs font-medium uppercase tracking-widest">{t("subscription")}</span>
                 </div>
-                <h2 className="text-xl font-bold text-white mt-2">Freeze Your Plan</h2>
-                <p className="text-white/70 text-sm mt-0.5">Pause delivery for up to 7 days</p>
+                <h2 className="text-xl font-bold text-white mt-2">{t("freeze_your_plan")}</h2>
+                <p className="text-white/70 text-sm mt-0.5">{t("pause_delivery_days")}</p>
               </div>
               {/* Days pill */}
               <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-3 py-2 text-center border border-white/20">
                 <span className="text-2xl font-bold text-white">{daysRemaining}</span>
-                <p className="text-white/70 text-[10px] font-medium leading-tight">days<br/>left</p>
+                <p className="text-white/70 text-[10px] font-medium leading-tight">{t("days_left_line1")}<br/>{t("days_left_line2")}</p>
               </div>
             </div>
           </div>
@@ -144,9 +146,9 @@ export function FreezeSubscriptionModal({
                 <div className="bg-destructive/10 rounded-full p-4">
                   <Info className="h-6 w-6 text-destructive" />
                 </div>
-                <p className="font-semibold text-foreground">No Freeze Days Left</p>
+                <p className="font-semibold text-foreground">{t("no_freeze_days_left")}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px]">
-                  You've used all 7 freeze days this billing cycle. They reset at your next renewal.
+                  {t("freeze_days_used_desc")}
                 </p>
               </div>
             ) : (
@@ -161,17 +163,17 @@ export function FreezeSubscriptionModal({
                       <div>
                         {range.start && (
                           <p className="text-xs text-muted-foreground">
-                            Start: <span className="font-semibold text-foreground">{format(calendarDateToDate(range.start), "MMM dd")}</span>
+                            {t("start_label")} <span className="font-semibold text-foreground">{format(calendarDateToDate(range.start), "MMM dd")}</span>
                           </p>
                         )}
                         {range.end && (
                           <p className="text-xs text-muted-foreground">
-                            End: <span className="font-semibold text-foreground">{format(calendarDateToDate(range.end), "MMM dd")}</span>
-                            <span className="ml-1.5 text-primary font-semibold">· {freezeDaysSelected}d</span>
+                            {t("end_label")} <span className="font-semibold text-foreground">{format(calendarDateToDate(range.end), "MMM dd")}</span>
+                            <span className="ml-1.5 text-primary font-semibold">· {freezeDaysSelected}{t("days_short")}</span>
                           </p>
                         )}
                         {!range.end && range.start && (
-                          <p className="text-xs text-primary font-medium">Now pick an end date</p>
+                          <p className="text-xs text-primary font-medium">{t("pick_end_date")}</p>
                         )}
                       </div>
                     </div>
@@ -187,10 +189,10 @@ export function FreezeSubscriptionModal({
                 {/* Calendar label */}
                 <div>
                   <Label className="text-sm font-semibold text-foreground">
-                    Select freeze dates
+                    {t("select_freeze_dates")}
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Choose up to {daysRemaining} days to freeze
+                    {t("choose_freeze_days").replace("{count}", String(daysRemaining))}
                   </p>
                 </div>
 
@@ -228,12 +230,12 @@ export function FreezeSubscriptionModal({
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Scheduling...
+                  {t("scheduling")}
                 </>
               ) : (
                 <>
                   <Snowflake className="mr-2 h-4 w-4" />
-                  Confirm Freeze
+                  {t("confirm_freeze")}
                 </>
               )}
             </Button>
@@ -242,7 +244,7 @@ export function FreezeSubscriptionModal({
               onClick={() => setOpen(false)}
               className="w-full h-10 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground"
             >
-              Cancel
+              {t("cancel")}
             </Button>
           </div>
 

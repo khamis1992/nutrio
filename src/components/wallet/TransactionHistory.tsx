@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { WalletTransaction } from "@/hooks/useWallet";
 
 interface TransactionHistoryProps {
@@ -20,48 +20,50 @@ interface TransactionHistoryProps {
 
 const transactionConfig: Record<
   WalletTransaction["type"],
-  { icon: typeof ArrowDownLeft; color: string; bgColor: string; label: string }
+  { icon: typeof ArrowDownLeft; color: string; bgColor: string; labelKey: string }
 > = {
   credit: {
     icon: ArrowDownLeft,
     color: "text-green-600",
     bgColor: "bg-green-100",
-    label: "Credit",
+    labelKey: "credit",
   },
   debit: {
     icon: ArrowUpRight,
     color: "text-red-600",
     bgColor: "bg-red-100",
-    label: "Debit",
+    labelKey: "debit",
   },
   refund: {
     icon: RotateCcw,
     color: "text-blue-600",
     bgColor: "bg-blue-100",
-    label: "Refund",
+    labelKey: "refund",
   },
   bonus: {
     icon: Gift,
     color: "text-purple-600",
     bgColor: "bg-purple-100",
-    label: "Bonus",
+    labelKey: "bonus",
   },
   cashback: {
     icon: Gift,
     color: "text-amber-600",
     bgColor: "bg-amber-100",
-    label: "Cashback",
+    labelKey: "cashback",
   },
 };
 
 export function TransactionHistory({ transactions, loading }: TransactionHistoryProps) {
+  const { t } = useLanguage();
+  
   if (loading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <History className="h-5 w-5" />
-            Transaction History
+            {t("transaction_history")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -88,15 +90,15 @@ export function TransactionHistory({ transactions, loading }: TransactionHistory
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <History className="h-5 w-5" />
-            Transaction History
+            {t("transaction_history")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <History className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-            <p className="text-muted-foreground">No transactions yet</p>
+            <p className="text-muted-foreground">{t("no_transactions_yet")}</p>
             <p className="text-sm text-muted-foreground">
-              Top up your wallet to get started
+              {t("top_up_wallet_start")}
             </p>
           </div>
         </CardContent>
@@ -133,7 +135,7 @@ export function TransactionHistory({ transactions, loading }: TransactionHistory
 
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">
-                      {tx.description || config.label}
+                      {tx.description || t(config.labelKey)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(tx.created_at), "dd MMM yyyy, HH:mm")}

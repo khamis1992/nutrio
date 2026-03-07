@@ -425,14 +425,14 @@ const [order, setOrder] = useState<ScheduledMealDetail | null>(null);
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="bg-primary text-white sticky top-0 z-10">
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-4 rtl:flex-row-reverse">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/orders")}
             className="text-white hover:bg-white/10"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 rtl-flip-back" />
           </Button>
           <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />

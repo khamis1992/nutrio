@@ -47,10 +47,12 @@ export default function DriverDetail() {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold">Driver not found</h2>
-        <Button onClick={() => navigate("/fleet/drivers")} className="mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Drivers
-        </Button>
+        <div className="flex justify-start rtl:flex-row-reverse mt-4">
+          <Button onClick={() => navigate("/fleet/drivers")}>
+            <ArrowLeft className="h-4 w-4 mr-2 rtl-flip-back" />
+            Back to Drivers
+          </Button>
+        </div>
       </div>
     );
   }
@@ -58,9 +60,9 @@ export default function DriverDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 rtl:flex-row-reverse">
         <Button variant="outline" size="icon" onClick={() => navigate("/fleet/drivers")}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 rtl-flip-back" />
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{driver.fullName}</h1>
