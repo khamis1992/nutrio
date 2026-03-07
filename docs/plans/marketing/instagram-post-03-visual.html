@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1080">
+    <title>Instagram Post - Partner Spotlight: Green Bowl Co.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 1080px;
+            height: 1080px;
+            font-family: 'Open Sans', sans-serif;
+            background: #ffffff;
+            position: relative;
+            overflow: hidden;
+        }
+        .green-accent {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 45%;
+            height: 100%;
+            background: linear-gradient(180deg, #2ECC71 0%, #27AE60 100%);
+            opacity: 0.08;
+            border-radius: 0 0 0 100%;
+        }
+        .leaf-pattern {
+            position: absolute;
+            opacity: 0.06;
+        }
+        .leaf-1 {
+            top: 50px;
+            right: 80px;
+            font-size: 80px;
+            color: #27AE60;
+        }
+        .leaf-2 {
+            bottom: 150px;
+            right: 30px;
+            font-size: 60px;
+            color: #27AE60;
+        }
+        .leaf-3 {
+            top: 300px;
+            right: 200px;
+            font-size: 50px;
+            color: #27AE60;
+        }
+        .content {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px;
+            text-align: center;
+        }
+        .badge {
+            background: linear-gradient(135deg, #2ECC71 0%, #27AE60 100%);
+            color: white;
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 52px;
+            color: #0D7377;
+            margin-bottom: 30px;
+        }
+        .partner-card {
+            background: linear-gradient(135deg, #f8fff9 0%, #e8f9f0 100%);
+            border: 3px solid #2ECC71;
+            border-radius: 30px;
+            padding: 40px 50px;
+            margin-bottom: 30px;
+            box-shadow: 0 15px 40px rgba(46, 204, 113, 0.15);
+        }
+        .partner-name {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 800;
+            font-size: 42px;
+            color: #27AE60;
+            margin-bottom: 8px;
+        }
+        .partner-type {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 22px;
+            color: #555;
+            font-weight: 500;
+        }
+        .bestseller {
+            background: white;
+            border-radius: 20px;
+            padding: 25px 35px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            text-align: left;
+        }
+        .bestseller-label {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            color: #FF6B6B;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .bestseller-name {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        .bestseller-details {
+            display: flex;
+            gap: 30px;
+        }
+        .detail {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Open Sans', sans-serif;
+            font-size: 16px;
+            color: #666;
+        }
+        .detail-icon {
+            font-size: 20px;
+        }
+        .detail-value {
+            font-weight: 600;
+            color: #0D7377;
+        }
+        .location {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Open Sans', sans-serif;
+            font-size: 20px;
+            color: #555;
+            font-weight: 500;
+        }
+        .location-icon {
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="green-accent"></div>
+    <div class="leaf-pattern leaf-1">🌿</div>
+    <div class="leaf-pattern leaf-2">🌿</div>
+    <div class="leaf-pattern leaf-3">🌿</div>
+    
+    <div class="content">
+        <div class="badge">🏆 Partner Spotlight</div>
+        
+        <h1>Green Bowl Co.</h1>
+        
+        <div class="partner-card">
+            <div class="partner-name">🥗 Green Bowl Co.</div>
+            <div class="partner-type">Buddha Bowls & Salads</div>
+        </div>
+        
+        <div class="bestseller">
+            <div class="bestseller-label">⭐ Best Seller</div>
+            <div class="bestseller-name">Power Bowl</div>
+            <div class="bestseller-details">
+                <div class="detail">
+                    <span class="detail-icon">🔥</span>
+                    <span><span class="detail-value">450</span> cal</span>
+                </div>
+                <div class="detail">
+                    <span class="detail-icon">💪</span>
+                    <span><span class="detail-value">18g</span> protein</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="location">
+            <span class="location-icon">📍</span>
+            Al Sadd, Doha
+        </div>
+    </div>
+</body>
+</html>

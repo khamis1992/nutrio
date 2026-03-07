@@ -873,6 +873,7 @@ const MealDetail = () => {
         meal_type: selectedMealType,
         is_completed: false,
         order_status: "pending",
+        delivery_address_id: selectedAddressId,
       });
 
       if (error) throw error;

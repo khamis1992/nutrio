@@ -55,6 +55,10 @@ interface PlanType {
   price: number;
   period: string;
   mealsPerMonth: number;
+  snacksPerMonth: number;
+  dailyMeals: number;
+  dailySnacks: number;
+  pricePerMeal: number | null;
   tier: string;
   description: string;
   icon: typeof Star;
@@ -65,27 +69,52 @@ interface PlanType {
 }
 
 const TIER_META: Record<string, { icon: typeof Star; color: string; descriptionKey: string; popular: boolean; isVip: boolean }> = {
-  basic:    { icon: Star,   color: "from-slate-500 to-slate-600",     descriptionKey: "plan_basic_desc", popular: false, isVip: false },
-  standard: { icon: Zap,   color: "from-primary to-primary/80",       descriptionKey: "plan_standard_desc",         popular: true,  isVip: false },
-  premium:  { icon: Crown, color: "from-amber-500 to-amber-600",      descriptionKey: "plan_premium_desc",   popular: false, isVip: false },
-  vip:      { icon: Crown, color: "from-violet-500 to-purple-600",    descriptionKey: "plan_vip_desc",             popular: false, isVip: true  },
+  elite:     { icon: Crown, color: "from-amber-500 to-amber-600",    descriptionKey: "plan_elite_desc",     popular: true,  isVip: false },
+  healthy:   { icon: Zap,   color: "from-green-500 to-green-600",    descriptionKey: "plan_healthy_desc",   popular: false, isVip: false },
+  fresh:     { icon: Star,  color: "from-blue-500 to-blue-600",      descriptionKey: "plan_fresh_desc",     popular: false, isVip: false },
+  weekly:    { icon: Zap,   color: "from-purple-500 to-purple-600",  descriptionKey: "plan_weekly_desc",    popular: false, isVip: false },
+  basic:     { icon: Star,  color: "from-slate-500 to-slate-600",   descriptionKey: "plan_basic_desc",    popular: false, isVip: false },
+  standard:  { icon: Zap,   color: "from-primary to-primary/80",     descriptionKey: "plan_standard_desc", popular: true,  isVip: false },
+  premium:   { icon: Crown, color: "from-amber-500 to-amber-600",  descriptionKey: "plan_premium_desc",  popular: false, isVip: false },
+  vip:       { icon: Crown, color: "from-violet-500 to-purple-600", descriptionKey: "plan_vip_desc",      popular: false, isVip: true  },
 };
 
-function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval, t: any): PlanType {
+const TIER_NAMES: Record<string, string> = {
+  elite: "Elite (نخبة)",
+  healthy: "Healthy (توازن)",
+  fresh: "Fresh (بداية)",
+  weekly: "Weekly Boost (اشتراك اسبوعي)",
+  basic: "Basic",
+  standard: "Standard", 
+  premium: "Premium",
+  vip: "VIP",
+};
+
+function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval, t: any, isRTL: boolean): PlanType {
   const meta = TIER_META[p.tier] ?? TIER_META.basic;
   const monthlyPrice = p.price_qar ?? 0;
   const price = billingInterval === "annual" ? monthlyPrice * 10 : monthlyPrice;
   const period = billingInterval === "annual" ? "year" : "month";
   const features = Array.isArray(p.features) ? p.features : [];
   const annualFeatures = billingInterval === "annual" ? [...features, `💰 ${t("save_17_percent_banner")}`] : features;
+  
+  // Use database description if available, otherwise fall back to language context
+  const dbDescription = isRTL 
+    ? (p.short_description_ar || p.description || t(meta.descriptionKey as any))
+    : (p.short_description || p.description_en || t(meta.descriptionKey as any));
+  
   return {
     id: p.id,
-    name: p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
+    name: TIER_NAMES[p.tier] || p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
     price,
     period,
     mealsPerMonth: p.meals_per_month ?? 0,
+    snacksPerMonth: p.snacks_per_month ?? 0,
+    dailyMeals: p.daily_meals ?? 0,
+    dailySnacks: p.daily_snacks ?? 0,
+    pricePerMeal: p.price_per_meal ?? null,
     tier: p.tier,
-    description: t(meta.descriptionKey as any),
+    description: dbDescription,
     icon: meta.icon,
     features: annualFeatures,
     popular: meta.popular,
@@ -174,7 +203,10 @@ const [activeTab, setActiveTab] = useState("overview");
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
 
   const { plans: dbPlans } = useSubscriptionPlans();
-  const plans = dbPlans.map(p => dbPlanToUiPlan(p, selectedBillingInterval, t));
+  // Only show plans matching the selected billing interval to avoid duplicate cards
+  const plans = dbPlans
+    .filter(p => p.billing_interval === selectedBillingInterval)
+    .map(p => dbPlanToUiPlan(p, selectedBillingInterval, t, isRTL));
 
   // VIP monthly price (used for annual savings display)
   const vipPlan = plans.find(p => p.tier === "vip");
@@ -546,7 +578,6 @@ setIsProcessing(false);
   }
 
   // ── Active subscription ───────────────────────────────────────────────────
-  const tierOrder = { 'basic': 1, 'standard': 2, 'premium': 3, 'vip': 4 } as const;
 
   return (
     <div className="min-h-screen pb-24">
@@ -861,14 +892,12 @@ setIsProcessing(false);
               {plans.map((plan) => {
                 const Icon = plan.icon;
                 const isCurrentPlan = subscription?.tier === plan.tier;
-                const currentTier = subscription?.tier || "basic";
-                const currentTierRank = tierOrder[currentTier as keyof typeof tierOrder] || 1;
-                const planTierRank = tierOrder[plan.tier];
+                const currentPlanPrice = plans.find(p => p.tier === subscription?.tier)?.price ?? 0;
 
                 let buttonText = t("upgrade");
                 let isPrimary = true;
                 if (isCurrentPlan) { buttonText = t("current_plan"); isPrimary = false; }
-                else if (planTierRank < currentTierRank) { buttonText = t("downgrade_btn"); isPrimary = false; }
+                else if (plan.price < currentPlanPrice) { buttonText = t("downgrade_btn"); isPrimary = false; }
 
                 return (
                   <div
@@ -888,6 +917,9 @@ setIsProcessing(false);
                             <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{t("current_badge")}</span>
                           )}
                         </div>
+                        {plan.description && (
+                          <p className="text-xs text-muted-foreground leading-snug">{plan.description}</p>
+                        )}
                         <p className="text-xs text-muted-foreground">{plan.mealsPerMonth === 0 ? t("unlimited_meals") : `${plan.mealsPerMonth} ${t("meals_per_month_spaced")}`}</p>
                       </div>
                       <div className="text-right">
@@ -895,6 +927,27 @@ setIsProcessing(false);
                         <p className="text-xs text-muted-foreground">/{plan.period}</p>
                       </div>
                     </div>
+
+                    {/* Plan details block */}
+                    <div className="bg-muted/50 rounded-2xl px-3 py-2.5 mb-3 space-y-1.5">
+                      {plan.snacksPerMonth > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Meals + Snacks</span>
+                          <span className="font-semibold text-foreground">
+                            {plan.mealsPerMonth === 0 ? "∞" : plan.mealsPerMonth} meals + {plan.snacksPerMonth} snacks
+                          </span>
+                        </div>
+                      )}
+                      {(plan.dailyMeals > 0 || plan.dailySnacks > 0) && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Daily</span>
+                          <span className="font-semibold text-foreground">
+                            {plan.dailyMeals} meal{plan.dailyMeals !== 1 ? "s" : ""} + {plan.dailySnacks} snack{plan.dailySnacks !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
                     <Button
                       variant={isPrimary ? "default" : "outline"}
                       className="w-full rounded-2xl h-11 font-semibold"
@@ -955,16 +1008,14 @@ setIsProcessing(false);
             <DialogTitle>
               {(() => {
                 if (!selectedPlan || !subscription) return t("change_plan");
-                const currentRank = tierOrder[subscription.tier as keyof typeof tierOrder] || 1;
-                const selectedRank = tierOrder[selectedPlan.tier];
-                return selectedRank > currentRank ? `${t("upgrade")} ${t("subscription")}` : `${t("downgrade_btn")} ${t("subscription")}`;
+                const currentPrice = plans.find(p => p.tier === subscription.tier)?.price ?? 0;
+                return selectedPlan.price > currentPrice ? `${t("upgrade")} ${t("subscription")}` : `${t("downgrade_btn")} ${t("subscription")}`;
               })()}
             </DialogTitle>
             <DialogDescription>
               {selectedPlan ? (() => {
-                const currentRank = tierOrder[subscription?.tier as keyof typeof tierOrder] || 1;
-                const selectedRank = tierOrder[selectedPlan.tier];
-                return `${selectedRank > currentRank ? t("upgrade") : t("downgrade_btn")} - ${selectedPlan.name}`;
+                const currentPrice = plans.find(p => p.tier === subscription?.tier)?.price ?? 0;
+                return `${selectedPlan.price > currentPrice ? t("upgrade") : t("downgrade_btn")} - ${selectedPlan.name}`;
               })() : t("select_plan_to_change")}
             </DialogDescription>
           </DialogHeader>
@@ -1142,9 +1193,8 @@ setIsProcessing(false);
               ) : (
                 (() => {
                   if (!selectedPlan || !subscription) return t("confirm");
-                  const currentRank = tierOrder[subscription.tier as keyof typeof tierOrder] || 1;
-                  const selectedRank = tierOrder[selectedPlan.tier];
-                  return selectedRank > currentRank ? t("confirm_upgrade") : t("confirm_downgrade");
+                  const currentPrice = plans.find(p => p.tier === subscription.tier)?.price ?? 0;
+                  return selectedPlan.price > currentPrice ? t("confirm_upgrade") : t("confirm_downgrade");
                 })()
               )}
             </Button>

@@ -4,10 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 export interface DbSubscriptionPlan {
   id: string;
   tier: string;
+  name_ar: string | null;
+  description: string | null;
+  description_en: string | null;
+  short_description: string | null;
+  short_description_ar: string | null;
   price_qar: number;
   billing_interval: string;
   meals_per_month: number;
   meals_per_week: number;
+  snacks_per_month: number;
+  daily_meals: number;
+  daily_snacks: number;
+  price_per_meal: number | null;
+  price_per_snack: number | null;
   features: string[] | null;
   is_active: boolean | null;
   discount_percent: number | null;
@@ -32,11 +42,29 @@ export const useSubscriptionPlans = () => {
 
         if (error) throw error;
 
-        // Normalize data — add computed meals_per_week if not present
-        const normalized: DbSubscriptionPlan[] = (data || []).map((p) => ({
-          ...p,
+        // Normalize data - use type assertion for new fields
+        const normalized: DbSubscriptionPlan[] = (data || []).map((p: any) => ({
+          id: p.id,
+          tier: p.tier,
+          name_ar: p.name_ar ?? null,
+          description: p.description ?? null,
+          description_en: p.description_en ?? null,
+          short_description: p.short_description ?? null,
+          short_description_ar: p.short_description_ar ?? null,
+          price_qar: p.price_qar,
+          billing_interval: p.billing_interval,
+          meals_per_month: p.meals_per_month,
           meals_per_week: p.meals_per_week ?? Math.round((p.meals_per_month ?? 0) / 4),
+          snacks_per_month: p.snacks_per_month ?? 0,
+          daily_meals: p.daily_meals ?? Math.round((p.meals_per_month ?? 0) / 30),
+          daily_snacks: p.daily_snacks ?? Math.round((p.snacks_per_month ?? 0) / 30),
+          price_per_meal: p.price_per_meal ?? null,
+          price_per_snack: p.price_per_snack ?? null,
           features: Array.isArray(p.features) ? (p.features as string[]) : [],
+          is_active: p.is_active,
+          discount_percent: p.discount_percent,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
         }));
 
         setPlans(normalized);

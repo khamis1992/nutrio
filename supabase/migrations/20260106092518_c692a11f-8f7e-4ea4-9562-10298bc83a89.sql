@@ -22,8 +22,8 @@ BEGIN
   FROM public.platform_settings
   WHERE key = 'commission_rates';
   
-  -- Default to 15% if not configured
-  restaurant_commission := COALESCE((commission_rates->>'restaurant')::numeric, 15);
+  -- Default to 18% if not configured
+  restaurant_commission := COALESCE((commission_rates->>'restaurant')::numeric, 18);
   
   -- Calculate commission
   NEW.commission_rate := restaurant_commission;

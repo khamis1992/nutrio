@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio - Investor Deck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1a1a1a;
+            --color-secondary: #4a4a4a;
+            --color-accent: #c9a227;
+            --color-accent-light: #e8d48a;
+            --color-bg: #f8f7f4;
+            --color-surface: #ffffff;
+            --color-border: #e5e5e5;
+            --color-muted: #8a8a8a;
+            --color-success: #2e7d32;
+            --color-warning: #ed6c02;
+            
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Source Sans 3', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4 landscape; margin: 10mm; }
+
+        body { 
+            font-family: var(--font-body); 
+            font-size: 11pt; 
+            line-height: 1.5; 
+            color: var(--color-primary); 
+            background: var(--color-bg);
+        }
+
+        .slide {
+            width: 297mm;
+            height: 210mm;
+            background: var(--color-surface);
+            margin: 0 auto 10mm;
+            padding: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-light) 100%);
+        }
+
+        /* Title Slide */
+        .slide-title {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, var(--color-primary) 0%, #2d2d2d 100%);
+        }
+
+        .slide-title::before {
+            display: none;
+        }
+
+        .slide-title h1 {
+            font-family: var(--font-display);
+            font-size: 48pt;
+            font-weight: 700;
+            color: var(--color-accent);
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .slide-title .tagline {
+            font-size: 18pt;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .slide-title .founder {
+            font-size: 12pt;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .slide-title .logo-small {
+            font-family: var(--font-display);
+            font-size: 24pt;
+            color: var(--color-accent);
+            margin-bottom: 40px;
+        }
+
+        /* Section Headers */
+        .slide-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: var(--color-primary);
+        }
+
+        .slide-section::before {
+            display: none;
+        }
+
+        .slide-section h2 {
+            font-family: var(--font-display);
+            font-size: 36pt;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .slide-section .section-number {
+            font-family: var(--font-mono);
+            font-size: 14pt;
+            color: var(--color-accent);
+            letter-spacing: 0.1em;
+        }
+
+        /* Content Slides */
+        .slide-header {
+            margin-bottom: 32px;
+        }
+
+        .slide-header h2 {
+            font-family: var(--font-display);
+            font-size: 28pt;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 8px;
+        }
+
+        .slide-header .subtitle {
+            font-size: 12pt;
+            color: var(--color-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+            height: calc(100% - 80px);
+        }
+
+        .content-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .content-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--color-bg);
+            padding: 24px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid var(--color-accent);
+        }
+
+        .stat-card .value {
+            font-family: var(--font-display);
+            font-size: 32pt;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-card .label {
+            font-size: 10pt;
+            color: var(--color-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .content-block {
+            margin-bottom: 20px;
+        }
+
+        .content-block h3 {
+            font-family: var(--font-display);
+            font-size: 14pt;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 12px;
+        }
+
+        .content-block p, .content-block li {
+            font-size: 11pt;
+            color: var(--color-secondary);
+            line-height: 1.6;
+        }
+
+        ul { list-style: none; padding: 0; }
+        ul li { 
+            position: relative; 
+            padding-left: 20px; 
+            margin-bottom: 10px; 
+        }
+        ul li::before { 
+            content: '→'; 
+            position: absolute; 
+            left: 0; 
+            color: var(--color-accent); 
+            font-weight: 600;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .highlight-box h3 {
+            font-family: var(--font-display);
+            font-size: 12pt;
+            margin-bottom: 8px;
+        }
+
+        .highlight-box p {
+            font-size: 11pt;
+            color: var(--color-secondary);
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .success-box h3 {
+            font-family: var(--font-display);
+            font-size: 12pt;
+            margin-bottom: 8px;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+        th { text-align: left; padding: 12px; background: var(--color-primary); color: white; font-weight: 500; text-transform: uppercase; font-size: 9pt; }
+        td { padding: 12px; border-bottom: 1px solid var(--color-border); color: var(--color-secondary); }
+        tr:nth-child(even) { background: var(--color-bg); }
+
+        .formula {
+            font-family: var(--font-mono);
+            font-size: 14pt;
+            background: var(--color-primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 16px 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            font-size: 8pt;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 4px;
+            background: var(--color-accent-light);
+            color: var(--color-primary);
+        }
+
+        .slide-footer {
+            position: absolute;
+            bottom: 20px;
+            left: 40px;
+            right: 40px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 9pt;
+            color: var(--color-muted);
+            border-top: 1px solid var(--color-border);
+            padding-top: 12px;
+        }
+
+        .big-number {
+            font-family: var(--font-display);
+            font-size: 64pt;
+            font-weight: 700;
+            color: var(--color-accent);
+            line-height: 1;
+        }
+
+        .comparison-table td {
+            font-size: 10pt;
+        }
+
+        .comparison-table td:first-child {
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        @media print {
+            body { background: white; }
+            .slide { box-shadow: none; margin: 0; page-break-after: always; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SLIDE 1: Title -->
+    <div class="slide slide-title">
+        <div class="logo-small">NUTRIO</div>
+        <h1>Nutrio</h1>
+        <p class="tagline">The Future of Healthy Eating in the Gulf</p>
+        <p class="founder">Investor Presentation · Q2 2026</p>
+        <div style="margin-top: 40px; color: rgba(255,255,255,0.5); font-size: 10pt;">
+            Prepared by: Jim Mullen, Founder
+        </div>
+    </div>
+
+    <!-- SLIDE 2: The Problem -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>The Problem</h2>
+            <p class="subtitle">Healthy Eating is Broken</p>
+        </div>
+        <div class="content-grid">
+            <div>
+                <div class="content-block">
+                    <h3>For Consumers</h3>
+                    <ul>
+                        <li>No easy way to get healthy meals consistently</li>
+                        <li>Expensive to eat healthy every day</li>
+                        <li>Decision fatigue - what to eat?</li>
+                        <li>Restaurants focus on taste, not nutrition</li>
+                        <li>No subscription model for healthy eating</li>
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <div class="content-block">
+                    <h3>For Restaurants</h3>
+                    <ul>
+                        <li>High commissions (20-30%) from delivery apps</li>
+                        <li>Slow payment (30-60 days)</li>
+                        <li>No access to health-conscious customers</li>
+                        <li>Commoditized in generic food delivery</li>
+                        <li>No marketing support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>02</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: The Solution -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>The Solution</h2>
+            <p class="subtitle">Subscription-Based Healthy Meal Platform</p>
+        </div>
+        <div style="text-align: center; margin-bottom: 32px;">
+            <span class="tag" style="font-size: 14pt; padding: 8px 24px;">Pay Monthly · Get Meals Daily</span>
+        </div>
+        <div class="content-grid">
+            <div class="highlight-box">
+                <h3>For Consumers</h3>
+                <ul>
+                    <li>Fixed monthly price for planned healthy meals</li>
+                    <li>Choose from curated healthy restaurants</li>
+                    <li>Delivery included</li>
+                    <li>Nutrition tracking included</li>
+                    <li>Flexible - pause or cancel anytime</li>
+                </ul>
+            </div>
+            <div class="highlight-box">
+                <h3>For Restaurants</h3>
+                <ul>
+                    <li>Only 18% commission (vs 20-30%)</li>
+                    <li>Fast payment (7 days)</li>
+                    <li>Access to health-conscious customers</li>
+                    <li>Marketing & promotion support</li>
+                    <li>Predictable order volume</li>
+                </ul>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>03</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 4: Pricing Plans -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Subscription Plans</h2>
+            <p class="subtitle">Simple, Predictable Pricing</p>
+        </div>
+        <div class="content-grid-4" style="margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="value" style="font-size: 24pt;">Elite</div>
+                <div class="label">3,800 QAR/mo</div>
+                <div style="font-size: 9pt; color: var(--color-muted); margin-top: 8px;">60 meals + 40 snacks</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 24pt;">Healthy</div>
+                <div class="label">2,800 QAR/mo</div>
+                <div style="font-size: 9pt; color: var(--color-muted); margin-top: 8px;">40 meals + 40 snacks</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 24pt;">Fresh</div>
+                <div class="label">1,800 QAR/mo</div>
+                <div style="font-size: 9pt; color: var(--color-muted); margin-top: 8px;">20 meals + 40 snacks</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size: 24pt;">Weekly</div>
+                <div class="label">450 QAR/wk</div>
+                <div style="font-size: 9pt; color: var(--color-muted); margin-top: 8px;">5 meals + 10 snacks</div>
+            </div>
+        </div>
+        <div class="success-box">
+            <h3>💡 The Genius: Unused Meals = Profit</h3>
+            <p>Customers pay upfront. Any meals they don't use = pure profit for Nutrio. <strong>Partial usage = MORE revenue!</strong></p>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>04</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 5: Revenue Model -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Revenue Model</h2>
+            <p class="subtitle">Three Revenue Streams</p>
+        </div>
+        <div class="content-grid">
+            <div>
+                <div class="stat-card" style="margin-bottom: 16px;">
+                    <div class="value">73%</div>
+                    <div class="label">Subscription Revenue</div>
+                </div>
+                <p style="font-size: 11pt; color: var(--color-secondary);">Upfront payment for meal packages. Cash collected before service delivered.</p>
+            </div>
+            <div>
+                <div class="stat-card" style="margin-bottom: 16px;">
+                    <div class="value">10%</div>
+                    <div class="label">Commission Revenue</div>
+                </div>
+                <p style="font-size: 11pt; color: var(--color-secondary);">18% commission on every meal ordered from restaurant partners.</p>
+            </div>
+        </div>
+        <div class="highlight-box" style="margin-top: 16px;">
+            <h3>17% = Unused Meals Profit</h3>
+            <p>Customers who don't use all their meals create pure profit. Example: A customer uses only 45 of 60 paid meals = 15 meals free profit.</p>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>05</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: Unit Economics -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Unit Economics</h2>
+            <p class="subtitle">Exceptional Business Fundamentals</p>
+        </div>
+        <div class="content-grid-4" style="margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="value">56:1</div>
+                <div class="label">LTV:CAC Ratio</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">QAR 8,400</div>
+                <div class="label">Customer LTV</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">QAR 150</div>
+                <div class="label">CAC</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">15</div>
+                <div class="label">Subs to Break-Even</div>
+            </div>
+        </div>
+        <div class="formula">
+            LTV:CAC = QAR 8,400 ÷ QAR 150 = <strong>56:1</strong>
+        </div>
+        <p style="text-align: center; font-size: 11pt; color: var(--color-muted);">Industry benchmark: 3:1 · Our ratio: 56:1 (19x better!)</p>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>06</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 7: Why This Wins -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Why This Model Wins</h2>
+            <p class="subtitle">Competitive Advantages</p>
+        </div>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Nutrio</th>
+                    <th>Talabat/Uber Eats</th>
+                    <th>FreshBox/Other</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Revenue Model</td>
+                    <td>Subscription (upfront)</td>
+                    <td>Per-order</td>
+                    <td>Subscription</td>
+                </tr>
+                <tr>
+                    <td>Commission</td>
+                    <td>18%</td>
+                    <td>20-30%</td>
+                    <td>N/A</td>
+                </tr>
+                <tr>
+                    <td>Payment Timing</td>
+                    <td>Upfront</td>
+                    <td>30-60 days</td>
+                    <td>Upfront</td>
+                </tr>
+                <tr>
+                    <td>Unused = Profit</td>
+                    <td>✓ Yes</td>
+                    <td>✗ No</td>
+                    <td>✗ No</td>
+                </tr>
+                <tr>
+                    <td>Break-even</td>
+                    <td>15 subscribers</td>
+                    <td>1000+ orders</td>
+                    <td>50+ subscribers</td>
+                </tr>
+                <tr>
+                    <td>LTV:CAC</td>
+                    <td><strong>56:1</strong></td>
+                    <td>2:1</td>
+                    <td>5:1</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>07</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 8: Traction -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Traction</h2>
+            <p class="subtitle">Launch-Ready with Proven Technology</p>
+        </div>
+        <div class="content-grid-4" style="margin-bottom: 24px;">
+            <div class="stat-card">
+                <div class="value">4</div>
+                <div class="label">Portals Built</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">✓</div>
+                <div class="label">Product Ready</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">✓</div>
+                <div class="label">Fleet Available</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">✓</div>
+                <div class="label">Payments Live</div>
+            </div>
+        </div>
+        <div class="content-grid">
+            <div class="content-block">
+                <h3>Product Features</h3>
+                <ul>
+                    <li>Customer App (iOS/Android)</li>
+                    <li>Restaurant Partner Portal</li>
+                    <li>Driver App</li>
+                    <li>Admin Dashboard</li>
+                    <li>Real-time tracking</li>
+                    <li>Push notifications</li>
+                </ul>
+            </div>
+            <div class="content-block">
+                <h3>What's Built</h3>
+                <ul>
+                    <li>Onboarding flow</li>
+                    <li>Subscription management</li>
+                    <li>Order tracking</li>
+                    <li>Wallet system</li>
+                    <li>Referral program</li>
+                    <li>Analytics dashboard</li>
+                </ul>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>08</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 9: Market Opportunity -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Market Opportunity</h2>
+            <p class="subtitle">Qatar & Gulf Region</p>
+        </div>
+        <div class="content-grid">
+            <div>
+                <div class="stat-card" style="margin-bottom: 16px;">
+                    <div class="value">2.8M</div>
+                    <div class="label">Qatar Population</div>
+                </div>
+                <div class="stat-card" style="margin-bottom: 16px;">
+                    <div class="value">85%</div>
+                    <div class="label">Expats (Health-Conscious)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value">QAR 5B</div>
+                    <div class="label">Food Delivery Market</div>
+                </div>
+            </div>
+            <div>
+                <div class="content-block">
+                    <h3>Target Market</h3>
+                    <ul>
+                        <li>Health-conscious professionals</li>
+                        <li>Fitness enthusiasts</li>
+                        <li>Corporate employees (wellness programs)</li>
+                        <li>Expatriates seeking healthy options</li>
+                        <li>Weight management customers</li>
+                    </ul>
+                </div>
+                <div class="highlight-box">
+                    <h3>Initial Target: 50,000 users</h3>
+                    <p>5% market capture in Year 1</p>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>09</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 10: Financial Projections -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>Financial Projections</h2>
+            <p class="subtitle">24-Month Trajectory</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Month 6</th>
+                    <th>Month 12</th>
+                    <th>Month 24</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Subscribers</td>
+                    <td>250</td>
+                    <td>600</td>
+                    <td>1,500</td>
+                </tr>
+                <tr>
+                    <td>Monthly Revenue</td>
+                    <td>QAR 700K</td>
+                    <td>QAR 1.68M</td>
+                    <td>QAR 4.2M</td>
+                </tr>
+                <tr>
+                    <td>Annual Revenue</td>
+                    <td>—</td>
+                    <td>QAR 9.2M</td>
+                    <td>QAR 38M</td>
+                </tr>
+                <tr>
+                    <td>Cumulative Profit</td>
+                    <td>QAR 343K</td>
+                    <td>QAR 1.57M</td>
+                    <td>QAR 9.8M</td>
+                </tr>
+                <tr>
+                    <td>Team Size</td>
+                    <td>6</td>
+                    <td>14</td>
+                    <td>25</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>10</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 11: Ask -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>The Ask</h2>
+            <p class="subtitle">Funding for Growth</p>
+        </div>
+        <div class="content-grid" style="margin-bottom: 32px;">
+            <div class="stat-card" style="background: var(--color-bg);">
+                <div class="value">QAR 500K</div>
+                <div class="label">Seeking</div>
+            </div>
+            <div class="stat-card" style="background: var(--color-bg);">
+                <div class="value">18 mo</div>
+                <div class="label">Runway</div>
+            </div>
+        </div>
+        <div class="content-grid">
+            <div class="highlight-box">
+                <h3>Use of Funds</h3>
+                <ul>
+                    <li>Sales & Marketing: 40%</li>
+                    <li>Restaurant Acquisition: 25%</li>
+                    <li>Team Growth: 25%</li>
+                    <li>Operations & Tech: 10%</li>
+                </ul>
+            </div>
+            <div class="success-box">
+                <h3>Milestones</h3>
+                <ul>
+                    <li>Month 6: 250 subscribers</li>
+                    <li>Month 12: Break-even</li>
+                    <li>Month 18: Series A ready</li>
+                </ul>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>11</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 12: Team -->
+    <div class="slide">
+        <div class="slide-header">
+            <h2>The Team</h2>
+            <p class="subtitle">Founder & Advisory</p>
+        </div>
+        <div class="content-grid" style="margin-bottom: 32px;">
+            <div class="stat-card" style="text-align: left;">
+                <div class="value" style="font-size: 20pt;">Jim Mullen</div>
+                <div class="label" style="color: var(--color-accent);">Founder & CEO</div>
+                <p style="font-size: 10pt; color: var(--color-secondary); margin-top: 12px;">Technical founder. Built complete platform. 10+ years in tech startups.</p>
+            </div>
+            <div class="stat-card" style="text-align: left;">
+                <div class="value" style="font-size: 20pt;">Advisory Board</div>
+                <div class="label" style="color: var(--color-accent);">Coming Soon</div>
+                <p style="font-size: 10pt; color: var(--color-secondary); margin-top: 12px;">Seeking advisors in: Food & Beverage, Healthcare, Gulf Business Development</p>
+            </div>
+        </div>
+        <div class="highlight-box" style="text-align: center;">
+            <h3>Looking for: Co-Founder / Operations Lead</h3>
+            <p>Active recruitment for someone to handle day-to-day operations while founder focuses on product & strategy.</p>
+        </div>
+        <div class="slide-footer">
+            <span>Nutrio Investor Deck</span>
+            <span>12</span>
+        </div>
+    </div>
+
+    <!-- SLIDE 13: Contact -->
+    <div class="slide slide-title">
+        <div class="logo-small" style="color: var(--color-accent);">NUTRIO</div>
+        <h1 style="font-size: 36pt;">Let's Build the Future<br>of Healthy Eating</h1>
+        <p class="tagline" style="font-size: 14pt; margin-top: 20px;">jim@nutrio.qa · +974 0000 0000</p>
+        <p class="founder" style="margin-top: 40px;">Thank you for your time</p>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nutrio Fuel — System Documentation</title>
+  <!--
+    Visual Explainer - Comprehensive Document
+    Aesthetic: Blueprint - technical drawing feel, deep slate/blue palette
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ============ THEME: Blueprint ============ */
+    :root {
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'Fira Code', 'SF Mono', Consolas, monospace;
+      --bg: #0d1117;
+      --bg-elevated: #161b22;
+      --bg-card: #1c2128;
+      --border: rgba(56, 139, 253, 0.15);
+      --border-bright: rgba(56, 139, 253, 0.3);
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-muted: #6e7681;
+      --accent: #58a6ff;
+      --accent-dim: rgba(88, 166, 255, 0.1);
+      --accent-subtle: rgba(88, 166, 255, 0.05);
+      --green: #3fb950;
+      --green-dim: rgba(63, 185, 80, 0.1);
+      --amber: #d29922;
+      --amber-dim: rgba(210, 153, 34, 0.1);
+      --red: #f85149;
+      --red-dim: rgba(248, 81, 73, 0.1);
+      --purple: #a371f7;
+      --purple-dim: rgba(163, 113, 247, 0.1);
+      --cyan: #39c5cf;
+      --cyan-dim: rgba(57, 197, 207, 0.1);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f8fa;
+        --bg-elevated: #ffffff;
+        --bg-card: #ffffff;
+        --border: rgba(31, 35, 40, 0.1);
+        --border-bright: rgba(31, 35, 40, 0.2);
+        --text: #1f2328;
+        --text-dim: #656d76;
+        --text-muted: #8c959f;
+        --accent: #0969da;
+        --accent-dim: rgba(9, 105, 218, 0.1);
+        --accent-subtle: rgba(9, 105, 218, 0.05);
+        --green: #1a7f37;
+        --green-dim: rgba(26, 127, 55, 0.1);
+        --amber: #9a6700;
+        --amber-dim: rgba(154, 103, 0, 0.1);
+        --red: #cf222e;
+        --red-dim: rgba(207, 34, 46, 0.1);
+        --purple: #8250df;
+        --purple-dim: rgba(130, 80, 223, 0.1);
+        --cyan: #0598bc;
+        --cyan-dim: rgba(5, 152, 188, 0.1);
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+
+    /* ============ LAYOUT ============ */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ============ HEADER ============ */
+    header {
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, var(--green), var(--cyan));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 20px;
+      color: white;
+    }
+
+    .logo-text {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .meta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    .meta-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* ============ HERO ============ */
+    .hero {
+      padding: 64px 0 48px;
+      background: 
+        radial-gradient(ellipse at 20% 0%, var(--accent-subtle) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, var(--green-dim) 0%, transparent 40%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 56px);
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span {
+      color: var(--accent);
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--text-dim);
+      max-width: 720px;
+      margin-bottom: 32px;
+    }
+
+    .hero-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .hero-stat {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .hero-stat-value {
+      font-family: var(--font-mono);
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .hero-stat-label {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* ============ NAVIGATION ============ */
+    .nav {
+      position: sticky;
+      top: 73px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 90;
+      padding: 12px 0;
+    }
+
+    .nav-inner {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav-inner::-webkit-scrollbar { display: none; }
+
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+      white-space: nowrap;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .nav-link:hover {
+      background: var(--bg-card);
+      color: var(--text);
+    }
+
+    .nav-link.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* ============ SECTIONS ============ */
+    section {
+      padding: 48px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section:last-child { border-bottom: none; }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section-label::before {
+      content: '';
+      width: 10px;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .section-header {
+      margin-bottom: 32px;
+    }
+
+    .section-header h2 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .section-header p {
+      color: var(--text-dim);
+      max-width: 640px;
+    }
+
+    /* ============ CARDS ============ */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .card-icon--customer { background: var(--green-dim); }
+    .card-icon--partner { background: var(--amber-dim); }
+    .card-icon--admin { background: var(--purple-dim); }
+    .card-icon--driver { background: var(--cyan-dim); }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .card-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .card-list {
+      list-style: none;
+    }
+
+    .card-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-list li:last-child { border-bottom: none; }
+
+    .card-list .count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* ============ TECH STACK ============ */
+    .tech-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .tech-layer {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .tech-layer-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      min-width: 100px;
+    }
+
+    .tech-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tech-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .tech-item-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .tech-arrow {
+      color: var(--accent);
+      font-size: 20px;
+      padding: 8px 0;
+    }
+
+    /* ============ TABLES ============ */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 14px 18px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+    }
+
+    td {
+      font-size: 14px;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--accent-subtle); }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 2px 6px;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border-radius: 4px;
+    }
+
+    /* ============ PROVIDER CHAIN ============ */
+    .provider-chain {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .provider-item {
+      padding: 8px 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .provider-arrow {
+      color: var(--accent);
+    }
+
+    /* ============ STATE TIERS ============ */
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .state-tier {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .state-tier-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .state-tier-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .state-tier-title {
+      font-weight: 600;
+    }
+
+    .state-tier-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .state-list {
+      list-style: none;
+    }
+
+    .state-list li {
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .state-list li:last-child { border-bottom: none; }
+
+    /* ============ INTEGRATIONS ============ */
+    .integration-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .integration-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .integration-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .integration-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+    }
+
+    .integration-logo--sadad { background: #7c3aed; }
+    .integration-logo--resend { background: #000; }
+    .integration-logo--ultramsg { background: #25d366; }
+    .integration-logo--posthog { background: #f43f5e; }
+    .integration-logo--sentry { background: #362d59; }
+
+    .integration-name {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .integration-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .integration-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .feature-tag {
+      padding: 3px 8px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ============ CODE BLOCKS ============ */
+    .code-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    .code-block .keyword { color: var(--purple); }
+    .code-block .function { color: var(--cyan); }
+    .code-block .string { color: var(--green); }
+    .code-block .comment { color: var(--text-muted); }
+    .code-block .type { color: var(--amber); }
+
+    /* ============ MERMAID DIAGRAM ============ */
+    .diagram-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      overflow: auto;
+    }
+
+    /* ============ FUNCTIONS GRID ============ */
+    .function-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .function-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .function-name {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cyan);
+      margin-bottom: 8px;
+    }
+
+    .function-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* ============ EDGE FUNCTIONS ============ */
+    .edge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .edge-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .edge-category {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .edge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .edge-tag {
+      padding: 4px 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ============ ANIMATIONS ============ */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .animate-in {
+      animation: fadeIn 0.4s ease forwards;
+    }
+
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+
+    /* ============ FOOTER ============ */
+    footer {
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      margin-top: 40px;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+
+    .footer-links a:hover { color: var(--accent); }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 32px; }
+      .hero-stats { flex-direction: column; gap: 16px; }
+      .tech-layer { flex-direction: column; align-items: flex-start; }
+      .provider-chain { flex-direction: column; }
+      .provider-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-mark">N</div>
+        <div class="logo-text">Nutrio <span>Fuel</span></div>
+      </div>
+      <div class="header-meta">
+        <div class="meta-badge">
+          <span class="meta-dot"></span>
+          System Documentation
+        </div>
+        <div class="meta-badge">v1.0</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="container">
+    <h1>Complete System <span>Architecture</span></h1>
+    <p>A comprehensive technical guide to the Nutrio Fuel platform — a healthy meal delivery and nutrition tracking system for Qatar. Four user portals powered by React, Supabase, and native mobile via Capacitor.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="hero-stat-value">4</span>
+        <span class="hero-stat-label">User Portals</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-value">60+</span>
+        <span class="hero-stat-label">Database Tables</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-value">30+</span>
+        <span class="hero-stat-label">Edge Functions</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-value">100+</span>
+        <span class="hero-stat-label">Migrations</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-value">40+</span>
+        <span class="hero-stat-label">TanStack Hooks</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="nav">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="#overview" class="nav-link">Overview</a>
+      <a href="#portals" class="nav-link">Portals</a>
+      <a href="#techstack" class="nav-link">Tech Stack</a>
+      <a href="#database" class="nav-link">Database</a>
+      <a href="#functions" class="nav-link">Functions</a>
+      <a href="#auth" class="nav-link">Auth</a>
+      <a href="#state" class="nav-link">State</a>
+      <a href="#integrations" class="nav-link">Integrations</a>
+      <a href="#patterns" class="nav-link">Patterns</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <!-- SECTION: PORTALS OVERVIEW -->
+  <section id="overview">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Introduction</div>
+        <h2>Platform Overview</h2>
+        <p>Nutrio Fuel is a React Single Page Application (SPA) with four distinct user portals. All portals share the same codebase but have dedicated routes, layouts, and role-based access control.</p>
+      </div>
+
+      <div class="card-grid">
+        <div class="card animate-in delay-1">
+          <div class="card-header">
+            <div class="card-icon card-icon--customer">🍽️</div>
+            <div class="card-title">Customer Portal</div>
+          </div>
+          <div class="card-desc">End consumers ordering healthy meals and tracking nutrition</div>
+          <ul class="card-list">
+            <li>Dashboard & Home <span class="count">30+</span></li>
+            <li>Meal Browsing</li>
+            <li>Nutrition Tracking</li>
+            <li>Subscription Management</li>
+            <li>Wallet & Payments</li>
+            <li>Affiliate Program</li>
+          </ul>
+        </div>
+
+        <div class="card animate-in delay-2">
+          <div class="card-header">
+            <div class="card-icon card-icon--partner">🏪</div>
+            <div class="card-title">Partner Portal</div>
+          </div>
+          <div class="card-desc">Restaurant owners managing menus and fulfilling orders</div>
+          <ul class="card-list">
+            <li>Dashboard <span class="count">18</span></li>
+            <li>Menu Management</li>
+            <li>Order Fulfillment</li>
+            <li>Analytics & AI Insights</li>
+            <li>Payout Management</li>
+            <li>Reviews</li>
+          </ul>
+        </div>
+
+        <div class="card animate-in delay-3">
+          <div class="card-header">
+            <div class="card-icon card-icon--admin">⚙️</div>
+            <div class="card-title">Admin Portal</div>
+          </div>
+          <div class="card-desc">Platform management and oversight</div>
+          <ul class="card-list">
+            <li>Dashboard <span class="count">28</span></li>
+            <li>Restaurant Approval</li>
+            <li>User Management</li>
+            <li>Platform Analytics</li>
+            <li>Payout Processing</li>
+            <li>IP & Geo Restrictions</li>
+          </ul>
+        </div>
+
+        <div class="card animate-in delay-4">
+          <div class="card-header">
+            <div class="card-icon card-icon--driver">🚗</div>
+            <div class="card-title">Driver Portal</div>
+          </div>
+          <div class="card-desc">Delivery personnel managing deliveries</div>
+          <ul class="card-list">
+            <li>Dashboard <span class="count">14</span></li>
+            <li>Order Acceptance</li>
+            <li>Delivery Tracking</li>
+            <li>Earnings Dashboard</li>
+            <li>Payout Requests</li>
+            <li>History & Stats</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: TECH STACK -->
+  <section id="techstack">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Technology</div>
+        <h2>Tech Stack</h2>
+        <p>Modern, type-safe, and scalable technology choices for a complex multi-tenant platform.</p>
+      </div>
+
+      <div class="tech-flow">
+        <div class="tech-layer">
+          <span class="tech-layer-label">Frontend</span>
+          <div class="tech-items">
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #61dafb; color: #000;">⚛️</div>
+              React 18
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #3178c6; color: #fff;">📘</div>
+              TypeScript
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #646cff; color: #fff;">⚡</div>
+              Vite
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #ff4154; color: #fff;">🔄</div>
+              TanStack Query
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #0ea5e9; color: #fff;">🎨</div>
+              Tailwind CSS
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #635bff; color: #fff;">📦</div>
+              shadcn/ui
+            </div>
+          </div>
+        </div>
+
+        <div class="tech-arrow" style="padding-left: 116px;">↓</div>
+
+        <div class="tech-layer">
+          <span class="tech-layer-label">Backend</span>
+          <div class="tech-items">
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #3ecf8e; color: #fff;">🅰️</div>
+              Supabase
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #336791; color: #fff;">🐘</div>
+              PostgreSQL
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #000; color: #fff;">🔒</div>
+              RLS Policies
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #000; color: #fff;">λ</div>
+              Edge Functions
+            </div>
+          </div>
+        </div>
+
+        <div class="tech-arrow" style="padding-left: 116px;">↓</div>
+
+        <div class="tech-layer">
+          <span class="tech-layer-label">Mobile</span>
+          <div class="tech-items">
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #000; color: #fff;">📱</div>
+              Capacitor
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #000; color: #fff;">🍎</div>
+              iOS
+            </div>
+            <div class="tech-item">
+              <div class="tech-item-icon" style="background: #3ddc84; color: #fff;">🤖</div>
+              Android
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: PROVIDER HIERARCHY -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Initialization</div>
+        <h2>Provider Hierarchy</h2>
+        <p>Critical initialization order ensures all dependencies are available when components render.</p>
+      </div>
+
+      <div class="provider-chain">
+        <span class="provider-item">initSentry()</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">initPostHog()</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">initializeNativeApp()</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">LanguageProvider</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">SentryErrorBoundary</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">QueryClientProvider</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">TooltipProvider</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">BrowserRouter</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">AuthProvider</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">AnalyticsProvider</span>
+        <span class="provider-arrow">→</span>
+        <span class="provider-item">Routes</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: DATABASE -->
+  <section id="database">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Backend</div>
+        <h2>Database Schema</h2>
+        <p>60+ tables organized by functional domain with Row Level Security enabled on every table.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Tables</th>
+              <th>Key Features</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong style="color: var(--green);">Users</strong></td>
+              <td><code>profiles</code>, <code>user_roles</code>, <code>blocked_ips</code>, <code>user_ip_logs</code></td>
+              <td>Role-based access, IP geo-restriction to Qatar, session management</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--amber);">Restaurants</strong></td>
+              <td><code>restaurants</code>, <code>meals</code>, <code>orders</code>, <code>diet_tags</code>, <code>meal_schedules</code></td>
+              <td>Approval workflow, nutrition data, scheduling, cuisine types</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--purple);">Subscriptions</strong></td>
+              <td><code>subscriptions</code>, <code>subscription_freezes</code></td>
+              <td>Weekly/monthly plans, pause functionality, billing cycles</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--cyan);">Wallet</strong></td>
+              <td><code>customer_wallets</code>, <code>wallet_transactions</code>, <code>wallet_topup_packages</code>, <code>payments</code>, <code>invoices</code></td>
+              <td>Prepaid balance, Sadad integration, invoice generation</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--red);">Drivers</strong></td>
+              <td><code>drivers</code>, <code>deliveries</code>, <code>driver_withdrawals</code>, <code>driver_wallet_transactions</code></td>
+              <td>Profile, vehicle info, ratings, availability, payout requests</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--green);">Affiliate</strong></td>
+              <td><code>affiliate_applications</code>, <code>affiliate_commissions</code>, <code>affiliate_payouts</code>, <code>referral_milestones</code>, <code>user_milestone_achievements</code></td>
+              <td>Multi-tier commissions, milestone bonuses, referral tracking</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--accent);">Support</strong></td>
+              <td><code>support_tickets</code>, <code>ticket_messages</code>, <code>ticket_attachments</code></td>
+              <td>Customer support tickets, conversation threads</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--accent);">Notifications</strong></td>
+              <td><code>notifications</code>, <code>email_logs</code>, <code>announcements</code></td>
+              <td>In-app, email, WhatsApp, push notifications</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: DATABASE ENUMS -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Schema</div>
+        <h2>Database Enums</h2>
+        <p>PostgreSQL enums ensure type safety for status fields across the platform.</p>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--accent-dim);">📋</div>
+            <div class="card-title">app_role</div>
+          </div>
+          <div class="code-block">
+user, admin
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--green-dim);">📦</div>
+            <div class="card-title">subscription_status</div>
+          </div>
+          <div class="code-block">
+active, cancelled, expired, pending
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--amber-dim);">📅</div>
+            <div class="card-title">subscription_plan</div>
+          </div>
+          <div class="code-block">
+weekly, monthly
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--purple-dim);">🛒</div>
+            <div class="card-title">order_status</div>
+          </div>
+          <div class="code-block">
+pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--cyan-dim);">✅</div>
+            <div class="card-title">approval_status</div>
+          </div>
+          <div class="code-block">
+pending, approved, rejected
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--red-dim);">🎯</div>
+            <div class="card-title">health_goal</div>
+          </div>
+          <div class="code-block">
+lose, gain, maintain
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: DATABASE FUNCTIONS -->
+  <section id="functions">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Business Logic</div>
+        <h2>Database Functions</h2>
+        <p>PL/pgSQL functions handle complex operations securely with RLS bypass where needed.</p>
+      </div>
+
+      <div class="function-grid">
+        <div class="function-card">
+          <div class="function-name">credit_wallet(user_id, amount, type, ...)</div>
+          <div class="function-desc">Adds funds to customer wallet with transaction logging and bonus calculation</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">debit_wallet(user_id, amount, ...)</div>
+          <div class="function-desc">Deducts from wallet with balance validation, prevents overdraft</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">create_partner_earning()</div>
+          <div class="function-desc">Trigger function calculating partner earnings when order is confirmed</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">process_driver_withdrawal()</div>
+          <div class="function-desc">Processes driver payout requests with bank detail validation</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">has_role(user_id, role)</div>
+          <div class="function-desc">Checks if user has a specific role (user, admin, partner, driver)</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">get_user_role(user_id)</div>
+          <div class="function-desc">Returns user's primary role derived from relationship tables</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">generate_invoice_number(type)</div>
+          <div class="function-desc">Generates sequential invoice numbers by type (order, wallet, payout)</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">is_ip_blocked(ip)</div>
+          <div class="function-desc">Checks if IP address is blocked for geo-restriction</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">handle_new_user()</div>
+          <div class="function-desc">Trigger function creating profile and default role on signup</div>
+        </div>
+
+        <div class="function-card">
+          <div class="function-name">create_customer_wallet()</div>
+          <div class="function-desc">Creates wallet for new users automatically</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: EDGE FUNCTIONS -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Serverless</div>
+        <h2>Edge Functions</h2>
+        <p>30+ Deno-based serverless functions handling business logic, AI, and external integrations.</p>
+      </div>
+
+      <div class="edge-grid">
+        <div class="edge-card">
+          <div class="edge-category" style="color: var(--amber);">Payments</div>
+          <div class="edge-list">
+            <span class="edge-tag">simulate-payment</span>
+            <span class="edge-tag">send-invoice-email</span>
+          </div>
+        </div>
+
+        <div class="edge-card">
+          <div class="edge-category" style="color: var(--cyan);">Notifications</div>
+          <div class="edge-list">
+            <span class="edge-tag">send-email</span>
+            <span class="edge-tag">send-push-notification</span>
+            <span class="edge-tag">process-whatsapp</span>
+            <span class="edge-tag">send-meal-reminders</span>
+            <span class="edge-tag">send-affiliate-welcome</span>
+            <span class="edge-tag">send-commission-notification</span>
+            <span class="edge-tag">send-payout-notification</span>
+          </div>
+        </div>
+
+        <div class="edge-card">
+          <div class="edge-category" style="color: var(--purple);">AI & Intelligence</div>
+          <div class="edge-list">
+            <span class="edge-tag">translate-meal</span>
+            <span class="edge-tag">nutrition-profile-engine</span>
+            <span class="edge-tag">restaurant-intelligence</span>
+            <span class="edge-tag">smart-meal-allocator</span>
+            <span class="edge-tag">adaptive-goals</span>
+            <span class="edge-tag">calculate-health-score</span>
+            <span class="edge-tag">behavior-prediction</span>
+            <span class="edge-tag">analyze-meal-image</span>
+          </div>
+        </div>
+
+        <div class="edge-card">
+          <div class="edge-category" style="color: var(--green);">Fleet</div>
+          <div class="edge-list">
+            <span class="edge-tag">fleet-auth</span>
+            <span class="edge-tag">fleet-dashboard</span>
+            <span class="edge-tag">fleet-drivers</span>
+            <span class="edge-tag">fleet-vehicles</span>
+            <span class="edge-tag">fleet-payouts</span>
+            <span class="edge-tag">fleet-tracking</span>
+            <span class="edge-tag">auto-assign-driver</span>
+          </div>
+        </div>
+
+        <div class="edge-card">
+          <div class="edge-category" style="color: var(--accent);">Operations</div>
+          <div class="edge-list">
+            <span class="edge-tag">check-ip-location</span>
+            <span class="edge-tag">log-user-ip</span>
+            <span class="edge-tag">export-user-data</span>
+            <span class="edge-tag">handle-freeze-request</span>
+            <span class="edge-tag">process-subscription-renewal</span>
+            <span class="edge-tag">cleanup-expired-rollovers</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: AUTHENTICATION -->
+  <section id="auth">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Security</div>
+        <h2>Authentication & Access Control</h2>
+        <p>Supabase Auth with IP geo-restriction and role-based route protection.</p>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--green-dim);">🔐</div>
+            <div class="card-title">Auth Flow</div>
+          </div>
+          <div class="code-block">
+<span class="comment">// User signs up/in via Supabase Auth</span>
+<span class="keyword">await</span> <span class="function">signUp</span>(email, password, fullName)
+<span class="keyword">await</span> <span class="function">signIn</span>(email, password) <span class="keyword">→</span> IP check <span class="keyword">→</span> session
+
+<span class="comment">// Session stored in Capacitor Preferences (native)</span>
+<span class="comment">// or localStorage (web)</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--red-dim);">🌍</div>
+            <div class="card-title">IP Geo-Restriction</div>
+          </div>
+          <div class="code-block">
+<span class="comment">// Before login, check IP location</span>
+<span class="keyword">await</span> <span class="function">checkIPLocation</span>()
+  <span class="keyword">→</span> allowed: Qatar only
+  <span class="keyword">→</span> blocked IPs logged in <code>blocked_ips</code>
+  <span class="keyword">→</span> failed checks logged in <code>user_ip_logs</code>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--purple-dim);">🛡️</div>
+            <div class="card-title">ProtectedRoute</div>
+          </div>
+          <div class="code-block">
+<span class="comment">// Role hierarchy: customer(1) &lt; partner(2) &lt; admin(4)</span>
+<span class="function">ProtectedRoute</span>({
+  requiredRole: <span class="string">'partner'</span>,
+  requireApproval: <span class="keyword">true</span>  <span class="comment">// for restaurants</span>
+})
+  <span class="keyword">→</span> checks <code>user_roles</code> table
+  <span class="keyword">→</span> derives partner/driver from relationship tables
+  <span class="keyword">→</span> 5-minute cache for role lookups
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: STATE MANAGEMENT -->
+  <section id="state">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">State</div>
+        <h2>State Management</h2>
+        <p>Three-tier state management strategy balances complexity with performance.</p>
+      </div>
+
+      <div class="state-grid">
+        <div class="state-tier">
+          <div class="state-tier-header">
+            <div class="state-tier-icon" style="background: var(--purple-dim);">🌐</div>
+            <div>
+              <div class="state-tier-title">React Context</div>
+              <div class="state-tier-desc">Global application state</div>
+            </div>
+          </div>
+          <ul class="state-list">
+            <li>AuthContext — User session, roles, permissions</li>
+            <li>AnalyticsContext — PostHog tracking</li>
+            <li>LanguageContext — i18n translations</li>
+          </ul>
+        </div>
+
+        <div class="state-tier">
+          <div class="state-tier-header">
+            <div class="state-tier-icon" style="background: var(--cyan-dim);">🔄</div>
+            <div>
+              <div class="state-tier-title">TanStack Query</div>
+              <div class="state-tier-desc">Server state caching</div>
+            </div>
+          </div>
+          <ul class="state-list">
+            <li>useSubscription() — Subscription data</li>
+            <li>useWallet() — Balance & transactions</li>
+            <li>useUserOrders() — Order history</li>
+            <li>useAffiliateProgram() — Commission tracking</li>
+            <li>40+ domain-specific hooks</li>
+          </ul>
+        </div>
+
+        <div class="state-tier">
+          <div class="state-tier-header">
+            <div class="state-tier-icon" style="background: var(--green-dim);">⚡</div>
+            <div>
+              <div class="state-tier-title">useState / useReducer</div>
+              <div class="state-tier-desc">Local component state</div>
+            </div>
+          </div>
+          <ul class="state-list">
+            <li>Form inputs and validation</li>
+            <li>Modal and dialog visibility</li>
+            <li>User interactions</li>
+            <li>UI-specific state</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: INTEGRATIONS -->
+  <section id="integrations">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">External Services</div>
+        <h2>API Integrations</h2>
+        <p>Third-party integrations for payments, notifications, and analytics.</p>
+      </div>
+
+      <div class="integration-grid">
+        <div class="integration-card">
+          <div class="integration-header">
+            <div class="integration-logo integration-logo--sadad">S</div>
+            <div class="integration-name">Sadad</div>
+          </div>
+          <div class="integration-desc">Qatar's primary payment gateway for wallet top-ups</div>
+          <div class="integration-features">
+            <span class="feature-tag">createPayment</span>
+            <span class="feature-tag">verifyCallback</span>
+            <span class="feature-tag">getPaymentStatus</span>
+            <span class="feature-tag">refundPayment</span>
+          </div>
+        </div>
+
+        <div class="integration-card">
+          <div class="integration-header">
+            <div class="integration-logo integration-logo--resend">R</div>
+            <div class="integration-name">Resend</div>
+          </div>
+          <div class="integration-desc">Email delivery for invoices, notifications, and marketing</div>
+          <div class="integration-features">
+            <span class="feature-tag">sendEmail</span>
+            <span class="feature-tag">sendInvoiceEmail</span>
+            <span class="feature-tag">Email Templates</span>
+          </div>
+        </div>
+
+        <div class="integration-card">
+          <div class="integration-header">
+            <div class="integration-logo integration-logo--ultramsg">W</div>
+            <div class="integration-name">Ultramsg</div>
+          </div>
+          <div class="integration-desc">WhatsApp notifications and marketing messages</div>
+          <div class="integration-features">
+            <span class="feature-tag">Notifications</span>
+            <span class="feature-tag">Marketing</span>
+            <span class="feature-tag">Templates</span>
+          </div>
+        </div>
+
+        <div class="integration-card">
+          <div class="integration-header">
+            <div class="integration-logo integration-logo--posthog">P</div>
+            <div class="integration-name">PostHog</div>
+          </div>
+          <div class="integration-desc">Product analytics and user behavior tracking</div>
+          <div class="integration-features">
+            <span class="feature-tag">trackEvent</span>
+            <span class="feature-tag">trackPageView</span>
+            <span class="feature-tag">identifyUser</span>
+          </div>
+        </div>
+
+        <div class="integration-card">
+          <div class="integration-header">
+            <div class="integration-logo integration-logo--sentry">S</div>
+            <div class="integration-name">Sentry</div>
+          </div>
+          <div class="integration-desc">Error tracking and performance monitoring</div>
+          <div class="integration-features">
+            <span class="feature-tag">Error Boundaries</span>
+            <span class="feature-tag">captureError</span>
+            <span class="feature-tag">Production Only</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: CODE PATTERNS -->
+  <section id="patterns">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Conventions</div>
+        <h2>Code Patterns</h2>
+        <p>Consistent patterns ensure maintainability across the codebase.</p>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--cyan-dim);">📁</div>
+            <div class="card-title">Path Aliases</div>
+          </div>
+          <div class="code-block">
+<span class="keyword">import</span> { Button } <span class="keyword">from</span> <span class="string">"@/components/ui/button"</span>
+<span class="keyword">import</span> { supabase } <span class="keyword">from</span> <span class="string">"@/integrations/supabase/client"</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--amber-dim);">🔍</div>
+            <div class="card-title">Query Pattern</div>
+          </div>
+          <div class="code-block">
+<span class="keyword">const</span> { data, error } = <span class="keyword">await</span> supabase
+  .<span class="function">from</span>(<span class="string">'table'</span>)
+  .<span class="function">select</span>(<span class="string">'columns'</span>)
+  .<span class="function">eq</span>(<span class="string">'field'</span>, value);
+
+<span class="keyword">if</span> (error) <span class="keyword">throw</span> error;
+<span class="keyword">return</span> data;
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background: var(--green-dim);">🎨</div>
+            <div class="card-title">UI Components</div>
+          </div>
+          <div class="code-block">
+<span class="comment">// shadcn/ui with Radix primitives</span>
+<span class="keyword">import</span> { Button, Dialog, Sheet } <span class="keyword">from</span> <span class="string">"@/components/ui"</span>
+
+<span class="comment">// Custom styling via Tailwind + cn()</span>
+<span class="keyword">className</span>=<span class="function">cn</span>(<span class="string">"base styles"</span>, variant && <span class="string">"variant-"</span> + variant)
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: ROUTE STRUCTURE -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Routing</div>
+        <h2>Key Route Summary</h2>
+        <p>Overview of the main route groups across all four portals.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Portal</th>
+              <th>Prefix</th>
+              <th>Key Routes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong style="color: var(--green);">Customer</strong></td>
+              <td><code>/</code></td>
+              <td>dashboard, meals, schedule, progress, tracker, subscription, wallet, orders, affiliate</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--amber);">Partner</strong></td>
+              <td><code>/partner/*</code></td>
+              <td>dashboard, menu, orders, analytics, earnings, payouts, reviews, settings</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--purple);">Admin</strong></td>
+              <td><code>/admin/*</code></td>
+              <td>dashboard, restaurants, users, orders, analytics, income, payouts, drivers</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--cyan);">Driver</strong></td>
+              <td><code>/driver/*</code></td>
+              <td>dashboard, orders, history, earnings, payouts, profile, settings</td>
+            </tr>
+            <tr>
+              <td><strong style="color: var(--accent);">Fleet</strong></td>
+              <td><code>/fleet/*</code></td>
+              <td>dashboard, live-tracking, drivers, vehicles, routes, payouts</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-text">
+        Nutrio Fuel — Healthy meal delivery platform for Qatar
+      </div>
+      <div class="footer-links">
+        <a href="#overview">Overview</a>
+        <a href="#portals">Portals</a>
+        <a href="#database">Database</a>
+        <a href="#functions">Functions</a>
+        <a href="#auth">Auth</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

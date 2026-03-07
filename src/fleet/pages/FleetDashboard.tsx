@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFleetStats } from "@/fleet/hooks/useDrivers";
 import { useCity } from "@/fleet/context/CityContext";
+import { FleetBranchOrders } from "@/fleet/components/FleetBranchOrders";
 import { 
   Users, 
   Truck, 
@@ -266,6 +266,9 @@ export default function FleetDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Branch Orders Section */}
+      <FleetBranchOrders />
 
       {/* Add Driver CTA */}
       <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">

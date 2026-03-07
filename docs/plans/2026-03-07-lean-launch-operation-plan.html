@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio Lean Launch Operation Plan - Q2 2026</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1a1a1a;
+            --color-secondary: #4a4a4a;
+            --color-accent: #c9a227;
+            --color-accent-light: #e8d48a;
+            --color-bg: #f8f7f4;
+            --color-surface: #ffffff;
+            --color-border: #e5e5e5;
+            --color-muted: #8a8a8a;
+            --color-success: #2e7d32;
+            --color-warning: #ed6c02;
+            --color-danger: #d32f2f;
+            --color-info: #0288d1;
+            
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Source Sans 3', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --spacing-3xl: 64px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 15mm; }
+        body { font-family: var(--font-body); font-size: 10pt; line-height: 1.7; color: var(--color-primary); background: var(--color-bg); }
+        .page { width: 210mm; min-height: 297mm; background: var(--color-surface); margin: 0 auto 20px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .page:last-child { margin-bottom: 0; }
+        .page-break { page-break-after: always; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: var(--spacing-xl); border-bottom: 3px solid var(--color-primary); margin-bottom: var(--spacing-2xl); }
+        .header-left h1 { font-family: var(--font-display); font-size: 24pt; font-weight: 700; color: var(--color-primary); margin-bottom: var(--spacing-xs); }
+        .header-left .subtitle { font-size: 10pt; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 0.02em; }
+        .header-right { text-align: right; }
+        .logo { font-family: var(--font-display); font-size: 20pt; font-weight: 700; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .date { font-size: 9pt; color: var(--color-muted); font-family: var(--font-mono); }
+
+        .section { margin-bottom: var(--spacing-2xl); break-inside: avoid; }
+        .section-title { font-family: var(--font-display); font-size: 13pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-lg); display: flex; align-items: center; gap: var(--spacing-md); }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+        .section-number { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); font-weight: 600; background: var(--color-accent-light); padding: 2px 8px; border-radius: 2px; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-xl); }
+        .metrics-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-xl); }
+        .metric-card { background: var(--color-bg); padding: var(--spacing-lg); border-left: 3px solid var(--color-accent); }
+        .metric-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-muted); margin-bottom: var(--spacing-xs); }
+        .metric-value { font-family: var(--font-display); font-size: 20pt; font-weight: 600; color: var(--color-primary); }
+        .metric-sub { font-size: 8pt; color: var(--color-secondary); margin-top: var(--spacing-xs); }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); }
+        .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg); }
+        .four-col { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); }
+
+        .content-block { margin-bottom: var(--spacing-lg); }
+        .content-block h3 { font-family: var(--font-display); font-size: 11pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-xs); }
+        .content-block p { font-size: 9.5pt; color: var(--color-secondary); margin-bottom: var(--spacing-sm); }
+        ul { list-style: none; padding: 0; }
+        ul li { position: relative; padding-left: var(--spacing-lg); margin-bottom: var(--spacing-sm); font-size: 9.5pt; color: var(--color-secondary); }
+        ul li::before { content: '→'; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: var(--spacing-lg); font-size: 9pt; }
+        th { text-align: left; padding: var(--spacing-sm) var(--spacing-md); background: var(--color-primary); color: var(--color-surface); font-weight: 500; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; }
+        th:first-child { border-radius: 4px 0 0 0; }
+        th:last-child { border-radius: 0 4px 0 0; }
+        td { padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); color: var(--color-secondary); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) { background: var(--color-bg); }
+        .highlight-row { background: #e8f5e9 !important; }
+        .danger-row { background: #ffebee !important; }
+
+        .tag { display: inline-block; padding: 2px 6px; font-size: 7pt; font-weight: 500; text-transform: uppercase; border-radius: 2px; }
+        .tag-success { background: #e8f5e9; color: #2e7d32; }
+        .tag-warning { background: #fff3e0; color: #e65100; }
+        .tag-danger { background: #ffebee; color: #c62828; }
+        .tag-info { background: #e3f2fd; color: #1565c0; }
+
+        .timeline { position: relative; padding-left: var(--spacing-xl); }
+        .timeline::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 1px; background: var(--color-border); }
+        .timeline-item { position: relative; margin-bottom: var(--spacing-lg); }
+        .timeline-item::before { content: ''; position: absolute; left: -20px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); border: 2px solid var(--color-surface); }
+        .timeline-item h4 { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .timeline-item p { font-size: 9pt; color: var(--color-secondary); }
+
+        .checklist { background: var(--color-bg); padding: var(--spacing-lg); border-radius: 4px; border: 1px solid var(--color-border); }
+        .checklist h3 { font-family: var(--font-display); font-size: 10pt; font-weight: 600; margin-bottom: var(--spacing-md); }
+        .checklist-item { display: flex; align-items: flex-start; gap: var(--spacing-md); margin-bottom: var(--spacing-sm); font-size: 9pt; color: var(--color-secondary); }
+        .checkbox { width: 14px; height: 14px; border: 1px solid var(--color-border); border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+
+        .quote { border-left: 3px solid var(--color-accent); padding-left: var(--spacing-lg); margin: var(--spacing-lg) 0; background: var(--color-bg); padding: var(--spacing-md) var(--spacing-lg); }
+        .quote p { font-family: var(--font-display); font-size: 10pt; font-style: italic; color: var(--color-primary); line-height: 1.6; }
+        .quote cite { display: block; margin-top: var(--spacing-sm); font-size: 8pt; color: var(--color-muted); font-style: normal; }
+
+        .alert { padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-lg); border-left: 4px solid; }
+        .alert-warning { background: #fff8e1; border-color: var(--color-warning); }
+        .alert-success { background: #e8f5e9; border-color: var(--color-success); }
+        .alert-info { background: #e3f2fd; border-color: var(--color-info); }
+
+        .highlight-box { background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: var(--spacing-lg); border-radius: 8px; margin: var(--spacing-lg) 0; border: 1px solid var(--color-accent); }
+        .highlight-box h3 { font-family: var(--font-display); font-size: 11pt; margin-bottom: var(--spacing-sm); }
+
+        .success-box { background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: var(--spacing-lg); border-radius: 8px; margin: var(--spacing-lg) 0; border-left: 4px solid var(--color-success); }
+
+        .formula { font-family: var(--font-mono); font-size: 10pt; background: var(--color-primary); color: white; padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0; text-align: center; }
+
+        .risk-item { display: flex; gap: var(--spacing-md); margin-bottom: var(--spacing-md); padding: var(--spacing-sm); background: var(--color-bg); border-radius: 4px; }
+        .risk-level { width: 60px; text-align: center; padding: var(--spacing-xs); border-radius: 2px; font-size: 7pt; font-weight: 600; text-transform: uppercase; height: fit-content; }
+        .risk-high { background: #ffcdd2; color: #c62828; }
+        .risk-medium { background: #ffe0b2; color: #e65100; }
+        .risk-low { background: #c8e6c9; color: #2e7d32; }
+        .risk-content h4 { font-size: 9pt; font-weight: 600; margin-bottom: 2px; }
+        .risk-content p { font-size: 8pt; margin: 0; }
+
+        .footer { margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; }
+        .footer-left { font-size: 8pt; color: var(--color-muted); }
+        .footer-right { font-family: var(--font-mono); font-size: 8pt; color: var(--color-muted); }
+
+        @media print { body { background: white; } .page { box-shadow: none; margin: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- PAGE 1: Cover & Executive Summary -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">90-Day Roadmap to Launch & Scale</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">01</span> 90-Day Targets</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Subscribers</div>
+                    <div class="metric-value">100</div>
+                    <div class="metric-sub">Active subscribers</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Restaurants</div>
+                    <div class="metric-value">50</div>
+                    <div class="metric-sub">Active partners</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Orders/Day</div>
+                    <div class="metric-value">150+</div>
+                    <div class="metric-sub">Meals delivered</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Timeline</div>
+                    <div class="metric-value">90</div>
+                    <div class="metric-sub">Days to launch</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">02</span> Business Model Overview</h2>
+            <div class="four-col mb-lg">
+                <div class="metric-card">
+                    <div class="metric-label">Elite Plan</div>
+                    <div class="metric-value">3,800</div>
+                    <div class="metric-sub">QAR · 60 meals + 40 snacks</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Healthy Balance</div>
+                    <div class="metric-value">2,800</div>
+                    <div class="metric-sub">QAR · 40 meals + 40 snacks</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Fresh Start</div>
+                    <div class="metric-value">1,800</div>
+                    <div class="metric-sub">QAR · 20 meals + 40 snacks</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Weekly Boost</div>
+                    <div class="metric-value">450</div>
+                    <div class="metric-sub">QAR · 5 meals + 10 snacks</div>
+                </div>
+            </div>
+            <div class="highlight-box">
+                <h3>💰 Revenue Streams</h3>
+                <ul style="margin-top: var(--spacing-sm);">
+                    <li><strong>1. Subscription Revenue:</strong> Upfront payment for meal packages (QAR 1,800-3,800)</li>
+                    <li><strong>2. Commission (18%):</strong> On each meal ordered from restaurants</li>
+                    <li><strong>3. Unused Meals = Profit:</strong> Unclaimed meals = pure profit (already paid!)</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">03</span> Why This Model Wins</h2>
+            <div class="two-col">
+                <div class="success-box">
+                    <h3>📊 Example: Partial Usage = MORE Profit</h3>
+                    <table>
+                        <tr><td><strong>Full Usage (60 meals)</strong></td><td></td></tr>
+                        <tr><td>Subscription</td><td>3,800 QAR</td></tr>
+                        <tr><td>Commission (60 × 50 × 18%)</td><td>540 QAR</td></tr>
+                        <tr><td>Unused Meals</td><td>0 QAR</td></tr>
+                        <tr><td><strong>Total</strong></td><td><strong>4,340 QAR</strong></td></tr>
+                    </table>
+                </div>
+                <div class="success-box">
+                    <h3>📊 Example: Partial Usage (45 meals)</h3>
+                    <table>
+                        <tr><td><strong>Partial Usage (45 meals)</strong></td><td></td></tr>
+                        <tr><td>Subscription</td><td>3,800 QAR</td></tr>
+                        <tr><td>Commission (45 × 50 × 18%)</td><td>405 QAR</td></tr>
+                        <tr><td>Unused Meals (15 × 50)</td><td>750 QAR</td></tr>
+                        <tr><td><strong>Total</strong></td><td><strong>5,955 QAR</strong></td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="alert alert-success" style="margin-top: var(--spacing-md);">
+                <p><strong>Key Insight:</strong> Partial usage generates 37% MORE revenue! You win either way.</p>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 1 of 8</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 2: Company Vision & Team -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Team Strategy & Hiring</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">04</span> Vision & Mission</h2>
+            <div class="two-col">
+                <div class="content-block">
+                    <h3>Vision</h3>
+                    <p>To become Qatar's leading subscription-based healthy meal platform, transforming how people eat by combining personalized meal delivery with data-driven nutrition.</p>
+                </div>
+                <div class="content-block">
+                    <h3>Mission</h3>
+                    <p>Deliver healthy, personalized meals to Qatar's health-conscious consumers through an innovative subscription model while creating sustainable growth for restaurant partners.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">05</span> Team Strategy</h2>
+            <div class="content-block">
+                <h3>Philosophy: "You Build, Others Sell"</h3>
+                <p>As technical founder, focus on product. Hire help for everything outside code. This minimizes burn while maximizing velocity.</p>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Role</th><th>When to Hire</th><th>Priority</th><th>Type</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>Sales / Partnerships</strong></td><td>Week 1-2</td><td><span class="tag tag-danger">Critical</span></td><td>Full-time</td></tr>
+                    <tr><td><strong>Customer Support</strong></td><td>30+ subscribers</td><td><span class="tag tag-warning">High</span></td><td>Part-time</td></tr>
+                    <tr><td><strong>Marketing / Growth</strong></td><td>Product-market fit</td><td><span class="tag tag-info">Medium</span></td><td>Contractor</td></tr>
+                    <tr><td><strong>Operations Lead</strong></td><td>Orders flowing</td><td><span class="tag tag-info">Medium</span></td><td>Full-time</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">06</span> Your Time Allocation</h2>
+            <table>
+                <thead>
+                    <tr><th>Activity</th><th>Hours/Week</th><th>Priority</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Product development & bug fixes</td><td>20-25</td><td><span class="tag tag-danger">Critical</span></td></tr>
+                    <tr><td>Sales/Partnership oversight</td><td>5-10</td><td><span class="tag tag-danger">Critical</span></td></tr>
+                    <tr><td>Customer support (early stage)</td><td>5-10</td><td><span class="tag tag-warning">High</span></td></tr>
+                    <tr><td>Strategic planning</td><td>3-5</td><td><span class="tag tag-info">Medium</span></td></tr>
+                    <tr><td>Admin & meetings</td><td>3-5</td><td><span class="tag tag-success">Low</span></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">07</span> First Hire: Sales & Partnerships</h2>
+            <div class="two-col">
+                <div class="content-block">
+                    <h3>Job Description</h3>
+                    <ul>
+                        <li>Primary: Restaurant acquisition</li>
+                        <li>Target: 5-10 restaurants/month</li>
+                        <li>Location: Doha, Qatar</li>
+                        <li>Comp: Base + Commission</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Compensation</h3>
+                    <ul>
+                        <li>Option A: QAR 3,000-5,000/month + commission</li>
+                        <li>Option B: QAR 200-500 per restaurant onboarded</li>
+                        <li>Start with contractor, convert if successful</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 2 of 8</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 3: Restaurant Acquisition -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Restaurant Acquisition</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">08</span> Restaurant Acquisition Strategy</h2>
+            <div class="two-col">
+                <div>
+                    <div class="content-block">
+                        <h3>Target Restaurant Types</h3>
+                        <ul>
+                            <li><strong>Health-focused:</strong> Salad bars, juice shops, healthy cuisine</li>
+                            <li><strong>New restaurants:</strong> Still building clientele</li>
+                            <li><strong>Delivery-native:</strong> Already focused on delivery</li>
+                            <li><strong>High-margin:</strong> Can afford lower commission</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <table>
+                        <thead>
+                            <tr><th>Nutrio Offers</th><th>Competitors</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>18% commission</td><td>20-30% commission</td></tr>
+                            <tr><td>Net-7 payment</td><td>Net-30-60 payment</td></tr>
+                            <tr><td>Marketing exposure</td><td>Minimal support</td></tr>
+                            <tr><td>Health-conscious audience</td><td>General audience</td></tr>
+                            <tr><td>0% first 3 months</td><td>No incentive</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">09</span> Outreach Playbook</h2>
+            <div class="three-col">
+                <div class="checklist">
+                    <h3>Week 1-2</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>List 30 potential restaurants</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Reach out to 5 via network</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Create one-pager PDF</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Build landing page form</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Hire sales person</span></div>
+                </div>
+                <div class="checklist">
+                    <h3>Week 3-4</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Onboard first 5 restaurants</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Get anchor restaurant</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Set up POS/integration</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Create menu templates</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Train restaurant staff</span></div>
+                </div>
+                <div class="checklist">
+                    <h3>Week 5-12</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>10-15 restaurants (M1)</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>25 restaurants (M2)</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>50 restaurants (M3)</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Establish referral program</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Collect feedback loop</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">10</span> Restaurant Success Metrics</h2>
+            <table>
+                <thead>
+                    <tr><th>Metric</th><th>Definition</th><th>Target</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Onboarding Rate</td><td>Conversions from outreach to active</td><td>> 30%</td></tr>
+                    <tr><td>Menu Completion</td><td>Restaurants with full menus live</td><td>> 80%</td></tr>
+                    <tr><td>Order Volume</td><td>Average orders per restaurant/week</td><td>> 20</td></tr>
+                    <tr><td>Retention Rate</td><td>Restaurants staying after 90 days</td><td>> 85%</td></tr>
+                    <tr><td>Partner NPS</td><td>Restaurant satisfaction score</td><td>> 50</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 3 of 8</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 4: Customer Acquisition -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Customer Acquisition</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">11</span> Customer Acquisition Strategy</h2>
+            <div class="three-col">
+                <div class="content-block">
+                    <h3>Channel 1: Restaurant Referrals</h3>
+                    <ul>
+                        <li>Ask restaurants to promote to existing customers</li>
+                        <li>Revenue share: 5% on referred orders</li>
+                        <li>Provide marketing materials</li>
+                        <li>Incentivize with free credits</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Channel 2: Community</h3>
+                    <ul>
+                        <li>Join Qatar health/fitness Facebook groups</li>
+                        <li>Participate in WhatsApp communities</li>
+                        <li>Attend fitness events</li>
+                        <li>Offer free trials to admins</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Channel 3: Referral Program</h3>
+                    <ul>
+                        <li>"Refer a friend, get free week"</li>
+                        <li>Track via unique codes</li>
+                        <li>Tiered rewards</li>
+                        <li>In-app tracking</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">12</span> Corporate Wellness (B2B)</h2>
+            <div class="two-col">
+                <div class="content-block">
+                    <h3>Why Corporate?</h3>
+                    <ul>
+                        <li>One corporate = many users</li>
+                        <li>Qatar employers subsidize meals</li>
+                        <li>Stable, predictable revenue</li>
+                        <li>Less acquisition cost</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Corporate Offer</h3>
+                    <ul>
+                        <li><strong>Offer:</strong> Free pilot 1 month</li>
+                        <li><strong>Price:</strong> QAR 50-100/employee/month</li>
+                        <li><strong>Volume:</strong> 20% discount 50+ employees</li>
+                        <li><strong>Support:</strong> Dedicated account manager</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">13</span> First 30 Days</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h4>Week 1-2: Foundation</h4>
+                    <p>Network outreach + activate restaurant referrals + set up referral program + create content</p>
+                </div>
+                <div class="timeline-item">
+                    <h4>Week 3-4: Launch</h4>
+                    <p>Launch referral program + community engagement + reach out to 3-5 companies for pilot</p>
+                </div>
+                <div class="timeline-item">
+                    <h4>Day 30: Evaluate</h4>
+                    <p>Analyze channels, calculate CAC, double down on what's working</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">14</span> Customer Success Metrics</h2>
+            <table>
+                <thead>
+                    <tr><th>Metric</th><th>Target M1</th><th>Target M2</th><th>Target M3</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Total Subscribers</td><td>20</td><td>50</td><td>100</td></tr>
+                    <tr><td>CAC</td><td>< QAR 150</td><td>< QAR 120</td><td>< QAR 100</td></tr>
+                    <tr><td>Retention</td><td>> 60%</td><td>> 65%</td><td>> 70%</td></tr>
+                    <tr><td>NPS</td><td>40+</td><td>50+</td><td>60+</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 4 of 8</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 5: Unit Economics & Financial -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Unit Economics & Financial</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">15</span> Unit Economics</h2>
+            <div class="two-col">
+                <div>
+                    <table>
+                        <thead><tr><th>Revenue/Subscriber</th><th>Amount</th></tr></thead>
+                        <tbody>
+                            <tr><td>Avg Subscription</td><td>QAR 2,800</td></tr>
+                            <tr><td>Commission (18% × 48 meals)</td><td>QAR 432</td></tr>
+                            <tr><td>Unused Meals (25%)</td><td>QAR 600</td></tr>
+                            <tr class="highlight-row"><td><strong>Total</strong></td><td><strong>QAR 3,832</strong></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <table>
+                        <thead><tr><th>Costs</th><th>Amount</th></tr></thead>
+                        <tbody>
+                            <tr><td>Restaurant Payout (82%)</td><td>QAR 1,640</td></tr>
+                            <tr><td>CAC</td><td>QAR 150</td></tr>
+                            <tr><td>Support/Operations</td><td>QAR 200</td></tr>
+                            <tr class="highlight-row"><td><strong>Total Cost</strong></td><td><strong>QAR 1,990</strong></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">16</span> LTV:CAC Analysis</h2>
+            <div class="formula">LTV = QAR 8,400 · CAC = QAR 150 · Ratio = <strong>56:1</strong></div>
+            <div class="alert alert-success">
+                <p><strong>Exceptional Unit Economics!</strong> Industry benchmark is 3:1. Our 56:1 ratio means every QAR spent on acquisition returns QAR 56.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">17</span> Financial Projections</h2>
+            <table>
+                <thead>
+                    <tr><th>Metric</th><th>Month 1</th><th>Month 2</th><th>Month 3</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Subscribers</td><td>20</td><td>50</td><td>100</td></tr>
+                    <tr><td>Restaurants</td><td>10</td><td>25</td><td>50</td></tr>
+                    <tr><td>Revenue</td><td>QAR 56K</td><td>QAR 140K</td><td>QAR 280K</td></tr>
+                    <tr><td>Profit</td><td>QAR 20K</td><td>QAR 50K</td><td>QAR 100K</td></tr>
+                    <tr class="highlight-row"><td>Status</td><td>Launch</td><td>Growing</td><td>Profitable</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">18</span> Monthly Expenses</h2>
+            <div class="two-col">
+                <div>
+                    <table>
+                        <thead><tr><th>Fixed Costs</th><th>QAR/Month</th></tr></thead>
+                        <tbody>
+                            <tr><td>App hosting</td><td>600</td></tr>
+                            <tr><td>Sales (1 person)</td><td>4,000</td></tr>
+                            <tr><td>Marketing</td><td>500</td></tr>
+                            <tr><td>Tools & Misc</td><td>200</td></tr>
+                            <tr class="highlight-row"><td><strong>Total</strong></td><td><strong>5,300</strong></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <table>
+                        <thead><tr><th>Variable</th><th>Cost</th></tr></thead>
+                        <tbody>
+                            <tr><td>Restaurant payout</td><td>82%/meal</td></tr>
+                            <tr><td>Driver cost</td><td>QAR 10/meal</td></tr>
+                            <tr><td>Payment processing</td><td>2%</td></tr>
+                            <tr><td>CAC</td><td>QAR 150/customer</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 5 of 8</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 6: Operations -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Operations & Delivery</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">19</span> Operations Overview</h2>
+            <div class="content-block">
+                <p><strong>Your Advantage:</strong> Fleet already in place. Drivers hired. This solves the hardest part of food delivery.</p>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Phase</th><th>Orders/Day</th><th>Drivers</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Week 1-4</td><td>< 30</td><td>3-5</td><td>Build foundation</td></tr>
+                    <tr><td>Week 5-8</td><td>30-60</td><td>5-8</td><td>Scale up</td></tr>
+                    <tr><td>Week 9-12</td><td>60-150+</td><td>10-15</td><td>Full operation</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">20</span> Customer Support Playbook</h2>
+            <div class="two-col">
+                <div class="content-block">
+                    <h3>Support Scaling</h3>
+                    <ul>
+                        <li><strong>Weeks 1-4:</strong> You handle personally</li>
+                        <li><strong>Weeks 5-8:</strong> Hire part-time (20 hrs)</li>
+                        <li><strong>Weeks 9-12:</strong> Scale as volume grows</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Principles</h3>
+                    <ul>
+                        <li>Respond fast — speed matters</li>
+                        <li>Set clear expectations</li>
+                        <li>Solve generously — refunds earn loyalty</li>
+                        <li>Document issues for product team</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">21</span> Support SLAs</h2>
+            <table>
+                <thead>
+                    <tr><th>Issue Type</th><th>SLA</th><th>Escalation</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Order not received</td><td>15 min</td><td>30 min</td></tr>
+                    <tr><td>Wrong item</td><td>30 min</td><td>1 hour</td></tr>
+                    <tr><td>Refund request</td><td>1 hour</td><td>24 hours</td></tr>
+                    <tr><td>Technical issue</td><td>24 hours</td><td>48 hours</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">22</span> Tools & Systems</h2>
+            <div class="three-col">
+                <div class="content-block">
+                    <h3>Operations</h3>
+                    <ul>
+                        <li>Supabase (DB)</li>
+                        <li>Vercel (hosting)</li>
+                        <li>Capacitor (mobile)</li>
+                        <li>Driver tracking</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Communication</h3>
+                    <ul>
+                        <li>WhatsApp Business</li>
+                        <li>Email (Resend)</li>
+                        <li>In-app notifications</li>
+                        <li>Push notifications</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Analytics</h3>
+                    <ul>
+                        <li>PostHog (analytics)</li>
+                        <li>Sentry (errors)</li>
+                        <li>Supabase dashboard</li>
+                        <li>Spreadsheet tracking</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 6 of 8</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 7: Risks & Timeline -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Risk & Timeline</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">23</span> Risk Management</h2>
+            <div class="risk-item">
+                <div class="risk-level risk-high">High</div>
+                <div class="risk-content">
+                    <h4>Chicken-and-Egg Problem</h4>
+                    <p>Mitigation: Offer 0% commission for first 3 months to early restaurants.</p>
+                </div>
+            </div>
+            <div class="risk-item">
+                <div class="risk-level risk-high">High</div>
+                <div class="risk-content">
+                    <h4>Solo Founder Burnout</h4>
+                    <p>Mitigation: Hire sales support by week 2, prioritize ruthlessly.</p>
+                </div>
+            </div>
+            <div class="risk-item">
+                <div class="risk-level risk-medium">Medium</div>
+                <div class="risk-content">
+                    <h4>Slow Restaurant Onboarding</h4>
+                    <p>Mitigation: Build strong pipeline (3x target), offer incentives.</p>
+                </div>
+            </div>
+            <div class="risk-item">
+                <div class="risk-level risk-medium">Medium</div>
+                <div class="risk-content">
+                    <h4>Low Retention</h4>
+                    <p>Mitigation: Focus on quality, get feedback early, iterate.</p>
+                </div>
+            </div>
+            <div class="risk-item">
+                <div class="risk-level risk-low">Low</div>
+                <div class="risk-content">
+                    <h4>Technical Issues</h4>
+                    <p>Mitigation: Sentry error tracking, fast response, transparent with users.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">24</span> Week-by-Week Timeline</h2>
+            <table>
+                <thead>
+                    <tr><th>Week</th><th>Focus</th><th>Key Deliverables</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Hire sales</td><td>Job post, interviews, offer</td></tr>
+                    <tr><td>2</td><td>Pipeline</td><td>30 restaurants, 5 contacted</td></tr>
+                    <tr><td>3</td><td>First restaurants</td><td>3-5 onboarded, menus ready</td></tr>
+                    <tr><td>4</td><td>Customer launch</td><td>App live, first customers</td></tr>
+                    <tr><td>5-6</td><td>Scale</td><td>10 subs, 15 restaurants</td></tr>
+                    <tr><td>7-8</td><td>Optimize</td><td>30 subs, 25 restaurants</td></tr>
+                    <tr><td>9-10</td><td>Growth</td><td>50 subs, 40 restaurants</td></tr>
+                    <tr><td>11-12</td><td>Final push</td><td>100 subs, 50 restaurants</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">25</span> Milestone Checkpoints</h2>
+            <div class="two-col">
+                <div class="checklist">
+                    <h3>Day 30 Checkpoint</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>20 restaurants onboarded</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>20 subscribers</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Working channel identified</span></div>
+                </div>
+                <div class="checklist">
+                    <h3>Day 60 Checkpoint</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>35 restaurants</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>50 subscribers</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Repeat orders >40%</span></div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 7 of 12</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 8: Success & Next Steps -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Success & Next Steps</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026 · March - June</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">26</span> Day 90: Go/No-Go Decision</h2>
+            <table>
+                <thead>
+                    <tr><th>Metric</th><th>Target</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Subscribers</td><td>100</td><td></td></tr>
+                    <tr><td>Restaurants</td><td>50</td><td></td></tr>
+                    <tr><td>Retention</td><td>> 60%</td><td></td></tr>
+                    <tr><td>Unit Economics</td><td>LTV > CAC</td><td></td></tr>
+                    <tr><td>Revenue</td><td>Profitable</td><td></td></tr>
+                </tbody>
+            </table>
+            <div class="alert alert-warning">
+                <p><strong>IF all YES:</strong> Scale — invest in more sales & marketing.<br>
+                <strong>IF any NO:</strong> Fix before scaling.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">27</span> 24-Month Growth Trajectory</h2>
+            <table>
+                <thead>
+                    <tr><th>Period</th><th>Subscribers</th><th>Revenue</th><th>Profit</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Month 3</td><td>100</td><td>QAR 280K</td><td>QAR 100K</td></tr>
+                    <tr><td>Month 6</td><td>250</td><td>QAR 700K</td><td>QAR 250K</td></tr>
+                    <tr><td>Month 12</td><td>600</td><td>QAR 1.68M</td><td>QAR 600K</td></tr>
+                    <tr><td>Month 24</td><td>1,500</td><td>QAR 4.2M</td><td>QAR 1.5M</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">28</span> Immediate Next Steps</h2>
+            <div class="two-col">
+                <div class="checklist">
+                    <h3>This Week</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Post sales job listing</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Create 30-restaurant list</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Create restaurant one-pager</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Set up interest form</span></div>
+                </div>
+                <div class="checklist">
+                    <h3>This Month</h3>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Hire sales person</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Onboard 10 restaurants</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Test all user flows</span></div>
+                    <div class="checklist-item"><div class="checkbox"></div><span>Prepare soft launch</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="quote">
+                <p>"The only way to do great work is to love what you do."</p>
+                <cite>— Steve Jobs</cite>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 8 of 12</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 9: How the Model Works - Step by Step -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">How the Model Works - Step by Step</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">29</span> Step 1: Partnership with Restaurants</h2>
+            <div class="content-block">
+                <h3>Restaurant Onboarding Process</h3>
+                <ul>
+                    <li>Approach health-focused restaurants in Qatar</li>
+                    <li>Each restaurant sets their base meal price (e.g., 50 QAR)</li>
+                    <li>Agree on fixed discount: <strong>18% commission</strong> per meal</li>
+                    <li>Restaurant receives <strong>82%</strong> of meal price (e.g., 41 QAR)</li>
+                    <li>Fast payment: Net-7 days (vs competitors' 30-60 days)</li>
+                    <li>0% commission for first 3 months (incentive for early partners)</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">30</span> Step 2: Sell Subscription to Users</h2>
+            <div class="content-block">
+                <h3>User Subscription Flow</h3>
+                <ul>
+                    <li>User chooses a monthly package (Elite, Healthy, Fresh, or Weekly)</li>
+                    <li><strong>Full payment upfront</strong> at time of purchase</li>
+                    <li>Example: 3,800 QAR for 60 meals + 40 snacks</li>
+                    <li>Cash collected before service delivered (no collection risk)</li>
+                    <li>Subscription activates immediately</li>
+                </ul>
+            </div>
+            <table>
+                <thead><tr><th>Plan</th><th>Meals</th><th>Snacks</th><th>Price</th></tr></thead>
+                <tbody>
+                    <tr><td>Elite (نخبة)</td><td>60</td><td>40</td><td>3,800 QAR</td></tr>
+                    <tr><td>Healthy Balance (توازن)</td><td>40</td><td>40</td><td>2,800 QAR</td></tr>
+                    <tr><td>Fresh Start (بداية)</td><td>20</td><td>40</td><td>1,800 QAR</td></tr>
+                    <tr><td>Weekly Boost</td><td>5</td><td>10</td><td>450 QAR</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">31</span> Step 3: User Daily Orders</h2>
+            <div class="content-block">
+                <h3>How Orders Work</h3>
+                <ul>
+                    <li>User opens app and browses healthy restaurants on platform</li>
+                    <li>User selects meal from available options</li>
+                    <li>Order is placed and counted against their subscription balance</li>
+                    <li><strong>Nutrio pays restaurant 82%</strong> of meal price (e.g., 41 QAR)</li>
+                    <li><strong>Nutrio keeps 18% commission</strong> (e.g., 9 QAR per meal)</li>
+                </ul>
+            </div>
+            <div class="alert alert-info">
+                <p><strong>Meal Price:</strong> ~50 QAR average · <strong>Snack Price:</strong> ~20 QAR average</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">32</span> Step 4: Unused Meals = Profit</h2>
+            <div class="content-block">
+                <h3>The Genius of This Model</h3>
+                <ul>
+                    <li>User pays upfront for all meals regardless of usage</li>
+                    <li>Any meals <strong>not ordered</strong> = pure profit for Nutrio</li>
+                    <li>No refund for unused meals (unless exceptional circumstances)</li>
+                    <li>This creates a <strong>win-win</strong> regardless of usage level</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">33</span> Step 5: Delivery Mechanism</h2>
+            
+            <div class="content-block">
+                <h3>Delivery Operations Overview</h3>
+                <p>Nutrio has an existing fleet and drivers already in place — this is a significant competitive advantage that solves the hardest part of food delivery. The delivery process is fully integrated with the app and driver portal.</p>
+            </div>
+
+            <!-- NEW: Automatic Branch & Distance-Based Selection -->
+            <div class="content-block">
+                <h3>Automatic Branch & Distance-Based Selection</h3>
+                <p><strong>Smart Delivery Routing:</strong> Nutrio uses an intelligent system that automatically selects the nearest restaurant branch for each order to optimize delivery efficiency and costs.</p>
+                
+                <div class="highlight-box">
+                    <h3>How It Works</h3>
+                    <ol style="margin-top: var(--spacing-sm);">
+                        <li><strong>Restaurant Branch Data:</strong> Each restaurant in the app has all branch locations registered with precise GPS coordinates</li>
+                        <li><strong>Distance Calculation:</strong> When customer selects a meal, the app calculates distance between customer location and each restaurant branch</li>
+                        <li><strong>Auto-Selection:</strong> System automatically selects the nearest branch for delivery</li>
+                        <li><strong>Multi-Restaurant Orders:</strong> If ordering from 2+ restaurants on the same day, system picks nearest branch for each, then combines orders into one driver route with optimal sequence</li>
+                    </ol>
+                </div>
+
+                <div class="success-box">
+                    <h3>Benefits</h3>
+                    <ul>
+                        <li><strong>Reduced Travel Time:</strong> Each driver travels shorter distances</li>
+                        <li><strong>Lower Costs:</strong> Reduced fuel and delivery costs</li>
+                        <li><strong>Cost Cap:</strong> Ensures delivery cost doesn't exceed limit (250–300 QAR)</li>
+                        <li><strong>Efficiency:</strong> Multiple orders from different restaurants consolidated into single delivery route</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Delivery Process Image -->
+            <div class="content-block">
+                <h3>Delivery Process Diagram</h3>
+                <div style="text-align: center; padding: 20px; background: var(--color-bg); border-radius: 8px; margin: 16px 0;">
+                    <img src="ChatGPT Image Mar 7, 2026, 08_28_49 PM.png" alt="Nutrio Delivery Process Flow" style="max-width: 100%; height: auto; border-radius: 4px;">
+                    <p style="font-size: 8pt; color: var(--color-muted); margin-top: 8px;">Figure: End-to-End Delivery Process Flow</p>
+                </div>
+            </div>
+
+            <div class="content-block">
+                <h3>Delivery Process Flow</h3>
+                <ul>
+                    <li><strong>Order Confirmed:</strong> Restaurant receives order notification via partner app</li>
+                    <li><strong>Smart Branch Selection:</strong> System auto-selects nearest restaurant branch based on customer location</li>
+                    <li><strong>Preparation (15-25 min):</strong> Restaurant prepares the meal</li>
+                    <li><strong>Ready for Pickup:</strong> Restaurant marks order ready, system dispatches driver</li>
+                    <li><strong>Driver Assigned:</strong> Nearest available driver receives pickup request</li>
+                    <li><strong>Route Optimization:</strong> If multiple orders, system creates optimal delivery route</li>
+                    <li><strong>Pickup:</strong> Driver arrives at restaurant, confirms pickup in app</li>
+                    <li><strong>In Transit:</strong> Real-time tracking begins, user sees driver location</li>
+                    <li><strong>Delivered:</strong> Driver arrives, confirms delivery (with photo proof optional)</li>
+                    <li><strong>Order Complete:</strong> Customer notified, meal deducted from balance</li>
+                </ul>
+            </div>
+
+            <div class="content-block">
+                <h3>Driver Management</h3>
+                <table>
+                    <thead>
+                        <tr><th>Aspect</th><th>Details</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>Fleet Status</strong></td><td>Existing fleet in place — drivers already hired</td></tr>
+                        <tr><td><strong>Driver App</strong></td><td>Custom driver portal for order management</td></tr>
+                        <tr><td><strong>Payment</strong></td><td>Driver receives per-delivery fee (QAR 10/meal)</td></tr>
+                        <tr><td><strong>Tracking</strong></td><td>Real-time GPS tracking via driver app</td></tr>
+                        <tr><td><strong>Notifications</strong></td><td>Push notifications for new deliveries</td></tr>
+                        <tr><td><strong>Order Assignment</strong></td><td>Auto-assign to nearest available driver</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="content-block">
+                <h3>Delivery SLAs & Performance</h3>
+                <table>
+                    <thead>
+                        <tr><th>Metric</th><th>Target</th><th>Notes</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Pickup Time</td><td>≤ 10 min</td><td>From ready to driver pickup</td></tr>
+                        <tr><td>Delivery Time</td><td>≤ 30 min</td><td>From pickup to delivery</td></tr>
+                        <tr><td>Total Order Time</td><td>≤ 55 min</td><td>From order to delivered</td></tr>
+                        <tr><td>On-Time Rate</td><td>> 90%</td><td>Orders delivered within SLA</td></tr>
+                        <tr><td>Driver Acceptance</td><td>> 95%</td><td>Auto-assign acceptance rate</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="content-block">
+                <h3>Customer Delivery Experience</h3>
+                <ul>
+                    <li><strong>Real-Time Tracking:</strong> See driver location on map</li>
+                    <li><strong>ETA Updates:</strong> Live estimated arrival time</li>
+                    <li><strong>Driver Info:</strong> Name, photo, vehicle details</li>
+                    <li><strong>Contact Driver:</strong> In-app call/text capability</li>
+                    <li><strong>Delivery Notifications:</strong> SMS + push at each stage</li>
+                    <li><strong>Photo Proof:</strong> Optional delivery photo on request</li>
+                </ul>
+            </div>
+
+            <div class="content-block">
+                <h3>Delivery Cost Structure</h3>
+                <table>
+                    <thead>
+                        <tr><th>Cost Component</th><th>Amount</th><th>Notes</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Driver Fee</td><td>QAR 10/delivery</td><td>Per successful delivery</td></tr>
+                        <tr><td>Fuel/Mileage</td><td>Included</td><td>Driver responsibility</td></tr>
+                        <tr><td>Vehicle</td><td>Driver owned</td><td>No fleet costs</td></tr>
+                        <tr><td>Insurance</td><td>Driver responsibility</td><td>Commercial delivery</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="content-block">
+                <h3>Delivery Zones & Coverage</h3>
+                <ul>
+                    <li><strong>Initial Coverage:</strong> Doha metro area (primary focus)</li>
+                    <li><strong>Expansion:</strong> Lusail, Al Khor, Ras Laffan as demand grows</li>
+                    <li><strong>Zone Logic:</strong> Restaurant delivery radius settings</li>
+                    <li><strong>Minimum Orders:</strong> Free delivery on all subscription orders</li>
+                    <li><strong>External Orders:</strong> Delivery fees apply for non-subscription orders</li>
+                </ul>
+            </div>
+
+            <div class="alert alert-info">
+                <p><strong>Key Advantage:</strong> Since delivery is already set up with an existing fleet, Nutrio can launch immediately without the massive investment typically required for delivery infrastructure.</p>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 9 of 12</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 10: Detailed Examples -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Detailed Revenue Examples</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">34</span> Example 1: Full Usage (60 meals)</h2>
+            <table>
+                <thead><tr><th>Item</th><th>Calculation</th><th>Amount (QAR)</th></tr></thead>
+                <tbody>
+                    <tr><td colspan="3"><strong>REVENUE</strong></td></tr>
+                    <tr><td>Subscription Payment</td><td>Elite Plan</td><td>3,800</td></tr>
+                    <tr><td>Commission (60 × 50 × 18%)</td><td>60 meals × 50 QAR × 18%</td><td>540</td></tr>
+                    <tr><td>Unused Meals Profit</td><td>0 meals</td><td>0</td></tr>
+                    <tr style="background: var(--color-bg);"><td><strong>TOTAL REVENUE</strong></td><td></td><td><strong>4,340</strong></td></tr>
+                    <tr><td colspan="3"><strong>COSTS</strong></td></tr>
+                    <tr><td>Restaurant Payout (82%)</td><td>60 × 50 × 82%</td><td>(2,460)</td></tr>
+                    <tr><td>Delivery Costs (est)</td><td>60 × 10</td><td>(600)</td></tr>
+                    <tr><td>Payment Processing (2%)</td><td>3,800 × 2%</td><td>(76)</td></tr>
+                    <tr style="background: var(--color-bg);"><td><strong>NET PROFIT</strong></td><td></td><td><strong>1,204</strong></td></tr>
+                    <tr><td><strong>Profit Margin</strong></td><td></td><td><strong>28%</strong></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">35</span> Example 2: Partial Usage (45 meals)</h2>
+            <table>
+                <thead><tr><th>Item</th><th>Calculation</th><th>Amount (QAR)</th></tr></thead>
+                <tbody>
+                    <tr><td colspan="3"><strong>REVENUE</strong></td></tr>
+                    <tr><td>Subscription Payment</td><td>Elite Plan</td><td>3,800</td></tr>
+                    <tr><td>Commission (45 × 50 × 18%)</td><td>45 meals × 50 QAR × 18%</td><td>405</td></tr>
+                    <tr><td>Unused Meals Profit (15 × 50)</td><td>15 unused meals × 50 QAR</td><td>750</td></tr>
+                    <tr style="background: var(--color-bg);"><td><strong>TOTAL REVENUE</strong></td><td></td><td><strong>4,955</strong></td></tr>
+                    <tr><td colspan="3"><strong>COSTS</strong></td></tr>
+                    <tr><td>Restaurant Payout (82%)</td><td>45 × 50 × 82%</td><td>(1,845)</td></tr>
+                    <tr><td>Delivery Costs (est)</td><td>45 × 10</td><td>(450)</td></tr>
+                    <tr><td>Payment Processing (2%)</td><td>3,800 × 2%</td><td>(76)</td></tr>
+                    <tr style="background: var(--color-bg);"><td><strong>NET PROFIT</strong></td><td></td><td><strong>2,584</strong></td></tr>
+                    <tr><td><strong>Profit Margin</strong></td><td></td><td><strong>52%</strong></td></tr>
+                </tbody>
+            </table>
+            <div class="alert alert-success">
+                <p><strong>💡 Key Insight:</strong> Using only 45 meals (75%) generates <strong>115% MORE profit</strong> than full usage! This is the genius of the model.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">36</span> Example 3: Low Usage (30 meals)</h2>
+            <table>
+                <thead><tr><th>Item</th><th>Amount (QAR)</th></tr></thead>
+                <tbody>
+                    <tr><td>Subscription Payment</td><td>3,800</td></tr>
+                    <tr><td>Commission (30 × 50 × 18%)</td><td>270</td></tr>
+                    <tr><td>Unused Meals Profit (30 × 50)</td><td>1,500</td></tr>
+                    <tr style="background: var(--color-bg);"><td><strong>TOTAL REVENUE</strong></td><td><strong>5,570</strong></td></tr>
+                    <tr><td>Restaurant Payout</td><td>(1,230)</td></tr>
+                    <tr><td>Delivery Costs</td><td>(300)</td></tr>
+                    <tr><td>Payment Processing</td><td>(76)</td></tr>
+                    <tr style="background: var(--color-bg);"><td><strong>NET PROFIT</strong></td><td><strong>3,964</strong></td></tr>
+                    <tr><td><strong>Profit Margin</strong></td><td><strong>71%</strong></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 10 of 12</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 11: Revenue Flow Summary -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Revenue Flow Summary</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">37</span> Revenue Flow Diagram</h2>
+            <div class="content-block">
+                <h3>How Money Flows</h3>
+                <table>
+                    <thead><tr><th>Step</th><th>Who Pays/Receives</th><th>Amount</th></tr></thead>
+                    <tbody>
+                        <tr><td>1. User subscribes</td><td>User → Nutrio</td><td>3,800 QAR</td></tr>
+                        <tr><td>2. Meal ordered</td><td>Nutrio → Restaurant</td><td>41 QAR (82%)</td></tr>
+                        <tr><td>3. Commission kept</td><td>Nutrio keeps</td><td>9 QAR (18%)</td></tr>
+                        <tr><td>4. Unused meals</td><td>Nutrio profit</td><td>Up to 50 QAR/meal</td></tr>
+                        <tr><td>5. Delivery</td><td>Nutrio → Driver</td><td>~10 QAR/delivery</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">38</span> Profit by Usage Level</h2>
+            <table>
+                <thead><tr><th>Usage</th><th>Meals Used</th><th>Revenue</th><th>Costs</th><th>Profit</th><th>Margin</th></tr></thead>
+                <tbody>
+                    <tr><td>100%</td><td>60</td><td>4,340</td><td>(3,136)</td><td>1,204</td><td>28%</td></tr>
+                    <tr><td>75%</td><td>45</td><td>4,955</td><td>(2,371)</td><td>2,584</td><td>52%</td></tr>
+                    <tr><td>50%</td><td>30</td><td>5,570</td><td>(1,606)</td><td>3,964</td><td>71%</td></tr>
+                    <tr><td>25%</td><td>15</td><td>6,185</td><td>(841)</td><td>5,344</td><td>86%</td></tr>
+                </tbody>
+            </table>
+            <div class="alert alert-warning">
+                <p><strong>Lower usage = Higher profit!</strong> This model benefits from customers who don't use all their meals.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">39</span> Why This Model Reduces Risk</h2>
+            <div class="two-col">
+                <div class="success-box">
+                    <h3>Traditional Delivery Risk</h3>
+                    <ul>
+                        <li>Revenue only when orders placed</li>
+                        <li>High customer acquisition cost</li>
+                        <li>Dependent on repeat orders</li>
+                        <li>Cash flow unpredictable</li>
+                        <li>Competition on price</li>
+                    </ul>
+                </div>
+                <div class="success-box">
+                    <h3>Nutrio Model Advantage</h3>
+                    <ul>
+                        <li>Upfront payment = guaranteed revenue</li>
+                        <li>Low CAC (restaurant referrals)</li>
+                        <li>Unused meals = pure profit</li>
+                        <li>Predictable cash flow</li>
+                        <li>Subscription = recurring revenue</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">40</span> Key Success Factors</h2>
+            <ul>
+                <li><strong>1. Restaurant Quality:</strong> Must have diverse, healthy options</li>
+                <li><strong>2. User Retention:</strong> Keep subscribers renewing monthly</li>
+                <li><strong>3. Optimal Unused Rate:</strong> Target 20-30% unused meals for best margins</li>
+                <li><strong>4. Commission Collection:</strong> Ensure 100% commission captured</li>
+                <li><strong>5. Delivery Speed:</strong> Faster than competitors = more orders</li>
+            </ul>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 11 of 12</div>
+        </footer>
+    </div>
+
+    <!-- PAGE 12: Final Summary -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Lean Launch Operation Plan</h1>
+                <p class="subtitle">Summary & Quick Reference</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">Q2 2026</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">41</span> Quick Reference Card</h2>
+            <div class="two-col">
+                <div class="content-block">
+                    <h3>Pricing</h3>
+                    <ul>
+                        <li>Elite: 3,800 QAR (60 meals + 40 snacks)</li>
+                        <li>Healthy: 2,800 QAR (40 meals + 40 snacks)</li>
+                        <li>Fresh: 1,800 QAR (20 meals + 40 snacks)</li>
+                        <li>Weekly: 450 QAR (5 meals + 10 snacks)</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Economics</h3>
+                    <ul>
+                        <li>Restaurant commission: 18%</li>
+                        <li>Restaurant payout: 82%</li>
+                        <li>Avg meal price: 50 QAR</li>
+                        <li>Avg snack price: 20 QAR</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">42</span> The Model in One Sentence</h2>
+            <div class="highlight-box" style="text-align: center; padding: 32px;">
+                <p style="font-size: 14pt; font-weight: 600;">Nutrio sells monthly meal subscriptions upfront, keeps 18% commission on every order, and profits from unused meals — creating a business where every scenario generates revenue.</p>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">43</span> Summary: Why Nutrio Wins</h2>
+            <table>
+                <thead><tr><th>Factor</th><th>Nutrio</th><th>Competitors</th></tr></thead>
+                <tbody>
+                    <tr><td>Revenue Timing</td><td>Upfront</td><td>After delivery</td></tr>
+                    <tr><td>Commission</td><td>18%</td><td>20-30%</td></tr>
+                    <tr><td>Payment to Restaurants</td><td>7 days</td><td>30-60 days</td></tr>
+                    <tr><td>Unused = Profit</td><td>✓ Yes</td><td>✗ No</td></tr>
+                    <tr><td>Break-even</td><td>15 subs</td><td>100s of orders</td></tr>
+                    <tr><td>LTV:CAC</td><td>56:1</td><td>2-5:1</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <div class="quote">
+                <p>"This model combines guaranteed profit for every used meal with additional benefit from non-usage, reducing risk and increasing returns."</p>
+                <cite>— Nutrio Business Model</cite>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Lean Launch Operation Plan · Q2 2026</div>
+            <div class="footer-right">Page 12 of 12</div>
+        </footer>
+    </div>
+
+</body>
+</html>

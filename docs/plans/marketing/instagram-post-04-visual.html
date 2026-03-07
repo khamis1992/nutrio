@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1080">
+    <title>Instagram Post - Why Track Your Nutrition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 1080px;
+            height: 1080px;
+            font-family: 'Open Sans', sans-serif;
+            background: #FEFCF8;
+            position: relative;
+            overflow: hidden;
+        }
+        .teal-accent {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #0D7377 0%, #14919B 50%, #0D7377 100%);
+        }
+        .circles {
+            position: absolute;
+            opacity: 0.08;
+        }
+        .circle-1 {
+            width: 350px;
+            height: 350px;
+            background: #0D7377;
+            border-radius: 50%;
+            top: -100px;
+            left: -100px;
+        }
+        .circle-2 {
+            width: 250px;
+            height: 250px;
+            background: #0D7377;
+            border-radius: 50%;
+            bottom: -50px;
+            right: -50px;
+        }
+        .circle-3 {
+            width: 100px;
+            height: 100px;
+            background: #F4D03F;
+            border-radius: 50%;
+            top: 200px;
+            right: 100px;
+        }
+        .content {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px;
+            text-align: center;
+        }
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 52px;
+            color: #0D7377;
+            margin-bottom: 40px;
+            letter-spacing: -1px;
+        }
+        .points {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-bottom: 45px;
+        }
+        .point {
+            background: white;
+            border-radius: 20px;
+            padding: 22px 35px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 8px 25px rgba(13, 115, 119, 0.1);
+            text-align: left;
+            transition: transform 0.3s ease;
+        }
+        .point:hover {
+            transform: translateX(5px);
+        }
+        .point-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #0D7377 0%, #14919B 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 22px;
+            color: white;
+            flex-shrink: 0;
+        }
+        .point-text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 20px;
+            color: #333;
+            font-weight: 500;
+        }
+        .point-highlight {
+            color: #0D7377;
+            font-weight: 600;
+        }
+        .cta {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 24px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #0D7377 0%, #14919B 100%);
+            padding: 18px 45px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(13, 115, 119, 0.3);
+            transition: transform 0.3s ease;
+        }
+        .cta:hover {
+            transform: scale(1.02);
+        }
+        .cta-arrow {
+            transition: transform 0.3s ease;
+        }
+        .cta:hover .cta-arrow {
+            transform: translateX(5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="teal-accent"></div>
+    <div class="circles circle-1"></div>
+    <div class="circles circle-2"></div>
+    <div class="circles circle-3"></div>
+    
+    <div class="content">
+        <h1>Why Track Your Nutrition?</h1>
+        
+        <div class="points">
+            <div class="point">
+                <div class="point-number">1</div>
+                <div class="point-text">
+                    <span class="point-highlight">Food Awareness</span> — You see what you eat
+                </div>
+            </div>
+            
+            <div class="point">
+                <div class="point-number">2</div>
+                <div class="point-text">
+                    <span class="point-highlight">Goal Progress</span> — Hit your goals faster
+                </div>
+            </div>
+            
+            <div class="point">
+                <div class="point-number">3</div>
+                <div class="point-text">
+                    <span class="point-highlight">Build Healthy Habits</span> — Consistency creates change
+                </div>
+            </div>
+        </div>
+        
+        <div class="cta">
+            Track in the app <span class="cta-arrow">→</span>
+        </div>
+    </div>
+</body>
+</html>

@@ -102,7 +102,7 @@ const AdminIPManagement = lazy(() => import("./pages/admin/AdminIPManagement"));
 const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManagement"));
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
 const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
-const AdminIncome = lazy(() => import("./pages/admin/AdminIncome"));
+const AdminProfitDashboard = lazy(() => import("./pages/admin/AdminProfitDashboard"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -573,7 +573,15 @@ const App = () => (
               path="/admin/income" 
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <AdminIncome />
+                  <AdminProfitDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/profit" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminProfitDashboard />
                 </ProtectedRoute>
               } 
             />

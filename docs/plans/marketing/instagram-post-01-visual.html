@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1080">
+    <title>Instagram Post - Meet Nutrio Fuel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;500;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 1080px;
+            height: 1080px;
+            font-family: 'Open Sans', sans-serif;
+            background: #ffffff;
+            position: relative;
+            overflow: hidden;
+        }
+        .wave-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.08;
+        }
+        .wave-pattern svg {
+            width: 100%;
+            height: 100%;
+        }
+        .content {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            text-align: center;
+        }
+        .logo {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            color: #0D7377;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #0D7377 0%, #14919B 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+        .emoji {
+            font-size: 120px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 72px;
+            color: #0D7377;
+            margin-bottom: 16px;
+            letter-spacing: -2px;
+        }
+        .subtitle {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 28px;
+            color: #555555;
+            margin-bottom: 50px;
+            font-weight: 500;
+        }
+        .phone-mockup {
+            width: 280px;
+            height: 560px;
+            background: linear-gradient(180deg, #0D7377 0%, #14919B 50%, #0D7377 100%);
+            border-radius: 40px;
+            border: 12px solid #1a1a1a;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 30px 60px rgba(13, 115, 119, 0.3);
+        }
+        .phone-screen {
+            width: 90%;
+            height: 95%;
+            background: white;
+            border-radius: 28px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+        }
+        .phone-app-name {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 24px;
+            color: #0D7377;
+            margin-bottom: 20px;
+        }
+        .phone-emoji {
+            font-size: 80px;
+        }
+        .phone-text {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .cta {
+            position: absolute;
+            bottom: 60px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 24px;
+            color: #0D7377;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .cta-arrow {
+            animation: bounce 1.5s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
+        }
+        .dots {
+            position: absolute;
+            bottom: 120px;
+            display: flex;
+            gap: 12px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #0D7377;
+        }
+        .dot:first-child {
+            background: #FF6B6B;
+        }
+        .dot:nth-child(2), .dot:nth-child(3) {
+            background: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="wave-pattern">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#0D7377;stop-opacity:0.5" />
+                    <stop offset="100%" style="stop-color:#14919B;stop-opacity:0.3" />
+                </linearGradient>
+            </defs>
+            <path fill="url(#waveGrad)" d="M0,100 C200,150 300,50 500,100 C700,150 800,80 1080,120 L1080,0 L0,0 Z" />
+            <path fill="url(#waveGrad)" d="M0,250 C250,300 350,180 550,250 C750,320 850,200 1080,280 L1080,150 L0,150 Z" />
+            <path fill="url(#waveGrad)" d="M0,400 C300,450 400,320 600,400 C800,480 900,350 1080,420 L1080,300 L0,300 Z" />
+            <path fill="url(#waveGrad)" d="M0,550 C250,600 450,480 650,550 C850,620 950,500 1080,560 L1080,450 L0,450 Z" />
+        </svg>
+    </div>
+    
+    <div class="logo">
+        <div class="logo-icon">🥗</div>
+        Nutrio Fuel
+    </div>
+    
+    <div class="content">
+        <div class="emoji">🥗</div>
+        <h1>Meet Nutrio Fuel</h1>
+        <p class="subtitle">Your all-in-one healthy meal delivery app for Qatar</p>
+        
+        <div class="phone-mockup">
+            <div class="phone-screen">
+                <div class="phone-app-name">🥗 Nutrio Fuel</div>
+                <div class="phone-emoji">🍽️</div>
+                <div class="phone-text">Healthy meals<br>delivered to your door</div>
+            </div>
+        </div>
+        
+        <div class="dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        
+        <div class="cta">
+            Swipe to discover <span class="cta-arrow">→</span>
+        </div>
+    </div>
+</body>
+</html>

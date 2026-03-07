@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio Operational Workflow - Complete Flow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&family=Fragment+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #faf7f5;
+            --surface: #ffffff;
+            --border: #e8e4e1;
+            --text: #1a1816;
+            --text-dim: #6b6560;
+            --accent: #c9a227;
+            --accent-dim: #f0e6b8;
+            --step: #2d5a4a;
+            --step-bg: #e8f0ed;
+            --user: #4a3f6b;
+            --user-bg: #ede8f4;
+            --money: #6b4a2a;
+            --money-bg: #f5efe4;
+            --restaurant: #8b4513;
+            --restaurant-bg: #f5ebe0;
+            --driver: #1a5f7a;
+            --driver-bg: #e4f2f5;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @page { size: A4 landscape; margin: 10mm; }
+
+        body {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .page {
+            width: 277mm;
+            min-height: 190mm;
+            background: var(--surface);
+            margin: 0 auto;
+            padding: 32px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-radius: 8px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+
+        header .subtitle {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .workflow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .phase {
+            display: flex;
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        .phase-header {
+            width: 100px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 8px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .phase-header .icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .phase-header .label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .phase-header.user { background: var(--user-bg); color: var(--user); }
+        .phase-header.payment { background: var(--money-bg); color: var(--money); }
+        .phase-header.restaurant { background: var(--restaurant-bg); color: var(--restaurant); }
+        .phase-header.delivery { background: var(--driver-bg); color: var(--driver); }
+        .phase-header.nutrio { background: var(--step-bg); color: var(--step); }
+
+        .steps {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .step {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .step:hover {
+            border-color: var(--accent);
+            box-shadow: 0 2px 8px rgba(201, 162, 39, 0.1);
+        }
+
+        .step-number {
+            width: 24px;
+            height: 24px;
+            background: var(--text);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .step-title {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+
+        .step-desc {
+            font-size: 9px;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        .arrow {
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent);
+            font-size: 16px;
+            z-index: 1;
+        }
+
+        .step:last-child .arrow {
+            display: none;
+        }
+
+        .connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 0;
+            color: var(--accent);
+            font-size: 20px;
+        }
+
+        /* Data Flow Arrows */
+        .data-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--accent-dim);
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+
+        .data-flow .direction {
+            font-family: 'Fragment Mono', monospace;
+            font-size: 9px;
+            color: var(--text-dim);
+        }
+
+        .data-flow .amount {
+            font-family: 'Fragment Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--money);
+        }
+
+        .legend {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .key-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .metric {
+            background: var(--bg);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .metric .value {
+            font-family: 'Fragment Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--step);
+        }
+
+        .metric .label {
+            font-size: 8px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 2px;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .page { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header>
+            <h1>Nutrio Operational Workflow</h1>
+            <p class="subtitle">End-to-End Process Flow</p>
+        </header>
+
+        <!-- PHASE 1: User Sign Up -->
+        <div class="workflow-container">
+            <div class="phase">
+                <div class="phase-header user">
+                    <span class="icon">👤</span>
+                    <span class="label">User</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-number">1</span>
+                        <span class="step-icon">📱</span>
+                        <span class="step-title">Download App</span>
+                        <span class="step-desc">User downloads Nutrio app from App Store</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <span class="step-icon">📝</span>
+                        <span class="step-title">Sign Up</span>
+                        <span class="step-desc">Create account with phone/email</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <span class="step-icon">🥗</span>
+                        <span class="step-title">Choose Plan</span>
+                        <span class="step-desc">Select Elite/Healthy/Fresh/Weekly</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">4</span>
+                        <span class="step-icon">💳</span>
+                        <span class="step-title">Pay Upfront</span>
+                        <span class="step-desc">Full payment via Sadad</span>
+                        <div class="data-flow">
+                            <span class="direction">User → Nutrio</span>
+                            <span class="amount">3,800 QAR</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">5</span>
+                        <span class="step-icon">✅</span>
+                        <span class="step-title">Subscription Active</span>
+                        <span class="step-desc">60 meals + 40 snacks credited</span>
+                        <div class="data-flow">
+                            <span class="direction">Nutrio system</span>
+                            <span class="amount">Balance updated</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="connector">↓</div>
+
+        <!-- PHASE 2: Daily Order -->
+        <div class="workflow-container">
+            <div class="phase">
+                <div class="phase-header user">
+                    <span class="icon">👤</span>
+                    <span class="label">Daily Use</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-number">6</span>
+                        <span class="step-icon">🍽️</span>
+                        <span class="step-title">Browse Menu</span>
+                        <span class="step-desc">View healthy restaurants</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">7</span>
+                        <span class="step-icon">👆</span>
+                        <span class="step-title">Select Meal</span>
+                        <span class="step-desc">Choose from available options</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">8</span>
+                        <span class="step-icon">🛒</span>
+                        <span class="step-title">Place Order</span>
+                        <span class="step-desc">1 meal deducted from balance</span>
+                        <div class="data-flow">
+                            <span class="direction">Balance: 59 → 58</span>
+                            <span class="amount">-1 meal</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">9</span>
+                        <span class="step-icon">🔔</span>
+                        <span class="step-title">Restaurant Notified</span>
+                        <span class="step-desc">Order sent to restaurant</span>
+                        <div class="data-flow">
+                            <span class="direction">Nutrio → Restaurant</span>
+                            <span class="amount">New order</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="connector">↓</div>
+
+        <!-- PHASE 3: Restaurant -->
+        <div class="workflow-container">
+            <div class="phase">
+                <div class="phase-header restaurant">
+                    <span class="icon">🏪</span>
+                    <span class="label">Restaurant</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-number">10</span>
+                        <span class="step-icon">📩</span>
+                        <span class="step-title">Receive Order</span>
+                        <span class="step-desc">Restaurant gets notification</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">11</span>
+                        <span class="step-icon">👨‍🍳</span>
+                        <span class="step-title">Prepare Food</span>
+                        <span class="step-desc">Cook and package meal</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">12</span>
+                        <span class="step-icon">📦</span>
+                        <span class="step-title">Ready for Pickup</span>
+                        <span class="step-desc">Mark as ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="connector">↓</div>
+
+        <!-- PHASE 4: Delivery -->
+        <div class="workflow-container">
+            <div class="phase">
+                <div class="phase-header delivery">
+                    <span class="icon">🏍</span>
+                    <span class="label">Driver</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-number">13</span>
+                        <span class="step-icon">📱</span>
+                        <span class="step-title">Driver Assigned</span>
+                        <span class="step-desc">Fleet driver receives order</span>
+                        <div class="data-flow">
+                            <span class="direction">Nutrio system</span>
+                            <span class="amount">Order dispatched</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">14</span>
+                        <span class="step-icon">🏃</span>
+                        <span class="step-title">Pick Up</span>
+                        <span class="step-desc">Driver collects from restaurant</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">15</span>
+                        <span class="step-icon">🛣️</span>
+                        <span class="step-title">Deliver</span>
+                        <span class="step-desc">Driver delivers to customer</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">16</span>
+                        <span class="step-icon">✅</span>
+                        <span class="step-title">Delivered</span>
+                        <span class="step-desc">Customer receives order</span>
+                        <div class="data-flow">
+                            <span class="direction">Driver → Customer</span>
+                            <span class="amount">Order complete</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="connector">↓</div>
+
+        <!-- PHASE 5: Financial Settlement -->
+        <div class="workflow-container">
+            <div class="phase">
+                <div class="phase-header nutrio">
+                    <span class="icon">💰</span>
+                    <span class="label">Settlement</span>
+                </div>
+                <div class="steps">
+                    <div class="step">
+                        <span class="step-number">17</span>
+                        <span class="step-icon">🏪</span>
+                        <span class="step-title">Pay Restaurant</span>
+                        <span class="step-desc">82% of meal price</span>
+                        <div class="data-flow">
+                            <span class="direction">Nutrio → Restaurant</span>
+                            <span class="amount">41 QAR (82%)</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">18</span>
+                        <span class="step-icon">💵</span>
+                        <span class="step-title">Keep Commission</span>
+                        <span class="step-desc">Nutrio retains 18%</span>
+                        <div class="data-flow">
+                            <span class="direction">Nutrio keeps</span>
+                            <span class="amount">9 QAR (18%)</span>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">19</span>
+                        <span class="step-icon">📊</span>
+                        <span class="step-title">Track Usage</span>
+                        <span class="step-desc">Log meals used vs remaining</span>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">20</span>
+                        <span class="step-icon">💎</span>
+                        <span class="step-title">Unused = Profit</span>
+                        <span class="step-desc">Remaining meals = pure profit</span>
+                        <div class="data-flow">
+                            <span class="direction">If 45 used</span>
+                            <span class="amount">15 × 50 = 750 QAR</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="key-metrics">
+            <div class="metric">
+                <div class="value">18%</div>
+                <div class="label">Commission</div>
+            </div>
+            <div class="metric">
+                <div class="value">82%</div>
+                <div class="label">Restaurant Share</div>
+            </div>
+            <div class="metric">
+                <div class="value">7 days</div>
+                <div class="label">Payment Terms</div>
+            </div>
+            <div class="metric">
+                <div class="value">Profit!</div>
+                <div class="label">Unused Meals</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-dot" style="background: var(--user);"></span>
+                User Actions
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: var(--restaurant);"></span>
+                Restaurant
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: var(--driver);"></span>
+                Driver
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: var(--step);"></span>
+                Nutrio/Finance
+            </div>
+        </div>
+    </div>
+</body>
+</html>

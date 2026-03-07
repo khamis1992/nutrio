@@ -26,15 +26,17 @@ import { formatCurrency } from "@/lib/currency";
 interface IncomeStats {
   totalRevenue: number;
   subscriptionRevenue: number;
-  orderRevenue: number;
+  commissionRevenue: number;
   totalOrders: number;
   activeSubscribers: number;
   avgOrderValue: number;
+  unusedMealsProfit: number;
 }
 
 interface DailyIncome {
   date: string;
-  revenue: number;
+  subscription: number;
+  commission: number;
   orders: number;
 }
 
@@ -44,10 +46,11 @@ const AdminIncome = () => {
   const [stats, setStats] = useState<IncomeStats>({
     totalRevenue: 0,
     subscriptionRevenue: 0,
-    orderRevenue: 0,
+    commissionRevenue: 0,
     totalOrders: 0,
     activeSubscribers: 0,
     avgOrderValue: 0,
+    unusedMealsProfit: 0,
   });
   const [dailyData, setDailyData] = useState<DailyIncome[]>([]);
 
@@ -63,55 +66,91 @@ const AdminIncome = () => {
       startDate.setDate(startDate.getDate() - daysAgo);
       const startDateStr = startDate.toISOString().split("T")[0];
 
-      // Fetch subscription revenue
+      // Fetch subscription revenue (use 'price' column, not 'amount')
       const { data: subscriptions } = await supabase
         .from("subscriptions")
-        .select("plan_type, amount, created_at")
+        .select("plan_type, price, created_at")
         .gte("created_at", startDate.toISOString())
         .eq("status", "active");
 
       const subscriptionRevenue = (subscriptions || []).reduce(
-        (sum, s) => sum + (s.amount || 0),
+        (sum, s: any) => sum + (s.price || 0),
         0
       );
       const activeSubscribers = (subscriptions || []).length;
 
-      // Fetch order/schedule data for revenue
-      const { data: schedules } = await supabase
+      // Fetch orders with commission data
+      const { data: orders } = await supabase
         .from("meal_schedules")
-        .select("scheduled_date, meal_id, user_id")
+        .select(`
+          id,
+          scheduled_date,
+          order_status,
+          restaurant_branch_id,
+          meal_id,
+          meals:meals(restaurant_id)
+        `)
         .gte("scheduled_date", startDateStr)
-        .eq("status", "delivered");
+        .eq("order_status", "delivered");
 
-      const totalOrders = (schedules || []).length;
+      const totalOrders = (orders || []).length;
 
-      // Build daily data
-      const dailyMap: Record<string, { revenue: number; orders: number }> = {};
-      for (let i = daysAgo - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split("T")[0];
-        dailyMap[dateStr] = { revenue: 0, orders: 0 };
-      }
+      // Calculate commission from orders (18% of each order)
+      // For now, we'll calculate estimated commission per meal
+      const avgMealValue = 50; // Average meal value for commission calculation
+      const commissionRevenue = totalOrders * avgMealValue * 0.18;
 
-      (schedules || []).forEach((s) => {
-        const dateStr = s.scheduled_date;
-        if (dailyMap[dateStr]) {
-          dailyMap[dateStr].orders += 1;
-          dailyMap[dateStr].revenue += 35; // Estimated average meal price
-        }
-      });
+      // Calculate unused meals profit
+      // Get subscription plans to calculate expected meals
+      const { data: plans } = await supabase
+        .from("subscription_plans")
+        .select("tier, meals_per_month")
+        .eq("is_active", true);
 
-      const orderRevenue = totalOrders * 35;
-      const totalRevenue = subscriptionRevenue + orderRevenue;
+      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: any) => {
+        const plan = plans?.find((p: any) => p.tier === sub.plan_type);
+        return sum + (plan?.meals_per_month || 0);
+      }, 0);
+
+      const unusedMeals = Math.max(0, expectedMeals - totalOrders);
+      const unusedMealsProfit = unusedMeals * avgMealValue;
+
+      const totalRevenue = subscriptionRevenue + commissionRevenue + unusedMealsProfit;
 
       setStats({
         totalRevenue,
         subscriptionRevenue,
-        orderRevenue,
+        commissionRevenue,
         totalOrders,
         activeSubscribers,
-        avgOrderValue: totalOrders ? orderRevenue / totalOrders : 0,
+        avgOrderValue: totalOrders ? avgMealValue : 0,
+        unusedMealsProfit,
+      });
+
+      // Build daily data
+      const dailyMap: Record<string, { subscription: number; commission: number; orders: number }> = {};
+      for (let i = daysAgo - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        dailyMap[dateStr] = { subscription: 0, commission: 0, orders: 0 };
+      }
+
+      // Add subscription revenue by day
+      (subscriptions || []).forEach((s: any) => {
+        const dateStr = s.created_at?.split("T")[0];
+        if (dateStr && dailyMap[dateStr]) {
+          dailyMap[dateStr].subscription += s.price || 0;
+        }
+      });
+
+      // Add orders by day
+      (orders || []).forEach((o: any) => {
+        const dateStr = o.scheduled_date;
+        if (dateStr && dailyMap[dateStr]) {
+          dailyMap[dateStr].orders += 1;
+          dailyMap[dateStr].commission += avgMealValue * 0.18;
+        }
       });
 
       setDailyData(
@@ -143,8 +182,8 @@ const AdminIncome = () => {
       bg: "bg-blue-50",
     },
     {
-      title: "Order Revenue",
-      value: formatCurrency(stats.orderRevenue),
+      title: "Commission (18%)",
+      value: formatCurrency(stats.commissionRevenue),
       icon: ShoppingBag,
       color: "text-purple-500",
       bg: "bg-purple-50",
@@ -219,10 +258,19 @@ const AdminIncome = () => {
                     <Tooltip formatter={(value: number) => [formatCurrency(value), "Revenue"]} />
                     <Line
                       type="monotone"
-                      dataKey="revenue"
-                      stroke="#22c55e"
+                      dataKey="subscription"
+                      stroke="#3b82f6"
                       strokeWidth={2}
                       dot={false}
+                      name="Subscription"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="commission"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Commission"
                     />
                   </LineChart>
                 </ResponsiveContainer>

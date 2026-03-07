@@ -37,7 +37,7 @@ EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Insert default settings
 INSERT INTO public.platform_settings (key, value, description) VALUES
-('commission_rates', '{"restaurant": 15, "delivery": 5}', 'Commission rates in percentage'),
+('commission_rates', '{"restaurant": 18, "delivery": 5}', 'Commission rates in percentage (18% restaurant commission, 5% delivery fee)'),
 ('features', '{"referral_program": true, "meal_scheduling": true, "subscription_pause": true, "delivery_tracking": true}', 'Feature toggles'),
 ('subscription_plans', '{"basic_price": 49.99, "premium_price": 99.99, "family_price": 149.99}', 'Subscription plan pricing'),
 ('notifications', '{"email_enabled": true, "push_enabled": true, "sms_enabled": false}', 'Notification settings');

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import flameLogo from "@/assets/flam.png";
 
-// Import map components directly to avoid StrictMode issues with lazy loading
+// Import map components directly - keeping Leaflet for this file
 import MapContainer from "@/components/maps/MapContainer";
 import DriverMarker from "@/components/maps/DriverMarker";
 import { Marker, Polyline, useMap } from "react-leaflet";

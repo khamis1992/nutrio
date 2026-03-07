@@ -78,7 +78,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
           meals_per_week: data.meals_per_week ?? 5,
           meals_used_this_week: data.meals_used_this_week ?? 0,
           week_start_date: data.week_start_date || new Date().toISOString().split('T')[0],
-          tier: (data.tier as 'basic' | 'standard' | 'premium' | 'vip') || 'basic',
+          tier: (data.tier || data.plan) as 'basic' | 'standard' | 'premium' | 'vip' || 'basic',
           active: data.active,
         });
       } else {

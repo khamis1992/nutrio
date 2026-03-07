@@ -470,7 +470,7 @@ ON CONFLICT (key) DO UPDATE SET
   updated_at = now();
 
 INSERT INTO public.platform_settings (key, value, description) VALUES
-('default_restaurant_payout_rate', '25.00', 'Default QAR payout per meal for new restaurants')
+('default_restaurant_payout_rate', '82', 'Default payout percentage for new restaurants (Nutrio keeps 18%)')
 ON CONFLICT (key) DO UPDATE SET 
   value = EXCLUDED.value,
   updated_at = now();

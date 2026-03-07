@@ -26,6 +26,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { formatCurrency } from "@/lib/currency";
+import { PartnerBranchOrders } from "@/components/partner/PartnerBranchOrders";
+import { PartnerCommission } from "@/components/partner/PartnerCommission";
 
 interface Restaurant {
   id: string;
@@ -509,6 +511,12 @@ const PartnerDashboard = () => {
             </Card>
           </Link>
         </div>
+
+        {/* Branch Orders Section - Shows orders by branch */}
+        <PartnerBranchOrders />
+
+        {/* Commission Section - Shows earnings breakdown */}
+        {restaurant && <PartnerCommission restaurantId={restaurant.id} />}
 
         {/* Recent Orders */}
         <Card>
