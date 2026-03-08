@@ -339,7 +339,7 @@ const OrderDetail = () => {
       setOrder(transformed);
     } catch (error) {
       console.error("Error fetching order detail:", error);
-      navigate("/orders");
+      navigate("/tracking");
     } finally {
       setLoading(false);
     }
@@ -435,10 +435,10 @@ const OrderDetail = () => {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate("/orders")}
+            onClick={() => navigate("/tracking")}
             className="text-white hover:bg-white/10"
           >
-            <ArrowLeft className="h-5 w-5 rtl-flip-back" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
@@ -757,7 +757,7 @@ const OrderDetail = () => {
         )}
 
         {/* View Order History Link */}
-        <Link to="/orders">
+        <Link to="/tracking">
           <Button 
             variant="ghost" 
             className="w-full text-gray-500"

@@ -99,7 +99,7 @@ const PersonalInfo = () => {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
         <div className="flex items-center gap-3 px-4 py-4 rtl:flex-row-reverse">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
             <h1 className="text-lg font-semibold">Personal Information</h1>

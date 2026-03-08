@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu as MenuIcon, ChevronRight, LogOut, User } from "lucide-react";
+import { Menu as MenuIcon, LogOut, User } from "lucide-react";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Badge } from "@/components/ui/badge";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -106,33 +107,6 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
           badge: "Updated",
           badgeVariant: "success" as const,
         },
-        {
-          icon: ({ className }) => (
-            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-          ),
-          label: "Order History",
-          description: "View past orders",
-          to: "/orders",
-        },
-        ...(platformSettings?.features.delivery_tracking ? [{
-          icon: ({ className }) => (
-            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="1" y="3" width="15" height="13" />
-              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-              <circle cx="5.5" cy="18.5" r="2.5" />
-              <circle cx="18.5" cy="18.5" r="2.5" />
-            </svg>
-          ),
-          label: "Live Tracking",
-          description: "Track your orders",
-          to: "/tracking",
-        }] : []),
         {
           icon: ({ className }) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -277,13 +251,13 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
                     {item.action ? (
                       <button
                         onClick={item.action}
-                        className="drawer-item w-full flex items-center gap-4 px-6 py-3.5 text-left hover:bg-accent/50 transition-colors"
+                        className="drawer-item w-full flex items-center gap-4 px-6 py-3.5 text-start hover:bg-accent/50 transition-colors rtl:flex-row-reverse"
                       >
                         <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <item.icon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 rtl:flex-row-reverse">
                             <span className="font-medium truncate">{item.label}</span>
                             {item.badge && (
                               <Badge variant={item.badgeVariant || "default"} className="text-xs flex-shrink-0">
@@ -299,13 +273,13 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
                     ) : (
                       <button
                         onClick={() => navigate(item.to)}
-                        className="drawer-item w-full flex items-center gap-4 px-6 py-3.5 text-left hover:bg-accent/50 transition-colors"
+                        className="drawer-item w-full flex items-center gap-4 px-6 py-3.5 text-start hover:bg-accent/50 transition-colors rtl:flex-row-reverse"
                       >
                         <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <item.icon className="w-5 h-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 rtl:flex-row-reverse">
                             <span className="font-medium truncate">{item.label}</span>
                             {item.badge && (
                               <Badge variant={item.badgeVariant || "default"} className="text-xs flex-shrink-0">
@@ -317,7 +291,7 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
                             <p className="text-sm text-muted-foreground truncate">{item.description}</p>
                           )}
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                        <NavChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                       </button>
                     )}
                   </SheetClose>

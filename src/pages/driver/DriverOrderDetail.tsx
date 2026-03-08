@@ -322,7 +322,7 @@ export default function DriverOrderDetail() {
             onClick={() => navigate("/driver")}
             className="mb-2"
           >
-            <ArrowLeft className="h-4 w-4 mr-1 rtl-flip-back" />
+            <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { Search, ChevronRight, Trash2, ArrowLeft, Flame, Clock, Loader2, CheckCircle2 } from "lucide-react";
+import { Search, Trash2, ArrowLeft, Flame, Clock, Loader2, CheckCircle2 } from "lucide-react";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Activity Database ───────────────────────────────────────────────────────
 interface Activity {
   id: string;
   name: string;
+  nameAr: string;
   category: string;
   met: number;
   emoji: string;
@@ -20,34 +23,34 @@ interface Activity {
 
 const ACTIVITIES: Activity[] = [
   // Cardio
-  { id: "walking_slow",    name: "Walking (slow)",      category: "Cardio",    met: 2.5,  emoji: "🚶" },
-  { id: "walking_moderate",name: "Walking (moderate)",  category: "Cardio",    met: 3.5,  emoji: "🚶" },
-  { id: "walking_fast",    name: "Walking (fast)",      category: "Cardio",    met: 4.5,  emoji: "🚶‍♂️" },
-  { id: "running_5mph",    name: "Running (5 mph)",     category: "Cardio",    met: 8.3,  emoji: "🏃" },
-  { id: "running_6mph",    name: "Running (6 mph)",     category: "Cardio",    met: 9.8,  emoji: "🏃" },
-  { id: "running_7mph",    name: "Running (7+ mph)",    category: "Cardio",    met: 11.0, emoji: "🏃‍♂️" },
-  { id: "cycling_light",   name: "Cycling (light)",     category: "Cardio",    met: 4.0,  emoji: "🚴" },
-  { id: "cycling_moderate",name: "Cycling (moderate)",  category: "Cardio",    met: 8.0,  emoji: "🚴" },
-  { id: "swimming",        name: "Swimming",            category: "Cardio",    met: 6.0,  emoji: "🏊" },
-  { id: "jump_rope",       name: "Jump Rope",           category: "Cardio",    met: 10.0, emoji: "⚡" },
-  { id: "elliptical",      name: "Elliptical",          category: "Cardio",    met: 5.0,  emoji: "🔄" },
-  { id: "rowing",          name: "Rowing",              category: "Cardio",    met: 7.0,  emoji: "🚣" },
-  { id: "stair_climbing",  name: "Stair Climbing",      category: "Cardio",    met: 8.0,  emoji: "🪜" },
-  { id: "hiit",            name: "HIIT",                category: "Cardio",    met: 8.0,  emoji: "🔥" },
+  { id: "walking_slow",    name: "Walking (slow)",      nameAr: "المشي (بطيء)",       category: "Cardio",      met: 2.5,  emoji: "🚶" },
+  { id: "walking_moderate",name: "Walking (moderate)",  nameAr: "المشي (معتدل)",      category: "Cardio",      met: 3.5,  emoji: "🚶" },
+  { id: "walking_fast",    name: "Walking (fast)",      nameAr: "المشي (سريع)",       category: "Cardio",      met: 4.5,  emoji: "🚶‍♂️" },
+  { id: "running_5mph",    name: "Running (5 mph)",     nameAr: "الجري (8 ك/س)",      category: "Cardio",      met: 8.3,  emoji: "🏃" },
+  { id: "running_6mph",    name: "Running (6 mph)",     nameAr: "الجري (10 ك/س)",     category: "Cardio",      met: 9.8,  emoji: "🏃" },
+  { id: "running_7mph",    name: "Running (7+ mph)",    nameAr: "الجري (11+ ك/س)",    category: "Cardio",      met: 11.0, emoji: "🏃‍♂️" },
+  { id: "cycling_light",   name: "Cycling (light)",     nameAr: "ركوب الدراجة (خفيف)",category: "Cardio",      met: 4.0,  emoji: "🚴" },
+  { id: "cycling_moderate",name: "Cycling (moderate)",  nameAr: "ركوب الدراجة (معتدل)",category: "Cardio",     met: 8.0,  emoji: "🚴" },
+  { id: "swimming",        name: "Swimming",            nameAr: "السباحة",            category: "Cardio",      met: 6.0,  emoji: "🏊" },
+  { id: "jump_rope",       name: "Jump Rope",           nameAr: "تخطي الحبل",         category: "Cardio",      met: 10.0, emoji: "⚡" },
+  { id: "elliptical",      name: "Elliptical",          nameAr: "جهاز الإليبتيكال",   category: "Cardio",      met: 5.0,  emoji: "🔄" },
+  { id: "rowing",          name: "Rowing",              nameAr: "التجديف",            category: "Cardio",      met: 7.0,  emoji: "🚣" },
+  { id: "stair_climbing",  name: "Stair Climbing",      nameAr: "تسلق الدرج",         category: "Cardio",      met: 8.0,  emoji: "🪜" },
+  { id: "hiit",            name: "HIIT",                nameAr: "تدريب متقطع عالي",   category: "Cardio",      met: 8.0,  emoji: "🔥" },
   // Strength
-  { id: "weight_training", name: "Weight Training",     category: "Strength",  met: 3.5,  emoji: "🏋️" },
-  { id: "bodyweight",      name: "Bodyweight Training", category: "Strength",  met: 3.8,  emoji: "💪" },
-  { id: "crossfit",        name: "CrossFit",            category: "Strength",  met: 5.0,  emoji: "🏋️‍♂️" },
+  { id: "weight_training", name: "Weight Training",     nameAr: "تدريب بالأوزان",     category: "Strength",    met: 3.5,  emoji: "🏋️" },
+  { id: "bodyweight",      name: "Bodyweight Training", nameAr: "تدريب بوزن الجسم",   category: "Strength",    met: 3.8,  emoji: "💪" },
+  { id: "crossfit",        name: "CrossFit",            nameAr: "كروس فت",            category: "Strength",    met: 5.0,  emoji: "🏋️‍♂️" },
   // Flexibility
-  { id: "yoga",            name: "Yoga",                category: "Flexibility", met: 2.5, emoji: "🧘" },
-  { id: "pilates",         name: "Pilates",             category: "Flexibility", met: 3.0, emoji: "🧘‍♀️" },
-  { id: "stretching",      name: "Stretching",          category: "Flexibility", met: 2.3, emoji: "🤸" },
+  { id: "yoga",            name: "Yoga",                nameAr: "يوغا",               category: "Flexibility", met: 2.5,  emoji: "🧘" },
+  { id: "pilates",         name: "Pilates",             nameAr: "بيلاتيس",            category: "Flexibility", met: 3.0,  emoji: "🧘‍♀️" },
+  { id: "stretching",      name: "Stretching",          nameAr: "تمارين الإطالة",     category: "Flexibility", met: 2.3,  emoji: "🤸" },
   // Sports
-  { id: "basketball",      name: "Basketball",          category: "Sports",    met: 6.5,  emoji: "🏀" },
-  { id: "soccer",          name: "Soccer",              category: "Sports",    met: 7.0,  emoji: "⚽" },
-  { id: "tennis",          name: "Tennis",              category: "Sports",    met: 7.3,  emoji: "🎾" },
-  { id: "dancing",         name: "Dancing",             category: "Sports",    met: 4.5,  emoji: "💃" },
-  { id: "martial_arts",    name: "Martial Arts",        category: "Sports",    met: 5.0,  emoji: "🥋" },
+  { id: "basketball",      name: "Basketball",          nameAr: "كرة السلة",          category: "Sports",      met: 6.5,  emoji: "🏀" },
+  { id: "soccer",          name: "Soccer",              nameAr: "كرة القدم",          category: "Sports",      met: 7.0,  emoji: "⚽" },
+  { id: "tennis",          name: "Tennis",              nameAr: "التنس",              category: "Sports",      met: 7.3,  emoji: "🎾" },
+  { id: "dancing",         name: "Dancing",             nameAr: "الرقص",              category: "Sports",      met: 4.5,  emoji: "💃" },
+  { id: "martial_arts",    name: "Martial Arts",        nameAr: "فنون القتال",        category: "Sports",      met: 5.0,  emoji: "🥋" },
 ];
 
 const CATEGORIES = ["All", "Cardio", "Strength", "Flexibility", "Sports"];
@@ -76,6 +79,19 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
+  const { t, isRTL } = useLanguage();
+  const activityName = (a: Activity) => isRTL ? a.nameAr : a.name;
+
+  const categoryLabel = (cat: string) => {
+    const map: Record<string, string> = {
+      All: t("log_activity_filter_all"),
+      Cardio: t("log_activity_cat_cardio"),
+      Strength: t("log_activity_cat_strength"),
+      Flexibility: t("log_activity_cat_flexibility"),
+      Sports: t("log_activity_cat_sports"),
+    };
+    return map[cat] ?? cat;
+  };
 
   const weightKg = profile?.current_weight_kg ?? 70;
   const durationInputRef = useRef<HTMLInputElement>(null);
@@ -147,11 +163,11 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
       });
       if (error) throw error;
 
-      toast({ title: "Activity logged!", description: `${selected.name} — ${cal} cal burned.` });
+      toast({ title: t("log_activity_success_title"), description: t("log_activity_success_desc").replace("{name}", selected.name).replace("{cal}", String(cal)) });
       setView("list");
       await loadSessions();
     } catch {
-      toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
+      toast({ title: t("log_activity_failed_title"), description: t("log_activity_failed_desc"), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -188,13 +204,13 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
             {/* Header */}
             <div className="bg-white px-5 pt-5 pb-4 border-b border-gray-100">
               <SheetHeader>
-                <SheetTitle className="text-gray-900 text-xl font-bold text-left">Log Activity</SheetTitle>
-                <p className="text-gray-500 text-sm">Track your calories burned today</p>
+                <SheetTitle className="text-gray-900 text-xl font-bold text-left">{t("log_activity")}</SheetTitle>
+                <p className="text-gray-500 text-sm">{t("log_activity_subtitle")}</p>
               </SheetHeader>
               {totalBurned > 0 && (
                 <div className="mt-3 inline-flex items-center gap-2 bg-orange-50 rounded-2xl px-4 py-2">
                   <Flame className="w-4 h-4 text-orange-500" />
-                  <span className="text-orange-600 font-semibold text-sm">{totalBurned} cal burned today</span>
+                  <span className="text-orange-600 font-semibold text-sm">{t("log_activity_cal_burned_today").replace("{total}", String(totalBurned))}</span>
                 </div>
               )}
             </div>
@@ -203,7 +219,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
               {/* Today's log */}
               {sessions.length > 0 && (
                 <div className="px-5 pt-4 pb-2">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Today's Activities</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("log_activity_todays_activities")}</p>
                   <div className="space-y-2">
                     {sessions.map((s) => {
                       const act = ACTIVITIES.find((a) => a.name === s.workout_type);
@@ -211,13 +227,13 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                         <div key={s.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
                           <span className="text-xl">{act?.emoji ?? "🏃"}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-800 truncate">{s.workout_type}</p>
+                            <p className="font-semibold text-sm text-gray-800 truncate">{act ? activityName(act) : s.workout_type}</p>
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="flex items-center gap-1 text-xs text-gray-400">
-                                <Clock className="w-3 h-3" /> {s.duration_minutes} min
+                                <Clock className="w-3 h-3" /> {s.duration_minutes} {t("min_label")}
                               </span>
                               <span className="flex items-center gap-1 text-xs text-orange-500 font-medium">
-                                <Flame className="w-3 h-3" /> {s.calories_burned} cal
+                                <Flame className="w-3 h-3" /> {s.calories_burned} {t("cal")}
                               </span>
                             </div>
                           </div>
@@ -240,7 +256,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="Search activities..."
+                    placeholder={t("log_activity_search_placeholder")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-9 rounded-xl h-11 bg-gray-50 border-0"
@@ -258,7 +274,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                       category === cat ? "gradient-primary text-white" : "bg-gray-100 text-gray-500"
                     }`}
                   >
-                    {cat}
+                    {categoryLabel(cat)}
                   </button>
                 ))}
               </div>
@@ -269,7 +285,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                   <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-300" /></div>
                 ) : Object.entries(groupedByCategory).map(([cat, items]) => (
                   <div key={cat}>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{cat}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{categoryLabel(cat)}</p>
                     <div className="space-y-1">
                       {items.map((a) => (
                         <button
@@ -279,10 +295,10 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                         >
                           <span className="text-xl w-8 flex-shrink-0 text-center">{a.emoji}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-800">{a.name}</p>
-                            <p className="text-xs text-gray-400">~{Math.round(a.met * weightKg)} cal / hour</p>
+                            <p className="font-semibold text-sm text-gray-800">{activityName(a)}</p>
+                            <p className="text-xs text-gray-400">{t("log_activity_cal_per_hour").replace("{cal}", String(Math.round(a.met * weightKg)))}</p>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                          <NavChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                         </button>
                       ))}
                     </div>
@@ -302,13 +318,13 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                 onClick={() => setView("list")}
                 className="flex items-center gap-1.5 text-white/80 text-sm mb-3 hover:text-white transition-colors"
               >
-                <ArrowLeft className="w-4 h-4 rtl-flip-back" /> Back
+                <ArrowLeft className="w-4 h-4" /> {t("back")}
               </button>
               <div className="flex items-center gap-3">
                 <span className="text-4xl">{selected.emoji}</span>
                 <div>
-                  <h2 className="text-white text-xl font-bold">{selected.name}</h2>
-                  <p className="text-white/70 text-sm">{selected.category}</p>
+                  <h2 className="text-white text-xl font-bold">{activityName(selected)}</h2>
+                  <p className="text-white/70 text-sm">{categoryLabel(selected.category)}</p>
                 </div>
               </div>
             </div>
@@ -317,7 +333,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
               {/* Duration input */}
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-3">
-                  Duration
+                  {t("log_activity_duration_label")}
                 </label>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 relative">
@@ -333,7 +349,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                       style={{ fontSize: 36 }}
                     />
                   </div>
-                  <span className="text-lg font-semibold text-gray-400">min</span>
+                  <span className="text-lg font-semibold text-gray-400">{t("min_label")}</span>
                 </div>
 
                 {/* Quick duration pills */}
@@ -359,7 +375,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                         : "bg-gray-100 text-gray-500"
                     }`}
                   >
-                    Custom
+                    {t("log_activity_custom")}
                   </button>
                 </div>
               </div>
@@ -371,18 +387,17 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                     <Flame className="w-6 h-6 text-orange-500" />
                   </div>
                   <div>
-                    <p className="text-xs text-orange-400 font-medium">Estimated burn</p>
-                    <p className="text-3xl font-black text-orange-600">{estimatedCal} <span className="text-base font-semibold">cal</span></p>
+                    <p className="text-xs text-orange-400 font-medium">{t("log_activity_estimated_burn")}</p>
+                    <p className="text-3xl font-black text-orange-600">{estimatedCal} <span className="text-base font-semibold">{t("cal")}</span></p>
                   </div>
                 </div>
               )}
 
               {/* Formula explanation */}
               <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">How it's calculated</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("log_activity_how_calculated")}</p>
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  MET ({selected.met}) × your weight ({weightKg} kg) × duration = calories burned.
-                  This uses the standard metabolic equivalent formula used by MyFitnessPal and Cronometer.
+                  {t("log_activity_formula_desc").replace("{met}", String(selected.met)).replace("{weight}", String(weightKg))}
                 </p>
               </div>
 
@@ -393,7 +408,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
               >
                 {saving
                   ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : <><CheckCircle2 className="w-5 h-5 mr-2" /> Log {estimatedCal > 0 ? `${estimatedCal} cal` : "Activity"}</>
+                  : <><CheckCircle2 className="w-5 h-5 mr-2" /> {estimatedCal > 0 ? t("log_activity_log_button").replace("{cal}", String(estimatedCal)) : t("log_activity")}</>
                 }
               </Button>
             </div>

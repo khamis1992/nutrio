@@ -366,7 +366,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           </span>
           {t("order_active_orders")} ({groupedOrders.length})
         </h3>
-        <Link to="/orders">
+        <Link to="/dashboard">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -398,7 +398,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
               transition={{ delay: index * 0.1, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               layout
             >
-              <Link to="/tracking">
+              <Link to={`/live/${group.orders[0].id}`}>
                 <div className="group relative overflow-hidden rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white via-green-50/60 to-green-100/70 border border-green-100">
                   <div className="p-5">
                     {/* Header Row */}

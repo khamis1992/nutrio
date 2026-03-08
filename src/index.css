@@ -290,12 +290,7 @@
 .stagger-4 { animation-delay: 0.4s; }
 .stagger-5 { animation-delay: 0.5s; }
 
-/* RTL Back Button Arrow Flip - Flips ArrowLeft to point right in RTL mode */
-.rtl-flip-back {
-  transition: transform 0.2s ease;
-}
-
-.rtl .rtl-flip-back,
-[dir="rtl"] .rtl-flip-back {
-  transform: scaleX(-1);
+/* RTL Page Header Row - keeps back button on the LEFT in both LTR and RTL */
+[dir="rtl"] .page-back-header {
+  flex-direction: row-reverse;
 }

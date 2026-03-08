@@ -1161,7 +1161,7 @@ const AdminRestaurantDetail = () => {
           <h2 className="text-xl font-semibold">Restaurant Not Found</h2>
           <p className="text-muted-foreground">The requested restaurant could not be found.</p>
           <Button onClick={() => navigate("/admin/restaurants")}>
-            <ArrowLeft className="w-4 h-4 mr-2 rtl-flip-back" />
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Restaurants
           </Button>
         </div>
@@ -1176,7 +1176,7 @@ const AdminRestaurantDetail = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={handleCancel}>
-              <ArrowLeft className="w-4 h-4 rtl-flip-back" />
+              <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
               <div className="flex items-center gap-2 flex-wrap">

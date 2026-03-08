@@ -1,24 +1,15 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   Bell,
   BellOff,
   Package,
-  Calendar,
-  CreditCard,
-  Info,
-  Check,
-  CheckCheck,
-  Trash2,
-  Loader2,
-  Salad,
-  Utensils,
+  Truck,
+  CheckCircle2,
+  Star,
   TrendingUp,
-  User,
+  Crown,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,29 +28,40 @@ interface Notification {
   created_at: string;
 }
 
-const notificationIcons = {
-  order_update: Package,
-  meal_reminder: Calendar,
-  subscription_alert: CreditCard,
-  general: Info,
-  announcement: Bell,
+const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: string; iconColor: string }> = {
+  order_update:       { icon: Truck,        bg: "bg-teal-100 dark:bg-teal-900/40",   iconColor: "text-teal-600 dark:text-teal-400" },
+  meal_reminder:      { icon: Bell,         bg: "bg-amber-100 dark:bg-amber-900/40", iconColor: "text-amber-500 dark:text-amber-400" },
+  subscription_alert: { icon: Crown,        bg: "bg-orange-100 dark:bg-orange-900/40", iconColor: "text-orange-500 dark:text-orange-400" },
+  general:            { icon: TrendingUp,   bg: "bg-blue-100 dark:bg-blue-900/40",   iconColor: "text-blue-500 dark:text-blue-400" },
+  announcement:       { icon: Star,         bg: "bg-yellow-100 dark:bg-yellow-900/40", iconColor: "text-yellow-500 dark:text-yellow-400" },
 };
 
-const notificationColors = {
-  order_update: "bg-primary/10 text-primary",
-  meal_reminder: "bg-warning/10 text-warning",
-  subscription_alert: "bg-amber-500/10 text-amber-500",
-  general: "bg-blue-500/10 text-blue-500",
-  announcement: "bg-purple-500/10 text-purple-500",
+const FILTERS = [
+  { key: "all",    label: "All" },
+  { key: "orders", label: "Orders" },
+  { key: "meals",  label: "Meals" },
+  { key: "offers", label: "Offers" },
+] as const;
+
+type FilterKey = typeof FILTERS[number]["key"];
+
+const TYPE_TO_FILTER: Record<Notification["type"], FilterKey> = {
+  order_update:       "orders",
+  meal_reminder:      "meals",
+  subscription_alert: "offers",
+  general:            "offers",
+  announcement:       "offers",
 };
 
 export default function Notifications() {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
 
   useEffect(() => {
     if (!user) return;
@@ -83,26 +85,14 @@ export default function Notifications() {
 
     fetchNotifications();
 
-    // Subscribe to realtime updates
     const channel = supabase
       .channel("notifications-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
-        }
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => setNotifications((prev) => [payload.new as Notification, ...prev])
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const markAsRead = async (id: string) => {
@@ -111,250 +101,125 @@ export default function Notifications() {
         .from("notifications")
         .update({ status: "read", read_at: new Date().toISOString() })
         .eq("id", id);
-
       if (error) throw error;
-
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, status: "read", read_at: new Date().toISOString() } : n))
-      );
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to mark notification as read.",
-        variant: "destructive",
-      });
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, status: "read" as const, read_at: new Date().toISOString() } : n));
+    } catch {
+      console.error("Failed to mark as read");
     }
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
-
     try {
       const { error } = await supabase
         .from("notifications")
         .update({ status: "read", read_at: new Date().toISOString() })
         .eq("user_id", user.id)
         .eq("status", "unread");
-
       if (error) throw error;
-
       setNotifications((prev) => prev.map((n) => ({ ...n, status: "read" as const, read_at: new Date().toISOString() })));
-      toast({
-        title: "All marked as read",
-        description: "All notifications have been marked as read.",
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to mark all as read.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const deleteNotification = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to delete notification.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const clearAll = async () => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .delete()
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      setNotifications([]);
-      toast({
-        title: "Cleared",
-        description: "All notifications have been deleted.",
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to clear notifications.",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Error", description: "Failed to mark all as read.", variant: "destructive" });
     }
   };
 
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
 
+  const filtered = activeFilter === "all"
+    ? notifications
+    : notifications.filter((n) => TYPE_TO_FILTER[n.type] === activeFilter);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white dark:bg-gray-950 pb-28">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4 rtl:flex-row-reverse">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-5 h-5 rtl-flip-back" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold">{t("notifications")}</h1>
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="text-xs">
-                  {unreadCount} new
-                </Badge>
-              )}
-            </div>
-          </div>
-          {notifications.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={markAllAsRead}
-                disabled={unreadCount === 0}
-              >
-                <CheckCheck className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Mark all read</span>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={clearAll}>
-                <Trash2 className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Clear all</span>
-              </Button>
-            </div>
+      <div className="px-5 pt-12 pb-4 bg-white dark:bg-gray-950">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t("notifications")}
+          </h1>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="text-sm font-semibold text-primary"
+            >
+              Mark all read
+            </button>
           )}
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24">
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-none">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setActiveFilter(f.key)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                activeFilter === f.key
+                  ? "bg-primary text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-5">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-        ) : notifications.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <BellOff className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">No notifications yet</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                You'll receive notifications for order updates, meal reminders,
-                and subscription alerts here.
-              </p>
-            </CardContent>
-          </Card>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+              <BellOff className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">No notifications</p>
+            <p className="text-sm text-gray-400">You're all caught up!</p>
+          </div>
         ) : (
-          <div className="space-y-3">
-            {notifications.map((notification) => {
-              const Icon = notificationIcons[notification.type];
-              const colorClass = notificationColors[notification.type];
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {filtered.map((n) => {
+              const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.general;
+              const Icon = cfg.icon;
+              const isUnread = n.status === "unread";
 
               return (
-                <Card
-                  key={notification.id}
-                  className={`transition-all ${
-                    notification.status === "unread"
-                      ? "border-primary/30 bg-primary/5"
-                      : ""
+                <button
+                  key={n.id}
+                  onClick={() => isUnread && markAsRead(n.id)}
+                  className={`w-full flex items-center gap-4 py-4 text-left transition-colors ${
+                    isUnread ? "bg-primary/5 -mx-5 px-5" : ""
                   }`}
                 >
-                  <CardContent className="p-3 sm:p-4">
-                    <div className="flex gap-4">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colorClass}`}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-sm">
-                              {notification.title}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {notification.message}
-                            </p>
-                          </div>
-                          {notification.status === "unread" && (
-                            <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between mt-3">
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(notification.created_at), {
-                              addSuffix: true,
-                            })}
-                          </p>
-                          <div className="flex items-center gap-1">
-                            {notification.status === "unread" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => markAsRead(notification.id)}
-                              >
-                                <Check className="w-3 h-3 mr-1" />
-                                Mark read
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-muted-foreground hover:text-destructive"
-                              onClick={() => deleteNotification(notification.id)}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  {/* Icon */}
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                    <Icon className={`w-5 h-5 ${cfg.iconColor}`} />
+                  </div>
+
+                  {/* Text */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-snug">
+                      {n.title}
+                      {isUnread && (
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary ml-1.5 mb-0.5 align-middle" />
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{n.message}</p>
+                  </div>
+
+                  {/* Time */}
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: false })}
+                  </span>
+                </button>
               );
             })}
           </div>
         )}
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-around items-center h-16">
-            {[
-              { icon: Salad, label: "Home", active: false, to: "/dashboard" },
-              { icon: Utensils, label: "Restaurants", active: false, to: "/meals" },
-              { icon: Calendar, label: "Schedule", active: false, to: "/schedule" },
-              { icon: TrendingUp, label: "Progress", active: false, to: "/progress" },
-              { icon: User, label: "Profile", active: false, to: "/profile" },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-colors ${
-                  item.active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <item.icon className={`w-5 h-5 ${item.active ? "fill-primary/20" : ""}`} />
-                <span className="text-xs font-medium">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </nav>
+      </div>
     </div>
   );
 }

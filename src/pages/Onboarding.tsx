@@ -991,7 +991,7 @@ const Onboarding = () => {
 
                     <div className="flex gap-2">
                       <Button variant="outline" onClick={() => setMetricsSubStep('age')} className="w-12 h-12 flex-shrink-0 p-0">
-                        <ArrowLeft className="w-5 h-5 rtl-flip-back" />
+                        <ArrowLeft className="w-5 h-5" />
                       </Button>
                       <Button onClick={() => setMetricsSubStep('weight')} className="flex-1" disabled={!data.height}>
                         Continue
@@ -1071,7 +1071,7 @@ const Onboarding = () => {
 
                   <div className="flex gap-2">
                       <Button variant="outline" onClick={() => setMetricsSubStep('height')} className="w-12 h-12 flex-shrink-0 p-0">
-                        <ArrowLeft className="w-5 h-5 rtl-flip-back" />
+                        <ArrowLeft className="w-5 h-5" />
                       </Button>
                     <Button onClick={() => setMetricsSubStep('targets')} className="flex-1" disabled={!data.weight}>
                       Continue
@@ -1177,7 +1177,7 @@ const Onboarding = () => {
 
                     <div className="flex gap-2">
                       <Button variant="outline" onClick={() => setMetricsSubStep('weight')} className="w-12 h-12 flex-shrink-0 p-0">
-                        <ArrowLeft className="w-5 h-5 rtl-flip-back" />
+                        <ArrowLeft className="w-5 h-5" />
                       </Button>
                       <Button onClick={handleNext} className="flex-1" disabled={!data.targetWeight}>
                         Continue
@@ -1410,7 +1410,7 @@ const Onboarding = () => {
             disabled={step === 1 || saving}
             className="flex-1 h-14 rounded-xl font-medium min-h-[56px]"
           >
-            <ArrowLeft className="w-5 h-5 mr-2 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5 mr-2" />
             Back
           </Button>
           <Button

@@ -167,13 +167,13 @@ const Settings = () => {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
+          <div className="flex items-center gap-4 rtl:flex-row-reverse">
+            <Button
+              variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
             >
-              <ArrowLeft className="h-5 w-5 rtl-flip-back" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-semibold">{t('settings_title')}</h1>
           </div>

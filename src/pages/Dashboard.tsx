@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import {
-  ChevronRight,
   Utensils,
   Bell,
   LogOut,
@@ -38,6 +37,7 @@ import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget"
 import { MealLimitUpsellBanner } from "@/components/MealLimitUpsellBanner";
 import { QuotaWarningBanner } from "@/components/QuotaWarningBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 
 interface Restaurant {
   id: string;
@@ -433,7 +433,7 @@ const Dashboard = () => {
             </div>
             <Link to="/meals">
               <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
-                {t("view_all")} <ChevronRight className="w-4 h-4 ml-1" />
+                {t("view_all")} <NavChevronRight className="w-4 h-4 ms-1" />
               </Button>
             </Link>
           </div>

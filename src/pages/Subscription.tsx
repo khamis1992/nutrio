@@ -449,7 +449,7 @@ setIsProcessing(false);
               onClick={() => navigate(-1)}
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
             >
-            <ArrowLeft className="h-5 w-5 text-foreground rtl-flip-back" />
+            <ArrowLeft className="h-5 w-5 text-foreground" />
             </button>
             <h1 className="text-lg font-bold tracking-tight">{t("choose_plan")}</h1>
           </div>
@@ -583,7 +583,7 @@ setIsProcessing(false);
     <div className="min-h-screen pb-24">
       {/* Native header */}
       <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
-        <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3">
+        <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3 rtl:flex-row-reverse">
           <button
             onClick={() => navigate(-1)}
             className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"

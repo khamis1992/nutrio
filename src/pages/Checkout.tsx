@@ -166,7 +166,7 @@ export default function Checkout() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-8 rtl:flex-row-reverse">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-2xl font-bold">{t('checkout_title')}</h1>
         </div>
@@ -221,7 +221,7 @@ export default function Checkout() {
               className="mb-4" 
               onClick={() => navigate(-1)}
             >
-              <ArrowLeft className="w-4 h-4 mr-2 rtl-flip-back" />
+              <ArrowLeft className="w-4 h-4 mr-2" />
               {t('change_payment_method')}
             </Button>
 

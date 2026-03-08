@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +44,6 @@ import {
   Lock,
   Mail,
   Wallet,
-  ChevronRight,
   Calendar,
   Shield,
   Eye,
@@ -518,7 +518,7 @@ const Profile = () => {
         animate={{ y: 0, opacity: 1 }}
         className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-4 rtl:flex-row-reverse">
           <Button
             variant="ghost"
             size="icon"
@@ -629,7 +629,7 @@ const Profile = () => {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setActiveTab(item.value)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-300",
+                      "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-start transition-all duration-300",
                       "border-2",
                       isActive
                         ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20"
@@ -641,9 +641,9 @@ const Profile = () => {
                     {isActive && (
                       <motion.div
                         layoutId="activeIndicator"
-                        className="ml-auto"
+                        className="ms-auto"
                       >
-                        <ChevronRight className="w-5 h-5" />
+                        <NavChevronRight className="w-5 h-5" />
                       </motion.div>
                     )}
                   </motion.button>
@@ -705,7 +705,7 @@ const Profile = () => {
                       <motion.button
                         whileTap={{ scale: 0.98 }}
                         onClick={() => toggleSection("personal")}
-                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-start"
                       >
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                           <User className="w-5 h-5 text-primary" />
@@ -715,7 +715,7 @@ const Profile = () => {
                            <p className="text-sm text-muted-foreground">{t("personal_info_desc")}</p>
                          </div>
                         <motion.div animate={{ rotate: openSection === "personal" ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                          <NavChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                         </motion.div>
                       </motion.button>
                       <AnimatePresence initial={false}>
@@ -798,7 +798,7 @@ const Profile = () => {
                       <motion.button
                         whileTap={{ scale: 0.98 }}
                         onClick={() => toggleSection("addresses")}
-                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-start"
                       >
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                           <MapPin className="w-5 h-5 text-primary" />
@@ -808,7 +808,7 @@ const Profile = () => {
                           <p className="text-sm text-muted-foreground">{t("manage_addresses")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "addresses" ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                          <NavChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                         </motion.div>
                       </motion.button>
                       <AnimatePresence initial={false}>
@@ -829,7 +829,7 @@ const Profile = () => {
                               >
                                 <MapPin className="w-5 h-5 text-muted-foreground" />
                                  <span>{t("manage_addresses_action")}</span>
-                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                                <NavChevronRight className="w-4 h-4 ms-auto text-muted-foreground" />
                               </Button>
                             </div>
                           </motion.div>
@@ -844,7 +844,7 @@ const Profile = () => {
                       <motion.button
                         whileTap={{ scale: 0.98 }}
                         onClick={() => toggleSection("dietary")}
-                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-start"
                       >
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                           <Utensils className="w-5 h-5 text-primary" />
@@ -854,7 +854,7 @@ const Profile = () => {
                            <p className="text-sm text-muted-foreground">{t("manage_dietary_preferences")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "dietary" ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                          <NavChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                         </motion.div>
                       </motion.button>
                       <AnimatePresence initial={false}>
@@ -933,7 +933,7 @@ const Profile = () => {
                       <motion.button
                         whileTap={{ scale: 0.98 }}
                         onClick={() => toggleSection("policies")}
-                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-start"
                       >
                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                           <FileText className="w-5 h-5 text-primary" />
@@ -943,7 +943,7 @@ const Profile = () => {
                            <p className="text-sm text-muted-foreground">{t("terms_and_conditions")}, {t("privacy_policy_label")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "policies" ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                          <NavChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                         </motion.div>
                       </motion.button>
                       <AnimatePresence initial={false}>
@@ -964,7 +964,7 @@ const Profile = () => {
                               >
                                 <FileText className="w-5 h-5 text-muted-foreground" />
                                  <span>{t("terms_and_conditions")}</span>
-                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                                <NavChevronRight className="w-4 h-4 ms-auto text-muted-foreground" />
                               </Button>
                               <Button
                                 variant="outline"
@@ -973,7 +973,7 @@ const Profile = () => {
                               >
                                 <ShieldAlert className="w-5 h-5 text-muted-foreground" />
                                  <span>{t("privacy_policy_label")}</span>
-                                <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                                <NavChevronRight className="w-4 h-4 ms-auto text-muted-foreground" />
                               </Button>
                             </div>
                           </motion.div>
@@ -988,7 +988,7 @@ const Profile = () => {
                       <motion.button
                         whileTap={{ scale: 0.98 }}
                         onClick={() => toggleSection("support")}
-                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-left"
+                        className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors rounded-2xl text-start"
                       >
                         <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
                           <HelpCircle className="w-5 h-5 text-sky-500" />
@@ -998,7 +998,7 @@ const Profile = () => {
                            <p className="text-sm text-muted-foreground">{t("get_help_report_issues")}</p>
                         </div>
                         <motion.div animate={{ rotate: openSection === "support" ? 90 : 0 }} transition={{ duration: 0.2 }}>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+                          <NavChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                         </motion.div>
                       </motion.button>
                       <AnimatePresence initial={false}>
@@ -1020,7 +1020,7 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <MessageCircle className="w-5 h-5 text-green-500 shrink-0" />
-                                 <span className="flex-1 text-left">{t("chat_on_whatsapp")}</span>
+                                 <span className="flex-1 text-start">{t("chat_on_whatsapp")}</span>
                                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
                               </a>
 
@@ -1030,7 +1030,7 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <Mail className="w-5 h-5 text-sky-500 shrink-0" />
-                                 <span className="flex-1 text-left">{t("email_support")}</span>
+                                 <span className="flex-1 text-start">{t("email_support")}</span>
                                 <ExternalLink className="w-4 h-4 text-muted-foreground" />
                               </a>
 
@@ -1040,7 +1040,7 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <Phone className="w-5 h-5 text-violet-500 shrink-0" />
-                                 <span className="flex-1 text-left">{t("call_us")}</span>
+                                 <span className="flex-1 text-start">{t("call_us")}</span>
                                  <span className="text-xs text-muted-foreground">{t("phone_number")}</span>
                               </a>
 
@@ -1050,8 +1050,8 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <Ticket className="w-5 h-5 text-amber-500 shrink-0" />
-                                 <span className="flex-1 text-left">{t("submit_a_ticket")}</span>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                 <span className="flex-1 text-start">{t("submit_a_ticket")}</span>
+                                <NavChevronRight className="w-4 h-4 text-muted-foreground" />
                               </button>
 
                               {/* FAQ */}
@@ -1060,8 +1060,8 @@ const Profile = () => {
                                 className="flex items-center gap-3 w-full h-12 px-4 rounded-xl border border-border bg-transparent hover:bg-muted transition-colors text-sm font-medium"
                               >
                                 <BookOpen className="w-5 h-5 text-primary shrink-0" />
-                                 <span className="flex-1 text-left">{t("view_faq")}</span>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                 <span className="flex-1 text-start">{t("view_faq")}</span>
+                                <NavChevronRight className="w-4 h-4 text-muted-foreground" />
                               </button>
 
                               {/* App version note */}

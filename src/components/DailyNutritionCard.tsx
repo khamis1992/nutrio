@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Flame, Plus, Calendar } from "lucide-react";
+import { Flame, Plus, Calendar } from "lucide-react";
+import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -125,14 +126,14 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
           {/* ── Date navigation row ── */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-              <ChevronLeft className="w-5 h-5 text-gray-400" />
+              <NavChevronLeft className="w-5 h-5 text-gray-400" />
             </button>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-gray-800">{today}</span>
               <Calendar className="w-4 h-4 text-gray-400" />
             </div>
             <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-              <ChevronRight className="w-5 h-5 text-gray-400" />
+              <NavChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </div>
 

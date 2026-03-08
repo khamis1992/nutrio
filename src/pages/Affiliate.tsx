@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { 
   ArrowLeft, 
   Users, 
@@ -11,7 +12,6 @@ import {
   Copy,
   Share2,
   Check,
-  ChevronRight,
   Wallet,
   Clock,
   Network,
@@ -58,7 +58,7 @@ function NativeHeader({ title, onBack, right }: { title: string; onBack: () => v
           onClick={onBack}
           className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
         >
-          <ArrowLeft className="h-5 w-5 text-foreground rtl-flip-back" />
+          <ArrowLeft className="h-5 w-5 text-foreground" />
         </button>
         <h1 className="text-lg font-bold tracking-tight">{title}</h1>
         <div className="w-10 flex justify-end">{right}</div>
@@ -409,8 +409,8 @@ export default function Affiliate() {
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </div>
-                <span className="flex-1 text-sm font-semibold text-left text-foreground">{t("affiliate_view_stats")}</span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <span className="flex-1 text-sm font-semibold text-start text-foreground">{t("affiliate_view_stats")}</span>
+                <NavChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
             {network.length === 0 ? (

@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu as MenuIcon, ChevronRight, Crown } from "lucide-react";
+import { Menu as MenuIcon, Crown } from "lucide-react";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Badge } from "@/components/ui/badge";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -91,20 +92,6 @@ export function MainMenu() {
       title: t("orders_and_subscription"),
       items: [
         {
-          icon: ({ className }) => (
-            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-          ),
-          label: t("order_history"),
-          description: t("view_past_orders"),
-          to: "/orders",
-        },
-        {
           icon: ({ className }) => <Crown className={className} />,
           label: t("subscription"),
           description: hasActiveSubscription ? t("manage_your_plan") : t("upgrade_your_plan"),
@@ -114,19 +101,6 @@ export function MainMenu() {
             badgeVariant: "secondary" as const,
           } : {}),
         },
-        ...(platformSettings.features.delivery_tracking ? [{
-          icon: ({ className }) => (
-            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="1" y="3" width="15" height="13" />
-              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-              <circle cx="5.5" cy="18.5" r="2.5" />
-              <circle cx="18.5" cy="18.5" r="2.5" />
-            </svg>
-          ),
-          label: t("live_tracking"),
-          description: t("track_your_orders"),
-          to: "/tracking",
-        }] : []),
       ],
     },
     {
@@ -212,12 +186,12 @@ export function MainMenu() {
                       variant="ghost"
                       className="w-full justify-between h-auto py-4 px-4 hover:bg-accent/50"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 rtl:flex-row-reverse w-full">
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <item.icon className="w-6 h-6 text-primary" />
                         </div>
-                        <div className="text-left flex-1">
-                          <div className="flex items-center gap-2">
+                        <div className="text-start flex-1">
+                          <div className="flex items-center gap-2 rtl:flex-row-reverse">
                             <span className="font-semibold">{item.label}</span>
                             {item.badge && (
                               <Badge variant={item.badgeVariant || "default"} className="text-xs">
@@ -227,7 +201,7 @@ export function MainMenu() {
                           </div>
                           <p className="text-sm text-muted-foreground">{item.description}</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                        <NavChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                       </div>
                     </Button>
                   </Link>

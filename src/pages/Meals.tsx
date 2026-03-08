@@ -3,8 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  ChevronLeft,
-  ChevronRight,
   Store,
   Heart,
   Star,
@@ -15,7 +13,8 @@ import {
   Leaf,
   Flame,
   Utensils,
-  LayoutGrid
+  LayoutGrid,
+  ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +35,7 @@ import proteinFilterImage from "@/assets/protein.png";
 import lowCarbFilterImage from "@/assets/low carb.png";
 import breakfastFilterImage from "@/assets/breakfast.png";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { NavChevronRight } from "@/components/ui/nav-chevron";
 
 // Cuisine name to translation key mapping
 const getCuisineTranslationKey = (cuisine: string): string => {
@@ -235,7 +235,7 @@ const RestaurantListCard = ({
               </div>
             </div>
             <div className="self-center pr-1 text-muted-foreground/60 group-hover:text-primary transition-colors">
-              <ChevronRight className="w-4 h-4" />
+              <NavChevronRight className="w-4 h-4" />
             </div>
           </div>
           
@@ -328,7 +328,7 @@ const MealListCard = ({
                 </div>
 
                 <div className="self-center pr-1 text-muted-foreground/60 group-hover:text-primary transition-colors">
-                  <ChevronRight className="w-4 h-4" />
+                  <NavChevronRight className="w-4 h-4" />
                 </div>
               </div>
             </div>
@@ -927,7 +927,7 @@ const Meals = () => {
       {/* Native Header */}
       <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
         <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 rtl:flex-row-reverse">
             <Link to="/dashboard">
               <motion.div whileTap={{ scale: 0.9 }}>
                 <Button 
@@ -935,7 +935,7 @@ const Meals = () => {
                   size="icon" 
                   className="w-10 h-10 rounded-full hover:bg-muted"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ArrowLeft className="w-5 h-5" />
                 </Button>
               </motion.div>
             </Link>

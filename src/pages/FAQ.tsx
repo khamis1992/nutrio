@@ -148,7 +148,7 @@ const FAQ = () => {
         <div className="flex justify-start rtl:flex-row-reverse">
           <Link to="/profile">
             <Button variant="ghost" className="mb-6">
-              <ArrowLeft className="h-4 w-4 mr-2 rtl-flip-back" />
+              <ArrowLeft className="h-4 w-4 mr-2" />
               {t("back_to_profile")}
             </Button>
           </Link>

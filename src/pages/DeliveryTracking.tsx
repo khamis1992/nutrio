@@ -1,1262 +1,591 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { format, isToday, isTomorrow, addMinutes } from "date-fns";
-import { formatCurrency } from "@/lib/currency";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { 
-  ArrowLeft, 
-  Package, 
-  ChefHat, 
-  Truck,
-  CheckCircle2, 
-  Clock,
-  MapPin,
-  Phone,
+import { useToast } from "@/hooks/use-toast";
+import { CustomerNavigation } from "@/components/CustomerNavigation";
+import { OneTapReorder } from "@/components/OneTapReorder";
+import { ModifyOrderModal } from "@/components/ModifyOrderModal";
+import { toast as sonnerToast } from "sonner";
+import {
+  ChevronLeft,
+  RotateCw,
+  Loader2,
   RefreshCw,
-  ExternalLink,
-  Check,
+  ShoppingBag,
+  UtensilsCrossed,
+  Truck,
+  CheckCircle2,
+  XCircle,
+  ChefHat,
+  CircleDot,
+  Calendar,
+  Flame,
+  Clock,
+  Pencil,
+  Trash2,
+  RotateCcw,
+  Package,
 } from "lucide-react";
-import flameLogo from "@/assets/flam.png";
+import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-// Import map components directly - keeping Leaflet for this file
-import MapContainer from "@/components/maps/MapContainer";
-import DriverMarker from "@/components/maps/DriverMarker";
-import { Marker, Polyline, useMap } from "react-leaflet";
-import L from "leaflet";
+// ── Types ────────────────────────────────────────────────────────────────────
+interface Restaurant { id: string; name: string; logo_url: string | null; }
+interface Meal { id: string; name: string; image_url: string | null; calories: number; restaurant_id: string; }
+interface OrderItem { id: string; quantity: number; meal_id: string; meal?: Meal; }
 
-type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "out_for_delivery" | "delivered" | "completed" | "cancelled";
-
-interface MealSchedule {
+interface Order {
   id: string;
-  scheduled_date: string;
-  order_status: OrderStatus | null;
-  meal_id: string;
-  addons_total: number | null;
-  delivery_fee: number | null;
-  delivery_type: string | null;
-}
-
-interface Meal {
-  id: string;
-  name: string;
-  image_url: string | null;
-  restaurant_id: string | null;
-  restaurant?: {
-    name: string;
-    phone: string | null;
-    address: string | null;
-  };
-}
-
-interface DeliveryJob {
-  id: string;
-  driver_id: string | null;
-  status: string | null;
-  picked_up_at: string | null;
-  delivered_at: string | null;
-  delivery_lat: number | null;
-  delivery_lng: number | null;
-  driver?: {
-    current_lat: number | null;
-    current_lng: number | null;
-    full_name: string | null;
-    phone_number: string | null;
-  } | null;
-}
-
-interface ActiveOrder {
-  id: string;
-  order_status: OrderStatus | null;
-  scheduled_date: string;
-  meal_name: string;
-  meal_image: string | null;
-  restaurant_name: string;
-  restaurant_phone: string | null;
-  restaurant_address: string | null;
+  created_at: string;
+  estimated_delivery_time?: string;
+  status: string;
   total_amount: number;
-  delivery_type: string;
-  delivery_job?: DeliveryJob | null;
-  driver_name?: string | null;
-  driver_phone?: string | null;
+  meal_id: string | null;
+  notes: string | null;
+  restaurant_id: string | null;
+  restaurant?: Restaurant;
+  order_items: OrderItem[];
 }
 
-// 5 steps - removed Confirmed to match reference design
-const statusSteps: { status: OrderStatus; label: string; sublabel?: string }[] = [
-  { status: "pending", label: "Order Placed" },
-  { status: "preparing", label: "Preparing", sublabel: "In Queue" },
-  { status: "ready", label: "Ready" },
-  { status: "out_for_delivery", label: "On the Way", sublabel: "Near Your Location" },
-  { status: "delivered", label: "Delivered" },
-];
-
-const statusConfig: Record<OrderStatus, {
-  label: string;
-  shortLabel: string;
-  badgeClass: string;
-  textClass: string;
-}> = {
-  pending: {
-    label: "Pending",
-    shortLabel: "PENDING",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  confirmed: {
-    label: "Confirmed",
-    shortLabel: "CONFIRMED",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  preparing: {
-    label: "Preparing",
-    shortLabel: "PREPARING",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  ready: {
-    label: "Ready",
-    shortLabel: "READY",
-    badgeClass: "bg-[#bef264]",
-    textClass: "text-green-900",
-  },
-  out_for_delivery: {
-    label: "On the Way",
-    shortLabel: "ON THE WAY",
-    badgeClass: "bg-green-700",
-    textClass: "text-[#bef264]",
-  },
-  delivered: {
-    label: "Delivered",
-    shortLabel: "DELIVERED",
-    badgeClass: "bg-green-700",
-    textClass: "text-white",
-  },
-  completed: {
-    label: "Completed",
-    shortLabel: "COMPLETED",
-    badgeClass: "bg-green-700",
-    textClass: "text-white",
-  },
-  cancelled: {
-    label: "Cancelled",
-    shortLabel: "CANCELLED",
-    badgeClass: "bg-red-500",
-    textClass: "text-white",
-  },
-};
-
-// Food emoji for meal items
-const FoodEmoji = () => (
-  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-green-100 text-xs mr-2">
-    🥗
-  </span>
-);
-
-const haversineDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
-
-const calculateEtaMinutes = (driverLat: number, driverLng: number, destLat: number, destLng: number): number => {
-  const distKm = haversineDistanceKm(driverLat, driverLng, destLat, destLng);
-  return Math.max(2, Math.round((distKm / 30) * 60)); // 30 km/h average city speed
-};
-
-const getCurrentStepIndex = (status: OrderStatus) => {
-  return statusSteps.findIndex(s => s.status === status);
-};
-
-const getEstimatedTime = (status: OrderStatus, deliveryDate: string) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = format(today, "yyyy-MM-dd");
-  const isDeliveryToday = deliveryDate === todayStr;
-  
-  if (!isDeliveryToday) {
-    const date = new Date(deliveryDate);
-    if (isTomorrow(date)) {
-      return "Tomorrow";
-    }
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  }
-  
-  switch (status) {
-    case 'pending':
-      return 'Waiting for confirmation';
-    case 'confirmed':
-      return 'Starting preparation soon';
-    case 'preparing':
-      return '15-25 min remaining';
-    case 'ready':
-      return 'Ready for pickup/delivery';
-    case 'out_for_delivery':
-      return '5-15 min remaining';
-    case 'delivered':
-      return 'Delivered today';
-    default:
-      return 'Processing';
-  }
-};
-
-// ── Road-following route line using OSRM (free, no API key) ─────────────
-// Injects route animation CSS once into the document
-const ROUTE_STYLE_ID = "nutrio-route-anim";
-function injectRouteStyles() {
-  if (document.getElementById(ROUTE_STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = ROUTE_STYLE_ID;
-  style.textContent = `
-    /* Flowing dash — travels from driver to customer */
-    @keyframes routeFlow {
-      from { stroke-dashoffset: 400; }
-      to   { stroke-dashoffset: 0; }
-    }
-    /* Glow pulse on main line */
-    @keyframes routeGlow {
-      0%,100% { filter: drop-shadow(0 0 3px #4ade80) drop-shadow(0 0 6px #16a34a); }
-      50%      { filter: drop-shadow(0 0 8px #86efac) drop-shadow(0 0 16px #22c55e); }
-    }
-    .route-glow path {
-      animation: routeGlow 2s ease-in-out infinite;
-    }
-    .route-flow path {
-      stroke-dasharray: 16 12;
-      animation: routeFlow 1.4s linear infinite;
-    }
-  `;
-  document.head.appendChild(style);
+interface ScheduledMeal {
+  id: string;
+  scheduled_date: string;
+  meal_type: string;
+  is_completed: boolean;
+  order_status: string;
+  created_at: string;
+  meal_id: string;
+  meal?: Meal & { restaurant?: Restaurant };
 }
 
-function RoutePolyline({
-  from,
-  to,
-}: {
-  from: [number, number];
-  to: [number, number];
-}) {
-  const [routePoints, setRoutePoints] = useState<[number, number][]>([from, to]);
-  const abortRef = useRef<AbortController | null>(null);
+const ACTIVE_STATUSES = ["pending", "confirmed", "preparing", "ready", "out_for_delivery"];
+const COMPLETED_STATUSES = ["delivered", "completed"];
 
-  // Inject CSS animation once on mount
-  useEffect(() => { injectRouteStyles(); }, []);
-
-  const fetchRoute = useCallback(async () => {
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${from[1]},${from[0]};${to[1]},${to[0]}` +
-      `?overview=full&geometries=geojson&alternatives=3`;
-
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-
-    try {
-      const res = await fetch(url, { signal: abortRef.current.signal });
-      const data = await res.json();
-
-      if (data?.routes?.length) {
-        const shortest = [...data.routes].sort(
-          (a: { distance: number }, b: { distance: number }) => a.distance - b.distance
-        )[0];
-
-        if (shortest?.geometry?.coordinates) {
-          const pts: [number, number][] = shortest.geometry.coordinates.map(
-            ([lng, lat]: [number, number]) => [lat, lng]
-          );
-          setRoutePoints(pts);
-        }
-      }
-    } catch {
-      // keep straight fallback on error
-    }
-  }, [from[0], from[1], to[0], to[1]]);
-
-  useEffect(() => {
-    fetchRoute();
-    return () => abortRef.current?.abort();
-  }, [fetchRoute]);
-
-  return (
-    <>
-      {/* 1. White halo / outline for contrast */}
-      <Polyline
-        positions={routePoints}
-        pathOptions={{ color: "#ffffff", weight: 8, opacity: 0.55, lineCap: "round", lineJoin: "round" }}
-      />
-
-      {/* 2. Main glowing green road line */}
-      <Polyline
-        positions={routePoints}
-        className="route-glow"
-        pathOptions={{ color: "#16a34a", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }}
-      />
-
-      {/* 3. Bright flowing dash that travels from driver → customer */}
-      <Polyline
-        positions={routePoints}
-        className="route-flow"
-        pathOptions={{ color: "#86efac", weight: 3, opacity: 0.95, lineCap: "round", lineJoin: "round" }}
-      />
-    </>
-  );
-}
-
-// Fits the map to show both driver and customer markers
-function MapBoundsFitter({ driverPos, customerPos }: { driverPos: [number, number]; customerPos: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.fitBounds([driverPos, customerPos], { padding: [50, 50], maxZoom: 16 });
-  }, [driverPos[0], driverPos[1], customerPos[0], customerPos[1]]);
-  return null;
-}
-
-const destinationIcon = L.divIcon({
-  html: `
-    <div style="position:relative;width:48px;height:56px;display:flex;flex-direction:column;align-items:center;">
-      <!-- Pin body -->
-      <div style="
-        width:44px;height:44px;
-        background:linear-gradient(135deg,#16a34a,#15803d);
-        border-radius:50% 50% 50% 4px;
-        transform:rotate(45deg);
-        box-shadow:0 4px 16px rgba(22,163,74,0.45),0 2px 6px rgba(0,0,0,0.25);
-        border:2.5px solid #fff;
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <!-- Inner white circle -->
-        <div style="
-          transform:rotate(-45deg);
-          width:28px;height:28px;
-          background:#fff;
-          border-radius:50%;
-          display:flex;align-items:center;justify-content:center;
-        ">
-          <!-- House SVG -->
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-        </div>
-      </div>
-      <!-- Pin tail shadow -->
-      <div style="
-        width:10px;height:10px;
-        background:rgba(0,0,0,0.15);
-        border-radius:50%;
-        margin-top:-4px;
-        filter:blur(3px);
-      "></div>
-    </div>`,
-  className: "",
-  iconSize: [48, 56],
-  iconAnchor: [24, 54],
-});
-
-// Arrival Window Component — updates every 30 s so the clock stays accurate
-const ArrivalWindow = ({ estimatedMinutes }: { estimatedMinutes: number }) => {
-  const [now, setNow] = useState(new Date());
-
-  // Tick every 30 seconds so displayed times don't go stale
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const start = addMinutes(now, Math.max(0, estimatedMinutes - 5));
-  const end   = addMinutes(now, estimatedMinutes + 5);
-
-  return (
-    <div className="bg-primary/10 rounded-xl p-4 text-center space-y-1">
-      {/* Live pulse header */}
-      <div className="flex items-center justify-center gap-2 mb-1">
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
-        </span>
-        <p className="text-xs font-semibold text-primary uppercase tracking-wide">Live ETA</p>
-      </div>
-
-      <p className="text-sm text-muted-foreground">Arriving between</p>
-      <p className="text-2xl font-bold text-foreground">
-        {format(start, 'h:mm')} – {format(end, 'h:mm a')}
-      </p>
-      <p className="text-sm text-muted-foreground">
-        ~{estimatedMinutes} min away
-      </p>
-    </div>
-  );
+const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeColor: string }> = {
+  pending:          { label: "Pending",       icon: CircleDot,    color: "text-amber-600",  badgeColor: "bg-amber-50 text-amber-600 border-amber-200" },
+  confirmed:        { label: "Confirmed",     icon: CheckCircle2, color: "text-blue-600",   badgeColor: "bg-blue-50 text-blue-600 border-blue-200" },
+  preparing:        { label: "Preparing",     icon: ChefHat,      color: "text-purple-600", badgeColor: "bg-purple-50 text-purple-600 border-purple-200" },
+  ready:            { label: "Ready",         icon: CheckCircle2, color: "text-teal-600",   badgeColor: "bg-teal-50 text-teal-600 border-teal-200" },
+  out_for_delivery: { label: "In Delivery",   icon: Truck,        color: "text-[#48a98b]",  badgeColor: "bg-[#eaf7f0] text-[#48a98b] border-[#c5e8da]" },
+  delivered:        { label: "Delivered",     icon: CheckCircle2, color: "text-[#48a98b]",  badgeColor: "bg-[#eaf7f0] text-[#48a98b] border-[#c5e8da]" },
+  completed:        { label: "Delivered",     icon: CheckCircle2, color: "text-[#48a98b]",  badgeColor: "bg-[#eaf7f0] text-[#48a98b] border-[#c5e8da]" },
+  cancelled:        { label: "Cancelled",     icon: XCircle,      color: "text-red-600",    badgeColor: "bg-red-50 text-red-600 border-red-200" },
 };
 
-// Contact Section Component
-interface ContactSectionProps {
-  restaurantPhone?: string | null;
-  restaurantAddress?: string | null;
-  driverName?: string | null;
-  driverPhone?: string | null;
-  isOnTheWay?: boolean;
+const TABS = ["All", "Active", "Completed", "Cancelled"] as const;
+type TabType = typeof TABS[number];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function shortId(id: string) {
+  return `#NUT-${id.replace(/-/g, "").slice(0, 4).toUpperCase()}`;
 }
 
-const ContactSection = ({ restaurantPhone, restaurantAddress, driverName, driverPhone, isOnTheWay }: ContactSectionProps) => (
-  <div className="pt-4 border-t border-border space-y-3">
-    {restaurantAddress && (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <MapPin className="h-4 w-4 flex-shrink-0" />
-        <span className="truncate">{restaurantAddress}</span>
-      </div>
-    )}
-    
-    {/* Driver Info Card - Show when order is on the way */}
-    {isOnTheWay && driverName && (
-      <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-          <Truck className="w-5 h-5 text-green-600" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-green-800">Your Driver</p>
-          <p className="text-xs text-green-600">{driverName}</p>
-        </div>
-      </div>
-    )}
-    
-    <div className="flex gap-2">
-      {isOnTheWay ? (
-        driverPhone ? (
-          <Button variant="default" className="flex-1 bg-green-600 hover:bg-green-700" asChild>
-            <a href={`tel:${driverPhone}`}>
-              <Phone className="h-4 w-4 mr-2" />
-              Call Driver{driverName ? ` · ${driverName}` : ""}
-            </a>
-          </Button>
-        ) : (
-          <Button variant="default" className="flex-1 bg-green-600/60 cursor-not-allowed" disabled>
-            <Phone className="h-4 w-4 mr-2" />
-            Call Driver{driverName ? ` · ${driverName}` : ""}
-          </Button>
-        )
-      ) : (
-        restaurantPhone && (
-          <Button variant="outline" className="flex-1" asChild>
-            <a href={`tel:${restaurantPhone}`}>
-              <Phone className="h-4 w-4 mr-2" /> Call Restaurant
-            </a>
-          </Button>
-        )
-      )}
-    </div>
-  </div>
-);
+function getOrderTabType(status: string): TabType {
+  if (ACTIVE_STATUSES.includes(status)) return "Active";
+  if (COMPLETED_STATUSES.includes(status)) return "Completed";
+  if (status === "cancelled") return "Cancelled";
+  return "Active";
+}
+
+// ── Unified card shape ───────────────────────────────────────────────────────
+interface UnifiedOrder {
+  id: string;
+  shortId: string;
+  status: string;
+  restaurantName: string;
+  images: (string | null)[];
+  price: number;
+  date: string;
+  tab: TabType;
+  canCancel: boolean;
+  canModify: boolean;
+  canReorder: boolean;
+  canTrack: boolean;
+  // original refs for actions
+  sourceType: "order" | "scheduled";
+  originalOrder?: Order;
+  originalSchedule?: ScheduledMeal;
+}
 
 export default function DeliveryTracking() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [orders, setOrders] = useState<ActiveOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useProfile();
+  const { toast } = useToast();
+
+  const [activeTab, setActiveTab] = useState<TabType>("Active");
   const [refreshing, setRefreshing] = useState(false);
-  const [customerLocation, setCustomerLocation] = useState<[number, number] | null>(null);
-  const locationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const orderUpdateChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [modifyingSchedule, setModifyingSchedule] = useState<ScheduledMeal | null>(null);
 
-  // Fetch customer's default delivery address and geocode it
-  useEffect(() => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [scheduledMeals, setScheduledMeals] = useState<ScheduledMeal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [ordersPage, setOrdersPage] = useState(0);
+  const [ordersHasMore, setOrdersHasMore] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // Pull-to-refresh
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const minPullDistance = 80;
+
+  // ── Fetch orders ────────────────────────────────────────────────────────────
+  const fetchOrders = useCallback(async (page: number, append = false) => {
     if (!user) return;
+    setOrdersLoading(true);
+    try {
+      const pageSize = 20;
+      const from = page * pageSize;
 
-    const loadCustomerLocation = async () => {
-      try {
-        // 1. Try browser geolocation first (most accurate, no CORS issues)
-        if (navigator.geolocation) {
-          try {
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { 
-                enableHighAccuracy: true, 
-                timeout: 5000,
-                maximumAge: 300000 // 5 minutes cache
-              });
-            });
-            setCustomerLocation([position.coords.latitude, position.coords.longitude]);
-            return;
-          } catch {
-            // Geolocation denied or unavailable, continue to address lookup
-          }
-        }
+      const { data: ordersData, error } = await supabase
+        .from("orders")
+        .select("id, created_at, estimated_delivery_time, status, total_amount, notes, restaurant_id, meal_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .range(from, from + pageSize - 1);
 
-        // 2. Try to geocode saved default address using a CORS proxy
-        const { data: addresses } = await supabase
-          .from("user_addresses")
-          .select("address_line1, city, state, country, postal_code")
-          .eq("user_id", user.id)
-          .eq("is_default", true)
-          .limit(1);
+      if (error) throw error;
+      if (!ordersData || ordersData.length === 0) { setOrdersHasMore(false); return; }
 
-        if (addresses && addresses.length > 0) {
-          const addr = addresses[0];
-          const city = addr.city?.trim() || "";
-          const street = addr.address_line1?.trim() || "";
-          const country = addr.country?.toLowerCase() === "united states" ? "Qatar" : (addr.country || "Qatar");
+      const restaurantIds = [...new Set(ordersData.map(o => o.restaurant_id).filter(Boolean) as string[])];
+      const orderIds = ordersData.map(o => o.id);
 
-          // Build query string
-          const query = [street, city, country].filter(Boolean).join(", ");
-          
-          if (query) {
-            try {
-              // Use a CORS proxy service (allorigins.win is a free public proxy)
-              const res = await fetch(
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(
-                  `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=qa`
-                )}`,
-                { 
-                  headers: { 
-                    "Accept-Language": "en",
-                    "User-Agent": "NutrioFuel/1.0"
-                  } 
-                }
-              );
-              const data = await res.json();
-              if (data && data.length > 0) {
-                setCustomerLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
-                return;
-              }
-            } catch {
-              // Geocoding failed, use default location
-            }
-          }
-        }
+      const [{ data: restaurants }, { data: orderItemsData }] = await Promise.all([
+        restaurantIds.length > 0
+          ? supabase.from("restaurants").select("id, name, logo_url").in("id", restaurantIds)
+          : { data: [] },
+        supabase.from("order_items").select("id, order_id, quantity, meal_id").in("order_id", orderIds),
+      ]);
 
-        // 3. Fallback to Doha, Qatar (default)
-        setCustomerLocation([25.2854, 51.5310]);
-      } catch {
-        // Error loading customer location, use default
-        setCustomerLocation([25.2854, 51.5310]);
-      }
-    };
+      const mealIds = [...new Set((orderItemsData || []).map(oi => oi.meal_id).filter(Boolean) as string[])];
+      const { data: mealsData } = mealIds.length > 0
+        ? await supabase.from("meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds)
+        : { data: [] };
 
-    loadCustomerLocation();
+      const transformed: Order[] = ordersData.map(o => ({
+        id: o.id,
+        created_at: o.created_at,
+        estimated_delivery_time: o.estimated_delivery_time || undefined,
+        status: o.status || "pending",
+        total_amount: (o as any).total_amount || 0,
+        meal_id: o.meal_id,
+        notes: o.notes,
+        restaurant_id: o.restaurant_id,
+        restaurant: (restaurants || []).find(r => r.id === o.restaurant_id),
+        order_items: (orderItemsData || [])
+          .filter(oi => oi.order_id === o.id)
+          .map(oi => ({
+            id: oi.id,
+            quantity: oi.quantity,
+            meal_id: oi.meal_id || "",
+            meal: (mealsData || []).find(m => m.id === oi.meal_id),
+          })),
+      }));
+
+      setOrders(prev => append ? [...prev, ...transformed] : transformed);
+      setOrdersPage(page);
+      setOrdersHasMore(ordersData.length === pageSize);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+    } finally {
+      setOrdersLoading(false);
+    }
   }, [user]);
 
-  const fetchActiveOrders = async () => {
+  // ── Fetch scheduled meals ───────────────────────────────────────────────────
+  const fetchScheduledMeals = useCallback(async () => {
     if (!user) return;
-
     try {
-      // Fetch meal schedules with meal_id
-      const { data: schedules, error: schedulesError } = await supabase
+      const { data: schedulesData, error } = await supabase
         .from("meal_schedules")
-        .select(`
-          id,
-          scheduled_date,
-          order_status,
-          meal_id,
-          addons_total,
-          delivery_fee,
-          delivery_type
-        `)
+        .select("id, scheduled_date, meal_type, is_completed, order_status, created_at, meal_id")
         .eq("user_id", user.id)
-        .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered"] as const)
-        .order("scheduled_date", { ascending: true })
-        .limit(10);
+        .order("scheduled_date", { ascending: false })
+        .limit(50);
 
-      if (schedulesError) throw schedulesError;
-      
-      if (!schedules || schedules.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
+      if (error) throw error;
+      if (!schedulesData || schedulesData.length === 0) { setScheduledMeals([]); return; }
 
-      // Type cast the schedules data
-      const typedSchedules = schedules as MealSchedule[];
+      const mealIds = [...new Set(schedulesData.map(s => s.meal_id).filter(Boolean) as string[])];
+      let mealsData: (Meal & { restaurant?: Restaurant })[] = [];
 
-      // Get unique meal IDs
-      const mealIds = [...new Set(typedSchedules.map(s => s.meal_id).filter(Boolean))];
-
-      // Fetch meals with restaurant data
-      let mealsData: Meal[] = [];
       if (mealIds.length > 0) {
-        const { data: meals, error: mealsError } = await supabase
-          .from("meals")
-          .select(`
-            id,
-            name,
-            image_url,
-            restaurant_id
-          `)
-          .in("id", mealIds);
+        const { data: meals } = await supabase
+          .from("meals").select("id, name, image_url, calories, restaurant_id").in("id", mealIds);
 
-        if (!mealsError && meals) {
-          // Get unique restaurant IDs
-          const restaurantIds = [...new Set(meals.map((m: { restaurant_id: string | null }) => m.restaurant_id).filter(Boolean))] as string[];
-
-          // Fetch restaurants
-          let restaurantsData: { 
-            id: string; 
-            name: string; 
-            phone: string | null; 
-            address: string | null;
-          }[] = [];
-          if (restaurantIds.length > 0) {
-            const { data: restaurants, error: restaurantsError } = await supabase
-              .from("restaurants")
-              .select("id, name, phone, address")
-              .in("id", restaurantIds);
-
-            if (!restaurantsError && restaurants) {
-              restaurantsData = restaurants;
-            }
-          }
-
-          // Merge meals with restaurant data
-          mealsData = meals.map((meal: { id: string; name: string; image_url: string | null; restaurant_id: string | null }) => ({
-            ...meal,
-            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { 
-              name: "Restaurant", 
-              phone: null, 
-              address: null,
-            }
-          }));
+        if (meals) {
+          const restaurantIds = [...new Set(meals.map(m => m.restaurant_id).filter(Boolean) as string[])];
+          const { data: restaurants } = restaurantIds.length > 0
+            ? await supabase.from("restaurants").select("id, name, logo_url").in("id", restaurantIds)
+            : { data: [] };
+          mealsData = meals.map(m => ({ ...m, restaurant: (restaurants || []).find(r => r.id === m.restaurant_id) }));
         }
       }
 
-      // Fetch delivery jobs for these schedules
-      const scheduleIds = typedSchedules.map(s => s.id);
-      const { data: deliveryJobs, error: jobsError } = await supabase
-        .from("delivery_jobs")
-        .select(`
-          id,
-          schedule_id,
-          driver_id,
-          status,
-          picked_up_at,
-          delivered_at,
-          delivery_lat,
-          delivery_lng,
-          driver:driver_id(
-            current_lat,
-            current_lng,
-            full_name,
-            phone_number
-          )
-        `)
-        .in("schedule_id", scheduleIds);
-
-      if (jobsError) {
-        console.error("Error fetching delivery jobs:", jobsError);
-      }
-
-      // Build orders with joined data
-      const activeOrders: ActiveOrder[] = typedSchedules.map((schedule) => {
-        const meal = mealsData.find(m => m.id === schedule.meal_id);
-        const deliveryJob = deliveryJobs?.find((job: { schedule_id: string }) => job.schedule_id === schedule.id);
-        
-        return {
-          id: schedule.id,
-          order_status: schedule.order_status,
-          scheduled_date: schedule.scheduled_date,
-          meal_name: meal?.name || "Meal",
-          meal_image: meal?.image_url || null,
-          restaurant_name: meal?.restaurant?.name || "Restaurant",
-          restaurant_phone: meal?.restaurant?.phone || null,
-          restaurant_address: meal?.restaurant?.address || null,
-          total_amount: (schedule.addons_total || 0),
-          delivery_type: schedule.delivery_type || "delivery",
-          delivery_job: deliveryJob || null,
-          driver_name: deliveryJob?.driver?.full_name || null,
-          driver_phone: deliveryJob?.driver?.phone_number || null,
-        };
-      });
-
-      setOrders(activeOrders);
-
-      // Stop tracking if no orders are out for delivery any more
-      const ordersWithDrivers = activeOrders.filter(o => o.delivery_job?.driver_id && o.order_status === "out_for_delivery");
-      if (ordersWithDrivers.length === 0 && locationChannelRef.current) {
-        locationChannelRef.current.unsubscribe();
-        locationChannelRef.current = null;
-      }
-      if (ordersWithDrivers.length > 0) {
-        const driverIds = ordersWithDrivers.map(o => o.delivery_job!.driver_id!);
-        
-        locationChannelRef.current = supabase
-          .channel('driver-locations-tracking')
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'driver_locations',
-            },
-            (payload) => {
-              const location = payload.new as { 
-                driver_id: string; 
-                location: { coordinates: [number, number] } | { lat: number; lng: number } | any;
-                lat?: number;
-                lng?: number;
-                heading?: number;
-                speed_kmh?: number;
-              };
-              
-              if (driverIds.includes(location.driver_id)) {
-                // Extract lat/lng from PostGIS geometry or direct fields
-                let lat: number | null = null;
-                let lng: number | null = null;
-                
-                // Handle different location formats
-                if (location.location && typeof location.location === 'object') {
-                  if (location.location.coordinates && Array.isArray(location.location.coordinates)) {
-                    // PostGIS geometry format: [lng, lat]
-                    lng = location.location.coordinates[0];
-                    lat = location.location.coordinates[1];
-                  } else if ('lat' in location.location && 'lng' in location.location) {
-                    // Direct lat/lng object
-                    lat = location.location.lat;
-                    lng = location.location.lng;
-                  }
-                }
-                
-                // Fallback to direct fields if available
-                if (lat === null && location.lat !== undefined) lat = location.lat;
-                if (lng === null && location.lng !== undefined) lng = location.lng;
-                
-                if (lat !== null && lng !== null) {
-                  // Update the order with new driver location
-                  setOrders(prevOrders => 
-                    prevOrders.map(order => {
-                      if (order.delivery_job?.driver_id === location.driver_id) {
-                        return {
-                          ...order,
-                          delivery_job: {
-                            ...order.delivery_job!,
-                            driver: {
-                              ...order.delivery_job!.driver!,
-                              current_lat: lat!,
-                              current_lng: lng!,
-                            }
-                          }
-                        };
-                      }
-                      return order;
-                    })
-                  );
-                }
-              }
-            }
-          )
-          .subscribe();
-      }
+      setScheduledMeals(schedulesData.map(s => ({
+        id: s.id,
+        scheduled_date: s.scheduled_date,
+        meal_type: s.meal_type,
+        is_completed: s.is_completed || false,
+        order_status: s.order_status || "pending",
+        created_at: s.created_at,
+        meal_id: s.meal_id,
+        meal: mealsData.find(m => m.id === s.meal_id),
+      })));
     } catch (err) {
-      console.error("Error fetching active orders:", err);
+      console.error("Error fetching scheduled meals:", err);
+    }
+  }, [user]);
+
+  // ── Initial load ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    Promise.all([fetchOrders(0), fetchScheduledMeals()]).finally(() => setLoading(false));
+  }, [user, fetchOrders, fetchScheduledMeals]);
+
+  // ── Onboarding redirect ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (profile && !profile.onboarding_completed) navigate("/onboarding");
+  }, [profile, navigate]);
+
+  // ── Real-time subscription ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("customer-meal-schedules-tracking")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "meal_schedules", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const newStatus = (payload.new as { order_status: string }).order_status;
+          const msgs: Record<string, string> = {
+            confirmed: "Order confirmed!", preparing: "Your meal is being prepared!",
+            ready: "Your meal is ready!", out_for_delivery: "Your order is on the way!",
+            delivered: "Order delivered!", cancelled: "Order cancelled.",
+          };
+          if (msgs[newStatus]) sonnerToast(msgs[newStatus]);
+          fetchScheduledMeals();
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchScheduledMeals]);
+
+  // ── Pull-to-refresh ─────────────────────────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientY);
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    const dist = e.targetTouches[0].clientY - touchStart;
+    if (window.scrollY === 0 && dist > 0) setPullDistance(Math.min(dist, 150));
+  };
+  const handleTouchEnd = () => {
+    if (pullDistance > minPullDistance) handleRefresh();
+    setPullDistance(0); setTouchStart(null);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchOrders(0), fetchScheduledMeals()]);
+    setRefreshing(false);
+    toast({ title: "Refreshed", description: "Your orders have been updated." });
+  };
+
+  // ── Cancel ──────────────────────────────────────────────────────────────────
+  const handleCancel = async (id: string, type: "order" | "scheduled") => {
+    if (!confirm("Are you sure you want to cancel this order?")) return;
+    setCancelling(id);
+    try {
+      if (type === "scheduled") {
+        const { data, error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id });
+        if (error) throw error;
+        if (!(data as any)?.success) throw new Error("Cancellation failed.");
+        setScheduledMeals(prev => prev.map(m => m.id === id ? { ...m, order_status: "cancelled" } : m));
+      } else {
+        const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
+        if (error) throw error;
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
+      }
+      toast({ title: "Order cancelled", description: "Your order has been cancelled." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to cancel.", variant: "destructive" });
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setCancelling(null);
     }
   };
 
-  useEffect(() => {
-    fetchActiveOrders();
+  // ── Build unified list ──────────────────────────────────────────────────────
+  const unified: UnifiedOrder[] = [
+    ...orders.map((o): UnifiedOrder => ({
+      id: o.id,
+      shortId: shortId(o.id),
+      status: o.status,
+      restaurantName: o.restaurant?.name || "Restaurant",
+      images: [o.restaurant?.logo_url || null, ...o.order_items.slice(0, 2).map(i => i.meal?.image_url || null)],
+      price: o.total_amount,
+      date: format(new Date(o.estimated_delivery_time || o.created_at), "MMM d, h:mm a"),
+      tab: getOrderTabType(o.status),
+      canCancel: ["pending", "confirmed"].includes(o.status),
+      canModify: false,
+      canReorder: COMPLETED_STATUSES.includes(o.status),
+      canTrack: ACTIVE_STATUSES.includes(o.status),
+      sourceType: "order",
+      originalOrder: o,
+    })),
+    ...scheduledMeals.map((s): UnifiedOrder => ({
+      id: s.id,
+      shortId: shortId(s.id),
+      status: s.order_status,
+      restaurantName: s.meal?.restaurant?.name || "Restaurant",
+      images: [s.meal?.image_url || null],
+      price: 0,
+      date: format(new Date(s.scheduled_date), "MMM d"),
+      tab: s.order_status === "cancelled"
+        ? "Cancelled"
+        : s.is_completed ? "Completed" : getOrderTabType(s.order_status),
+      canCancel: ["pending", "confirmed"].includes(s.order_status),
+      canModify: ["pending", "confirmed"].includes(s.order_status),
+      canReorder: false,
+      canTrack: ACTIVE_STATUSES.includes(s.order_status) && !s.is_completed,
+      sourceType: "scheduled",
+      originalSchedule: s,
+    })),
+  ].sort((a, b) => b.id.localeCompare(a.id));
 
-    // Set up realtime subscription for order updates
-    const channel = supabase
-      .channel('meal-schedule-tracking')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'meal_schedules',
-          filter: `user_id=eq.${user?.id}`,
-        },
-        (payload) => {
-          const newStatus = (payload.new as { order_status: string }).order_status;
-          const oldStatus = (payload.old as { order_status: string }).order_status;
-          
-          // Show toast notification when status changes
-          if (newStatus !== oldStatus) {
-            const statusMessages: Record<string, string> = {
-              confirmed: 'Your order has been confirmed!',
-              preparing: 'Your meal is being prepared',
-              ready: 'Your meal is ready for pickup',
-              out_for_delivery: 'Your driver is on the way!',
-              delivered: 'Your meal has been delivered!',
-            };
-            
-            if (statusMessages[newStatus]) {
-              toast.success(statusMessages[newStatus]);
-            }
-          }
-          
-          fetchActiveOrders();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      if (locationChannelRef.current) {
-        locationChannelRef.current.unsubscribe();
-      }
-      if (orderUpdateChannelRef.current) {
-        orderUpdateChannelRef.current.unsubscribe();
-      }
-    };
-  }, [user?.id]);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchActiveOrders();
+  const filtered = activeTab === "All" ? unified : unified.filter(o => o.tab === activeTab);
+  const counts = {
+    All: unified.length,
+    Active: unified.filter(o => o.tab === "Active").length,
+    Completed: unified.filter(o => o.tab === "Completed").length,
+    Cancelled: unified.filter(o => o.tab === "Cancelled").length,
   };
 
-  const getDateLabel = (dateStr: string) => {
-    const date = new Date(dateStr);
-    if (isToday(date)) return "Today";
-    if (isTomorrow(date)) return "Tomorrow";
-    return format(date, "MMM dd");
-  };
+  // ── Render card ─────────────────────────────────────────────────────────────
+  const renderCard = (item: UnifiedOrder) => {
+    const cfg = statusConfig[item.status] || statusConfig.pending;
+    const StatusIcon = cfg.icon;
+    const validImages = item.images.filter(Boolean) as string[];
+    const extraCount = item.images.length - 2;
 
-  const openGoogleMaps = (lat: number, lng: number, label: string) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${encodeURIComponent(label)}`;
-    window.open(url, '_blank');
-  };
-
-  if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-4">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <Skeleton className="h-6 w-40" />
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-6 space-y-4">
-          {[1, 2].map(i => (
-            <Skeleton key={i} className="h-96 w-full rounded-xl" />
-          ))}
-        </main>
-      </div>
-    );
-  }
+      <div
+        key={item.id}
+        className="bg-white rounded-[24px] p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-100"
+      >
+        {/* Top row */}
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-[#48a98b] font-bold text-sm">{item.shortId}</span>
+          <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${cfg.badgeColor}`}>
+            <StatusIcon className="w-3.5 h-3.5" />
+            {cfg.label}
+          </span>
+        </div>
 
-  return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 rtl:flex-row-reverse">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigate(-1)}
-                className="rounded-full"
-              >
-                <ArrowLeft className="h-5 w-5 rtl-flip-back" />
-              </Button>
-              <div>
-                <h1 className="text-xl font-bold">Track Orders</h1>
-                <p className="text-sm text-muted-foreground">
-                  {orders.length} active order{orders.length !== 1 ? 's' : ''}
-                </p>
+        {/* Middle row */}
+        <div className="flex gap-3 mb-4">
+          {/* Overlapping images */}
+          <div className="flex -space-x-4 relative shrink-0">
+            {validImages.slice(0, 2).map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt="meal"
+                className="w-[68px] h-[68px] rounded-full object-cover border-2 border-white shadow-sm"
+                style={{ zIndex: 10 - i }}
+              />
+            ))}
+            {validImages.length === 0 && (
+              <div className="w-[68px] h-[68px] rounded-full bg-gray-100 flex items-center justify-center border-2 border-white">
+                <UtensilsCrossed className="w-6 h-6 text-gray-400" />
               </div>
+            )}
+            {extraCount > 0 && (
+              <div className="w-[68px] h-[68px] rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-500" style={{ zIndex: 8 }}>
+                +{extraCount}
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div className="flex flex-col justify-center flex-1 min-w-0">
+            <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1 truncate pr-1">
+              {item.restaurantName}
+            </h3>
+            <div className="flex items-center gap-2 text-xs">
+              {item.price > 0 && <span className="font-bold text-gray-900">{item.price} QAR</span>}
+              {item.price === 0 && <span className="text-[#48a98b] font-semibold text-xs bg-[#eaf7f0] px-2 py-0.5 rounded-full">Included</span>}
+              <span className="text-gray-400">{item.date}</span>
             </div>
-            <Button 
-              variant="outline" 
-              size="icon"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="rounded-full"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        {orders.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Package className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2">No Active Orders</h3>
-              <p className="text-muted-foreground mb-4">
-                You don't have any orders being prepared or delivered right now.
-              </p>
-              <Button onClick={() => navigate('/meals')}>
-                Browse Meals
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          orders.map((order) => {
-            const status = order.order_status || "pending";
-            const currentStepIndex = getCurrentStepIndex(status);
-            const config = statusConfig[status];
-            const estimatedTime = getEstimatedTime(status, order.scheduled_date);
-            
-            // Stop tracking once delivered
-            const isDelivered = status === "delivered" || status === "completed";
+        {/* Action buttons */}
+        <div className="flex gap-2 flex-wrap">
 
-            // Show map only when driver is on the way
-            const showMap = !!customerLocation && order.order_status === "out_for_delivery";
+          {item.canModify && item.originalSchedule && (
+            <button
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-[#48a98b]/30 text-[#48a98b] bg-[#eaf7f0] text-sm font-semibold hover:bg-[#d4f0e4] transition-all"
+              onClick={() => setModifyingSchedule(item.originalSchedule!)}
+            >
+              <Pencil className="w-3.5 h-3.5" /> Modify
+            </button>
+          )}
 
-            // Driver location (only available when out_for_delivery)
-            const hasDriverLocation = order.order_status === "out_for_delivery" &&
-              order.delivery_job?.driver?.current_lat &&
-              order.delivery_job?.driver?.current_lng;
+          {item.canCancel && (
+            <button
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50 text-sm font-semibold hover:bg-red-100 transition-all disabled:opacity-50"
+              onClick={() => handleCancel(item.id, item.sourceType)}
+              disabled={cancelling === item.id}
+            >
+              {cancelling === item.id
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Trash2 className="w-3.5 h-3.5" />}
+              Cancel
+            </button>
+          )}
 
-            // Map centers on driver when tracking, otherwise on customer's home
-            const mapCenter = hasDriverLocation
-              ? { lat: order.delivery_job!.driver!.current_lat!, lng: order.delivery_job!.driver!.current_lng! }
-              : customerLocation
-              ? { lat: customerLocation[0], lng: customerLocation[1] }
-              : { lat: 25.2854, lng: 51.5310 };
+          {item.canReorder && item.originalOrder && (
+            <OneTapReorder
+              orderId={item.originalOrder.id}
+              items={item.originalOrder.order_items.map(i => ({
+                meal_id: i.meal_id,
+                meal_name: i.meal?.name || "Unknown",
+                quantity: i.quantity,
+                price: 0,
+                image_url: i.meal?.image_url,
+                restaurant_id: item.originalOrder!.restaurant_id || undefined,
+                restaurant_name: item.originalOrder!.restaurant?.name,
+              }))}
+              orderTotal={0}
+              variant="outline"
+              size="default"
+              className="h-[36px] px-4 border-[#48a98b] text-[#48a98b] hover:bg-[#eaf7f0] rounded-full font-semibold text-sm flex items-center gap-1.5 ml-auto"
+            />
+          )}
 
-            return (
-              <Card key={order.id} className="group overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white rounded-3xl">
-                {/* Top gradient border */}
-                <div className="h-1.5 bg-gradient-to-r from-green-400 via-lime-400 to-green-500" />
+          {/* If completed scheduled meal with no reorder */}
+          {item.tab === "Completed" && !item.canReorder && item.sourceType === "scheduled" && (
+            <button
+              className="h-[36px] px-4 rounded-full border border-[#48a98b] text-[#48a98b] bg-transparent hover:bg-[#eaf7f0] text-sm font-semibold flex items-center gap-1.5 ml-auto transition-all"
+              onClick={() => navigate("/meals")}
+            >
+              Order Again <RotateCw className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
-                <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      {/* Status Badge and Date */}
-                      <div className="flex items-center gap-3 mb-2">
-                        <Badge
-                          className={`${config.badgeClass} ${config.textClass} font-bold text-xs px-4 py-1.5 rounded-full border-0 shadow-sm flex items-center gap-1.5`}
-                        >
-                          <Clock className="w-3.5 h-3.5" />
-                          {config.shortLabel}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground font-medium">
-                          est. {getDateLabel(order.scheduled_date)}
-                        </span>
-                      </div>
-                      <CardTitle className="text-2xl font-bold text-slate-900 truncate">
-                        {order.restaurant_name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        Order #{order.id.slice(0, 8).toUpperCase()}
-                      </p>
-                    </div>
-                    {/* Clock Icon Button */}
-                    <div className="w-12 h-12 rounded-full bg-green-700 flex items-center justify-center shadow-lg flex-shrink-0">
-                      <Clock className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-6">
-                  {/* ── Delivered celebration — replaces all tracking UI ── */}
-                  {isDelivered ? (
-                    <div className="flex flex-col items-center text-center py-6 space-y-4">
-                      {/* Animated checkmark ring */}
-                      <div className="relative flex items-center justify-center">
-                        <span className="absolute w-24 h-24 rounded-full bg-green-100 animate-ping opacity-40" />
-                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-xl shadow-green-400/40">
-                          <CheckCircle2 className="w-10 h-10 text-white" />
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-green-700">Your meal has been delivered! 🎉</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Enjoy your meal. Tracking has stopped.</p>
-                      </div>
-                      <Button
-                        className="rounded-2xl px-6 shadow-sm shadow-primary/20"
-                        onClick={() => navigate("/orders")}
-                      >
-                        View Order History
-                      </Button>
-                    </div>
-                  ) : (
-                  <>
-                  {/* Estimated Time / Arrival Window */}
-                  {order.order_status === "out_for_delivery" ? (
-                    <ArrivalWindow
-                      estimatedMinutes={
-                        order.delivery_job?.driver?.current_lat &&
-                        order.delivery_job?.driver?.current_lng &&
-                        customerLocation
-                          ? calculateEtaMinutes(
-                              order.delivery_job.driver.current_lat,
-                              order.delivery_job.driver.current_lng,
-                              customerLocation[0],
-                              customerLocation[1]
-                            )
-                          : 20
-                      }
-                    />
-                  ) : (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-green-50">
-                      <Clock className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-sm text-foreground">Estimated Delivery</p>
-                        <p className="font-semibold text-green-600">{estimatedTime}</p>
-                      </div>
-                    </div>
-                  )}
+  // ── Empty state ─────────────────────────────────────────────────────────────
+  const renderEmpty = () => (
+    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+      <div className="w-20 h-20 rounded-3xl bg-gray-100 flex items-center justify-center mb-4">
+        <ShoppingBag className="h-9 w-9 text-gray-400" />
+      </div>
+      <h3 className="font-bold text-lg text-gray-900 mb-1">No orders yet</h3>
+      <p className="text-sm text-gray-500 mb-6 max-w-xs">
+        {activeTab === "Active" ? "You have no active orders right now." : `No ${activeTab.toLowerCase()} orders found.`}
+      </p>
+      <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 bg-[#48a98b] hover:bg-[#3a8b72]">
+        Browse Meals
+      </Button>
+    </div>
+  );
 
-                  {/* Delivery Map — always shown when customer location is known */}
-                  {showMap && customerLocation && (
-                    <div className="rounded-xl overflow-hidden border-2 border-green-500/20">
-                      <div className="bg-green-50 px-4 py-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-medium">
-                            {hasDriverLocation ? "Live Tracking" : "Delivery Location"}
-                          </span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => openGoogleMaps(
-                            customerLocation[0],
-                            customerLocation[1],
-                            "Your Delivery Location"
-                          )}
-                        >
-                          <ExternalLink className="w-3 h-3 mr-1" />
-                          Open in Maps
-                        </Button>
-                      </div>
-                      <MapContainer
-                        center={[mapCenter.lat, mapCenter.lng]}
-                        zoom={hasDriverLocation ? 15 : 16}
-                        style={{ height: "250px", width: "100%" }}
-                        scrollWheelZoom={false}
-                      >
-                        {/* Customer home pin — always shown */}
-                        <Marker
-                          position={customerLocation}
-                          icon={destinationIcon}
-                        />
+  // ── Main render ─────────────────────────────────────────────────────────────
+  return (
+    <div
+      className="min-h-screen bg-white pb-24"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {pullDistance > 0 && (
+        <div className="flex items-center justify-center transition-all" style={{ height: pullDistance, opacity: Math.min(pullDistance / minPullDistance, 1) }}>
+          <div className="flex items-center gap-2 text-[#48a98b] bg-[#eaf7f0] px-4 py-2 rounded-full text-sm font-medium">
+            <RotateCcw className="w-4 h-4" style={{ transform: `rotate(${pullDistance * 2}deg)` }} />
+            {pullDistance > minPullDistance ? "Release to refresh" : "Pull to refresh"}
+          </div>
+        </div>
+      )}
 
-                        {/* Driver pin + route line + bounds fit — only when out for delivery */}
-                        {hasDriverLocation && (
-                          <>
-                            {/* Road-following route between driver and customer */}
-                            <RoutePolyline
-                              from={[order.delivery_job!.driver!.current_lat!, order.delivery_job!.driver!.current_lng!]}
-                              to={customerLocation}
-                            />
-                            <DriverMarker
-                              position={{
-                                lat: order.delivery_job!.driver!.current_lat!,
-                                lng: order.delivery_job!.driver!.current_lng!,
-                              }}
-                              driverName="Driver"
-                              eta={`${calculateEtaMinutes(
-                                order.delivery_job!.driver!.current_lat!,
-                                order.delivery_job!.driver!.current_lng!,
-                                customerLocation[0],
-                                customerLocation[1]
-                              )} min`}
-                            />
-                            <MapBoundsFitter
-                              driverPos={[
-                                order.delivery_job!.driver!.current_lat!,
-                                order.delivery_job!.driver!.current_lng!,
-                              ]}
-                              customerPos={customerLocation}
-                            />
-                          </>
-                        )}
-                      </MapContainer>
-                    </div>
-                  )}
+      {/* Header */}
+      <div className="pt-[env(safe-area-inset-top,20px)] px-5 pb-3 flex items-center justify-between bg-white sticky top-0 z-10 border-b border-gray-100">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-xl font-bold text-gray-900">My Orders</h1>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-40 transition-all"
+        >
+          <RefreshCw className={`w-4.5 h-4.5 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
+      </div>
 
-                  {/* Progress Timeline - Straight line with 5 steps */}
-                  <div className="mt-8 mb-4">
-                    <div className="relative px-2">
-                      {/* Background Line */}
-                      <div className="absolute top-5 left-8 right-8 h-0.5 bg-slate-200" />
-                      
-                      {/* Active Progress Line */}
-                      <motion.div 
-                        className="absolute top-5 left-8 h-0.5 bg-green-500"
-                        initial={{ width: "0%" }}
-                        animate={{ 
-                          width: `${(currentStepIndex / (statusSteps.length - 1)) * 100}%` 
-                        }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        style={{ 
-                          right: 'auto',
-                          maxWidth: 'calc(100% - 64px)'
-                        }}
-                      />
-                      
-                      {/* Steps */}
-                      <div className="relative flex justify-between">
-                        {statusSteps.map((step, stepIndex) => {
-                          const isCompleted = stepIndex < currentStepIndex;
-                          const isCurrent = stepIndex === currentStepIndex;
-
-                          return (
-                            <div 
-                              key={step.status}
-                              className="flex flex-col items-center"
-                              style={{ width: `${100 / statusSteps.length}%` }}
-                            >
-                              {/* Step Circle */}
-                              <motion.div
-                                className={`
-                                  relative w-10 h-10 rounded-full flex items-center justify-center
-                                  transition-all duration-300 z-10
-                                  ${isCompleted 
-                                    ? 'bg-green-600 text-white shadow-md' 
-                                    : isCurrent
-                                      ? 'bg-white text-green-600 shadow-lg ring-2 ring-green-400'
-                                      : 'bg-white text-slate-300 border-2 border-slate-200'
-                                  }
-                                `}
-                                animate={isCurrent ? {
-                                  scale: [1, 1.05, 1],
-                                } : {}}
-                                transition={isCurrent ? {
-                                  duration: 2,
-                                  repeat: Infinity,
-                                  ease: "easeInOut"
-                                } : {}}
-                              >
-                                {isCurrent ? (
-                                  <div className="relative">
-                                    {/* Glow effect */}
-                                    <motion.div
-                                      className="absolute inset-0 rounded-full bg-green-400 blur-md"
-                                      animate={{
-                                        scale: [1.2, 1.5, 1.2],
-                                        opacity: [0.6, 0.3, 0.6],
-                                      }}
-                                      transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                      }}
-                                    />
-                                    <motion.div
-                                      className="absolute inset-0 rounded-full bg-lime-300 blur-sm"
-                                      animate={{
-                                        scale: [1, 1.3, 1],
-                                        opacity: [0.8, 0.4, 0.8],
-                                      }}
-                                      transition={{
-                                        duration: 1.5,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                      }}
-                                    />
-                                    <motion.img 
-                                      src={flameLogo} 
-                                      alt="NutrioFuel" 
-                                      className="w-7 h-7 object-contain relative z-10"
-                                      animate={{
-                                        scale: [1, 1.1, 1],
-                                        rotate: [0, 5, -5, 0],
-                                      }}
-                                      transition={{
-                                        duration: 2,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                      }}
-                                    />
-                                  </div>
-                                ) : isCompleted ? (
-                                  <Check className="w-5 h-5" />
-                                ) : (
-                                  <div className="w-2 h-2 rounded-full bg-slate-300" />
-                                )}
-                              </motion.div>
-                              
-                              {/* Step Label */}
-                              <span className={`
-                                text-[11px] mt-2 font-semibold text-center whitespace-nowrap
-                                ${isCompleted || isCurrent ? 'text-slate-700' : 'text-slate-400'}
-                                ${isCurrent ? 'font-bold' : ''}
-                              `}>
-                                {step.label}
-                              </span>
-                              
-                              {/* Step Sublabel (only for current) */}
-                              {isCurrent && step.sublabel && (
-                                <span className="text-[10px] text-slate-500 mt-0.5 font-medium whitespace-nowrap">
-                                  {step.sublabel}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Order Items */}
-                  <div className="space-y-3">
-                    <p className="text-sm font-medium text-muted-foreground">Order Items</p>
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-                      {order.meal_image ? (
-                        <img 
-                          src={order.meal_image} 
-                          alt={order.meal_name}
-                          className="h-14 w-14 rounded-xl object-cover"
-                        />
-                      ) : (
-                        <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                          <ChefHat className="h-6 w-6 text-slate-400" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm flex items-center">
-                          <span className="text-slate-400 mr-2">•</span>
-                          <FoodEmoji />
-                          {order.meal_name}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-sm">
-                          {formatCurrency(order.total_amount)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact Section */}
-                  <ContactSection
-                    restaurantPhone={order.restaurant_phone}
-                    restaurantAddress={order.restaurant_address}
-                    driverName={order.driver_name}
-                    driverPhone={order.driver_phone}
-                    isOnTheWay={order.order_status === "out_for_delivery"}
-                  />
-                  </> // end non-delivered tracking UI
-                  )} {/* end isDelivered ternary */}
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-
-        {/* View Past Orders Link */}
-        {orders.length > 0 && (
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => navigate('/orders')}
+      {/* Tabs */}
+      <div className="px-5 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`relative px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+              activeTab === tab
+                ? "bg-[#48a98b] text-white border-[#48a98b]"
+                : "bg-transparent text-[#48a98b] border-[#48a98b]"
+            }`}
           >
-            View Order History
-          </Button>
+            {tab}
+            {counts[tab] > 0 && (
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                activeTab === tab ? "bg-white/30 text-white" : "bg-[#eaf7f0] text-[#48a98b]"
+              }`}>
+                {counts[tab]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="px-5 flex flex-col gap-4">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-[#eaf7f0] flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-[#48a98b]" />
+            </div>
+            <p className="text-sm text-gray-500">Loading your orders...</p>
+          </div>
+        ) : filtered.length === 0 ? renderEmpty() : (
+          <>
+            {filtered.map(renderCard)}
+            {activeTab === "All" && ordersHasMore && (
+              <button
+                className="w-full py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                onClick={() => fetchOrders(ordersPage + 1, true)}
+                disabled={ordersLoading}
+              >
+                {ordersLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Load more"}
+              </button>
+            )}
+          </>
         )}
-      </main>
+      </div>
+
+      {/* Modify Order Modal */}
+      <ModifyOrderModal
+        isOpen={!!modifyingSchedule}
+        onClose={() => setModifyingSchedule(null)}
+        schedule={modifyingSchedule}
+        onModified={() => { fetchScheduledMeals(); setModifyingSchedule(null); }}
+      />
+
+      <CustomerNavigation />
     </div>
   );
 }

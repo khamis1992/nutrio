@@ -68,6 +68,8 @@ interface MealWizardProps {
   selectedDate: Date;
   onComplete: () => void;
   onCancel: () => void;
+  initialStep?: number;
+  singleMode?: boolean;
 }
 
 const STEPS = [
@@ -77,10 +79,10 @@ const STEPS = [
   { id: "snack", labelKey: "snacks_salad", icon: Apple, color: "bg-emerald-500", lightColor: "bg-emerald-50", descKey: "snacks_desc" },
 ];
 
-const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardProps) => {
+const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 0, singleMode = false }: MealWizardProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -399,14 +401,17 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     }));
     setJustSelectedId(meal.id);
 
-    // Haptic feedback
     if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
 
-    // Auto-advance to next step after celebration
     const isLastStep = currentStep === STEPS.length - 1;
+    const isSingleTarget = singleMode && currentStep === initialStep;
+
     setTimeout(() => {
       setJustSelectedId(null);
-      if (!isLastStep) {
+      if (isSingleTarget) {
+        // Single mode: go straight to delivery time picker
+        setShowDeliveryScheduler(true);
+      } else if (!isLastStep) {
         setSelectedRestaurant(null);
         setMeals([]);
         setCurrentStep(prev => prev + 1);
@@ -431,7 +436,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
     if (selectedRestaurant) {
       setSelectedRestaurant(null);
       setMeals([]);
-    } else if (currentStep > 0) {
+    } else if (currentStep > initialStep) {
       setCurrentStep(prev => prev - 1);
     }
   };
@@ -1349,7 +1354,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel }: MealWizardPr
       >
 
         <div className="flex items-center gap-3">
-          {!showPlanSummary && (currentStep > 0 || selectedRestaurant) && (
+          {!showPlanSummary && (currentStep > initialStep || selectedRestaurant) && (
             <Button
               variant="outline"
               className="rounded-xl px-6"

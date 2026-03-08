@@ -144,7 +144,7 @@ export function Step4Final({
 
         <div className="flex gap-3 pt-4">
           <Button variant="outline" onClick={onBack} className="flex-1">
-            <ArrowLeft className="mr-2 h-4 w-4 rtl-flip-back" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             {t("back")}
           </Button>
           <Button

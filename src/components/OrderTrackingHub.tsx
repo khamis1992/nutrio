@@ -224,7 +224,7 @@ export function OrderTrackingHub() {
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => navigate("/orders")}
+          onClick={() => navigate("/dashboard")}
         >
           View All Orders
         </Button>

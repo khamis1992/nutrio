@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format, subDays, isSameDay, isToday, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
-import { ArrowLeft, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Play, Footprints, AlertTriangle, Clock, Flame, MapPin } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Play, Footprints, AlertTriangle, Clock, Flame, MapPin } from "lucide-react";
+import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -147,7 +148,7 @@ export default function StepCounter() {
             onClick={() => navigate(-1)}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
           <h1 className="text-lg font-bold text-gray-900">{t('steps_title')}</h1>
           <div className="w-10 h-10" />
@@ -207,12 +208,12 @@ export default function StepCounter() {
             <div className="flex items-center justify-between mb-3 pt-2">
               <button onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
+                <NavChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
               <span className="font-bold text-gray-900">{format(calendarMonth, "MMMM yyyy")}</span>
               <button onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                <ChevronRight className="w-4 h-4 text-gray-600" />
+                <NavChevronRight className="w-4 h-4 text-gray-600" />
               </button>
             </div>
 

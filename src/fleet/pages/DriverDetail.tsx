@@ -49,7 +49,7 @@ export default function DriverDetail() {
         <h2 className="text-xl font-semibold">Driver not found</h2>
         <div className="flex justify-start rtl:flex-row-reverse mt-4">
           <Button onClick={() => navigate("/fleet/drivers")}>
-            <ArrowLeft className="h-4 w-4 mr-2 rtl-flip-back" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Drivers
           </Button>
         </div>
@@ -62,7 +62,7 @@ export default function DriverDetail() {
       {/* Header */}
       <div className="flex items-center gap-4 rtl:flex-row-reverse">
         <Button variant="outline" size="icon" onClick={() => navigate("/fleet/drivers")}>
-          <ArrowLeft className="h-4 w-4 rtl-flip-back" />
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{driver.fullName}</h1>

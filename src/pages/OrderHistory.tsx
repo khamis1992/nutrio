@@ -732,7 +732,7 @@ const OrderHistory = () => {
             onClick={() => navigate("/dashboard")}
             className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground rtl-flip-back" />
+            <ArrowLeft className="h-5 w-5 text-foreground" />
           </button>
           <h1 className="text-lg font-bold tracking-tight">{t("orders_page_title")}</h1>
           <button

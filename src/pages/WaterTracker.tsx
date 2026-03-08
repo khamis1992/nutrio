@@ -15,7 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ArrowLeft, Droplets, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Pencil, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Droplets, ChevronDown, ChevronUp, Pencil, Loader2, Plus } from "lucide-react";
+import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -140,7 +141,7 @@ function CalendarView({
           onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
           className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <NavChevronLeft className="w-5 h-5" />
         </button>
         <span className="text-base font-bold text-gray-900">
           {format(calendarMonth, "MMMM yyyy")}
@@ -149,7 +150,7 @@ function CalendarView({
           onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
           className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
         >
-          <ChevronRight className="w-5 h-5" />
+          <NavChevronRight className="w-5 h-5" />
         </button>
       </div>
 
@@ -313,7 +314,7 @@ export default function WaterTracker() {
             onClick={() => navigate(-1)}
             className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
           <h1 className="text-lg font-bold text-gray-900">{t('water_title')}</h1>
           <div className="w-10 h-10" />

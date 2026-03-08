@@ -12,7 +12,7 @@ const Terms = () => {
         <div className="flex justify-start rtl:flex-row-reverse">
           <Link to="/policies">
             <Button variant="ghost" className="mb-6">
-              <ArrowLeft className="h-4 w-4 mr-2 rtl-flip-back" />
+              <ArrowLeft className="h-4 w-4 mr-2" />
               {t("back")}
             </Button>
           </Link>

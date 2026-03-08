@@ -332,7 +332,7 @@ return (
             onClick={() => navigate("/dashboard")}
             className="p-2 -ml-2 rounded-full hover:bg-white/20 active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-6 h-6 text-white rtl-flip-back" />
+            <ArrowLeft className="w-6 h-6 text-white" />
           </button>
           <h1 className="text-lg font-semibold text-white tracking-wide">{t("progress")}</h1>
           <div className="w-10" />
@@ -367,9 +367,9 @@ return (
             {showWeightView ? (
               <>
                 {/* Weight View Header */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4 rtl:flex-row-reverse">
                   <button onClick={() => setShowWeightView(false)} className="p-2 -ml-2 rounded-full hover:bg-muted">
-                    <ArrowLeft className="w-6 h-6 rtl-flip-back" />
+                    <ArrowLeft className="w-6 h-6" />
                   </button>
                   <h2 className="text-lg font-semibold">{t("weight_tracking")}</h2>
                 </div>

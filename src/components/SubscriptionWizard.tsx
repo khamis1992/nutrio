@@ -139,7 +139,7 @@ export function SubscriptionWizard() {
       </CardContent>
       <CardFooter className="justify-between">
         <Button variant="ghost" onClick={handleBack} disabled={currentQuestion === 0}>
-          <ArrowLeft className="mr-2 h-4 w-4 rtl-flip-back" /> Back
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         {isLastQuestion ? (
           <Button onClick={() => navigate(`/subscription?recommended=${recommendedPlan}`)}>

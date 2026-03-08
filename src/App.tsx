@@ -44,9 +44,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Dietary = lazy(() => import("./pages/Dietary"));
 const Policies = lazy(() => import("./pages/Policies"));
 const PersonalInfo = lazy(() => import("./pages/PersonalInfo"));
-const OrderHistory = lazy(() => import("./pages/OrderHistory"));
-const OrderDetail = lazy(() => import("./pages/OrderDetail"));
-const DeliveryTracking = lazy(() => import("./pages/DeliveryTracking"));
+const LiveMap = lazy(() => import("./pages/LiveMap"));
 const Subscription = lazy(() => import("./pages/Subscription"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Favorites = lazy(() => import("./pages/Favorites"));
@@ -171,6 +169,9 @@ const App = () => (
             {/* Onboarding has no dock/nav */}
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
+            {/* Live map — no nav bar, full screen */}
+            <Route path="/live/:id" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
+
             {/* Customer App Routes - Wrapped with CustomerLayout for background */}
             <Route element={<CustomerLayout />}>
             <Route 
@@ -269,30 +270,9 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/orders" 
-              element={
-                <ProtectedRoute>
-                  <OrderHistory />
-                </ProtectedRoute>
-              } 
-            />
-<Route 
-              path="/order/:id" 
-              element={
-                <ProtectedRoute>
-                  <OrderDetail />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/tracking" 
-              element={
-                <ProtectedRoute>
-                  <DeliveryTracking />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/orders" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/order/:id" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/tracking" element={<Navigate to="/dashboard" replace />} />
             <Route 
               path="/subscription" 
               element={

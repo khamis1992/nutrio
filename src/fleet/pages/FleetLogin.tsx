@@ -139,7 +139,7 @@ export default function FleetLogin() {
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardHeader className="text-center space-y-4">
           <Link to="/" className="absolute top-4 left-4 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-5 w-5 rtl-flip-back" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
             <Truck className="h-8 w-8 text-primary" />

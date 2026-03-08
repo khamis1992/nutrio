@@ -23,7 +23,7 @@ export default function MealPlan() {
             onClick={() => navigate("/progress?tab=week")}
             className="mr-3"
           >
-            <ArrowLeft className="w-5 h-5 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-semibold">Weekly Meal Plan</h1>
         </div>

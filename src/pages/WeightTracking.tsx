@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, ArrowDown, ArrowUp, MoreVertical, Trash2,
-  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -15,6 +14,7 @@ import {
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 
 interface WeightEntry {
   id: string;
@@ -118,7 +118,7 @@ export default function WeightTracking() {
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
           <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-            <ArrowLeft className="w-5 h-5 text-gray-700 rtl-flip-back" />
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
           <h1 className="text-lg font-bold text-gray-900">{t('weight_tracker')}</h1>
           <div className="w-10" />
@@ -237,11 +237,11 @@ export default function WeightTracking() {
                 {/* Month nav */}
                 <div className="flex items-center justify-between mb-3">
                   <button onClick={() => setWeekStart(subWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                    <NavChevronLeft className="w-5 h-5 text-gray-600" />
                   </button>
                   <span className="font-semibold text-gray-900 text-sm">{format(sheetDate, "MMMM yyyy")}</span>
                   <button onClick={() => setWeekStart(addWeeks(weekStart, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                    <NavChevronRight className="w-5 h-5 text-gray-600" />
                   </button>
                 </div>
 

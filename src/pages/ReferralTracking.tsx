@@ -221,7 +221,7 @@ export default function ReferralTracking() {
         <div className="container max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4 rtl:flex-row-reverse">
             <Button variant="ghost" size="icon" onClick={() => navigate("/affiliate")}>
-              <ArrowLeft className="h-5 w-5 rtl-flip-back" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
               <h1 className="text-xl font-semibold">Referral Tracking</h1>

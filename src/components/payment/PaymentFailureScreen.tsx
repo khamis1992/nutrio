@@ -58,7 +58,7 @@ export function PaymentFailureScreen({
               </Button>
               
               <Button variant="outline" className="w-full" onClick={onBack}>
-                <ArrowLeft className="w-4 h-4 mr-2 rtl-flip-back" />
+                <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Payment
               </Button>
               

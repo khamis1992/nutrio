@@ -14,6 +14,7 @@ import { biometricAuth, isNative } from "@/lib/capacitor";
 import { z } from "zod";
 import { checkIPLocation } from "@/lib/ipCheck";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { motion } from "framer-motion";
 
 const Auth = () => {
   const { t, isRTL } = useLanguage();
@@ -283,82 +284,100 @@ const Auth = () => {
       >
         {/* ── Hero section ── */}
         <div
-          className="relative flex flex-col items-center justify-center flex-shrink-0 overflow-hidden"
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
           style={{
-            height: "52%",
             background: "linear-gradient(135deg, hsl(142, 71%, 45%) 0%, hsl(168, 76%, 42%) 100%)",
+            paddingBottom: "2rem",
           }}
         >
           {/* Decorative circles */}
-          <div style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -30, left: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", top: 40, left: 20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.1, 1],
+              x: [0, 10, 0],
+              y: [0, 15, 0]
+            }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            style={{ position: "absolute", top: -60, right: -60, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} 
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.15, 1],
+              x: [0, -15, 0],
+              y: [0, -10, 0]
+            }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            style={{ position: "absolute", bottom: -30, left: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} 
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              x: [0, 20, 0],
+              y: [0, 20, 0]
+            }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            style={{ position: "absolute", top: 40, left: 20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} 
+          />
 
           {/* Logo */}
-          <div
-            className="flex items-center justify-center mb-5"
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="flex items-center justify-center mb-8"
             style={{
-              width: 88, height: 88, borderRadius: 28,
+              width: 96, height: 96, borderRadius: 28,
               background: "#ffffff",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
             }}
           >
             <Logo size="md" />
-          </div>
+          </motion.div>
 
           {/* Hero text */}
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.2, marginBottom: 8, letterSpacing: -0.5, padding: "0 24px" }}>
+          <motion.h1 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            style={{ fontSize: 36, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.15, marginBottom: 12, letterSpacing: -0.5, padding: "0 24px" }}
+          >
             {t("eat_smart")}<br />{t("live_better")}
-          </h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 1.5, padding: "0 32px" }}>
+          </motion.h1>
+          <motion.p 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+            style={{ fontSize: 16, color: "rgba(255,255,255,0.85)", textAlign: "center", lineHeight: 1.5, padding: "0 32px" }}
+          >
             {t("personalized_nutrition_tagline")}
-          </p>
+          </motion.p>
         </div>
 
         {/* ── Bottom card ── */}
-        <div
-          className="flex flex-col flex-1 overflow-y-auto"
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 200, delay: 0.1 }}
+          className="flex flex-col"
           style={{
             background: "#fff",
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
-            marginTop: -28,
+            marginTop: -32,
             zIndex: 10,
-            padding: "32px 24px 28px",
+            paddingTop: 40,
+            paddingLeft: 24,
+            paddingRight: 24,
+            paddingBottom: "max(32px, env(safe-area-inset-bottom, 32px))",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.05)",
           }}
         >
-          {/* Feature highlights */}
-          <div className="flex flex-col gap-3 mb-8">
-            {[
-              { icon: "🎯", title: t("feature_personalized_plans"), desc: t("feature_personalized_plans_desc") },
-              { icon: "🍽️", title: t("feature_restaurant_partners"), desc: t("feature_restaurant_partners_desc") },
-              { icon: "📈", title: t("feature_track_progress"), desc: t("feature_track_progress_desc") },
-            ].map((f) => (
-              <div
-                key={f.title}
-                className="flex items-center gap-3"
-                style={{
-                  background: "#f8fdf0",
-                  border: "1px solid #e8f5c8",
-                  borderRadius: 14,
-                  padding: "10px 14px",
-                }}
-              >
-                <span style={{ fontSize: 22, flexShrink: 0 }}>{f.icon}</span>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", marginBottom: 1 }}>{f.title}</p>
-                  <p style={{ fontSize: 11.5, color: "#6b7280", lineHeight: 1.4 }}>{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Buttons */}
-          <div className="flex flex-col gap-3 mt-auto">
+          <div className="flex flex-col gap-3.5">
             <Button
               variant="gradient"
-              className="w-full rounded-2xl font-bold"
-              style={{ height: 54, fontSize: 16 }}
+              className="w-full rounded-2xl font-bold shadow-lg shadow-primary/25"
+              style={{ height: 56, fontSize: 16 }}
               onClick={() => setView("signup")}
             >
               {t("create_free_account")}
@@ -366,20 +385,20 @@ const Auth = () => {
             <button
               type="button"
               onClick={() => setView("signin")}
-              className="w-full rounded-2xl font-semibold transition-colors hover:bg-gray-100 active:bg-gray-200"
-              style={{ height: 54, fontSize: 15, background: "#f5f5f5", border: "none", cursor: "pointer", color: "#374151" }}
+              className="w-full rounded-2xl font-semibold transition-all hover:bg-gray-100 active:scale-[0.98]"
+              style={{ height: 56, fontSize: 16, background: "#f8f9fa", border: "1px solid #f1f3f5", cursor: "pointer", color: "#374151" }}
             >
               {t("sign_in")}
             </button>
           </div>
 
           {/* Footer */}
-          <p className="mt-5 text-xs text-gray-400 text-center">
-            <Link to="/privacy" className="hover:text-gray-600 transition-colors">{t("privacy_policy")}</Link>
-            {" · "}
-            <Link to="/terms" className="hover:text-gray-600 transition-colors">{t("terms")}</Link>
+          <p className="mt-8 text-xs text-gray-400 text-center">
+            <Link to="/privacy" className="hover:text-gray-900 transition-colors font-medium">{t("privacy_policy")}</Link>
+            <span className="mx-2 text-gray-300">•</span>
+            <Link to="/terms" className="hover:text-gray-900 transition-colors font-medium">{t("terms")}</Link>
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -399,7 +418,7 @@ const Auth = () => {
             onClick={() => setView("welcome")}
             className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
+            <ArrowLeft className="w-6 h-6 text-gray-800" />
           </button>
 
           {/* Logo */}
@@ -521,7 +540,7 @@ const Auth = () => {
             onClick={() => { setView("forgot"); setForgotSent(false); if (countdownRef.current) clearInterval(countdownRef.current); }}
             className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
+            <ArrowLeft className="w-6 h-6 text-gray-800" />
           </button>
 
           {/* Title */}
@@ -646,7 +665,7 @@ const Auth = () => {
             onClick={() => { setView("signin"); setForgotEmail(""); setForgotSent(false); setForgotError(""); }}
             className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
+            <ArrowLeft className="w-6 h-6 text-gray-800" />
           </button>
 
           {/* Title */}
@@ -713,7 +732,7 @@ const Auth = () => {
           onClick={() => setView("welcome")}
           className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
-          <ArrowLeft className="w-6 h-6 text-gray-800 rtl-flip-back" />
+          <ArrowLeft className="w-6 h-6 text-gray-800" />
         </button>
 
         {/* Logo */}

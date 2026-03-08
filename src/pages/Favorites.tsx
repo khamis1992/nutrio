@@ -158,7 +158,7 @@ const Favorites = () => {
             size="icon"
             onClick={() => navigate("/dashboard")}
           >
-            <ArrowLeft className="h-5 w-5 rtl-flip-back" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-semibold">{t("my_favorites")}</h1>
           <div className="w-10" />

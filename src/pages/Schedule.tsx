@@ -10,9 +10,8 @@ import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
+import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import {
-  ChevronLeft,
-  ChevronRight,
   Flame,
   Beef,
   Trash2,
@@ -29,6 +28,7 @@ import {
   Check,
   Utensils,
   Calendar as CalendarIcon,
+  CalendarCheck,
   Clock
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
@@ -93,6 +93,20 @@ const MEAL_TYPE_CONFIG = {
 const DAYS_EN = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_AR = ["أ", "إ", "ث", "أ", "خ", "ج", "س"];
 
+const MEAL_TYPE_TIMES: Record<string, string> = {
+  breakfast: "8AM",
+  lunch: "1PM",
+  snack: "3PM",
+  dinner: "7PM",
+};
+
+const MEAL_TYPE_STEP: Record<string, number> = {
+  breakfast: 0,
+  lunch: 1,
+  dinner: 2,
+  snack: 3,
+};
+
 // Native Mobile Schedule Component
 const Schedule = () => {
   const { t, isRTL } = useLanguage();
@@ -114,6 +128,10 @@ const Schedule = () => {
   const [schedules, setSchedules] = useState<ScheduledMeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  const [wizardInitialStep, setWizardInitialStep] = useState(0);
+  const [wizardSingleMode, setWizardSingleMode] = useState(false);
+  const [showModeDialog, setShowModeDialog] = useState(false);
+  const [pendingMealType, setPendingMealType] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Bottom sheet for meal details
@@ -325,6 +343,25 @@ const Schedule = () => {
     setSelectedScheduleForTimeSlot(null);
   };
 
+  const openModeDialog = (mealType: string) => {
+    setPendingMealType(mealType);
+    setShowModeDialog(true);
+  };
+
+  const handleScheduleSingleMeal = () => {
+    setWizardInitialStep(MEAL_TYPE_STEP[pendingMealType] ?? 0);
+    setWizardSingleMode(true);
+    setShowModeDialog(false);
+    setShowWizard(true);
+  };
+
+  const handleScheduleFullDay = () => {
+    setWizardInitialStep(0);
+    setWizardSingleMode(false);
+    setShowModeDialog(false);
+    setShowWizard(true);
+  };
+
   const getMealsForDay = (date: Date) => {
     return schedules.filter(s => {
       const scheduleDate = parseISO(s.scheduled_date);
@@ -376,7 +413,7 @@ const Schedule = () => {
         <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between px-4 h-14">
             <button onClick={() => navigate("/dashboard")} className="p-2 -ml-2">
-              <ChevronLeft className="h-6 w-6 text-primary" />
+              <NavChevronLeft className="h-6 w-6 text-primary" />
             </button>
             <h1 className="text-lg font-semibold">{t("schedule")}</h1>
             <div className="w-10" />
@@ -406,400 +443,280 @@ const Schedule = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24">
-      {/* Native iOS-style Header */}
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-20 bg-background border-b border-gray-200 dark:border-gray-800"
-      >
-        {/* Navigation Bar */}
-        <div className="flex items-center justify-between px-4 h-14">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="p-2 -ml-2 rounded-full active:bg-gray-100 dark:active:bg-gray-800 transition-colors"
-          >
-            <ChevronLeft className="h-6 w-6 text-primary" />
-          </button>
-          <div className="flex flex-col items-center">
-            <h1 className="text-lg font-semibold">{t("schedule")}</h1>
-            <p className="text-xs text-gray-500">{format(currentWeekStart, "MMMM yyyy")}</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-28">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-900 px-5 pt-12 pb-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("my_schedule")}</h1>
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <CalendarCheck className="h-5 w-5 text-primary" />
           </div>
-          <div className="w-10" />
         </div>
-      </motion.div>
 
-      {/* Pull to Refresh Indicator */}
-      <AnimatePresence>
-        {isRefreshing && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-20 left-0 right-0 flex justify-center z-30"
+        {/* Week Navigation */}
+        <div className="flex items-center justify-between mt-4">
+          <button
+            onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
+            className="p-1.5 rounded-full active:bg-gray-100 dark:active:bg-gray-800 transition-colors"
           >
-            <div className="bg-white dark:bg-gray-900 rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-sm">{t("refreshing")}</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <NavChevronLeft className="h-5 w-5 text-gray-400" />
+          </button>
+          <p className="text-sm font-semibold text-primary">
+            {t("this_week")} {format(currentWeekStart, "MMM d")}-{format(addDays(currentWeekStart, 6), "d")}
+          </p>
+          <button
+            onClick={() => setCurrentWeekStart(prev => addWeeks(prev, 1))}
+            className="p-1.5 rounded-full active:bg-gray-100 dark:active:bg-gray-800 transition-colors"
+          >
+            <NavChevronRight className="h-5 w-5 text-gray-400" />
+          </button>
+        </div>
 
-      {/* Main Content with Swipe */}
-      <motion.div 
-        className="overflow-hidden"
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.2}
-        onDragEnd={(_, info) => handleSwipe(info)}
+        {/* Day Strip */}
+        <div className="flex gap-1.5 mt-4">
+          {weekDays.map((day, index) => {
+            const isSelected = isSameDay(day, selectedDate);
+            const isTodayDate = isToday(day);
+            const dayMealCount = getMealsForDay(day).length;
+            return (
+              <motion.button
+                key={day.toISOString()}
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: index * 0.03 }}
+                onClick={() => setSelectedDate(day)}
+                className={`flex-1 flex flex-col items-center py-2 rounded-full transition-all duration-200 border ${
+                  isSelected
+                    ? 'bg-primary border-primary'
+                    : 'bg-transparent border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <span className={`text-xs font-medium leading-none mb-1 ${
+                  isSelected ? 'text-white' : 'text-gray-400'
+                }`}>
+                  {DAYS[day.getDay()]}
+                </span>
+                <span className={`text-sm font-bold leading-none ${
+                  isSelected ? 'text-white' : isTodayDate ? 'text-primary' : 'text-gray-800 dark:text-gray-200'
+                }`}>
+                  {format(day, "d")}
+                </span>
+                <div className="h-1.5 mt-1 flex items-center justify-center">
+                  {dayMealCount > 0 && (
+                    <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white/70' : 'bg-primary'}`} />
+                  )}
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Stats Cards */}
+        <div className="flex gap-3 mt-4">
+          <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              <Utensils className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xl font-bold text-gray-900 dark:text-white leading-none">
+                {weekProgress.completed}/{weekProgress.total}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-tight">{t("meals_completed")}</p>
+            </div>
+          </div>
+          <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              <Flame className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xl font-bold text-gray-900 dark:text-white leading-none">
+                {weekProgress.calories.toLocaleString()}
+                <span className="text-xs font-medium text-gray-400 ml-0.5">kcal</span>
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-tight">{t("calories_statistics")}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Weekly Progress Bar */}
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+            {t("weekly_progress")} {weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0}%
+          </p>
+          <div className="h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${weekProgress.total > 0 ? (weekProgress.completed / weekProgress.total) * 100 : 0}%` }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="h-full bg-primary rounded-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Today Meals Section */}
+      <motion.div
+        key={selectedDate.toISOString()}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="px-5 mt-5"
       >
-        {/* Week Progress Card */}
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="mx-4 mt-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden"
-        >
-          <div className="p-4 space-y-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">{t("this_week")}</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          {isToday(selectedDate) ? t("today_meals") : `${t(format(selectedDate, "EEEE").toLowerCase() as any)} ${t("day_meals")}`}
+        </h2>
 
-            {/* Stats row */}
-            <div className="flex items-center gap-3">
-              {/* Meals completed */}
-              <div className="flex-1 bg-primary/5 rounded-xl px-3 py-2.5">
-                <p className="text-xs text-muted-foreground mb-0.5">{t("meals_completed")}</p>
-                <p className="text-xl font-bold text-foreground leading-none">
-                  {weekProgress.completed}
-                  <span className="text-sm font-medium text-muted-foreground ml-1">
-                    of {weekProgress.total}
-                  </span>
-                </p>
-              </div>
-
-              {/* Calories burned */}
-              <div className="flex-1 bg-orange-50 dark:bg-orange-900/20 rounded-xl px-3 py-2.5">
-                <p className="text-xs text-muted-foreground mb-0.5">{t("calories_consumed")}</p>
-                <p className="text-xl font-bold text-orange-500 leading-none">
-                  {weekProgress.calories.toLocaleString()}
-                  <span className="text-xs font-medium text-muted-foreground ml-1">kcal</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>{weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0}{t("percent_done")}</span>
-                <span>{weekProgress.total - weekProgress.completed} {t("meals_remaining")}</span>
-              </div>
-              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${weekProgress.total > 0 ? (weekProgress.completed / weekProgress.total) * 100 : 0}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="h-full bg-primary rounded-full"
-                />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Calendar Strip - iOS Style */}
-        <div className="px-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <button 
-              onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
-              className="p-2 -ml-2 rounded-full active:bg-gray-200 dark:active:bg-gray-800 transition-colors"
+        {/* Pull to Refresh Indicator */}
+        <AnimatePresence>
+          {isRefreshing && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center justify-center py-3 gap-2"
             >
-              <ChevronLeft className="h-5 w-5 text-gray-400" />
-            </button>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {format(currentWeekStart, "MMM d")} - {format(addDays(currentWeekStart, 6), "MMM d")}
-            </p>
-            <button 
-              onClick={() => setCurrentWeekStart(prev => addWeeks(prev, 1))}
-              className="p-2 -mr-2 rounded-full active:bg-gray-200 dark:active:bg-gray-800 transition-colors"
-            >
-              <ChevronRight className="h-5 w-5 text-gray-400" />
-            </button>
-          </div>
-          
-          <div className="flex gap-1">
-            {weekDays.map((day, index) => {
-              const isSelected = isSameDay(day, selectedDate);
-              const isTodayDate = isToday(day);
-              const status = getDayStatus(day);
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm text-gray-500">{t("refreshing")}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {MEAL_TYPES.map((mealType, typeIndex) => {
+              const typeMeals = displayMeals.filter(m => m.meal_type === mealType);
+              const timeLabel = MEAL_TYPE_TIMES[mealType];
+              const mealTypeName = t(mealType as any);
+
+              if (typeMeals.length > 0) {
+                return typeMeals.map((schedule, mealIndex) => (
+                  <motion.div
+                    key={schedule.id}
+                    initial={{ x: -15, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: typeIndex * 0.08 + mealIndex * 0.04 }}
+                    onClick={() => {
+                      setSelectedMeal(schedule);
+                      setShowMealSheet(true);
+                    }}
+                    className="flex items-center gap-3 active:scale-[0.98] transition-transform cursor-pointer"
+                  >
+                    {/* Time Label */}
+                    <div className="w-10 shrink-0 text-right">
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        {schedule.delivery_time_slot || timeLabel}
+                      </span>
+                    </div>
+
+                    {/* Meal Card */}
+                    <div className={`flex-1 bg-white dark:bg-gray-900 rounded-2xl p-3 shadow-sm flex items-center gap-3 ${
+                      schedule.is_completed ? 'opacity-70' : ''
+                    }`}>
+                      {/* Meal Image */}
+                      {schedule.meal?.image_url ? (
+                        <img
+                          src={schedule.meal.image_url}
+                          alt={schedule.meal.name}
+                          className="w-16 h-16 rounded-xl object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-2xl shrink-0">
+                          🍽️
+                        </div>
+                      )}
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                          <span className="text-xs text-gray-500">{mealTypeName}</span>
+                          {/* Status Badge */}
+                          {schedule.is_completed ? (
+                            <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 text-xs font-semibold">
+                              <Check className="h-3 w-3" />
+                              {t("status_delivered")}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-500 text-xs font-semibold">
+                              <Clock className="h-3 w-3" />
+                              {t("status_scheduled")}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className={`font-bold text-sm text-gray-900 dark:text-white leading-tight truncate ${
+                          schedule.is_completed ? 'line-through text-gray-400' : ''
+                        }`}>
+                          {schedule.meal?.name}
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">{schedule.meal?.calories}{t("cal_unit")}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ));
+              }
+
+              /* Empty slot */
               return (
-                <motion.button
-                  key={day.toISOString()}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.03 }}
-                  onClick={() => setSelectedDate(day)}
-                  className={`flex-1 relative rounded-2xl py-3 transition-all duration-200 ${
-                    isSelected
-                      ? 'bg-primary shadow-lg shadow-primary/25'
-                      : 'bg-white dark:bg-gray-900 shadow-sm'
-                  }`}
+                <motion.div
+                  key={`empty-${mealType}`}
+                  initial={{ x: -15, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: typeIndex * 0.08 }}
+                  className="flex items-center gap-3"
                 >
-                  <div className="flex flex-col items-center gap-1">
-                    <span className={`text-xs font-medium ${
-                      isSelected ? 'text-primary-foreground/70' : 'text-gray-400'
-                    }`}>
-                      {DAYS[day.getDay()]}
-                    </span>
-                    <span className={`text-lg font-semibold ${
-                      isSelected ? 'text-primary-foreground' : isTodayDate ? 'text-primary' : 'text-gray-900 dark:text-white'
-                    }`}>
-                      {format(day, "d")}
-                    </span>
-                    
-                    {/* Status Dot */}
-                    <div className="h-1.5 flex items-center justify-center">
-                      {status === "completed" && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      )}
-                      {status === "partial" && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      )}
-                      {status === "scheduled" && !isSelected && (
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                      )}
+                  {/* Time Label */}
+                  <div className="w-10 shrink-0 text-right">
+                    <span className="text-xs font-semibold text-gray-400">{timeLabel}</span>
+                  </div>
+
+                  {/* Empty Meal Card */}
+                  <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-3 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        if (user) {
+                          openModeDialog(mealType);
+                        } else {
+                          promptLogin({
+                            title: t("sign_in_to_schedule"),
+                            description: t("sign_in_to_schedule_desc"),
+                            actionLabel: t("sign_in"),
+                            signUpLabel: t("create_free_account")
+                          });
+                        }
+                      }}
+                      className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+                    >
+                      <Plus className="h-6 w-6 text-gray-400" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-400 mb-2">{mealTypeName}</p>
+                      <button
+                        onClick={() => {
+                          if (user) {
+                            openModeDialog(mealType);
+                          } else {
+                            promptLogin({
+                              title: t("sign_in_to_schedule"),
+                              description: t("sign_in_to_schedule_desc"),
+                              actionLabel: t("sign_in"),
+                              signUpLabel: t("create_free_account")
+                            });
+                          }
+                        }}
+                        className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-full active:scale-95 transition-transform"
+                      >
+                        {t("choose_meal")}
+                      </button>
                     </div>
                   </div>
-                  
-                  {/* Today Indicator */}
-                  {isTodayDate && !isSelected && (
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-                  )}
-                </motion.button>
+                </motion.div>
               );
             })}
           </div>
-        </div>
-
-        {/* Selected Day Summary */}
-        <motion.div 
-          key={selectedDate.toISOString()}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 mt-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-2xl font-bold">
-                {isToday(selectedDate) ? t("today") : t(format(selectedDate, "EEEE").toLowerCase() as any)}
-              </h2>
-              <p className="text-sm text-gray-500">{format(selectedDate, "MMMM d, yyyy")}</p>
-            </div>
-            {dailyNutrition.total > 0 && (
-              <div className="text-right">
-                <p className="text-2xl font-bold">{dailyNutrition.calories}</p>
-                <p className="text-xs text-gray-500">{t("calories").toLowerCase()}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Nutrition Rings */}
-          {dailyNutrition.total > 0 && (
-            <div className="flex gap-2 mb-4">
-              <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                  <Flame className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-lg font-bold">{dailyNutrition.calories}</p>
-                  <p className="text-xs text-gray-500">{t("calories").toLowerCase()}</p>
-                </div>
-              </div>
-              <div className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <Beef className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-lg font-bold">{dailyNutrition.protein}g</p>
-                  <p className="text-xs text-gray-500">{t("protein").toLowerCase()}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Meals Timeline */}
-        <div className="px-4 pb-32">
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div 
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center justify-center py-12"
-              >
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </motion.div>
-            ) : displayMeals.length === 0 ? (
-              <motion.div 
-                key="empty"
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex flex-col items-center justify-center py-16"
-              >
-                <div className="w-24 h-24 rounded-3xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-                  <CalendarIcon className="h-12 w-12 text-gray-400" />
-                </div>
-                <p className="text-gray-500 text-center mb-2">{t("no_meals_scheduled")}</p>
-                <p className="text-sm text-gray-400 text-center mb-6">{t("tap_to_add_meal")}</p>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="meals"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-3"
-              >
-                {MEAL_TYPES.map((mealType, typeIndex) => {
-                  const typeMeals = displayMeals.filter(m => m.meal_type === mealType);
-                  if (typeMeals.length === 0) return null;
-                  const config = MEAL_TYPE_CONFIG[mealType];
-                  const Icon = config.icon;
-
-                  return (
-                    <motion.div
-                      key={mealType}
-                      initial={{ x: -20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: typeIndex * 0.1 }}
-                    >
-                      {/* Meal Type Header */}
-                      <div className="flex items-center gap-2 mb-2 px-1">
-                        <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${config.color} flex items-center justify-center`}>
-                          <Icon className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t(config.label)}</span>
-                      </div>
-
-                      {/* Meals */}
-                      <div className="space-y-2">
-                        {typeMeals.map((schedule, mealIndex) => (
-                          <motion.div
-                            key={schedule.id}
-                            initial={{ y: 10, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: typeIndex * 0.1 + mealIndex * 0.05 }}
-                            onClick={() => {
-                              setSelectedMeal(schedule);
-                              setShowMealSheet(true);
-                            }}
-                            className={`bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-transform ${
-                              schedule.is_completed ? 'opacity-60' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-4">
-                              {/* Checkbox */}
-                              <button
-                                onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
-                                className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors ${
-                                  schedule.is_completed
-                                    ? 'bg-emerald-500 border-emerald-500'
-                                    : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700'
-                                }`}
-                              >
-                                {schedule.is_completed && <Check className="h-4 w-4 text-white" />}
-                              </button>
-
-                              {/* Meal Image */}
-                              {schedule.meal?.image_url ? (
-                                <img
-                                  src={schedule.meal.image_url}
-                                  alt={schedule.meal.name}
-                                  className="w-16 h-16 rounded-xl object-cover"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-2xl">
-                                  🍽️
-                                </div>
-                              )}
-
-                              {/* Meal Info */}
-                              <div className="flex-1 min-w-0">
-                                <h3 className={`font-semibold truncate ${schedule.is_completed ? 'line-through text-gray-400' : ''}`}>
-                                  {schedule.meal?.name}
-                                </h3>
-                                <div className="flex items-center gap-3 mt-1">
-                                  <span className="flex items-center gap-1 text-sm text-orange-500">
-                                    <Flame className="h-3.5 w-3.5" />
-                                    {schedule.meal?.calories}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-sm text-red-500">
-                                    <Beef className="h-3.5 w-3.5" />
-                                    {schedule.meal?.protein_g}g
-                                  </span>
-                                </div>
-                                {/* Delivery Time Slot Button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenTimeSlotSelector(schedule.id);
-                                  }}
-                                  className={`mt-2 flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg transition-colors ${
-                                    schedule.delivery_time_slot 
-                                      ? "bg-primary/10 text-primary" 
-                                      : "bg-gray-100 text-gray-500 hover:bg-primary/5 hover:text-primary"
-                                  }`}
-                                >
-                                  <Clock className="h-3 w-3" />
-                                  {schedule.delivery_time_slot 
-                                    ? schedule.delivery_time_slot.charAt(0).toUpperCase() + schedule.delivery_time_slot.slice(1)
-                                    : t("set_delivery_time")
-                                  }
-                                </button>
-                              </div>
-
-                              {/* Arrow */}
-                              <ChevronRight className="h-5 w-5 text-gray-300" />
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        )}
       </motion.div>
-
-      {/* Floating Action Button */}
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => {
-          if (user) {
-            setShowWizard(true);
-          } else {
-            promptLogin({
-              title: t("sign_in_to_schedule"),
-              description: t("sign_in_to_schedule_desc"),
-              actionLabel: t("sign_in"),
-              signUpLabel: t("create_free_account")
-            });
-          }
-        }}
-        className="fixed right-4 w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center z-30"
-        style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
-      >
-        <Plus className="h-7 w-7 text-primary-foreground" />
-      </motion.button>
-
-      {/* Swipe Hint */}
-      <div className="fixed left-0 right-0 flex justify-center pointer-events-none" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
-        <p className="text-xs text-gray-400">{t("swipe_to_change_week")}</p>
-      </div>
 
       {/* Meal Wizard */}
       <AnimatePresence>
@@ -807,12 +724,85 @@ const Schedule = () => {
           <MealWizard
             userId={user.id}
             selectedDate={selectedDate}
+            initialStep={wizardInitialStep}
+            singleMode={wizardSingleMode}
             onComplete={() => {
               setShowWizard(false);
               fetchSchedules();
             }}
             onCancel={() => setShowWizard(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Mode Selection Dialog */}
+      <AnimatePresence>
+        {showModeDialog && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowModeDialog(false)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-50"
+            >
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
+              </div>
+              <div className="px-5" style={{ paddingBottom: 'calc(80px + max(16px, env(safe-area-inset-bottom)))' }}>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                  How would you like to schedule?
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                  Plan just this meal or your entire day
+                </p>
+
+                {/* Option 1 — single meal */}
+                <button
+                  onClick={handleScheduleSingleMeal}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-primary/25 bg-primary/5 mb-3 active:scale-[0.98] transition-transform text-left"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    {(() => {
+                      const config = MEAL_TYPE_CONFIG[pendingMealType as keyof typeof MEAL_TYPE_CONFIG];
+                      if (!config) return null;
+                      const Icon = config.icon;
+                      return <Icon className="h-6 w-6 text-primary" />;
+                    })()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {t("schedule_single_meal")} {t(pendingMealType as any)}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t("schedule_single_meal_desc")}</p>
+                  </div>
+                  <NavChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
+                </button>
+
+                {/* Option 2 — full day */}
+                <button
+                  onClick={handleScheduleFullDay}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-transform text-left"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                    <CalendarIcon className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white">{t("schedule_full_day")}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{t("schedule_full_day_desc")}</p>
+                  </div>
+                  <NavChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

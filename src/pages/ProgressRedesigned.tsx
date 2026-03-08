@@ -508,7 +508,7 @@ const ProgressDashboard = () => {
             onClick={() => navigate("/dashboard")}
             className="p-2 -ml-2 rounded-full hover:bg-slate-100 active:scale-95 transition-all"
           >
-            <ArrowLeft className="w-6 h-6 text-slate-700 rtl-flip-back" />
+            <ArrowLeft className="w-6 h-6 text-slate-700" />
           </button>
           <h1 className="text-lg font-semibold text-slate-900">{t("progress")}</h1>
           <div className="w-10" /> {/* Spacer for balance */}
