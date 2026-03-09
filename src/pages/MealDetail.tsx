@@ -409,6 +409,75 @@ const ScheduleSheet = ({
         </SheetHeader>
         
         <div className="flex-1 space-y-6 overflow-y-auto px-1 pb-4">
+          {/* Add-ons Section — shown first so it's immediately visible */}
+          {hasAddons && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-sm">Add-ons <span className="text-muted-foreground font-normal">(charged to wallet)</span></h3>
+                {addonsTotal > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {formatCurrency(addonsTotal)}
+                  </Badge>
+                )}
+              </div>
+
+              {Object.entries(groupedAddons).map(([category, items]) => (
+                <div key={category} className="space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{category}</p>
+                  {items.map((addon) => {
+                    const isSelected = selectedAddons.has(addon.id);
+                    return (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() => toggleAddon(addon.id)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                          isSelected
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "bg-card border-border/50 text-foreground"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{addon.name}</p>
+                          {addon.description && (
+                            <p className="text-xs text-muted-foreground">{addon.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="text-sm font-semibold">{formatCurrency(addon.price)}</span>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {addonsTotal > 0 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+                  <Wallet className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Wallet balance: <span className="font-semibold text-foreground">{formatCurrency(walletBalance)}</span>
+                    {walletBalance < addonsTotal && (
+                      <span className="text-destructive ml-1">— insufficient for add-ons</span>
+                    )}
+                  </span>
+                </div>
+              )}
+
+              <div className="border-t border-border/40" />
+            </motion.div>
+          )}
+
           {/* Selected Date Context Card */}
           {selectedDate && (
             <motion.div
@@ -626,72 +695,6 @@ const ScheduleSheet = ({
                   </Badge>
                 </div>
               </div>
-            </motion.div>
-          )}
-          {/* Add-ons Section */}
-          {hasAddons && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-3"
-            >
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-sm">Add-ons (charged to wallet)</h3>
-                {addonsTotal > 0 && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {formatCurrency(addonsTotal)}
-                  </Badge>
-                )}
-              </div>
-
-              {Object.entries(groupedAddons).map(([category, items]) => (
-                <div key={category} className="space-y-2">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{category}</p>
-                  {items.map((addon) => {
-                    const isSelected = selectedAddons.has(addon.id);
-                    return (
-                      <button
-                        key={addon.id}
-                        type="button"
-                        onClick={() => toggleAddon(addon.id)}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          isSelected
-                            ? "bg-primary/10 border-primary/40 text-primary"
-                            : "bg-card border-border/50 text-foreground"
-                        }`}
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{addon.name}</p>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <span className="text-sm font-semibold">{formatCurrency(addon.price)}</span>
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
-                          }`}>
-                            {isSelected && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-
-              {addonsTotal > 0 && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
-                  <Wallet className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    Wallet balance: <span className="font-semibold text-foreground">{formatCurrency(walletBalance)}</span>
-                    {walletBalance < addonsTotal && (
-                      <span className="text-destructive ml-1">— insufficient for add-ons</span>
-                    )}
-                  </span>
-                </div>
-              )}
             </motion.div>
           )}
         </div>
@@ -1016,8 +1019,10 @@ const MealDetail = () => {
       hapticFeedback.success();
       toast({
         title: "Meal credit added! ✅",
-        description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted. You can now schedule your meal.`,
+        description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted.`,
       });
+      // Automatically open the schedule sheet so user can pick a date and add-ons
+      setSheetOpen(true);
     } catch (err: any) {
       toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
     } finally {
@@ -1414,6 +1419,42 @@ const MealDetail = () => {
           </motion.div>
         )}
 
+        {/* Add-ons Section */}
+        {hasAddons && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+            className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-bold">Add-ons</h2>
+              <span className="text-xs text-muted-foreground ml-1">(optional · charged to wallet)</span>
+            </div>
+            <div className="space-y-4">
+              {Object.entries(groupedAddons).map(([category, items]) => (
+                <div key={category}>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-2">{category.replace(/_/g, ' ')}</p>
+                  <div className="space-y-2">
+                    {items.map((addon) => (
+                      <div key={addon.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                        <div>
+                          <p className="text-sm font-medium">{addon.name}</p>
+                          {addon.description && (
+                            <p className="text-xs text-muted-foreground">{addon.description}</p>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold text-primary ml-4 shrink-0">+{formatCurrency(addon.price)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 text-center">Select add-ons when you tap "Add to Schedule"</p>
+          </motion.div>
+        )}
 
       </div>
 

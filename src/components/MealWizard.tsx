@@ -35,7 +35,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useWallet } from "@/hooks/useWallet";
 import { useNavigate } from "react-router-dom";
+import { formatCurrency } from "@/lib/currency";
+import { ShoppingCart, Wallet } from "lucide-react";
 
 interface Meal {
   id: string;
@@ -124,6 +127,19 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
   const [showPlanSummary, setShowPlanSummary] = useState(false);
   const [showDeliveryScheduler, setShowDeliveryScheduler] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // ── Add-ons ───────────────────────────────────────────────────────────
+  const { wallet, refresh: refetchWallet } = useWallet();
+  interface AddonItem { id: string; name: string; description: string | null; price: number; category: string; }
+  const [showAddonSheet, setShowAddonSheet] = useState(false);
+  const [addonStepKey, setAddonStepKey] = useState("");
+  const [loadedAddons, setLoadedAddons] = useState<AddonItem[]>([]);
+  const [addonLoading, setAddonLoading] = useState(false);
+  const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
+  // Stores confirmed add-ons per meal type key
+  const [addonsPerStep, setAddonsPerStep] = useState<Record<string, AddonItem[]>>({});
+  // What to do after the add-on sheet closes
+  const [pendingNav, setPendingNav] = useState<"delivery" | "next_step" | null>(null);
 
   const currentStepData = STEPS[currentStep];
   const CurrentIcon = currentStepData.icon;
@@ -397,6 +413,70 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
 
   const [justSelectedId, setJustSelectedId] = useState<string | null>(null);
 
+  const executeNavigation = (nav: "delivery" | "next_step" | null) => {
+    if (nav === "delivery") {
+      setShowDeliveryScheduler(true);
+    } else if (nav === "next_step") {
+      setSelectedRestaurant(null);
+      setMeals([]);
+      setCurrentStep(prev => prev + 1);
+    }
+    setPendingNav(null);
+  };
+
+  const openAddonSheet = async (mealId: string, stepKey: string, nav: "delivery" | "next_step" | null) => {
+    setAddonStepKey(stepKey);
+    setSelectedAddonIds(new Set());
+    setPendingNav(nav);
+    setAddonLoading(true);
+    const { data } = await supabase
+      .from("meal_addons")
+      .select("id, name, description, price, category")
+      .eq("meal_id", mealId)
+      .eq("is_available", true)
+      .order("category")
+      .order("name");
+    setAddonLoading(false);
+    const addons = (data || []) as AddonItem[];
+    setLoadedAddons(addons);
+    if (addons.length > 0) {
+      setShowAddonSheet(true);
+    } else {
+      executeNavigation(nav);
+    }
+  };
+
+  const confirmAddons = () => {
+    const chosen = loadedAddons.filter(a => selectedAddonIds.has(a.id));
+    setAddonsPerStep(prev => ({ ...prev, [addonStepKey]: chosen }));
+    setShowAddonSheet(false);
+    executeNavigation(pendingNav);
+  };
+
+  const skipAddons = () => {
+    setAddonsPerStep(prev => ({ ...prev, [addonStepKey]: [] }));
+    setShowAddonSheet(false);
+    executeNavigation(pendingNav);
+  };
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddonIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const addonTotal = loadedAddons
+    .filter(a => selectedAddonIds.has(a.id))
+    .reduce((sum, a) => sum + a.price, 0);
+
+  const groupedLoadedAddons = loadedAddons.reduce((acc, addon) => {
+    if (!acc[addon.category]) acc[addon.category] = [];
+    acc[addon.category].push(addon);
+    return acc;
+  }, {} as Record<string, AddonItem[]>);
+
   const selectMeal = (meal: Meal) => {
     const stepKey = STEPS[currentStep].id;
     setSelectedMeals(prev => ({
@@ -412,14 +492,9 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
 
     setTimeout(() => {
       setJustSelectedId(null);
-      if (isSingleTarget) {
-        // Single mode: go straight to delivery time picker
-        setShowDeliveryScheduler(true);
-      } else if (!isLastStep) {
-        setSelectedRestaurant(null);
-        setMeals([]);
-        setCurrentStep(prev => prev + 1);
-      }
+      const nav: "delivery" | "next_step" | null =
+        isSingleTarget ? "delivery" : !isLastStep ? "next_step" : null;
+      openAddonSheet(meal.id, stepKey, nav);
     }, 900);
   };
 
@@ -503,11 +578,46 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         }
       }
 
-      const { error } = await supabase
+      const { data: insertedSchedules, error } = await supabase
         .from("meal_schedules")
-        .insert(allSelectedMeals);
+        .insert(allSelectedMeals)
+        .select("id, meal_type");
 
       if (error) throw error;
+
+      // Process add-ons for each scheduled meal
+      for (const schedule of (insertedSchedules || [])) {
+        const addons = addonsPerStep[schedule.meal_type] || [];
+        if (addons.length === 0) continue;
+
+        const total = addons.reduce((sum, a) => sum + a.price, 0);
+
+        // Debit wallet
+        const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
+          p_user_id: userId,
+          p_amount: total,
+          p_reference_type: "order",
+          p_description: `Add-ons for ${schedule.meal_type}`,
+        });
+        if (debitErr) {
+          console.error("Wallet debit failed for add-ons:", debitErr);
+          continue;
+        }
+
+        // Insert into schedule_addons
+        await supabase.from("schedule_addons").insert(
+          addons.map(a => ({
+            schedule_id: schedule.id,
+            addon_id: a.id,
+            quantity: 1,
+            unit_price: a.price,
+          }))
+        );
+      }
+
+      if (Object.values(addonsPerStep).some(a => a.length > 0)) {
+        refetchWallet();
+      }
 
       setSuccess(true);
       setTimeout(() => {
@@ -1808,6 +1918,120 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 >
                   Cancel
                 </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Add-ons Bottom Sheet */}
+      <AnimatePresence>
+        {showAddonSheet && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={skipAddons}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70]"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 350 }}
+              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-[71] max-h-[75vh] flex flex-col overflow-hidden"
+            >
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+              </div>
+
+              <div className="px-5 pb-4 border-b border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-bold">Add-ons</h3>
+                    <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+                  </div>
+                  <button
+                    onClick={skipAddons}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                {addonTotal > 0 && (
+                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                    <Wallet className="w-3.5 h-3.5" />
+                    <span>
+                      Wallet: <span className={`font-semibold ${(wallet?.balance || 0) >= addonTotal ? "text-green-600" : "text-destructive"}`}>{formatCurrency(wallet?.balance || 0)}</span>
+                      {" · "}Selected: <span className="font-semibold text-primary">{formatCurrency(addonTotal)}</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {addonLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  Object.entries(groupedLoadedAddons).map(([category, items]) => (
+                    <div key={category}>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{category.replace(/_/g, " ")}</p>
+                      <div className="space-y-2">
+                        {items.map(addon => {
+                          const isSelected = selectedAddonIds.has(addon.id);
+                          return (
+                            <button
+                              key={addon.id}
+                              type="button"
+                              onClick={() => toggleAddon(addon.id)}
+                              className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${
+                                isSelected
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border bg-card"
+                              }`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium">{addon.name}</p>
+                                {addon.description && (
+                                  <p className="text-xs text-muted-foreground">{addon.description}</p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 ml-3">
+                                <span className="text-sm font-semibold text-primary">+{formatCurrency(addon.price)}</span>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
+                                }`}>
+                                  {isSelected && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="px-5 pb-6 pt-3 border-t border-border/50 flex gap-3">
+                <Button variant="outline" onClick={skipAddons} className="flex-1 rounded-xl">
+                  Skip
+                </Button>
+                <Button
+                  onClick={confirmAddons}
+                  className="flex-1 rounded-xl"
+                  disabled={addonTotal > 0 && (wallet?.balance || 0) < addonTotal}
+                >
+                  {addonTotal > 0
+                    ? (wallet?.balance || 0) < addonTotal
+                      ? "Insufficient balance"
+                      : `Add · ${formatCurrency(addonTotal)}`
+                    : "Continue"}
+                </Button>
               </div>
             </motion.div>
           </>
