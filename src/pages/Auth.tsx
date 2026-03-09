@@ -125,10 +125,20 @@ const Auth = () => {
   const handleBiometricLogin = async () => {
     setBiometricLoading(true);
     try {
-      const credentials = await biometricAuth.getCredentials();
-      if (!credentials) { toast({ title: t("no_saved_credentials"), description: t("signin_first_desc"), variant: "destructive" }); return; }
+      // Step 1: authenticate with biometrics first
       const authenticated = await biometricAuth.authenticate();
-      if (!authenticated) { toast({ title: t("auth_failed"), description: t("biometric_canceled"), variant: "destructive" }); return; }
+      if (!authenticated) {
+        toast({ title: t("auth_failed"), description: t("biometric_canceled"), variant: "destructive" });
+        return;
+      }
+      // Step 2: retrieve saved credentials after successful auth
+      const credentials = await biometricAuth.getCredentials();
+      if (!credentials) {
+        toast({ title: t("no_saved_credentials"), description: t("signin_first_desc"), variant: "destructive" });
+        setEnableBiometric(false);
+        return;
+      }
+      // Step 3: sign in with stored credentials
       const { error } = await signIn(credentials.username, credentials.password);
       if (error) {
         toast({ title: t("signin_failed"), description: t("invalid_credentials_retry"), variant: "destructive" });
@@ -201,8 +211,9 @@ const Auth = () => {
     }
     setForgotLoading(true);
     try {
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${appUrl}/reset-password`,
       });
       if (error) throw error;
       setOtpDigits(["", "", "", ""]);
@@ -255,8 +266,9 @@ const Auth = () => {
   const handleResendOtp = async () => {
     if (otpCountdown > 0) return;
     try {
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
       await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${appUrl}/reset-password`,
       });
       setOtpDigits(["", "", "", ""]);
       setOtpError("");
@@ -411,40 +423,40 @@ const Auth = () => {
         style={{ maxWidth: 430, margin: "0 auto" }}
       >
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-6 pt-12 pb-32">
+        <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6">
           {/* Back arrow */}
           <button
             type="button"
             onClick={() => setView("welcome")}
-            className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
+            className="mb-4 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
             <ArrowLeft className="w-6 h-6 text-gray-800" />
           </button>
 
           {/* Logo */}
-          <div className="flex justify-center mb-8">
-            <Logo size="xl" />
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" />
           </div>
 
           {/* Title */}
-          <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
+          <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight mb-1">
             {t("join_nutrio_today")}
           </h1>
-          <p className="text-sm text-gray-400 leading-relaxed mb-8">
+          <p className="text-sm text-gray-400 leading-relaxed mb-5">
             {t("create_account_desc")}
           </p>
 
           {/* Form */}
-          <form id="signup-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form id="signup-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Email */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="su-email" className="text-sm font-semibold text-gray-800">{t("email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="su-email" type="email" placeholder={t("email")} value={email}
                   onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }}
-                  className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
+                  className={`h-12 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
                   required disabled={loading}
                 />
               </div>
@@ -452,14 +464,14 @@ const Auth = () => {
             </div>
 
             {/* Password */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label htmlFor="su-password" className="text-sm font-semibold text-gray-800">{t("password")}</Label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="su-password" type={showPassword ? "text" : "password"} placeholder={t("password")} value={password}
                   onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }}
-                  className={`h-14 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
+                  className={`h-12 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
                   required disabled={loading}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors" disabled={loading}>
@@ -502,13 +514,13 @@ const Auth = () => {
         </div>
 
         {/* Fixed bottom Sign up button */}
-        <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+        <div className="px-6 pb-6 pt-3 bg-white border-t border-gray-100">
           <Button
             type="submit"
             form="signup-form"
             variant="gradient"
             className="w-full rounded-2xl font-bold"
-            style={{ height: 56, fontSize: 16 }}
+            style={{ height: 52, fontSize: 16 }}
             disabled={loading || !agreedToTerms}
           >
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("creating_account")}</> : t("sign_up")}
@@ -533,12 +545,12 @@ const Auth = () => {
         className="fixed inset-0 flex flex-col bg-white"
         style={{ maxWidth: 430, margin: "0 auto" }}
       >
-        <div className="flex-1 px-6 pt-12 pb-4">
+        <div className="flex-1 px-6 pt-6 pb-4">
           {/* Back arrow */}
           <button
             type="button"
             onClick={() => { setView("forgot"); setForgotSent(false); if (countdownRef.current) clearInterval(countdownRef.current); }}
-            className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
+            className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
             <ArrowLeft className="w-6 h-6 text-gray-800" />
           </button>
@@ -658,27 +670,27 @@ const Auth = () => {
         className="fixed inset-0 flex flex-col bg-white"
         style={{ maxWidth: 430, margin: "0 auto" }}
       >
-        <div className="flex-1 overflow-y-auto px-6 pt-12 pb-36">
+        <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6">
           {/* Back arrow */}
           <button
             type="button"
             onClick={() => { setView("signin"); setForgotEmail(""); setForgotSent(false); setForgotError(""); }}
-            className="mb-8 flex items-center justify-center hover:opacity-70 transition-opacity"
+            className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
             <ArrowLeft className="w-6 h-6 text-gray-800" />
           </button>
 
           {/* Title */}
-          <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
+          <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight mb-1">
             {t("forgot_password")}
           </h1>
-          <p className="text-sm text-gray-400 leading-relaxed mb-8">
+          <p className="text-sm text-gray-400 leading-relaxed mb-6">
             {t("forgot_password_desc")}
           </p>
 
           {/* Form */}
-          <form id="forgot-form" onSubmit={handleForgotSubmit} className="flex flex-col gap-5">
-            <div className="space-y-1.5">
+          <form id="forgot-form" onSubmit={handleForgotSubmit} className="flex flex-col gap-4">
+            <div className="space-y-1">
               <Label htmlFor="forgot-email" className="text-sm font-semibold text-gray-800">
                 {t("registered_email")}
               </Label>
@@ -690,7 +702,7 @@ const Auth = () => {
                   placeholder="your@email.com"
                   value={forgotEmail}
                   onChange={(e) => { setForgotEmail(e.target.value); setForgotError(""); }}
-                  className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${forgotError ? "ring-1 ring-destructive" : ""}`}
+                  className={`h-12 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${forgotError ? "ring-1 ring-destructive" : ""}`}
                   required
                   disabled={forgotLoading}
                   autoComplete="email"
@@ -702,13 +714,13 @@ const Auth = () => {
         </div>
 
         {/* Fixed bottom button */}
-        <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+        <div className="px-6 pb-6 pt-3 bg-white border-t border-gray-100">
           <Button
             type="submit"
             form="forgot-form"
             variant="gradient"
             className="w-full rounded-2xl font-bold"
-            style={{ height: 56, fontSize: 16 }}
+            style={{ height: 52, fontSize: 16 }}
             disabled={forgotLoading}
           >
             {forgotLoading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("sending")}</> : t("send_otp_code")}
@@ -724,39 +736,39 @@ const Auth = () => {
       className="fixed inset-0 flex flex-col bg-white"
       style={{ maxWidth: 430, margin: "0 auto" }}
     >
-      <div className="flex-1 overflow-y-auto px-6 pt-12 pb-36">
+      <div className="flex-1 overflow-y-auto px-6 pt-6 pb-6">
 
         {/* Back arrow */}
         <button
           type="button"
           onClick={() => setView("welcome")}
-          className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
+          className="mb-4 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
           <ArrowLeft className="w-6 h-6 text-gray-800" />
         </button>
 
         {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Logo size="xl" />
+        <div className="flex justify-center mb-4">
+          <Logo size="lg" />
         </div>
 
         {/* Title */}
-        <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight mb-2">
+        <h1 className="text-[22px] font-extrabold text-gray-900 leading-tight mb-1">
           {t("welcome_back")}
           </h1>
-          <p className="text-sm text-gray-400 leading-relaxed mb-8">
+          <p className="text-sm text-gray-400 leading-relaxed mb-5">
             {t("signin_desc")}
           </p>
 
-        {/* Biometric (native only) */}
-        {biometricAvailable && (
-          <div className="mb-6">
-            <Button type="button" variant="outline" className="w-full h-12 rounded-2xl gap-2" onClick={handleBiometricLogin} disabled={biometricLoading}>
+        {/* Biometric (native only — show only when credentials are saved) */}
+        {biometricAvailable && enableBiometric && (
+          <div className="mb-4">
+            <Button type="button" variant="outline" className="w-full h-11 rounded-2xl gap-2" onClick={handleBiometricLogin} disabled={biometricLoading}>
               {biometricLoading
                 ? <><Loader2 className="w-5 h-5 animate-spin" />{t("authenticating")}</>
                 : <><Fingerprint className="w-5 h-5" />{t("sign_in_with_action")} {biometricType}</>}
             </Button>
-            <div className="flex items-center mt-4 mb-2">
+            <div className="flex items-center mt-3 mb-1">
               <div className="h-px bg-gray-200 flex-1" />
               <span className="px-3 text-xs text-gray-400 uppercase">{t("or_divider")}</span>
               <div className="h-px bg-gray-200 flex-1" />
@@ -765,17 +777,17 @@ const Auth = () => {
         )}
 
         {/* Form */}
-        <form id="signin-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form id="signin-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
 
           {/* Email */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
               <Label htmlFor="si-email" className="text-sm font-semibold text-gray-800">{t("email")}</Label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 id="si-email" type="email" placeholder={t("email")} value={email}
                 onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors({ ...errors, email: undefined }); }}
-                className={`h-14 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
+                className={`h-12 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.email ? "ring-1 ring-destructive" : ""}`}
                 required disabled={loading}
               />
             </div>
@@ -783,14 +795,14 @@ const Auth = () => {
           </div>
 
           {/* Password */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
               <Label htmlFor="si-password" className="text-sm font-semibold text-gray-800">{t("password")}</Label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 id="si-password" type={showPassword ? "text" : "password"} placeholder={t("password")} value={password}
                 onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors({ ...errors, password: undefined }); }}
-                className={`h-14 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
+                className={`h-12 pl-11 pr-12 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${errors.password ? "ring-1 ring-destructive" : ""}`}
                 required disabled={loading}
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors" disabled={loading}>
@@ -846,13 +858,13 @@ const Auth = () => {
       </div>
 
       {/* Fixed bottom Sign in button */}
-      <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+      <div className="px-6 pb-6 pt-3 bg-white border-t border-gray-100">
         <Button
           type="submit"
           form="signin-form"
           variant="gradient"
           className="w-full rounded-2xl font-bold"
-          style={{ height: 56, fontSize: 16 }}
+          style={{ height: 52, fontSize: 16 }}
           disabled={loading}
         >
           {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("signing_in")}</> : t("sign_in")}

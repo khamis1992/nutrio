@@ -34,6 +34,8 @@ import { getMealImage } from "@/lib/meal-images";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useNavigate } from "react-router-dom";
 
 interface Meal {
   id: string;
@@ -82,6 +84,8 @@ const STEPS = [
 const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 0, singleMode = false }: MealWizardProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { remainingMeals, isUnlimited, incrementMealUsage } = useSubscription();
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
@@ -466,6 +470,37 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         });
         setScheduling(false);
         return;
+      }
+
+      // Check quota before scheduling
+      if (!isUnlimited && remainingMeals < allSelectedMeals.length) {
+        toast({
+          title: "No meals remaining",
+          description: `You have ${remainingMeals} meal${remainingMeals === 1 ? "" : "s"} left. You can buy extra meals using your wallet.`,
+          variant: "destructive",
+        });
+        setScheduling(false);
+        onCancel();
+        navigate("/meals");
+        return;
+      }
+
+      // Increment quota for each meal being scheduled
+      if (!isUnlimited) {
+        for (let i = 0; i < allSelectedMeals.length; i++) {
+          const ok = await incrementMealUsage();
+          if (!ok) {
+            toast({
+              title: "No meals remaining",
+              description: "Your quota ran out. You can buy extra meals using your wallet balance.",
+              variant: "destructive",
+            });
+            setScheduling(false);
+            onCancel();
+            navigate("/meals");
+            return;
+          }
+        }
       }
 
       const { error } = await supabase

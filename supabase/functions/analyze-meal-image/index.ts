@@ -212,17 +212,30 @@ serve(async (req) => {
     let imageBase64: string;
     let mimeType = "image/jpeg";
     try {
-      const imgResponse = await fetch(imageUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; NutrioBot/1.0)" }
-      });
-      if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.status}`);
-      const contentType = imgResponse.headers.get("content-type");
-      if (contentType) mimeType = contentType.split(";")[0].trim();
-      const arrayBuffer = await imgResponse.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      imageBase64 = btoa(binary);
+      if (imageUrl.startsWith("data:")) {
+        // Already a base64 data URI (e.g. from Capacitor Camera.getPhoto)
+        // Extract mimeType and base64 payload directly — fetch() cannot handle data: URIs
+        const commaIndex = imageUrl.indexOf(",");
+        const header = imageUrl.substring(0, commaIndex);
+        const mimeMatch = header.match(/data:([^;]+)/);
+        if (mimeMatch) mimeType = mimeMatch[1];
+        imageBase64 = imageUrl.substring(commaIndex + 1);
+        console.log(`Using data URI directly, mimeType=${mimeType}, base64 length=${imageBase64.length}`);
+      } else {
+        // Remote HTTP/HTTPS URL — fetch and convert to base64
+        const imgResponse = await fetch(imageUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; NutrioBot/1.0)" }
+        });
+        if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.status}`);
+        const contentType = imgResponse.headers.get("content-type");
+        if (contentType) mimeType = contentType.split(";")[0].trim();
+        const arrayBuffer = await imgResponse.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        imageBase64 = btoa(binary);
+        console.log(`Fetched remote image, mimeType=${mimeType}, base64 length=${imageBase64.length}`);
+      }
     } catch (e) {
       console.error("Failed to fetch/convert image:", e);
       return createFallbackResponse(mode, `Image fetch failed: ${(e as Error).message}`);

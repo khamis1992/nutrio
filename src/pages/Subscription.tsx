@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Crown, 
@@ -140,6 +140,37 @@ export default function SubscriptionPage() {
     refetch 
   } = useSubscription();
 
+  const [rolloverCredits, setRolloverCredits] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const loadRollovers = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data, error } = await (supabase as any)
+          .from('subscription_rollovers')
+          .select('rollover_credits')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .gte('expiry_date', today);
+        if (cancelled) return;
+        if (error) { console.error('rollover fetch error:', error); return; }
+        if (data) {
+          const total = (data as { rollover_credits: number }[])
+            .reduce((sum, r) => sum + (r.rollover_credits || 0), 0);
+          setRolloverCredits(total);
+        }
+      } catch (err) {
+        console.error('rollover fetch exception:', err);
+      }
+    };
+    loadRollovers();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
+
 const [activeTab, setActiveTab] = useState("overview");
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -203,9 +234,8 @@ const [activeTab, setActiveTab] = useState("overview");
   const { data: freezeDays } = useFreezeDaysRemaining(subscription?.id);
 
   const { plans: dbPlans } = useSubscriptionPlans();
-  // Only show plans matching the selected billing interval to avoid duplicate cards
+  // Map all active plans — dbPlanToUiPlan handles annual price calculation
   const plans = dbPlans
-    .filter(p => p.billing_interval === selectedBillingInterval)
     .map(p => dbPlanToUiPlan(p, selectedBillingInterval, t, isRTL));
 
   // VIP monthly price (used for annual savings display)
@@ -617,8 +647,11 @@ setIsProcessing(false);
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold">{isUnlimited ? '∞' : remainingMeals}</p>
+              <p className="text-3xl font-bold">{isUnlimited ? '∞' : effectiveMealsLeft}</p>
               <p className="text-xs text-white/70">{isUnlimited ? t("unlimited") : t("meals_left")}</p>
+              {!isUnlimited && rolloverCredits > 0 && remainingMeals === 0 && (
+                <p className="text-xs text-white/60 mt-0.5">({rolloverCredits} rollover)</p>
+              )}
             </div>
           </div>
 
@@ -732,7 +765,10 @@ setIsProcessing(false);
         {/* ── MANAGE TAB ── */}
         {activeTab === "manage" && (
           <div className="space-y-3">
-            <RolloverCreditsWidget />
+            <RolloverCreditsWidget
+              hasActiveSubscription={hasActiveSubscription}
+              subscriptionEndDate={subscription?.end_date ?? null}
+            />
 
             {/* Freeze card */}
             <div className={`bg-card/95 rounded-3xl border shadow-md p-4 space-y-3 ${
@@ -925,6 +961,11 @@ setIsProcessing(false);
                       <div className="text-right">
                         <p className="font-bold text-foreground">{formatCurrency(plan.price)}</p>
                         <p className="text-xs text-muted-foreground">/{plan.period}</p>
+                        {selectedBillingInterval === "annual" && (
+                          <p className="text-xs text-green-600 font-medium">
+                            {formatCurrency(Math.round(plan.price / 12))}/mo
+                          </p>
+                        )}
                       </div>
                     </div>
 

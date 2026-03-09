@@ -14,6 +14,9 @@ import {
   Crown,
   Flame,
   BarChart3,
+  ChevronRight,
+  Zap,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -28,14 +31,9 @@ import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
-import { MealsRemainingWidget } from "@/components/MealsRemainingWidget";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
-import { DeliveredMealNotifications } from "@/components/DeliveredMealNotifications";
-import { ScheduledMealNotifications } from "@/hooks/useScheduledMealNotifications";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
-import { MealLimitUpsellBanner } from "@/components/MealLimitUpsellBanner";
-import { QuotaWarningBanner } from "@/components/QuotaWarningBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 
@@ -53,7 +51,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { hasActiveSubscription, remainingMealsWeekly, totalMealsWeekly, isUnlimited, isVip } = useSubscription();
+  const { hasActiveSubscription, remainingMeals, totalMeals, mealsUsed, remainingMealsWeekly, totalMealsWeekly, isUnlimited, isVip, subscription } = useSubscription();
   const { settings: platformSettings } = usePlatformSettings();
   const { 
     recommendation, 
@@ -246,8 +244,96 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 pb-24">
-        {/* Meal Limit Upsell Banner - Shows at 80% meal usage */}
-        <MealLimitUpsellBanner threshold={0.8} />
+
+        {/* Active Plan Meal Summary Card — top of page */}
+        {hasActiveSubscription && subscription && (() => {
+          const allUsed = !isUnlimited && remainingMeals === 0;
+          const resetDate = subscription.end_date ? format(new Date(subscription.end_date), "MMM d") : null;
+          return (
+            <Link to="/subscription">
+              <Card className={`border-0 shadow-lg overflow-hidden ${
+                allUsed
+                  ? "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-400/30"
+                  : "bg-gradient-to-br from-primary/90 to-primary shadow-primary/20"
+              } text-white`}>
+                <CardContent className="p-4">
+                  {/* Header row */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                        {isVip ? <Crown className="w-4 h-4 text-white" /> : <Zap className="w-4 h-4 text-white" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm capitalize">{subscription.plan} Plan</p>
+                        <p className="text-xs text-white/70">{t("plan_card_active")}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-white/80">
+                      <p className="text-xs">{t("plan_card_view_details")}</p>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+
+                  {allUsed ? (
+                    /* ── All meals used state ── */
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                          <Utensils className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-base leading-tight">{t("plan_card_all_used_title")}</p>
+                          <p className="text-xs text-white/80">
+                            {resetDate
+                              ? t("plan_card_all_used_reset").replace("{date}", resetDate)
+                              : t("plan_card_all_used_next_renewal")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-white/20 rounded-xl px-3 py-2 text-xs text-white/90 flex items-center gap-1.5">
+                        <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+                        <span>{t("plan_card_rollover_hint")}</span>
+                      </div>
+                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div className="h-full w-full bg-white rounded-full" />
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Meals remaining state ── */
+                    <>
+                      <div className="flex items-end justify-between mb-2">
+                        <div>
+                          <p className="text-3xl font-black">
+                            {isUnlimited ? "∞" : remainingMeals}
+                          </p>
+                          <p className="text-xs text-white/70 -mt-0.5">
+                            {isUnlimited
+                              ? t("plan_card_unlimited")
+                              : t("plan_card_meals_used").replace("{used}", String(mealsUsed)).replace("{total}", String(totalMeals))}
+                          </p>
+                        </div>
+                        {!isUnlimited && resetDate && (
+                          <div className="flex items-center gap-1 text-xs text-white/70">
+                            <CalendarClock className="w-3.5 h-3.5" />
+                            <span>{t("plan_card_resets_on").replace("{date}", resetDate)}</span>
+                          </div>
+                        )}
+                      </div>
+                      {!isUnlimited && totalMeals > 0 && (
+                        <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-white rounded-full transition-all"
+                            style={{ width: `${Math.min((mealsUsed / totalMeals) * 100, 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })()}
 
         {/* AI Behavior Prediction */}
         <BehaviorPredictionWidget />
@@ -294,19 +380,8 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        {/* Meals Remaining Widget - Prominent Display */}
-        {hasActiveSubscription && (
-          <MealsRemainingWidget
-            remainingMeals={remainingMealsWeekly}
-            totalMeals={totalMealsWeekly}
-            isUnlimited={isUnlimited}
-            isVip={isVip}
-            variant="full"
-          />
-        )}
 
         {/* Quota Warning Banner - Shows at 75%+ usage */}
-        <QuotaWarningBanner />
 
         {/* ENHANCED QUICK ACTIONS GRID */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -362,12 +437,6 @@ const Dashboard = () => {
             </Card>
           </Link>
         </div>
-
-        {/* Scheduled Meal Notifications */}
-        <ScheduledMealNotifications />
-
-        {/* Delivered Meal Notifications */}
-        <DeliveredMealNotifications />
 
         {/* Active Orders Banner - Shows when there are active orders */}
         {user && <ActiveOrderBanner userId={user.id} />}

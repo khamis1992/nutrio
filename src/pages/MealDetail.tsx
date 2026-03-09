@@ -3,8 +3,11 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useWallet } from "@/hooks/useWallet";
+import { useMealAddons } from "@/hooks/useMealAddons";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,7 +36,18 @@ import {
   Briefcase,
   Plus,
   ShieldAlert,
+  Wallet,
+  ShoppingCart,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 import { format } from "date-fns";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
@@ -183,6 +197,8 @@ const FixedBottomActionBar = ({
   isUnlimited: boolean;
   remainingMeals: number;
 }) => {
+  const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -196,14 +212,17 @@ const FixedBottomActionBar = ({
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">Selected</p>
             <p className="font-semibold text-foreground">{meal.name}</p>
+            {noMealsLeft && (
+              <p className="text-xs text-amber-600 font-medium mt-0.5">No meals left — buy with wallet</p>
+            )}
           </div>
 
           {/* Right: Meals Left + FAB */}
           <div className="flex items-center gap-4">
-            {hasActiveSubscription && (
+            {hasActiveSubscription && (isUnlimited || remainingMeals > 0) && (
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Meals Left</p>
-                <p className={`text-sm font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent ${isUnlimited || remainingMeals > 0 ? '' : 'text-destructive'}`}>
+                <p className="text-sm font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
                   {isUnlimited ? '∞' : remainingMeals}
                 </p>
               </div>
@@ -219,11 +238,17 @@ const FixedBottomActionBar = ({
                   ? 'bg-muted text-muted-foreground' 
                   : isSuccess 
                     ? 'bg-emerald-500 hover:bg-emerald-600'
-                    : 'bg-gradient-to-br from-green-500 to-teal-500 hover:shadow-green-500/40'
+                    : noMealsLeft
+                      ? 'bg-gradient-to-br from-amber-500 to-orange-500 hover:shadow-amber-500/40'
+                      : 'bg-gradient-to-br from-green-500 to-teal-500 hover:shadow-green-500/40'
                 }
               `}
               style={{
-                boxShadow: !disabled && !isSuccess ? '0 8px 32px rgba(34, 197, 94, 0.4)' : undefined
+                boxShadow: !disabled && !isSuccess
+                  ? noMealsLeft
+                    ? '0 8px 32px rgba(245, 158, 11, 0.4)'
+                    : '0 8px 32px rgba(34, 197, 94, 0.4)'
+                  : undefined
               }}
             >
               <AnimatePresence mode="wait">
@@ -248,6 +273,16 @@ const FixedBottomActionBar = ({
                     className="text-white"
                   >
                     <Check className="w-7 h-7" />
+                  </motion.span>
+                ) : noMealsLeft ? (
+                  <motion.span
+                    key="wallet"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="text-white"
+                  >
+                    <Wallet className="w-7 h-7" />
                   </motion.span>
                 ) : (
                   <motion.span
@@ -302,6 +337,12 @@ const ScheduleSheet = ({
   setSelectedAddressId,
   setSelectedAddressLabel,
   userId,
+  groupedAddons,
+  selectedAddons,
+  toggleAddon,
+  addonsTotal,
+  walletBalance,
+  hasAddons,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -319,6 +360,12 @@ const ScheduleSheet = ({
   setSelectedAddressId: (id: string | null) => void;
   setSelectedAddressLabel: (label: string) => void;
   userId: string | undefined;
+  groupedAddons: Record<string, import("@/hooks/useMealAddons").MealAddon[]>;
+  selectedAddons: Map<string, number>;
+  toggleAddon: (id: string) => void;
+  addonsTotal: number;
+  walletBalance: number;
+  hasAddons: boolean;
 }) => {
   // Fetch user addresses when sheet opens
   const [addresses, setAddresses] = useState<{ id: string; label: string; address_line1: string; city: string; is_default: boolean }[]>([]);
@@ -550,8 +597,8 @@ const ScheduleSheet = ({
             </div>
           )}
 
-          {/* Subscription Info Card */}
-          {hasActiveSubscription && (
+          {/* Subscription Info Card — only show when meals are available */}
+          {hasActiveSubscription && (isUnlimited || remainingMeals > 0) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -570,20 +617,81 @@ const ScheduleSheet = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <Badge 
-                    variant={isUnlimited || remainingMeals > 0 ? "default" : "destructive"}
-                    className="text-sm px-3 py-1"
-                  >
+                  <Badge variant="default" className="text-sm px-3 py-1">
                     {isUnlimited ? (
-                      <span className="flex items-center gap-1">
-                        Unlimited
-                      </span>
+                      <span className="flex items-center gap-1">Unlimited</span>
                     ) : (
                       `${remainingMeals} left`
                     )}
                   </Badge>
                 </div>
               </div>
+            </motion.div>
+          )}
+          {/* Add-ons Section */}
+          {hasAddons && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-sm">Add-ons (charged to wallet)</h3>
+                {addonsTotal > 0 && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {formatCurrency(addonsTotal)}
+                  </Badge>
+                )}
+              </div>
+
+              {Object.entries(groupedAddons).map(([category, items]) => (
+                <div key={category} className="space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{category}</p>
+                  {items.map((addon) => {
+                    const isSelected = selectedAddons.has(addon.id);
+                    return (
+                      <button
+                        key={addon.id}
+                        type="button"
+                        onClick={() => toggleAddon(addon.id)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                          isSelected
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "bg-card border-border/50 text-foreground"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{addon.name}</p>
+                          {addon.description && (
+                            <p className="text-xs text-muted-foreground">{addon.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="text-sm font-semibold">{formatCurrency(addon.price)}</span>
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {addonsTotal > 0 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+                  <Wallet className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Wallet balance: <span className="font-semibold text-foreground">{formatCurrency(walletBalance)}</span>
+                    {walletBalance < addonsTotal && (
+                      <span className="text-destructive ml-1">— insufficient for add-ons</span>
+                    )}
+                  </span>
+                </div>
+              )}
             </motion.div>
           )}
         </div>
@@ -621,6 +729,11 @@ const ScheduleSheet = ({
                 <span className="flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5" />
                   Select a Date First
+                </span>
+              ) : addonsTotal > 0 ? (
+                <span className="flex items-center gap-2">
+                  Schedule + Pay {formatCurrency(addonsTotal)}
+                  <ArrowRight className="w-5 h-5" />
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
@@ -673,10 +786,29 @@ const MealDetail = () => {
     remainingMeals,
     isUnlimited,
     canOrderMeal,
-    incrementMealUsage
+    incrementMealUsage,
+    subscription,
+    refetch: refetchSubscription,
   } = useSubscription();
 
+  const { wallet, refresh: refetchWallet } = useWallet();
+
+  const pricePerMeal = 50; // Fixed extra meal price in QAR
+  const [buyMealDialogOpen, setBuyMealDialogOpen] = useState(false);
+  const [topupDialogOpen, setTopupDialogOpen] = useState(false);
+  const [buyMealLoading, setBuyMealLoading] = useState(false);
+
   const [meal, setMeal] = useState<MealDetail | null>(null);
+  // Add-ons (resolved once meal id is known)
+  const {
+    groupedAddons,
+    selectedAddons,
+    toggleAddon,
+    getSelectedAddonsTotal,
+    getSelectedAddonsList,
+    clearSelectedAddons,
+    hasAddons,
+  } = useMealAddons(id);
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -783,15 +915,6 @@ const MealDetail = () => {
       return;
     }
 
-    if (!canOrderMeal) {
-      toast({
-        title: "Meal limit reached",
-        description: "You've reached your weekly meal limit",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // ── Allergy check ──────────────────────────────────────────────────
     // Fetch the user's allergy tag IDs from their saved preferences
     if (meal) {
@@ -851,7 +974,55 @@ const MealDetail = () => {
     }
     // ──────────────────────────────────────────────────────────────────
 
+    if (!isUnlimited && remainingMeals <= 0) {
+      setBuyMealDialogOpen(true);
+      return;
+    }
+
     setSheetOpen(true);
+  };
+
+  // ── Buy 1 meal credit with wallet ──────────────────────────────────────
+  const handleWalletMealPurchase = async () => {
+    if (!user || !subscription) return;
+    const balance = wallet?.balance || 0;
+    if (balance < pricePerMeal) {
+      setBuyMealDialogOpen(false);
+      navigate("/wallet");
+      return;
+    }
+    setBuyMealLoading(true);
+    try {
+      // Debit wallet
+      const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
+        p_user_id: user.id,
+        p_amount: pricePerMeal,
+        p_reference_type: "order",
+        p_description: "Extra meal credit purchase",
+        p_metadata: { subscription_id: subscription.id },
+      });
+      if (debitErr) throw debitErr;
+
+      // Add 1 meal to the subscription allowance
+      const { error: subErr } = await supabase
+        .from("subscriptions")
+        .update({ meals_per_month: subscription.meals_per_month + 1 })
+        .eq("id", subscription.id);
+      if (subErr) throw subErr;
+
+      refetchWallet();
+      await refetchSubscription();
+      setBuyMealDialogOpen(false);
+      hapticFeedback.success();
+      toast({
+        title: "Meal credit added! ✅",
+        description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted. You can now schedule your meal.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBuyMealLoading(false);
+    }
   };
 
   const handleSchedule = async () => {
@@ -863,7 +1034,19 @@ const MealDetail = () => {
     try {
       const quotaUpdated = await incrementMealUsage();
       if (!quotaUpdated) {
-        throw new Error("Failed to update meal quota");
+        // No quota left — offer wallet purchase instead
+        setScheduling(false);
+        setSheetOpen(false);
+        setBuyMealDialogOpen(true);
+        return;
+      }
+
+      // Check if wallet has enough for add-ons before scheduling
+      const addonsTotal = getSelectedAddonsTotal();
+      if (addonsTotal > 0 && (wallet?.balance || 0) < addonsTotal) {
+        setScheduling(false);
+        setTopupDialogOpen(true);
+        return;
       }
 
       const { error } = await supabase.from("meal_schedules").insert({
@@ -877,6 +1060,22 @@ const MealDetail = () => {
       });
 
       if (error) throw error;
+
+      // Debit wallet for add-ons if any selected
+      if (addonsTotal > 0) {
+        const addonNames = getSelectedAddonsList().map(({ addon, quantity }) =>
+          quantity > 1 ? `${addon.name} x${quantity}` : addon.name
+        ).join(", ");
+        await (supabase.rpc as any)("debit_wallet", {
+          p_user_id: user!.id,
+          p_amount: addonsTotal,
+          p_reference_type: "order",
+          p_description: `Add-ons for ${meal.name}: ${addonNames}`,
+          p_metadata: { meal_id: meal.id, addons: addonNames },
+        });
+        refetchWallet();
+        clearSelectedAddons();
+      }
 
       setSuccess(true);
       setSheetOpen(false);
@@ -1163,7 +1362,7 @@ const MealDetail = () => {
           meal={meal}
           onClick={handleAddToSchedule}
           loading={scheduling}
-          disabled={!canOrderMeal && !isUnlimited}
+          disabled={!hasActiveSubscription}
           isSuccess={success}
           hasActiveSubscription={hasActiveSubscription}
           isUnlimited={isUnlimited}
@@ -1236,7 +1435,101 @@ const MealDetail = () => {
         setSelectedAddressId={setSelectedAddressId}
         setSelectedAddressLabel={setSelectedAddressLabel}
         userId={user?.id}
+        groupedAddons={groupedAddons}
+        selectedAddons={selectedAddons}
+        toggleAddon={toggleAddon}
+        addonsTotal={getSelectedAddonsTotal()}
+        walletBalance={wallet?.balance || 0}
+        hasAddons={hasAddons}
       />
+
+      {/* Buy 1 meal credit with wallet */}
+      <Dialog open={buyMealDialogOpen} onOpenChange={setBuyMealDialogOpen}>
+        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-4">
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-amber-500" />
+              Buy Extra Meal Credit
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-5 pb-2 space-y-4">
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Meal credit price</span>
+                <span className="font-bold text-amber-600">{formatCurrency(pricePerMeal)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Your wallet balance</span>
+                <span className={`font-semibold ${(wallet?.balance || 0) >= pricePerMeal ? "text-green-600" : "text-destructive"}`}>
+                  {formatCurrency(wallet?.balance || 0)}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              1 meal will be added to your plan. You can then schedule this meal normally.
+            </p>
+          </div>
+
+          <div className="flex gap-2 px-5 pb-5 pt-3 border-t border-border/50">
+            <Button variant="outline" onClick={() => setBuyMealDialogOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            {(wallet?.balance || 0) >= pricePerMeal ? (
+              <Button
+                onClick={handleWalletMealPurchase}
+                disabled={buyMealLoading}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                {buyMealLoading ? "Processing..." : `Pay ${formatCurrency(pricePerMeal)}`}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => { setBuyMealDialogOpen(false); navigate("/wallet"); }}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                Top Up Wallet
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Insufficient Balance Top-up Dialog */}
+      <Dialog open={topupDialogOpen} onOpenChange={setTopupDialogOpen}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Insufficient Balance
+            </DialogTitle>
+            <DialogDescription>
+              Your wallet balance is too low to cover the add-ons you selected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+              <span className="text-sm text-muted-foreground">Add-ons total</span>
+              <span className="font-bold">{formatCurrency(getSelectedAddonsTotal())}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+              <span className="text-sm text-muted-foreground">Your wallet balance</span>
+              <span className="font-semibold text-destructive">{formatCurrency(wallet?.balance || 0)}</span>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setTopupDialogOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => { setTopupDialogOpen(false); navigate("/wallet"); }}
+              className="flex-1 bg-primary"
+            >
+              Top Up Wallet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Success Overlay */}
       <AnimatePresence>

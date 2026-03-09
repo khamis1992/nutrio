@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
+import { useSubscription } from "@/hooks/useSubscription";
+import { useWallet } from "@/hooks/useWallet";
+import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
@@ -29,7 +32,8 @@ import {
   Utensils,
   Calendar as CalendarIcon,
   CalendarCheck,
-  Clock
+  Clock,
+  Wallet,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -117,7 +121,52 @@ const Schedule = () => {
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
-  
+  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, refetch: refetchSubscription } = useSubscription();
+  const { wallet, refresh: refetchWallet } = useWallet();
+
+  const pricePerMeal = 50; // Fixed extra meal credit price in QAR
+
+  // ── Buy 1 meal credit with wallet ─────────────────────────────────────
+  const [showBuyCredit, setShowBuyCredit] = useState(false);
+  const [buyLoading, setBuyLoading] = useState(false);
+
+  const handleBuyMealCredit = async () => {
+    if (!user || !subscription) return;
+    const balance = wallet?.balance || 0;
+    if (balance < pricePerMeal) { navigate("/wallet"); return; }
+    setBuyLoading(true);
+    try {
+      // Debit wallet
+      const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
+        p_user_id: user.id,
+        p_amount: pricePerMeal,
+        p_reference_type: "order",
+        p_description: "Extra meal credit purchase",
+        p_metadata: { subscription_id: subscription.id },
+      });
+      if (debitErr) throw debitErr;
+
+      // Add 1 meal to the subscription's monthly allowance
+      const { error: subErr } = await supabase
+        .from("subscriptions")
+        .update({ meals_per_month: subscription.meals_per_month + 1 })
+        .eq("id", subscription.id);
+      if (subErr) throw subErr;
+
+      refetchWallet();
+      await refetchSubscription();
+      setShowBuyCredit(false);
+      toast({
+        title: "Meal credit added! ✅",
+        description: `1 meal added to your plan — QAR ${pricePerMeal} deducted. You can now schedule your meal.`,
+      });
+    } catch (err: any) {
+      toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBuyLoading(false);
+    }
+  };
+
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -672,45 +721,70 @@ const Schedule = () => {
                   </div>
 
                   {/* Empty Meal Card */}
-                  <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-3 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center gap-3">
-                    <button
-                      onClick={() => {
-                        if (user) {
-                          openModeDialog(mealType);
-                        } else {
-                          promptLogin({
-                            title: t("sign_in_to_schedule"),
-                            description: t("sign_in_to_schedule_desc"),
-                            actionLabel: t("sign_in"),
-                            signUpLabel: t("create_free_account")
-                          });
-                        }
-                      }}
-                      className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 active:scale-95 transition-transform"
-                    >
-                      <Plus className="h-6 w-6 text-gray-400" />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-400 mb-2">{mealTypeName}</p>
+                  {hasActiveSubscription && !isUnlimited && remainingMeals <= 0 ? (
+                    /* ── No meals left state ── */
+                    <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-3 border-2 border-dashed border-amber-200 dark:border-amber-800 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground leading-tight">{mealTypeName}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          No meals left —{" "}
+                          <button
+                            onClick={() => setShowBuyCredit(true)}
+                            className="text-amber-600 font-semibold underline underline-offset-2 active:opacity-70"
+                          >
+                            buy with wallet
+                          </button>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowBuyCredit(true)}
+                        className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0 active:scale-95 transition-transform shadow-lg shadow-amber-400/30"
+                      >
+                        <Wallet className="h-6 w-6 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── Normal (choose meal) state ── */
+                    <div className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-3 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center gap-3">
                       <button
                         onClick={() => {
-                          if (user) {
-                            openModeDialog(mealType);
-                          } else {
+                          if (!user) {
                             promptLogin({
                               title: t("sign_in_to_schedule"),
                               description: t("sign_in_to_schedule_desc"),
                               actionLabel: t("sign_in"),
                               signUpLabel: t("create_free_account")
                             });
+                          } else {
+                            openModeDialog(mealType);
                           }
                         }}
-                        className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-full active:scale-95 transition-transform"
+                        className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 active:scale-95 transition-transform"
                       >
-                        {t("choose_meal")}
+                        <Plus className="h-6 w-6 text-gray-400" />
                       </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-400 mb-2">{mealTypeName}</p>
+                        <button
+                          onClick={() => {
+                            if (!user) {
+                              promptLogin({
+                                title: t("sign_in_to_schedule"),
+                                description: t("sign_in_to_schedule_desc"),
+                                actionLabel: t("sign_in"),
+                                signUpLabel: t("create_free_account")
+                              });
+                            } else {
+                              openModeDialog(mealType);
+                            }
+                          }}
+                          className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-full active:scale-95 transition-transform"
+                        >
+                          {t("choose_meal")}
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               );
             })}
@@ -953,6 +1027,55 @@ const Schedule = () => {
             onSchedule={handleTimeSlotSelect}
             onCancel={() => setShowTimeSlotDialog(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Buy 1 meal credit with wallet */}
+      <Dialog open={showBuyCredit} onOpenChange={setShowBuyCredit}>
+        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-4">
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-amber-500" />
+              Buy Extra Meal Credit
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-5 pb-2 space-y-4">
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Meal credit price</span>
+                <span className="font-bold text-amber-600">{formatCurrency(pricePerMeal)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Your wallet balance</span>
+                <span className={`font-semibold ${(wallet?.balance || 0) >= pricePerMeal ? "text-green-600" : "text-destructive"}`}>
+                  {formatCurrency(wallet?.balance || 0)}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              1 meal will be added to your plan. You can then choose any meal from the schedule.
+            </p>
+          </div>
+
+          <div className="flex gap-2 px-5 pb-5 pt-3 border-t border-border/50">
+            <Button variant="outline" onClick={() => setShowBuyCredit(false)} className="flex-1">
+              Cancel
+            </Button>
+            {(wallet?.balance || 0) < pricePerMeal ? (
+              <Button onClick={() => navigate("/wallet")} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white">
+                Top Up Wallet
+              </Button>
+            ) : (
+              <Button
+                onClick={handleBuyMealCredit}
+                disabled={buyLoading}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                {buyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Pay ${formatCurrency(pricePerMeal)}`}
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

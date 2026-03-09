@@ -62,7 +62,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      // Use VITE_APP_URL so native APK builds use the real web URL instead of capacitor://localhost
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const redirectUrl = `${appUrl}/dashboard`;
       
       const { error } = await supabase.auth.signUp({
         email,

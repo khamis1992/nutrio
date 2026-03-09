@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format, subDays, isSameDay, isToday, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from "date-fns";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
-import { ArrowLeft, ChevronDown, ChevronUp, Play, Footprints, AlertTriangle, Clock, Flame, MapPin } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Footprints, AlertTriangle, Clock, Flame, MapPin, Plus, Check } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 const GOAL_OPTIONS = [3000, 5000, 6000, 8000, 10000, 15000];
-const ADD_STEP_AMOUNT = 500;
+const QUICK_ADD_OPTIONS = [500, 1000, 2000, 5000];
 const WEEK_DAYS = 7;
 
 function getStepsKey(userId: string | undefined, dateStr: string) {
@@ -37,6 +37,9 @@ export default function StepCounter() {
   });
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [customInput, setCustomInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -107,8 +110,22 @@ export default function StepCounter() {
     localStorage.setItem(getGoalKey(user?.id), String(goal));
   };
 
-  const handleAddSteps = () => {
-    saveSteps(steps + ADD_STEP_AMOUNT);
+  const handleOpenAddSheet = () => {
+    setCustomInput("");
+    setAddSheetOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  const handleQuickAdd = (amount: number) => {
+    saveSteps(steps + amount);
+    setAddSheetOpen(false);
+  };
+
+  const handleCustomAdd = () => {
+    const val = parseInt(customInput, 10);
+    if (!val || val <= 0) return;
+    saveSteps(steps + val);
+    setAddSheetOpen(false);
   };
 
   const weekDates = Array.from({ length: WEEK_DAYS }, (_, i) =>
@@ -318,11 +335,11 @@ export default function StepCounter() {
               <span className="text-sm text-gray-500">/ {goalSteps.toLocaleString()}</span>
             </div>
             <button
-              onClick={handleAddSteps}
+              onClick={handleOpenAddSheet}
               className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 w-14 h-14 rounded-full bg-orange-500 flex items-center justify-center shadow-lg hover:bg-orange-600 active:scale-95 transition-all text-white"
               aria-label={t('steps_add')}
             >
-              <Play className="w-6 h-6 fill-white ml-0.5" />
+              <Plus className="w-6 h-6" />
             </button>
           </div>
 
@@ -430,6 +447,64 @@ export default function StepCounter() {
       </div>
 
       <CustomerNavigation />
+
+      {/* Add Steps Sheet */}
+      {addSheetOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setAddSheetOpen(false)}
+          />
+          {/* Sheet — sits above the nav bar (nav is ~84px) */}
+          <div className="fixed left-0 right-0 z-50 bg-white rounded-t-3xl px-5 pt-5 shadow-xl"
+            style={{ bottom: 84, paddingBottom: 16 }}>
+            {/* Handle */}
+            <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-5" />
+
+            <h3 className="text-base font-bold text-gray-900 mb-4">{t('steps_add')}</h3>
+
+            {/* Quick add options */}
+            <div className="grid grid-cols-4 gap-2 mb-5">
+              {QUICK_ADD_OPTIONS.map((amount) => (
+                <button
+                  key={amount}
+                  onClick={() => handleQuickAdd(amount)}
+                  className="flex flex-col items-center py-3 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
+                >
+                  <span className="text-sm font-black text-orange-600">+{amount >= 1000 ? `${amount / 1000}k` : amount}</span>
+                  <span className="text-[10px] text-orange-400 font-medium mt-0.5">steps</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Custom input */}
+            <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3 mb-4">
+              <Footprints className="w-5 h-5 text-orange-400 shrink-0" />
+              <input
+                ref={inputRef}
+                type="number"
+                inputMode="numeric"
+                min="1"
+                placeholder="Enter custom steps..."
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCustomAdd()}
+                className="flex-1 bg-transparent text-base font-semibold text-gray-900 placeholder-gray-400 outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleCustomAdd}
+              disabled={!customInput || parseInt(customInput, 10) <= 0}
+              className="w-full h-13 rounded-full bg-orange-500 text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-40 transition-colors hover:bg-orange-600 active:scale-95"
+              style={{ height: 52 }}
+            >
+              <Check className="w-5 h-5" /> Add Steps
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

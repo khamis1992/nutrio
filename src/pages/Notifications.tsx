@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import {
   Bell,
   BellOff,
-  Package,
   Truck,
   CheckCircle2,
   Star,
   TrendingUp,
   Crown,
   Loader2,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -123,6 +124,16 @@ export default function Notifications() {
     }
   };
 
+  const deleteNotification = async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      const { error } = await supabase.from("notifications").delete().eq("id", id);
+      if (error) throw error;
+    } catch {
+      toast({ title: "Error", description: "Failed to delete notification.", variant: "destructive" });
+    }
+  };
+
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
 
   const filtered = activeFilter === "all"
@@ -187,15 +198,14 @@ export default function Notifications() {
               const isUnread = n.status === "unread";
 
               return (
-                <button
+                <div
                   key={n.id}
-                  onClick={() => isUnread && markAsRead(n.id)}
-                  className={`w-full flex items-center gap-4 py-4 text-left transition-colors ${
+                  className={`flex items-center gap-3 py-4 transition-colors ${
                     isUnread ? "bg-primary/5 -mx-5 px-5" : ""
                   }`}
                 >
                   {/* Icon */}
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
                     <Icon className={`w-5 h-5 ${cfg.iconColor}`} />
                   </div>
 
@@ -207,14 +217,32 @@ export default function Notifications() {
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary ml-1.5 mb-0.5 align-middle" />
                       )}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{n.message}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{n.message}</p>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 block">
+                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    </span>
                   </div>
 
-                  {/* Time */}
-                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: false })}
-                  </span>
-                </button>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isUnread && (
+                      <button
+                        onClick={() => markAsRead(n.id)}
+                        className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-primary/10 transition-colors"
+                        aria-label="Mark as read"
+                      >
+                        <Check className="w-4 h-4 text-primary" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteNotification(n.id)}
+                      className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>

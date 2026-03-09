@@ -194,7 +194,7 @@
 
   /* Safe area padding for fixed bottom navigation bars */
   .safe-bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 20px);
   }
 
   .shadow-card {

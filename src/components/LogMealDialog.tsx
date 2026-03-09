@@ -10,7 +10,7 @@ import {
   X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2,
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Camera, CameraResultType, CameraSource, CameraPermissionType } from "@capacitor/camera";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -342,61 +342,79 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   // ── AI scan ────────────────────────────────────────────────────────────────
+  const runImageScan = async (dataUrl: string) => {
+    setScanning(true);
+    setScanResults([]);
+    setScanPreviewUrl(dataUrl);
+    setTab("Scan");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
+        body: { imageUrl: dataUrl, mode: "quick_scan" },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (error) throw error;
+      if (data?.success && data?.detectedItems?.length > 0) {
+        const items: FoodItem[] = data.detectedItems.map((item: any, i: number) => ({
+          id: `scan-${Date.now()}-${i}`,
+          name: item.name,
+          calories: item.calories,
+          protein_g: item.protein_g,
+          carbs_g: item.carbs_g,
+          fat_g: item.fat_g,
+          source: "meal" as const,
+        }));
+        setScanResults(items);
+        const newSelected = new Map(selected);
+        items.forEach((item) => newSelected.set(item.id, { ...item, quantity: 1 }));
+        setSelected(newSelected);
+      } else {
+        toast({ title: "Nothing detected", description: "Try a clearer photo or log manually.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Scan failed", description: "Try again or enter manually.", variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  };
+
   // Native camera via Capacitor (avoids WebView navigation-back bug on Android)
   const handleTakePhoto = async () => {
     if (Capacitor.isNativePlatform()) {
       try {
+        // Request camera permission explicitly before opening camera
+        const permissions = await Camera.requestPermissions({ permissions: ["camera"] as CameraPermissionType[] });
+        if (permissions.camera === "denied") {
+          toast({ title: "Camera permission denied", description: "Please allow camera access in your device settings.", variant: "destructive" });
+          return;
+        }
+
         // Set flag BEFORE launching camera so the reset effect is skipped
         // when Android briefly suspends/resumes the WebView activity.
         isTakingPhotoRef.current = true;
         const photo = await Camera.getPhoto({
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
-          quality: 85,
+          quality: 80,
+          correctOrientation: true,
         });
+
+        isTakingPhotoRef.current = false;
+
         if (!photo.dataUrl) {
-          isTakingPhotoRef.current = false;
+          toast({ title: "Camera error", description: "Could not get photo. Try the gallery instead.", variant: "destructive" });
           return;
         }
-        // Clear the flag now that we have the photo and are about to process it
+
+        await runImageScan(photo.dataUrl);
+      } catch (err: any) {
         isTakingPhotoRef.current = false;
-        setScanning(true);
-        setScanResults([]);
-        setScanPreviewUrl(photo.dataUrl);
-        setTab("Scan");
-        try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData?.session?.access_token;
-          const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
-            body: { imageUrl: photo.dataUrl, mode: "quick_scan" },
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (error) throw error;
-          if (data?.success && data?.detectedItems?.length > 0) {
-            const items: FoodItem[] = data.detectedItems.map((item: any, i: number) => ({
-              id: `scan-${Date.now()}-${i}`,
-              name: item.name,
-              calories: item.calories,
-              protein_g: item.protein_g,
-              carbs_g: item.carbs_g,
-              fat_g: item.fat_g,
-              source: "meal" as const,
-            }));
-            setScanResults(items);
-            const newSelected = new Map(selected);
-            items.forEach((item) => newSelected.set(item.id, { ...item, quantity: 1 }));
-            setSelected(newSelected);
-          } else {
-            toast({ title: "Nothing detected", description: "Try a clearer photo or log manually.", variant: "destructive" });
-          }
-        } catch {
-          toast({ title: "Scan failed", description: "Try again or enter manually.", variant: "destructive" });
-        } finally {
-          setScanning(false);
+        // Capacitor throws "User cancelled photos app" or similar on cancellation — ignore those
+        const msg: string = err?.message || "";
+        if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("dismiss")) {
+          toast({ title: "Camera error", description: "Could not open camera. Try uploading from gallery.", variant: "destructive" });
         }
-      } catch {
-        // User cancelled camera or error — clear flag and do nothing
-        isTakingPhotoRef.current = false;
       }
     } else {
       // Web fallback — use file input
@@ -404,49 +422,12 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     }
   };
 
-  const handleScanImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleScanImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset input so same file can be re-selected
     e.target.value = "";
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      setScanning(true);
-      setScanResults([]);
-      setScanPreviewUrl(reader.result as string);
-      setTab("Scan");
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
-          body: { imageUrl: reader.result, mode: "quick_scan" },
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (error) throw error;
-        if (data?.success && data?.detectedItems?.length > 0) {
-          const items: FoodItem[] = data.detectedItems.map((item: any, i: number) => ({
-            id: `scan-${Date.now()}-${i}`,
-            name: item.name,
-            calories: item.calories,
-            protein_g: item.protein_g,
-            carbs_g: item.carbs_g,
-            fat_g: item.fat_g,
-            source: "meal" as const,
-          }));
-          setScanResults(items);
-          // Auto-select all detected items
-          const newSelected = new Map(selected);
-          items.forEach((item) => newSelected.set(item.id, { ...item, quantity: 1 }));
-          setSelected(newSelected);
-        } else {
-          toast({ title: "Nothing detected", description: "Try a clearer photo or log manually.", variant: "destructive" });
-        }
-      } catch {
-        toast({ title: "Scan failed", description: "Try again or enter manually.", variant: "destructive" });
-      } finally {
-        setScanning(false);
-      }
-    };
+    reader.onloadend = () => runImageScan(reader.result as string);
     reader.readAsDataURL(file);
   };
 

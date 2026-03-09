@@ -124,21 +124,40 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const canOrderMeal = hasActiveSubscription && (isUnlimited || remainingMeals > 0);
 
   const incrementMealUsage = async (): Promise<boolean> => {
-    if (!subscription || !canOrderMeal) return false;
+    if (!subscription || !hasActiveSubscription) return false;
 
     try {
-      // Use the new monthly increment function
-      const { data, error } = await (supabase as unknown as { rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: boolean | null; error: Error | null }> }).rpc("increment_monthly_meal_usage", {
-        p_subscription_id: subscription.id,
-      });
+      // If monthly quota is still available — use it (don't touch rollover)
+      if (canOrderMeal) {
+        const { data, error } = await (supabase as unknown as { rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: boolean | null; error: Error | null }> }).rpc("increment_monthly_meal_usage", {
+          p_subscription_id: subscription.id,
+        });
+        if (error) throw error;
+        if (data) {
+          await fetchSubscription();
+          return true;
+        }
+        return false;
+      }
 
-      if (error) throw error;
+      // Monthly quota exhausted — try rollover credits as bonus meals
+      const { data: rolloverData, error: rolloverError } = await (supabase as any).rpc(
+        "use_rollover_credit_if_available",
+        { p_subscription_id: subscription.id, p_user_id: user!.id }
+      );
 
-      if (data) {
-        // Refetch to get updated values
+      if (rolloverError) {
+        console.error("Rollover check failed:", rolloverError);
+        return false;
+      }
+
+      const used = (rolloverData as { used_rollover?: boolean })?.used_rollover ?? false;
+      if (used) {
         await fetchSubscription();
         return true;
       }
+
+      // No monthly meals and no rollover credits
       return false;
     } catch (err) {
       console.error("Error incrementing meal usage:", err);

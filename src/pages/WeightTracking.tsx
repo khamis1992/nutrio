@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, ArrowDown, ArrowUp, MoreVertical, Trash2,
+  ArrowLeft, ArrowDown, ArrowUp, Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -39,7 +39,6 @@ export default function WeightTracking() {
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Bottom sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -106,7 +105,6 @@ export default function WeightTracking() {
     if (!user) return;
     const { error } = await supabase.from("body_measurements").delete().eq("id", id).eq("user_id", user.id);
     if (!error) { toast.success(t('delete_success')); fetchEntries(); }
-    setOpenMenuId(null);
   };
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -193,18 +191,13 @@ export default function WeightTracking() {
                       </span>
                     )}
 
-                    <div className="relative">
-                      <button onClick={() => setOpenMenuId(openMenuId === entry.id ? null : entry.id)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      {openMenuId === entry.id && (
-                        <div className="absolute right-0 top-9 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[120px]">
-                          <button onClick={() => handleDelete(entry.id)} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" /> {t('delete')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors"
+                      aria-label={t('delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 );
               })}
@@ -213,15 +206,13 @@ export default function WeightTracking() {
         </div>
       </div>
 
-      {openMenuId && <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />}
-
       {/* ── Update Weight Bottom Sheet ── */}
       {sheetOpen && (
         <div className="fixed inset-0 z-[200] flex flex-col justify-end">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setSheetOpen(false)} />
 
-          <div className="relative bg-white rounded-t-3xl flex flex-col overflow-hidden" style={{ maxHeight: "92vh" }}>
+          <div className="relative bg-white rounded-t-3xl flex flex-col overflow-hidden" style={{ maxHeight: "92vh", marginBottom: 84 }}>
             {/* Handle */}
             <div className="flex-none flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-gray-200" />
@@ -289,7 +280,7 @@ export default function WeightTracking() {
             </div>
 
             {/* Cancel / Save — pinned to bottom with safe space */}
-            <div className="flex-none flex gap-3 px-4 pt-3 pb-8 bg-white border-t border-gray-100">
+            <div className="flex-none flex gap-3 px-4 pt-3 pb-5 bg-white border-t border-gray-100">
               <button
                 onClick={() => setSheetOpen(false)}
                 className="flex-1 rounded-full border-2 border-orange-500 text-orange-500 font-bold text-base hover:bg-orange-50 transition-all"
