@@ -54,6 +54,7 @@ import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "fra
 import { hapticFeedback } from "@/lib/capacitor";
 import { getMealImage } from "@/lib/meal-images";
 import { toast as sonnerToast } from "sonner";
+import MealWizard from "@/components/MealWizard";
 
 interface MealDetail {
   id: string;
@@ -815,6 +816,7 @@ const MealDetail = () => {
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
@@ -982,7 +984,7 @@ const MealDetail = () => {
       return;
     }
 
-    setSheetOpen(true);
+    setShowWizard(true);
   };
 
   // ── Buy 1 meal credit with wallet ──────────────────────────────────────
@@ -1021,8 +1023,7 @@ const MealDetail = () => {
         title: "Meal credit added! ✅",
         description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted.`,
       });
-      // Automatically open the schedule sheet so user can pick a date and add-ons
-      setSheetOpen(true);
+      setShowWizard(true);
     } catch (err: any) {
       toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
     } finally {
@@ -1457,6 +1458,16 @@ const MealDetail = () => {
         )}
 
       </div>
+
+      {/* MealWizard — same experience as Schedule page */}
+      {showWizard && (
+        <MealWizard
+          userId={user?.id || ""}
+          selectedDate={selectedDate || new Date()}
+          onComplete={() => setShowWizard(false)}
+          onCancel={() => setShowWizard(false)}
+        />
+      )}
 
       {/* Schedule Bottom Sheet */}
       <ScheduleSheet
