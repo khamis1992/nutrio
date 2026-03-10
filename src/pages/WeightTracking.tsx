@@ -103,8 +103,14 @@ export default function WeightTracking() {
 
   const handleDelete = async (id: string) => {
     if (!user) return;
+    if (!confirm(t('confirm_delete_weight'))) return;
     const { error } = await supabase.from("body_measurements").delete().eq("id", id).eq("user_id", user.id);
-    if (!error) { toast.success(t('delete_success')); fetchEntries(); }
+    if (error) {
+      toast.error(t('failed_to_delete'));
+    } else {
+      setEntries(prev => prev.filter(e => e.id !== id));
+      toast.success(t('delete_success'));
+    }
   };
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));

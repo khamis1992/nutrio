@@ -89,6 +89,22 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { remainingMeals, isUnlimited, incrementMealUsage } = useSubscription();
+
+  // Phase: "mode" = first screen asking single vs full-day, "scheduling" = normal wizard flow
+  const [phase, setPhase] = useState<"mode" | "scheduling">("mode");
+  const [localSingleMode, setLocalSingleMode] = useState(singleMode);
+
+  const handlePickSingleMeal = () => {
+    setLocalSingleMode(true);
+    setPhase("scheduling");
+  };
+
+  const handlePickFullDay = () => {
+    setLocalSingleMode(false);
+    setCurrentStep(0);
+    setPhase("scheduling");
+  };
+
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
@@ -415,7 +431,9 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
 
   const executeNavigation = (nav: "delivery" | "next_step" | null) => {
     if (nav === "delivery") {
-      setShowDeliveryScheduler(true);
+      // Close add-ons sheet first, then open delivery picker to avoid stacked overlays
+      setShowAddonSheet(false);
+      setTimeout(() => setShowDeliveryScheduler(true), 300);
     } else if (nav === "next_step") {
       setSelectedRestaurant(null);
       setMeals([]);
@@ -488,7 +506,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
     if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
 
     const isLastStep = currentStep === STEPS.length - 1;
-    const isSingleTarget = singleMode && currentStep === initialStep;
+    const isSingleTarget = localSingleMode && currentStep === initialStep;
 
     setTimeout(() => {
       setJustSelectedId(null);
@@ -515,8 +533,11 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
     if (selectedRestaurant) {
       setSelectedRestaurant(null);
       setMeals([]);
-    } else if (currentStep > initialStep) {
+    } else if (currentStep > (localSingleMode ? initialStep : 0)) {
       setCurrentStep(prev => prev - 1);
+    } else {
+      // Go back to mode selection
+      setPhase("mode");
     }
   };
 
@@ -839,8 +860,94 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
     return selectedMeals[stepKey];
   };
 
+  // ── Mode-selection first screen ─────────────────────────────────────────
+  if (phase === "mode") {
+    const stepData = STEPS[initialStep];
+    const StepIcon = stepData.icon;
+    return (
+      <div className="fixed inset-0 z-[100] bg-background flex flex-col">
+
+        {/* Top nav bar */}
+        <div className="flex items-center justify-between px-4 pt-12 pb-3">
+          <button
+            onClick={onCancel}
+            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <X className="h-5 w-5 text-foreground" />
+          </button>
+          <div className="text-center">
+            <p className="text-[13px] font-semibold text-foreground">{t("schedule_meal")}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{format(selectedDate, "EEEE, MMMM d")}</p>
+          </div>
+          <div className="w-10" />
+        </div>
+
+        {/* Hero icon + title */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col items-center pt-8 pb-6 px-5"
+        >
+          <div className={`w-24 h-24 rounded-3xl ${stepData.color} flex items-center justify-center shadow-xl mb-5`}>
+            <StepIcon className="h-12 w-12 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground text-center leading-tight">
+            {t("how_would_you_schedule")}
+          </h1>
+          <p className="text-sm text-muted-foreground text-center mt-2 max-w-xs">
+            {t("plan_one_or_full_day")}
+          </p>
+        </motion.div>
+
+        {/* Option cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+          className="flex-1 px-5 flex flex-col gap-3"
+        >
+          {/* Option 1 — single meal */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={handlePickSingleMeal}
+            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-primary text-left active:opacity-90 transition-opacity shadow-lg shadow-primary/25"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <StepIcon className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base text-white">{t(stepData.labelKey)} only</p>
+              <p className="text-sm text-white/70 mt-0.5">{t("schedule_single_meal_desc")}</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-white/80 shrink-0" />
+          </motion.button>
+
+          {/* Option 2 — full day */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={handlePickFullDay}
+            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl bg-card border border-border text-left active:opacity-90 transition-opacity shadow-sm"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shrink-0">
+              <Calendar className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base text-foreground">{t("schedule_full_day")}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{t("schedule_full_day_desc")}</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+          </motion.button>
+        </motion.div>
+
+        {/* Bottom spacer */}
+        <div className="h-12" />
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 bg-background">
+    <div className="fixed inset-0 z-[100] bg-background">
       {/* Header */}
       <motion.div 
         initial={{ y: -20, opacity: 0 }}
@@ -1362,9 +1469,9 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                             }
                           }, 900);
                         }}
-                        className="flex-shrink-0 w-40 cursor-pointer group"
+                        className="flex-shrink-0 w-48 cursor-pointer group"
                       >
-                        <div className="relative w-full h-24 rounded-xl overflow-hidden bg-muted mb-2">
+                        <div className="relative w-full h-32 rounded-xl overflow-hidden bg-muted mb-2">
                           <img
                             src={getMealImage(meal.image_url, meal.id)}
                             alt={meal.name}
@@ -1499,7 +1606,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
       >
 
         <div className="flex items-center gap-3">
-          {!showPlanSummary && (currentStep > initialStep || selectedRestaurant) && (
+          {!showPlanSummary && (currentStep > (localSingleMode ? initialStep : 0) || selectedRestaurant || phase === "scheduling") && (
             <Button
               variant="outline"
               className="rounded-xl px-6"
@@ -1933,14 +2040,15 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={skipAddons}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70]"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
             />
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 350 }}
-              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-[71] max-h-[75vh] flex flex-col overflow-hidden"
+              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-[201] flex flex-col"
+              style={{ height: '80vh' }}
             >
               <div className="flex justify-center pt-3 pb-2">
                 <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
@@ -1951,7 +2059,13 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                   <div className="flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-primary" />
                     <h3 className="text-lg font-bold">Add-ons</h3>
-                    <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+                    <span className="text-xs text-muted-foreground">(optional)</span>
+                    {/* Count badge — shows how many are selected */}
+                    {selectedAddonIds.size > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                        {selectedAddonIds.size}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={skipAddons}
@@ -1971,7 +2085,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
                 {addonLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -2017,20 +2131,20 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 )}
               </div>
 
-              <div className="px-5 pb-6 pt-3 border-t border-border/50 flex gap-3">
-                <Button variant="outline" onClick={skipAddons} className="flex-1 rounded-xl">
+              <div className="px-5 pt-4 pb-6 border-t border-border/50 flex gap-3 shrink-0">
+                <Button variant="outline" onClick={skipAddons} className="flex-1 rounded-xl h-12">
                   Skip
                 </Button>
                 <Button
                   onClick={confirmAddons}
-                  className="flex-1 rounded-xl"
+                  className="flex-1 rounded-xl h-12 font-semibold"
                   disabled={addonTotal > 0 && (wallet?.balance || 0) < addonTotal}
                 >
                   {addonTotal > 0
                     ? (wallet?.balance || 0) < addonTotal
                       ? "Insufficient balance"
-                      : `Add · ${formatCurrency(addonTotal)}`
-                    : "Continue"}
+                      : `Confirm · ${formatCurrency(addonTotal)}`
+                    : "Confirm"}
                 </Button>
               </div>
             </motion.div>

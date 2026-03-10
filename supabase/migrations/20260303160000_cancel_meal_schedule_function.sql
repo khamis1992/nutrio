@@ -39,6 +39,19 @@ BEGIN
   SET order_status = 'cancelled'
   WHERE id = p_schedule_id;
 
+  -- Refund the meal credit back to the subscription quota
+  UPDATE public.subscriptions
+  SET meals_used_this_month = GREATEST(0, meals_used_this_month - 1)
+  WHERE user_id = v_schedule.user_id
+    AND status = 'active'
+    AND id = (
+      SELECT id FROM public.subscriptions
+      WHERE user_id = v_schedule.user_id
+        AND status = 'active'
+      ORDER BY created_at DESC
+      LIMIT 1
+    );
+
   -- Notify the restaurant partner (best-effort; never block the cancel)
   BEGIN
     IF v_schedule.restaurant_id IS NOT NULL THEN

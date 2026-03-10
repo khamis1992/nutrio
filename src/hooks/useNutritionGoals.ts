@@ -69,38 +69,34 @@ export function useNutritionGoals(userId: string | undefined) {
   const setGoal = useCallback(async (goal: Omit<NutritionGoal, "id">) => {
     if (!userId) return;
 
-    try {
-      // Deactivate current goal
-      if (activeGoal) {
-        await (supabase as any)
-          .from("nutrition_goals")
-          .update({ is_active: false })
-          .eq("user_id", userId)
-          .eq("is_active", true);
-      }
-
-      // Insert new goal
-      const { error } = await (supabase as any)
+    // Deactivate current goal
+    if (activeGoal) {
+      await (supabase as any)
         .from("nutrition_goals")
-        .insert({
-          user_id: userId,
-          goal_type: goal.goal_type,
-          target_weight_kg: goal.target_weight_kg,
-          target_date: goal.target_date,
-          daily_calorie_target: goal.daily_calorie_target,
-          protein_target_g: goal.protein_target_g,
-          carbs_target_g: goal.carbs_target_g,
-          fat_target_g: goal.fat_target_g,
-          fiber_target_g: goal.fiber_target_g,
-          is_active: true,
-        });
-
-      if (error) throw error;
-
-      await fetchGoals();
-    } catch (error) {
-      console.error("Error setting nutrition goal:", error);
+        .update({ is_active: false })
+        .eq("user_id", userId)
+        .eq("is_active", true);
     }
+
+    // Insert new goal — let any error propagate to the caller
+    const { error } = await (supabase as any)
+      .from("nutrition_goals")
+      .insert({
+        user_id: userId,
+        goal_type: goal.goal_type,
+        target_weight_kg: goal.target_weight_kg,
+        target_date: goal.target_date,
+        daily_calorie_target: goal.daily_calorie_target,
+        protein_target_g: goal.protein_target_g,
+        carbs_target_g: goal.carbs_target_g,
+        fat_target_g: goal.fat_target_g,
+        fiber_target_g: goal.fiber_target_g,
+        is_active: true,
+      });
+
+    if (error) throw error;
+
+    await fetchGoals();
   }, [userId, activeGoal, fetchGoals]);
 
   useEffect(() => {

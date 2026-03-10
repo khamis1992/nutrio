@@ -57,6 +57,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from "@/lib/nutrition-calculator";
 
 
 
@@ -176,7 +177,7 @@ const ProgressDashboard = () => {
   const { summary: weeklySummary } = useWeeklySummary(user?.id);
   const { dailySummary: waterSummary, loading: waterLoading, addWater } = useWaterIntake(user?.id);
   const { streaks } = useStreak(user?.id);
-  const { activeGoal, milestones, updateGoalTargets, refresh: refreshGoals } = useNutritionGoals(user?.id);
+  const { activeGoal, milestones, updateGoalTargets, setGoal, refresh: refreshGoals } = useNutritionGoals(user?.id);
   const { averageScore, loading: qualityLoading } = useMealQuality(user?.id);
 
   const { recommendations } = useSmartRecommendations(user?.id);
@@ -711,6 +712,7 @@ const ProgressDashboard = () => {
             activeGoal={activeGoal}
             updateGoalTargets={updateGoalTargets}
             onGoalUpdated={refreshGoals}
+            setGoal={setGoal}
           />
         )}
       </main>
@@ -744,13 +746,68 @@ interface GoalsTabProps {
   } | null;
   updateGoalTargets: (updates: Record<string, number>) => Promise<boolean>;
   onGoalUpdated: () => void;
+  setGoal: (goal: {
+    goal_type: "weight_loss" | "muscle_gain" | "maintenance" | "general_health";
+    target_weight_kg: number | null;
+    target_date: string | null;
+    daily_calorie_target: number;
+    protein_target_g: number;
+    carbs_target_g: number;
+    fat_target_g: number;
+    fiber_target_g: number;
+    is_active: boolean;
+  }) => Promise<void>;
 }
 
-const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: GoalsTabProps) => {
+const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated, setGoal }: GoalsTabProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { profile } = useProfile();
   const [showCreateGoal, setShowCreateGoal] = useState(false);
+  const [creatingGoal, setCreatingGoal] = useState(false);
+  const [selectedGoalType, setSelectedGoalType] = useState<"weight_loss" | "muscle_gain" | "maintenance" | "general_health">("general_health");
+  const [goalTargetWeight, setGoalTargetWeight] = useState("");
+  const [goalTargetDate, setGoalTargetDate] = useState("");
   const [smartAdjustment, setSmartAdjustment] = useState(true);
+
+  // Map dialog goal type to nutrition calculator goal
+  const toCalcGoal = (type: string): "lose" | "gain" | "maintain" => {
+    if (type === "weight_loss") return "lose";
+    if (type === "muscle_gain") return "gain";
+    return "maintain";
+  };
+
+  // Calculate personalized targets from user profile + goal type
+  const calculateGoalTargets = (goalType: string) => {
+    const calcGoal = toCalcGoal(goalType);
+    const p = profile;
+    if (
+      p?.current_weight_kg && p?.height_cm && p?.age &&
+      p?.gender && p.gender !== "prefer_not_to_say" && p?.activity_level
+    ) {
+      const bmr = calculateBMR(p.gender as "male" | "female", p.current_weight_kg, p.height_cm, p.age);
+      const tdee = calculateTDEE(bmr, p.activity_level);
+      const dailyCalories = calculateTargetCalories(tdee, calcGoal);
+      const macros = calculateMacros(dailyCalories, calcGoal);
+      return {
+        daily_calorie_target: dailyCalories,
+        protein_target_g: macros.protein,
+        carbs_target_g: macros.carbs,
+        fat_target_g: macros.fat,
+        fiber_target_g: calcGoal === "lose" ? 35 : 30,
+      };
+    }
+    // Sensible fallbacks when profile is incomplete
+    const fallbacks: Record<string, { daily_calorie_target: number; protein_target_g: number; carbs_target_g: number; fat_target_g: number; fiber_target_g: number }> = {
+      weight_loss:    { daily_calorie_target: 1600, protein_target_g: 140, carbs_target_g: 140, fat_target_g: 53,  fiber_target_g: 35 },
+      muscle_gain:    { daily_calorie_target: 2500, protein_target_g: 188, carbs_target_g: 281, fat_target_g: 69,  fiber_target_g: 30 },
+      maintenance:    { daily_calorie_target: 2000, protein_target_g: 150, carbs_target_g: 200, fat_target_g: 67,  fiber_target_g: 30 },
+      general_health: { daily_calorie_target: 2000, protein_target_g: 120, carbs_target_g: 250, fat_target_g: 65,  fiber_target_g: 30 },
+    };
+    return fallbacks[goalType] ?? fallbacks.general_health;
+  };
+
+  const computedTargets = calculateGoalTargets(selectedGoalType);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyingAll, setApplyingAll] = useState(false);
   const [expandedImpact, setExpandedImpact] = useState<string | null>(null);
@@ -1260,7 +1317,13 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                     {Object.entries(goalTypeConfig).map(([key, config]) => (
                       <button
                         key={key}
-                        className="p-3 rounded-xl border-2 border-slate-100 hover:border-primary/50 transition-colors text-left"
+                        onClick={() => setSelectedGoalType(key as typeof selectedGoalType)}
+                        className={cn(
+                          "p-3 rounded-xl border-2 transition-colors text-left",
+                          selectedGoalType === key
+                            ? "border-primary bg-primary/5"
+                            : "border-slate-100 hover:border-primary/50"
+                        )}
                       >
                         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2", config.color.replace("text-", "bg-").replace("600", "100"))}>
                           <div className={config.color}>{config.icon}</div>
@@ -1274,16 +1337,84 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated }: Goal
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-slate-600 mb-2 block">{t("target_weight_kg")}</Label>
-                    <Input type="number" placeholder="70" className="h-12 rounded-xl" />
+                    <Input
+                      type="number"
+                      placeholder="70"
+                      className="h-12 rounded-xl"
+                      value={goalTargetWeight}
+                      onChange={(e) => setGoalTargetWeight(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label className="text-sm text-slate-600 mb-2 block">{t("target_date")}</Label>
-                    <Input type="date" className="h-12 rounded-xl" />
+                    <Input
+                      type="date"
+                      className="h-12 rounded-xl"
+                      value={goalTargetDate}
+                      onChange={(e) => setGoalTargetDate(e.target.value)}
+                    />
                   </div>
                 </div>
+
+                {/* Calculated targets preview */}
+                <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    {profile?.current_weight_kg && profile?.height_cm ? "Your personalized targets" : "Recommended targets"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-4 h-4 text-orange-500 shrink-0" />
+                      <span className="text-slate-600">Calories</span>
+                      <span className="ml-auto font-semibold">{computedTargets.daily_calorie_target}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span className="text-slate-600">Protein</span>
+                      <span className="ml-auto font-semibold">{computedTargets.protein_target_g}g</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-yellow-500 shrink-0" />
+                      <span className="text-slate-600">Carbs</span>
+                      <span className="ml-auto font-semibold">{computedTargets.carbs_target_g}g</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Droplets className="w-4 h-4 text-cyan-500 shrink-0" />
+                      <span className="text-slate-600">Fat</span>
+                      <span className="ml-auto font-semibold">{computedTargets.fat_target_g}g</span>
+                    </div>
+                  </div>
+                  {!profile?.current_weight_kg && (
+                    <p className="text-xs text-slate-400 mt-1">Complete your profile for personalized targets</p>
+                  )}
+                </div>
                 
-                <Button className="w-full h-12 rounded-xl">
-                  {t("create_goal")}
+                <Button
+                  className="w-full h-12 rounded-xl"
+                  disabled={creatingGoal}
+                  onClick={async () => {
+                    try {
+                      setCreatingGoal(true);
+                      await setGoal({
+                        goal_type: selectedGoalType,
+                        target_weight_kg: goalTargetWeight ? parseFloat(goalTargetWeight) : null,
+                        target_date: goalTargetDate || null,
+                        ...computedTargets,
+                        is_active: true,
+                      });
+                      toast({ title: t("goal_created_successfully") });
+                      setShowCreateGoal(false);
+                      setGoalTargetWeight("");
+                      setGoalTargetDate("");
+                      setSelectedGoalType("general_health");
+                      onGoalUpdated();
+                    } catch {
+                      toast({ title: t("failed_to_create_goal"), variant: "destructive" });
+                    } finally {
+                      setCreatingGoal(false);
+                    }
+                  }}
+                >
+                  {creatingGoal ? <Loader2 className="w-4 h-4 animate-spin" /> : t("create_goal")}
                 </Button>
               </div>
             </div>

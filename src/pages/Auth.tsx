@@ -46,6 +46,7 @@ const Auth = () => {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoTriggered = useRef(false);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("remembered_email");
@@ -56,10 +57,21 @@ const Auth = () => {
     const checkBiometric = async () => {
       if (!isNative) return;
       const available = await biometricAuth.isAvailable();
-      if (available) {
-        setBiometricAvailable(true);
-        setBiometricType(await biometricAuth.getBiometricType());
-        setEnableBiometric(await biometricAuth.hasCredentials());
+      if (!available) return;
+
+      setBiometricAvailable(true);
+      setBiometricType(await biometricAuth.getBiometricType());
+      const hasCredentials = await biometricAuth.hasCredentials();
+      setEnableBiometric(hasCredentials);
+
+      // Auto-trigger biometric login if credentials are saved and we haven't done it yet
+      if (hasCredentials && !autoTriggered.current) {
+        autoTriggered.current = true;
+        setView("signin");
+        // Small delay so the signin view renders before the native prompt appears
+        setTimeout(() => {
+          handleBiometricLogin();
+        }, 600);
       }
     };
     checkBiometric();

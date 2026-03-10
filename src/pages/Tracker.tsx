@@ -57,7 +57,7 @@ export default function Tracker() {
   useEffect(() => {
     fetchWaterEntries(today);
   }, [fetchWaterEntries, today]);
-  const { measurements, latestMeasurement, fetchMeasurements } = useBodyMeasurements(user?.id);
+  const { measurements, latestMeasurement, refresh: refreshMeasurements } = useBodyMeasurements(user?.id);
 
   const [steps, setSteps] = useState(0);
   const [activeTab, setActiveTab] = useState<"today" | "insights">("today");
@@ -113,7 +113,7 @@ export default function Tracker() {
         );
       if (error) throw error;
       await updateProfile({ current_weight_kg: kg });
-      await fetchMeasurements();
+      await refreshMeasurements();
       toast({ title: t("weight_updated_toast"), description: `${kg} ${t("kg_logged")}` });
       setWeightDialogOpen(false);
       setWeightInput("");
@@ -124,21 +124,6 @@ export default function Tracker() {
     }
   };
 
-  const handleUpdateHeight = async () => {
-    const cm = parseFloat(heightInput);
-    if (!user || isNaN(cm) || cm <= 0) return;
-    setSubmitting(true);
-    try {
-      await updateProfile({ height_cm: cm });
-      toast({ title: t("height_updated_toast"), description: t("bmi_recalculated") });
-      setBmiDialogOpen(false);
-      setHeightInput("");
-    } catch {
-      toast({ title: t("failed_to_update"), variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -437,19 +422,34 @@ export default function Tracker() {
               </button>
               <button
                 onClick={async () => {
-                  await handleUpdateHeight();
-                  if (weightInput) {
-                    const kg = parseFloat(weightInput);
-                    if (!isNaN(kg) && kg > 0 && user) {
+                  const cm = parseFloat(heightInput);
+                  const kg = parseFloat(weightInput);
+                  if (!user) return;
+                  if (isNaN(cm) || cm <= 0) return;
+                  setSubmitting(true);
+                  try {
+                    // Save height to profile
+                    await updateProfile({ height_cm: cm });
+
+                    // Save weight if provided
+                    if (!isNaN(kg) && kg > 0) {
                       await supabase.from("body_measurements").upsert(
                         { user_id: user.id, log_date: today, weight_kg: kg },
                         { onConflict: "user_id,log_date" }
                       );
                       await updateProfile({ current_weight_kg: kg });
-                      await fetchMeasurements();
                     }
+
+                    // Refresh measurements so BMI and weight display update immediately
+                    await refreshMeasurements();
+
+                    toast({ title: t("height_updated_toast"), description: t("bmi_recalculated") });
+                    setBmiDialogOpen(false);
+                  } catch {
+                    toast({ title: t("failed_to_update"), variant: "destructive" });
+                  } finally {
+                    setSubmitting(false);
                   }
-                  setBmiDialogOpen(false);
                 }}
                 disabled={submitting}
                 className="flex-1 py-3.5 rounded-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-base transition-all active:scale-[0.98]"

@@ -207,6 +207,19 @@ export function useWallet() {
     }
   }, [user, fetchWallet, fetchTopUpPackages, fetchTransactions]);
 
+  // Refetch when app returns to foreground (web tab or Capacitor APK)
+  useEffect(() => {
+    if (!user) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchWallet();
+        fetchTransactions();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [user, fetchWallet, fetchTransactions]);
+
   useEffect(() => {
     if (!user) return;
 

@@ -9,8 +9,6 @@ import {
   Loader2, Search, Plus, Check, ChevronRight,
   X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2,
 } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
-import { Camera, CameraResultType, CameraSource, CameraPermissionType } from "@capacitor/camera";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -88,19 +86,13 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
-  const [showScanMenu, setShowScanMenu] = useState(false);
   const [scanResults, setScanResults] = useState<FoodItem[]>([]);
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
-  // Flag to prevent state reset when Android resumes after camera activity
-  const isTakingPhotoRef = useRef(false);
 
 
   // ── Reset on open ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
-      // Skip reset if we are returning from the native camera — the camera
-      // handler will set the scan state itself after getPhoto() resolves.
-      if (isTakingPhotoRef.current) return;
       setView("main");
       setSearchQuery("");
       setSearchResults([]);
@@ -379,47 +371,12 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     }
   };
 
-  // Native camera via Capacitor (avoids WebView navigation-back bug on Android)
-  const handleTakePhoto = async () => {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        // Request camera permission explicitly before opening camera
-        const permissions = await Camera.requestPermissions({ permissions: ["camera"] as CameraPermissionType[] });
-        if (permissions.camera === "denied") {
-          toast({ title: "Camera permission denied", description: "Please allow camera access in your device settings.", variant: "destructive" });
-          return;
-        }
+  const handleTakePhoto = () => {
+    cameraInputRef.current?.click();
+  };
 
-        // Set flag BEFORE launching camera so the reset effect is skipped
-        // when Android briefly suspends/resumes the WebView activity.
-        isTakingPhotoRef.current = true;
-        const photo = await Camera.getPhoto({
-          resultType: CameraResultType.DataUrl,
-          source: CameraSource.Camera,
-          quality: 80,
-          correctOrientation: true,
-        });
-
-        isTakingPhotoRef.current = false;
-
-        if (!photo.dataUrl) {
-          toast({ title: "Camera error", description: "Could not get photo. Try the gallery instead.", variant: "destructive" });
-          return;
-        }
-
-        await runImageScan(photo.dataUrl);
-      } catch (err: any) {
-        isTakingPhotoRef.current = false;
-        // Capacitor throws "User cancelled photos app" or similar on cancellation — ignore those
-        const msg: string = err?.message || "";
-        if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("dismiss")) {
-          toast({ title: "Camera error", description: "Could not open camera. Try uploading from gallery.", variant: "destructive" });
-        }
-      }
-    } else {
-      // Web fallback — use file input
-      cameraInputRef.current?.click();
-    }
+  const handlePickFromGallery = () => {
+    galleryInputRef.current?.click();
   };
 
   const handleScanImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -636,7 +593,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           </div>
                         </button>
                         <button
-                          onClick={() => galleryInputRef.current?.click()}
+                          onClick={handlePickFromGallery}
                           className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-gray-200 bg-white hover:bg-gray-50 transition-colors"
                         >
                           <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">

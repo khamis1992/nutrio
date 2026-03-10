@@ -92,8 +92,45 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
   }, [user]);
 
+  // Initial fetch
   useEffect(() => {
     fetchSubscription();
+  }, [fetchSubscription]);
+
+  // Real-time: re-fetch whenever the user's subscription row changes in DB
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`subscription_rt_${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "subscriptions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchSubscription();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchSubscription]);
+
+  // Refetch when app returns to foreground (works on both web and Capacitor APK)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchSubscription();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [fetchSubscription]);
 
   // User has an active subscription if status is active OR if cancelled but not yet expired

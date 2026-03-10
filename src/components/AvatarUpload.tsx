@@ -1,11 +1,12 @@
 import { useState, useRef } from "react";
-import { Camera, Loader2, User } from "lucide-react";
+import { Camera, ImageIcon, Loader2, User, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Capacitor } from "@capacitor/core";
 import { Camera as CapCamera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface AvatarUploadProps {
   currentAvatarUrl: string | null;
@@ -29,6 +30,7 @@ export const AvatarUpload = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
 
   const displayUrl = previewUrl || currentAvatarUrl;
   const sizes = sizeMap[size];
@@ -75,13 +77,14 @@ export const AvatarUpload = ({
     }
   };
 
-  // Native: use Capacitor Camera plugin (avoids WebView file input issues)
-  const handleNativePick = async () => {
+  // Native: open camera or photo library based on user choice
+  const handleNativePick = async (source: CameraSource) => {
+    setShowSourcePicker(false);
     if (uploading) return;
     try {
       const photo = await CapCamera.getPhoto({
         resultType: CameraResultType.DataUrl,
-        source: CameraSource.Photos,
+        source,
         quality: 85,
       });
       if (!photo.dataUrl) return;
@@ -121,7 +124,8 @@ export const AvatarUpload = ({
   const handleClick = () => {
     if (uploading) return;
     if (Capacitor.isNativePlatform()) {
-      handleNativePick();
+      // Show picker to choose between camera and library
+      setShowSourcePicker(true);
     } else {
       fileInputRef.current?.click();
     }
@@ -173,6 +177,62 @@ export const AvatarUpload = ({
           onChange={handleFileChange}
         />
       )}
+
+      {/* Native source picker bottom sheet */}
+      <AnimatePresence>
+        {showSourcePicker && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSourcePicker(false)}
+              className="fixed inset-0 bg-black/50 z-[200]"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 350 }}
+              className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-[201] pb-safe"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+              </div>
+              <p className="text-center text-sm font-semibold text-muted-foreground px-5 py-3">
+                Update Profile Photo
+              </p>
+              <div className="px-4 pb-6 space-y-2">
+                <button
+                  onClick={() => handleNativePick(CameraSource.Camera)}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted/50 active:bg-muted transition-colors text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-semibold">Take Photo</span>
+                </button>
+                <button
+                  onClick={() => handleNativePick(CameraSource.Photos)}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted/50 active:bg-muted transition-colors text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-semibold">Choose from Library</span>
+                </button>
+                <button
+                  onClick={() => setShowSourcePicker(false)}
+                  className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl text-muted-foreground active:bg-muted transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  <span className="font-semibold">Cancel</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

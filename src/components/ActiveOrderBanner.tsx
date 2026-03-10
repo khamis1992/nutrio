@@ -254,23 +254,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
       if (!data || !(data as { success?: boolean }).success) throw new Error(t("order_cancel_failed"));
 
-      // Optimistically remove from UI
+      // Remove from UI — RPC is atomic, trust the success response
       setActiveOrders(prev => prev.filter(o => o.id !== orderId));
-
-      // Verify the DB write actually persisted (wait for transaction to be visible)
-      await new Promise(r => setTimeout(r, 600));
-      const { data: check } = await supabase
-        .from("meal_schedules")
-        .select("order_status")
-        .eq("id", orderId)
-        .single();
-
-      if (check && check.order_status !== "cancelled") {
-        // DB didn't save the cancel — restore the real list and show error
-        await fetchActiveOrders();
-        throw new Error(t("order_cancel_not_saved"));
-      }
-
       toast.success(t("order_cancel_success"));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t("order_cancel_error");

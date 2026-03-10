@@ -178,9 +178,6 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState(0);
-  const [wizardSingleMode, setWizardSingleMode] = useState(false);
-  const [showModeDialog, setShowModeDialog] = useState(false);
-  const [pendingMealType, setPendingMealType] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Bottom sheet for meal details
@@ -392,22 +389,8 @@ const Schedule = () => {
     setSelectedScheduleForTimeSlot(null);
   };
 
-  const openModeDialog = (mealType: string) => {
-    setPendingMealType(mealType);
-    setShowModeDialog(true);
-  };
-
-  const handleScheduleSingleMeal = () => {
-    setWizardInitialStep(MEAL_TYPE_STEP[pendingMealType] ?? 0);
-    setWizardSingleMode(true);
-    setShowModeDialog(false);
-    setShowWizard(true);
-  };
-
-  const handleScheduleFullDay = () => {
-    setWizardInitialStep(0);
-    setWizardSingleMode(false);
-    setShowModeDialog(false);
+  const openWizard = (mealType: string) => {
+    setWizardInitialStep(MEAL_TYPE_STEP[mealType] ?? 0);
     setShowWizard(true);
   };
 
@@ -756,7 +739,7 @@ const Schedule = () => {
                               signUpLabel: t("create_free_account")
                             });
                           } else {
-                            openModeDialog(mealType);
+                            openWizard(mealType);
                           }
                         }}
                         className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 active:scale-95 transition-transform"
@@ -775,7 +758,7 @@ const Schedule = () => {
                                 signUpLabel: t("create_free_account")
                               });
                             } else {
-                              openModeDialog(mealType);
+                              openWizard(mealType);
                             }
                           }}
                           className="px-4 py-2 bg-primary text-white text-xs font-semibold rounded-full active:scale-95 transition-transform"
@@ -799,7 +782,6 @@ const Schedule = () => {
             userId={user.id}
             selectedDate={selectedDate}
             initialStep={wizardInitialStep}
-            singleMode={wizardSingleMode}
             onComplete={() => {
               setShowWizard(false);
               fetchSchedules();
@@ -809,76 +791,6 @@ const Schedule = () => {
         )}
       </AnimatePresence>
 
-      {/* Mode Selection Dialog */}
-      <AnimatePresence>
-        {showModeDialog && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModeDialog(false)}
-              className="fixed inset-0 bg-black/50 z-40"
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-50"
-            >
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1 bg-gray-300 dark:bg-gray-700 rounded-full" />
-              </div>
-              <div className="px-5" style={{ paddingBottom: 'calc(80px + max(16px, env(safe-area-inset-bottom)))' }}>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                  How would you like to schedule?
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-                  Plan just this meal or your entire day
-                </p>
-
-                {/* Option 1 — single meal */}
-                <button
-                  onClick={handleScheduleSingleMeal}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-primary/25 bg-primary/5 mb-3 active:scale-[0.98] transition-transform text-left"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    {(() => {
-                      const config = MEAL_TYPE_CONFIG[pendingMealType as keyof typeof MEAL_TYPE_CONFIG];
-                      if (!config) return null;
-                      const Icon = config.icon;
-                      return <Icon className="h-6 w-6 text-primary" />;
-                    })()}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {t("schedule_single_meal")} {t(pendingMealType as any)}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{t("schedule_single_meal_desc")}</p>
-                  </div>
-                  <NavChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
-                </button>
-
-                {/* Option 2 — full day */}
-                <button
-                  onClick={handleScheduleFullDay}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 active:scale-[0.98] transition-transform text-left"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
-                    <CalendarIcon className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 dark:text-white">{t("schedule_full_day")}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{t("schedule_full_day_desc")}</p>
-                  </div>
-                  <NavChevronRight className="h-5 w-5 text-gray-400 shrink-0" />
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* Meal Detail Bottom Sheet */}
       <AnimatePresence>

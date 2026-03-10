@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Sparkles, ShoppingBag, Info, Clock, Lock, CheckCircle2 } from 'lucide-react';
@@ -24,13 +23,13 @@ interface Props {
 export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDate }: Props) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const [rollovers, setRollovers] = useState<RolloverCredit[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalRollover, setTotalRollover] = useState(0);
   const storageKey = `rollover_activated_${user?.id}`;
+  // localStorage persists across app restarts on the same device
   const [activated, setActivated] = useState(() => {
-    try { return sessionStorage.getItem(`rollover_activated_${user?.id}`) === 'true'; }
+    try { return localStorage.getItem(`rollover_activated_${user?.id}`) === 'true'; }
     catch { return false; }
   });
 
@@ -79,7 +78,7 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
       setTotalRollover(total);
       // Clear activated flag once all credits are actually consumed
       if (total === 0) {
-        try { sessionStorage.removeItem(storageKey); } catch { /* noop */ }
+        try { localStorage.removeItem(storageKey); } catch { /* noop */ }
         setActivated(false);
       }
     } catch (err) {
@@ -90,13 +89,12 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
   };
 
   const handleUseCredits = () => {
-    try { sessionStorage.setItem(storageKey, 'true'); } catch { /* noop */ }
+    try { localStorage.setItem(storageKey, 'true'); } catch { /* noop */ }
     setActivated(true);
     toast.success(`${totalRollover} rollover meal${totalRollover > 1 ? 's' : ''} ready to use!`, {
-      description: 'Browse meals and schedule — credits are applied automatically.',
+      description: 'Credits are applied automatically when you schedule a meal.',
       duration: 4000,
     });
-    setTimeout(() => navigate('/meals'), 800);
   };
 
   if (loading) return null;
