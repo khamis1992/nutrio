@@ -2131,7 +2131,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 )}
               </div>
 
-              <div className="px-5 pt-4 pb-6 border-t border-border/50 flex gap-3 shrink-0">
+              <div className="px-5 pt-4 border-t border-border/50 flex gap-3 shrink-0" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
                 <Button variant="outline" onClick={skipAddons} className="flex-1 rounded-xl h-12">
                   Skip
                 </Button>

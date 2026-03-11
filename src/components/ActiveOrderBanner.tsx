@@ -169,8 +169,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         `)
         .eq("user_id", userId)
         .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery", "delivered"])
-        .order("scheduled_date", { ascending: true })
-        .limit(3);
+        .order("scheduled_date", { ascending: true });
 
       if (schedulesError) throw schedulesError;
       if (!schedules || schedules.length === 0) {
@@ -254,8 +253,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
       if (!data || !(data as { success?: boolean }).success) throw new Error(t("order_cancel_failed"));
 
-      // Remove from UI — RPC is atomic, trust the success response
-      setActiveOrders(prev => prev.filter(o => o.id !== orderId));
+      // Refetch from DB to ensure UI reflects the true state (not optimistic)
+      await fetchActiveOrders();
       toast.success(t("order_cancel_success"));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t("order_cancel_error");
@@ -351,7 +350,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           </span>
           {t("order_active_orders")} ({groupedOrders.length})
         </h3>
-        <Link to="/dashboard">
+        <Link to="/orders">
           <Button 
             variant="ghost" 
             size="sm" 

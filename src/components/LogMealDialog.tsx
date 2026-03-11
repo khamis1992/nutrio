@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Camera, CameraSource, CameraResultType } from "@capacitor/camera";
+import { isNative } from "@/lib/capacitor";
 import {
   Loader2, Search, Plus, Check, ChevronRight,
   X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2,
@@ -371,12 +373,38 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     }
   };
 
-  const handleTakePhoto = () => {
-    cameraInputRef.current?.click();
+  const handleTakePhoto = async () => {
+    if (isNative) {
+      try {
+        const photo = await Camera.getPhoto({
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Camera,
+          quality: 80,
+        });
+        if (photo.dataUrl) runImageScan(photo.dataUrl);
+      } catch {
+        // user cancelled or permission denied
+      }
+    } else {
+      cameraInputRef.current?.click();
+    }
   };
 
-  const handlePickFromGallery = () => {
-    galleryInputRef.current?.click();
+  const handlePickFromGallery = async () => {
+    if (isNative) {
+      try {
+        const photo = await Camera.getPhoto({
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Photos,
+          quality: 80,
+        });
+        if (photo.dataUrl) runImageScan(photo.dataUrl);
+      } catch {
+        // user cancelled or permission denied
+      }
+    } else {
+      galleryInputRef.current?.click();
+    }
   };
 
   const handleScanImage = (e: React.ChangeEvent<HTMLInputElement>) => {
