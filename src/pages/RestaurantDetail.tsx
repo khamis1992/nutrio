@@ -28,11 +28,6 @@ import {
   Moon,
   Apple,
   LayoutGrid,
-  GlassWater,
-  Blend,
-  Salad,
-  Soup,
-  Sandwich
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -116,44 +111,6 @@ const RestaurantDetail = () => {
     { id: "lunch", label: t("category_lunch"), icon: Sun, color: "text-orange-500" },
     { id: "dinner", label: t("category_dinner"), icon: Moon, color: "text-indigo-500" },
     { id: "snack", label: t("category_snacks"), icon: Apple, color: "text-emerald-500" },
-  ], [t]);
-
-  const FOOD_CATEGORIES = useMemo(() => [
-    {
-      id: "beverage",
-      label: t("category_beverages"),
-      icon: GlassWater,
-      gradient: "from-sky-400 to-cyan-500",
-      bg: "bg-sky-50",
-    },
-    {
-      id: "smoothie",
-      label: t("category_smoothies"),
-      icon: Blend,
-      gradient: "from-violet-400 to-purple-500",
-      bg: "bg-violet-50",
-    },
-    {
-      id: "salad",
-      label: t("category_salads"),
-      icon: Salad,
-      gradient: "from-lime-400 to-green-500",
-      bg: "bg-lime-50",
-    },
-    {
-      id: "soup",
-      label: t("category_soups"),
-      icon: Soup,
-      gradient: "from-orange-400 to-amber-500",
-      bg: "bg-orange-50",
-    },
-    {
-      id: "wrap",
-      label: t("category_wraps"),
-      icon: Sandwich,
-      gradient: "from-yellow-400 to-orange-400",
-      bg: "bg-yellow-50",
-    },
   ], [t]);
 
   const DIETARY_TAGS = useMemo(() => [
@@ -685,49 +642,6 @@ const RestaurantDetail = () => {
                 `}>
                   {count}
                 </span>
-              </motion.button>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      {/* Food Category Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45 }}
-        className="px-4 mt-6"
-      >
-        <h3 className="text-base font-bold text-[hsl(150,25%,10%)] mb-3">{t("browse_categories")}</h3>
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-          {FOOD_CATEGORIES.map((cat, index) => {
-            const Icon = cat.icon;
-            const isActive = activeCategory === cat.id;
-            return (
-              <motion.button
-                key={cat.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.45 + index * 0.06 }}
-                whileTap={{ scale: 0.93 }}
-                onClick={() => setActiveCategory(isActive ? "all" : cat.id)}
-                className={`
-                  flex flex-col items-center gap-2 shrink-0 rounded-2xl p-4 w-24 border-2 transition-all duration-200
-                  ${isActive
-                    ? 'border-transparent shadow-lg'
-                    : 'border-transparent bg-white shadow-sm hover:shadow-md'
-                  }
-                `}
-              >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br ${cat.gradient} shadow-md`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <span className={`text-xs font-semibold text-center leading-tight ${isActive ? 'text-primary' : 'text-[hsl(150,25%,15%)]'}`}>
-                  {cat.label}
-                </span>
-                {isActive && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
               </motion.button>
             );
           })}

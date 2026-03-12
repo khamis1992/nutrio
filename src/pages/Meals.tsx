@@ -596,7 +596,7 @@ const FilterChip = ({
 };
 
 // ============================================
-// CUISINE HORIZONTAL SCROLL
+// CUISINE HORIZONTAL SCROLL - CIRCULAR NATIVE STYLE
 // ============================================
 const CuisineScroller = ({ 
   selectedCuisine, 
@@ -608,24 +608,29 @@ const CuisineScroller = ({
   t: ReturnType<typeof useLanguage>["t"];
 }) => {
   const cuisines = Object.keys(cuisineEmojis);
-
   const isAllActive = selectedCuisine === null;
 
   return (
     <div className="-mx-4 px-4">
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
         {/* All */}
         <motion.button
           onClick={() => onSelectCuisine(null)}
-          whileTap={{ scale: 0.95 }}
-          className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${
-            isAllActive
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 border-primary"
-              : "bg-card/90 text-muted-foreground border-border/70 hover:bg-muted/80"
-          }`}
+          whileTap={{ scale: 0.92 }}
+          className="flex-shrink-0 flex flex-col items-center gap-1.5"
         >
-          <LayoutGrid className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-semibold whitespace-nowrap">{t("all_cuisine")}</span>
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all ${
+            isAllActive
+              ? "border-primary bg-primary/10 shadow-md shadow-primary/20"
+              : "border-border/40 bg-card/90"
+          }`}>
+            <LayoutGrid className={`w-6 h-6 ${isAllActive ? "text-primary" : "text-muted-foreground"}`} />
+          </div>
+          <span className={`text-[11px] font-semibold whitespace-nowrap leading-tight ${
+            isAllActive ? "text-primary" : "text-muted-foreground"
+          }`}>
+            {t("all_cuisine")}
+          </span>
         </motion.button>
 
         {cuisines.map((cuisine) => {
@@ -635,23 +640,27 @@ const CuisineScroller = ({
             <motion.button
               key={cuisine}
               onClick={() => onSelectCuisine(cuisine)}
-              whileTap={{ scale: 0.95 }}
-              className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 border-primary"
-                  : "bg-card/90 text-muted-foreground border-border/70 hover:bg-muted/80"
-              }`}
+              whileTap={{ scale: 0.92 }}
+              className="flex-shrink-0 flex flex-col items-center gap-1.5"
             >
-              <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-background">
+              <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${
+                isActive
+                  ? "border-primary shadow-md shadow-primary/20"
+                  : "border-border/40"
+              }`}>
                 {cuisineImage ? (
                   <img src={cuisineImage} alt={cuisine} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="w-full h-full flex items-center justify-center text-base">
+                  <div className="w-full h-full flex items-center justify-center text-2xl bg-card/90">
                     {cuisineEmojis[cuisine]}
-                  </span>
+                  </div>
                 )}
               </div>
-              <span className="text-sm font-semibold whitespace-nowrap">{t(getCuisineTranslationKey(cuisine) as any)}</span>
+              <span className={`text-[11px] font-semibold whitespace-nowrap leading-tight ${
+                isActive ? "text-primary" : "text-muted-foreground"
+              }`}>
+                {t(getCuisineTranslationKey(cuisine) as any)}
+              </span>
             </motion.button>
           );
         })}
@@ -923,97 +932,76 @@ const Meals = () => {
   const displayedCount = isCalorieFilterActive ? filteredMeals.length : filteredRestaurants.length;
 
   return (
-    <div className="min-h-screen">
-      {/* Native Header */}
-      <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
-        <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 rtl:flex-row-reverse">
+    <div className="min-h-screen bg-background">
+      {/* Native Header — title row + sticky search */}
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/30">
+        {/* Title row */}
+        <div className="px-4 pt-[env(safe-area-inset-top)] h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 rtl:flex-row-reverse">
             <Link to="/dashboard">
               <motion.div whileTap={{ scale: 0.9 }}>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="w-10 h-10 rounded-full hover:bg-muted"
+                  className="w-9 h-9 rounded-full hover:bg-muted"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
               </motion.div>
             </Link>
-            <h1 className="text-lg font-bold tracking-tight">{t("restaurants")}</h1>
+            <h1 className="text-base font-bold tracking-tight">{t("restaurants")}</h1>
           </div>
-          <div className="flex items-center gap-1">
-            <motion.div whileTap={{ scale: 0.9 }}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-10 h-10 rounded-full relative ${
-                  activeChip === "favorites" ? "bg-rose-100 text-rose-500" : "hover:bg-muted"
-                }`}
-                onClick={() => selectChip(activeChip === "favorites" ? "rating" : "favorites")}
-              >
-                <Heart className={`w-5 h-5 ${activeChip === "favorites" ? "fill-current" : ""}`} />
-              </Button>
-            </motion.div>
+          <motion.div whileTap={{ scale: 0.9 }}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`w-9 h-9 rounded-full relative ${
+                activeChip === "favorites" ? "bg-rose-100 text-rose-500" : "hover:bg-muted"
+              }`}
+              onClick={() => selectChip(activeChip === "favorites" ? "rating" : "favorites")}
+            >
+              <Heart className={`w-5 h-5 ${activeChip === "favorites" ? "fill-current" : ""}`} />
+            </Button>
+          </motion.div>
+        </div>
+
+        {/* Search row — always visible */}
+        <div className="px-4 pb-3">
+          <div className="relative">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+              <Search className="w-4 h-4" />
+            </div>
+            <Input
+              placeholder={t("search_restaurants_placeholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-9 h-10 rounded-xl bg-muted/60 border-0 text-sm focus-visible:ring-1 focus-visible:ring-primary shadow-none"
+            />
+            <AnimatePresence>
+              {searchQuery && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0 }}
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-muted-foreground/25 flex items-center justify-center"
+                >
+                  <X className="w-3 h-3 text-muted-foreground" />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
 
       <main className="px-4 pt-4 pb-28">
-        {/* Greeting */}
-        <motion.div 
-          className="mb-4 rounded-3xl bg-card/90 border border-border/70 shadow-sm px-4 py-3"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <Leaf className="w-4 h-4 text-primary" />
-            <span className="text-xs font-semibold text-primary uppercase tracking-wide">{t("discover")}</span>
-          </div>
-<h2 className="text-xl font-bold text-foreground leading-tight">
-            {t("choose_next_meal")}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">{t("top_rated_nearby")}</p>
-        </motion.div>
-
-        {/* Search Bar - Native Style */}
-        <motion.div 
-          className="relative mb-4"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-        >
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-            <Search className="w-5 h-5" />
-          </div>
-          <Input
-            placeholder={t("search_restaurants_placeholder")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 pr-10 h-12 rounded-2xl bg-card/95 border border-border/70 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
-          />
-          <AnimatePresence>
-            {searchQuery && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0 }}
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-muted-foreground/20 flex items-center justify-center"
-              >
-                <X className="w-3 h-3 text-muted-foreground" />
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Cuisine Horizontal Scroll */}
+        {/* Cuisine Circular Scroll */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="mb-5"
+          className="mb-4"
         >
-<CuisineScroller 
+          <CuisineScroller 
             selectedCuisine={selectedCuisine}
             onSelectCuisine={setSelectedCuisine}
             t={t}
@@ -1022,10 +1010,10 @@ const Meals = () => {
 
         {/* Quick Filter Chips */}
         <motion.div 
-          className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 scrollbar-hide mb-2"
+          className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 scrollbar-hide mb-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.05 }}
         >
           <FilterChip
             active={filterSheetOpen}
@@ -1033,31 +1021,28 @@ const Meals = () => {
               Haptics.impact({ style: "light" });
               setFilterSheetOpen(true);
             }}
-icon={SlidersHorizontal}
+            icon={SlidersHorizontal}
             label={t("filters")}
             color="primary"
           />
-          
           <FilterChip
             active={activeChip === "rating"}
             onClick={() => selectChip("rating")}
-icon={Star}
+            icon={Star}
             label={t("top_rated_filter")}
             color="amber"
           />
-          
           <FilterChip
             active={activeChip === "fastest"}
             onClick={() => selectChip("fastest")}
-icon={Clock}
+            icon={Clock}
             label={t("fastest_filter")}
             color="blue"
           />
-          
           <FilterChip
             active={activeChip === "favorites"}
             onClick={() => selectChip("favorites")}
-icon={Heart}
+            icon={Heart}
             label={t("favorites_filter")}
             color="rose"
           />
