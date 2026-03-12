@@ -193,19 +193,17 @@ export default function StepCounter() {
               </button>
             ))}
           </div>
-          <div className="flex justify-end mt-2">
-            <button
-              onClick={() => {
-                if (!calendarOpen) setCalendarMonth(selectedDate);
-                setCalendarOpen((prev) => !prev);
-              }}
-              className="p-1 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              {calendarOpen
-                ? <ChevronUp className="w-5 h-5 text-gray-400" />
-                : <ChevronDown className="w-5 h-5 text-gray-400" />}
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              if (!calendarOpen) setCalendarMonth(selectedDate);
+              setCalendarOpen((prev) => !prev);
+            }}
+            className="flex justify-center w-full mt-2 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {calendarOpen
+              ? <ChevronUp className="w-5 h-5" />
+              : <ChevronDown className="w-5 h-5" />}
+          </button>
         </div>
       </div>
 

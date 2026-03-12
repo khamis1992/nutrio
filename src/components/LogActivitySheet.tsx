@@ -313,18 +313,18 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
         {view === "detail" && selected && (
           <>
             {/* Header */}
-            <div className="gradient-primary px-5 pt-5 pb-4">
+            <div className="bg-white px-5 pt-5 pb-4 border-b border-gray-100">
               <button
                 onClick={() => setView("list")}
-                className="flex items-center gap-1.5 text-white/80 text-sm mb-3 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 text-sm mb-3 text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" /> {t("back")}
               </button>
               <div className="flex items-center gap-3">
                 <span className="text-4xl">{selected.emoji}</span>
                 <div>
-                  <h2 className="text-white text-xl font-bold">{activityName(selected)}</h2>
-                  <p className="text-white/70 text-sm">{categoryLabel(selected.category)}</p>
+                  <h2 className="text-xl font-bold text-gray-900">{activityName(selected)}</h2>
+                  <p className="text-sm text-gray-500">{categoryLabel(selected.category)}</p>
                 </div>
               </div>
             </div>

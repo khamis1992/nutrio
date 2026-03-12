@@ -376,14 +376,32 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const handleTakePhoto = async () => {
     if (isNative) {
       try {
+        // Request camera permission explicitly before opening camera
+        const perms = await Camera.requestPermissions({ permissions: ["camera"] });
+        if (perms.camera === "denied") {
+          toast({
+            title: "Camera permission required",
+            description: "Please allow camera access in your device settings.",
+            variant: "destructive",
+          });
+          return;
+        }
         const photo = await Camera.getPhoto({
           resultType: CameraResultType.DataUrl,
           source: CameraSource.Camera,
           quality: 80,
         });
         if (photo.dataUrl) runImageScan(photo.dataUrl);
-      } catch {
-        // user cancelled or permission denied
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "";
+        // Ignore user-cancelled errors
+        if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("dismiss")) {
+          toast({
+            title: "Camera unavailable",
+            description: "Could not open camera. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     } else {
       cameraInputRef.current?.click();
@@ -399,8 +417,15 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
           quality: 80,
         });
         if (photo.dataUrl) runImageScan(photo.dataUrl);
-      } catch {
-        // user cancelled or permission denied
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "";
+        if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("dismiss")) {
+          toast({
+            title: "Gallery unavailable",
+            description: "Could not open photo library. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     } else {
       galleryInputRef.current?.click();

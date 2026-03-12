@@ -526,7 +526,7 @@ const Auth = () => {
         </div>
 
         {/* Fixed bottom Sign up button */}
-        <div className="px-6 pb-6 pt-3 bg-white border-t border-gray-100">
+        <div className="px-6 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           <Button
             type="submit"
             form="signup-form"
@@ -726,7 +726,7 @@ const Auth = () => {
         </div>
 
         {/* Fixed bottom button */}
-        <div className="px-6 pb-6 pt-3 bg-white border-t border-gray-100">
+        <div className="px-6 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
           <Button
             type="submit"
             form="forgot-form"
@@ -870,7 +870,7 @@ const Auth = () => {
       </div>
 
       {/* Fixed bottom Sign in button */}
-      <div className="px-6 pb-6 pt-3 bg-white border-t border-gray-100">
+      <div className="px-6 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
         <Button
           type="submit"
           form="signin-form"
