@@ -790,7 +790,7 @@ const Schedule = () => {
                           {mealTypeName}
                         </span>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {timeLabel} · {noMealsLeft ? "No meals left" : t("no_meal_scheduled")}
+                          {timeLabel} · {noMealsLeft ? "No meals left" : t("no_meals_scheduled")}
                         </p>
                       </div>
 

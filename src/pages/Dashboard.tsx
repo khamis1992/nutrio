@@ -8,7 +8,6 @@ import { format } from "date-fns";
 import {
   Utensils,
   Bell,
-  LogOut,
   Loader2,
   Plus,
   Crown,
@@ -35,8 +34,6 @@ import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { NavChevronRight } from "@/components/ui/nav-chevron";
-
 interface Restaurant {
   id: string;
   name: string;
@@ -236,14 +233,11 @@ const Dashboard = () => {
                 )}
               </Button>
             </Link>
-            <Button variant="ghost" size="icon" onClick={handleSignOut} className="hover:bg-destructive/10 hover:text-destructive">
-              <LogOut className="w-5 h-5" />
-            </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 pb-24">
+      <main className="container mx-auto px-4 py-4 space-y-4 pb-20">
 
         {/* Active Plan Meal Summary Card — top of page */}
         {hasActiveSubscription && subscription && (() => {
@@ -366,145 +360,94 @@ const Dashboard = () => {
         />
 
         {/* Log Meal Button */}
-        <div className="flex justify-center px-4">
-          <Button
-            onClick={() => setLogMealOpen(true)}
-            className={`w-full sm:w-auto sm:min-w-[200px] ${
-              isVip 
-                ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white" 
-                : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
-            } shadow-lg font-semibold h-10 sm:h-12 text-sm sm:text-base backdrop-blur-sm border-0`}
-          >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-            {t("log_meal")}
-          </Button>
-        </div>
+        <Button
+          onClick={() => setLogMealOpen(true)}
+          className={`w-full rounded-2xl h-11 font-semibold text-sm border-0 shadow-md ${
+            isVip
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+              : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
+          }`}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          {t("log_meal")}
+        </Button>
 
 
         {/* Quota Warning Banner - Shows at 75%+ usage */}
 
-        {/* ENHANCED QUICK ACTIONS GRID */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link to="/tracker" className="group">
-            <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-primary/10 hover:border-primary/30 hover:-translate-y-0.5">
-              <CardContent className="p-4 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:scale-110 transition-all">
-                  <BarChart3 className="w-6 h-6 text-primary" />
-                </div>
-                <p className="font-semibold text-sm">{t("tracker")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("tracker")}</p>
-              </CardContent>
-            </Card>
+        {/* QUICK ACTIONS — compact horizontal icon row */}
+        <div className="flex justify-around">
+          <Link to="/tracker" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <BarChart3 className="w-6 h-6 text-primary" />
+            </div>
+            <span className="text-xs font-medium text-foreground">{t("tracker")}</span>
           </Link>
 
-          <Link to="/subscription" className="group">
-            <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-primary/10 hover:border-primary/30 hover:-translate-y-0.5">
-              <CardContent className="p-4 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center mb-3 group-hover:bg-violet-200 group-hover:scale-110 transition-all">
-                  <Crown className="w-6 h-6 text-violet-600" />
-                </div>
-                <p className="font-semibold text-sm">{t("subscription")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("manage_account")}</p>
-              </CardContent>
-            </Card>
+          <Link to="/subscription" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center">
+              <Crown className="w-6 h-6 text-violet-600" />
+            </div>
+            <span className="text-xs font-medium text-foreground">{t("subscription")}</span>
           </Link>
 
-          <Link to="/favorites" className="group">
-            <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-primary/10 hover:border-primary/30 hover:-translate-y-0.5">
-              <CardContent className="p-4 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center mb-3 group-hover:bg-rose-200 group-hover:scale-110 transition-all">
-                  <svg className="w-6 h-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </div>
-                <p className="font-semibold text-sm">{t("favorites")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("favorites")}</p>
-              </CardContent>
-            </Card>
+          <Link to="/favorites" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center">
+              <svg className="w-6 h-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium text-foreground">{t("favorites")}</span>
           </Link>
 
-          <Link to="/progress" className="group">
-            <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-primary/10 hover:border-primary/30 hover:-translate-y-0.5">
-              <CardContent className="p-4 flex flex-col items-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mb-3 group-hover:bg-emerald-200 group-hover:scale-110 transition-all">
-                  <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <p className="font-semibold text-sm">{t("progress")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("tracker")}</p>
-              </CardContent>
-            </Card>
+          <Link to="/progress" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
+              <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium text-foreground">{t("progress")}</span>
           </Link>
         </div>
 
         {/* Active Orders Banner - Shows when there are active orders */}
         {user && <ActiveOrderBanner userId={user.id} />}
 
-        {/* STREAK & MOTIVATION SECTION */}
-        <Card className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-amber-200">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
-                    <Flame className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    {profile?.streak_days || 0}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">{profile?.streak_days || 0} {t("day")} {t("streak")}!</h3>
-                  <p className="text-sm text-muted-foreground">{t("on_fire_message")}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline" className="bg-white/50 text-amber-700 border-amber-300">
-                      🔥 {7 - (profile?.streak_days || 0) % 7} {t("days_to_milestone")}
-                    </Badge>
-                  </div>
-                </div>
+        {/* STREAK STRIP */}
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shrink-0">
+            <Flame className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-amber-900 leading-tight">
+              {profile?.streak_days || 0} {t("day")} {t("streak")}!
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 bg-amber-200 rounded-full h-1.5">
+                <div
+                  className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full transition-all"
+                  style={{
+                    width: `${hasActiveSubscription
+                      ? Math.min(((profile?.streak_days || 0) % 7) * (100 / 7), 100)
+                      : Math.min(((profile?.streak_days || 0) % 5) * (100 / 5), 100)
+                    }%`
+                  }}
+                />
               </div>
-              <div className="text-right hidden sm:block">
-                <p className="text-sm text-muted-foreground">{t("weekly_goal")}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-24 bg-muted rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full" 
-                      style={{ 
-                        width: `${hasActiveSubscription 
-                          ? Math.min(((profile?.streak_days || 0) % 7) * (100 / 7), 100) 
-                          : Math.min(((profile?.streak_days || 0) % 5) * (100 / 5), 100)
-                        }%` 
-                      }} 
-                    />
-                  </div>
-                  <span className="text-sm font-semibold">
-                    {hasActiveSubscription 
-                      ? Math.min(Math.round(((profile?.streak_days || 0) % 7) * (100 / 7)), 100)
-                      : Math.min(Math.round(((profile?.streak_days || 0) % 5) * (100 / 5)), 100)
-                    }%
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)} / {hasActiveSubscription ? 7 : 5} {t("days_this_week")}
-                </p>
-              </div>
+              <span className="text-xs text-amber-700 shrink-0">
+                {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)}/{hasActiveSubscription ? 7 : 5} {t("days_this_week")}
+              </span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <Badge variant="outline" className="bg-white/70 text-amber-700 border-amber-300 text-xs shrink-0">
+            🔥 {7 - (profile?.streak_days || 0) % 7}d left
+          </Badge>
+        </div>
 
         {/* ENHANCED RESTAURANTS SECTION */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-                <h2 className="text-lg font-bold">{t("top_rated")} {t("restaurants")}</h2>
-              <p className="text-sm text-muted-foreground">{t("delicious_healthy_meals")}</p>
-            </div>
-            <Link to="/meals">
-              <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
-                {t("view_all")} <NavChevronRight className="w-4 h-4 ms-1" />
-              </Button>
-            </Link>
+            <h2 className="text-base font-bold">{t("top_rated")} {t("restaurants")}</h2>
           </div>
 
           {/* Horizontal Scrolling Restaurant Cards */}

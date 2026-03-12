@@ -1,59 +1,51 @@
-# Meals Page - Mobile Native Redesign
+# Affiliate Page - Mobile Native Redesign
 
 ## Goal
-Redesign `/meals` page to feel more like a native mobile app, fitting properly on mobile screen while preserving all current features.
+Redesign `/affiliate` to feel more cohesive and native-app-like on mobile.
 
 ## Current Issues
-1. Greeting card ("DISCOVER / Choose Your Next Meal") wastes ~100px of vertical space on mobile
-2. Search bar is in the scrollable content - scrolls away when browsing
-3. Cuisine filter uses pill-shaped buttons (web-style), not circular icon style (native app style)
-4. Two separate filter rows (cuisine + sort chips) take up too much space
-5. Header doesn't have search integrated (not sticky)
+1. `ReferralMilestones` and `AffiliateLeaderboard` use the default shadcn `<Card>` with `rounded-md` corners — looks web-ish vs the `rounded-3xl` style used in the rest of the page
+2. Inner list items in both components use `rounded-lg` (too small corner radius)
+3. Card headers use generic `CardHeader`/`CardTitle` padding, inconsistent with native style
+4. Hero earnings card has `mb-5` (20px) gaps — a bit loose on mobile
+5. Overall `space-y-4` between sections could be `space-y-3` to feel tighter
 
-## Features to Preserve
-- Search restaurants/meals
-- Cuisine type filters (All, Healthy, Vegetarian, Vegan, Keto, Protein, Low Carb, Breakfast)
-- Sort chips (Top Rated, Fastest, Favorites)
-- Advanced filter sheet (bottom sheet with sort, calorie range, favorites toggle)
-- Favorite toggle on each restaurant/meal card
-- Restaurant list cards (image, name, cuisine, rating, delivery time, meal count)
-- Meal list cards (shown when calorie filter active)
-- Empty state
-- Skeleton loading
-- Guest login prompt for non-logged-in users
-- Bottom navigation bar
+## Features to Preserve (ALL)
+- Hero earnings card: total, available, pending, payout button
+- Tier progress card: tier badge, progress bar, 3 tier stat boxes
+- Share & Earn card: referral code display, copy + share buttons
+- ReferralMilestones: progress to next milestone, milestones list with lock/check state
+- AffiliateLeaderboard: tabs (Top Earners / Top Referrers), ranked list with avatars
+- Segment tabs: Commissions / Network / Payouts
+- Commission, network, payout list items
+- How it works card
+- Payout dialog
+- Not-approved state, loading state, program-disabled state
 
 ## Redesign Plan
 
-### Change 1: Integrate search into sticky header
-- Move the search bar from scrollable `<main>` into the sticky `<header>`
-- Header will have 2 rows: title row + search row
-- This keeps search always accessible while scrolling results
+### Change 1: `Affiliate.tsx` — tighten spacing
+- `space-y-4 ? space-y-3` in main content div
+- Hero card: `mb-5 ? mb-4` on earnings amount and on chips row
+- Share card: referral code box `py-4 ? py-3`
 
-### Change 2: Remove greeting card
-- Delete the "DISCOVER / Choose Your Next Meal" banner card
-- Saves ~100px of precious mobile screen space
+### Change 2: `ReferralMilestones.tsx` — replace Card with native div
+- Replace `<Card>` wrapper with `<div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-3">`
+- Replace `CardHeader`/`CardTitle` with inline flex header row
+- Replace inner `rounded-lg` boxes with `rounded-2xl`
+- Reduce `space-y-4 ? space-y-3`, `space-y-2 ? space-y-2` (keep list tight)
+- Replace `p-4` progress box with `p-3`
 
-### Change 3: Redesign CuisineScroller to circular icons
-- Change from horizontal pill buttons ? vertical stack (image circle + label)
-- Use the existing cuisine images as circular badges
-- More native app look (like Uber Eats, DoorDash)
-
-### Change 4: Tighten filter chips row
-- Keep the 4 filter chips (Filters, Top Rated, Fastest, Favorites) 
-- Make them more compact with tighter spacing
-
-### Change 5: Minor card polish
-- Keep list cards mostly the same (already good)
-- Tighten spacing slightly
+### Change 3: `AffiliateLeaderboard.tsx` — replace Card with native div
+- Replace `<Card>` wrapper with `<div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4">`
+- Replace `CardHeader`/`CardTitle` with inline flex header row
+- Replace leaderboard item `rounded-lg` with `rounded-2xl`
 
 ## Todo Items
-- [ ] 1. Update header: add search bar as second row in sticky header
-- [ ] 2. Remove greeting card from main
-- [ ] 3. Remove standalone search bar from main
-- [ ] 4. Redesign CuisineScroller to use circular images + labels below
-- [ ] 5. Adjust spacing in main (remove top padding gaps left by removed elements)
-- [ ] 6. Test all filter features still work
+- [ ] 1. Tighten spacing in Affiliate.tsx (space-y, hero gaps, share card)
+- [ ] 2. Restyle ReferralMilestones.tsx with native rounded-3xl card
+- [ ] 3. Restyle AffiliateLeaderboard.tsx with native rounded-3xl card
+- [ ] 4. Verify page looks consistent in browser
 
 ## Review
 (will be filled after implementation)
