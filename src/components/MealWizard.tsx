@@ -1047,7 +1047,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
       </motion.div>
 
       {/* Content */}
-      <div className="h-[calc(100vh-200px)] overflow-y-auto p-4 pb-32">
+      <div className="h-[calc(100vh-200px)] overflow-y-auto p-4 pb-28">
         {/* Step Header */}
         <motion.div
           key={currentStep}
@@ -1601,7 +1601,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
       <motion.div 
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-16 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-40"
+        className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-40"
         style={{ padding: '16px 16px max(16px, env(safe-area-inset-bottom))' }}
       >
 

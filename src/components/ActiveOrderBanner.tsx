@@ -39,6 +39,7 @@ interface ActiveOrder {
   restaurant_name: string;
   total_amount: number;
   delivery_type: string;
+  eta_minutes?: number | null;
 }
 
 interface GroupedRestaurantOrder {
@@ -49,6 +50,7 @@ interface GroupedRestaurantOrder {
   earliest_date: string;
   latest_status: OrderStatus;
   all_statuses: OrderStatus[];
+  eta_minutes?: number | null;
 }
 
 interface MealSchedule {
@@ -222,6 +224,29 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         };
       });
 
+      // Fetch ETA for out_for_delivery orders
+      const outForDeliveryIds = orders
+        .filter(o => o.order_status === "out_for_delivery")
+        .map(o => o.id);
+
+      if (outForDeliveryIds.length > 0) {
+        const { data: jobs } = await supabase
+          .from("delivery_jobs")
+          .select("schedule_id, picked_up_at, estimated_distance_km")
+          .in("schedule_id", outForDeliveryIds);
+
+        if (jobs) {
+          for (const job of jobs) {
+            const order = orders.find(o => o.id === job.schedule_id);
+            if (order && job.picked_up_at && job.estimated_distance_km) {
+              const totalMinutes = (job.estimated_distance_km / 30) * 60;
+              const elapsedMinutes = (Date.now() - new Date(job.picked_up_at).getTime()) / 60000;
+              order.eta_minutes = Math.round(Math.max(1, totalMinutes - elapsedMinutes));
+            }
+          }
+        }
+      }
+
       setActiveOrders(orders);
     } catch (err) {
       console.error("Error fetching active orders:", err);
@@ -322,6 +347,11 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
       const dates = orders.map(o => new Date(o.scheduled_date));
       const earliest_date = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString().split('T')[0];
 
+      const etaOrders = orders
+        .filter(o => o.order_status === "out_for_delivery" && o.eta_minutes != null)
+        .map(o => o.eta_minutes as number);
+      const eta_minutes = etaOrders.length > 0 ? Math.min(...etaOrders) : null;
+
       return {
         restaurant_name,
         orders,
@@ -330,6 +360,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         earliest_date,
         latest_status,
         all_statuses: statuses,
+        eta_minutes,
       };
     });
   };
@@ -398,7 +429,12 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                             {config.shortLabel}
                           </span>
                           <span className="text-sm text-slate-500 font-medium">
-                            {group.latest_status === "out_for_delivery" ? t("order_eta") : t("order_est")} {getDateLabel(group.earliest_date)}
+                            {group.latest_status === "out_for_delivery"
+                              ? group.eta_minutes != null
+                                ? `~${group.eta_minutes === 1 ? t("tracking_eta_1_min") : t("tracking_eta_mins").replace("{n}", String(group.eta_minutes))}`
+                                : t("order_eta")
+                              : `${t("order_est")} ${getDateLabel(group.earliest_date)}`
+                            }
                           </span>
                         </div>
 

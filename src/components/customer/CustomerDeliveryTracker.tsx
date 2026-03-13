@@ -7,13 +7,13 @@ import {
   Clock,
   CheckCircle2,
   Navigation,
-  Star,
   ChevronLeft,
   RefreshCw,
   MapPin,
   ChefHat,
   Package,
   CircleDot,
+  User,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -49,17 +49,17 @@ interface DeliveryJob {
 
 interface DeliveryDriver {
   id: string;
-  phone_number: string;
-  vehicle_type: string;
+  full_name: string | null;
+  phone_number: string | null;
+  email: string | null;
+  vehicle_type: string | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  license_plate: string | null;
   rating: number | null;
   total_deliveries: number | null;
   current_lat: number | null;
   current_lng: number | null;
-  user?: {
-    raw_user_meta_data?: {
-      name?: string;
-    };
-  };
 }
 
 interface DriverLocation {
@@ -76,6 +76,36 @@ interface LocationPoint {
   timestamp?: string;
   speed?: number;
 }
+
+const safeFormat = (dateStr: string | null | undefined, fmt: string, fallback = ""): string => {
+  if (!dateStr) return fallback;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? fallback : format(d, fmt);
+};
+
+const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const getEtaMinutes = (
+  driverLat: number,
+  driverLng: number,
+  customerLat: number,
+  customerLng: number,
+  speedKmh?: number
+): number => {
+  const distKm = haversineKm(driverLat, driverLng, customerLat, customerLng);
+  const speed = speedKmh && speedKmh > 2 ? speedKmh : 25;
+  return Math.max(1, Math.round((distKm / speed) * 60));
+};
 
 export function CustomerDeliveryTracker({
   scheduleId,
@@ -122,53 +152,48 @@ export function CustomerDeliveryTracker({
   // Subscribe to driver location updates when driver is assigned
   useEffect(() => {
     if (deliveryJob?.driver_id && deliveryJob.status !== "delivered") {
-      // Fetch initial location and route history
+      // Fetch initial location from drivers table (current_lat/current_lng)
       fetchDriverLocation(deliveryJob.driver_id);
-      if (deliveryJob.picked_up_at) {
-        fetchRouteHistory(deliveryJob.driver_id, deliveryJob.picked_up_at);
-      }
 
-      // Subscribe to real-time location updates
+      // Subscribe to real-time location updates via drivers table
       locationChannelRef.current = supabase
         .channel(`driver-location-${deliveryJob.driver_id}`)
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "UPDATE",
             schema: "public",
-            table: "driver_locations",
-            filter: `driver_id=eq.${deliveryJob.driver_id}`,
+            table: "drivers",
+            filter: `id=eq.${deliveryJob.driver_id}`,
           },
           (payload) => {
-            const location = payload.new as { 
-              lat: number; 
-              lng: number; 
-              created_at: string;
-              speed_kmh?: number;
-              heading?: number;
+            const driver = payload.new as {
+              current_lat: number | null;
+              current_lng: number | null;
             };
-            setDriverLocation({
-              lat: location.lat,
-              lng: location.lng,
-              updated_at: location.created_at,
-              speed_kmh: location.speed_kmh,
-              heading: location.heading,
-            });
-            // Add to route history
-            setRouteHistory(prev => [...prev, { 
-              lat: location.lat, 
-              lng: location.lng,
-              timestamp: location.created_at,
-              speed: location.speed_kmh 
-            }]);
+            if (driver.current_lat != null && driver.current_lng != null) {
+              const now = new Date().toISOString();
+              setDriverLocation(prev => ({
+                lat: driver.current_lat!,
+                lng: driver.current_lng!,
+                updated_at: now,
+                speed_kmh: prev?.speed_kmh,
+                heading: prev?.heading,
+              }));
+              setRouteHistory(prev => [...prev, {
+                lat: driver.current_lat!,
+                lng: driver.current_lng!,
+                timestamp: now,
+              }]);
+            }
           }
         )
         .subscribe();
 
-      // Poll for location updates every 10 seconds as fallback
+      // Poll for location updates every 15 seconds as fallback
       const interval = setInterval(() => {
         fetchDriverLocation(deliveryJob.driver_id!);
-      }, 10000);
+      }, 15000);
 
       return () => {
         clearInterval(interval);
@@ -179,7 +204,7 @@ export function CustomerDeliveryTracker({
       };
     }
     return undefined;
-  }, [deliveryJob?.driver_id, deliveryJob?.status, deliveryJob?.picked_up_at]);
+  }, [deliveryJob?.driver_id, deliveryJob?.status]);
 
   const fetchDeliveryJob = async () => {
     try {
@@ -208,7 +233,7 @@ export function CustomerDeliveryTracker({
       if (jobData?.driver_id) {
         const { data: driver, error: driverError } = await supabase
           .from("drivers")
-          .select("id, phone_number, vehicle_type, rating, total_deliveries, current_lat, current_lng")
+          .select("id, full_name, phone_number, email, vehicle_type, vehicle_make, vehicle_model, license_plate, rating, total_deliveries, current_lat, current_lng")
           .eq("id", jobData.driver_id)
           .single();
         
@@ -233,59 +258,23 @@ export function CustomerDeliveryTracker({
   const fetchDriverLocation = async (driverId: string) => {
     try {
       const { data, error } = await supabase
-        .from("driver_locations")
-        .select("lat, lng, created_at, speed_kmh, heading")
-        .eq("driver_id", driverId)
-        .order("created_at", { ascending: false })
-        .limit(1)
+        .from("drivers")
+        .select("current_lat, current_lng")
+        .eq("id", driverId)
         .single();
 
       if (error && error.code !== "PGRST116") throw error;
-      if (data && typeof data === 'object' && 'lat' in data) {
-        const locationData = data as unknown as { 
-          lat: number; 
-          lng: number; 
-          created_at: string;
-          speed_kmh?: number;
-          heading?: number;
-        };
-        setDriverLocation({
-          lat: locationData.lat,
-          lng: locationData.lng,
-          updated_at: locationData.created_at,
-          speed_kmh: locationData.speed_kmh,
-          heading: locationData.heading,
-        });
+      if (data && data.current_lat != null && data.current_lng != null) {
+        setDriverLocation(prev => ({
+          lat: data.current_lat!,
+          lng: data.current_lng!,
+          updated_at: new Date().toISOString(),
+          speed_kmh: prev?.speed_kmh,
+          heading: prev?.heading,
+        }));
       }
     } catch (err) {
       console.error("Error fetching driver location:", err);
-    }
-  };
-
-  const fetchRouteHistory = async (driverId: string, since: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("driver_locations")
-        .select("lat, lng, created_at, speed_kmh")
-        .eq("driver_id", driverId)
-        .gte("created_at", since)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      if (data) {
-        const history = data.map((loc: unknown) => {
-          const location = loc as { lat: number; lng: number; created_at: string; speed_kmh?: number };
-          return {
-            lat: location.lat,
-            lng: location.lng,
-            timestamp: location.created_at,
-            speed: location.speed_kmh,
-          };
-        });
-        setRouteHistory(history);
-      }
-    } catch (err) {
-      console.error("Error fetching route history:", err);
     }
   };
 
@@ -294,26 +283,32 @@ export function CustomerDeliveryTracker({
     fetchDeliveryJob();
     if (deliveryJob?.driver_id) {
       fetchDriverLocation(deliveryJob.driver_id);
-      if (deliveryJob.picked_up_at) {
-        fetchRouteHistory(deliveryJob.driver_id, deliveryJob.picked_up_at);
-      }
     }
   };
 
-  const getStatusStep = (status: string) => {
+  const getStatusStep = (status: string | null) => {
     const steps = [
-      { key: "pending",   label: t("tracking_status_finding_driver"),  description: t("tracking_status_finding_driver_desc") },
-      { key: "assigned",  label: t("tracking_status_driver_assigned"), description: t("tracking_status_driver_assigned_desc") },
-      { key: "accepted",  label: t("tracking_status_en_route"),        description: t("tracking_status_en_route_desc") },
-      { key: "picked_up", label: t("tracking_step_on_the_way"),        description: t("tracking_status_on_the_way_desc") },
-      { key: "delivered", label: t("tracking_step_delivered"),         description: t("tracking_status_delivered_desc") },
+      { key: "pending",    label: t("tracking_status_finding_driver"),  description: t("tracking_status_finding_driver_desc") },
+      { key: "assigned",   label: t("tracking_status_driver_assigned"), description: t("tracking_status_driver_assigned_desc") },
+      { key: "accepted",   label: t("tracking_status_en_route"),        description: t("tracking_status_en_route_desc") },
+      { key: "picked_up",  label: t("tracking_step_on_the_way"),        description: t("tracking_status_on_the_way_desc") },
+      { key: "in_transit", label: t("tracking_step_on_the_way"),        description: t("tracking_status_on_the_way_desc") },
+      { key: "delivered",  label: t("tracking_step_delivered"),         description: t("tracking_status_delivered_desc") },
+      { key: "completed",  label: t("tracking_step_delivered"),         description: t("tracking_status_delivered_desc") },
     ];
     return steps.find((s) => s.key === status) || steps[0];
   };
 
-  const getStatusIndex = (status: string) => {
-    const order = ["pending", "assigned", "accepted", "picked_up", "delivered"];
-    return order.indexOf(status);
+  const getStatusIndex = (status: string | null) => {
+    // Collapse internal sub-states to the 4 customer-facing stepper steps
+    const normalize = (s: string | null) => {
+      if (s === "accepted") return "assigned";
+      if (s === "in_transit") return "picked_up";
+      if (s === "completed") return "delivered";
+      return s;
+    };
+    const order = ["pending", "assigned", "picked_up", "delivered"];
+    return order.indexOf(normalize(status) ?? "");
   };
 
   // Calculate ETA
@@ -513,7 +508,7 @@ export function CustomerDeliveryTracker({
   // ── Has delivery job ────────────────────────────────────────────────────────
   const currentStep = getStatusStep(deliveryJob.status);
   const statusIndex = getStatusIndex(deliveryJob.status);
-  const showMap = driverLocation && (deliveryJob.status === "picked_up" || deliveryJob.status === "accepted");
+  const showMap = driverLocation && ["accepted", "picked_up", "in_transit"].includes(deliveryJob.status ?? "");
   const eta = calculateETA();
 
   return (
@@ -604,14 +599,14 @@ export function CustomerDeliveryTracker({
                     eta={eta || undefined}
                   />
                 )}
-                {restaurantLocation && deliveryJob.status === "accepted" && (
+                {restaurantLocation && ["accepted", "picked_up"].includes(deliveryJob.status ?? "") && (
                   <RestaurantMarker
                     position={{ lat: restaurantLocation.lat, lng: restaurantLocation.lng }}
                     title={restaurantLocation.name}
                     address={restaurantLocation.address}
                   />
                 )}
-                {customerLocation && deliveryJob.status === "picked_up" && (
+                {customerLocation && ["in_transit", "picked_up"].includes(deliveryJob.status ?? "") && (
                   <CustomerMarker
                     position={{ lat: customerLocation.lat, lng: customerLocation.lng }}
                     title={customerLocation.name}
@@ -630,7 +625,7 @@ export function CustomerDeliveryTracker({
             </Suspense>
             {driverLocation && (
               <div className="bg-gray-50 px-4 py-2 text-xs text-gray-400">
-                {t("tracking_updated").replace("{time}", format(new Date(driverLocation.updated_at), "h:mm:ss a"))}
+                {t("tracking_updated").replace("{time}", safeFormat(driverLocation.updated_at, "h:mm:ss a", "—"))}
                 {driverLocation.speed_kmh && (
                   <span className="ml-2">· {t("tracking_km_h").replace("{speed}", String(Math.round(driverLocation.speed_kmh)))}</span>
                 )}
@@ -641,27 +636,68 @@ export function CustomerDeliveryTracker({
 
         {/* Driver card */}
         {deliveryJob.driver && deliveryJob.status !== "delivered" && (
-          <div className="bg-gray-50 rounded-3xl p-4 flex items-center gap-4">
-            <div className="w-14 h-14 bg-[#eaf7f0] rounded-full flex items-center justify-center text-2xl shrink-0">
-              🧑‍🦽
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-gray-900 text-sm">{t("tracking_your_driver")}</p>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                <span>{deliveryJob.driver.rating?.toFixed(1) || "5.0"}</span>
-                <span>·</span>
-                <span className="capitalize">{deliveryJob.driver.vehicle_type}</span>
+          <div className="bg-gray-50 rounded-3xl p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t("tracking_your_driver")}</p>
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div className="w-14 h-14 bg-[#eaf7f0] rounded-2xl flex items-center justify-center shrink-0">
+                <User className="w-7 h-7 text-green-600" />
               </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-base leading-tight truncate">
+                  {deliveryJob.driver.full_name || t("tracking_your_driver")}
+                </p>
+                {/* ETA */}
+                {driverLocation && customerLocation && deliveryJob.status === "picked_up" && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <Clock className="w-3.5 h-3.5 text-[#48a98b]" />
+                    <span className="text-sm font-semibold text-[#48a98b]">
+                      ~{getEtaMinutes(
+                        driverLocation.lat,
+                        driverLocation.lng,
+                        customerLocation.lat,
+                        customerLocation.lng,
+                        driverLocation.speed_kmh
+                      )} min away
+                    </span>
+                  </div>
+                )}
+                {/* Vehicle info */}
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {deliveryJob.driver.vehicle_type && (
+                    <span className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+                      {deliveryJob.driver.vehicle_type}
+                    </span>
+                  )}
+                  {(deliveryJob.driver.vehicle_make || deliveryJob.driver.vehicle_model) && (
+                    <span className="text-xs text-gray-500">
+                      {[deliveryJob.driver.vehicle_make, deliveryJob.driver.vehicle_model].filter(Boolean).join(" ")}
+                    </span>
+                  )}
+                  {deliveryJob.driver.license_plate && (
+                    <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-mono">
+                      {deliveryJob.driver.license_plate}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Call button — phone preferred, email as fallback, hidden if neither */}
+              {(deliveryJob.driver.phone_number || deliveryJob.driver.email) && (
+                <a
+                  href={
+                    deliveryJob.driver.phone_number
+                      ? `tel:${deliveryJob.driver.phone_number}`
+                      : `mailto:${deliveryJob.driver.email}`
+                  }
+                  className="w-12 h-12 rounded-2xl bg-[#48a98b] flex items-center justify-center shrink-0 shadow-md shadow-[#48a98b]/30 active:scale-95 transition-transform"
+                >
+                  <Phone className="w-5 h-5 text-white" />
+                </a>
+              )}
             </div>
-            {deliveryJob.driver.phone_number && (
-              <button
-                onClick={() => window.open(`tel:${deliveryJob.driver!.phone_number}`)}
-                className="w-10 h-10 rounded-full bg-[#48a98b] flex items-center justify-center shrink-0 shadow-sm shadow-[#48a98b]/30"
-              >
-                <Phone className="w-4 h-4 text-white" />
-              </button>
-            )}
           </div>
         )}
 
@@ -675,17 +711,12 @@ export function CustomerDeliveryTracker({
             <p className="text-sm text-[#48a98b] mt-1">{t("tracking_enjoy_meal")}</p>
             {deliveryJob.delivered_at && (
               <p className="text-xs text-[#48a98b]/70 mt-2">
-                {t("tracking_delivered_at").replace("{time}", format(new Date(deliveryJob.delivered_at), "h:mm a"))}
+                {t("tracking_delivered_at").replace("{time}", safeFormat(deliveryJob.delivered_at, "h:mm a", "—"))}
               </p>
             )}
           </div>
         )}
 
-        {/* Fee row */}
-        <div className="flex items-center justify-between px-1 py-3 border-t border-gray-100 text-sm">
-          <span className="text-gray-500">{t("tracking_delivery_fee")}</span>
-          <span className="font-semibold text-gray-900">{deliveryJob.delivery_fee || 15} QAR</span>
-        </div>
       </div>
     </div>
   );

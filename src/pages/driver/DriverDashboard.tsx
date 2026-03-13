@@ -68,7 +68,7 @@ export default function DriverDashboard() {
         {
           event: "*",
           schema: "public",
-          table: "deliveries",
+          table: "delivery_jobs",
         },
         () => {
           fetchAvailableDeliveries();
@@ -77,8 +77,15 @@ export default function DriverDashboard() {
       )
       .subscribe();
 
+    // Poll every 15 seconds as a fallback
+    const interval = setInterval(() => {
+      fetchAvailableDeliveries();
+      fetchActiveDelivery();
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [driverId]);
 
