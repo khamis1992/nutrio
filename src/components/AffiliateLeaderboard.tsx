@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { Trophy, Medal, Users, TrendingUp, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
@@ -32,32 +30,25 @@ export function AffiliateLeaderboard() {
 
   const fetchLeaderboard = async () => {
     try {
-      // Fetch top 10 by earnings using an edge function or RPC
-      // Since we can't directly query other users' profiles, we use aggregate data
       const { data: earningsData, error: earningsError } = await supabase
         .rpc('get_affiliate_leaderboard_earnings', { limit_count: 10 });
-
       if (earningsError) {
         console.error("Error fetching earnings leaderboard:", earningsError);
       } else {
         setTopEarners(earningsData || []);
       }
 
-      // Fetch top 10 by referral count
       const { data: referralsData, error: referralsError } = await supabase
         .rpc('get_affiliate_leaderboard_referrals', { limit_count: 10 });
-
       if (referralsError) {
         console.error("Error fetching referrals leaderboard:", referralsError);
       } else {
         setTopReferrers(referralsData || []);
       }
 
-      // Get current user's rank
       if (user) {
         const { data: rankData } = await supabase
           .rpc('get_user_affiliate_rank', { user_uuid: user.id });
-        
         if (rankData && rankData.length > 0) {
           setUserRank(rankData[0]);
         }
@@ -70,63 +61,46 @@ export function AffiliateLeaderboard() {
   };
 
   const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return <Trophy className="w-5 h-5 text-yellow-500" />;
-      case 2:
-        return <Medal className="w-5 h-5 text-gray-400" />;
-      case 3:
-        return <Medal className="w-5 h-5 text-amber-600" />;
-      default:
-        return <span className="w-5 h-5 flex items-center justify-center text-sm font-bold text-muted-foreground">{rank}</span>;
-    }
+    if (rank === 1) return <Trophy className="w-4 h-4 text-yellow-500" />;
+    if (rank === 2) return <Medal className="w-4 h-4 text-slate-400" />;
+    if (rank === 3) return <Medal className="w-4 h-4 text-amber-600" />;
+    return (
+      <span className="w-4 h-4 flex items-center justify-center text-xs font-bold text-muted-foreground">
+        {rank}
+      </span>
+    );
   };
 
-  const getTierColor = (tier: string) => {
+  const getTierGradient = (tier: string) => {
     switch (tier?.toLowerCase()) {
-      case 'diamond':
-        return 'from-cyan-400 to-blue-500';
-      case 'platinum':
-        return 'from-slate-300 to-slate-500';
-      case 'gold':
-        return 'from-yellow-400 to-amber-500';
-      case 'silver':
-        return 'from-gray-300 to-gray-400';
-      default:
-        return 'from-orange-400 to-orange-600';
+      case "diamond": return "from-cyan-400 to-blue-500";
+      case "platinum": return "from-slate-300 to-slate-500";
+      case "gold": return "from-yellow-400 to-amber-500";
+      case "silver": return "from-gray-300 to-gray-400";
+      default: return "from-orange-400 to-orange-600";
     }
   };
 
   const getInitials = (name: string | null) => {
     if (!name) return "??";
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
   const maskName = (name: string | null) => {
     if (!name) return t("affiliate_anonymous");
     const parts = name.split(" ");
-    if (parts.length === 1) {
-      return name[0] + "***";
-    }
+    if (parts.length === 1) return name[0] + "***";
     return parts[0][0] + "*** " + parts[parts.length - 1][0] + "***";
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-8 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const renderLeaderboardList = (entries: LeaderboardEntry[], type: 'earnings' | 'referrals') => {
+  const renderList = (entries: LeaderboardEntry[], type: "earnings" | "referrals") => {
     if (entries.length === 0) {
       return (
-          <div className="py-8 text-center">
-          <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-          <p className="text-muted-foreground">{t("affiliate_no_leaderboard_data")}</p>
+        <div className="flex flex-col items-center py-10 gap-3">
+          <div className="w-14 h-14 rounded-3xl bg-muted flex items-center justify-center">
+            <Users className="h-7 w-7 text-muted-foreground/40" />
+          </div>
+          <p className="font-semibold text-foreground">{t("affiliate_no_leaderboard_data")}</p>
           <p className="text-sm text-muted-foreground">{t("affiliate_be_first_climb")}</p>
         </div>
       );
@@ -136,44 +110,57 @@ export function AffiliateLeaderboard() {
       <div className="space-y-2">
         {entries.map((entry, index) => {
           const isCurrentUser = user && entry.id === user.id;
+          const rank = index + 1;
           return (
             <div
               key={entry.id}
-              className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                isCurrentUser ? "bg-primary/10 border border-primary/20" : "bg-muted/50 hover:bg-muted"
+              className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all ${
+                isCurrentUser
+                  ? "bg-primary/8 border border-primary/20"
+                  : rank <= 3
+                  ? "bg-amber-500/5 border border-amber-500/10"
+                  : "bg-muted/40 border border-transparent"
               }`}
             >
-              <div className="w-8 flex justify-center">
-                {getRankIcon(index + 1)}
-              </div>
-              
-              <Avatar className="h-10 w-10">
+              {/* Rank */}
+              <div className="w-6 flex justify-center shrink-0">{getRankIcon(rank)}</div>
+
+              {/* Avatar */}
+              <Avatar className="h-9 w-9 shrink-0">
                 <AvatarImage src={entry.avatar_url || undefined} />
-                <AvatarFallback className={`bg-gradient-to-br ${getTierColor(entry.affiliate_tier)} text-white text-xs`}>
+                <AvatarFallback
+                  className={`bg-gradient-to-br ${getTierGradient(entry.affiliate_tier)} text-white text-xs font-bold`}
+                >
                   {getInitials(entry.full_name)}
                 </AvatarFallback>
               </Avatar>
-              
+
+              {/* Name + tier */}
               <div className="flex-1 min-w-0">
-                <p className={`font-medium truncate ${isCurrentUser ? "text-primary" : ""}`}>
+                <p className={`font-semibold text-sm truncate ${isCurrentUser ? "text-primary" : "text-foreground"}`}>
                   {isCurrentUser ? entry.full_name || t("you") : maskName(entry.full_name)}
-                  {isCurrentUser && <span className="text-xs text-primary ml-1">({t("you")})</span>}
+                  {isCurrentUser && (
+                    <span className="text-xs text-primary/70 ml-1">({t("you")})</span>
+                  )}
                 </p>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs bg-gradient-to-r ${getTierColor(entry.affiliate_tier)} text-white border-0`}
-                  >
-                    {entry.affiliate_tier || "Bronze"}
-                  </Badge>
-                </div>
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r ${getTierGradient(entry.affiliate_tier)} text-white`}
+                >
+                  {entry.affiliate_tier || "Bronze"}
+                </span>
               </div>
-              
-              <div className="text-right">
-                {type === 'earnings' ? (
-                  <p className="font-bold text-green-600">{formatCurrency(entry.total_affiliate_earnings)}</p>
+
+              {/* Value */}
+              <div className="text-right shrink-0">
+                {type === "earnings" ? (
+                  <p className="font-bold text-sm text-green-600">
+                    {formatCurrency(entry.total_affiliate_earnings)}
+                  </p>
                 ) : (
-                  <p className="font-bold">{entry.referral_count} <span className="text-xs text-muted-foreground">{t("referrals")}</span></p>
+                  <p className="font-bold text-sm text-foreground">
+                    {entry.referral_count}{" "}
+                    <span className="text-xs text-muted-foreground font-normal">{t("referrals")}</span>
+                  </p>
                 )}
               </div>
             </div>
@@ -184,35 +171,41 @@ export function AffiliateLeaderboard() {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-500" />
-            {t("affiliate_leaderboard")}
-          </CardTitle>
-          {userRank && (
-            <Badge variant="outline" className="text-xs">
-              {t("affiliate_your_rank")}: #{userRank.earnings}
-            </Badge>
-          )}
+    <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <Trophy className="h-4.5 w-4.5 text-amber-500" />
+          </div>
+          <p className="font-bold text-foreground">{t("affiliate_leaderboard")}</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="w-full">
-          {/* iOS-style segment tabs */}
-          <div className="bg-muted rounded-2xl p-1 flex gap-1 mb-4">
-          {([
-              { id: "earnings", label: t("affiliate_top_earners"), icon: TrendingUp },
-              { id: "referrals", label: t("affiliate_top_referrers"), icon: Users },
-            ] as const).map(({ id, label, icon: Icon }) => (
+        {userRank && (
+          <span className="text-xs font-bold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full">
+            #{userRank.earnings} {t("affiliate_your_rank")}
+          </span>
+        )}
+      </div>
+
+      {/* Segmented control */}
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          <div className="bg-muted/80 rounded-2xl p-1 flex gap-1">
+            {([
+              { id: "earnings" as const, label: t("affiliate_top_earners"), icon: TrendingUp },
+              { id: "referrals" as const, label: t("affiliate_top_referrers"), icon: Users },
+            ]).map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all touch-manipulation ${
                   activeTab === id
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-black/5"
+                    : "text-muted-foreground active:bg-muted/70"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -221,10 +214,10 @@ export function AffiliateLeaderboard() {
             ))}
           </div>
 
-          {activeTab === "earnings" && renderLeaderboardList(topEarners, "earnings")}
-          {activeTab === "referrals" && renderLeaderboardList(topReferrers, "referrals")}
-        </div>
-      </CardContent>
-    </Card>
+          {activeTab === "earnings" && renderList(topEarners, "earnings")}
+          {activeTab === "referrals" && renderList(topReferrers, "referrals")}
+        </>
+      )}
+    </div>
   );
 }
