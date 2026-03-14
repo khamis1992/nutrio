@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -127,23 +128,33 @@ export default function AdminPremiumAnalytics() {
 
     try {
       if (actionType === "approve") {
-        const endsAt = actionTarget.ends_at;
-        await supabase
-          .from("restaurants")
-          .update({ premium_analytics_until: endsAt } as never)
-          .eq("id", actionTarget.restaurant_id);
-
-        await supabase
+        // Mark the purchase as active — the hook checks this directly
+        const { error: purchaseError } = await supabase
           .from("premium_analytics_purchases")
           .update({ status: "active" } as never)
           .eq("id", actionTarget.id);
 
+        if (purchaseError) {
+          throw new Error(`Failed to activate purchase: ${purchaseError.message}`);
+        }
+
+        // Also try to update premium_analytics_until on the restaurant (best-effort,
+        // works once the column migration has been applied to the remote DB)
+        await supabase
+          .from("restaurants")
+          .update({ premium_analytics_until: actionTarget.ends_at } as never)
+          .eq("id", actionTarget.restaurant_id);
+
         toast({ title: "Approved", description: "Premium access has been activated." });
       } else {
-        await supabase
+        const { error: purchaseError } = await supabase
           .from("premium_analytics_purchases")
           .update({ status: "rejected" } as never)
           .eq("id", actionTarget.id);
+
+        if (purchaseError) {
+          throw new Error(`Failed to reject: ${purchaseError.message}`);
+        }
 
         toast({ title: "Rejected", description: "The request has been rejected." });
       }
@@ -152,8 +163,9 @@ export default function AdminPremiumAnalytics() {
       setActionType(null);
       fetchRequests();
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to process request.";
       console.error("Error processing action:", err);
-      toast({ title: "Error", description: "Failed to process request.", variant: "destructive" });
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setActionSubmitting(false);
     }
@@ -168,14 +180,26 @@ export default function AdminPremiumAnalytics() {
       const endsAt = new Date();
       endsAt.setMonth(endsAt.getMonth() + months);
 
+      // Fetch the restaurant's owner_id first so we store the correct partner_id
+      const { data: restaurantData, error: fetchErr } = await supabase
+        .from("restaurants")
+        .select("id, owner_id")
+        .eq("id", grantRestaurantId)
+        .maybeSingle();
+
+      if (fetchErr || !restaurantData) {
+        throw new Error("Could not find restaurant.");
+      }
+
+      // Best-effort: update premium_analytics_until if the column exists
       await supabase
         .from("restaurants")
         .update({ premium_analytics_until: endsAt.toISOString() } as never)
         .eq("id", grantRestaurantId);
 
-      await supabase.from("premium_analytics_purchases").insert({
+      const { error: insertError } = await supabase.from("premium_analytics_purchases").insert({
         restaurant_id: grantRestaurantId,
-        partner_id: grantRestaurantId,
+        partner_id: restaurantData.owner_id,
         package_type: grantPackage,
         price_paid: 0,
         ends_at: endsAt.toISOString(),
@@ -183,13 +207,16 @@ export default function AdminPremiumAnalytics() {
         status: "active",
       } as never);
 
+      if (insertError) throw new Error(`Failed to create grant record: ${insertError.message}`);
+
       toast({ title: "Access Granted", description: "Premium access has been manually activated." });
       setGrantOpen(false);
       setGrantRestaurantId("");
       fetchRequests();
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to grant access.";
       console.error("Error granting access:", err);
-      toast({ title: "Error", description: "Failed to grant access.", variant: "destructive" });
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setGrantSubmitting(false);
     }
@@ -207,6 +234,7 @@ export default function AdminPremiumAnalytics() {
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   return (
+    <AdminLayout>
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -429,5 +457,6 @@ export default function AdminPremiumAnalytics() {
         </DialogContent>
       </Dialog>
     </div>
+    </AdminLayout>
   );
 }

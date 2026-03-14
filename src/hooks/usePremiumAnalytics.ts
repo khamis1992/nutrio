@@ -17,10 +17,12 @@ export function usePremiumAnalytics(restaurantId: string | null) {
   const [hasPremium, setHasPremium] = useState(false);
   const [premiumUntil, setPremiumUntil] = useState<Date | null>(null);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Start as false when no restaurantId yet — avoids permanent skeleton
+  const [loading, setLoading] = useState(!!restaurantId);
 
   useEffect(() => {
     if (restaurantId) {
+      setLoading(true);
       checkPremiumStatus();
     }
   }, [restaurantId]);
@@ -29,7 +31,32 @@ export function usePremiumAnalytics(restaurantId: string | null) {
     if (!restaurantId) return;
 
     try {
-      // Check premium_analytics_until on the restaurant row
+      // Primary check: active purchase row (works even without premium_analytics_until column)
+      const purchasesRes = await supabase
+        .from("premium_analytics_purchases")
+        .select("id, status, ends_at")
+        .eq("restaurant_id", restaurantId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (!purchasesRes.error && purchasesRes.data) {
+        const activePurchase = purchasesRes.data.find(
+          (p) => p.status === "active" && new Date(p.ends_at) > new Date()
+        );
+        const pendingPurchase = purchasesRes.data.find((p) => p.status === "pending");
+
+        if (activePurchase) {
+          setHasPremium(true);
+          setPremiumUntil(new Date(activePurchase.ends_at));
+          setHasPendingRequest(false);
+          setLoading(false);
+          return;
+        }
+
+        setHasPendingRequest(!!pendingPurchase);
+      }
+
+      // Fallback: also check premium_analytics_until column if it exists
       const restaurantRes = await supabase
         .from("restaurants")
         .select("premium_analytics_until")
@@ -41,22 +68,7 @@ export function usePremiumAnalytics(restaurantId: string | null) {
         if (until > new Date()) {
           setHasPremium(true);
           setPremiumUntil(until);
-        } else {
-          setHasPremium(false);
-          setPremiumUntil(null);
         }
-      }
-
-      // Check for a pending purchase — table may not exist yet if migration not applied
-      const pendingRes = await supabase
-        .from("premium_analytics_purchases")
-        .select("id")
-        .eq("restaurant_id", restaurantId)
-        .eq("status", "pending")
-        .limit(1);
-
-      if (!pendingRes.error) {
-        setHasPendingRequest((pendingRes.data?.length ?? 0) > 0);
       }
     } catch (error) {
       console.error("Error checking premium status:", error);
