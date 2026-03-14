@@ -83,9 +83,6 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
         .select(`
           id,
           total_amount,
-          commission_rate,
-          commission_amount,
-          restaurant_payout,
           status,
           created_at,
           restaurant:restaurants(name)
@@ -96,17 +93,20 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
 
       if (error) throw error;
 
-      // Transform data
-      const transformedOrders: OrderCommission[] = (ordersData || []).map(order => ({
-        id: order.id,
-        total_amount: Number(order.total_amount) || 0,
-        commission_rate: Number(order.commission_rate) || 18,
-        commission_amount: Number(order.commission_amount) || 0,
-        restaurant_payout: Number(order.restaurant_payout) || 0,
-        status: order.status,
-        created_at: order.created_at,
-        restaurant_name: (order as any).restaurant?.name,
-      }));
+      // Transform data - commission fields may exist from trigger but aren't in generated types
+      const transformedOrders: OrderCommission[] = (ordersData || []).map(order => {
+        const raw = order as any;
+        return {
+          id: order.id,
+          total_amount: Number(order.total_amount) || 0,
+          commission_rate: Number(raw.commission_rate) || 18,
+          commission_amount: Number(raw.commission_amount) || 0,
+          restaurant_payout: Number(raw.restaurant_payout) || 0,
+          status: order.status,
+          created_at: order.created_at,
+          restaurant_name: (order as any).restaurant?.name,
+        };
+      });
 
       setCommissions(transformedOrders);
 
@@ -116,13 +116,18 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
       const totalCommission = transformedOrders.reduce((sum, o) => sum + o.commission_amount, 0);
       const totalPayout = transformedOrders.reduce((sum, o) => sum + o.restaurant_payout, 0);
 
+      // Calculate average commission rate from actual orders
+      const avgCommissionRate = totalOrders > 0
+        ? transformedOrders.reduce((sum, o) => sum + o.commission_rate, 0) / totalOrders
+        : 18;
+
       setStats({
         totalOrders,
         totalRevenue,
         totalCommission,
         totalPayout,
         averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-        commissionRate: 18, // Fixed 18% commission
+        commissionRate: avgCommissionRate,
       });
 
     } catch (error) {
@@ -143,7 +148,7 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
           <Calculator className="h-5 w-5 text-green-600" />
           Commission & Earnings
           <Badge variant="outline" className="ml-2 bg-green-100 text-green-700">
-            18% Commission
+            {stats?.commissionRate?.toFixed(0) ?? 18}% Commission
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -159,7 +164,7 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
                 <p className="text-xl font-bold">{stats.totalOrders}</p>
               </div>
               <div className="bg-white p-3 rounded-lg border">
-                <p className="text-xs text-muted-foreground">Your Payout (82%)</p>
+                <p className="text-xs text-muted-foreground">Your Payout ({(100 - stats.commissionRate).toFixed(0)}%)</p>
                 <p className="text-xl font-bold text-green-600">{stats.totalPayout.toFixed(0)} QAR</p>
               </div>
               <div className="bg-white p-3 rounded-lg border">
@@ -167,7 +172,7 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
                 <p className="text-lg font-semibold">{stats.totalRevenue.toFixed(0)} QAR</p>
               </div>
               <div className="bg-white p-3 rounded-lg border">
-                <p className="text-xs text-muted-foreground">Platform Commission (18%)</p>
+                <p className="text-xs text-muted-foreground">Platform Commission ({stats.commissionRate.toFixed(0)}%)</p>
                 <p className="text-lg font-semibold text-orange-600">{stats.totalCommission.toFixed(0)} QAR</p>
               </div>
             </div>
@@ -179,8 +184,8 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
                 <div>
                   <p className="font-medium text-blue-800">How it works:</p>
                   <p className="text-blue-700 text-xs">
-                    For every order, you receive <strong>82%</strong> of the meal price.
-                    Nutrio keeps <strong>18%</strong> as commission.
+                    For every order, you receive <strong>{(100 - stats.commissionRate).toFixed(0)}%</strong> of the meal price.
+                    Nutrio keeps <strong>{stats.commissionRate.toFixed(0)}%</strong> as commission.
                   </p>
                 </div>
               </div>
@@ -223,8 +228,9 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
  */
 export function OrderCommissionBreakdown({ order }: { order: OrderCommission }) {
   const mealPrice = order.total_amount;
-  const commission = mealPrice * 0.18;
-  const payout = mealPrice * 0.82;
+  const rate = order.commission_rate || 18;
+  const commission = order.commission_amount || mealPrice * (rate / 100);
+  const payout = order.restaurant_payout || mealPrice - commission;
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg space-y-2">
@@ -239,11 +245,11 @@ export function OrderCommissionBreakdown({ order }: { order: OrderCommission }) 
           <span>{mealPrice.toFixed(2)} QAR</span>
         </div>
         <div className="flex justify-between text-orange-600">
-          <span>Platform Commission (18%)</span>
+          <span>Platform Commission ({rate.toFixed(0)}%)</span>
           <span>- {commission.toFixed(2)} QAR</span>
         </div>
         <div className="border-t pt-2 flex justify-between font-medium">
-          <span>Your Payout (82%)</span>
+          <span>Your Payout ({(100 - rate).toFixed(0)}%)</span>
           <span className="text-green-600">+ {payout.toFixed(2)} QAR</span>
         </div>
       </div>

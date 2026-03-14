@@ -146,12 +146,18 @@ const AdminMealApprovals = () => {
   const handleApprove = async (meal: MealApproval) => {
     setProcessingId(meal.id);
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("meals")
         .update({ approval_status: "approved", is_available: true })
-        .eq("id", meal.id);
+        .eq("id", meal.id)
+        .select("id, approval_status");
 
       if (error) throw error;
+
+      // If no rows were returned the RLS policy silently blocked the update
+      if (!updated || updated.length === 0) {
+        throw new Error("Update was blocked — check that the approval_status column exists and admin RLS policies allow updates.");
+      }
 
       setMeals((prev) =>
         prev.map((m) => (m.id === meal.id ? { ...m, approval_status: "approved" } : m))
@@ -161,9 +167,9 @@ const AdminMealApprovals = () => {
       }
 
       toast({ title: "Meal Approved", description: `"${meal.name}" is now live for customers.` });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error approving meal:", err);
-      toast({ title: "Error", description: "Failed to approve meal", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to approve meal", variant: "destructive" });
     } finally {
       setProcessingId(null);
     }
@@ -172,12 +178,17 @@ const AdminMealApprovals = () => {
   const handleReject = async (meal: MealApproval) => {
     setProcessingId(meal.id);
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("meals")
         .update({ approval_status: "rejected", is_available: false })
-        .eq("id", meal.id);
+        .eq("id", meal.id)
+        .select("id, approval_status");
 
       if (error) throw error;
+
+      if (!updated || updated.length === 0) {
+        throw new Error("Update was blocked — check that the approval_status column exists and admin RLS policies allow updates.");
+      }
 
       setMeals((prev) =>
         prev.map((m) => (m.id === meal.id ? { ...m, approval_status: "rejected" } : m))
@@ -187,9 +198,9 @@ const AdminMealApprovals = () => {
       }
 
       toast({ title: "Meal Rejected", description: `"${meal.name}" has been rejected.` });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error rejecting meal:", err);
-      toast({ title: "Error", description: "Failed to reject meal", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to reject meal", variant: "destructive" });
     } finally {
       setProcessingId(null);
     }

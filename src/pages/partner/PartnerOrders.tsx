@@ -375,7 +375,7 @@ const PartnerOrders = () => {
       const userIds = [...new Set((schedules || []).map((s: any) => s.user_id))];
       
       let addressesMap: Record<string, any> = {};
-      let profilesMap: Record<string, { full_name: string | null; phone: string | null }> = {};
+      let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
       
       if (userIds.length > 0) {
         // Fetch default addresses
@@ -392,15 +392,15 @@ const PartnerOrders = () => {
           }, {} as Record<string, any>);
         }
 
-        // Fetch customer names from profiles
+        // Fetch customer names from profiles (profiles has no 'phone' column)
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name, phone")
+          .select("id, full_name, email")
           .in("id", userIds);
 
         if (profiles) {
           profilesMap = profiles.reduce((acc: any, p: any) => {
-            acc[p.id] = { full_name: p.full_name, phone: p.phone };
+            acc[p.id] = { full_name: p.full_name, email: p.email };
             return acc;
           }, {});
         }
@@ -450,7 +450,7 @@ const PartnerOrders = () => {
         meal: s.meals,
         customer: profilesMap[s.user_id] ? {
           full_name: profilesMap[s.user_id].full_name,
-          phone: profilesMap[s.user_id].phone,
+          phone: null, // phone not on profiles table; sourced from delivery address
         } : null,
         delivery_address: addressesMap[s.user_id] ? {
           address_line1: addressesMap[s.user_id].address_line1,

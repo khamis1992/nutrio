@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -286,13 +287,19 @@ export default function AdminSettings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-primary" />
-                Commission Rates
+                Default Commission Rates
               </CardTitle>
-              <CardDescription>Set commission percentages for transactions</CardDescription>
+              <CardDescription>
+                Default rates for new restaurants. You can override these per restaurant from the{" "}
+                <Link to="/admin/restaurants" className="text-primary underline underline-offset-2 hover:text-primary/80">
+                  Restaurant Management
+                </Link>{" "}
+                page.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="restaurant-commission">Restaurant Commission (%)</Label>
+                <Label htmlFor="restaurant-commission">Default Restaurant Commission (%)</Label>
                 <Input
                   id="restaurant-commission"
                   type="number"
@@ -305,6 +312,7 @@ export default function AdminSettings() {
                   }
                   className="h-12 sm:h-10 min-h-[44px]"
                 />
+                <p className="text-xs text-muted-foreground">Applied to new restaurants. Each restaurant can have its own rate.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="delivery-commission">Delivery Commission (%)</Label>

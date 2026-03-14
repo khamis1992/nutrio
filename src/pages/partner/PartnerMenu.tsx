@@ -200,6 +200,47 @@ export default function PartnerMenu() {
     }
   }, [user]);
 
+  // Real-time subscription: sync approval_status changes made by admin
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    const channel = supabase
+      .channel(`partner-meals-${restaurantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "meals",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Meal;
+          setMeals((prev) =>
+            prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m))
+          );
+          // Notify partner when admin approves or rejects their meal
+          if (updated.approval_status === "approved") {
+            toast({
+              title: "Meal Approved",
+              description: `"${updated.name}" has been approved and is now live.`,
+            });
+          } else if (updated.approval_status === "rejected") {
+            toast({
+              title: "Meal Rejected",
+              description: `"${updated.name}" was rejected by the admin.`,
+              variant: "destructive",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [restaurantId]);
+
   const fetchDietTags = async () => {
     const { data, error } = await supabase.from("diet_tags").select("*").order("name");
     if (!error && data) setDietTags(data);
@@ -915,13 +956,6 @@ export default function PartnerMenu() {
               <div className="flex items-center gap-2">
                 <Switch checked={formData.is_available} onCheckedChange={(checked) => handleInputChange("is_available", checked)} />
                 <Label>Available</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={formData.is_vip_exclusive} onCheckedChange={(checked) => handleInputChange("is_vip_exclusive", checked)} />
-                <Label className="flex items-center gap-1">
-                  <Crown className="h-4 w-4 text-yellow-500" />
-                  VIP Exclusive
-                </Label>
               </div>
             </div>
 

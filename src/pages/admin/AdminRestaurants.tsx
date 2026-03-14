@@ -74,6 +74,7 @@ interface Restaurant {
   approval_status: "pending" | "approved" | "rejected";
   is_active: boolean;
   payout_rate: number | null;
+  commission_rate: number | null;
   created_at: string;
   owner: {
     full_name: string | null;
@@ -98,6 +99,7 @@ const AdminRestaurants = () => {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [restaurantToApprove, setRestaurantToApprove] = useState<Restaurant | null>(null);
   const [payoutRate, setPayoutRate] = useState<string>("25.00");
+  const [commissionRate, setCommissionRate] = useState<string>("18");
 
   useEffect(() => {
     fetchRestaurants();
@@ -152,6 +154,7 @@ const AdminRestaurants = () => {
   const openApproveDialog = (restaurant: Restaurant) => {
     setRestaurantToApprove(restaurant);
     setPayoutRate(restaurant.payout_rate?.toString() || "25.00");
+    setCommissionRate(restaurant.commission_rate?.toString() || "18");
     setApproveDialogOpen(true);
   };
 
@@ -161,11 +164,21 @@ const AdminRestaurants = () => {
     try {
       setProcessing(true);
       const rate = parseFloat(payoutRate);
+      const commRate = parseFloat(commissionRate);
       
       if (isNaN(rate) || rate <= 0) {
         toast({
           title: "Invalid Payout Rate",
           description: "Please enter a valid payout rate greater than 0.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (isNaN(commRate) || commRate < 0 || commRate > 100) {
+        toast({
+          title: "Invalid Commission Rate",
+          description: "Commission rate must be between 0 and 100.",
           variant: "destructive",
         });
         return;
@@ -177,6 +190,7 @@ const AdminRestaurants = () => {
           approval_status: "approved", 
           is_active: true,
           payout_rate: rate,
+          commission_rate: commRate,
           payout_rate_set_at: new Date().toISOString(),
         })
         .eq("id", restaurantToApprove.id);
@@ -186,7 +200,7 @@ const AdminRestaurants = () => {
       setRestaurants((prev) =>
         prev.map((r) =>
           r.id === restaurantToApprove.id 
-            ? { ...r, approval_status: "approved", is_active: true, payout_rate: rate } 
+            ? { ...r, approval_status: "approved", is_active: true, payout_rate: rate, commission_rate: commRate } 
             : r
         )
       );
@@ -196,7 +210,7 @@ const AdminRestaurants = () => {
 
       toast({
         title: "Restaurant Approved",
-        description: `${restaurantToApprove.name} has been approved with a payout rate of ${rate} QAR per meal.`,
+        description: `${restaurantToApprove.name} has been approved with ${commRate}% commission rate.`,
       });
     } catch (error) {
       console.error("Error approving restaurant:", error);
@@ -520,6 +534,7 @@ const AdminRestaurants = () => {
                   <TableHead>Cuisine</TableHead>
                   <TableHead>Owner</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Commission</TableHead>
                   <TableHead>
                     <button onClick={() => handleSort("created_at")} className="flex items-center gap-1 hover:text-foreground transition-colors">
                       Registered
@@ -532,7 +547,7 @@ const AdminRestaurants = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={8} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         <p className="text-muted-foreground text-sm">Loading restaurants...</p>
@@ -541,7 +556,7 @@ const AdminRestaurants = () => {
                   </TableRow>
                 ) : filteredRestaurants.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={8} className="text-center py-12">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                           <Store className="w-6 h-6 text-muted-foreground" />
@@ -604,6 +619,11 @@ const AdminRestaurants = () => {
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(restaurant.approval_status)}</TableCell>
+                      <TableCell>
+                        <span className="text-sm font-medium">
+                          {restaurant.commission_rate != null ? `${restaurant.commission_rate}%` : "18%"}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Calendar className="w-3 h-3" />
@@ -855,6 +875,45 @@ const AdminRestaurants = () => {
                   Default is 25 QAR. This can be adjusted later.
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="commission-rate">Commission Rate (%) *</Label>
+                <Input
+                  id="commission-rate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={commissionRate}
+                  onChange={(e) => setCommissionRate(e.target.value)}
+                  placeholder="18"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Platform commission percentage. Default is 18%.
+                </p>
+              </div>
+
+              {/* Live preview */}
+              {parseFloat(payoutRate) > 0 && parseFloat(commissionRate) >= 0 && (
+                <div className="rounded-lg bg-muted/60 border p-3 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Gross/Meal</p>
+                    <p className="text-sm font-bold">QAR {parseFloat(payoutRate).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Commission ({commissionRate}%)</p>
+                    <p className="text-sm font-bold text-destructive">
+                      − QAR {(parseFloat(payoutRate) * parseFloat(commissionRate) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Restaurant Earns</p>
+                    <p className="text-sm font-bold text-emerald-600">
+                      QAR {(parseFloat(payoutRate) * (1 - parseFloat(commissionRate) / 100)).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-muted/50 p-3 rounded-lg">
                 <p className="text-sm">

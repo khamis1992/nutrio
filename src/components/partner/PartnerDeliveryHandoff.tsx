@@ -59,7 +59,6 @@ export function PartnerDeliveryHandoff({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
-  const [generatingQR, setGeneratingQR] = useState(false);
 
   useEffect(() => {
     const fetchDeliveryJob = async () => {
@@ -91,7 +90,7 @@ export function PartnerDeliveryHandoff({
             .from("drivers")
             .select("id, phone_number, vehicle_type, rating, current_lat, current_lng")
             .eq("id", jobData.driver_id)
-            .single();
+            .maybeSingle();
           
           if (!driverError && driver) {
             driverData = driver;
@@ -185,35 +184,15 @@ export function PartnerDeliveryHandoff({
     return new Date(deliveryJob.verification_expires_at) < new Date();
   };
 
-  // Generate QR code when delivery job is loaded
+  // Set QR code value when delivery job is loaded
+  // Uses the delivery job ID directly — the generate_pickup_qr_code RPC
+  // requires pgcrypto (digest function) which is not enabled on this instance.
   useEffect(() => {
-    const generateQR = async () => {
-      if (!deliveryJob || deliveryJob.status === 'picked_up' || deliveryJob.status === 'delivered') {
-        setQrCode(null);
-        return;
-      }
-
-      setGeneratingQR(true);
-      try {
-        const { data, error } = await supabase.rpc("generate_pickup_qr_code", {
-          p_delivery_job_id: deliveryJob.id,
-        });
-
-        if (error) throw error;
-        
-        if (data) {
-          setQrCode(data);
-        }
-      } catch (err) {
-        console.error("Error generating QR code:", err);
-        // Fallback to using delivery job ID
-        setQrCode(deliveryJob.id);
-      } finally {
-        setGeneratingQR(false);
-      }
-    };
-
-    generateQR();
+    if (!deliveryJob || deliveryJob.status === "picked_up" || deliveryJob.status === "delivered") {
+      setQrCode(null);
+      return;
+    }
+    setQrCode(deliveryJob.id);
   }, [deliveryJob?.id, deliveryJob?.status]);
 
   const handlePrintQR = () => {
@@ -357,18 +336,12 @@ export function PartnerDeliveryHandoff({
         {!['picked_up', 'delivered'].includes(deliveryJob.status) && (
           <div className="text-center space-y-3 p-4 bg-muted/50 rounded-lg">
             <div className="inline-block p-4 bg-white rounded-lg shadow-sm">
-              {generatingQR ? (
-                <div className="w-[200px] h-[200px] flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <QRCodeSVG 
-                  value={qrCode || deliveryJob.id} 
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
-              )}
+              <QRCodeSVG 
+                value={qrCode || deliveryJob.id} 
+                size={200}
+                level="H"
+                includeMargin={true}
+              />
             </div>
             <div>
               <p className="font-medium text-sm">Order #{scheduleId.slice(0, 8)}</p>
