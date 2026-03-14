@@ -3378,6 +3378,7 @@ export type Database = {
       }
       meals: {
         Row: {
+          approval_status: "pending" | "approved" | "rejected" | null
           avg_rating: number | null
           calories: number | null
           carbs: number | null
@@ -3408,6 +3409,7 @@ export type Database = {
           vendor: string | null
         }
         Insert: {
+          approval_status?: "pending" | "approved" | "rejected" | null
           avg_rating?: number | null
           calories?: number | null
           carbs?: number | null
@@ -3438,6 +3440,7 @@ export type Database = {
           vendor?: string | null
         }
         Update: {
+          approval_status?: "pending" | "approved" | "rejected" | null
           avg_rating?: number | null
           calories?: number | null
           carbs?: number | null
@@ -5239,6 +5242,7 @@ export type Database = {
           name: string
           operating_hours: Json | null
           owner_id: string | null
+          commission_rate: number
           payout_rate: number
           payout_rate_set_at: string | null
           payout_rate_set_by: string | null
@@ -5283,6 +5287,7 @@ export type Database = {
           max_meals_per_day?: number | null
           name: string
           operating_hours?: Json | null
+          commission_rate?: number
           owner_id?: string | null
           payout_rate?: number
           payout_rate_set_at?: string | null
@@ -5328,6 +5333,7 @@ export type Database = {
           max_meals_per_day?: number | null
           name?: string
           operating_hours?: Json | null
+          commission_rate?: number
           owner_id?: string | null
           payout_rate?: number
           payout_rate_set_at?: string | null

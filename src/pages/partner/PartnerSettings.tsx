@@ -7,8 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { LogoUpload } from "@/components/LogoUpload";
-import { Save, Mail, Phone, MapPin, Loader2, DollarSign } from "lucide-react";
-import { formatCurrency } from "@/lib/currency";
+import { Save, Mail, Phone, MapPin, Loader2, DollarSign, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,8 +23,22 @@ interface Restaurant {
   phone: string | null;
   email: string | null;
   is_active: boolean;
-  payout_rate: number; // Admin-set rate: partner earns this per meal prepared
+  payout_rate: number;     // Gross per-meal price the restaurant charges
+  commission_rate: number; // % platform takes (set by admin)
+  operating_hours: Record<string, { open: string; close: string; closed: boolean }> | null;
 }
+
+const DAYS = [
+  { key: "mon", label: "Monday" },
+  { key: "tue", label: "Tuesday" },
+  { key: "wed", label: "Wednesday" },
+  { key: "thu", label: "Thursday" },
+  { key: "fri", label: "Friday" },
+  { key: "sat", label: "Saturday" },
+  { key: "sun", label: "Sunday" },
+];
+
+const DEFAULT_HOURS = { open: "09:00", close: "21:00", closed: false };
 
 const PartnerSettings = () => {
   const navigate = useNavigate();
@@ -44,6 +57,9 @@ const PartnerSettings = () => {
     email: "",
     is_active: true,
   });
+  const [operatingHours, setOperatingHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>(
+    () => Object.fromEntries(DAYS.map((d) => [d.key, { ...DEFAULT_HOURS }]))
+  );
 
   useEffect(() => {
     if (user) {
@@ -80,6 +96,16 @@ const PartnerSettings = () => {
         email: data.email || "",
         is_active: data.is_active,
       });
+      if (data.operating_hours) {
+        setOperatingHours(
+          Object.fromEntries(
+            DAYS.map((d) => [
+              d.key,
+              (data.operating_hours as any)?.[d.key] ?? { ...DEFAULT_HOURS },
+            ])
+          )
+        );
+      }
     } catch (error) {
       console.error("Error fetching restaurant:", error);
       toast({
@@ -108,6 +134,7 @@ const PartnerSettings = () => {
           phone: formData.phone.trim() || null,
           email: formData.email.trim() || null,
           is_active: formData.is_active,
+          operating_hours: operatingHours,
         })
         .eq("id", restaurant.id);
 
@@ -184,23 +211,26 @@ const PartnerSettings = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Your Payout Rate
+              Platform Commission
             </CardTitle>
             <CardDescription>
-              You earn this amount for each meal you prepare as part of the subscription service
+              Set by the platform admin. Applied to each meal order you fulfil.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold">
-                {restaurant?.payout_rate ? formatCurrency(restaurant.payout_rate) : "QAR 0.00"}
-              </span>
-              <span className="text-muted-foreground">per meal</span>
+            <div className="flex items-center gap-4 rounded-xl bg-amber-50 border border-amber-200 p-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                <DollarSign className="h-6 w-6 text-amber-700" />
+              </div>
+              <div>
+                <p className="text-3xl font-black text-amber-700">
+                  {restaurant?.commission_rate ?? 18}%
+                </p>
+                <p className="text-sm text-amber-600">
+                  Nutrio takes this percentage from each meal you sell. Contact admin to adjust.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              This rate is set by the platform administrator and applies to all meals you prepare.
-              Your weekly earnings = Meals Prepared × Payout Rate.
-            </p>
           </CardContent>
         </Card>
 
@@ -256,6 +286,66 @@ const PartnerSettings = () => {
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Operating Hours
+            </CardTitle>
+            <CardDescription>Set your kitchen's open and close times for each day</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {DAYS.map((day) => {
+              const hours = operatingHours[day.key];
+              return (
+                <div key={day.key} className="flex items-center gap-3">
+                  <div className="w-24 shrink-0">
+                    <span className="text-sm font-medium">{day.label}</span>
+                  </div>
+                  <Switch
+                    checked={!hours.closed}
+                    onCheckedChange={(open) =>
+                      setOperatingHours((prev) => ({
+                        ...prev,
+                        [day.key]: { ...prev[day.key], closed: !open },
+                      }))
+                    }
+                  />
+                  {hours.closed ? (
+                    <span className="text-sm text-muted-foreground">Closed</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="time"
+                        value={hours.open}
+                        className="w-32"
+                        onChange={(e) =>
+                          setOperatingHours((prev) => ({
+                            ...prev,
+                            [day.key]: { ...prev[day.key], open: e.target.value },
+                          }))
+                        }
+                      />
+                      <span className="text-sm text-muted-foreground">to</span>
+                      <Input
+                        type="time"
+                        value={hours.close}
+                        className="w-32"
+                        onChange={(e) =>
+                          setOperatingHours((prev) => ({
+                            ...prev,
+                            [day.key]: { ...prev[day.key], close: e.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>

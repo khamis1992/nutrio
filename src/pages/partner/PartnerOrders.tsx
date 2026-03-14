@@ -156,6 +156,7 @@ interface Order {
   delivery_fee: number | null;
   addons_total: number | null;
   created_at: string;
+  cancellation_reason: string | null;
   meal: {
     id: string;
     name: string;
@@ -357,7 +358,7 @@ const PartnerOrders = () => {
           addons_total,
           created_at,
           user_id,
-          meals:meal_id (
+          meals!meal_id (
             id,
             name,
             image_url,
@@ -374,6 +375,7 @@ const PartnerOrders = () => {
       const userIds = [...new Set((schedules || []).map((s: any) => s.user_id))];
       
       let addressesMap: Record<string, any> = {};
+      let profilesMap: Record<string, { full_name: string | null; phone: string | null }> = {};
       
       if (userIds.length > 0) {
         // Fetch default addresses
@@ -388,6 +390,19 @@ const PartnerOrders = () => {
             acc[a.user_id] = a;
             return acc;
           }, {} as Record<string, any>);
+        }
+
+        // Fetch customer names from profiles
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone")
+          .in("id", userIds);
+
+        if (profiles) {
+          profilesMap = profiles.reduce((acc: any, p: any) => {
+            acc[p.id] = { full_name: p.full_name, phone: p.phone };
+            return acc;
+          }, {});
         }
       }
 
@@ -431,8 +446,12 @@ const PartnerOrders = () => {
         delivery_fee: s.delivery_fee,
         addons_total: s.addons_total || 0,
         created_at: s.created_at,
+        cancellation_reason: null,
         meal: s.meals,
-        customer: null,
+        customer: profilesMap[s.user_id] ? {
+          full_name: profilesMap[s.user_id].full_name,
+          phone: profilesMap[s.user_id].phone,
+        } : null,
         delivery_address: addressesMap[s.user_id] ? {
           address_line1: addressesMap[s.user_id].address_line1,
           address_line2: addressesMap[s.user_id].address_line2,
@@ -585,8 +604,8 @@ const PartnerOrders = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Order #</p>
-                    <p className="font-mono text-sm font-semibold">{order.id.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Order</p>
+                    <p className="font-mono text-sm font-semibold">ORD-{order.id.slice(-6).toUpperCase()}</p>
                   </div>
                   <Badge variant="outline" className={statusConfig.color}>
                     <span className="flex items-center gap-1">
@@ -602,6 +621,13 @@ const PartnerOrders = () => {
                   <Clock className="h-3 w-3 inline mr-1" />
                   {new Date(order.created_at).toLocaleDateString()} • {order.meal_type}
                 </p>
+                {order.customer?.full_name && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    {order.customer.full_name}
+                    {order.customer.phone && ` • ${order.customer.phone}`}
+                  </p>
+                )}
               </div>
               {order.driver && (
                 <div className="text-right">
@@ -617,6 +643,14 @@ const PartnerOrders = () => {
             <div className="mb-4">
               <StatusProgressBar currentStatus={order.order_status} />
             </div>
+
+            {/* Cancellation Reason */}
+            {order.order_status === "cancelled" && order.cancellation_reason && (
+              <div className="mb-3 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span><strong>Reason:</strong> {order.cancellation_reason}</span>
+              </div>
+            )}
 
             <Separator className="my-3" />
 

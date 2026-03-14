@@ -62,6 +62,8 @@ export default function PartnerEarningsDashboard() {
   const [payouts, setPayouts] = useState<PayoutRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("30d");
+  const [payoutRate, setPayoutRate] = useState<number>(0);   // gross per meal
+  const [commissionRate, setCommissionRate] = useState<number>(18); // % platform takes
 
   const fetchEarningsData = async () => {
     setIsLoading(true);
@@ -69,10 +71,10 @@ export default function PartnerEarningsDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get restaurant ID for this user
+      // Get restaurant ID and payout_rate for this user
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id")
+        .select("id, payout_rate, commission_rate")
         .eq("owner_id", user.id)
         .single();
 
@@ -82,6 +84,8 @@ export default function PartnerEarningsDashboard() {
       }
 
       const restaurantId = restaurant.id;
+      setPayoutRate(restaurant.payout_rate || 0);
+      setCommissionRate((restaurant as any).commission_rate ?? 18);
 
       // Calculate date range
       const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
@@ -361,21 +365,29 @@ export default function PartnerEarningsDashboard() {
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400">Avg Per Meal</span>
+                  <span className="text-slate-400">You Earn / Meal</span>
                   <span className="text-2xl font-bold text-emerald-400">
-                    {earnings?.avg_per_meal.toFixed(0) || 45} QAR
+                    {payoutRate > 0
+                      ? (payoutRate * (1 - commissionRate / 100)).toFixed(2)
+                      : (earnings?.avg_per_meal.toFixed(0) || "—")} QAR
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Fixed platform rate (45 QAR + 5 QAR commission)
+                  Net after {commissionRate}% platform commission
                 </p>
               </div>
 
               <div className="pt-4 border-t border-slate-800">
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-slate-400">Gross / Meal</span>
+                  <Badge variant="outline" className="border-slate-500/50 text-slate-300">
+                    {payoutRate > 0 ? `${payoutRate.toFixed(2)} QAR` : "Set by admin"}
+                  </Badge>
+                </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Commission Rate</span>
-                  <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
-                    10% Fixed
+                  <span className="text-slate-400">Commission</span>
+                  <Badge variant="outline" className="border-red-500/50 text-red-400">
+                    {commissionRate}% = {payoutRate > 0 ? `${(payoutRate * commissionRate / 100).toFixed(2)} QAR` : "—"}
                   </Badge>
                 </div>
               </div>
@@ -484,11 +496,13 @@ export default function PartnerEarningsDashboard() {
             <CardContent className="p-6">
               <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-emerald-500" />
-                Commission Structure
+                Payout Structure
               </h3>
               <p className="text-sm text-slate-400">
-                You receive 45 QAR per meal (90% of meal value). Platform retains 5 QAR 
-                (10% commission) for operations and marketing.
+                You receive {payoutRate > 0
+                  ? `${(payoutRate * (1 - commissionRate / 100)).toFixed(2)} QAR (net)`
+                  : "a rate"} per meal after {commissionRate}% platform commission.
+                Your gross rate and commission are set by the admin.
               </p>
             </CardContent>
           </Card>

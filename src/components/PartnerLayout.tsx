@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Store, Home } from "lucide-react";
+import { NewOrderNotificationBanner } from "@/components/partner/NewOrderNotificationBanner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -128,6 +129,7 @@ export function PartnerLayout({ children, title = "Partner", subtitle, action }:
 
           <main className="flex-1 p-6">
             <div className="max-w-6xl mx-auto">
+              <NewOrderNotificationBanner />
               {children}
             </div>
           </main>

@@ -43,6 +43,7 @@ interface DailyIncome {
 const AdminIncome = () => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30");
+  const [globalCommissionRate, setGlobalCommissionRate] = useState<number>(18);
   const [stats, setStats] = useState<IncomeStats>({
     totalRevenue: 0,
     subscriptionRevenue: 0,
@@ -55,8 +56,24 @@ const AdminIncome = () => {
   const [dailyData, setDailyData] = useState<DailyIncome[]>([]);
 
   useEffect(() => {
+    fetchGlobalCommissionRate();
+  }, []);
+
+  useEffect(() => {
     fetchIncomeData();
-  }, [period]);
+  }, [period, globalCommissionRate]);
+
+  const fetchGlobalCommissionRate = async () => {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "commission_rates")
+      .single();
+    if (data?.value) {
+      const rates = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+      setGlobalCommissionRate(rates?.restaurant ?? 18);
+    }
+  };
 
   const fetchIncomeData = async () => {
     setLoading(true);
@@ -95,10 +112,9 @@ const AdminIncome = () => {
 
       const totalOrders = (orders || []).length;
 
-      // Calculate commission from orders (18% of each order)
-      // For now, we'll calculate estimated commission per meal
-      const avgMealValue = 50; // Average meal value for commission calculation
-      const commissionRevenue = totalOrders * avgMealValue * 0.18;
+      // Calculate commission using the configured platform commission rate
+      const avgMealValue = 50; // Average meal value for commission estimation
+      const commissionRevenue = totalOrders * avgMealValue * (globalCommissionRate / 100);
 
       // Calculate unused meals profit
       // Get subscription plans to calculate expected meals
@@ -149,7 +165,7 @@ const AdminIncome = () => {
         const dateStr = o.scheduled_date;
         if (dateStr && dailyMap[dateStr]) {
           dailyMap[dateStr].orders += 1;
-          dailyMap[dateStr].commission += avgMealValue * 0.18;
+          dailyMap[dateStr].commission += avgMealValue * (globalCommissionRate / 100);
         }
       });
 
@@ -182,7 +198,7 @@ const AdminIncome = () => {
       bg: "bg-blue-50",
     },
     {
-      title: "Commission (18%)",
+      title: `Commission (${globalCommissionRate}%)`,
       value: formatCurrency(stats.commissionRevenue),
       icon: ShoppingBag,
       color: "text-purple-500",

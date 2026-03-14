@@ -65,7 +65,7 @@ const PartnerAnalytics = () => {
     uniqueCustomers: 0,
   });
 
-  const { hasPremium, premiumUntil, loading: premiumLoading, refetch: refetchPremium } = usePremiumAnalytics(restaurantId);
+  const { hasPremium, premiumUntil, hasPendingRequest, loading: premiumLoading, refetch: refetchPremium } = usePremiumAnalytics(restaurantId);
 
   useEffect(() => {
     if (user) {
@@ -79,10 +79,10 @@ const PartnerAnalytics = () => {
     try {
       setLoading(true);
 
-      // Get partner's restaurant
+      // Get partner's restaurant (include payout_rate for revenue calculation)
       const { data: restaurant } = await supabase
         .from("restaurants")
-        .select("id")
+        .select("id, payout_rate")
         .eq("owner_id", user.id)
         .maybeSingle();
 
@@ -92,18 +92,22 @@ const PartnerAnalytics = () => {
       }
 
       setRestaurantId(restaurant.id);
+      // Net payout per meal = gross × (1 - commission%)
+      const grossRate = restaurant.payout_rate || 0;
+      const commissionRate = (restaurant as any).commission_rate ?? 18;
+      const payoutRate = grossRate * (1 - commissionRate / 100);
 
       // Get meals for this restaurant
       const { data: meals } = await supabase
         .from("meals")
-        .select("id, name, price")
+        .select("id, name")
         .eq("restaurant_id", restaurant.id);
 
       const mealIds = meals?.map((m) => m.id) || [];
       const mealMap = meals?.reduce((acc, m) => {
-        acc[m.id] = { name: m.name, price: m.price };
+        acc[m.id] = { name: m.name };
         return acc;
-      }, {} as Record<string, { name: string; price: number }>) || {};
+      }, {} as Record<string, { name: string }>) || {};
 
       if (mealIds.length === 0) {
         setLoading(false);
@@ -128,7 +132,7 @@ const PartnerAnalytics = () => {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split("T")[0];
         const daySchedules = schedules.filter((s) => s.scheduled_date === dateStr);
-        const revenue = daySchedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0), 0);
+        const revenue = daySchedules.length * payoutRate;
         last7Days.push({
           date: date.toLocaleDateString("en-US", { weekday: "short" }),
           orders: daySchedules.length,
@@ -144,12 +148,12 @@ const PartnerAnalytics = () => {
           mealCounts[s.meal_id] = { orders: 0, revenue: 0 };
         }
         mealCounts[s.meal_id].orders++;
-        mealCounts[s.meal_id].revenue += mealMap[s.meal_id]?.price || 0;
+        mealCounts[s.meal_id].revenue += payoutRate;
       });
 
       const topMealsList = Object.entries(mealCounts)
         .map(([id, stats]) => ({
-          name: mealMap[id]?.name || "Unknown",
+          name: (mealMap[id] as { name: string } | undefined)?.name || "Unknown",
           ...stats,
         }))
         .sort((a, b) => b.orders - a.orders)
@@ -165,9 +169,9 @@ const PartnerAnalytics = () => {
         Object.entries(mealTypeCounts).map(([name, value]) => ({ name, value }))
       );
 
-      // Calculate total stats
+      // Calculate total stats using payout_rate (subscription model)
       const uniqueCustomers = new Set(schedules.map((s) => s.user_id)).size;
-      const totalRevenue = schedules.reduce((sum, s) => sum + (mealMap[s.meal_id]?.price || 0), 0);
+      const totalRevenue = schedules.length * payoutRate;
       setTotalStats({
         totalOrders: schedules.length,
         totalRevenue,
@@ -413,6 +417,7 @@ const PartnerAnalytics = () => {
               restaurantId={restaurantId}
               partnerId={user.id}
               onPurchase={refetchPremium}
+              hasPendingRequest={hasPendingRequest}
             />
           ) : (
             <Card>

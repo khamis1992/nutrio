@@ -111,6 +111,7 @@ interface Restaurant {
   approval_status: "pending" | "approved" | "rejected";
   is_active: boolean;
   payout_rate: number | null;
+  commission_rate: number | null;
   max_meals_per_day: number | null;
   created_at: string | null;
   updated_at: string | null;
@@ -256,6 +257,7 @@ const restaurantSchema = z.object({
   address: z.string().max(300, "Address must be less than 300 characters").nullable().or(z.literal("")),
   cuisine_type: z.string().max(50, "Cuisine type must be less than 50 characters").nullable().or(z.literal("")),
   payout_rate: z.number().min(1, "Payout rate must be at least 1").max(1000, "Payout rate must be less than 1000"),
+  commission_rate: z.number().min(0, "Commission must be 0% or more").max(100, "Commission cannot exceed 100%"),
   max_meals_per_day: z.number().min(1, "Must be at least 1").max(10000, "Must be less than 10000").nullable(),
   is_active: z.boolean(),
   approval_status: z.enum(["pending", "approved", "rejected"]),
@@ -299,6 +301,7 @@ const AdminRestaurantDetail = () => {
     address: "",
     cuisine_type: "",
     payout_rate: 25,
+    commission_rate: 18,
     max_meals_per_day: 100,
     is_active: true,
     approval_status: "pending",
@@ -337,6 +340,20 @@ const AdminRestaurantDetail = () => {
     role_id: "",
   });
   
+  // Partner payouts state
+  const [restaurantPayouts, setRestaurantPayouts] = useState<Array<{
+    id: string;
+    amount: number;
+    status: string;
+    period_start: string;
+    period_end: string;
+    processed_at: string | null;
+    reference_number: string | null;
+    payout_method: string | null;
+    created_at: string;
+  }>>([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+
   // Audit log state
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   
@@ -434,6 +451,7 @@ const AdminRestaurantDetail = () => {
         address: restaurantData.address || "",
         cuisine_type: restaurantData.cuisine_type || "",
         payout_rate: restaurantData.payout_rate || 25,
+        commission_rate: restaurantData.commission_rate ?? 18,
         max_meals_per_day: restaurantData.max_meals_per_day || 100,
         is_active: restaurantData.is_active ?? true,
         approval_status: restaurantData.approval_status || "pending",
@@ -725,6 +743,24 @@ const AdminRestaurantDetail = () => {
     }
   };
 
+  const fetchRestaurantPayouts = async () => {
+    if (!id) return;
+    setPayoutsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("partner_payouts")
+        .select("id, amount, status, period_start, period_end, processed_at, reference_number, payout_method, created_at")
+        .eq("restaurant_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setRestaurantPayouts(data || []);
+    } catch (error) {
+      console.error("Error fetching restaurant payouts:", error);
+    } finally {
+      setPayoutsLoading(false);
+    }
+  };
+
   // Form handling
   const validateForm = (): boolean => {
     try {
@@ -808,6 +844,7 @@ const AdminRestaurantDetail = () => {
           address: formData.address || null,
           cuisine_type: formData.cuisine_type || null,
           payout_rate: formData.payout_rate,
+          commission_rate: formData.commission_rate,
           max_meals_per_day: formData.max_meals_per_day,
           is_active: formData.is_active,
           approval_status: formData.approval_status,
@@ -1299,7 +1336,7 @@ const AdminRestaurantDetail = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 lg:w-auto">
             <TabsTrigger value="details" className="gap-2">
               <Store className="w-4 h-4" />
               Details
@@ -1315,6 +1352,10 @@ const AdminRestaurantDetail = () => {
             <TabsTrigger value="staff" className="gap-2" onClick={() => id && fetchStaff(id)}>
               <Users className="w-4 h-4" />
               Staff
+            </TabsTrigger>
+            <TabsTrigger value="payouts" className="gap-2" onClick={fetchRestaurantPayouts}>
+              <DollarSign className="w-4 h-4" />
+              Payouts
             </TabsTrigger>
           </TabsList>
 
@@ -1552,7 +1593,7 @@ const AdminRestaurantDetail = () => {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="payout_rate">Payout Rate (QAR per meal) *</Label>
+                        <Label htmlFor="payout_rate">Gross Rate per Meal (QAR) *</Label>
                         <Input
                           id="payout_rate"
                           type="number"
@@ -1563,7 +1604,46 @@ const AdminRestaurantDetail = () => {
                           className={errors.payout_rate ? "border-red-500" : ""}
                         />
                         {errors.payout_rate && <p className="text-sm text-red-500">{errors.payout_rate}</p>}
+                        <p className="text-xs text-muted-foreground">What the restaurant charges per meal</p>
                       </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="commission_rate">Platform Commission (%) *</Label>
+                        <Input
+                          id="commission_rate"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={formData.commission_rate}
+                          onChange={(e) => handleInputChange("commission_rate", parseFloat(e.target.value))}
+                          className={errors.commission_rate ? "border-red-500" : ""}
+                        />
+                        {errors.commission_rate && <p className="text-sm text-red-500">{errors.commission_rate}</p>}
+                        <p className="text-xs text-muted-foreground">% Nutrio takes from each meal</p>
+                      </div>
+
+                      {/* Live net payout preview */}
+                      {formData.payout_rate > 0 && formData.commission_rate >= 0 && (
+                        <div className="sm:col-span-2 rounded-xl bg-muted/60 border p-4 grid grid-cols-3 gap-3 text-center">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Gross per Meal</p>
+                            <p className="text-lg font-bold">QAR {formData.payout_rate.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Platform Takes ({formData.commission_rate}%)</p>
+                            <p className="text-lg font-bold text-destructive">
+                              − QAR {(formData.payout_rate * formData.commission_rate / 100).toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Restaurant Earns</p>
+                            <p className="text-lg font-bold text-emerald-600">
+                              QAR {(formData.payout_rate * (1 - formData.commission_rate / 100)).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="space-y-2">
                         <Label htmlFor="max_meals_per_day">Max Meals Per Day</Label>
@@ -2249,6 +2329,124 @@ const AdminRestaurantDetail = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </TabsContent>
+
+          {/* Payouts Tab */}
+          <TabsContent value="payouts" className="space-y-6">
+            {/* Bank Account Summary */}
+            {restaurantDetails && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    Bank Account on File
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                    {[
+                      { label: "Bank", value: restaurantDetails.bank_name },
+                      { label: "Account Holder", value: restaurantDetails.bank_account_name },
+                      {
+                        label: "Account Number",
+                        value: restaurantDetails.bank_account_number
+                          ? "••••" + restaurantDetails.bank_account_number.slice(-4)
+                          : null,
+                      },
+                      {
+                        label: "IBAN",
+                        value: restaurantDetails.bank_iban
+                          ? "••••" + restaurantDetails.bank_iban.slice(-4)
+                          : null,
+                      },
+                      { label: "SWIFT", value: restaurantDetails.swift_code },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-36 shrink-0">{label}</span>
+                        <span className={value ? "font-medium" : "text-muted-foreground italic"}>
+                          {value || "Not set"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Payout History */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Payout Request History</CardTitle>
+                <CardDescription>All partner-initiated payout requests for this restaurant</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {payoutsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : restaurantPayouts.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <DollarSign className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No payout requests yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Period</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead>Method</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead>Requested</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {restaurantPayouts.map((payout) => (
+                          <TableRow key={payout.id}>
+                            <TableCell className="text-sm">
+                              {format(new Date(payout.period_start), "MMM d")} – {format(new Date(payout.period_end), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-emerald-600">
+                              {formatCurrency(payout.amount)}
+                            </TableCell>
+                            <TableCell className="capitalize text-sm text-muted-foreground">
+                              {payout.payout_method?.replace(/_/g, " ") || "—"}
+                            </TableCell>
+                            <TableCell>
+                              {payout.status === "completed" ? (
+                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                                  <CheckCircle className="h-3 w-3 mr-1" />Completed
+                                </Badge>
+                              ) : payout.status === "failed" ? (
+                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                  <XCircle className="h-3 w-3 mr-1" />Failed
+                                </Badge>
+                              ) : payout.status === "processing" ? (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                  <Clock className="h-3 w-3 mr-1" />Processing
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                  <Clock className="h-3 w-3 mr-1" />Pending
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-muted-foreground">
+                              {payout.reference_number || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {format(new Date(payout.created_at), "MMM d, yyyy")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

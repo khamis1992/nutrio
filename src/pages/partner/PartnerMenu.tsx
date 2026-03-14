@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MealImageUpload } from "@/components/MealImageUpload";
 import {
   Dialog,
@@ -37,6 +45,8 @@ import {
   CheckCircle2,
   Package,
   Crown,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,13 +55,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { MealAddonsManager } from "@/components/MealAddonsManager";
-// import { formatCurrency } from "@/lib/currency"; // REMOVED: Meals don't have prices in subscription model
+import { formatCurrency } from "@/lib/currency";
+
+const CATEGORIES = ["All", "Main Course", "Appetizer", "Soup", "Drink", "Dessert"] as const;
+type Category = (typeof CATEGORIES)[number];
+
+const SORT_OPTIONS = [
+  { value: "name_asc", label: "Name A–Z" },
+  { value: "price_asc", label: "Price: Low to High" },
+  { value: "price_desc", label: "Price: High to Low" },
+  { value: "calories_asc", label: "Calories: Low to High" },
+] as const;
+type SortOption = (typeof SORT_OPTIONS)[number]["value"];
+
+interface MealAddon {
+  name: string;
+  price: number;
+}
 
 interface Meal {
   id: string;
   name: string;
   description: string | null;
-  price: number | null;  // DEPRECATED: Meals are included in subscription
+  price: number | null;
+  approval_status: "pending" | "approved" | "rejected" | null;
   calories: number;
   protein_g: number;
   carbs_g: number;
@@ -64,6 +91,7 @@ interface Meal {
   rating: number;
   order_count: number;
   diet_tags?: string[];
+  category: string;
 }
 
 interface DietTag {
@@ -72,7 +100,6 @@ interface DietTag {
   description: string | null;
 }
 
-// AI Meal Analysis Types
 interface AIMealDetails {
   name: string;
   description: string;
@@ -82,7 +109,6 @@ interface AIMealDetails {
   fat_g: number;
   fiber_g: number;
   prep_time_minutes: number;
-  // suggested_price: REMOVED - Pricing is set by platform, not suggested by AI
   diet_tags: string[];
 }
 
@@ -106,7 +132,7 @@ interface AIAnalysisResponse {
 const mealSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   description: z.string().max(500).optional(),
-  // price: REMOVED - Meals are included in subscription, restaurants don't set prices
+  price: z.number().min(0, "Price must be a positive number"),
   calories: z.number().min(1, "Calories required"),
   protein_g: z.number().min(0),
   carbs_g: z.number().min(0),
@@ -116,6 +142,7 @@ const mealSchema = z.object({
   image_url: z.string().url().optional().or(z.literal("")),
   is_available: z.boolean(),
   is_vip_exclusive: z.boolean(),
+  category: z.string().min(1),
 });
 
 type MealFormData = z.infer<typeof mealSchema>;
@@ -123,7 +150,7 @@ type MealFormData = z.infer<typeof mealSchema>;
 const emptyMeal: MealFormData = {
   name: "",
   description: "",
-  // price: REMOVED - Meals are included in subscription
+  price: 0,
   calories: 0,
   protein_g: 0,
   carbs_g: 0,
@@ -133,6 +160,7 @@ const emptyMeal: MealFormData = {
   image_url: "",
   is_available: true,
   is_vip_exclusive: false,
+  category: "Main Course",
 };
 
 export default function PartnerMenu() {
@@ -146,6 +174,7 @@ export default function PartnerMenu() {
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [mealAddons, setMealAddons] = useState<Record<string, MealAddon[]>>({});
   const [dietTags, setDietTags] = useState<DietTag[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -156,10 +185,13 @@ export default function PartnerMenu() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [addonsDialogOpen, setAddonsDialogOpen] = useState(false);
   const [selectedMealForAddons, setSelectedMealForAddons] = useState<Meal | null>(null);
-  
-  // Add-on selection state
-  const [libraryAddons, setLibraryAddons] = useState<{id: string, name: string, price: number, category: string}[]>([]);
+  const [libraryAddons, setLibraryAddons] = useState<{ id: string; name: string; price: number; category: string }[]>([]);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+
+  // View/filter/sort state
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [activeCategory, setActiveCategory] = useState<Category>("All");
+  const [sortBy, setSortBy] = useState<SortOption>("name_asc");
 
   useEffect(() => {
     if (user) {
@@ -169,23 +201,15 @@ export default function PartnerMenu() {
   }, [user]);
 
   const fetchDietTags = async () => {
-    const { data, error } = await supabase
-      .from("diet_tags")
-      .select("*")
-      .order("name");
-
-    if (!error && data) {
-      setDietTags(data);
-    }
+    const { data, error } = await supabase.from("diet_tags").select("*").order("name");
+    if (!error && data) setDietTags(data);
   };
 
   const fetchMeals = async () => {
     if (!user) return;
-
     try {
       setLoading(true);
 
-      // Get partner's restaurant
       const { data: restaurant, error: restaurantError } = await supabase
         .from("restaurants")
         .select("id")
@@ -193,14 +217,10 @@ export default function PartnerMenu() {
         .maybeSingle();
 
       if (restaurantError) throw restaurantError;
-      if (!restaurant) {
-        navigate("/partner");
-        return;
-      }
+      if (!restaurant) { navigate("/partner"); return; }
 
       setRestaurantId(restaurant.id);
 
-      // Fetch meals
       const { data: mealsData, error: mealsError } = await supabase
         .from("meals")
         .select("*")
@@ -208,14 +228,31 @@ export default function PartnerMenu() {
         .order("name");
 
       if (mealsError) throw mealsError;
-      setMeals(mealsData || []);
+      const fetchedMeals = mealsData || [];
+      setMeals(fetchedMeals);
+
+      // Batch fetch add-ons for all meals in one query
+      if (fetchedMeals.length > 0) {
+        const mealIds = fetchedMeals.map((m) => m.id);
+        const { data: addonsData } = await supabase
+          .from("meal_addons")
+          .select("meal_id, restaurant_addons(name, price)")
+          .in("meal_id", mealIds);
+
+        if (addonsData) {
+          const grouped: Record<string, MealAddon[]> = {};
+          for (const row of addonsData) {
+            const addon = row.restaurant_addons as unknown as { name: string; price: number } | null;
+            if (!addon) continue;
+            if (!grouped[row.meal_id]) grouped[row.meal_id] = [];
+            grouped[row.meal_id].push({ name: addon.name, price: addon.price });
+          }
+          setMealAddons(grouped);
+        }
+      }
     } catch (error) {
       console.error("Error fetching meals:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load menu",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load menu", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -233,6 +270,21 @@ export default function PartnerMenu() {
     setLibraryAddons(data || []);
   };
 
+  // Filtered + sorted meals
+  const displayedMeals = useMemo(() => {
+    let list = activeCategory === "All" ? meals : meals.filter((m) => m.category === activeCategory);
+
+    list = [...list].sort((a, b) => {
+      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
+      if (sortBy === "price_asc") return (a.price ?? 0) - (b.price ?? 0);
+      if (sortBy === "price_desc") return (b.price ?? 0) - (a.price ?? 0);
+      if (sortBy === "calories_asc") return a.calories - b.calories;
+      return 0;
+    });
+
+    return list;
+  }, [meals, activeCategory, sortBy]);
+
   const openAddDialog = () => {
     setEditingMeal(null);
     setFormData(emptyMeal);
@@ -248,7 +300,7 @@ export default function PartnerMenu() {
     setFormData({
       name: meal.name,
       description: meal.description || "",
-      // price: REMOVED - Meals are included in subscription
+      price: meal.price || 0,
       calories: meal.calories,
       protein_g: meal.protein_g,
       carbs_g: meal.carbs_g,
@@ -258,10 +310,10 @@ export default function PartnerMenu() {
       image_url: meal.image_url || "",
       is_available: meal.is_available,
       is_vip_exclusive: meal.is_vip_exclusive,
+      category: meal.category || "Main Course",
     });
     setFormErrors({});
 
-    // Fetch diet tags for this meal
     const { data } = await supabase
       .from("meal_diet_tags")
       .select("diet_tag_id")
@@ -276,23 +328,16 @@ export default function PartnerMenu() {
     setDeleteDialogOpen(true);
   };
 
-  const handleInputChange = (field: keyof MealFormData, value: any) => {
+  const handleInputChange = (field: keyof MealFormData, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (formErrors[field]) {
-      setFormErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
+      setFormErrors((prev) => { const e = { ...prev }; delete e[field]; return e; });
     }
   };
 
   const handleTagToggle = (tagId: string) => {
     setSelectedTags((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
   };
 
@@ -302,72 +347,39 @@ export default function PartnerMenu() {
 
   const handleImageUploaded = async (imageUrl: string) => {
     if (!imageUrl) return;
-
     setAnalyzing(true);
     try {
       const availableTagNames = dietTags.map((t) => t.name);
-      
-      console.log("Calling analyze-meal-image with imageUrl:", imageUrl);
-      
-      // Get current session for authorization
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("Authentication required. Please sign in again.");
-      }
-      
+      if (!accessToken) throw new Error("Authentication required. Please sign in again.");
+
       const { data, error } = await supabase.functions.invoke("analyze-meal-image", {
         body: { imageUrl, availableTags: availableTagNames },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
-      console.log("AI response:", data);
-
       if (error) {
-        console.error("Function error:", error);
-        // Handle auth errors specifically
         if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
-          toast({
-            title: "Session Expired",
-            description: "Your session has expired. Please sign in again.",
-            variant: "destructive",
-          });
-          // Redirect to login
+          toast({ title: "Session Expired", description: "Your session has expired. Please sign in again.", variant: "destructive" });
           navigate("/partner/auth");
           return;
         }
         throw error;
       }
 
-      // Check for rate limiting
       if (data?.rateLimit?.remaining === 0) {
-        toast({
-          title: "Rate Limit Reached",
-          description: "You have reached the limit of 50 AI analyses per hour. Please try again later.",
-          variant: "destructive",
-        });
+        toast({ title: "Rate Limit Reached", description: "You have reached the limit of 50 AI analyses per hour.", variant: "destructive" });
       }
 
       const response = data as AIAnalysisResponse;
-
       if (response?.mealDetails) {
         const details = response.mealDetails;
-        
-        // Check if we got meaningful data or just empty fallback
         const hasMeaningfulData = details.name || details.calories > 0 || details.description;
-        
         if (!hasMeaningfulData) {
-          toast({
-            title: "AI Analysis",
-            description: response.note || "Could not analyze image. Please fill in details manually.",
-          });
+          toast({ title: "AI Analysis", description: response.note || "Could not analyze image. Please fill in details manually." });
           return;
         }
-        
-        // Update form data with AI suggestions
         setFormData((prev) => ({
           ...prev,
           name: details.name || prev.name,
@@ -379,41 +391,20 @@ export default function PartnerMenu() {
           fiber_g: details.fiber_g || prev.fiber_g,
           prep_time_minutes: details.prep_time_minutes || prev.prep_time_minutes,
         }));
-
-        // Map diet tag names to IDs
         if (details.diet_tags && Array.isArray(details.diet_tags)) {
           const matchedTagIds = dietTags
-            .filter((tag) =>
-              details.diet_tags.some(
-                (aiTag: string) => aiTag.toLowerCase() === tag.name.toLowerCase()
-              )
-            )
+            .filter((tag) => details.diet_tags.some((aiTag: string) => aiTag.toLowerCase() === tag.name.toLowerCase()))
             .map((tag) => tag.id);
           setSelectedTags(matchedTagIds);
         }
-        
-        toast({
-          title: "AI Analysis Complete",
-          description: "Meal details have been auto-filled. Please review and adjust as needed.",
-        });
-
-        // Trigger success animation
         setAnalysisComplete(true);
         setTimeout(() => setAnalysisComplete(false), 2000);
-
-        toast({
-          title: "AI has auto-filled the meal details",
-          description: "Review and adjust the values before saving.",
-        });
+        toast({ title: "AI has auto-filled the meal details", description: "Review and adjust the values before saving." });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error analyzing meal image:", error);
-      const errorMessage = error?.message || "Could not analyze image. Please fill in details manually.";
-      toast({
-        title: "Analysis failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      const msg = error instanceof Error ? error.message : "Could not analyze image. Please fill in details manually.";
+      toast({ title: "Analysis failed", description: msg, variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
@@ -423,10 +414,7 @@ export default function PartnerMenu() {
     const result = mealSchema.safeParse(formData);
     if (!result.success) {
       const errors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        const path = err.path[0] as string;
-        errors[path] = err.message;
-      });
+      result.error.errors.forEach((err) => { errors[err.path[0] as string] = err.message; });
       setFormErrors(errors);
       return false;
     }
@@ -435,14 +423,15 @@ export default function PartnerMenu() {
 
   const handleSave = async () => {
     if (!validateForm() || !restaurantId) return;
-
     setSaving(true);
     try {
+      const needsApproval = (formData.price || 0) > 50;
       const mealData = {
         restaurant_id: restaurantId,
         name: formData.name,
         description: formData.description || null,
-        price: null, // DEPRECATED: Meals are included in subscription
+        price: formData.price,
+        approval_status: needsApproval ? "pending" : "approved",
         calories: formData.calories,
         protein_g: formData.protein_g,
         carbs_g: formData.carbs_g,
@@ -450,80 +439,47 @@ export default function PartnerMenu() {
         fiber_g: formData.fiber_g || null,
         prep_time_minutes: formData.prep_time_minutes || null,
         image_url: formData.image_url || null,
-        is_available: formData.is_available,
+        is_available: needsApproval ? false : formData.is_available,
         is_vip_exclusive: formData.is_vip_exclusive,
+        category: formData.category,
       };
 
       if (editingMeal) {
-        // Update existing meal
-        const { error } = await supabase
-          .from("meals")
-          .update(mealData)
-          .eq("id", editingMeal.id);
-
+        const { error } = await supabase.from("meals").update(mealData).eq("id", editingMeal.id);
         if (error) throw error;
 
-        // Update diet tags
         await supabase.from("meal_diet_tags").delete().eq("meal_id", editingMeal.id);
-
         if (selectedTags.length > 0) {
-          await supabase.from("meal_diet_tags").insert(
-            selectedTags.map((tagId) => ({
-              meal_id: editingMeal.id,
-              diet_tag_id: tagId,
-            }))
-          );
+          await supabase.from("meal_diet_tags").insert(selectedTags.map((tagId) => ({ meal_id: editingMeal.id, diet_tag_id: tagId })));
         }
-
-        toast({ title: "Meal updated successfully" });
+        toast({
+          title: needsApproval ? "Meal submitted for approval" : "Meal updated successfully",
+          description: needsApproval ? "Price exceeds 50 QAR. The meal will be reviewed by admin before going live." : undefined,
+        });
       } else {
-        // Create new meal
-        const { data, error } = await supabase
-          .from("meals")
-          .insert(mealData)
-          .select()
-          .single();
-
+        const { data, error } = await supabase.from("meals").insert(mealData).select().single();
         if (error) throw error;
 
-        // Add diet tags
         if (selectedTags.length > 0 && data) {
-          await supabase.from("meal_diet_tags").insert(
-            selectedTags.map((tagId) => ({
-              meal_id: data.id,
-              diet_tag_id: tagId,
-            }))
-          );
+          await supabase.from("meal_diet_tags").insert(selectedTags.map((tagId) => ({ meal_id: data.id, diet_tag_id: tagId })));
         }
-
-        // Add selected add-ons from library
         if (selectedAddons.length > 0 && data) {
-          await supabase.from("meal_addons").insert(
-            selectedAddons.map((addonId) => ({
-              meal_id: data.id,
-              restaurant_addon_id: addonId,
-            }))
-          );
-          
-          // Increment usage count for each addon
+          await supabase.from("meal_addons").insert(selectedAddons.map((addonId) => ({ meal_id: data.id, restaurant_addon_id: addonId })));
           for (const addonId of selectedAddons) {
             await supabase.rpc("increment_addon_usage", { addon_id: addonId });
           }
         }
-
-        toast({ title: "Meal created successfully" });
-        
-        // Close dialog and refresh meal list
+        toast({
+          title: needsApproval ? "Meal submitted for approval" : "Meal created successfully",
+          description: needsApproval ? "Price exceeds 50 QAR. The meal will be reviewed by admin before going live." : undefined,
+        });
         setDialogOpen(false);
         fetchMeals();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving meal:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save meal",
-        variant: "destructive",
-      });
+      const msg = error instanceof Error ? error.message : "Failed to save meal";
+      toast({ title: "Error", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -531,23 +487,17 @@ export default function PartnerMenu() {
 
   const handleDelete = async () => {
     if (!mealToDelete) return;
-
     try {
       const { error } = await supabase.from("meals").delete().eq("id", mealToDelete.id);
-
       if (error) throw error;
-
       toast({ title: "Meal deleted successfully" });
       setDeleteDialogOpen(false);
       setMealToDelete(null);
       fetchMeals();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting meal:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete meal",
-        variant: "destructive",
-      });
+      const msg = error instanceof Error ? error.message : "Failed to delete meal";
+      toast({ title: "Error", description: msg, variant: "destructive" });
     }
   };
 
@@ -557,30 +507,19 @@ export default function PartnerMenu() {
         .from("meals")
         .update({ is_available: !meal.is_available })
         .eq("id", meal.id);
-
       if (error) throw error;
-
-      setMeals((prev) =>
-        prev.map((m) =>
-          m.id === meal.id ? { ...m, is_available: !m.is_available } : m
-        )
-      );
+      setMeals((prev) => prev.map((m) => m.id === meal.id ? { ...m, is_available: !m.is_available } : m));
     } catch (error) {
       console.error("Error toggling availability:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update availability",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update availability", variant: "destructive" });
     }
   };
 
   if (loading) {
     return (
       <PartnerLayout title="Menu">
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-64 w-full rounded-xl" />)}
         </div>
       </PartnerLayout>
     );
@@ -588,20 +527,69 @@ export default function PartnerMenu() {
 
   return (
     <PartnerLayout title="Menu" subtitle="Manage your restaurant's menu items">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Menu Items ({meals.length})</h2>
-          <Button onClick={openAddDialog} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add New Meal
-          </Button>
+      <div className="space-y-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold">Menu</h2>
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 transition-colors ${viewMode === "list" ? "bg-muted" : "hover:bg-muted/50"}`}
+                title="List view"
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-muted" : "hover:bg-muted/50"}`}
+                title="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={openAddDialog} className="gap-2 whitespace-nowrap">
+              <Plus className="h-4 w-4" />
+              Add new
+            </Button>
+          </div>
         </div>
 
-        {meals.length === 0 ? (
+        {/* Category tabs */}
+        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as Category)}>
+          <TabsList className="bg-transparent border-b w-full justify-start rounded-none h-auto p-0 gap-1">
+            {CATEGORIES.map((cat) => (
+              <TabsTrigger
+                key={cat}
+                value={cat}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent pb-2 px-3 text-sm"
+              >
+                {cat}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        {/* Meal grid / list */}
+        {displayedMeals.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <UtensilsCrossed className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No meals added yet</p>
+              <p className="text-muted-foreground mb-4">
+                {activeCategory === "All" ? "No meals added yet" : `No meals in "${activeCategory}"`}
+              </p>
               <Button onClick={openAddDialog} variant="outline" className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Your First Meal
@@ -609,90 +597,131 @@ export default function PartnerMenu() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {meals.map((meal) => (
-              <Card key={meal.id} className={!meal.is_available ? "opacity-60" : undefined}>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {meal.image_url ? (
-                        <img
-                          src={meal.image_url}
-                          alt={meal.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold truncate">{meal.name}</h3>
-                        {meal.is_vip_exclusive && (
-                          <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {meal.description || "No description"}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2 text-sm">
-                        {/* Price REMOVED: Meals are included in subscription */}
-                        <span className="flex items-center gap-1">
-                          <Flame className="h-3 w-3" />
-                          {meal.calories} cal
-                        </span>
-                        {meal.prep_time_minutes && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {meal.prep_time_minutes}m
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+          <div className={viewMode === "grid" ? "grid gap-4 md:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"}>
+            {displayedMeals.map((meal) => {
+              const addons = mealAddons[meal.id] || [];
+              const basePrice = meal.price ?? 0;
+              const addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
+              const total = basePrice + addonsTotal;
 
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={meal.is_available}
-                        onCheckedChange={() => toggleAvailability(meal)}
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {meal.is_available ? "Available" : "Unavailable"}
-                      </span>
+              return (
+                <Card
+                  key={meal.id}
+                  className={`overflow-hidden transition-opacity ${!meal.is_available ? "opacity-60" : ""}`}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    {/* Top: image + name + category + price */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {meal.image_url ? (
+                          <img src={meal.image_url} alt={meal.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <h3 className="font-semibold text-sm leading-tight truncate">{meal.name}</h3>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {meal.approval_status === "pending" && (
+                              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                                Pending
+                              </span>
+                            )}
+                            {meal.approval_status === "rejected" && (
+                              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                                Rejected
+                              </span>
+                            )}
+                            {meal.is_vip_exclusive && <Crown className="h-4 w-4 text-yellow-500 flex-shrink-0" />}
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{meal.category}</p>
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className="text-base font-bold text-green-600">
+                            {meal.price != null && meal.price > 0 ? formatCurrency(meal.price) : "—"}
+                          </span>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Flame className="h-3 w-3" />
+                            {meal.calories} cal
+                            {meal.prep_time_minutes && (
+                              <>
+                                <Clock className="h-3 w-3 ml-1" />
+                                {meal.prep_time_minutes}m
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setSelectedMealForAddons(meal);
-                          setAddonsDialogOpen(true);
-                        }}
-                        title="Manage Add-ons"
-                      >
-                        <Package className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(meal)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openDeleteDialog(meal)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+
+                    {/* Extras section */}
+                    {addons.length > 0 && (
+                      <div className="border-t pt-3 space-y-1.5">
+                        <div className="grid grid-cols-3 text-xs text-muted-foreground font-medium pb-1">
+                          <span>Extras</span>
+                          <span className="text-center">Add</span>
+                          <span className="text-right">Price</span>
+                        </div>
+                        {addons.map((addon, idx) => (
+                          <div key={idx} className="grid grid-cols-3 text-xs items-center">
+                            <span className="truncate">{addon.name}</span>
+                            <div className="flex justify-center">
+                              <div className="w-4 h-4 rounded border border-green-500 flex items-center justify-center bg-green-50">
+                                <svg className="w-2.5 h-2.5 text-green-600" viewBox="0 0 12 12" fill="none">
+                                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </div>
+                            </div>
+                            <span className="text-right">{formatCurrency(addon.price)}</span>
+                          </div>
+                        ))}
+                        <div className="grid grid-cols-2 text-xs font-semibold pt-1 border-t">
+                          <span>Total <span className="text-muted-foreground font-normal">(before tax)</span></span>
+                          <span className="text-right">{formatCurrency(total)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Footer: availability + actions */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={meal.is_available}
+                          onCheckedChange={() => toggleAvailability(meal)}
+                          disabled={meal.approval_status === "pending"}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {meal.approval_status === "pending" ? "Awaiting approval" : meal.is_available ? "Available" : "Unavailable"}
+                        </span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => { setSelectedMealForAddons(meal); setAddonsDialogOpen(true); }}
+                          title="Manage Add-ons"
+                        >
+                          <Package className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(meal)}>
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => openDeleteDialog(meal)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -703,14 +732,11 @@ export default function PartnerMenu() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingMeal ? "Edit Meal" : "Add New Meal"}
-              {analysisComplete && (
-                <CheckCircle2 className="h-5 w-5 text-green-500 animate-in fade-in zoom-in" />
-              )}
+              {analysisComplete && <CheckCircle2 className="h-5 w-5 text-green-500 animate-in fade-in zoom-in" />}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            {/* Image Upload */}
             <MealImageUpload
               currentImageUrl={formData.image_url}
               onImageChange={handleImageChange}
@@ -719,11 +745,8 @@ export default function PartnerMenu() {
               isAnalyzing={analyzing}
             />
 
-            {/* Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">
-                Meal Name <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="name">Meal Name <span className="text-destructive">*</span></Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -731,12 +754,23 @@ export default function PartnerMenu() {
                 placeholder="e.g., Grilled Salmon Salad"
                 className={formErrors.name ? "border-destructive" : ""}
               />
-              {formErrors.name && (
-                <p className="text-sm text-destructive">{formErrors.name}</p>
-              )}
+              {formErrors.name && <p className="text-sm text-destructive">{formErrors.name}</p>}
             </div>
 
-            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
+              <Select value={formData.category} onValueChange={(v) => handleInputChange("category", v)}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -748,11 +782,30 @@ export default function PartnerMenu() {
               />
             </div>
 
-            {/* Calories Row - Price REMOVED: Meals are included in subscription */}
             <div className="space-y-2">
-              <Label htmlFor="calories">
-                Calories <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="price">Price (QAR) <span className="text-destructive">*</span></Label>
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.price || ""}
+                  onChange={(e) => handleInputChange("price", parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  className={`pl-9 ${formErrors.price ? "border-destructive" : ""}`}
+                />
+              </div>
+              {formErrors.price && <p className="text-sm text-destructive">{formErrors.price}</p>}
+              <p className="text-xs text-muted-foreground">
+                Platform fee (18%) will be deducted. Your payout per meal:{" "}
+                <span className="font-medium">{formatCurrency((formData.price || 0) * 0.82)}</span>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="calories">Calories <span className="text-destructive">*</span></Label>
               <div className="relative">
                 <Flame className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -764,60 +817,32 @@ export default function PartnerMenu() {
                   className={`pl-9 ${formErrors.calories ? "border-destructive" : ""}`}
                 />
               </div>
-              {formErrors.calories && (
-                <p className="text-sm text-destructive">{formErrors.calories}</p>
-              )}
+              {formErrors.calories && <p className="text-sm text-destructive">{formErrors.calories}</p>}
             </div>
 
-            {/* Macros Row */}
             <div className="grid grid-cols-4 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="protein">Protein (g)</Label>
-                <Input
-                  id="protein"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={formData.protein_g || ""}
-                  onChange={(e) => handleInputChange("protein_g", parseFloat(e.target.value) || 0)}
-                />
+                <Input id="protein" type="number" min="0" step="0.1" value={formData.protein_g || ""}
+                  onChange={(e) => handleInputChange("protein_g", parseFloat(e.target.value) || 0)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="carbs">Carbs (g)</Label>
-                <Input
-                  id="carbs"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={formData.carbs_g || ""}
-                  onChange={(e) => handleInputChange("carbs_g", parseFloat(e.target.value) || 0)}
-                />
+                <Input id="carbs" type="number" min="0" step="0.1" value={formData.carbs_g || ""}
+                  onChange={(e) => handleInputChange("carbs_g", parseFloat(e.target.value) || 0)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fat">Fat (g)</Label>
-                <Input
-                  id="fat"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={formData.fat_g || ""}
-                  onChange={(e) => handleInputChange("fat_g", parseFloat(e.target.value) || 0)}
-                />
+                <Input id="fat" type="number" min="0" step="0.1" value={formData.fat_g || ""}
+                  onChange={(e) => handleInputChange("fat_g", parseFloat(e.target.value) || 0)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fiber">Fiber (g)</Label>
-                <Input
-                  id="fiber"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={formData.fiber_g || ""}
-                  onChange={(e) => handleInputChange("fiber_g", parseFloat(e.target.value) || 0)}
-                />
+                <Input id="fiber" type="number" min="0" step="0.1" value={formData.fiber_g || ""}
+                  onChange={(e) => handleInputChange("fiber_g", parseFloat(e.target.value) || 0)} />
               </div>
             </div>
 
-            {/* Prep Time */}
             <div className="space-y-2">
               <Label htmlFor="prep_time">Preparation Time (minutes)</Label>
               <div className="relative">
@@ -833,7 +858,6 @@ export default function PartnerMenu() {
               </div>
             </div>
 
-            {/* Diet Tags */}
             <div className="space-y-3">
               <Label className="flex items-center gap-2">
                 <Tag className="h-4 w-4" />
@@ -844,51 +868,36 @@ export default function PartnerMenu() {
                   <label
                     key={tag.id}
                     className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-                      selectedTags.includes(tag.id)
-                        ? "bg-primary/10 border-primary"
-                        : "bg-muted/50 border-border hover:bg-muted"
+                      selectedTags.includes(tag.id) ? "bg-primary/10 border-primary" : "bg-muted/50 border-border hover:bg-muted"
                     }`}
                   >
-                    <Checkbox
-                      checked={selectedTags.includes(tag.id)}
-                      onCheckedChange={() => handleTagToggle(tag.id)}
-                      className="sr-only"
-                    />
+                    <Checkbox checked={selectedTags.includes(tag.id)} onCheckedChange={() => handleTagToggle(tag.id)} className="sr-only" />
                     <span className="text-sm">{tag.name}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Add-ons Selection */}
             {libraryAddons.length > 0 && (
               <div className="space-y-3 pt-4 border-t">
                 <Label className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
                   Add-ons
-                  <span className="text-xs text-muted-foreground font-normal">
-                    (Select from your library)
-                  </span>
+                  <span className="text-xs text-muted-foreground font-normal">(Select from your library)</span>
                 </Label>
                 <div className="flex flex-wrap gap-2">
                   {libraryAddons.map((addon) => (
                     <label
                       key={addon.id}
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-                        selectedAddons.includes(addon.id)
-                          ? "bg-primary/10 border-primary"
-                          : "bg-muted/50 border-border hover:bg-muted"
+                        selectedAddons.includes(addon.id) ? "bg-primary/10 border-primary" : "bg-muted/50 border-border hover:bg-muted"
                       }`}
                     >
                       <Checkbox
                         checked={selectedAddons.includes(addon.id)}
-                        onCheckedChange={() => {
-                          setSelectedAddons(prev => 
-                            prev.includes(addon.id)
-                              ? prev.filter(id => id !== addon.id)
-                              : [...prev, addon.id]
-                          );
-                        }}
+                        onCheckedChange={() => setSelectedAddons((prev) =>
+                          prev.includes(addon.id) ? prev.filter((id) => id !== addon.id) : [...prev, addon.id]
+                        )}
                         className="sr-only"
                       />
                       <span className="text-sm">{addon.name}</span>
@@ -897,27 +906,18 @@ export default function PartnerMenu() {
                   ))}
                 </div>
                 {selectedAddons.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    No add-ons selected. You can add them later from the menu.
-                  </p>
+                  <p className="text-xs text-muted-foreground">No add-ons selected. You can add them later from the menu.</p>
                 )}
               </div>
             )}
 
-            {/* Availability & VIP */}
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <Switch
-                  checked={formData.is_available}
-                  onCheckedChange={(checked) => handleInputChange("is_available", checked)}
-                />
+                <Switch checked={formData.is_available} onCheckedChange={(checked) => handleInputChange("is_available", checked)} />
                 <Label>Available</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Switch
-                  checked={formData.is_vip_exclusive}
-                  onCheckedChange={(checked) => handleInputChange("is_vip_exclusive", checked)}
-                />
+                <Switch checked={formData.is_vip_exclusive} onCheckedChange={(checked) => handleInputChange("is_vip_exclusive", checked)} />
                 <Label className="flex items-center gap-1">
                   <Crown className="h-4 w-4 text-yellow-500" />
                   VIP Exclusive
@@ -925,17 +925,13 @@ export default function PartnerMenu() {
               </div>
             </div>
 
-            {/* Manage Add-ons Button (for editing existing meals) */}
             {editingMeal && (
               <div className="pt-4 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => {
-                    setSelectedMealForAddons(editingMeal);
-                    setAddonsDialogOpen(true);
-                  }}
+                  onClick={() => { setSelectedMealForAddons(editingMeal); setAddonsDialogOpen(true); }}
                 >
                   <Package className="h-4 w-4 mr-2" />
                   Manage Add-ons
@@ -945,9 +941,7 @@ export default function PartnerMenu() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               {saving ? (
                 <>
@@ -968,16 +962,12 @@ export default function PartnerMenu() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Meal?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{mealToDelete?.name}". This action cannot be
-              undone.
+              This will permanently delete "{mealToDelete?.name}". This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

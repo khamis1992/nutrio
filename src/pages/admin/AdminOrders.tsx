@@ -45,6 +45,10 @@ import {
   Loader2,
   DollarSign,
   XCircle,
+  LayoutGrid,
+  LayoutList,
+  Maximize2,
+  Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,22 +56,76 @@ import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
 
 // Order status type matching database
-type OrderStatus = 
-  | "pending" 
-  | "confirmed" 
-  | "preparing" 
-  | "ready" 
-  | "out_for_delivery" 
-  | "delivered" 
-  | "completed" 
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "preparing"
+  | "ready"
+  | "out_for_delivery"
+  | "delivered"
+  | "completed"
   | "cancelled";
 
 // Status configuration for display
-const STATUS_CONFIG: Record<OrderStatus, { 
-  label: string; 
-  color: string;
-  bgColor: string;
-}> = {
+const STATUS_CONFIG: Record<
+  OrderStatus,
+  {
+    label: string;
+    color: string;
+    bgColor: string;
+  }
+> = {
+  pending: {
+    label: "In progress",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100 border-orange-200",
+  },
+  confirmed: {
+    label: "In progress",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100 border-orange-200",
+  },
+  preparing: {
+    label: "In progress",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100 border-orange-200",
+  },
+  ready: {
+    label: "In progress",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100 border-orange-200",
+  },
+  out_for_delivery: {
+    label: "In progress",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100 border-orange-200",
+  },
+  delivered: {
+    label: "Completed",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-100 border-emerald-200",
+  },
+  completed: {
+    label: "Completed",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-100 border-emerald-200",
+  },
+  cancelled: {
+    label: "Cancelled",
+    color: "text-red-600",
+    bgColor: "bg-red-100 border-red-200",
+  },
+};
+
+// Original detailed status config for the table view and detail sheet
+const STATUS_CONFIG_DETAILED: Record<
+  OrderStatus,
+  {
+    label: string;
+    color: string;
+    bgColor: string;
+  }
+> = {
   pending: {
     label: "Pending",
     color: "text-amber-600",
@@ -130,6 +188,144 @@ interface OrderData {
   } | null;
 }
 
+// Short badge ID from order UUID (e.g. "A-1F")
+const getOrderBadge = (id: string) => id.substring(0, 4).toUpperCase();
+
+// ---- Order Card (grid view) ----
+interface OrderCardProps {
+  order: OrderData;
+  isSelected: boolean;
+  onSelect: () => void;
+  onViewDetails: () => void;
+  onCancel: () => void;
+}
+
+const OrderCard = ({
+  order,
+  isSelected,
+  onSelect,
+  onViewDetails,
+  onCancel,
+}: OrderCardProps) => {
+  const statusCfg = STATUS_CONFIG[order.order_status];
+  const isFinished =
+    order.order_status === "completed" ||
+    order.order_status === "delivered" ||
+    order.order_status === "cancelled";
+
+  let dateLabel = "";
+  let timeLabel = "";
+  try {
+    const d = new Date(order.scheduled_date);
+    dateLabel = format(d, "EEE, MMM d, yyyy");
+    // Only show time if the date string includes a time component
+    if (order.scheduled_date.includes("T") || order.scheduled_date.includes(" ")) {
+      timeLabel = format(d, "hh:mm aa");
+    }
+  } catch {
+    dateLabel = order.scheduled_date;
+  }
+
+  return (
+    <div
+      className={`relative bg-white rounded-2xl border shadow-sm p-5 flex flex-col gap-4 transition-shadow hover:shadow-md ${
+        isSelected ? "ring-2 ring-primary" : ""
+      }`}
+    >
+      {/* Selection checkbox */}
+      <div className="absolute top-4 right-4">
+        <Checkbox checked={isSelected} onCheckedChange={onSelect} />
+      </div>
+
+      {/* Top row: badge + name + status */}
+      <div className="flex items-start gap-3 pr-8">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
+          <span className="text-xs font-bold text-teal-700 leading-none">
+            {getOrderBadge(order.id)}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-gray-900 truncate">
+            {order.profile?.full_name || "Customer"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Order #{order.id.substring(0, 8).toUpperCase()}
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className={`shrink-0 text-xs font-medium ${statusCfg.bgColor} ${statusCfg.color} border`}
+        >
+          {statusCfg.label}
+        </Badge>
+      </div>
+
+      {/* Date / time row */}
+      <div className="flex items-center justify-between text-sm text-gray-500">
+        <span>{dateLabel}</span>
+        {timeLabel && <span className="font-medium text-gray-700">{timeLabel}</span>}
+      </div>
+
+      {/* Items mini-table */}
+      <div>
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-xs text-gray-400 font-medium mb-1 px-0.5">
+          <span>Items</span>
+          <span>Qty</span>
+          <span>Price</span>
+        </div>
+        <div className="divide-y divide-gray-100">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-sm py-1.5 px-0.5">
+            <span className="text-gray-700 truncate">{order.meal.name}</span>
+            <span className="text-gray-500 text-center">1</span>
+            <span className="text-gray-700 font-medium text-right">
+              {formatCurrency(order.meal.price)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Total row */}
+      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+        <span className="text-sm text-gray-500">
+          Total{" "}
+          <span className="text-gray-400 text-xs font-normal">(before tax)</span>
+        </span>
+        <span className="font-bold text-gray-900">
+          {formatCurrency(order.meal.price)}
+        </span>
+      </div>
+
+      {/* Footer: item count + action */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onViewDetails}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <span>1 item</span>
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+
+        {isFinished ? (
+          order.order_status === "cancelled" ? (
+            <span className="text-sm font-medium text-red-500">Cancelled</span>
+          ) : (
+            <span className="text-sm font-medium text-emerald-600">Paid</span>
+          )
+        ) : (
+          <Button
+            size="sm"
+            className="bg-teal-500 hover:bg-teal-600 text-white rounded-lg px-4 h-8 text-sm font-medium"
+            onClick={onViewDetails}
+          >
+            Pay bill
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ---- Main page ----
 const AdminOrders = () => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
@@ -137,10 +333,15 @@ const AdminOrders = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "today" | "upcoming" | "completed" | "overdue">("all");
-  const [sortField, setSortField] = useState<"created_at" | "scheduled_date" | "meal_name">("created_at");
+  const [activeTab, setActiveTab] = useState<
+    "all" | "today" | "upcoming" | "completed" | "overdue"
+  >("all");
+  const [sortField, setSortField] = useState<
+    "created_at" | "scheduled_date" | "meal_name"
+  >("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -151,10 +352,10 @@ const AdminOrders = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // Fetch meal schedules with meal info
       const { data: schedulesData, error: schedulesError } = await supabase
         .from("meal_schedules")
-        .select(`
+        .select(
+          `
           id,
           scheduled_date,
           meal_type,
@@ -163,15 +364,22 @@ const AdminOrders = () => {
           created_at,
           user_id,
           meal_id
-        `)
+        `
+        )
         .order("created_at", { ascending: false })
         .limit(100);
 
       if (schedulesError) throw schedulesError;
 
-      // Get unique meal IDs
-      const mealIds = [...new Set((schedulesData || []).map((o) => o.meal_id).filter(Boolean))];
-      let mealsMap: Record<string, { name: string; price: number; restaurant_id: string }> = {};
+      const mealIds = [
+        ...new Set(
+          (schedulesData || []).map((o) => o.meal_id).filter(Boolean)
+        ),
+      ];
+      let mealsMap: Record<
+        string,
+        { name: string; price: number; restaurant_id: string }
+      > = {};
 
       if (mealIds.length > 0) {
         const { data: meals } = await supabase
@@ -180,15 +388,30 @@ const AdminOrders = () => {
           .in("id", mealIds);
 
         if (meals) {
-          mealsMap = meals.reduce((acc, m) => {
-            acc[m.id] = { name: m.name, price: m.price || 0, restaurant_id: m.restaurant_id };
-            return acc;
-          }, {} as Record<string, { name: string; price: number; restaurant_id: string }>);
+          mealsMap = meals.reduce(
+            (acc, m) => {
+              acc[m.id] = {
+                name: m.name,
+                price: m.price || 0,
+                restaurant_id: m.restaurant_id,
+              };
+              return acc;
+            },
+            {} as Record<
+              string,
+              { name: string; price: number; restaurant_id: string }
+            >
+          );
         }
       }
 
-      // Get unique restaurant IDs from meals
-      const restaurantIds = [...new Set(Object.values(mealsMap).map((m) => m.restaurant_id).filter(Boolean))];
+      const restaurantIds = [
+        ...new Set(
+          Object.values(mealsMap)
+            .map((m) => m.restaurant_id)
+            .filter(Boolean)
+        ),
+      ];
       let restaurantsMap: Record<string, { name: string }> = {};
 
       if (restaurantIds.length > 0) {
@@ -198,16 +421,23 @@ const AdminOrders = () => {
           .in("id", restaurantIds);
 
         if (restaurants) {
-          restaurantsMap = restaurants.reduce((acc, r) => {
-            acc[r.id] = { name: r.name };
-            return acc;
-          }, {} as Record<string, { name: string }>);
+          restaurantsMap = restaurants.reduce(
+            (acc, r) => {
+              acc[r.id] = { name: r.name };
+              return acc;
+            },
+            {} as Record<string, { name: string }>
+          );
         }
       }
 
-      // Get unique user IDs
-      const userIds = [...new Set((schedulesData || []).map((o) => o.user_id))];
-      let profilesMap: Record<string, { full_name: string | null; email?: string }> = {};
+      const userIds = [
+        ...new Set((schedulesData || []).map((o) => o.user_id)),
+      ];
+      let profilesMap: Record<
+        string,
+        { full_name: string | null; email?: string }
+      > = {};
 
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -216,34 +446,43 @@ const AdminOrders = () => {
           .in("user_id", userIds);
 
         if (profiles) {
-          profilesMap = profiles.reduce((acc, p: any) => {
-            acc[p.user_id] = { full_name: p.full_name };
-            return acc;
-          }, {} as Record<string, { full_name: string | null }>);
+          profilesMap = profiles.reduce(
+            (acc, p: any) => {
+              acc[p.user_id] = { full_name: p.full_name };
+              return acc;
+            },
+            {} as Record<string, { full_name: string | null }>
+          );
         }
       }
 
-      const ordersWithDetails: OrderData[] = (schedulesData || []).map((o: any) => {
-        const meal = mealsMap[o.meal_id] || { name: "Unknown", price: 0, restaurant_id: "" };
-        const restaurant = restaurantsMap[meal.restaurant_id] || { name: "Unknown" };
-        
-        return {
-          id: o.id,
-          scheduled_date: o.scheduled_date,
-          meal_type: o.meal_type,
-          order_status: (o.order_status || "pending") as OrderStatus,
-          is_completed: o.is_completed || false,
-          created_at: o.created_at,
-          meal: {
-            name: meal.name,
-            price: meal.price,
-            restaurant: {
-              name: restaurant.name,
+      const ordersWithDetails: OrderData[] = (schedulesData || []).map(
+        (o: any) => {
+          const meal = mealsMap[o.meal_id] || {
+            name: "Unknown",
+            price: 0,
+            restaurant_id: "",
+          };
+          const restaurant = restaurantsMap[meal.restaurant_id] || {
+            name: "Unknown",
+          };
+
+          return {
+            id: o.id,
+            scheduled_date: o.scheduled_date,
+            meal_type: o.meal_type,
+            order_status: (o.order_status || "pending") as OrderStatus,
+            is_completed: o.is_completed || false,
+            created_at: o.created_at,
+            meal: {
+              name: meal.name,
+              price: meal.price,
+              restaurant: { name: restaurant.name },
             },
-          },
-          profile: profilesMap[o.user_id] || null,
-        };
-      });
+            profile: profilesMap[o.user_id] || null,
+          };
+        }
+      );
 
       setOrders(ordersWithDetails);
     } catch (error) {
@@ -278,7 +517,9 @@ const AdminOrders = () => {
     }
   };
 
-  const handleSort = (field: "created_at" | "scheduled_date" | "meal_name") => {
+  const handleSort = (
+    field: "created_at" | "scheduled_date" | "meal_name"
+  ) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
@@ -288,20 +529,37 @@ const AdminOrders = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ["Order ID", "Meal", "Restaurant", "Customer", "Meal Type", "Price", "Scheduled Date", "Status", "Created At"];
+    const headers = [
+      "Order ID",
+      "Meal",
+      "Restaurant",
+      "Customer",
+      "Meal Type",
+      "Meal Price (QAR)",
+      "Platform Fee 18% (QAR)",
+      "Restaurant Payout (QAR)",
+      "Scheduled Date",
+      "Status",
+      "Created At",
+    ];
     const rows = filteredOrders.map((o) => [
       o.id,
       o.meal.name,
       o.meal.restaurant.name,
       o.profile?.full_name || "Customer",
       o.meal_type,
-      formatCurrency(o.meal.price),
+      o.meal.price.toFixed(2),
+      (o.meal.price * 0.18).toFixed(2),
+      (o.meal.price * 0.82).toFixed(2),
       o.scheduled_date,
-      STATUS_CONFIG[o.order_status]?.label || o.order_status,
+      STATUS_CONFIG_DETAILED[o.order_status]?.label || o.order_status,
       format(new Date(o.created_at), "yyyy-MM-dd HH:mm"),
     ]);
-    
-    const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -310,10 +568,12 @@ const AdminOrders = () => {
     a.click();
     window.URL.revokeObjectURL(url);
 
-    toast({ title: "Export Complete", description: `${rows.length} orders exported to CSV.` });
+    toast({
+      title: "Export Complete",
+      description: `${rows.length} orders exported to CSV.`,
+    });
   };
 
-  // Cancel order function for admin
   const cancelOrder = async (orderId: string) => {
     try {
       const { error } = await supabase
@@ -323,14 +583,14 @@ const AdminOrders = () => {
 
       if (error) throw error;
 
-      // Update local state
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === orderId ? { ...o, order_status: "cancelled" as OrderStatus } : o
+          o.id === orderId
+            ? { ...o, order_status: "cancelled" as OrderStatus }
+            : o
         )
       );
 
-      // If detail view is open, update selected order too
       if (selectedOrder?.id === orderId) {
         setSelectedOrder((prev) =>
           prev ? { ...prev, order_status: "cancelled" as OrderStatus } : null
@@ -356,51 +616,94 @@ const AdminOrders = () => {
       const matchesSearch =
         !searchQuery ||
         o.meal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.meal.restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        o.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
+        o.meal.restaurant.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        o.profile?.full_name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
       if (activeTab === "all") return matchesSearch;
-      if (activeTab === "today") return matchesSearch && o.scheduled_date === today;
-      if (activeTab === "upcoming") return matchesSearch && o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date >= today;
-      if (activeTab === "completed") return matchesSearch && o.order_status === "completed";
-      if (activeTab === "overdue") return matchesSearch && o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date < today;
+      if (activeTab === "today")
+        return matchesSearch && o.scheduled_date === today;
+      if (activeTab === "upcoming")
+        return (
+          matchesSearch &&
+          o.order_status !== "completed" &&
+          o.order_status !== "cancelled" &&
+          o.scheduled_date >= today
+        );
+      if (activeTab === "completed")
+        return matchesSearch && o.order_status === "completed";
+      if (activeTab === "overdue")
+        return (
+          matchesSearch &&
+          o.order_status !== "completed" &&
+          o.order_status !== "cancelled" &&
+          o.scheduled_date < today
+        );
 
       return matchesSearch;
     })
     .sort((a, b) => {
       let comparison = 0;
       if (sortField === "created_at") {
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        comparison =
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       } else if (sortField === "scheduled_date") {
-        comparison = new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime();
+        comparison =
+          new Date(a.scheduled_date).getTime() -
+          new Date(b.scheduled_date).getTime();
       } else if (sortField === "meal_name") {
         comparison = a.meal.name.localeCompare(b.meal.name);
       }
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
-  const getStatusBadge = (order: OrderData) => {
-    const config = STATUS_CONFIG[order.order_status];
+  const getDetailStatusBadge = (order: OrderData) => {
+    const config = STATUS_CONFIG_DETAILED[order.order_status];
     return (
-      <Badge variant="outline" className={config?.bgColor || "bg-gray-500/10 text-gray-600 border-gray-500/20"}>
+      <Badge
+        variant="outline"
+        className={
+          config?.bgColor || "bg-gray-500/10 text-gray-600 border-gray-500/20"
+        }
+      >
         <CheckCircle className="h-3 w-3 mr-1" />
         {config?.label || order.order_status}
       </Badge>
     );
   };
 
-  // Calculate stats
   const stats = {
     total: orders.length,
     today: orders.filter((o) => o.scheduled_date === today).length,
-    upcoming: orders.filter((o) => o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date >= today).length,
+    upcoming: orders.filter(
+      (o) =>
+        o.order_status !== "completed" &&
+        o.order_status !== "cancelled" &&
+        o.scheduled_date >= today
+    ).length,
     completed: orders.filter((o) => o.order_status === "completed").length,
-    overdue: orders.filter((o) => o.order_status !== "completed" && o.order_status !== "cancelled" && o.scheduled_date < today).length,
-    totalRevenue: orders.reduce((sum, o) => sum + o.meal.price, 0),
+    overdue: orders.filter(
+      (o) =>
+        o.order_status !== "completed" &&
+        o.order_status !== "cancelled" &&
+        o.scheduled_date < today
+    ).length,
+    totalRevenue: orders.reduce((sum, o) => sum + o.meal.price * 0.18, 0),
+  };
+
+  const openDetail = (order: OrderData) => {
+    setSelectedOrder(order);
+    setIsDetailOpen(true);
   };
 
   return (
-    <AdminLayout title="Order Management" subtitle={`${stats.total} total orders`}>
+    <AdminLayout
+      title="Order Management"
+      subtitle={`${stats.total} total orders`}
+    >
       <div className="space-y-6">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
@@ -467,8 +770,12 @@ const AdminOrders = () => {
                   <DollarSign className="h-5 w-5 text-purple-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(stats.totalRevenue)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Platform Fees (18%)
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -481,7 +788,11 @@ const AdminOrders = () => {
             { value: "all", label: "All", count: stats.total },
             { value: "today", label: "Today", count: stats.today },
             { value: "upcoming", label: "Upcoming", count: stats.upcoming },
-            { value: "completed", label: "Completed", count: stats.completed },
+            {
+              value: "completed",
+              label: "Completed",
+              count: stats.completed,
+            },
             { value: "overdue", label: "Overdue", count: stats.overdue },
           ].map((tab) => (
             <button
@@ -503,113 +814,267 @@ const AdminOrders = () => {
           ))}
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by meal, restaurant, or customer..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" onClick={exportToCSV} className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
-                <Button variant="outline" size="icon" onClick={fetchOrders} disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </Button>
-              </div>
+        {/* Order list header bar (matches design) */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          {/* Left: title + search */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+              Order list
+            </h2>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by meal, restaurant, or customer..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-9"
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Right: view toggle + sort + export + refresh */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* View toggle */}
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 transition-colors ${
+                  viewMode === "list"
+                    ? "bg-gray-900 text-white"
+                    : "bg-white text-gray-500 hover:bg-gray-50"
+                }`}
+                title="List view"
+              >
+                <LayoutList className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-gray-900 text-white"
+                    : "bg-white text-gray-500 hover:bg-gray-50"
+                }`}
+                title="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Sort dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                  Sort by
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => handleSort("created_at")}
+                  className={sortField === "created_at" ? "font-medium" : ""}
+                >
+                  Created At
+                  {sortField === "created_at" &&
+                    (sortDirection === "asc" ? (
+                      <ChevronUp className="ml-2 w-3 h-3" />
+                    ) : (
+                      <ChevronDown className="ml-2 w-3 h-3" />
+                    ))}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleSort("scheduled_date")}
+                  className={
+                    sortField === "scheduled_date" ? "font-medium" : ""
+                  }
+                >
+                  Scheduled Date
+                  {sortField === "scheduled_date" &&
+                    (sortDirection === "asc" ? (
+                      <ChevronUp className="ml-2 w-3 h-3" />
+                    ) : (
+                      <ChevronDown className="ml-2 w-3 h-3" />
+                    ))}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleSort("meal_name")}
+                  className={sortField === "meal_name" ? "font-medium" : ""}
+                >
+                  Meal Name
+                  {sortField === "meal_name" &&
+                    (sortDirection === "asc" ? (
+                      <ChevronUp className="ml-2 w-3 h-3" />
+                    ) : (
+                      <ChevronDown className="ml-2 w-3 h-3" />
+                    ))}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Export */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToCSV}
+              className="gap-1.5 h-9"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </Button>
+
+            {/* Refresh */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={fetchOrders}
+              disabled={loading}
+              className="h-9 w-9"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              />
+            </Button>
+
+            {/* Add new (placeholder) */}
+            <Button
+              size="sm"
+              className="gap-1.5 h-9 bg-teal-500 hover:bg-teal-600 text-white"
+            >
+              <Plus className="w-4 h-4" />
+              Add new
+            </Button>
+          </div>
+        </div>
 
         {/* Bulk Actions */}
         {selectedOrders.size > 0 && (
           <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between">
             <span className="text-sm text-primary font-medium">
-              {selectedOrders.size} order{selectedOrders.size > 1 ? "s" : ""} selected
+              {selectedOrders.size} order{selectedOrders.size > 1 ? "s" : ""}{" "}
+              selected
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">
                 Mark as Completed
               </Button>
-              <Button variant="outline" size="sm" className="text-red-600 border-red-200">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 border-red-200"
+              >
                 Cancel Selected
               </Button>
             </div>
           </div>
         )}
 
-        {/* Orders Table */}
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">Orders</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-10 pl-6">
-                    <Checkbox
-                      checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
-                      onCheckedChange={selectAllOrders}
-                    />
-                  </TableHead>
-                  <TableHead>
-                    <button onClick={() => handleSort("meal_name")} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      Meal
-                      {sortField === "meal_name" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
-                    </button>
-                  </TableHead>
-                  <TableHead>Restaurant</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Meal Type</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>
-                    <button onClick={() => handleSort("scheduled_date")} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      Scheduled
-                      {sortField === "scheduled_date" && (sortDirection === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
-                    </button>
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <p className="text-muted-foreground text-sm">Loading orders...</p>
-                      </div>
-                    </TableCell>
+        {/* Loading state */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-muted-foreground text-sm">Loading orders...</p>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && filteredOrders.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+              <Utensils className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground">No orders found</p>
+            <p className="text-muted-foreground/70 text-sm">
+              Try adjusting your filters
+            </p>
+          </div>
+        )}
+
+        {/* Grid view */}
+        {!loading && filteredOrders.length > 0 && viewMode === "grid" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                isSelected={selectedOrders.has(order.id)}
+                onSelect={() => toggleOrderSelection(order.id)}
+                onViewDetails={() => openDetail(order)}
+                onCancel={() => {
+                  if (confirm("Are you sure you want to cancel this order?")) {
+                    cancelOrder(order.id);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* List (table) view */}
+        {!loading && filteredOrders.length > 0 && viewMode === "list" && (
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Orders</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-10 pl-6">
+                      <Checkbox
+                        checked={
+                          selectedOrders.size === filteredOrders.length &&
+                          filteredOrders.length > 0
+                        }
+                        onCheckedChange={selectAllOrders}
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <button
+                        onClick={() => handleSort("meal_name")}
+                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      >
+                        Meal
+                        {sortField === "meal_name" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          ))}
+                      </button>
+                    </TableHead>
+                    <TableHead>Restaurant</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Meal Type</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>
+                      <button
+                        onClick={() => handleSort("scheduled_date")}
+                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                      >
+                        Scheduled
+                        {sortField === "scheduled_date" &&
+                          (sortDirection === "asc" ? (
+                            <ChevronUp className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          ))}
+                      </button>
+                    </TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-20">Actions</TableHead>
                   </TableRow>
-                ) : filteredOrders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <Utensils className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                        <p className="text-muted-foreground">No orders found</p>
-                        <p className="text-muted-foreground/70 text-sm">Try adjusting your filters</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredOrders.map((order) => (
-                    <TableRow key={order.id} className="hover:bg-muted/50 transition-colors">
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order) => (
+                    <TableRow
+                      key={order.id}
+                      className="hover:bg-muted/50 transition-colors"
+                    >
                       <TableCell className="pl-6">
                         <Checkbox
                           checked={selectedOrders.has(order.id)}
-                          onCheckedChange={() => toggleOrderSelection(order.id)}
+                          onCheckedChange={() =>
+                            toggleOrderSelection(order.id)
+                          }
                         />
                       </TableCell>
                       <TableCell>
@@ -636,46 +1101,55 @@ const AdminOrders = () => {
                         <Badge variant="secondary">{order.meal_type}</Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">{formatCurrency(order.meal.price)}</span>
+                        <span className="font-medium">
+                          {formatCurrency(order.meal.price)}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Calendar className="w-3 h-3" />
-                          {format(new Date(order.scheduled_date), "MMM d, yyyy")}
+                          {format(
+                            new Date(order.scheduled_date),
+                            "MMM d, yyyy"
+                          )}
                         </div>
                       </TableCell>
-                      <TableCell>{getStatusBadge(order)}</TableCell>
+                      <TableCell>{getDetailStatusBadge(order)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setIsDetailOpen(true);
-                              }}
-                            >
+                            <DropdownMenuItem onClick={() => openDetail(order)}>
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {order.order_status !== "completed" && order.order_status !== "cancelled" && (
-                              <DropdownMenuItem 
-                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to cancel this order?")) {
-                                    cancelOrder(order.id);
-                                  }
-                                }}
-                              >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Cancel Order
-                              </DropdownMenuItem>
-                            )}
+                            {order.order_status !== "completed" &&
+                              order.order_status !== "cancelled" && (
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                                  onClick={() => {
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to cancel this order?"
+                                      )
+                                    ) {
+                                      cancelOrder(order.id);
+                                    }
+                                  }}
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Cancel Order
+                                </DropdownMenuItem>
+                              )}
                             {order.order_status === "cancelled" && (
                               <DropdownMenuItem disabled>
                                 <XCircle className="w-4 h-4 mr-2" />
@@ -686,12 +1160,12 @@ const AdminOrders = () => {
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Order Detail Sheet */}
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -704,8 +1178,12 @@ const AdminOrders = () => {
                       <Utensils className="w-8 h-8 text-primary" />
                     </div>
                     <div>
-                      <SheetTitle className="text-xl">{selectedOrder.meal.name}</SheetTitle>
-                      <SheetDescription>{getStatusBadge(selectedOrder)}</SheetDescription>
+                      <SheetTitle className="text-xl">
+                        {selectedOrder.meal.name}
+                      </SheetTitle>
+                      <SheetDescription>
+                        {getDetailStatusBadge(selectedOrder)}
+                      </SheetDescription>
                     </div>
                   </div>
                 </SheetHeader>
@@ -721,21 +1199,74 @@ const AdminOrders = () => {
                     <CardContent className="space-y-3">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-xs text-muted-foreground">Order ID</p>
-                          <code className="text-sm font-mono">{selectedOrder.id.substring(0, 16)}...</code>
+                          <p className="text-xs text-muted-foreground">
+                            Order ID
+                          </p>
+                          <code className="text-sm font-mono">
+                            {selectedOrder.id.substring(0, 16)}...
+                          </code>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Meal Type</p>
-                          <Badge variant="secondary">{selectedOrder.meal_type}</Badge>
+                          <p className="text-xs text-muted-foreground">
+                            Meal Type
+                          </p>
+                          <Badge variant="secondary">
+                            {selectedOrder.meal_type}
+                          </Badge>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Price</p>
-                          <p className="text-lg font-semibold">{formatCurrency(selectedOrder.meal.price)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Scheduled Date
+                          </p>
+                          <p className="text-sm">
+                            {format(
+                              new Date(selectedOrder.scheduled_date),
+                              "MMM d, yyyy"
+                            )}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Scheduled Date</p>
-                          <p className="text-sm">{format(new Date(selectedOrder.scheduled_date), "MMM d, yyyy")}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Created
+                          </p>
+                          <p className="text-sm">
+                            {format(
+                              new Date(selectedOrder.created_at),
+                              "MMM d, yyyy"
+                            )}
+                          </p>
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pricing Breakdown */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                        Pricing Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Meal Price (set by restaurant)
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(selectedOrder.meal.price)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm text-destructive">
+                        <span>Platform Fee (18%)</span>
+                        <span>
+                          - {formatCurrency(selectedOrder.meal.price * 0.18)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-1">
+                        <span>Restaurant Payout</span>
+                        <span className="text-green-600">
+                          {formatCurrency(selectedOrder.meal.price * 0.82)}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -753,8 +1284,12 @@ const AdminOrders = () => {
                           <Store className="w-5 h-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="font-medium">{selectedOrder.meal.restaurant.name}</p>
-                          <p className="text-xs text-muted-foreground">Meal Provider</p>
+                          <p className="font-medium">
+                            {selectedOrder.meal.restaurant.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Meal Provider
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -773,33 +1308,44 @@ const AdminOrders = () => {
                           <User className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{selectedOrder.profile?.full_name || "Customer"}</p>
-                          <p className="text-xs text-muted-foreground">{selectedOrder.profile?.email || "No email"}</p>
+                          <p className="font-medium">
+                            {selectedOrder.profile?.full_name || "Customer"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedOrder.profile?.email || "No email"}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   {/* Actions */}
-                  {selectedOrder.order_status !== "completed" && selectedOrder.order_status !== "cancelled" && (
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={() => {
-                          if (confirm("Are you sure you want to cancel this order?")) {
-                            cancelOrder(selectedOrder.id);
-                          }
-                        }}
-                      >
-                        Cancel Order
-                      </Button>
-                    </div>
-                  )}
-                  
+                  {selectedOrder.order_status !== "completed" &&
+                    selectedOrder.order_status !== "cancelled" && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Are you sure you want to cancel this order?"
+                              )
+                            ) {
+                              cancelOrder(selectedOrder.id);
+                            }
+                          }}
+                        >
+                          Cancel Order
+                        </Button>
+                      </div>
+                    )}
+
                   {selectedOrder.order_status === "cancelled" && (
                     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-600 font-medium">This order has been cancelled</p>
+                      <p className="text-sm text-red-600 font-medium">
+                        This order has been cancelled
+                      </p>
                     </div>
                   )}
                 </div>

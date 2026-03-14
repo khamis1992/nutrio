@@ -66,15 +66,12 @@ const PartnerSettings = lazy(() => import("./pages/partner/PartnerSettings"));
 const PartnerAnalytics = lazy(() => import("./pages/partner/PartnerAnalytics"));
 const PartnerNotifications = lazy(() => import("./pages/partner/PartnerNotifications"));
 const PartnerProfile = lazy(() => import("./pages/partner/PartnerProfile"));
-const PartnerReviews = lazy(() => import("./pages/partner/PartnerReviews"));
 const PartnerPayouts = lazy(() => import("./pages/partner/PartnerPayouts"));
 const PartnerOnboarding = lazy(() => import("./pages/partner/PartnerOnboarding"));
 const PartnerBoost = lazy(() => import("./pages/partner/PartnerBoost"));
 const PartnerAddons = lazy(() => import("./pages/partner/PartnerAddons"));
 const PendingApproval = lazy(() => import("./pages/partner/PendingApproval"));
 const PartnerEarningsDashboard = lazy(() => import("./pages/partner/PartnerEarningsDashboard"));
-const PartnerAIInsights = lazy(() => import("./pages/partner/PartnerAIInsights"));
-
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminRestaurants = lazy(() => import("./pages/admin/AdminRestaurants"));
@@ -101,6 +98,8 @@ const AdminFreezeManagement = lazy(() => import("./pages/admin/AdminFreezeManage
 const AdminRetentionAnalytics = lazy(() => import("./pages/admin/AdminRetentionAnalytics"));
 const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards"));
 const AdminProfitDashboard = lazy(() => import("./pages/admin/AdminProfitDashboard"));
+const AdminMealApprovals = lazy(() => import("./pages/admin/AdminMealApprovals"));
+const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnalytics"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -437,14 +436,6 @@ const App = () => (
               } 
             />
             <Route 
-              path="/partner/reviews" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerReviews />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
               path="/partner/payouts" 
               element={
                 <ProtectedRoute requiredRole="partner" requireApproval>
@@ -473,14 +464,6 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="partner" requireApproval>
                   <PartnerEarningsDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/partner/ai-insights" 
-              element={
-                <ProtectedRoute requiredRole="partner" requireApproval>
-                  <PartnerAIInsights />
                 </ProtectedRoute>
               } 
             />
@@ -514,6 +497,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminFeatured />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/meal-approvals" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminMealApprovals />
                 </ProtectedRoute>
               } 
             />
@@ -594,6 +585,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminAffiliatePayouts />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/premium-analytics" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminPremiumAnalytics />
                 </ProtectedRoute>
               } 
             />

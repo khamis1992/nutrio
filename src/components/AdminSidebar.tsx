@@ -18,7 +18,9 @@ import {
   Trophy,
   Rocket,
   Flame,
-  TrendingUp
+  TrendingUp,
+  ClipboardCheck,
+  Crown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,12 +43,14 @@ import { useAuth } from "@/contexts/AuthContext";
 const navItems = [
   { icon: Shield, label: "Dashboard", to: "/admin" },
   { icon: Store, label: "Restaurants", to: "/admin/restaurants" },
+  { icon: ClipboardCheck, label: "Meal Approvals", to: "/admin/meal-approvals" },
   { icon: Rocket, label: "Featured", to: "/admin/featured" },
   { icon: Users, label: "Users", to: "/admin/users" },
   { icon: UserCheck, label: "Affiliate Apps", to: "/admin/affiliate-applications" },
   { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
   { icon: CreditCard, label: "Subscriptions", to: "/admin/subscriptions" },
   { icon: Wallet, label: "Payouts", to: "/admin/payouts" },
+  { icon: Crown, label: "Premium Analytics", to: "/admin/premium-analytics" },
   { icon: TrendingUp, label: "Income & Profit", to: "/admin/profit" },
   { icon: UserCheck, label: "Affiliate Payouts", to: "/admin/affiliate-payouts" },
   { icon: Trophy, label: "Affiliate Milestones", to: "/admin/affiliate-milestones" },

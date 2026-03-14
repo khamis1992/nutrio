@@ -1,24 +1,31 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   Store,
   UtensilsCrossed,
   ShoppingBag,
   TrendingUp,
+  TrendingDown,
   DollarSign,
   Clock,
   ChevronRight,
-  Plus,
   Star,
   Package,
   BarChart3,
   MessageSquare,
   Wallet,
   User,
+  Power,
+  CheckCircle2,
+  AlertCircle,
+  Settings,
+  Zap,
+  ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -27,8 +34,6 @@ import { PartnerLayout } from "@/components/PartnerLayout";
 import { AnnouncementsBanner } from "@/components/AnnouncementsBanner";
 import { formatCurrency } from "@/lib/currency";
 import { PartnerBranchOrders } from "@/components/partner/PartnerBranchOrders";
-import { PartnerCommission } from "@/components/partner/PartnerCommission";
-
 interface Restaurant {
   id: string;
   name: string;
@@ -36,7 +41,8 @@ interface Restaurant {
   rating: number;
   total_orders: number;
   is_active: boolean;
-  payout_rate: number; // Partner earns this amount per meal prepared
+  payout_rate: number;       // Gross per-meal price the restaurant charges
+  commission_rate: number;   // % platform takes (set by admin)
 }
 
 interface ScheduledMeal {
@@ -133,8 +139,10 @@ const PartnerDashboard = () => {
 
       setRestaurant(restaurantData);
 
-      // Get payout rate from restaurant
-      const payoutRate = restaurantData.payout_rate || 0;
+      // Net payout = gross rate × (1 − commission%)
+      const grossRate = restaurantData.payout_rate || 0;
+      const commissionRate = restaurantData.commission_rate ?? 18;
+      const payoutRate = grossRate * (1 - commissionRate / 100);
 
       // Fetch meals count (price removed - meals are subscription-based)
       const { data: mealsData, count: mealsCount } = await supabase
@@ -257,35 +265,52 @@ const PartnerDashboard = () => {
     }
   };
 
-  const getStatusColor = (isCompleted: boolean, scheduledDate: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    if (isCompleted) {
-      return "bg-green-500/10 text-green-600 border-green-500/20";
-    } else if (scheduledDate < today) {
-      return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+  const toggleRestaurantActive = async () => {
+    if (!restaurant) return;
+    const newStatus = !restaurant.is_active;
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ is_active: newStatus })
+        .eq("id", restaurant.id);
+      if (error) throw error;
+      setRestaurant({ ...restaurant, is_active: newStatus });
+      toast({
+        title: newStatus ? "Restaurant is now Open" : "Restaurant is now Closed",
+        description: newStatus
+          ? "Your restaurant is visible to customers"
+          : "Your restaurant is hidden from customers",
+      });
+    } catch (error) {
+      console.error("Error toggling restaurant status:", error);
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     }
-    return "bg-blue-500/10 text-blue-600 border-blue-500/20";
   };
 
-  const getStatusLabel = (isCompleted: boolean, scheduledDate: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    if (isCompleted) return "Completed";
-    if (scheduledDate < today) return "Overdue";
-    return "Pending";
-  };
+  const weeklyChange = stats.lastWeekRevenue > 0
+    ? ((stats.weeklyRevenue - stats.lastWeekRevenue) / stats.lastWeekRevenue) * 100
+    : null;
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
 
   if (loading) {
     return (
       <PartnerLayout title="Dashboard">
         <div className="space-y-6">
-          <Skeleton className="h-16 w-full" />
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-4">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
+          <Skeleton className="h-36 w-full rounded-2xl" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
           </div>
-          <Skeleton className="h-64" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Skeleton className="h-44 rounded-xl lg:col-span-2" />
+            <Skeleton className="h-44 rounded-xl" />
+          </div>
+          <Skeleton className="h-72 rounded-xl" />
         </div>
       </PartnerLayout>
     );
@@ -293,19 +318,22 @@ const PartnerDashboard = () => {
 
   if (!restaurant) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md mx-4">
-          <CardContent className="pt-6 text-center">
-            <Store className="h-16 w-16 mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-bold mb-2">Welcome, Partner!</h2>
-            <p className="text-muted-foreground mb-6">
-              You don't have a restaurant registered yet. Let's get you set up!
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-2">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5">
+              <Store className="h-10 w-10 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Welcome, Partner!</h2>
+            <p className="text-muted-foreground mb-8 leading-relaxed">
+              You don't have a restaurant registered yet. Let's get you set up and start receiving orders.
             </p>
             <div className="space-y-3">
-              <Button onClick={() => navigate("/partner/onboarding")} className="w-full">
+              <Button onClick={() => navigate("/partner/onboarding")} className="w-full h-11" size="lg">
                 Register Your Restaurant
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
-              <Button variant="outline" onClick={() => navigate("/dashboard")} className="w-full">
+              <Button variant="outline" onClick={() => navigate("/dashboard")} className="w-full h-11">
                 Go to Customer Dashboard
               </Button>
             </div>
@@ -318,34 +346,101 @@ const PartnerDashboard = () => {
   return (
     <PartnerLayout title="Dashboard">
       <div className="space-y-6">
-        {/* Restaurant Info Header */}
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            {restaurant.logo_url ? (
-              <img
-                src={restaurant.logo_url}
-                alt={restaurant.name}
-                className="w-full h-full object-cover rounded-xl"
-              />
-            ) : (
-              <Store className="w-6 h-6 text-primary" />
-            )}
+
+        {/* ── Hero Header ─────────────────────────────────────────────────── */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6">
+          {/* background decoration */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full bg-white" />
+            <div className="absolute -bottom-12 -left-12 w-64 h-64 rounded-full bg-white" />
           </div>
-          <div>
-            <h2 className="font-semibold text-lg">{restaurant.name}</h2>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant={restaurant.is_active ? "default" : "secondary"}
-                className="text-xs"
-              >
-                {restaurant.is_active ? "Active" : "Inactive"}
-              </Badge>
-              {restaurant.rating > 0 && (
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                  {restaurant.rating.toFixed(1)}
-                </span>
+
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* Logo */}
+              <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 overflow-hidden border border-white/30">
+                {restaurant.logo_url ? (
+                  <img src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Store className="w-7 h-7 text-white" />
+                )}
+              </div>
+              <div>
+                <p className="text-primary-foreground/70 text-sm font-medium">{greeting}</p>
+                <h1 className="text-xl font-bold leading-tight">{restaurant.name}</h1>
+                <div className="flex items-center gap-2 mt-1">
+                  {restaurant.rating > 0 && (
+                    <span className="flex items-center gap-1 text-sm text-primary-foreground/80">
+                      <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+                      {restaurant.rating.toFixed(1)}
+                    </span>
+                  )}
+                  <Badge
+                    className={cn(
+                      "text-xs border font-semibold",
+                      restaurant.is_active
+                        ? "bg-green-500/20 text-green-100 border-green-400/40"
+                        : "bg-white/10 text-white/70 border-white/20"
+                    )}
+                  >
+                    {restaurant.is_active ? "● Open" : "○ Closed"}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Open / Closed toggle */}
+            <button
+              onClick={toggleRestaurantActive}
+              className={cn(
+                "group relative flex flex-col items-center gap-1 shrink-0 rounded-2xl px-5 py-3 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white select-none shadow-lg active:scale-95",
+                restaurant.is_active
+                  ? "bg-white hover:bg-green-50"
+                  : "bg-white/20 hover:bg-white/30 border border-white/40"
               )}
+            >
+              {/* Pulse ring when open */}
+              {restaurant.is_active && (
+                <span className="absolute inset-0 rounded-2xl animate-ping bg-white/30 pointer-events-none" />
+              )}
+
+              {/* Icon + label row */}
+              <div className="relative flex items-center gap-2">
+                {/* Status dot */}
+                <span className={cn(
+                  "w-2.5 h-2.5 rounded-full shrink-0 transition-colors duration-300",
+                  restaurant.is_active
+                    ? "bg-green-500 shadow-[0_0_6px_2px_rgba(34,197,94,0.5)]"
+                    : "bg-white/60"
+                )} />
+                <span className={cn(
+                  "text-sm font-bold tracking-widest",
+                  restaurant.is_active ? "text-green-600" : "text-white"
+                )}>
+                  {restaurant.is_active ? "OPEN" : "CLOSED"}
+                </span>
+              </div>
+
+              {/* Subtitle */}
+              <span className={cn(
+                "text-[10px] font-medium hidden sm:block",
+                restaurant.is_active ? "text-gray-400" : "text-white/70"
+              )}>
+                {restaurant.is_active ? "Tap to close" : "Tap to open"}
+              </span>
+            </button>
+          </div>
+
+          {/* Commission rate pill */}
+          <div className="mt-4 flex items-center gap-2 bg-amber-400 rounded-xl px-4 py-2 w-fit shadow-md">
+            <Zap className="h-4 w-4 text-amber-900 shrink-0" />
+            <div className="leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-800">
+                Platform commission · set by admin
+              </p>
+              <p className="text-sm font-black text-amber-950">
+                {restaurant.commission_rate ?? 18}% of each meal
+              </p>
             </div>
           </div>
         </div>
@@ -353,218 +448,236 @@ const PartnerDashboard = () => {
         {/* Platform Announcements */}
         <AnnouncementsBanner audience="partners" />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <UtensilsCrossed className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.totalMeals}</p>
-                  <p className="text-xs text-muted-foreground">Menu Items</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.activeOrders}</p>
-                  <p className="text-xs text-muted-foreground">Active Orders</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <ShoppingBag className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.todayOrders}</p>
-                  <p className="text-xs text-muted-foreground">Today's Orders</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
-                  <p className="text-xs text-muted-foreground">Revenue</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* ── KPI Cards ───────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Menu Items",
+              value: stats.totalMeals,
+              icon: UtensilsCrossed,
+              color: "text-violet-600",
+              bg: "bg-violet-500/10",
+              border: "border-l-violet-500",
+              href: "/partner/menu",
+            },
+            {
+              label: "Active Orders",
+              value: stats.activeOrders,
+              icon: Clock,
+              color: "text-amber-600",
+              bg: "bg-amber-500/10",
+              border: "border-l-amber-500",
+              href: "/partner/orders",
+              urgent: stats.activeOrders > 0,
+            },
+            {
+              label: "Today's Orders",
+              value: stats.todayOrders,
+              icon: ShoppingBag,
+              color: "text-emerald-600",
+              bg: "bg-emerald-500/10",
+              border: "border-l-emerald-500",
+              href: "/partner/orders",
+            },
+            {
+              label: "Total Revenue",
+              value: formatCurrency(stats.totalRevenue),
+              icon: DollarSign,
+              color: "text-blue-600",
+              bg: "bg-blue-500/10",
+              border: "border-l-blue-500",
+              href: "/partner/payouts",
+            },
+          ].map((stat) => (
+            <Link key={stat.label} to={stat.href}>
+              <Card className={cn(
+                "h-full border-l-4 hover:shadow-md transition-all duration-200 group cursor-pointer",
+                stat.border,
+                stat.urgent && "ring-2 ring-amber-400/30 animate-pulse-subtle"
+              )}>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{stat.label}</p>
+                      <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                    </div>
+                    <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform", stat.bg)}>
+                      <stat.icon className={cn("h-4 w-4", stat.color)} />
+                    </div>
+                  </div>
+                  {stat.urgent && (
+                    <p className="text-xs text-amber-600 font-medium mt-2 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Needs attention
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
 
-        {/* Weekly Revenue Summary */}
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">This Week's Revenue</p>
-                  <p className="text-3xl font-bold">{formatCurrency(stats.weeklyRevenue)}</p>
-                </div>
+        {/* ── Mid Row: Weekly Performance + Quick Actions ──────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* Weekly performance card */}
+          <Card className="lg:col-span-2 bg-gradient-to-br from-muted/40 to-muted/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">This Week's Performance</CardTitle>
+                {weeklyChange !== null && (
+                  <div className={cn(
+                    "flex items-center gap-1 text-sm font-semibold px-2 py-1 rounded-full",
+                    weeklyChange >= 0
+                      ? "bg-emerald-500/10 text-emerald-600"
+                      : "bg-red-500/10 text-red-600"
+                  )}>
+                    {weeklyChange >= 0
+                      ? <TrendingUp className="h-3.5 w-3.5" />
+                      : <TrendingDown className="h-3.5 w-3.5" />}
+                    {weeklyChange >= 0 ? "+" : ""}{weeklyChange.toFixed(1)}%
+                  </div>
+                )}
               </div>
-              {stats.lastWeekRevenue > 0 && (
-                <div className="text-right">
-                  {(() => {
-                    const change = stats.lastWeekRevenue > 0 
-                      ? ((stats.weeklyRevenue - stats.lastWeekRevenue) / stats.lastWeekRevenue) * 100
-                      : 0;
-                    const isPositive = change >= 0;
-                    return (
-                      <div className={`flex items-center gap-1 ${isPositive ? 'text-green-600' : 'text-red-500'}`}>
-                        <TrendingUp className={`h-4 w-4 ${!isPositive && 'rotate-180'}`} />
-                        <span className="text-sm font-medium">
-                          {isPositive ? '+' : ''}{change.toFixed(1)}%
-                        </span>
-                      </div>
-                    );
-                  })()}
-                  <p className="text-xs text-muted-foreground">vs last week</p>
-                </div>
+              {weeklyChange !== null && (
+                <p className="text-xs text-muted-foreground">vs last week</p>
               )}
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/10">
-              <div>
-                <p className="text-2xl font-semibold">{stats.weeklyOrders}</p>
-                <p className="text-xs text-muted-foreground">Orders this week</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 rounded-xl bg-background border">
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(stats.weeklyRevenue)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Revenue</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-background border">
+                  <p className="text-2xl font-bold">{stats.weeklyOrders}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Orders</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-background border">
+                  <p className="text-2xl font-bold">
+                    {stats.weeklyOrders > 0
+                      ? formatCurrency(stats.weeklyRevenue / stats.weeklyOrders)
+                      : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Avg / Order</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-semibold">
-                  {stats.weeklyOrders > 0 ? formatCurrency(stats.weeklyRevenue / stats.weeklyOrders) : formatCurrency(0)}
-                </p>
-                <p className="text-xs text-muted-foreground">Avg. order value</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          <Link to="/partner/menu">
-            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-              <CardContent className="pt-4 text-center">
-                <UtensilsCrossed className="h-6 w-6 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-sm">Menu</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/partner/orders">
-            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-              <CardContent className="pt-4 text-center">
-                <Package className="h-6 w-6 mx-auto mb-2 text-amber-500" />
-                <p className="font-medium text-sm">Orders</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/partner/analytics">
-            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-              <CardContent className="pt-4 text-center">
-                <BarChart3 className="h-6 w-6 mx-auto mb-2 text-blue-500" />
-                <p className="font-medium text-sm">Analytics</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/partner/reviews">
-            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-              <CardContent className="pt-4 text-center">
-                <MessageSquare className="h-6 w-6 mx-auto mb-2 text-purple-500" />
-                <p className="font-medium text-sm">Reviews</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/partner/payouts">
-            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-              <CardContent className="pt-4 text-center">
-                <Wallet className="h-6 w-6 mx-auto mb-2 text-green-500" />
-                <p className="font-medium text-sm">Payouts</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/partner/profile">
-            <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
-              <CardContent className="pt-4 text-center">
-                <User className="h-6 w-6 mx-auto mb-2 text-gray-500" />
-                <p className="font-medium text-sm">Profile</p>
-              </CardContent>
-            </Card>
-          </Link>
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {[
+                { label: "Manage Menu", icon: UtensilsCrossed, href: "/partner/menu", color: "text-violet-600", bg: "bg-violet-500/10" },
+                { label: "View Orders", icon: Package, href: "/partner/orders", color: "text-amber-600", bg: "bg-amber-500/10", badge: stats.activeOrders > 0 ? stats.activeOrders : undefined },
+                { label: "Analytics", icon: BarChart3, href: "/partner/analytics", color: "text-blue-600", bg: "bg-blue-500/10" },
+                { label: "Payouts", icon: Wallet, href: "/partner/payouts", color: "text-emerald-600", bg: "bg-emerald-500/10" },
+                { label: "Settings", icon: Settings, href: "/partner/settings", color: "text-slate-600", bg: "bg-slate-500/10" },
+              ].map((action) => (
+                <Link key={action.href} to={action.href}>
+                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors group cursor-pointer">
+                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", action.bg)}>
+                      <action.icon className={cn("h-4 w-4", action.color)} />
+                    </div>
+                    <span className="text-sm font-medium flex-1">{action.label}</span>
+                    {action.badge && (
+                      <Badge className="h-5 text-xs bg-amber-500 text-white">{action.badge}</Badge>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Branch Orders Section - Shows orders by branch */}
+        {/* Branch Orders Section */}
         <PartnerBranchOrders />
 
-        {/* Commission Section - Shows earnings breakdown */}
-        {restaurant && <PartnerCommission restaurantId={restaurant.id} />}
-
-        {/* Recent Orders */}
+        {/* ── Recent Orders ───────────────────────────────────────────────── */}
         <Card>
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Recent Orders</CardTitle>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/partner/orders" className="flex items-center gap-1">
-                  View All
+              <CardTitle className="text-base font-semibold">Recent Orders</CardTitle>
+              <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary">
+                <Link to="/partner/orders" className="flex items-center gap-1 text-sm">
+                  View all
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {recentSchedules.length === 0 ? (
-              <div className="text-center py-8">
-                <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                <p className="text-muted-foreground">No orders yet</p>
-                <p className="text-sm text-muted-foreground mt-1">
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <ShoppingBag className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-muted-foreground">No orders yet</p>
+                <p className="text-sm text-muted-foreground/70 mt-1 max-w-xs">
                   Orders will appear here when customers schedule your meals
                 </p>
+                <Button variant="outline" size="sm" className="mt-4" asChild>
+                  <Link to="/partner/menu">Add meals to your menu</Link>
+                </Button>
               </div>
             ) : (
-              recentSchedules.slice(0, 5).map((schedule) => (
-                <div
-                  key={schedule.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center text-xl">
-                      🍽️
+              <div className="divide-y divide-border">
+                {recentSchedules.slice(0, 5).map((schedule, idx) => {
+                  const today = new Date().toISOString().split("T")[0];
+                  const isCompleted = schedule.is_completed;
+                  const isOverdue = !isCompleted && schedule.scheduled_date < today;
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="flex items-center justify-between py-3 first:pt-0 last:pb-0 group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0",
+                          isCompleted ? "bg-emerald-500/10" : isOverdue ? "bg-amber-500/10" : "bg-blue-500/10"
+                        )}>
+                          🍽️
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium leading-tight">
+                            {schedule.meal?.name || "Unknown Meal"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(schedule.scheduled_date).toLocaleDateString("en-US", {
+                              weekday: "short", month: "short", day: "numeric"
+                            })}
+                            {" · "}
+                            <span className="capitalize">{schedule.meal_type}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isCompleted ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-full">
+                            <CheckCircle2 className="h-3 w-3" /> Done
+                          </span>
+                        ) : isOverdue ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-500/10 px-2 py-1 rounded-full">
+                            <AlertCircle className="h-3 w-3" /> Overdue
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-500/10 px-2 py-1 rounded-full">
+                            <Clock className="h-3 w-3" /> Pending
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{schedule.meal?.name || "Unknown Meal"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(schedule.scheduled_date).toLocaleDateString()} • {schedule.meal_type}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className={getStatusColor(schedule.is_completed, schedule.scheduled_date)}>
-                    {getStatusLabel(schedule.is_completed, schedule.scheduled_date)}
-                  </Badge>
-                </div>
-              ))
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
+
       </div>
     </PartnerLayout>
   );

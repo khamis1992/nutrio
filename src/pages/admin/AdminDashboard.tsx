@@ -120,10 +120,16 @@ const AdminDashboard = () => {
       supabase.from("affiliate_payouts").select("amount").eq("status", "pending"),
     ]);
 
-    // Calculate pending payouts amount
-    const pendingPayoutsAmount = (pendingPayoutsRes.data || []).reduce(
-      (sum, p) => sum + Number(p.amount), 0
-    );
+    // Also count partner-initiated payout requests (pending + processing)
+    const { data: partnerPayoutsData } = await supabase
+      .from("partner_payouts")
+      .select("amount")
+      .in("status", ["pending", "processing"]);
+
+    // Calculate pending payouts amount (admin-generated + partner-requested)
+    const pendingPayoutsAmount =
+      (pendingPayoutsRes.data || []).reduce((sum, p) => sum + Number(p.amount), 0) +
+      (partnerPayoutsData || []).reduce((sum, p) => sum + Number(p.amount), 0);
 
     // Calculate total commissions paid
     const totalCommissionsPaid = (commissionsRes.data || [])
@@ -247,7 +253,7 @@ const AdminDashboard = () => {
       totalMeals: mealsRes.count || 0,
       todayOrders: todaySchedulesRes.count || 0,
       weeklyRevenue,
-      pendingPayouts: pendingPayoutsRes.data?.length || 0,
+      pendingPayouts: (pendingPayoutsRes.data?.length || 0) + (partnerPayoutsData?.length || 0),
       pendingPayoutsAmount,
       totalCommissionsPaid,
       pendingAffiliatePayouts,

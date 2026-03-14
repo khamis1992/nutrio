@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Save, User, Mail, Phone, MapPin, Store, Building } from "lucide-react";
+import { Save, User, Mail, Phone, MapPin, Store, Building, Navigation } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ const PartnerProfile = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null }>({ full_name: null, avatar_url: null });
   const [restaurant, setRestaurant] = useState<any>(null);
 
@@ -44,6 +45,8 @@ const PartnerProfile = () => {
         phone: restaurant.phone,
         email: restaurant.email,
         logo_url: restaurant.logo_url,
+        latitude: restaurant.latitude ?? null,
+        longitude: restaurant.longitude ?? null,
       }).eq("id", restaurant.id);
     }
     toast({ title: "Profile updated successfully" });
@@ -52,6 +55,25 @@ const PartnerProfile = () => {
 
   const handleLogoChange = (url: string | null) => {
     setRestaurant((prev: any) => prev ? { ...prev, logo_url: url } : prev);
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocation not supported", description: "Your browser does not support location detection.", variant: "destructive" });
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setRestaurant((prev: any) => prev ? { ...prev, latitude: pos.coords.latitude, longitude: pos.coords.longitude } : prev);
+        setLocating(false);
+        toast({ title: "Location detected", description: "Coordinates have been filled in. Save to confirm." });
+      },
+      () => {
+        setLocating(false);
+        toast({ title: "Location access denied", description: "Please allow location access or enter coordinates manually.", variant: "destructive" });
+      }
+    );
   };
 
   if (loading) return <PartnerLayout title="Profile"><Skeleton className="h-64 w-full" /></PartnerLayout>;
@@ -152,6 +174,57 @@ const PartnerProfile = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Location */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h4 className="font-medium flex items-center gap-2 text-sm">
+                    <Navigation className="h-4 w-4" />Pickup Location
+                  </h4>
+                  <Button type="button" variant="outline" size="sm" onClick={handleDetectLocation} disabled={locating}>
+                    <Navigation className="h-4 w-4 mr-2" />
+                    {locating ? "Detecting..." : "Use My Current Location"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Coordinates are shared with drivers for pickup navigation.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-2">
+                    <Label>Latitude</Label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      value={restaurant.latitude ?? ""}
+                      onChange={(e) => setRestaurant({ ...restaurant, latitude: e.target.value ? parseFloat(e.target.value) : null })}
+                      className="h-12 sm:h-10 min-h-[44px]"
+                      placeholder="e.g. 25.2854"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Longitude</Label>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      value={restaurant.longitude ?? ""}
+                      onChange={(e) => setRestaurant({ ...restaurant, longitude: e.target.value ? parseFloat(e.target.value) : null })}
+                      className="h-12 sm:h-10 min-h-[44px]"
+                      placeholder="e.g. 51.5310"
+                    />
+                  </div>
+                </div>
+                {restaurant.latitude && restaurant.longitude && (
+                  <a
+                    href={`https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary underline"
+                  >
+                    <MapPin className="h-3 w-3" />
+                    View on Google Maps
+                  </a>
+                )}
               </div>
             </CardContent>
           </Card>

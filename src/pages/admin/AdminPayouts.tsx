@@ -98,7 +98,31 @@ interface PayoutStats {
   totalOrderValue: number;
 }
 
+interface PartnerRequest {
+  id: string;
+  restaurant_id: string;
+  amount: number;
+  status: "pending" | "processing" | "completed" | "failed";
+  period_start: string;
+  period_end: string;
+  payout_method: string | null;
+  reference_number: string | null;
+  processed_at: string | null;
+  created_at: string;
+  restaurant?: { name: string; owner_id: string | null };
+  partner_name?: string | null;
+}
+
+interface PartnerBankDetails {
+  bank_name: string | null;
+  bank_account_name: string | null;
+  bank_account_number: string | null;
+  bank_iban: string | null;
+  swift_code: string | null;
+}
+
 type TabValue = "all" | "pending" | "processed" | "rejected";
+type MainView = "payouts" | "partner_requests";
 
 export default function AdminPayouts() {
   const { user } = useAuth();
@@ -127,6 +151,17 @@ export default function AdminPayouts() {
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
   const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
+
+  // Partner Requests state
+  const [mainView, setMainView] = useState<MainView>("payouts");
+  const [partnerRequests, setPartnerRequests] = useState<PartnerRequest[]>([]);
+  const [partnerRequestsLoading, setPartnerRequestsLoading] = useState(false);
+  const [selectedPartnerRequest, setSelectedPartnerRequest] = useState<PartnerRequest | null>(null);
+  const [partnerBankDetails, setPartnerBankDetails] = useState<PartnerBankDetails | null>(null);
+  const [partnerDetailOpen, setPartnerDetailOpen] = useState(false);
+  const [partnerActionDialogOpen, setPartnerActionDialogOpen] = useState(false);
+  const [partnerActionType, setPartnerActionType] = useState<"approve" | "reject" | null>(null);
+  const [referenceNumber, setReferenceNumber] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -204,6 +239,56 @@ export default function AdminPayouts() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchPartnerRequests = async () => {
+    setPartnerRequestsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("partner_payouts")
+        .select("*, restaurant:restaurants(name, owner_id)")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const ownerIds = [...new Set(
+        (data || []).map((r: any) => r.restaurant?.owner_id).filter(Boolean)
+      )];
+
+      let profilesMap: Record<string, string> = {};
+      if (ownerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", ownerIds);
+        profilesMap = (profiles || []).reduce((acc: Record<string, string>, p: any) => {
+          acc[p.user_id] = p.full_name || "Unknown";
+          return acc;
+        }, {});
+      }
+
+      setPartnerRequests((data || []).map((r: any) => ({
+        ...r,
+        partner_name: r.restaurant?.owner_id ? (profilesMap[r.restaurant.owner_id] || "Unknown") : "Unknown",
+      })));
+    } catch (error) {
+      console.error("Error fetching partner requests:", error);
+      toast.error("Failed to load partner requests");
+    } finally {
+      setPartnerRequestsLoading(false);
+    }
+  };
+
+  const openPartnerDetail = async (request: PartnerRequest) => {
+    setSelectedPartnerRequest(request);
+    setPartnerBankDetails(null);
+    setPartnerDetailOpen(true);
+    const { data } = await supabase
+      .from("restaurant_details")
+      .select("bank_name, bank_account_name, bank_account_number, bank_iban, swift_code")
+      .eq("restaurant_id", request.restaurant_id)
+      .maybeSingle();
+    setPartnerBankDetails(data as PartnerBankDetails | null);
   };
 
   const fetchRestaurants = async () => {
@@ -314,6 +399,38 @@ export default function AdminPayouts() {
     }
   };
 
+  const handlePartnerRequestAction = async () => {
+    if (!selectedPartnerRequest || !partnerActionType) return;
+    setProcessing(true);
+    try {
+      const newStatus = partnerActionType === "approve" ? "completed" : "failed";
+      const updateData: Record<string, unknown> = { status: newStatus };
+      if (partnerActionType === "approve") {
+        updateData.processed_at = new Date().toISOString();
+        if (referenceNumber.trim()) {
+          updateData.reference_number = referenceNumber.trim();
+        }
+      }
+      const { error } = await supabase
+        .from("partner_payouts")
+        .update(updateData)
+        .eq("id", selectedPartnerRequest.id);
+      if (error) throw error;
+      toast.success(`Payout request ${partnerActionType === "approve" ? "approved" : "rejected"}`);
+      setPartnerActionDialogOpen(false);
+      setPartnerDetailOpen(false);
+      setSelectedPartnerRequest(null);
+      setPartnerActionType(null);
+      setReferenceNumber("");
+      fetchPartnerRequests();
+    } catch (error) {
+      console.error("Error updating partner request:", error);
+      toast.error("Failed to update payout request");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleExportCSV = () => {
     const csvRows = [
       ["ID", "Restaurant", "Partner", "Period Start", "Period End", "Orders", "Order Value", "Commission", "Payout Amount", "Status", "Created At"],
@@ -390,6 +507,47 @@ export default function AdminPayouts() {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const getPartnerRequestStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Clock className="h-3 w-3 mr-1" />Pending
+          </Badge>
+        );
+      case "processing":
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            <Loader2 className="h-3 w-3 mr-1" />Processing
+          </Badge>
+        );
+      case "completed":
+        return (
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            <CheckCircle className="h-3 w-3 mr-1" />Completed
+          </Badge>
+        );
+      case "failed":
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            <XCircle className="h-3 w-3 mr-1" />Failed
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const pendingPartnerCount = partnerRequests.filter(
+    r => r.status === "pending" || r.status === "processing"
+  ).length;
+
+  const filteredPartnerRequests = partnerRequests.filter(r =>
+    r.restaurant?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (r.partner_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const tabs: { value: TabValue; label: string; count: number }[] = [
     { value: "all", label: "All", count: payouts.length },
@@ -524,20 +682,20 @@ export default function AdminPayouts() {
           <CardContent className="p-0">
             {/* Tabs */}
             <div className="border-b px-4 py-3">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
                 {tabs.map((tab) => (
                   <button
                     key={tab.value}
-                    onClick={() => setActiveTab(tab.value)}
+                    onClick={() => { setMainView("payouts"); setActiveTab(tab.value); }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
-                      activeTab === tab.value
+                      mainView === "payouts" && activeTab === tab.value
                         ? "bg-primary text-white"
                         : "bg-muted hover:bg-muted/80 text-muted-foreground"
                     }`}
                   >
                     {tab.label}
                     <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                      activeTab === tab.value
+                      mainView === "payouts" && activeTab === tab.value
                         ? "bg-white/20 text-white"
                         : "bg-background text-muted-foreground"
                     }`}>
@@ -545,11 +703,31 @@ export default function AdminPayouts() {
                     </span>
                   </button>
                 ))}
+                <div className="w-px h-6 bg-border mx-1" />
+                <button
+                  onClick={() => { setMainView("partner_requests"); fetchPartnerRequests(); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+                    mainView === "partner_requests"
+                      ? "bg-primary text-white"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                  }`}
+                >
+                  Partner Requests
+                  {pendingPartnerCount > 0 && (
+                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                      mainView === "partner_requests"
+                        ? "bg-white/20 text-white"
+                        : "bg-amber-500/10 text-amber-600"
+                    }`}>
+                      {pendingPartnerCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Bulk Actions */}
-            {selectedPayouts.size > 0 && (
+            {/* Bulk Actions (payouts view only) */}
+            {mainView === "payouts" && selectedPayouts.size > 0 && (
               <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-4">
                 <span className="text-sm font-medium">{selectedPayouts.size} selected</span>
                 <div className="flex gap-2">
@@ -577,15 +755,110 @@ export default function AdminPayouts() {
               </div>
             )}
 
-            {/* Table */}
-            {filteredPayouts.length === 0 ? (
+            {/* Partner Requests Table */}
+            {mainView === "partner_requests" && (
+              partnerRequestsLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredPartnerRequests.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
+                    <Wallet className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground">No partner payout requests found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Restaurant</TableHead>
+                        <TableHead>Partner</TableHead>
+                        <TableHead>Period</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Ref #</TableHead>
+                        <TableHead className="w-24">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredPartnerRequests.map((req) => (
+                        <TableRow
+                          key={req.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => openPartnerDetail(req)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Building2 className="h-4 w-4 text-primary" />
+                              </div>
+                              <span className="font-medium">{req.restaurant?.name || "Unknown"}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span>{req.partner_name || "Unknown"}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(req.period_start), "MMM d")} - {format(new Date(req.period_end), "MMM d, yyyy")}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-emerald-600">
+                            {formatCurrency(req.amount)}
+                          </TableCell>
+                          <TableCell className="capitalize text-sm text-muted-foreground">
+                            {req.payout_method?.replace(/_/g, " ") || "—"}
+                          </TableCell>
+                          <TableCell>{getPartnerRequestStatusBadge(req.status)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground font-mono">
+                            {req.reference_number || "—"}
+                          </TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {(req.status === "pending" || req.status === "processing") && (
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                  onClick={() => { setSelectedPartnerRequest(req); setPartnerActionType("approve"); setPartnerActionDialogOpen(true); }}
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-red-600 border-red-200 hover:bg-red-50"
+                                  onClick={() => { setSelectedPartnerRequest(req); setPartnerActionType("reject"); setPartnerActionDialogOpen(true); }}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )
+            )}
+
+            {/* Admin Payouts Table */}
+            {mainView === "payouts" && filteredPayouts.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
                   <DollarSign className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <p className="text-muted-foreground">No payouts found</p>
               </div>
-            ) : (
+            ) : mainView === "payouts" && (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -948,6 +1221,213 @@ export default function AdminPayouts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Partner Request Detail Sheet */}
+      <Sheet open={partnerDetailOpen} onOpenChange={setPartnerDetailOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Partner Payout Request</SheetTitle>
+            <SheetDescription>Review and action this partner-initiated payout request</SheetDescription>
+          </SheetHeader>
+
+          {selectedPartnerRequest && (
+            <div className="mt-6 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div>
+                  <p className="text-sm text-emerald-600">Requested Amount</p>
+                  <p className="text-3xl font-bold text-emerald-700">{formatCurrency(selectedPartnerRequest.amount)}</p>
+                </div>
+                <Wallet className="h-8 w-8 text-emerald-500" />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Restaurant</p>
+                    <p className="font-medium">{selectedPartnerRequest.restaurant?.name || "Unknown"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Partner</p>
+                    <p className="font-medium">{selectedPartnerRequest.partner_name || "Unknown"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payout Period</p>
+                    <p className="font-medium">
+                      {format(new Date(selectedPartnerRequest.period_start), "MMMM d, yyyy")} – {format(new Date(selectedPartnerRequest.period_end), "MMMM d, yyyy")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Account Details */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Bank Account</h4>
+                {partnerBankDetails ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Bank</span>
+                      <span className="font-medium">{partnerBankDetails.bank_name || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Account Holder</span>
+                      <span className="font-medium">{partnerBankDetails.bank_account_name || "—"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Account Number</span>
+                      <span className="font-mono">
+                        {partnerBankDetails.bank_account_number
+                          ? "••••" + partnerBankDetails.bank_account_number.slice(-4)
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">IBAN</span>
+                      <span className="font-mono">
+                        {partnerBankDetails.bank_iban
+                          ? "••••" + partnerBankDetails.bank_iban.slice(-4)
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">SWIFT</span>
+                      <span className="font-medium">{partnerBankDetails.swift_code || "—"}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Loading bank details…</p>
+                )}
+              </div>
+
+              {/* Status */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Status</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Current Status:</span>
+                    {getPartnerRequestStatusBadge(selectedPartnerRequest.status)}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Requested</span>
+                    <span>{format(new Date(selectedPartnerRequest.created_at), "MMM d, yyyy HH:mm")}</span>
+                  </div>
+                  {selectedPartnerRequest.reference_number && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Reference</span>
+                      <span className="font-mono">{selectedPartnerRequest.reference_number}</span>
+                    </div>
+                  )}
+                  {selectedPartnerRequest.processed_at && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Processed</span>
+                      <span>{format(new Date(selectedPartnerRequest.processed_at), "MMM d, yyyy HH:mm")}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {(selectedPartnerRequest.status === "pending" || selectedPartnerRequest.status === "processing") && (
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    className="flex-1"
+                    onClick={() => { setPartnerActionType("approve"); setPartnerActionDialogOpen(true); }}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve & Process
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => { setPartnerActionType("reject"); setPartnerActionDialogOpen(true); }}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Partner Request Action Dialog */}
+      <Dialog open={partnerActionDialogOpen} onOpenChange={setPartnerActionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {partnerActionType === "approve" ? "Approve Payout Request" : "Reject Payout Request"}
+            </DialogTitle>
+            <DialogDescription>
+              {partnerActionType === "approve"
+                ? "This will mark the payout as completed. The partner will see this update immediately."
+                : "This will mark the payout request as failed."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPartnerRequest && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Restaurant:</span>
+                  <span className="font-medium">{selectedPartnerRequest.restaurant?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Partner:</span>
+                  <span className="font-medium">{selectedPartnerRequest.partner_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-bold text-emerald-600">{formatCurrency(selectedPartnerRequest.amount)}</span>
+                </div>
+              </div>
+
+              {partnerActionType === "approve" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Reference Number (optional)</label>
+                  <Input
+                    placeholder="Bank transfer ref, wire ID, etc."
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">This will be shown to the partner on their payouts page.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setPartnerActionDialogOpen(false); setReferenceNumber(""); }}
+              disabled={processing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={partnerActionType === "approve" ? "default" : "destructive"}
+              onClick={handlePartnerRequestAction}
+              disabled={processing}
+            >
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {partnerActionType === "approve" ? "Approve & Mark Completed" : "Reject Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </AdminLayout>
   );
 }

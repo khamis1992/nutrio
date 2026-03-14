@@ -6,11 +6,9 @@ import {
   BarChart3, 
   Settings, 
   Wallet, 
-  Star,
   Bell,
   User,
-  Users,
-  LogOut
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,17 +33,15 @@ const navItems = [
   { icon: Package, label: "Orders", to: "/partner/orders" },
   { icon: BarChart3, label: "Analytics", to: "/partner/analytics" },
   { icon: Wallet, label: "Payouts", to: "/partner/payouts" },
-  { icon: Star, label: "Reviews", to: "/partner/reviews" },
   { icon: Bell, label: "Notifications", to: "/partner/notifications" },
   { icon: User, label: "Profile", to: "/partner/profile" },
   { icon: Settings, label: "Settings", to: "/partner/settings" },
 ];
 
 // Import additional icons
-import { Brain, Rocket } from "lucide-react";
+import { Rocket } from "lucide-react";
 
 const boostItem = { icon: Rocket, label: "Boost", to: "/partner/boost" };
-const aiInsightsItem = { icon: Brain, label: "AI Insights", to: "/partner/ai-insights" };
 
 export function PartnerSidebar() {
   const location = useLocation();
@@ -112,20 +108,6 @@ export function PartnerSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {/* AI Insights item */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive(aiInsightsItem.to)}
-                  tooltip={aiInsightsItem.label}
-                  className="text-purple-500"
-                >
-                  <Link to={aiInsightsItem.to}>
-                    <aiInsightsItem.icon className="h-4 w-4" />
-                    <span>{aiInsightsItem.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -133,17 +115,6 @@ export function PartnerSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="View as Customer"
-            >
-              <Link to="/dashboard">
-                <Users className="h-4 w-4" />
-                <span>View as Customer</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleSignOut}

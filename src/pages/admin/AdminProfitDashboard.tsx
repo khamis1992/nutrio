@@ -73,10 +73,24 @@ export default function AdminProfitDashboard() {
   const [stats, setStats] = useState<ProfitStats | null>(null);
   const [dailyData, setDailyData] = useState<DailyProfit[]>([]);
   const [restaurantData, setRestaurantData] = useState<RestaurantProfit[]>([]);
+  const [globalCommissionRate, setGlobalCommissionRate] = useState<number>(18);
 
   useEffect(() => {
+    fetchGlobalCommissionRate();
     fetchProfitData();
   }, [period]);
+
+  const fetchGlobalCommissionRate = async () => {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "commission_rates")
+      .single();
+    if (data?.value) {
+      const rates = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+      setGlobalCommissionRate(rates?.restaurant ?? 18);
+    }
+  };
 
   const fetchProfitData = async () => {
     setLoading(true);
@@ -469,7 +483,7 @@ export default function AdminProfitDashboard() {
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
-                <p className="text-sm text-green-600 font-medium">Commission (18%)</p>
+                <p className="text-sm text-green-600 font-medium">Commission ({globalCommissionRate}%)</p>
                 <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(stats?.commissionRevenue || 0)}</p>
                 <p className="text-xs text-green-500 mt-1">{stats?.totalOrders || 0} orders</p>
               </div>
@@ -518,7 +532,7 @@ export default function AdminProfitDashboard() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Commission (18%)</p>
+                      <p className="text-sm text-muted-foreground">Commission ({globalCommissionRate}%)</p>
                       <p className="text-2xl font-bold mt-1 text-purple-600">
                         {formatCurrency(stats?.commissionRevenue || 0)}
                       </p>
@@ -698,8 +712,8 @@ export default function AdminProfitDashboard() {
                         <th className="text-left py-3 px-4 font-medium">Restaurant</th>
                         <th className="text-right py-3 px-4 font-medium">Orders</th>
                         <th className="text-right py-3 px-4 font-medium">Gross Revenue</th>
-                        <th className="text-right py-3 px-4 font-medium">Commission (18%)</th>
-                        <th className="text-right py-3 px-4 font-medium">Payout (82%)</th>
+                        <th className="text-right py-3 px-4 font-medium">Commission ({globalCommissionRate}%)</th>
+                        <th className="text-right py-3 px-4 font-medium">Payout ({100 - globalCommissionRate}%)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -769,7 +783,7 @@ export default function AdminProfitDashboard() {
                 </div>
                 <ul className="text-muted-foreground space-y-1">
                   <li>• Subscriptions: {formatCurrency(stats?.subscriptionRevenue || 0)}</li>
-                  <li>• Commission (18%): {formatCurrency(stats?.commissionRevenue || 0)}</li>
+                  <li>• Commission ({globalCommissionRate}%): {formatCurrency(stats?.commissionRevenue || 0)}</li>
                   <li>• Unused Meals: {formatCurrency(stats?.unusedMealsProfit || 0)}</li>
                 </ul>
                 <p className="font-medium mt-2 text-green-600">
