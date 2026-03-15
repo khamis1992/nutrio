@@ -30,6 +30,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   Table,
   TableBody,
   TableCell,
@@ -56,10 +66,26 @@ import {
   Utensils,
   RefreshCw,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+
+// ── QNAS helpers ────────────────────────────────────────────────────────────
+interface QnasZone { zone_number: number; zone_name_en: string; zone_name_ar: string; }
+interface QnasStreet { street_number: number; street_name_en: string; street_name_ar: string; }
+interface QnasBuilding { building_number: string; x: string; y: string; }
+
+async function qnasFetch<T>(path: string): Promise<T | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke("qnas-proxy", { body: { path } });
+    if (error || !data) return null;
+    return Array.isArray(data) ? data as T : null;
+  } catch {
+    return null;
+  }
+}
 
 interface Restaurant {
   id: string;
@@ -101,9 +127,68 @@ const AdminRestaurants = () => {
   const [payoutRate, setPayoutRate] = useState<string>("25.00");
   const [commissionRate, setCommissionRate] = useState<string>("18");
 
+  // Add restaurant
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newRestaurant, setNewRestaurant] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    cuisine_type: "",
+    description: "",
+    commission_rate: "18",
+  });
+
+  // QNAS state for add dialog
+  const [addZones, setAddZones] = useState<QnasZone[]>([]);
+  const [addStreets, setAddStreets] = useState<QnasStreet[]>([]);
+  const [addBuildings, setAddBuildings] = useState<QnasBuilding[]>([]);
+  const [addZone, setAddZone] = useState<number | null>(null);
+  const [addStreet, setAddStreet] = useState<number | null>(null);
+  const [addBuilding, setAddBuilding] = useState<string>("");
+  const [addLat, setAddLat] = useState<number | null>(null);
+  const [addLng, setAddLng] = useState<number | null>(null);
+  const [addAddress, setAddAddress] = useState<string>("");
+  const [addZoneOpen, setAddZoneOpen] = useState(false);
+  const [addLoadingZones, setAddLoadingZones] = useState(false);
+  const [addLoadingStreets, setAddLoadingStreets] = useState(false);
+  const [addLoadingBuildings, setAddLoadingBuildings] = useState(false);
+
   useEffect(() => {
     fetchRestaurants();
   }, []);
+
+  // Load zones when dialog opens
+  useEffect(() => {
+    if (!addDialogOpen || addZones.length > 0) return;
+    setAddLoadingZones(true);
+    qnasFetch<QnasZone[]>("/get_zones").then((data) => {
+      if (data) setAddZones(data);
+      setAddLoadingZones(false);
+    });
+  }, [addDialogOpen]);
+
+  // Load streets when zone selected
+  useEffect(() => {
+    if (!addZone) { setAddStreets([]); setAddBuildings([]); return; }
+    setAddLoadingStreets(true);
+    setAddStreet(null);
+    setAddBuildings([]);
+    qnasFetch<QnasStreet[]>(`/get_streets/${addZone}`).then((data) => {
+      if (data) setAddStreets(data);
+      setAddLoadingStreets(false);
+    });
+  }, [addZone]);
+
+  // Load buildings when street selected
+  useEffect(() => {
+    if (!addZone || !addStreet) { setAddBuildings([]); return; }
+    setAddLoadingBuildings(true);
+    qnasFetch<QnasBuilding[]>(`/get_buildings/${addZone}/${addStreet}`).then((data) => {
+      if (data) setAddBuildings(data);
+      setAddLoadingBuildings(false);
+    });
+  }, [addZone, addStreet]);
 
   const fetchRestaurants = async () => {
     setLoading(true);
@@ -148,6 +233,60 @@ const AdminRestaurants = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resetAddDialog = () => {
+    setNewRestaurant({ name: "", email: "", phone: "", cuisine_type: "", description: "", commission_rate: "18" });
+    setAddZone(null);
+    setAddStreet(null);
+    setAddBuilding("");
+    setAddLat(null);
+    setAddLng(null);
+    setAddAddress("");
+    setAddStreets([]);
+    setAddBuildings([]);
+  };
+
+  const handleCreateRestaurant = async () => {
+    if (!newRestaurant.name.trim()) {
+      toast({ title: "Name required", description: "Please enter a restaurant name.", variant: "destructive" });
+      return;
+    }
+    setAdding(true);
+    try {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .insert({
+          name: newRestaurant.name.trim(),
+          email: newRestaurant.email.trim() || null,
+          phone: newRestaurant.phone.trim() || null,
+          cuisine_type: newRestaurant.cuisine_type.trim() || null,
+          description: newRestaurant.description.trim() || null,
+          commission_rate: parseFloat(newRestaurant.commission_rate) || 18,
+          address: addAddress || null,
+          latitude: addLat,
+          longitude: addLng,
+          zone_number: addZone,
+          street_number: addStreet,
+          building_number: addBuilding || null,
+          approval_status: "approved",
+          is_active: true,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+
+      toast({ title: "Restaurant Created", description: `${newRestaurant.name} has been created successfully.` });
+      setAddDialogOpen(false);
+      resetAddDialog();
+      navigate(`/admin/restaurants/${data.id}`);
+    } catch (error) {
+      console.error("Error creating restaurant:", error);
+      toast({ title: "Error", description: "Failed to create restaurant. Please try again.", variant: "destructive" });
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -492,6 +631,10 @@ const AdminRestaurants = () => {
                 </Button>
                 <Button variant="outline" size="icon" onClick={fetchRestaurants} disabled={loading}>
                   <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                </Button>
+                <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add Restaurant
                 </Button>
               </div>
             </div>
@@ -848,6 +991,245 @@ const AdminRestaurants = () => {
             )}
           </SheetContent>
         </Sheet>
+
+        {/* Add Restaurant Dialog */}
+        <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetAddDialog(); }}>
+          <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Store className="w-5 h-5 text-primary" />
+                Add New Restaurant
+              </DialogTitle>
+              <DialogDescription>
+                Create a new restaurant. You'll be taken to the full detail page to complete the setup.
+              </DialogDescription>
+            </DialogHeader>
+
+            <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="new-name">Restaurant Name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="new-name"
+                  placeholder="e.g. Healthy Bites"
+                  value={newRestaurant.name}
+                  onChange={(e) => setNewRestaurant((p) => ({ ...p, name: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-email">Email</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    placeholder="info@restaurant.qa"
+                    value={newRestaurant.email}
+                    onChange={(e) => setNewRestaurant((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-phone">Phone</Label>
+                  <Input
+                    id="new-phone"
+                    placeholder="+974 XXXX XXXX"
+                    value={newRestaurant.phone}
+                    onChange={(e) => setNewRestaurant((p) => ({ ...p, phone: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-cuisine">Cuisine Type</Label>
+                  <Input
+                    id="new-cuisine"
+                    placeholder="e.g. Healthy, Arabic"
+                    value={newRestaurant.cuisine_type}
+                    onChange={(e) => setNewRestaurant((p) => ({ ...p, cuisine_type: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-commission">Commission Rate (%)</Label>
+                  <Input
+                    id="new-commission"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    placeholder="18"
+                    value={newRestaurant.commission_rate}
+                    onChange={(e) => setNewRestaurant((p) => ({ ...p, commission_rate: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-description">Description</Label>
+                <Input
+                  id="new-description"
+                  placeholder="Short description of the restaurant"
+                  value={newRestaurant.description}
+                  onChange={(e) => setNewRestaurant((p) => ({ ...p, description: e.target.value }))}
+                />
+              </div>
+
+              {/* QNAS Location Picker */}
+              <div className="rounded-xl border-2 border-blue-300 bg-blue-600 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-white" />
+                    <span className="text-sm font-bold text-white">Qatar Address (QNAS)</span>
+                  </div>
+                  {addLoadingZones && <span className="text-xs text-blue-200 animate-pulse">Loading zones…</span>}
+                  {!addLoadingZones && addZones.length > 0 && (
+                    <span className="text-xs text-blue-200">{addZones.length} zones loaded</span>
+                  )}
+                </div>
+
+                {/* Zone */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-white">Zone | <span>منطقة</span></Label>
+                  <Popover open={addZoneOpen} onOpenChange={setAddZoneOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        disabled={addLoadingZones || addZones.length === 0}
+                        className="w-full justify-between bg-white border-blue-300 text-blue-700 font-medium h-9 hover:bg-blue-50 text-sm"
+                      >
+                        {addZone
+                          ? (() => { const z = addZones.find((z) => z.zone_number === addZone); return z ? `${z.zone_number} - ${z.zone_name_en}` : addZone.toString(); })()
+                          : addLoadingZones ? "⏱️ Loading…" : "Select Zone"}
+                        <Search className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[360px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search by zone number or name…" />
+                        <CommandList>
+                          <CommandEmpty>No zones found.</CommandEmpty>
+                          <CommandGroup>
+                            {addZones.map((z) => (
+                              <CommandItem
+                                key={z.zone_number}
+                                value={`${z.zone_number} ${z.zone_name_en} ${z.zone_name_ar}`}
+                                onSelect={() => {
+                                  setAddZone(z.zone_number);
+                                  setAddStreet(null);
+                                  setAddBuilding("");
+                                  setAddLat(null);
+                                  setAddLng(null);
+                                  setAddAddress("");
+                                  setAddZoneOpen(false);
+                                }}
+                              >
+                                <span className="font-medium mr-1">{z.zone_number}</span>
+                                {" - "}
+                                <span className="ml-1">{z.zone_name_en}</span>
+                                {z.zone_name_ar && <span className="text-muted-foreground ml-2 text-xs">{z.zone_name_ar}</span>}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Street */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-white">Street | <span>شارع</span></Label>
+                  <Select
+                    value={addStreet?.toString() ?? ""}
+                    onValueChange={(v) => { setAddStreet(Number(v)); setAddBuilding(""); setAddLat(null); setAddLng(null); setAddAddress(""); }}
+                    disabled={!addZone || addLoadingStreets}
+                  >
+                    <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-9 text-sm">
+                      <SelectValue placeholder={!addZone ? "Select Street" : addLoadingStreets ? "⏱️ Loading…" : "Select Street"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {addStreets.map((s) => (
+                        <SelectItem key={s.street_number} value={s.street_number.toString()}>
+                          <span className="font-medium">{s.street_number}</span>{" - "}<span>{s.street_name_en}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Building */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-white">Building Number | <span>رقم البناية</span></Label>
+                  <Select
+                    value={addBuilding}
+                    onValueChange={(v) => {
+                      setAddBuilding(v);
+                      const bld = addBuildings.find((b) => b.building_number === v);
+                      if (bld) {
+                        const lat = parseFloat(bld.x);
+                        const lng = parseFloat(bld.y);
+                        setAddLat(lat);
+                        setAddLng(lng);
+                        const zone = addZones.find((z) => z.zone_number === addZone);
+                        const street = addStreets.find((s) => s.street_number === addStreet);
+                        const addr = [
+                          `Zone ${addZone}${zone ? ` - ${zone.zone_name_en}` : ""}`,
+                          `Street ${addStreet}${street ? ` - ${street.street_name_en}` : ""}`,
+                          `Building ${v}`,
+                          "Doha, Qatar",
+                        ].join(", ");
+                        setAddAddress(addr);
+                      }
+                    }}
+                    disabled={!addStreet || addLoadingBuildings}
+                  >
+                    <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-9 text-sm">
+                      <SelectValue placeholder={!addStreet ? "Select Building" : addLoadingBuildings ? "⏱️ Loading…" : "Select Building"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {addBuildings.map((b) => (
+                        <SelectItem key={b.building_number} value={b.building_number}>{b.building_number}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Result */}
+                {addLat && addLng && (
+                  <div className="bg-white/10 rounded-lg p-2 space-y-1">
+                    <p className="text-xs text-green-300 font-medium">✓ Location found — {addLat.toFixed(6)}, {addLng.toFixed(6)}</p>
+                    <p className="text-xs text-white/80 break-words">{addAddress}</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                The restaurant will be created as <strong>Approved & Active</strong>. After creation you'll be redirected to the detail page to complete the setup.
+              </p>
+            </div>
+            </ScrollArea>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateRestaurant} disabled={adding || !newRestaurant.name.trim()}>
+                {adding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Restaurant
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Approval Dialog with Payout Rate */}
         <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>

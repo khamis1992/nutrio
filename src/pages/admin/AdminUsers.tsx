@@ -48,6 +48,7 @@ import {
   RefreshCw,
   Loader2,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,7 +183,7 @@ const AdminUsers = () => {
 
       const mergedUsers: UserData[] = (profiles || []).map((profile: any) => {
         const userIPLogs = ipLogsMap[profile.user_id] || [];
-        const latestIP = userIPLogs[0]?.ip_address || null;
+        const latestIP = userIPLogs.find(log => log.ip_address && log.ip_address !== "0.0.0.0")?.ip_address || null;
         
         return {
           id: profile.id,
@@ -259,6 +260,23 @@ const AdminUsers = () => {
     } catch (error) {
       console.error("Error unblocking IP:", error);
       toast({ title: "Error", description: "Failed to unblock IP", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${userName || "this user"}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await supabase.from("user_roles").delete().eq("user_id", userId);
+      const { error } = await supabase.from("profiles").delete().eq("user_id", userId);
+      if (error) throw error;
+      setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+      setIsDetailOpen(false);
+      toast({ title: "User Deleted", description: `${userName || "User"} has been removed.` });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
     }
   };
 
@@ -622,6 +640,14 @@ const AdminUsers = () => {
                                 Unblock IP
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteUser(userData.user_id, userData.full_name || "")}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete User
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -643,6 +669,7 @@ const AdminUsers = () => {
                 setActiveTab={setActiveTab}
                 handleBlockIP={handleBlockIP}
                 handleUnblockIP={handleUnblockIP}
+                handleDeleteUser={handleDeleteUser}
                 isPasswordDialogOpen={isPasswordDialogOpen}
                 setIsPasswordDialogOpen={setIsPasswordDialogOpen}
                 setIsRolesDialogOpen={setIsRolesDialogOpen}
@@ -682,6 +709,7 @@ const UserDetailContent = ({
   setActiveTab,
   handleBlockIP,
   handleUnblockIP,
+  handleDeleteUser,
   isPasswordDialogOpen,
   setIsPasswordDialogOpen,
   setIsRolesDialogOpen,
@@ -691,6 +719,7 @@ const UserDetailContent = ({
   setActiveTab: (tab: "overview" | "orders") => void;
   handleBlockIP: (ip: string, name: string) => Promise<void>;
   handleUnblockIP: (ip: string) => Promise<void>;
+  handleDeleteUser: (userId: string, userName: string) => Promise<void>;
   isPasswordDialogOpen: boolean;
   setIsPasswordDialogOpen: (open: boolean) => void;
   setIsRolesDialogOpen: (open: boolean) => void;
@@ -786,6 +815,7 @@ const UserDetailContent = ({
             user={user}
             handleBlockIP={handleBlockIP}
             handleUnblockIP={handleUnblockIP}
+            handleDeleteUser={handleDeleteUser}
             setActiveTab={setActiveTab}
             setIsPasswordDialogOpen={setIsPasswordDialogOpen}
             setIsRolesDialogOpen={setIsRolesDialogOpen}
@@ -810,6 +840,7 @@ const OverviewContent = ({
   user,
   handleBlockIP,
   handleUnblockIP,
+  handleDeleteUser,
   setActiveTab,
   setIsPasswordDialogOpen,
   setIsRolesDialogOpen,
@@ -818,6 +849,7 @@ const OverviewContent = ({
   user: UserData;
   handleBlockIP: (ip: string, name: string) => Promise<void>;
   handleUnblockIP: (ip: string) => Promise<void>;
+  handleDeleteUser: (userId: string, userName: string) => Promise<void>;
   setActiveTab: (tab: "overview" | "orders") => void;
   setIsPasswordDialogOpen: (open: boolean) => void;
   setIsRolesDialogOpen: (open: boolean) => void;
@@ -990,11 +1022,19 @@ const OverviewContent = ({
             </Button>
             <Button
               variant="outline"
-              className="justify-start text-red-600 border-red-200 hover:bg-red-50 col-span-2"
+              className="justify-start text-red-600 border-red-200 hover:bg-red-50"
               onClick={() => toast({ title: "Suspend User", description: "User suspension feature coming soon", variant: "destructive" })}
             >
               <Ban className="w-4 h-4 mr-2" />
               Suspend User
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => handleDeleteUser(user.user_id, user.full_name || "")}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete User
             </Button>
           </div>
         </CardContent>

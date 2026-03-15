@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, Bell, Zap, Save, Loader2, Truck, Crown, Users, Bike, MapPin, Store } from "lucide-react";
+import { DollarSign, Bell, Zap, Save, Loader2, Crown, Users, Bike, MapPin, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -38,14 +38,6 @@ interface FeaturedListingPrices {
   weekly: number;
   biweekly: number;
   monthly: number;
-}
-
-interface DeliveryFeeSettings {
-  [key: string]: number | boolean;
-  standard: number;
-  express: number;
-  free_threshold: number;
-  enabled: boolean;
 }
 
 interface PremiumAnalyticsPrices {
@@ -121,13 +113,6 @@ export default function AdminSettings() {
     monthly: 149,
   });
 
-  const [deliveryFees, setDeliveryFees] = useState<DeliveryFeeSettings>({
-    standard: 3.99,
-    express: 6.99,
-    free_threshold: 50,
-    enabled: true,
-  });
-
   const [premiumAnalyticsPrices, setPremiumAnalyticsPrices] = useState<PremiumAnalyticsPrices>({
     monthly: 29.99,
     quarterly: 74.99,
@@ -199,9 +184,6 @@ export default function AdminSettings() {
           case "featured_listing_prices":
             setFeaturedPrices(value as unknown as FeaturedListingPrices);
             break;
-          case "delivery_fees":
-            setDeliveryFees(value as unknown as DeliveryFeeSettings);
-            break;
           case "premium_analytics_prices":
             setPremiumAnalyticsPrices(value as unknown as PremiumAnalyticsPrices);
             break;
@@ -229,7 +211,6 @@ export default function AdminSettings() {
         { key: "features", value: features },
         { key: "notifications", value: notifications },
         { key: "featured_listing_prices", value: featuredPrices },
-        { key: "delivery_fees", value: deliveryFees },
         { key: "premium_analytics_prices", value: premiumAnalyticsPrices },
         { key: "affiliate_settings", value: affiliateSettings },
         { key: "driver_settings", value: driverEarningsSettings },
@@ -449,80 +430,6 @@ export default function AdminSettings() {
                     setFeatures({ ...features, delivery_tracking: checked })
                   }
                 />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Delivery Fee Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-primary" />
-                Delivery Fee Settings
-              </CardTitle>
-              <CardDescription>Configure delivery fees for customer orders</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Enable Delivery Fees</Label>
-                  <p className="text-sm text-muted-foreground">Charge customers for delivery</p>
-                </div>
-                <Switch
-                  checked={deliveryFees.enabled}
-                  onCheckedChange={(checked) =>
-                    setDeliveryFees({ ...deliveryFees, enabled: checked })
-                  }
-                />
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <Label htmlFor="standard-delivery">Standard Delivery (QAR)</Label>
-                <Input
-                  id="standard-delivery"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={deliveryFees.standard}
-                  onChange={(e) =>
-                    setDeliveryFees({ ...deliveryFees, standard: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="express-delivery">Express Delivery (QAR)</Label>
-                <Input
-                  id="express-delivery"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={deliveryFees.express}
-                  onChange={(e) =>
-                    setDeliveryFees({ ...deliveryFees, express: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="free-threshold">Free Delivery Threshold (QAR)</Label>
-                <Input
-                  id="free-threshold"
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  step="1"
-                  value={deliveryFees.free_threshold}
-                  onChange={(e) =>
-                    setDeliveryFees({ ...deliveryFees, free_threshold: Number(e.target.value) })
-                  }
-                  className="h-12 sm:h-10 min-h-[44px]"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Orders over this amount get free delivery
-                </p>
               </div>
             </CardContent>
           </Card>

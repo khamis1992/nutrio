@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.restaurant-intelligence-engine]
 verify_jwt = false
+
+[functions.qnas-proxy]
+verify_jwt = false

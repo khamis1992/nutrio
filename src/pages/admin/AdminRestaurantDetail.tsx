@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -75,6 +77,10 @@ import {
   Filter,
   Plus,
   FileSpreadsheet,
+  UserPlus,
+  KeyRound,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -174,20 +180,6 @@ type OrderStatus =
   | "completed" 
   | "cancelled";
 
-interface StaffMember {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string | null;
-  phone: string | null;
-  role_id: string | null;
-  is_active: boolean;
-  hire_date: string;
-  employee_id: string | null;
-  role?: {
-    name: string;
-  } | null;
-}
 
 interface AuditLogEntry {
   id: string;
@@ -247,6 +239,26 @@ const STATUS_CONFIG: Record<OrderStatus, {
   },
 };
 
+// ── QNAS (Qatar National Address System) ────────────────────────────────────
+// All calls go through the Supabase edge function proxy to avoid CORS issues.
+
+interface QnasZone { zone_number: number; zone_name_en: string; zone_name_ar: string; }
+interface QnasStreet { street_number: number; street_name_en: string; street_name_ar: string; }
+interface QnasBuilding { building_number: string; x: string; y: string; }
+
+async function qnasFetch<T>(path: string): Promise<T | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke("qnas-proxy", {
+      body: { path },
+    });
+    if (error || !data) return null;
+    // QNAS returns plain arrays directly
+    return data as T;
+  } catch {
+    return null;
+  }
+}
+
 // Validation schema
 const restaurantSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -288,6 +300,13 @@ const AdminRestaurantDetail = () => {
   const [stats, setStats] = useState<RestaurantStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Create owner account dialog
+  const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
+  const [ownerCreating, setOwnerCreating] = useState(false);
+  const [ownerForm, setOwnerForm] = useState({ full_name: "", email: "", password: "" });
+  const [ownerCreated, setOwnerCreated] = useState<{ email: string; password: string } | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [initialFormData, setInitialFormData] = useState<RestaurantFormData | null>(null);
   
@@ -312,6 +331,20 @@ const AdminRestaurantDetail = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // QNAS address state
+  const [qnasZones, setQnasZones] = useState<QnasZone[]>([]);
+  const [qnasStreets, setQnasStreets] = useState<QnasStreet[]>([]);
+  const [qnasBuildings, setQnasBuildings] = useState<QnasBuilding[]>([]);
+  const [qnasZone, setQnasZone] = useState<number | null>(null);
+  const [qnasStreet, setQnasStreet] = useState<number | null>(null);
+  const [qnasBuilding, setQnasBuilding] = useState<string>("");
+  const [qnasLat, setQnasLat] = useState<number | null>(null);
+  const [qnasLng, setQnasLng] = useState<number | null>(null);
+  const [qnasLoadingZones, setQnasLoadingZones] = useState(false);
+  const [qnasLoadingStreets, setQnasLoadingStreets] = useState(false);
+  const [qnasLoadingBuildings, setQnasLoadingBuildings] = useState(false);
+  const [qnasZoneOpen, setQnasZoneOpen] = useState(false);
   
   // Analytics state
   const [revenueData, setRevenueData] = useState<DailyRevenue[]>([]);
@@ -327,18 +360,6 @@ const AdminRestaurantDetail = () => {
   const [ordersPerPage] = useState(10);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderDetailOpen, setOrderDetailOpen] = useState(false);
-  
-  // Staff state
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [staffLoading, setStaffLoading] = useState(false);
-  const [addStaffDialogOpen, setAddStaffDialogOpen] = useState(false);
-  const [newStaff, setNewStaff] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    role_id: "",
-  });
   
   // Partner payouts state
   const [restaurantPayouts, setRestaurantPayouts] = useState<Array<{
@@ -382,6 +403,37 @@ const AdminRestaurantDetail = () => {
       fetchRestaurant();
     }
   }, [id]);
+
+  // QNAS: load zones once on mount
+  useEffect(() => {
+    setQnasLoadingZones(true);
+    qnasFetch<QnasZone[]>("/get_zones").then((data) => {
+      if (Array.isArray(data)) setQnasZones(data);
+      setQnasLoadingZones(false);
+    });
+  }, []);
+
+  // QNAS: load streets when zone changes
+  useEffect(() => {
+    if (!qnasZone) { setQnasStreets([]); setQnasBuildings([]); return; }
+    setQnasLoadingStreets(true);
+    setQnasStreet(null);
+    setQnasBuildings([]);
+    qnasFetch<QnasStreet[]>(`/get_streets/${qnasZone}`).then((data) => {
+      if (Array.isArray(data)) setQnasStreets(data);
+      setQnasLoadingStreets(false);
+    });
+  }, [qnasZone]);
+
+  // QNAS: load buildings when street changes
+  useEffect(() => {
+    if (!qnasZone || !qnasStreet) { setQnasBuildings([]); return; }
+    setQnasLoadingBuildings(true);
+    qnasFetch<QnasBuilding[]>(`/get_buildings/${qnasZone}/${qnasStreet}`).then((data) => {
+      if (Array.isArray(data)) setQnasBuildings(data);
+      setQnasLoadingBuildings(false);
+    });
+  }, [qnasZone, qnasStreet]);
 
   const fetchRestaurant = async () => {
     if (!id) return;
@@ -461,11 +513,17 @@ const AdminRestaurantDetail = () => {
       setInitialFormData(initialData);
       setHasChanges(false);
 
+      // Restore saved QNAS location values
+      const rd = restaurantData as any;
+      if (rd.zone_number) setQnasZone(rd.zone_number);
+      if (rd.street_number) setQnasStreet(rd.street_number);
+      if (rd.building_number) setQnasBuilding(rd.building_number);
+      if (rd.latitude) setQnasLat(Number(rd.latitude));
+      if (rd.longitude) setQnasLng(Number(rd.longitude));
+
       // Fetch stats
       await fetchRestaurantStats(id);
       
-      // Fetch staff
-      await fetchStaff(id);
     } catch (error) {
       console.error("Error fetching restaurant:", error);
       toast({
@@ -715,34 +773,6 @@ const AdminRestaurantDetail = () => {
     }
   };
 
-  const fetchStaff = async (restaurantId: string) => {
-    setStaffLoading(true);
-    try {
-      const { data: staffData, error } = await supabase
-        .from("staff_members")
-        .select(`
-          *,
-          role:staff_roles(name)
-        `)
-        .eq("restaurant_id", restaurantId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      
-      const staffWithRoles: StaffMember[] = (staffData || []).map((s: any) => ({
-        ...s,
-        role: s.role?.[0] || null,
-      }));
-      
-      setStaff(staffWithRoles);
-    } catch (error) {
-      console.error("Error fetching staff:", error);
-    } finally {
-      setStaffLoading(false);
-    }
-  };
-
   const fetchRestaurantPayouts = async () => {
     if (!id) return;
     setPayoutsLoading(true);
@@ -819,6 +849,39 @@ const AdminRestaurantDetail = () => {
     setAuditLog((prev) => [entry, ...prev].slice(0, 50)); // Keep last 50 entries
   };
 
+  const handleCreateOwner = async () => {
+    if (!ownerForm.email || !ownerForm.password || !restaurant?.id) return;
+    setOwnerCreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-partner-user", {
+        body: {
+          email: ownerForm.email.trim(),
+          password: ownerForm.password,
+          full_name: ownerForm.full_name.trim() || ownerForm.email.split("@")[0],
+          restaurant_id: restaurant.id,
+        },
+      });
+
+      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? "Failed to create account");
+
+      // Refresh restaurant so owner info updates
+      await fetchRestaurant();
+      setOwnerCreated({ email: ownerForm.email.trim(), password: ownerForm.password });
+      setOwnerForm({ full_name: "", email: "", password: "" });
+      toast({ title: "Owner Account Created", description: `${ownerForm.email} can now log in at /partner/auth` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setOwnerCreating(false);
+    }
+  };
+
+  const copyPassword = (pwd: string) => {
+    navigator.clipboard.writeText(pwd);
+    setPasswordCopied(true);
+    setTimeout(() => setPasswordCopied(false), 2000);
+  };
+
   const handleSave = async () => {
     if (!id) return;
     
@@ -848,8 +911,13 @@ const AdminRestaurantDetail = () => {
           max_meals_per_day: formData.max_meals_per_day,
           is_active: formData.is_active,
           approval_status: formData.approval_status,
+          zone_number: qnasZone,
+          street_number: qnasStreet,
+          building_number: qnasBuilding || null,
+          latitude: qnasLat,
+          longitude: qnasLng,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", id);
 
       if (error) throw error;
@@ -1005,80 +1073,6 @@ const AdminRestaurantDetail = () => {
       });
     } finally {
       setUploading(false);
-    }
-  };
-
-  // Staff management
-  const handleAddStaff = async () => {
-    if (!id) return;
-    
-    if (!newStaff.first_name || !newStaff.last_name) {
-      toast({
-        title: "Validation Error",
-        description: "First name and last name are required.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("staff_members")
-        .insert({
-          restaurant_id: id,
-          first_name: newStaff.first_name,
-          last_name: newStaff.last_name,
-          email: newStaff.email || null,
-          phone: newStaff.phone || null,
-          role_id: newStaff.role_id || null,
-          hire_date: new Date().toISOString().split("T")[0],
-          is_active: true,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Staff Member Added",
-        description: `${newStaff.first_name} ${newStaff.last_name} has been added.`,
-      });
-
-      setNewStaff({ first_name: "", last_name: "", email: "", phone: "", role_id: "" });
-      setAddStaffDialogOpen(false);
-      await fetchStaff(id);
-    } catch (error: any) {
-      console.error("Error adding staff:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add staff member.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleRemoveStaff = async (staffId: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove ${name}?`)) return;
-    
-    try {
-      const { error } = await supabase
-        .from("staff_members")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", staffId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Staff Member Removed",
-        description: `${name} has been removed.`,
-      });
-
-      if (id) await fetchStaff(id);
-    } catch (error: any) {
-      console.error("Error removing staff:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to remove staff member.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -1336,7 +1330,7 @@ const AdminRestaurantDetail = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="details" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto">
             <TabsTrigger value="details" className="gap-2">
               <Store className="w-4 h-4" />
               Details
@@ -1348,10 +1342,6 @@ const AdminRestaurantDetail = () => {
             <TabsTrigger value="orders" className="gap-2" onClick={fetchOrders}>
               <Package className="w-4 h-4" />
               Orders
-            </TabsTrigger>
-            <TabsTrigger value="staff" className="gap-2" onClick={() => id && fetchStaff(id)}>
-              <Users className="w-4 h-4" />
-              Staff
             </TabsTrigger>
             <TabsTrigger value="payouts" className="gap-2" onClick={fetchRestaurantPayouts}>
               <DollarSign className="w-4 h-4" />
@@ -1538,10 +1528,192 @@ const AdminRestaurantDetail = () => {
                     <CardTitle>Contact Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+
+                    {/* ── QNAS Address Picker ── */}
+                    <div className="rounded-xl border-2 border-blue-300 bg-blue-600 p-5 space-y-4">
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-white" />
+                          <span className="text-sm font-bold text-white">Find Qatar Address</span>
+                        </div>
+                        {qnasLoadingZones && (
+                          <div className="flex items-center gap-1 text-xs text-blue-200">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Loading zones…
+                          </div>
+                        )}
+                        {!qnasLoadingZones && qnasZones.length > 0 && (
+                          <span className="text-xs text-blue-200">{qnasZones.length} zones loaded</span>
+                        )}
+                      </div>
+
+                      {/* Zone — searchable combobox */}
+                      <div className="space-y-1">
+                        <Label className="text-sm font-semibold text-white">
+                          Zone | <span className="font-arabic">منطقة</span>
+                        </Label>
+                        <Popover open={qnasZoneOpen} onOpenChange={setQnasZoneOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={qnasLoadingZones || qnasZones.length === 0}
+                              className="w-full justify-between bg-white border-blue-300 text-blue-700 font-medium h-10 hover:bg-blue-50"
+                            >
+                              {qnasZone
+                                ? (() => {
+                                    const z = qnasZones.find((z) => z.zone_number === qnasZone);
+                                    return z ? `${z.zone_number} - ${z.zone_name_en}` : qnasZone.toString();
+                                  })()
+                                : qnasLoadingZones
+                                ? "⏱️ Loading List ..."
+                                : "Select Zone"}
+                              <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[380px] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Search by zone number or name..." />
+                              <CommandList>
+                                <CommandEmpty>No zones found.</CommandEmpty>
+                                <CommandGroup>
+                                  {qnasZones.map((z) => (
+                                    <CommandItem
+                                      key={z.zone_number}
+                                      value={`${z.zone_number} ${z.zone_name_en} ${z.zone_name_ar}`}
+                                      onSelect={() => {
+                                        setQnasZone(z.zone_number);
+                                        setQnasStreet(null);
+                                        setQnasBuilding("");
+                                        setQnasLat(null);
+                                        setQnasLng(null);
+                                        setQnasZoneOpen(false);
+                                      }}
+                                    >
+                                      <span className="font-medium mr-1">{z.zone_number}</span>
+                                      {" - "}
+                                      <span className="ml-1">{z.zone_name_en}</span>
+                                      {z.zone_name_ar && (
+                                        <span className="text-muted-foreground ml-2 text-xs">{z.zone_name_ar}</span>
+                                      )}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Street */}
+                      <div className="space-y-1">
+                        <Label className="text-sm font-semibold text-white">
+                          Street | <span className="font-arabic">شارع</span>
+                        </Label>
+                        <Select
+                          value={qnasStreet?.toString() ?? ""}
+                          onValueChange={(v) => {
+                            setQnasStreet(Number(v));
+                            setQnasBuilding("");
+                            setQnasLat(null);
+                            setQnasLng(null);
+                          }}
+                          disabled={!qnasZone || qnasLoadingStreets}
+                        >
+                          <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-10">
+                            <SelectValue placeholder={
+                              !qnasZone ? "Select Street" :
+                              qnasLoadingStreets ? "⏱️ Loading List ..." : "Select Street"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {qnasStreets.map((s) => (
+                              <SelectItem key={s.street_number} value={s.street_number.toString()}>
+                                <span className="font-medium">{s.street_number}</span>
+                                {" - "}
+                                <span>{s.street_name_en}</span>
+                                {s.street_name_ar && <span className="text-muted-foreground mr-1"> {s.street_name_ar}</span>}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Building */}
+                      <div className="space-y-1">
+                        <Label className="text-sm font-semibold text-white">
+                          Building Number | <span className="font-arabic">رقم البناية</span>
+                        </Label>
+                        <Select
+                          value={qnasBuilding}
+                          onValueChange={(v) => {
+                            setQnasBuilding(v);
+                            // Find lat/lng from the buildings list
+                            const bld = qnasBuildings.find((b) => b.building_number === v);
+                            if (bld?.x && bld?.y) {
+                              setQnasLat(parseFloat(bld.x));
+                              setQnasLng(parseFloat(bld.y));
+                              const zone = qnasZones.find((z) => z.zone_number === qnasZone);
+                              const street = qnasStreets.find((s) => s.street_number === qnasStreet);
+                              const composed = [
+                                `Zone ${qnasZone}${zone ? ` - ${zone.zone_name_en}` : ""}`,
+                                `Street ${qnasStreet}${street ? ` - ${street.street_name_en}` : ""}`,
+                                `Building ${v}`,
+                                "Doha, Qatar",
+                              ].join(", ");
+                              handleInputChange("address", composed);
+                            }
+                          }}
+                          disabled={!qnasStreet || qnasLoadingBuildings}
+                        >
+                          <SelectTrigger className="bg-white border-blue-300 text-blue-700 font-medium h-10">
+                            <SelectValue placeholder={
+                              !qnasStreet ? "Select Building" :
+                              qnasLoadingBuildings ? "⏱️ Loading List ..." : "Select Building"
+                            } />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            {qnasBuildings.map((b) => (
+                              <SelectItem key={b.building_number} value={b.building_number}>
+                                {b.building_number}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Coordinates + success */}
+                      {qnasLat && qnasLng && (
+                        <div className="flex items-center gap-2 bg-blue-500/60 rounded-lg px-3 py-2">
+                          <MapPin className="w-4 h-4 text-green-300 shrink-0" />
+                          <span className="text-xs text-green-200 font-medium">
+                            Location found — {qnasLat.toFixed(6)}, {qnasLng.toFixed(6)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Map preview */}
+                      {qnasLat && qnasLng && (
+                        <div className="rounded-lg overflow-hidden border-2 border-blue-400" style={{ height: 240 }}>
+                          <iframe
+                            title="Restaurant location"
+                            width="100%"
+                            height="240"
+                            style={{ border: 0 }}
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${qnasLng - 0.006},${qnasLat - 0.006},${qnasLng + 0.006},${qnasLat + 0.006}&layer=mapnik&marker=${qnasLat},${qnasLng}`}
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Address text field (auto-filled by QNAS, editable manually) */}
                     <div className="space-y-2">
                       <Label htmlFor="address">
                         <MapPin className="w-4 h-4 inline mr-1" />
                         Address
+                        <span className="text-xs text-muted-foreground ml-2">Auto-filled by QNAS or enter manually</span>
                       </Label>
                       <Textarea
                         id="address"
@@ -1593,21 +1765,6 @@ const AdminRestaurantDetail = () => {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="payout_rate">Gross Rate per Meal (QAR) *</Label>
-                        <Input
-                          id="payout_rate"
-                          type="number"
-                          min="1"
-                          step="0.01"
-                          value={formData.payout_rate}
-                          onChange={(e) => handleInputChange("payout_rate", parseFloat(e.target.value))}
-                          className={errors.payout_rate ? "border-red-500" : ""}
-                        />
-                        {errors.payout_rate && <p className="text-sm text-red-500">{errors.payout_rate}</p>}
-                        <p className="text-xs text-muted-foreground">What the restaurant charges per meal</p>
-                      </div>
-
-                      <div className="space-y-2">
                         <Label htmlFor="commission_rate">Platform Commission (%) *</Label>
                         <Input
                           id="commission_rate"
@@ -1620,27 +1777,19 @@ const AdminRestaurantDetail = () => {
                           className={errors.commission_rate ? "border-red-500" : ""}
                         />
                         {errors.commission_rate && <p className="text-sm text-red-500">{errors.commission_rate}</p>}
-                        <p className="text-xs text-muted-foreground">% Nutrio takes from each meal</p>
+                        <p className="text-xs text-muted-foreground">% Nutrio takes from each meal sale</p>
                       </div>
 
-                      {/* Live net payout preview */}
-                      {formData.payout_rate > 0 && formData.commission_rate >= 0 && (
-                        <div className="sm:col-span-2 rounded-xl bg-muted/60 border p-4 grid grid-cols-3 gap-3 text-center">
+                      {/* Commission preview */}
+                      {formData.commission_rate >= 0 && (
+                        <div className="sm:col-span-2 rounded-xl bg-muted/60 border p-4 grid grid-cols-2 gap-3 text-center">
                           <div>
-                            <p className="text-xs text-muted-foreground mb-1">Gross per Meal</p>
-                            <p className="text-lg font-bold">QAR {formData.payout_rate.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">Platform Takes ({formData.commission_rate}%)</p>
-                            <p className="text-lg font-bold text-destructive">
-                              − QAR {(formData.payout_rate * formData.commission_rate / 100).toFixed(2)}
-                            </p>
+                            <p className="text-xs text-muted-foreground mb-1">Platform Takes</p>
+                            <p className="text-lg font-bold text-destructive">{formData.commission_rate}%</p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Restaurant Earns</p>
-                            <p className="text-lg font-bold text-emerald-600">
-                              QAR {(formData.payout_rate * (1 - formData.commission_rate / 100)).toFixed(2)}
-                            </p>
+                            <p className="text-lg font-bold text-emerald-600">{(100 - formData.commission_rate).toFixed(1)}%</p>
                           </div>
                         </div>
                       )}
@@ -1773,26 +1922,62 @@ const AdminRestaurantDetail = () => {
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Owner Information</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        Owner / Login Access
+                      </CardTitle>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-xs"
+                        onClick={() => { setOwnerDialogOpen(true); setOwnerCreated(null); }}
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        {restaurant.owner ? "Change Owner" : "Create Account"}
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {restaurant.owner ? (
                       <div className="space-y-3">
-                        <div>
-                          <p className="text-sm font-medium">{restaurant.owner.full_name || "Unnamed Owner"}</p>
-                          <p className="text-sm text-muted-foreground">{restaurant.owner.email}</p>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                          <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <Users className="w-4 h-4 text-emerald-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{restaurant.owner.full_name || "Unnamed Owner"}</p>
+                            <p className="text-xs text-muted-foreground">{restaurant.owner.email}</p>
+                          </div>
                         </div>
-                        <Separator />
-                        <Button 
-                          variant="outline" 
-                          className="w-full"
+                        <p className="text-xs text-emerald-600 flex items-center gap-1">
+                          <CheckCheck className="w-3 h-3" /> Can log in at /partner/auth
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="w-full text-xs h-8"
                           onClick={() => navigate(`/admin/users?search=${restaurant.owner?.email}`)}
                         >
-                          View Owner Profile
+                          View in Users Panel
                         </Button>
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">No owner assigned</p>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-amber-700">No login account</p>
+                            <p className="text-xs text-amber-600">The restaurant owner cannot log in yet.</p>
+                          </div>
+                        </div>
+                        <Button
+                          className="w-full gap-2"
+                          onClick={() => { setOwnerDialogOpen(true); setOwnerCreated(null); }}
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Create Owner Account
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -2187,149 +2372,6 @@ const AdminRestaurantDetail = () => {
             </Dialog>
           </TabsContent>
 
-          {/* Staff Tab */}
-          <TabsContent value="staff" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Staff Members</CardTitle>
-                  <CardDescription>Manage restaurant staff and permissions</CardDescription>
-                </div>
-                <Button onClick={() => setAddStaffDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Staff
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {staffLoading ? (
-                  <div className="flex items-center justify-center h-32">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : staff.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No staff members found</p>
-                    <p className="text-sm">Add staff to manage this restaurant</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {staff.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-primary/10 text-primary">
-                              {member.first_name[0]}{member.last_name[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{member.first_name} {member.last_name}</p>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {member.role && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {member.role.name}
-                                </Badge>
-                              )}
-                              {member.is_active ? (
-                                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 text-xs">
-                                  Active
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-gray-500/10 text-gray-600 text-xs">
-                                  Inactive
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/admin/staff/${member.id}`)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600"
-                              onClick={() => handleRemoveStaff(member.id, `${member.first_name} ${member.last_name}`)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Remove
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Add Staff Dialog */}
-            <Dialog open={addStaffDialogOpen} onOpenChange={setAddStaffDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Staff Member</DialogTitle>
-                  <DialogDescription>
-                    Add a new staff member to this restaurant
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first_name">First Name *</Label>
-                      <Input
-                        id="first_name"
-                        value={newStaff.first_name}
-                        onChange={(e) => setNewStaff({ ...newStaff, first_name: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name">Last Name *</Label>
-                      <Input
-                        id="last_name"
-                        value={newStaff.last_name}
-                        onChange={(e) => setNewStaff({ ...newStaff, last_name: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="staff_email">Email</Label>
-                    <Input
-                      id="staff_email"
-                      type="email"
-                      value={newStaff.email}
-                      onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="staff_phone">Phone</Label>
-                    <Input
-                      id="staff_phone"
-                      value={newStaff.phone}
-                      onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setAddStaffDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddStaff}>
-                    Add Staff Member
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </TabsContent>
 
           {/* Payouts Tab */}
           <TabsContent value="payouts" className="space-y-6">
@@ -2507,6 +2549,115 @@ const AdminRestaurantDetail = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      {/* Create Owner Account Dialog */}
+      <Dialog open={ownerDialogOpen} onOpenChange={(open) => { setOwnerDialogOpen(open); if (!open) setOwnerCreated(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              Create Owner Account
+            </DialogTitle>
+            <DialogDescription>
+              Create a login account for <strong>{restaurant?.name}</strong>. The owner will log in at <code>/partner/auth</code>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {ownerCreated ? (
+            /* Success state — show credentials */
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 space-y-3">
+                <p className="text-sm font-semibold text-emerald-700 flex items-center gap-2">
+                  <CheckCheck className="w-4 h-4" /> Account created successfully!
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="text-sm font-medium">{ownerCreated.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Password</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-mono bg-muted px-2 py-1 rounded flex-1">{ownerCreated.password}</code>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => copyPassword(ownerCreated.password)}>
+                        {passwordCopied ? <CheckCheck className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                  ⚠️ Share these credentials with the owner now. The password will not be shown again.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Login URL: <strong>{window.location.origin}/partner/auth</strong>
+              </p>
+            </div>
+          ) : (
+            /* Form state */
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="owner-name">Full Name</Label>
+                <Input
+                  id="owner-name"
+                  placeholder="e.g. Ahmed Al-Rashid"
+                  value={ownerForm.full_name}
+                  onChange={(e) => setOwnerForm((p) => ({ ...p, full_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="owner-email">Email <span className="text-destructive">*</span></Label>
+                <Input
+                  id="owner-email"
+                  type="email"
+                  placeholder="owner@restaurant.qa"
+                  value={ownerForm.email}
+                  onChange={(e) => setOwnerForm((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="owner-password">Password <span className="text-destructive">*</span></Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="owner-password"
+                    type="text"
+                    placeholder="Min. 6 characters"
+                    value={ownerForm.password}
+                    onChange={(e) => setOwnerForm((p) => ({ ...p, password: e.target.value }))}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0 text-xs px-3"
+                    onClick={() => setOwnerForm((p) => ({ ...p, password: Math.random().toString(36).slice(2, 10) }))}
+                  >
+                    Generate
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">The owner will use this to log in. Share it securely.</p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOwnerDialogOpen(false)}>
+              {ownerCreated ? "Close" : "Cancel"}
+            </Button>
+            {!ownerCreated && (
+              <Button
+                onClick={handleCreateOwner}
+                disabled={ownerCreating || !ownerForm.email || !ownerForm.password}
+              >
+                {ownerCreating ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</>
+                ) : (
+                  <><KeyRound className="w-4 h-4 mr-2" />Create Account</>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       </div>
     </AdminLayout>
   );
