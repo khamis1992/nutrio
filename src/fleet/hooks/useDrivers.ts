@@ -51,6 +51,21 @@ export function useDrivers(options: UseDriversOptions = {}) {
 
       if (error) throw error;
 
+      // Fetch vehicle plates for these drivers
+      const driverIds = (data || []).map((d: any) => d.id);
+      let plateMap: Record<string, string> = {};
+      if (driverIds.length > 0) {
+        const { data: vehicles } = await supabase
+          .from("vehicles")
+          .select("assigned_driver_id, plate_number")
+          .in("assigned_driver_id", driverIds);
+        (vehicles || []).forEach((v: any) => {
+          if (v.assigned_driver_id && v.plate_number) {
+            plateMap[v.assigned_driver_id] = v.plate_number;
+          }
+        });
+      }
+
       const transformedDrivers: Driver[] = (data || []).map((d: any) => ({
         id: d.id,
         authUserId: d.user_id,
@@ -74,6 +89,7 @@ export function useDrivers(options: UseDriversOptions = {}) {
         currentBalance: d.wallet_balance || 0,
         totalEarnings: d.total_earnings || 0,
         assignedVehicleId: undefined,
+        vehiclePlate: plateMap[d.id] || undefined,
         createdAt: d.created_at || new Date().toISOString(),
       }));
 
@@ -177,8 +193,21 @@ export function useFleetStats(cityIds?: string[]) {
   return { stats, isLoading, refetch: fetchStats };
 }
 
+export interface DriverVehicle {
+  id: string;
+  plateNumber: string;
+  type: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  color: string | null;
+  insuranceExpiry: string | null;
+  status: string;
+}
+
 export function useDriverDetail(driverId: string) {
   const [driver, setDriver] = useState<Driver | null>(null);
+  const [vehicle, setVehicle] = useState<DriverVehicle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDriver = useCallback(async () => {
@@ -195,6 +224,8 @@ export function useDriverDetail(driverId: string) {
       if (error) throw error;
 
       if (data) {
+        const assignedVehicleId: string | undefined = data.assigned_vehicle_id || undefined;
+
         setDriver({
           id: data.id,
           authUserId: data.user_id,
@@ -217,9 +248,54 @@ export function useDriverDetail(driverId: string) {
           cancellationRate: 0,
           currentBalance: data.wallet_balance || 0,
           totalEarnings: data.total_earnings || 0,
-          assignedVehicleId: undefined,
+          assignedVehicleId,
           createdAt: data.created_at || new Date().toISOString(),
         });
+
+        // Fetch vehicle record if assigned
+        if (assignedVehicleId) {
+          const { data: vData } = await supabase
+            .from("vehicles")
+            .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
+            .eq("id", assignedVehicleId)
+            .single();
+
+          if (vData) {
+            setVehicle({
+              id: vData.id,
+              plateNumber: vData.plate_number,
+              type: vData.type,
+              make: vData.make,
+              model: vData.model,
+              year: vData.year,
+              color: vData.color,
+              insuranceExpiry: vData.insurance_expiry,
+              status: vData.status,
+            });
+          } else {
+            setVehicle(null);
+          }
+        } else {
+          // Also try looking up by assigned_driver_id on vehicles table
+          const { data: vData } = await supabase
+            .from("vehicles")
+            .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
+            .eq("assigned_driver_id", data.id)
+            .eq("status", "assigned")
+            .maybeSingle();
+
+          setVehicle(vData ? {
+            id: vData.id,
+            plateNumber: vData.plate_number,
+            type: vData.type,
+            make: vData.make,
+            model: vData.model,
+            year: vData.year,
+            color: vData.color,
+            insuranceExpiry: vData.insurance_expiry,
+            status: vData.status,
+          } : null);
+        }
       }
     } catch (error) {
       console.error("Error fetching driver detail:", error);
@@ -237,7 +313,7 @@ export function useDriverDetail(driverId: string) {
     fetchDriver();
   }, [fetchDriver]);
 
-  return { driver, isLoading, refetch: fetchDriver };
+  return { driver, vehicle, isLoading, refetch: fetchDriver };
 }
 
 // Payout types

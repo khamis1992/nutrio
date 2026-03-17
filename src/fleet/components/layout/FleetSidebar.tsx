@@ -3,12 +3,13 @@ import {
   Truck,
   Users,
   MapPin,
+  SendHorizonal,
   CreditCard,
   Settings,
   LogOut,
   LayoutDashboard,
   Car,
-  Route,
+  BarChart2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -24,14 +25,17 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useFleetAuth } from '@/fleet/hooks/useFleetAuth';
+import { useUnassignedOrderCount } from '@/fleet/hooks/useUnassignedOrderCount';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/fleet' },
+  { icon: SendHorizonal, label: 'Dispatch', to: '/fleet/dispatch' },
   { icon: Users, label: 'Drivers', to: '/fleet/drivers' },
   { icon: Car, label: 'Vehicles', to: '/fleet/vehicles' },
   { icon: MapPin, label: 'Live Tracking', to: '/fleet/tracking' },
-  { icon: Route, label: 'Route Optimization', to: '/fleet/routes' },
   { icon: CreditCard, label: 'Payouts', to: '/fleet/payouts' },
+  { icon: BarChart2, label: 'Analytics', to: '/fleet/analytics' },
+  { icon: Zap, label: 'Auto Dispatch', to: '/fleet/auto-dispatch' },
   { icon: Settings, label: 'Settings', to: '/fleet/settings' },
 ];
 
@@ -40,6 +44,7 @@ export function FleetSidebar() {
   const { logout, user } = useFleetAuth();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const unassignedCount = useUnassignedOrderCount();
 
   const isActive = (path: string) => {
     if (path === '/fleet') {
@@ -77,20 +82,31 @@ export function FleetSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.to)}
-                    tooltip={item.label}
-                  >
-                    <Link to={item.to}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navItems.map((item) => {
+                const isOrders = item.to === '/fleet/dispatch';
+                const showBadge = isOrders && unassignedCount > 0;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.to)}
+                      tooltip={item.label}
+                    >
+                      <Link to={item.to} className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </span>
+                        {showBadge && !isCollapsed && (
+                          <span className="ml-auto min-w-[20px] h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center px-1.5">
+                            {unassignedCount > 99 ? "99+" : unassignedCount}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

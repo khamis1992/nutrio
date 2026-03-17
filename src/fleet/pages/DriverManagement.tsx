@@ -13,7 +13,8 @@ import {
   Phone, 
   Star,
   ChevronRight,
-  Filter
+  Filter,
+  Car
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -153,6 +154,12 @@ export default function DriverManagement() {
                   <span className="text-muted-foreground">Deliveries</span>
                   <span className="font-medium">{driver.totalDeliveries}</span>
                 </div>
+                {driver.vehiclePlate && (
+                  <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Car className="h-4 w-4" />
+                    <span className="font-mono font-medium text-foreground">{driver.vehiclePlate}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </Link>

@@ -8,22 +8,30 @@ import {
   MapPin, 
   Wallet,
   Menu,
-  LogOut
+  LogOut,
+  SendHorizonal,
+  BarChart2,
+  CreditCard,
 } from "lucide-react";
 import { CityProvider } from "@/fleet/context/CityContext";
+import { TrackingProvider } from "@/fleet/context/TrackingContext";
 import { useFleetManager } from "@/fleet/components/ProtectedFleetRoute";
+import { useUnassignedOrderCount } from "@/fleet/hooks/useUnassignedOrderCount";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 function FleetSidebar({ mobile = false, onClose, onLogout }: { mobile?: boolean; onClose?: () => void; onLogout?: () => void }) {
   const fleetManager = useFleetManager();
+  const unassignedCount = useUnassignedOrderCount();
 
   const navItems = [
     { to: "/fleet", icon: LayoutDashboard, label: "Dashboard", end: true },
+    { to: "/fleet/dispatch", icon: SendHorizonal, label: "Dispatch" },
     { to: "/fleet/drivers", icon: Users, label: "Drivers" },
     { to: "/fleet/vehicles", icon: Truck, label: "Vehicles" },
     { to: "/fleet/tracking", icon: MapPin, label: "Live Tracking" },
-    { to: "/fleet/payouts", icon: Wallet, label: "Payouts" },
+    { to: "/fleet/payouts", icon: CreditCard, label: "Payouts" },
+    { to: "/fleet/analytics", icon: BarChart2, label: "Analytics" },
   ];
 
   return (
@@ -40,24 +48,34 @@ function FleetSidebar({ mobile = false, onClose, onLogout }: { mobile?: boolean;
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            onClick={onClose}
-            className={({ isActive }) => `
-              flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
-              ${isActive 
-                ? "bg-primary text-primary-foreground" 
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }
-            `}
-          >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const hasAlert = item.to === "/fleet/dispatch" && unassignedCount > 0;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={onClose}
+              className={({ isActive }) => `
+                flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
+                ${isActive
+                  ? "bg-primary text-primary-foreground"
+                  : hasAlert
+                  ? "text-red-600 hover:bg-red-50 hover:text-red-700"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }
+              `}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="flex-1">{item.label}</span>
+              {hasAlert && (
+                <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                  {unassignedCount > 9 ? "9+" : unassignedCount}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* User Info */}
@@ -102,6 +120,7 @@ export function FleetLayout() {
   };
 
   return (
+    <TrackingProvider>
     <CityProvider>
       <div className="min-h-screen flex">
         {/* Desktop Sidebar */}
@@ -151,5 +170,6 @@ export function FleetLayout() {
         </div>
       </div>
     </CityProvider>
+    </TrackingProvider>
   );
 }

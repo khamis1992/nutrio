@@ -46,6 +46,7 @@ export interface Driver {
   currentBalance: number;
   totalEarnings: number;
   assignedVehicleId?: string;
+  vehiclePlate?: string;
   profilePhotoUrl?: string;
   idDocumentUrl?: string;
   licenseDocumentUrl?: string;

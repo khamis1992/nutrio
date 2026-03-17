@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Search, 
   Plus, 
@@ -15,7 +16,8 @@ import {
   Calendar,
   Edit,
   Car,
-  Bike
+  Bike,
+  X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -33,6 +35,9 @@ export default function VehicleManagement() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  // vehicleId → selected driverId for inline quick-assign
+  const [quickAssignMap, setQuickAssignMap] = useState<Record<string, string>>({});
+  const [assigningVehicleId, setAssigningVehicleId] = useState<string | null>(null);
 
   const fetchVehicles = async () => {
     setIsLoading(true);
@@ -207,6 +212,65 @@ export default function VehicleManagement() {
     }
   };
 
+  const handleQuickAssign = async (vehicle: Vehicle) => {
+    const driverId = quickAssignMap[vehicle.id];
+    if (!driverId) return;
+    setAssigningVehicleId(vehicle.id);
+    try {
+      // Unassign previous driver if any
+      if (vehicle.assignedDriverId) {
+        await supabase
+          .from("drivers")
+          .update({ assigned_vehicle_id: null })
+          .eq("id", vehicle.assignedDriverId);
+      }
+      // Assign vehicle → new driver
+      await supabase
+        .from("vehicles")
+        .update({ assigned_driver_id: driverId, status: "assigned" })
+        .eq("id", vehicle.id);
+      // Assign driver → vehicle
+      await supabase
+        .from("drivers")
+        .update({ assigned_vehicle_id: vehicle.id })
+        .eq("id", driverId);
+
+      toast({ title: "Driver assigned", description: "Vehicle has been assigned successfully." });
+      setQuickAssignMap((prev) => { const n = { ...prev }; delete n[vehicle.id]; return n; });
+      fetchVehicles();
+      fetchDrivers();
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to assign driver.", variant: "destructive" });
+    } finally {
+      setAssigningVehicleId(null);
+    }
+  };
+
+  const handleUnassignDriver = async (vehicle: Vehicle) => {
+    if (!vehicle.assignedDriverId) return;
+    setAssigningVehicleId(vehicle.id);
+    try {
+      await supabase
+        .from("vehicles")
+        .update({ assigned_driver_id: null, status: "available" })
+        .eq("id", vehicle.id);
+      await supabase
+        .from("drivers")
+        .update({ assigned_vehicle_id: null })
+        .eq("id", vehicle.assignedDriverId);
+
+      toast({ title: "Driver unassigned", description: "Vehicle is now available." });
+      fetchVehicles();
+      fetchDrivers();
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to unassign driver.", variant: "destructive" });
+    } finally {
+      setAssigningVehicleId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -312,10 +376,10 @@ export default function VehicleManagement() {
                     <User className="h-3 w-3" />
                     Driver
                   </span>
-                  <span>
-                    {vehicle.assignedDriverId 
+                  <span className="font-medium">
+                    {vehicle.assignedDriverId
                       ? drivers.find(d => d.id === vehicle.assignedDriverId)?.fullName || "Assigned"
-                      : "Unassigned"
+                      : <span className="text-muted-foreground font-normal">Unassigned</span>
                     }
                   </span>
                 </div>
@@ -344,7 +408,54 @@ export default function VehicleManagement() {
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t flex gap-2">
+              {/* Quick-assign section for available vehicles */}
+              {vehicle.status === "available" && (
+                <div className="mt-3 flex gap-2">
+                  <Select
+                    value={quickAssignMap[vehicle.id] || ""}
+                    onValueChange={(val) =>
+                      setQuickAssignMap((prev) => ({ ...prev, [vehicle.id]: val }))
+                    }
+                  >
+                    <SelectTrigger className="flex-1 h-8 text-xs">
+                      <SelectValue placeholder="Pick a driver…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.filter(d => !d.assignedVehicleId).map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.fullName} — {d.phone}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    disabled={!quickAssignMap[vehicle.id] || assigningVehicleId === vehicle.id}
+                    onClick={() => handleQuickAssign(vehicle)}
+                  >
+                    {assigningVehicleId === vehicle.id ? "…" : "Assign"}
+                  </Button>
+                </div>
+              )}
+
+              {/* Unassign for assigned vehicles */}
+              {vehicle.status === "assigned" && vehicle.assignedDriverId && (
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-8 text-xs text-destructive hover:text-destructive"
+                    disabled={assigningVehicleId === vehicle.id}
+                    onClick={() => handleUnassignDriver(vehicle)}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    {assigningVehicleId === vehicle.id ? "Unassigning…" : "Unassign Driver"}
+                  </Button>
+                </div>
+              )}
+
+              <div className="mt-3 pt-3 border-t flex gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -354,16 +465,7 @@ export default function VehicleManagement() {
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
-                {vehicle.status === "available" ? (
-                  <Button 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleEditClick(vehicle)}
-                  >
-                    <User className="h-3 w-3 mr-1" />
-                    Assign
-                  </Button>
-                ) : vehicle.status === "maintenance" ? (
+                {vehicle.status === "maintenance" ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -373,7 +475,7 @@ export default function VehicleManagement() {
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Complete
                   </Button>
-                ) : (
+                ) : vehicle.status !== "retired" ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -383,7 +485,7 @@ export default function VehicleManagement() {
                     <Wrench className="h-3 w-3 mr-1" />
                     Service
                   </Button>
-                )}
+                ) : null}
               </div>
             </CardContent>
           </Card>

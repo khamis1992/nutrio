@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFleetStats } from "@/fleet/hooks/useDrivers";
 import { useCity } from "@/fleet/context/CityContext";
-import { FleetBranchOrders } from "@/fleet/components/FleetBranchOrders";
 import { 
   Users, 
   Truck, 
@@ -14,16 +14,61 @@ import {
   MapPin, 
   Activity,
   ChevronRight,
-  Plus
+  Plus,
+  BarChart2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ActivityEntry {
+  id: string;
+  action: string;
+  performedAt: string | null;
+  driverName: string;
+  reason: string | null;
+}
 
 export default function FleetDashboard() {
   const { selectedCities } = useCity();
-  // Memoize cityIds to prevent infinite re-renders
   const cityIds = useMemo(() => selectedCities.map(c => c.id), [selectedCities]);
   const { stats, isLoading } = useFleetStats(cityIds);
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([]);
+
+  useEffect(() => {
+    async function loadActivity() {
+      const { data } = await supabase
+        .from("driver_assignment_history")
+        .select("id, action, performed_at, reason, driver_id")
+        .order("performed_at", { ascending: false })
+        .limit(5);
+
+      if (!data) return;
+
+      const driverIds = [...new Set(data.map(r => r.driver_id).filter(Boolean))];
+      let nameMap: Record<string, string> = {};
+      if (driverIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, phone_number")
+          .in("id", driverIds);
+        (profiles || []).forEach(p => {
+          nameMap[p.id] = p.full_name || p.phone_number || "Driver";
+        });
+      }
+
+      setRecentActivity(
+        data.map(r => ({
+          id: r.id,
+          action: r.action,
+          performedAt: r.performed_at,
+          driverName: r.driver_id ? (nameMap[r.driver_id] || "Driver") : "Driver",
+          reason: r.reason,
+        }))
+      );
+    }
+    loadActivity().catch(console.error);
+  }, []);
 
   const getStatusColor = (isOnline: boolean) => 
     isOnline ? "bg-green-500" : "bg-gray-400";
@@ -135,6 +180,29 @@ export default function FleetDashboard() {
       </div>
 
       {/* Quick Actions */}
+      {/* Dispatch Center — primary entry point */}
+      <Link to="/fleet/dispatch">
+        <Card className="hover:border-primary/60 transition-colors cursor-pointer border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shrink-0">
+                  <Package className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <p className="font-semibold text-base">Dispatch Center</p>
+                  <p className="text-sm text-muted-foreground">
+                    Assign orders to drivers — live queue, bulk assign, and auto rules
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
+      {/* Secondary quick links */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Link to="/fleet/drivers">
           <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
@@ -160,11 +228,11 @@ export default function FleetDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/fleet/payouts">
+        <Link to="/fleet/analytics">
           <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer">
             <CardContent className="pt-4 text-center">
-              <TrendingUp className="h-6 w-6 mx-auto mb-2 text-blue-500" />
-              <p className="font-medium text-sm">Payouts</p>
+              <BarChart2 className="h-6 w-6 mx-auto mb-2 text-violet-500" />
+              <p className="font-medium text-sm">Analytics</p>
             </CardContent>
           </Card>
         </Link>
@@ -221,54 +289,46 @@ export default function FleetDashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Recent Activity</CardTitle>
-          <Button variant="ghost" size="sm">
-            View All <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+          <Link to="/fleet/dispatch">
+            <Button variant="ghost" size="sm">
+              Go to Dispatch <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="font-medium">Driver went online</p>
-                  <p className="text-sm text-muted-foreground">Ahmed M. is now available for deliveries</p>
-                </div>
-              </div>
-              <span className="text-sm text-muted-foreground">2 min ago</span>
+          {recentActivity.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No recent dispatch activity.</p>
+          ) : (
+            <div className="space-y-3">
+              {recentActivity.map((entry) => {
+                const isAssign = entry.action === "assigned";
+                const isReassign = entry.action === "reassigned";
+                const iconColor = isAssign ? "text-green-500" : isReassign ? "text-blue-500" : "text-amber-500";
+                const bgColor = isAssign ? "bg-green-500/10" : isReassign ? "bg-blue-500/10" : "bg-amber-500/10";
+                const label = isAssign ? "Order assigned" : isReassign ? "Order reassigned" : entry.action.replace(/_/g, " ");
+                return (
+                  <div key={entry.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-lg ${bgColor} flex items-center justify-center`}>
+                        <Activity className={`h-5 w-5 ${iconColor}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium capitalize">{label}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {entry.driverName}{entry.reason ? ` — ${entry.reason}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      {entry.performedAt ? formatDistanceToNow(new Date(entry.performedAt), { addSuffix: true }) : "—"}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Package className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="font-medium">Order delivered</p>
-                  <p className="text-sm text-muted-foreground">Order #1234 completed by Mohammed S.</p>
-                </div>
-              </div>
-              <span className="text-sm text-muted-foreground">15 min ago</span>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="font-medium">New order assigned</p>
-                  <p className="text-sm text-muted-foreground">Order #1235 assigned to Khalid A.</p>
-                </div>
-              </div>
-              <span className="text-sm text-muted-foreground">32 min ago</span>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* Branch Orders Section */}
-      <FleetBranchOrders />
 
       {/* Add Driver CTA */}
       <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">

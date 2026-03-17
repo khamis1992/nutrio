@@ -67,6 +67,7 @@ import {
   RefreshCw,
   Loader2,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -395,6 +396,39 @@ const AdminRestaurants = () => {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedRestaurants.size} restaurant${selectedRestaurants.size > 1 ? "s" : ""}? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const ids = [...selectedRestaurants];
+      const { error } = await supabase.from("restaurants").delete().in("id", ids);
+      if (error) throw error;
+      setRestaurants((prev) => prev.filter((r) => !ids.includes(r.id)));
+      setSelectedRestaurants(new Set());
+      toast({ title: "Restaurants Deleted", description: `${ids.length} restaurant${ids.length > 1 ? "s" : ""} have been removed.` });
+    } catch (error) {
+      console.error("Error deleting restaurants:", error);
+      toast({ title: "Error", description: "Failed to delete restaurants.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteRestaurant = async (restaurant: Restaurant) => {
+    if (!window.confirm(`Are you sure you want to delete "${restaurant.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const { error } = await supabase.from("restaurants").delete().eq("id", restaurant.id);
+      if (error) throw error;
+      setRestaurants((prev) => prev.filter((r) => r.id !== restaurant.id));
+      setIsDetailOpen(false);
+      toast({ title: "Restaurant Deleted", description: `${restaurant.name} has been removed.` });
+    } catch (error) {
+      console.error("Error deleting restaurant:", error);
+      toast({ title: "Error", description: "Failed to delete restaurant.", variant: "destructive" });
+    }
+  };
+
   const toggleRestaurantSelection = (restaurantId: string) => {
     setSelectedRestaurants((prev) => {
       const newSet = new Set(prev);
@@ -654,6 +688,10 @@ const AdminRestaurants = () => {
               <Button variant="outline" size="sm" className="text-red-600 border-red-200">
                 Reject Selected
               </Button>
+              <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleDeleteSelected}>
+                <Trash2 className="w-3 h-3 mr-1" />
+                Delete Selected
+              </Button>
             </div>
           </div>
         )}
@@ -844,6 +882,14 @@ const AdminRestaurants = () => {
                                   Reject
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteRestaurant(restaurant)}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-500/10"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Restaurant
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
