@@ -1,0 +1,88 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_file:
+        description: 'Migration file name (e.g., 20260318_new_feature.sql)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      dry_run:
+        description: 'Dry run (preview only)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  migrate:
+    name: Run Migration on ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+
+      - name: Verify migration file exists
+        id: check_file
+        run: |
+          if [ -f "supabase/migrations/${{ github.event.inputs.migration_file }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Migration file not found: supabase/migrations/${{ github.event.inputs.migration_file }}"
+            exit 1
+          fi
+
+      - name: Preview Migration (Dry Run)
+        if: github.event.inputs.dry_run == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_${{ github.event.inputs.environment }} }}
+        run: |
+          echo "## Dry Run Preview" >> $GITHUB_STEP_SUMMARY
+          echo "Migration: ${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          cat "supabase/migrations/${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Apply Migration
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_${{ github.event.inputs.environment }} }}
+        run: |
+          echo "Applying migration: ${{ github.event.inputs.migration_file }}"
+          supabase db push --db-url "${{ secrets.SUPABASE_DB_URL_${{ github.event.inputs.environment }} }}"
+
+      - name: Summary
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            echo "## Dry Run Complete" >> $GITHUB_STEP_SUMMARY
+            echo "No changes applied. Run again with Dry Run disabled to apply." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Migration Applied" >> $GITHUB_STEP_SUMMARY
+            echo "- File: ${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Environment: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          fi

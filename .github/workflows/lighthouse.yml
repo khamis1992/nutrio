@@ -1,0 +1,129 @@
+name: Lighthouse Performance
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL to audit'
+        required: true
+        type: string
+      device:
+        description: 'Device type'
+        required: true
+        default: 'desktop'
+        type: choice
+        options:
+          - desktop
+          - mobile
+          - both
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  audit:
+    name: Lighthouse Audit on ${{ github.event.inputs.device }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Lighthouse
+        run: npm install -g lighthouse
+
+      - name: Run Lighthouse Desktop
+        if: github.event.inputs.device == 'desktop' || github.event.inputs.device == 'both'
+        run: |
+          lighthouse "${{ github.event.inputs.url }}" \
+            --preset=desktop \
+            --output=json \
+            --output-path=lighthouse-desktop.json \
+            --chrome-flags="--headless" \
+            --quiet
+
+      - name: Run Lighthouse Mobile
+        if: github.event.inputs.device == 'mobile' || github.event.inputs.device == 'both'
+        run: |
+          lighthouse "${{ github.event.inputs.url }}" \
+            --preset=perf-emulated-mobile \
+            --output=json \
+            --output-path=lighthouse-mobile.json \
+            --chrome-flags="--headless" \
+            --quiet
+
+      - name: Parse Desktop Results
+        if: github.event.inputs.device == 'desktop' || github.event.inputs.device == 'both'
+        id: desktop-results
+        run: |
+          cat lighthouse-desktop.json | jq -r '
+            "## Desktop Lighthouse Results\n\n" +
+            "| Category | Score |\n" +
+            "|----------|-------|\n" +
+            "| Performance | " + (.categories.performance.score * 100 | tostring) + "/100 |\n" +
+            "| Accessibility | " + (.categories.accessibility.score * 100 | tostring) + "/100 |\n" +
+            "| Best Practices | " + (.categories."best-practices".score * 100 | tostring) + "/100 |\n" +
+            "| SEO | " + (.categories.seo.score * 100 | tostring) + "/100 |\n" +
+            "| PWA | " + (.categories.pwa.score * 100 | tostring) + "/100 |\n\n" +
+            "### Metrics\n" +
+            "| Metric | Value |\n" +
+            "|-------|-------|\n" +
+            "| First Contentful Paint | " + (.audits."first-contentful-paint".displayValue) + " |\n" +
+            "| Largest Contentful Paint | " + (.audits."largest-contentful-paint".displayValue) + " |\n" +
+            "| Total Blocking Time | " + (.audits."total-blocking-time".displayValue) + " |\n" +
+            "| Cumulative Layout Shift | " + (.audits."cumulative-layout-shift".displayValue) + " |\n" +
+            "| Speed Index | " + (.audits."speed-index".displayValue) + " |"
+          ' >> $GITHUB_STEP_SUMMARY
+
+      - name: Parse Mobile Results
+        if: github.event.inputs.device == 'mobile' || github.event.inputs.device == 'both'
+        id: mobile-results
+        run: |
+          cat lighthouse-mobile.json | jq -r '
+            "## Mobile Lighthouse Results\n\n" +
+            "| Category | Score |\n" +
+            "|----------|-------|\n" +
+            "| Performance | " + (.categories.performance.score * 100 | tostring) + "/100 |\n" +
+            "| Accessibility | " + (.categories.accessibility.score * 100 | tostring) + "/100 |\n" +
+            "| Best Practices | " + (.categories."best-practices".score * 100 | tostring) + "/100 |\n" +
+            "| SEO | " + (.categories.seo.score * 100 | tostring) + "/100 |\n" +
+            "| PWA | " + (.categories.pwa.score * 100 | tostring) + "/100 |\n\n" +
+            "### Metrics\n" +
+            "| Metric | Value |\n" +
+            "|-------|-------|\n" +
+            "| First Contentful Paint | " + (.audits."first-contentful-paint".displayValue) + " |\n" +
+            "| Largest Contentful Paint | " + (.audits."largest-contentful-paint".displayValue) + " |\n" +
+            "| Total Blocking Time | " + (.audits."total-blocking-time".displayValue) + " |\n" +
+            "| Cumulative Layout Shift | " + (.audits."cumulative-layout-shift".displayValue) + " |\n" +
+            "| Speed Index | " + (.audits."speed-index".displayValue) + " |"
+          ' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: |
+            lighthouse-*.json
+          retention-days: 7
+
+      - name: Check Thresholds
+        run: |
+          THRESHOLD=50
+          if [ "${{ github.event.inputs.device }}" == "desktop" ]; then
+            SCORE=$(cat lighthouse-desktop.json | jq -r '.categories.performance.score * 100' | cut -d'.' -f1)
+          else
+            SCORE=$(cat lighthouse-mobile.json | jq -r '.categories.performance.score * 100' | cut -d'.' -f1)
+          fi
+          
+          echo "Performance Score: $SCORE"
+          
+          if [ "$SCORE" -lt "$THRESHOLD" ]; then
+            echo "⚠️ Performance score below threshold ($THRESHOLD)"
+          else
+            echo "✅ Performance score meets threshold"
+          fi
