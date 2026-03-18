@@ -151,7 +151,7 @@ const Favorites = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-safe">
         <div className="flex items-center justify-between p-4 rtl:flex-row-reverse">
           <Button 
             variant="ghost" 

@@ -726,7 +726,7 @@ const OrderHistory = () => {
       )}
 
       {/* Native header */}
-      <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
+      <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70 pt-safe">
           <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between rtl:flex-row-reverse">
           <button
             onClick={() => navigate("/dashboard")}

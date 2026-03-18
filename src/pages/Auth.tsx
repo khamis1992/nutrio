@@ -824,22 +824,32 @@ const Auth = () => {
             {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
           </div>
 
-          {/* Remember me + Forgot password — same row */}
+          {/* Remember me row */}
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
-              {/* Custom green checkbox */}
-              <div
-                className="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors"
-                style={{ borderColor: "#7DC200", background: rememberMe ? "#7DC200" : "transparent" }}
-                onClick={() => setRememberMe(!rememberMe)}
-              >
-                {rememberMe && (
-                  <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                    <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
+            <label className="flex items-center gap-2 cursor-pointer select-none group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="sr-only"
+                />
+                <div
+                  className={`w-10 h-6 rounded-full transition-colors duration-200 ${
+                    rememberMe ? "bg-[#7DC200]" : "bg-gray-200"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      rememberMe ? "translate-x-4.5" : "translate-x-0.5"
+                    }`}
+                    style={{ left: rememberMe ? "auto" : "2px" }}
+                  />
+                </div>
               </div>
-              <span className="text-sm text-gray-700">{t("remember_me")}</span>
+              <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">
+                {t("remember_me")}
+              </span>
             </label>
             <button
               type="button"

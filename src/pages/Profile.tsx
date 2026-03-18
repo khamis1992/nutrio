@@ -567,7 +567,7 @@ const Profile = () => {
       <motion.header
         initial={{ y: -10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/40"
+        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/40 pt-safe"
       >
         <div className="flex items-center gap-3 px-4 h-14">
           <button

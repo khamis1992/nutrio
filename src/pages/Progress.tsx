@@ -326,7 +326,7 @@ const ProgressNative = () => {
 return (
     <div className="min-h-screen bg-background pb-24">
       {/* Native App Header with App Colors */}
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-accent">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-accent pt-safe">
         <div className="flex items-center justify-between px-4 h-14 rtl:flex-row-reverse">
           <button
             onClick={() => navigate("/dashboard")}
