@@ -319,6 +319,12 @@ const generateDateOptions = () => {
 };
 
 // Nutrition Bottom Sheet
+const TIME_SLOTS = [
+  "7:00 AM", "8:00 AM", "9:00 AM",
+  "11:00 AM", "12:00 PM", "1:00 PM",
+  "5:00 PM", "6:00 PM", "7:00 PM",
+];
+
 const ScheduleSheet = ({
   isOpen,
   onClose,
@@ -326,6 +332,8 @@ const ScheduleSheet = ({
   setSelectedDate,
   selectedMealType,
   setSelectedMealType,
+  selectedTimeSlot,
+  setSelectedTimeSlot,
   onSchedule,
   loading,
   hasActiveSubscription,
@@ -349,6 +357,8 @@ const ScheduleSheet = ({
   setSelectedDate: (date: Date | undefined) => void;
   selectedMealType: string;
   setSelectedMealType: (type: string) => void;
+  selectedTimeSlot: string | null;
+  setSelectedTimeSlot: (slot: string | null) => void;
   onSchedule: () => void;
   loading: boolean;
   hasActiveSubscription: boolean;
@@ -511,6 +521,30 @@ const ScheduleSheet = ({
             </div>
           </div>
 
+          {/* — Delivery time slot — */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Delivery time</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+              {TIME_SLOTS.map((slot) => {
+                const isSelected = selectedTimeSlot === slot;
+                return (
+                  <motion.button
+                    key={slot}
+                    whileTap={{ scale: 0.93 }}
+                    onClick={() => setSelectedTimeSlot(isSelected ? null : slot)}
+                    className={`flex-shrink-0 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border/50 bg-card text-foreground"
+                    }`}
+                  >
+                    {slot}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* — Delivery address — */}
           {addresses.length > 0 && (
             <div className="space-y-2">
@@ -635,6 +669,7 @@ const ScheduleSheet = ({
           {selectedDate && selectedType && (
             <p className="text-center text-xs text-muted-foreground mb-2">
               {selectedType.label} · {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+              {selectedTimeSlot && ` · ${selectedTimeSlot}`}
             </p>
           )}
           <motion.button
@@ -745,6 +780,7 @@ const MealDetail = () => {
   });
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedAddressLabel, setSelectedAddressLabel] = useState<string>("");
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll({ container: scrollRef });
@@ -979,6 +1015,7 @@ const MealDetail = () => {
         is_completed: false,
         order_status: "pending",
         delivery_address_id: selectedAddressId,
+        ...(selectedTimeSlot ? { delivery_time_slot: selectedTimeSlot } : {}),
       });
 
       if (error) throw error;
@@ -1348,6 +1385,8 @@ const MealDetail = () => {
         setSelectedDate={setSelectedDate}
         selectedMealType={selectedMealType}
         setSelectedMealType={setSelectedMealType}
+        selectedTimeSlot={selectedTimeSlot}
+        setSelectedTimeSlot={setSelectedTimeSlot}
         onSchedule={handleSchedule}
         loading={scheduling}
         hasActiveSubscription={hasActiveSubscription}

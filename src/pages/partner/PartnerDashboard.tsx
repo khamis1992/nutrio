@@ -48,6 +48,7 @@ interface Restaurant {
 interface ScheduledMeal {
   id: string;
   scheduled_date: string;
+  delivery_time_slot: string | null;
   meal_type: string;
   is_completed: boolean;
   created_at: string;
@@ -173,6 +174,7 @@ const PartnerDashboard = () => {
         .select(`
           id,
           scheduled_date,
+          delivery_time_slot,
           meal_type,
           is_completed,
           created_at,
@@ -181,7 +183,7 @@ const PartnerDashboard = () => {
           )
         `)
         .in("meal_id", mealIds)
-        .order("created_at", { ascending: false })
+        .order("scheduled_date", { ascending: true })
         .limit(10);
 
       if (schedulesError) throw schedulesError;
@@ -189,6 +191,7 @@ const PartnerDashboard = () => {
       const transformedSchedules: ScheduledMeal[] = (schedulesData || []).map((s: any) => ({
         id: s.id,
         scheduled_date: s.scheduled_date,
+        delivery_time_slot: s.delivery_time_slot || null,
         meal_type: s.meal_type,
         is_completed: s.is_completed || false,
         created_at: s.created_at,
@@ -647,11 +650,14 @@ const PartnerDashboard = () => {
                             {schedule.meal?.name || "Unknown Meal"}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(schedule.scheduled_date).toLocaleDateString("en-US", {
+                            {new Date(schedule.scheduled_date + "T00:00:00").toLocaleDateString("en-US", {
                               weekday: "short", month: "short", day: "numeric"
                             })}
                             {" · "}
                             <span className="capitalize">{schedule.meal_type}</span>
+                            {schedule.delivery_time_slot && (
+                              <span className="ml-1 text-orange-600 font-medium">· {schedule.delivery_time_slot}</span>
+                            )}
                           </p>
                         </div>
                       </div>

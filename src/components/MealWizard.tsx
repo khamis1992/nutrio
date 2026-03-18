@@ -1122,7 +1122,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         </motion.div>
 
         {/* Selected Meals Summary — shows all selected meals across all steps */}
-        {getTotalSelectedMeals() > 0 && (
+        {getTotalSelectedMeals() > 0 && !showPlanSummary && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1173,6 +1173,29 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               <p className="text-sm text-muted-foreground mt-1">
                 {format(selectedDate, "EEEE, MMM d")} · 4 meals ready to schedule
               </p>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowDeliveryScheduler(true)}
+                disabled={scheduling}
+                className="mt-3 w-full rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{
+                  height: 52,
+                  background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                  boxShadow: "0 4px 16px rgba(34,197,94,0.35)",
+                }}
+              >
+                {scheduling ? (
+                  <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />Scheduling…</>
+                ) : (
+                  <><ChefHat className="h-5 w-5" />Schedule All 4 Meals</>
+                )}
+              </motion.button>
+              <button
+                onClick={() => setShowPlanSummary(false)}
+                className="mt-2 text-xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                Edit or add meals manually
+              </button>
             </div>
 
             {/* Meal cards */}
@@ -1240,13 +1263,6 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               );
             })()}
 
-            {/* Edit / Add manually link */}
-            <button
-              onClick={() => setShowPlanSummary(false)}
-              className="w-full text-center text-sm text-muted-foreground underline-offset-2 hover:underline py-1"
-            >
-              Edit or add meals manually
-            </button>
           </motion.div>
 
         ) : (
@@ -1857,9 +1873,10 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 </div>
               </div>
 
-              {/* Content Area */}
+              {/* Content Area - Scrollable */}
               <div 
-                className="flex-1 overflow-y-auto px-5 pb-2 scrollbar-hide relative"
+                className="flex-1 min-h-0 overflow-y-auto px-5 pb-4 scrollbar-hide relative"
+                style={{ maxHeight: 'calc(85vh - 200px)' }}
               >
                 {/* Preference Selection - Show before generation */}
                 {showAutoFillPreferences && !autoFillLoading && !generatedDayPlan && (

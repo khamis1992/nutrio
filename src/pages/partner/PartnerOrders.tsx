@@ -151,6 +151,7 @@ interface Order {
   id: string;
   order_status: OrderStatus;
   scheduled_date: string;
+  delivery_time_slot: string | null;
   meal_type: string;
   delivery_type: string;
   delivery_fee: number | null;
@@ -345,12 +346,16 @@ const PartnerOrders = () => {
         return;
       }
 
+      // Only show today's meals so the restaurant doesn't prepare future orders early
+      const today = new Date().toISOString().split("T")[0];
+
       // Fetch meal schedules (orders) for these meals
       const { data: schedules, error: schedulesError } = await supabase
         .from("meal_schedules")
         .select(`
           id,
           scheduled_date,
+          delivery_time_slot,
           meal_type,
           order_status,
           delivery_type,
@@ -367,7 +372,8 @@ const PartnerOrders = () => {
           )
         `)
         .in("meal_id", mealIds)
-        .order("created_at", { ascending: false });
+        .eq("scheduled_date", today)
+        .order("scheduled_date", { ascending: true });
 
       if (schedulesError) throw schedulesError;
 
@@ -441,6 +447,7 @@ const PartnerOrders = () => {
         id: s.id,
         order_status: (s.order_status || "pending") as OrderStatus,
         scheduled_date: s.scheduled_date,
+        delivery_time_slot: s.delivery_time_slot || null,
         meal_type: s.meal_type,
         delivery_type: s.delivery_type || "standard",
         delivery_fee: s.delivery_fee,
@@ -619,8 +626,17 @@ const PartnerOrders = () => {
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   <Clock className="h-3 w-3 inline mr-1" />
-                  {new Date(order.created_at).toLocaleDateString()} • {order.meal_type}
+                  {order.scheduled_date
+                    ? new Date(order.scheduled_date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+                    : new Date(order.created_at).toLocaleDateString()}{" "}
+                  • <span className="capitalize">{order.meal_type}</span>
                 </p>
+                {order.delivery_time_slot && (
+                  <p className="text-xs font-medium text-orange-600 mt-0.5">
+                    <Clock className="h-3 w-3 inline mr-1" />
+                    Deliver by {order.delivery_time_slot}
+                  </p>
+                )}
                 {order.customer?.full_name && (
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <Phone className="h-3 w-3" />

@@ -952,7 +952,7 @@ const Meals = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Native Header — title row + sticky search */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/30">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b border-border/30 pt-safe">
         {/* Title row */}
         <div className="px-4 pt-[env(safe-area-inset-top)] h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 rtl:flex-row-reverse">
