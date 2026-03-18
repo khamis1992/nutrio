@@ -66,6 +66,7 @@ const Dashboard = () => {
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const { featuredRestaurants, loading: featuredLoading } = useFeaturedRestaurants();
   const [logMealOpen, setLogMealOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [todayProgress, setTodayProgress] = useState({
     calories: 0,
     protein: 0,
@@ -111,40 +112,36 @@ const Dashboard = () => {
     }
   }, [profile, profileLoading, navigate]);
 
-  // Fetch today's progress
+  // Fetch progress for selected date
   useEffect(() => {
     const fetchTodayProgress = async () => {
       if (!user) return;
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = format(today, "yyyy-MM-dd");
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
 
       try {
         const { data, error } = await supabase
           .from("progress_logs")
           .select("calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
           .eq("user_id", user.id)
-          .eq("log_date", todayStr)
+          .eq("log_date", dateStr)
           .maybeSingle();
 
         if (error) throw error;
 
-        if (data) {
-          setTodayProgress({
-            calories: data.calories_consumed || 0,
-            protein: data.protein_consumed_g || 0,
-            carbs: data.carbs_consumed_g || 0,
-            fat: data.fat_consumed_g || 0,
-          });
-        }
+        setTodayProgress({
+          calories: data?.calories_consumed || 0,
+          protein: data?.protein_consumed_g || 0,
+          carbs: data?.carbs_consumed_g || 0,
+          fat: data?.fat_consumed_g || 0,
+        });
       } catch (err) {
-        console.error("Error fetching today's progress:", err);
+        console.error("Error fetching progress:", err);
       }
     };
 
     fetchTodayProgress();
-  }, [user, progressKey]);
+  }, [user, progressKey, selectedDate]);
 
   // Use featured restaurants from hook
   useEffect(() => {
@@ -347,7 +344,7 @@ const Dashboard = () => {
         )}
 
         {/* Daily Nutrition Card */}
-        <DailyNutritionCard 
+        <DailyNutritionCard
           totalCalories={Math.round(userStats.consumedCalories)}
           totalProtein={userStats.protein.consumed}
           totalCarbs={userStats.carbs.consumed}
@@ -357,6 +354,7 @@ const Dashboard = () => {
           targetCarbs={userStats.carbs.target}
           targetFat={userStats.fat.target}
           dayLabel={t("todays_progress")}
+          onDateChange={setSelectedDate}
         />
 
         {/* Log Meal Button */}

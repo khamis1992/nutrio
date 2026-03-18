@@ -20,6 +20,7 @@ interface DailyNutritionCardProps {
   dayLabel?: string;
   burnedWalking?: number;
   burnedActivity?: number;
+  onDateChange?: (date: Date) => void;
 }
 
 const MacroRing = ({
@@ -76,14 +77,34 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   targetProtein = 128,
   targetCarbs = 224,
   targetFat = 64,
+  onDateChange,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [totalBurned, setTotalBurned] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const isToday = selectedDate >= todayStart;
+  const todayStr = format(selectedDate, "yyyy-MM-dd");
 
-  // Load today's total burned calories on mount
+  const goToPrevDay = () => {
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 1);
+    setSelectedDate(prev);
+    onDateChange?.(prev);
+  };
+
+  const goToNextDay = () => {
+    if (isToday) return;
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    setSelectedDate(next);
+    onDateChange?.(next);
+  };
+
+  // Load burned calories for selected date
   useEffect(() => {
     if (!user) return;
     const load = async () => {
@@ -100,7 +121,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   }, [user, todayStr]);
 
   const calLeft = Math.max(0, focusCalories - totalCalories + totalBurned);
-  const today = format(new Date(), "EEE, MMM d");
+  const today = format(selectedDate, "EEE, MMM d");
 
   // Main ring geometry — shows calories REMAINING (starts full, depletes as you eat)
   const R = 68;
@@ -125,14 +146,14 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
 
           {/* ── Date navigation row ── */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+            <button onClick={goToPrevDay} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
               <NavChevronLeft className="w-5 h-5 text-gray-400" />
             </button>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-gray-800">{today}</span>
               <Calendar className="w-4 h-4 text-gray-400" />
             </div>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+            <button onClick={goToNextDay} disabled={isToday} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
               <NavChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </div>

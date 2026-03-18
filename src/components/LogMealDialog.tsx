@@ -138,7 +138,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const loadScheduled = async () => {
     if (!userId) return;
     setLoadingScheduled(true);
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     try {
       const { data } = await supabase
         .from("meal_schedules")
@@ -238,7 +239,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const logMeal = async (
     name: string, calories: number, protein: number, carbs: number, fat: number, saveToHistory = true
   ) => {
-    const today = new Date().toISOString().split("T")[0];
+    // Use local date (not UTC) to match how fetchTodayProgress reads it in Dashboard
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { data: existing } = await supabase
       .from("progress_logs")
       .select("id, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
