@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
+import { initSentry } from "@/lib/sentry";
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NativeRouteRedirect } from "@/components/NativeRouteRedirect";
 import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Loader2 } from "lucide-react";
 import { fleetRoutes } from "@/fleet/routes";
 import CustomerLayout from "@/components/CustomerLayout";
@@ -136,6 +138,9 @@ const ScrollToTop = () => {
 
 const queryClient = new QueryClient();
 
+// Initialize Sentry error tracking
+initSentry();
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -147,7 +152,8 @@ const App = () => (
             <SessionTimeoutManager>
             <ScrollToTop />
             <Suspense fallback={<PageLoader />}>
-              <Routes>
+              <RouteErrorBoundary>
+                <Routes>
             <Route
               path="/"
               element={
@@ -726,6 +732,7 @@ const App = () => (
             {fleetRoutes}
             <Route path="*" element={<NotFound />} />
           </Routes>
+              </RouteErrorBoundary>
           </Suspense>
           </SessionTimeoutManager>
           </AnalyticsProvider>

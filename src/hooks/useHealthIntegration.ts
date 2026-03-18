@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { Platform } from "@/lib/capacitor";
+import { isNative, isIOS, isAndroid, isWeb } from "@/lib/capacitor";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +26,8 @@ export interface WorkoutData {
   endTime: string;
   calories: number;
   duration: number; // minutes
+  confirmed?: boolean; // User confirmed this workout
+  source?: 'manual' | 'google_fit' | 'apple_health' | 'garmin' | 'auto_detected';
 }
 
 interface HealthPermissions {
@@ -35,6 +37,17 @@ interface HealthPermissions {
   sleep: boolean;
   heartRate: boolean;
 }
+
+// Import Google Fit service
+import { 
+  isAvailable as checkGoogleFitAvailable,
+  requestPermissions as requestGoogleFitPermissions,
+  getHealthData as getGoogleFitHealthData,
+  writeNutritionData as writeGoogleFitNutrition,
+  getAuthUrl,
+  exchangeCodeForToken,
+  getWorkouts as fetchGoogleFitWorkouts,
+} from "@/services/health/googleFit";
 
 export function useHealthIntegration() {
   const { user } = useAuth();
@@ -46,30 +59,20 @@ export function useHealthIntegration() {
 
   // Check platform on mount
   useEffect(() => {
-    const checkPlatform = async () => {
-      try {
-        const { isNative, isIOS, isAndroid } = await import("@/lib/capacitor");
-        
-        if (isNative()) {
-          if (isIOS()) {
-            setPlatform("ios");
-          } else if (isAndroid()) {
-            setPlatform("android");
-          }
-        }
-      } catch {
-        // Web platform
-        setPlatform("web");
+    if (isNative) {
+      if (isIOS()) {
+        setPlatform("ios");
+      } else if (isAndroid()) {
+        setPlatform("android");
       }
-    };
-
-    checkPlatform();
+    } else {
+      setPlatform("web");
+    }
   }, []);
 
   // Check if health integration is available
   const checkAvailability = useCallback(async () => {
     if (platform === "ios") {
-      // Check HealthKit availability
       try {
         const { HealthKit } = await import("@/services/health/healthkit");
         const available = await HealthKit.isAvailable();
@@ -80,16 +83,10 @@ export function useHealthIntegration() {
         return false;
       }
     } else if (platform === "android") {
-      // Check Google Fit availability
-      try {
-        const { GoogleFit } = await import("@/services/health/googleFit");
-        const available = await GoogleFit.isAvailable();
-        setIsAvailable(available);
-        return available;
-      } catch {
-        setIsAvailable(false);
-        return false;
-      }
+      // Use our Google Fit service
+      const available = await checkGoogleFitAvailable();
+      setIsAvailable(available);
+      return available;
     }
     
     setIsAvailable(false);
@@ -107,9 +104,20 @@ export function useHealthIntegration() {
         setPermissions(granted);
         return granted;
       } else if (platform === "android") {
-        const { GoogleFit } = await import("@/services/health/googleFit");
-        const granted = await GoogleFit.requestPermissions(requested);
-        setPermissions(granted);
+        const granted = await requestGoogleFitPermissions({
+          activity: requested.workouts ?? requested.steps ?? false,
+          body: requested.calories ?? false,
+          location: false,
+        });
+        if (granted) {
+          setPermissions({
+            steps: granted.activity ?? false,
+            calories: granted.body ?? false,
+            workouts: granted.activity ?? false,
+            sleep: false,
+            heartRate: false,
+          });
+        }
         return granted;
       }
       
@@ -135,8 +143,28 @@ export function useHealthIntegration() {
         const { HealthKit } = await import("@/services/health/healthkit");
         healthData = await HealthKit.getHealthData(dateRange);
       } else if (platform === "android") {
-        const { GoogleFit } = await import("@/services/health/googleFit");
-        healthData = await GoogleFit.getHealthData(dateRange);
+        healthData = await getGoogleFitHealthData(dateRange);
+      } else {
+        // Web platform - try to fetch from stored Google Fit tokens
+        const { data: tokens } = await supabase
+          .from("user_integrations")
+          .select("access_token, expires_at")
+          .eq("user_id", user.id)
+          .eq("provider", "google_fit")
+          .single();
+        
+        if (tokens?.access_token) {
+          const workouts = await fetchGoogleFitWorkouts(
+            { accessToken: tokens.access_token, expiresAt: tokens.expires_at },
+            dateRange.start,
+            dateRange.end
+          );
+          
+          healthData = {
+            workouts,
+            date: dateRange.start.toISOString().split("T")[0],
+          };
+        }
       }
       
       if (healthData) {
@@ -175,8 +203,7 @@ export function useHealthIntegration() {
         const { HealthKit } = await import("@/services/health/healthkit");
         await HealthKit.writeNutritionSample(mealData);
       } else if (platform === "android") {
-        const { GoogleFit } = await import("@/services/health/googleFit");
-        await GoogleFit.writeNutritionData(mealData);
+        await writeGoogleFitNutrition(mealData);
       }
       
       toast.success("Meal logged to Health app");
@@ -186,6 +213,37 @@ export function useHealthIntegration() {
       return false;
     }
   }, [platform]);
+
+  // Fetch workouts specifically from Google Fit (for StepCounter)
+  const fetchGoogleFitWorkouts = useCallback(async (startDate: Date, endDate: Date): Promise<WorkoutData[]> => {
+    if (!user) return [];
+    
+    // First check for stored OAuth tokens
+    const { data: tokens } = await supabase
+      .from("user_integrations")
+      .select("access_token, expires_at")
+      .eq("user_id", user.id)
+      .eq("provider", "google_fit")
+      .single();
+    
+    if (!tokens?.access_token) {
+      console.log("No Google Fit tokens found");
+      return [];
+    }
+    
+    // Check if token is expired
+    if (tokens.expires_at * 1000 < Date.now()) {
+      console.log("Google Fit token expired");
+      // TODO: Implement refresh token flow
+      return [];
+    }
+    
+    return await fetchGoogleFitWorkouts(
+      { accessToken: tokens.access_token, expiresAt: tokens.expires_at * 1000 },
+      startDate,
+      endDate
+    );
+  }, [user]);
 
   return {
     isAvailable,
@@ -197,21 +255,31 @@ export function useHealthIntegration() {
     requestPermissions,
     syncHealthData,
     writeMealToHealth,
+    fetchGoogleFitWorkouts,
   };
 }
 
-// Service modules would be in separate files for iOS/Android
-// Stub implementations for compilation
-export const HealthKitService = {
-  isAvailable: async () => false,
-  requestPermissions: async () => null,
-  getHealthData: async () => null,
-  writeNutritionSample: async () => false,
-};
+// Helper to initiate Google Fit OAuth flow (for web)
+export function initGoogleFitOAuth(clientId: string) {
+  const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+  const authUrl = getAuthUrl(clientId, redirectUri);
+  window.location.href = authUrl;
+}
 
-export const GoogleFitService = {
-  isAvailable: async () => false,
-  requestPermissions: async () => null,
-  getHealthData: async () => null,
-  writeNutritionData: async () => false,
-};
+// Handle OAuth callback
+export async function handleGoogleFitCallback(
+  code: string,
+  clientId: string,
+  clientSecret: string
+): Promise<boolean> {
+  const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+  const tokenData = await exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
+  
+  if (!tokenData) {
+    return false;
+  }
+  
+  // Store token in database (would need user context)
+  // This should be called from an API route
+  return true;
+}

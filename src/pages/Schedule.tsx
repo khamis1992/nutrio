@@ -181,6 +181,11 @@ const Schedule = () => {
   const [wizardInitialStep, setWizardInitialStep] = useState(0);
   const [wizardAutoFill, setWizardAutoFill] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Inline auto-fill preview state
+  const [showInlinePreview, setShowInlinePreview] = useState(false);
+  const [inlinePreviewLoading, setInlinePreviewLoading] = useState(false);
+  const [inlinePreviewMeals, setInlinePreviewMeals] = useState<any[]>([]);
 
   // Bottom sheet for meal details
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);

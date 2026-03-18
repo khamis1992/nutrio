@@ -75,12 +75,29 @@ export function usePushNotificationDeepLink() {
   const handleDeepLink = (data: PushNotificationData) => {
     const { type, id, params } = data;
     
+    // Validate route type exists
+    if (!type || !DEEP_LINK_ROUTES[type]) {
+      console.warn('Invalid deep link type:', type);
+      // Fallback to home
+      navigate('/');
+      return;
+    }
+    
     // Build the route
     let route: string = DEEP_LINK_ROUTES[type];
     
     // Replace route parameters
     if (id) {
       route = route.replace(':id', id);
+    }
+    
+    // Validate the resulting route exists (basic check)
+    // If route contains unresolved :id, it's likely invalid
+    if (route.includes(':')) {
+      console.warn('Unresolved route params in deep link:', route);
+      // Fallback to home
+      navigate('/');
+      return;
     }
     
     // Add query params if any
@@ -109,9 +126,17 @@ export function usePushNotificationDeepLink() {
     if (pendingDeepLink) {
       try {
         const data: PushNotificationData = JSON.parse(pendingDeepLink);
+        // Validate the parsed data has required fields
+        if (!data || !data.type) {
+          console.warn('Invalid pending deep link data');
+          localStorage.removeItem('pending_deep_link');
+          return;
+        }
         handleDeepLink(data);
       } catch (err) {
         console.error('Error parsing pending deep link:', err);
+        // Clear invalid data
+        localStorage.removeItem('pending_deep_link');
       }
     }
   };

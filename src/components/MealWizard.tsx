@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -138,12 +138,22 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
   // Auto-fill day state
   const [autoFillLoading, setAutoFillLoading] = useState(false);
   const [showAutoFillDialog, setShowAutoFillDialog] = useState(false);
+  const [showAutoFillPreferences, setShowAutoFillPreferences] = useState(true);
   const [generatedDayPlan, setGeneratedDayPlan] = useState<any>(null);
   const [selectedSuggestedMeals, setSelectedSuggestedMeals] = useState<Set<number>>(new Set());
   const [lockedMeals, setLockedMeals] = useState<any[]>([]);
   const [showPlanSummary, setShowPlanSummary] = useState(false);
   const [showDeliveryScheduler, setShowDeliveryScheduler] = useState(false);
   const [success, setSuccess] = useState(false);
+  const autoFillTriggered = useRef(false);
+  
+  // Quick preference state for auto-fill
+  const [autoFillPreferences, setAutoFillPreferences] = useState({
+    maxCalories: 2000,
+    proteinFocus: false,
+    vegetarian: false,
+    quickPrep: false,
+  });
 
   // ── Add-ons ───────────────────────────────────────────────────────────
   const { wallet, refresh: refetchWallet } = useWallet();
@@ -180,7 +190,8 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
 
   // When opened via the Schedule page auto-fill button, skip mode screen and trigger auto-fill immediately
   useEffect(() => {
-    if (autoFill) {
+    if (autoFill && !autoFillTriggered.current) {
+      autoFillTriggered.current = true;
       setLocalSingleMode(false);
       setPhase("scheduling");
       handleAutoFillDay(false);
@@ -682,8 +693,9 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
   };
 
   // Auto-fill day with Nutrio suggestions
-  const handleAutoFillDay = async (isRefresh = false) => {
+  const handleAutoFillDay = async (isRefresh = false, preferences?: typeof autoFillPreferences) => {
     setAutoFillLoading(true);
+    setShowAutoFillPreferences(false);
     if (!isRefresh) {
       setShowAutoFillDialog(true);
       setSelectedSuggestedMeals(new Set());
@@ -699,6 +711,21 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         week_start_date: format(selectedDate, "yyyy-MM-dd"),
         generate_variations: 1,
       };
+      
+      // Include user preferences in request
+      const prefs = preferences || autoFillPreferences;
+      if (prefs.maxCalories && prefs.maxCalories !== 2000) {
+        requestBody.max_calories = prefs.maxCalories;
+      }
+      if (prefs.proteinFocus) {
+        requestBody.protein_focus = true;
+      }
+      if (prefs.vegetarian) {
+        requestBody.dietary_restrictions = ['vegetarian'];
+      }
+      if (prefs.quickPrep) {
+        requestBody.quick_prep = true;
+      }
       
       // If refreshing with locked meals, send remaining nutrition
       if (isRefresh && lockedMeals.length > 0) {
@@ -737,11 +764,16 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
       if (error) {
         if (error.message?.includes('CORS') || error.message?.includes('Failed to send') || error.message?.includes('net::ERR')) {
           toast({
-            title: "Feature not available",
-            description: "Auto-fill is coming soon! Please select meals manually.",
-            variant: "destructive"
+            title: "AI Suggestions Unavailable",
+            description: "We're having trouble generating suggestions. You can still select meals manually or try again.",
+            variant: "destructive",
+            action: {
+              label: "Try Again",
+              onClick: () => handleAutoFillDay(false)
+            }
           });
           setShowAutoFillDialog(false);
+          setAutoFillLoading(false);
           return;
         }
         throw error;
@@ -785,7 +817,6 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
       }
     } catch (err: any) {
       console.error("Error generating day plan:", err);
-      // Log the full error details
       console.error("Error details:", JSON.stringify(err, null, 2));
       if (err.context) {
         console.error("Error context:", err.context);
@@ -793,7 +824,11 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
       toast({
         title: "Error",
         description: err.message || err.error?.message || "Failed to generate meal plan - please try again",
-        variant: "destructive"
+        variant: "destructive",
+        action: {
+          label: "Try Again",
+          onClick: () => handleAutoFillDay(false)
+        }
       });
       setShowAutoFillDialog(false);
     } finally {
@@ -853,10 +888,19 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
     setSelectedSuggestedMeals(new Set());
     setLockedMeals([]);
     setSelectedRestaurant(null);
+    
+    // Reset auto-fill state to prevent re-triggering
+    if (autoFill) {
+      // Get the props and reset them
+      setPhase("scheduling");
+    }
 
     if (appliedCount === STEPS.length) {
-      setCurrentStep(STEPS.length - 1);
-      setShowPlanSummary(true);
+      // Show plan summary after a small delay to ensure state updates
+      setTimeout(() => {
+        setCurrentStep(STEPS.length - 1);
+        setShowPlanSummary(true);
+      }, 50);
     } else {
       toast({
         title: "Meals Added!",
@@ -1777,7 +1821,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                   setShowAutoFillDialog(false);
                 }
               }}
-              className="fixed bottom-[80px] left-0 right-0 bg-[#F2F2F7] dark:bg-zinc-950 rounded-t-[32px] z-50 max-h-[75vh] overflow-hidden flex flex-col"
+              className="fixed bottom-0 left-0 right-0 bg-[#F2F2F7] dark:bg-zinc-950 rounded-t-[32px] z-50 max-h-[85vh] overflow-hidden flex flex-col"
             >
               {/* Native Handle Bar */}
               <div className="flex justify-center pt-2 pb-1">
@@ -1815,18 +1859,174 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
 
               {/* Content Area */}
               <div 
-                className="flex-1 overflow-y-auto px-5 pb-4 scrollbar-hide relative"
+                className="flex-1 overflow-y-auto px-5 pb-2 scrollbar-hide relative"
               >
-                {autoFillLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20">
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                      </div>
-                      <div className="absolute inset-0 rounded-2xl bg-primary/10 animate-pulse" />
+                {/* Preference Selection - Show before generation */}
+                {showAutoFillPreferences && !autoFillLoading && !generatedDayPlan && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4"
+                  >
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles className="w-5 h-5 text-primary" />
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                        Customize Your Day
+                      </h3>
                     </div>
-                    <p className="mt-4 text-base font-medium text-zinc-600 dark:text-zinc-400">Creating your perfect day...</p>
-                    <p className="text-sm text-zinc-400 dark:text-zinc-500">Analyzing your nutrition goals</p>
+                    
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                      Set your preferences (optional) or skip to get AI recommendations based on your profile.
+                    </p>
+
+                    {/* Calorie Target */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Daily Calorie Target</span>
+                        <span className="text-sm font-bold text-primary">{autoFillPreferences.maxCalories} kcal</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min={1200} 
+                        max={3000} 
+                        step={100}
+                        value={autoFillPreferences.maxCalories}
+                        onChange={(e) => setAutoFillPreferences(prev => ({ ...prev, maxCalories: parseInt(e.target.value) }))}
+                        className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <div className="flex justify-between text-xs text-zinc-400 mt-1">
+                        <span>1200</span>
+                        <span>3000</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Preference Chips */}
+                    <div className="space-y-2">
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Quick Preferences</span>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setAutoFillPreferences(prev => ({ ...prev, proteinFocus: !prev.proteinFocus }))}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                            autoFillPreferences.proteinFocus 
+                              ? 'bg-primary text-white' 
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                          }`}
+                        >
+                          <Beef className="w-4 h-4 inline mr-1.5" />
+                          High Protein
+                        </button>
+                        <button
+                          onClick={() => setAutoFillPreferences(prev => ({ ...prev, vegetarian: !prev.vegetarian }))}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                            autoFillPreferences.vegetarian 
+                              ? 'bg-emerald-500 text-white' 
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                          }`}
+                        >
+                          <Apple className="w-4 h-4 inline mr-1.5" />
+                          Vegetarian
+                        </button>
+                        <button
+                          onClick={() => setAutoFillPreferences(prev => ({ ...prev, quickPrep: !prev.quickPrep }))}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                            autoFillPreferences.quickPrep 
+                              ? 'bg-orange-500 text-white' 
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                          }`}
+                        >
+                          <Flame className="w-4 h-4 inline mr-1.5" />
+                          Quick Prep
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleAutoFillDay(false, { maxCalories: 2000, proteinFocus: false, vegetarian: false, quickPrep: false })}
+                        className="flex-1"
+                      >
+                        Skip - Use My Profile
+                      </Button>
+                      <Button 
+                        onClick={() => handleAutoFillDay(false, autoFillPreferences)}
+                        className="flex-1 bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-500/90"
+                      >
+                        Generate My Day
+                        <Sparkles className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {autoFillLoading ? (
+                  <div className="space-y-3">
+                    {/* Animated header with sparkles */}
+                    <div className="flex items-center justify-center gap-2 py-2">
+                      <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                      <p className="text-sm font-medium text-zinc-500">Generating your personalized meal plan...</p>
+                    </div>
+
+                    {/* Skeleton cards matching expected meal types */}
+                    {["breakfast", "lunch", "dinner", "snack"].map((mealType, index) => {
+                      const config = STEPS.find(s => s.id === mealType);
+                      const MealIcon = config?.icon || ChefHat;
+                      const colorClass = config?.color || "bg-primary";
+                      
+                      return (
+                        <motion.div
+                          key={mealType}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800"
+                        >
+                          <div className="flex gap-4">
+                            {/* Image skeleton */}
+                            <div className="relative shrink-0">
+                              <div className="w-20 h-20 rounded-xl bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
+                              {/* Meal type badge skeleton */}
+                              <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full ${colorClass} flex items-center justify-center`}>
+                                <MealIcon className="h-4 w-4 text-white opacity-50" />
+                              </div>
+                            </div>
+
+                            {/* Content skeleton */}
+                            <div className="flex-1 space-y-2">
+                              <div className="h-5 w-32 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-3.5 w-3.5 rounded-full bg-primary/20" />
+                                <div className="h-3.5 w-24 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
+                              </div>
+                              <div className="flex gap-2 mt-2">
+                                <div className="h-5 w-16 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse" />
+                                <div className="h-5 w-14 bg-orange-50 dark:bg-orange-900/20 rounded animate-pulse" />
+                                <div className="h-5 w-14 bg-red-50 dark:bg-red-900/20 rounded animate-pulse" />
+                              </div>
+                            </div>
+
+                            {/* Checkbox skeleton */}
+                            <div className="w-7 h-7 rounded-full border-2 border-zinc-200 dark:border-zinc-700" />
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+
+                    {/* Loading progress indicator */}
+                    <div className="mt-4 px-4">
+                      <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-primary to-emerald-500"
+                          initial={{ width: "0%" }}
+                          animate={{ width: "100%" }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-400 text-center mt-2">
+                        Analyzing your preferences and nutrition goals
+                      </p>
+                    </div>
                   </div>
                 ) : generatedDayPlan ? (
                   <>
@@ -1858,6 +2058,25 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                       </div>
                     </div>
 
+                    {/* AI Explanation - Why these meals */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900/50 rounded-2xl p-4 mb-5">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                          <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Personalized for you</p>
+                          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 leading-relaxed">
+                            Based on your {autoFillPreferences.maxCalories !== 2000 ? `${autoFillPreferences.maxCalories} calorie` : 'daily'} target
+                            {autoFillPreferences.proteinFocus && ', we prioritized protein-rich options'}
+                            {autoFillPreferences.vegetarian && ', filtered for vegetarian choices'}
+                            {autoFillPreferences.quickPrep && ', and selected quick-prep meals'}.
+                            These meals complement each other for balanced nutrition throughout the day.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Meals Header with Refresh */}
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
@@ -1879,18 +2098,36 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                     </div>
 
                     <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">
-                      Tap meals to select/deselect. Selected meals will be kept when refreshing.
+                      Tap to select/deselect • Swipe left to get new suggestions
                     </p>
                     
                     {/* Selected/Locked Meals Info */}
                     {lockedMeals.length > 0 && (
-                      <div className="bg-primary/10 rounded-xl p-3 mb-3">
-                        <p className="text-sm text-primary font-medium">
-                          {lockedMeals.length} meal{lockedMeals.length !== 1 ? 's' : ''} locked • Generating {4 - lockedMeals.length} new suggestion{lockedMeals.length !== 3 ? 's' : ''}
+                      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                            <Check className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+                            {lockedMeals.length} Meal{lockedMeals.length !== 1 ? 's' : ''} Kept
+                          </p>
+                        </div>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                          These meals will stay when you refresh. We'll suggest {4 - lockedMeals.length} new 
+                          option{(lockedMeals.length !== 3) ? 's' : ''} to fill the remaining spots.
                         </p>
-                        <p className="text-xs text-zinc-500 mt-1">
-                          Refresh will suggest meals to complete your nutrition goals
-                        </p>
+                        <div className="flex gap-2 mt-3">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleRefreshWithLocked}
+                            disabled={autoFillLoading}
+                            className="text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1.5" />
+                            Get New Suggestions
+                          </Button>
+                        </div>
                       </div>
                     )}
 
@@ -1901,6 +2138,12 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                         const MealTypeIcon = config?.icon || ChefHat;
                         const isSelected = selectedSuggestedMeals.has(index);
 
+                        const handleDragEnd = (_e: any, info: { offset: { x: number } }) => {
+                          if (info.offset.x < -80) {
+                            handleRefreshWithLocked();
+                          }
+                        };
+
                         return (
                           <motion.div
                             key={index}
@@ -1908,6 +2151,10 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ delay: index * 0.08, type: "spring", stiffness: 400 }}
                             whileTap={{ scale: 0.98 }}
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.3}
+                            onDragEnd={handleDragEnd}
                             onClick={() => toggleMealSelection(index)}
                             className={`bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm active:shadow-md transition-all cursor-pointer border-2 ${
                               isSelected ? 'border-primary' : 'border-transparent'
@@ -1975,13 +2222,13 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                     </div>
 
                     {/* Bottom Spacer */}
-                    <div className="h-4" />
+                    <div className="h-2" />
                   </>
                 ) : null}
               </div>
 
               {/* Sticky Action Buttons - iOS Native Style */}
-              <div className="shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-zinc-200/50 dark:border-zinc-800/50 px-5 pt-3 pb-8">
+              <div className="shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-t border-zinc-200/50 dark:border-zinc-800/50 px-5 pt-3 pb-4">
                 {/* Primary Action - Apply Selected */}
                 <motion.button
                   onClick={applyAutoFillPlan}
@@ -2161,32 +2408,90 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center"
+            className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-6"
           >
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center mb-6"
+              className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-primary flex items-center justify-center mb-6 shadow-2xl"
             >
-              <Check className="w-12 h-12 text-white" />
+              <Check className="w-12 h-12 text-white" strokeWidth={3} />
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-2xl font-bold mb-2"
+              className="text-2xl font-bold mb-1"
             >
-              Added to Schedule!
+              Your Day is Set! 🎉
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-muted-foreground"
+              className="text-muted-foreground mb-6"
             >
-              Redirecting to your schedule...
+              {format(selectedDate, "EEEE, MMMM d")} • {getTotalSelectedMeals()} meals scheduled
             </motion.p>
+            
+            {/* Nutrition Summary */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-r from-primary/5 to-emerald-500/5 rounded-2xl p-4 mb-6 w-full max-w-xs"
+            >
+              <p className="text-xs font-medium text-muted-foreground mb-3 text-center">Today's Nutrition</p>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-xl font-bold text-orange-500">
+                    {Object.values(selectedMeals).reduce((sum, m) => sum + (m?.calories || 0), 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">kcal</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-red-500">
+                    {Object.values(selectedMeals).reduce((sum, m) => sum + (m?.protein_g || 0), 0)}g
+                  </p>
+                  <p className="text-xs text-muted-foreground">protein</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-amber-500">
+                    {Object.values(selectedMeals).reduce((sum, m) => sum + (m?.carbs_g || 0), 0)}g
+                  </p>
+                  <p className="text-xs text-muted-foreground">carbs</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-pink-500">
+                    {Object.values(selectedMeals).reduce((sum, m) => sum + (m?.fat_g || 0), 0)}g
+                  </p>
+                  <p className="text-xs text-muted-foreground">fat</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Action Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="flex gap-3 w-full max-w-xs"
+            >
+              <Button 
+                variant="outline" 
+                onClick={() => navigate("/progress")}
+                className="flex-1"
+              >
+                View Progress
+              </Button>
+              <Button 
+                onClick={() => onComplete()}
+                className="flex-1"
+              >
+                Done
+              </Button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

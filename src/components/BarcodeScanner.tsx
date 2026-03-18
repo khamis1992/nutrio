@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 
 interface BarcodeScannerProps {
-  onScan: (barcode: string) => void;
+  onScan: (product: ScannedProduct) => void;
   onClose: () => void;
   isOpen: boolean;
 }
@@ -46,6 +46,12 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const rafRef = useRef<number | null>(null);
+  
+  // Use refs for values accessed in the decode loop to avoid stale closures
+  const isScanningRef = useRef(false);
+  const lastScanRef = useRef<string | null>(null);
+  
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,8 +61,14 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
   // Stop camera and cleanup
   const stopCamera = useCallback(() => {
+    isScanningRef.current = false;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     if (codeReaderRef.current) {
       codeReaderRef.current.reset();
+      codeReaderRef.current = null;
     }
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
@@ -71,6 +83,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     try {
       setError(null);
       setProductData(null);
+      isScanningRef.current = true;
       
       // Check camera permission first
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -90,9 +103,9 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         const codeReader = new BrowserMultiFormatReader();
         codeReaderRef.current = codeReader;
 
-        // Start continuous detection
+        // Decode loop using refs to avoid stale closures
         const decodeLoop = async () => {
-          if (!videoRef.current || !isScanning) return;
+          if (!videoRef.current || !isScanningRef.current) return;
           
           try {
             const canvas = canvasRef.current;
@@ -111,7 +124,8 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
             const result = await codeReader.decodeOnceFromVideoElement(videoRef.current);
             if (result) {
               const barcode = result.getText();
-              if (barcode !== lastScan) {
+              if (barcode !== lastScanRef.current) {
+                lastScanRef.current = barcode;
                 setLastScan(barcode);
                 toast.success(`Barcode detected: ${barcode}`);
                 
@@ -129,15 +143,15 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
           }
           
           // Continue loop if still scanning
-          if (isScanning && videoRef.current?.srcObject) {
-            requestAnimationFrame(decodeLoop);
+          if (isScanningRef.current && videoRef.current?.srcObject) {
+            rafRef.current = requestAnimationFrame(decodeLoop);
           }
         };
 
         // Start decode loop after a short delay to let video initialize
         setTimeout(() => {
-          if (isScanning) {
-            requestAnimationFrame(decodeLoop);
+          if (isScanningRef.current) {
+            rafRef.current = requestAnimationFrame(decodeLoop);
           }
         }, 500);
       }
@@ -146,11 +160,12 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       setHasPermission(false);
       setError("Camera access denied. Please allow camera permissions to scan barcodes.");
     }
-  }, [isScanning, lastScan]);
+  }, []);
 
   // Fetch product data from Open Food Facts API
   const fetchProductData = async (barcode: string) => {
-    setIsScanning(false); // Stop scanning while loading
+    isScanningRef.current = false; // Stop scanning while loading
+    setIsScanning(false);
     setLoadingProduct(true);
     
     try {
@@ -180,12 +195,18 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       } else {
         toast.error("Product not found in database");
         // Keep camera open for another try
-        setTimeout(() => setIsScanning(true), 1500);
+        setTimeout(() => {
+          isScanningRef.current = true;
+          setIsScanning(true);
+        }, 1500);
       }
     } catch (err) {
       console.error("Failed to fetch product:", err);
       toast.error("Failed to lookup product");
-      setTimeout(() => setIsScanning(true), 1500);
+      setTimeout(() => {
+        isScanningRef.current = true;
+        setIsScanning(true);
+      }, 1500);
     } finally {
       setLoadingProduct(false);
     }
@@ -194,7 +215,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   // Handle confirm/add product
   const handleAddProduct = () => {
     if (productData) {
-      onScan(productData.barcode);
+      onScan(productData);
       stopCamera();
       onClose();
     }
@@ -203,6 +224,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   // Handle scan another
   const handleScanAnother = () => {
     setLastScan(null);
+    lastScanRef.current = null;
     setProductData(null);
     startCamera();
   };

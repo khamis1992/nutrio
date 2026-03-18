@@ -14,6 +14,13 @@ interface RenewalInput {
   subscription_id?: string; // If specific subscription, else process all due
   user_id?: string; // If specific user
   dry_run?: boolean; // If true, don't actually renew, just preview
+  idempotency_key?: string; // Optional client-provided key, otherwise generated
+}
+
+// Generate idempotency key based on subscription and target renewal date
+function generateIdempotencyKey(subscriptionId: string, targetDate: Date): string {
+  const dateStr = targetDate.toISOString().split("T")[0];
+  return `renewal_${subscriptionId}_${dateStr}`;
 }
 
 interface RenewalResult {
@@ -142,6 +149,39 @@ serve(async (req) => {
     // Process each subscription
     for (const subscription of subscriptions || []) {
       try {
+        // Generate or use provided idempotency key
+        const targetRenewalDate = new Date(subscription.billing_cycle_end);
+        targetRenewalDate.setDate(targetRenewalDate.getDate() + 1); // Next day is the renewal date
+        
+        const idempotencyKey = generateIdempotencyKey(subscription.id, targetRenewalDate);
+
+        // Check if already processed
+        const { data: existingProcessing } = await supabaseClient
+          .from("subscription_renewal_processed")
+          .select("id, processed_at, status, error_message")
+          .eq("idempotency_key", idempotencyKey)
+          .single();
+
+        if (existingProcessing) {
+          if (existingProcessing.status === "success") {
+            console.log(`Skipping already processed renewal: ${idempotencyKey}`);
+            results.push({
+              subscription_id: subscription.id,
+              user_id: subscription.user_id,
+              success: true,
+              rollover_credits: 0,
+              new_cycle_start: "",
+              new_cycle_end: "",
+              total_credits: 0,
+              error: "Already processed",
+            });
+            continue;
+          } else if (existingProcessing.status === "failed" && !dry_run) {
+            // Previous attempt failed - allow retry
+            console.log(`Retrying previously failed renewal: ${idempotencyKey}`);
+          }
+        }
+
         // Get plan details
         const { data: plan, error: planError } = await supabaseClient
           .from("subscription_plans")
@@ -224,6 +264,22 @@ serve(async (req) => {
             error: result.error,
           });
 
+          // Record processing for idempotency
+          await supabaseClient
+            .from("subscription_renewal_processed")
+            .upsert({
+              subscription_id: subscription.id,
+              idempotency_key: idempotencyKey,
+              processed_at: new Date().toISOString(),
+              renewal_date: targetRenewalDate.toISOString().split("T")[0],
+              credits_added: result.total_credits,
+              rollover_credits: result.rollover_credits,
+              status: result.success ? "success" : "failed",
+              error_message: result.error || null,
+            }, {
+              onConflict: "idempotency_key",
+            });
+
           // Send notification to user if successful
           if (result.success) {
             await supabaseClient.functions.invoke("send-email", {
@@ -240,6 +296,8 @@ serve(async (req) => {
           }
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        
         results.push({
           subscription_id: subscription.id,
           user_id: subscription.user_id,
@@ -248,8 +306,27 @@ serve(async (req) => {
           new_cycle_start: "",
           new_cycle_end: "",
           total_credits: 0,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: errorMessage,
         });
+
+        // Record failure for idempotency (allows retry, but tracks the failure)
+        if (!dry_run) {
+          await supabaseClient
+            .from("subscription_renewal_processed")
+            .upsert({
+              subscription_id: subscription.id,
+              idempotency_key: idempotencyKey,
+              processed_at: new Date().toISOString(),
+              renewal_date: targetRenewalDate.toISOString().split("T")[0],
+              credits_added: 0,
+              rollover_credits: 0,
+              status: "failed",
+              error_message: errorMessage,
+            }, {
+              onConflict: "idempotency_key",
+            })
+            .catch(console.error); // Don't let recording failure break the main flow
+        }
       }
     }
 

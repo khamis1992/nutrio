@@ -378,48 +378,29 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     }
   };
 
-  // ── Barcode scan ──────────────────────────────────────────────────────────
-  const handleBarcodeScanned = async (barcode: string) => {
-    setScanning(true);
-    try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
-      );
-      const data = await response.json();
-      
-      if (data.status === 1 && data.product) {
-        const product = data.product;
-        const nutriments = product.nutriments || {};
-        
-        const item: FoodItem = {
-          id: `barcode-${barcode}-${Date.now()}`,
-          name: product.product_name_en || product.product_name || "Unknown Product",
-          calories: Math.round(nutriments["energy-kcal_100g"] || 0),
-          protein_g: Math.round(nutriments.proteins_100g || 0),
-          carbs_g: Math.round(nutriments.carbohydrates_100g || 0),
-          fat_g: Math.round(nutriments.fat_100g || 0),
-          source: "meal",
-        };
-        
-        setScanResults([item]);
-        setTab("Scan");
-        
-        // Auto-select the scanned product
-        setSelected((prev) => {
-          const next = new Map(prev);
-          next.set(item.id, { ...item, quantity: 1 });
-          return next;
-        });
-        
-        toast({ title: "Product found!", description: item.name });
-      } else {
-        toast({ title: "Product not found", description: "Try searching manually", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Lookup failed", description: "Check your internet connection", variant: "destructive" });
-    } finally {
-      setScanning(false);
-    }
+  // ── Barcode scan ─ receives ScannedProduct directly from BarcodeScanner ─────
+  const handleBarcodeScanned = (product: ScannedProduct) => {
+    const item: FoodItem = {
+      id: `barcode-${product.barcode}-${Date.now()}`,
+      name: product.name,
+      calories: product.calories,
+      protein_g: product.protein,
+      carbs_g: product.carbs,
+      fat_g: product.fat,
+      source: "meal",
+    };
+    
+    setScanResults([item]);
+    setTab("Scan");
+    
+    // Auto-select the scanned product
+    setSelected((prev) => {
+      const next = new Map(prev);
+      next.set(item.id, { ...item, quantity: 1 });
+      return next;
+    });
+    
+    toast({ title: "Product found!", description: item.name });
   };
 
   const handleTakePhoto = async () => {
@@ -1098,10 +1079,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         <BarcodeScanner
           isOpen={showBarcodeScanner}
           onClose={() => setShowBarcodeScanner(false)}
-          onScan={(barcode) => {
-            // Fetch product data and add to selection
-            handleBarcodeScanned(barcode);
-          }}
+          onScan={(product) => handleBarcodeScanned(product)}
         />
       </SheetContent>
     </Sheet>
