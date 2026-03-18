@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +116,22 @@ const getFeaturedMeals = (t: (key: string) => string) => [
 
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  // Safety net: if we somehow render on a native platform, redirect immediately
+  useEffect(() => {
+    const isNative =
+      Capacitor.isNativePlatform() ||
+      (window.location.hostname === "localhost" &&
+        window.location.protocol === "https:" &&
+        !window.location.port);
+
+    if (isNative && !authLoading) {
+      navigate(user ? "/dashboard" : "/walkthrough", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { plans: dbPlans, loading: loadingPlans } = useSubscriptionPlans();
   const plans = dbPlans.map(dbToLandingPlan);
