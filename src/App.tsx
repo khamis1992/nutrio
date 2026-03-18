@@ -48,6 +48,7 @@ const Policies = lazy(() => import("./pages/Policies"));
 const PersonalInfo = lazy(() => import("./pages/PersonalInfo"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
 const Subscription = lazy(() => import("./pages/Subscription"));
+const SubscriptionPlans = lazy(() => import("./pages/subscription/SubscriptionPlans"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -283,6 +284,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Subscription />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/subscription/plans" 
+              element={
+                <ProtectedRoute>
+                  <SubscriptionPlans />
                 </ProtectedRoute>
               } 
             />

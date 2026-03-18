@@ -14,6 +14,8 @@ export interface Subscription {
   meals_per_week: number;
   meals_used_this_week: number;
   week_start_date: string;
+  snacks_per_month: number;
+  snacks_used_this_month: number;
   tier: 'basic' | 'standard' | 'premium' | 'vip';
   active: boolean | null;
 }
@@ -30,10 +32,16 @@ interface UseSubscriptionReturn {
   remainingMealsWeekly: number;
   totalMealsWeekly: number;
   mealsUsedWeekly: number;
+  // Snack balance
+  snacksPerMonth: number;
+  snacksUsed: number;
+  remainingSnacks: number;
+  hasSnacks: boolean;
   isUnlimited: boolean;
   isVip: boolean;
   canOrderMeal: boolean;
   incrementMealUsage: () => Promise<boolean>;
+  incrementSnackUsage: () => Promise<boolean>;
   pauseSubscription: () => Promise<boolean>;
   resumeSubscription: () => Promise<boolean>;
   refetch: () => Promise<void>;
@@ -66,6 +74,21 @@ export const useSubscription = (): UseSubscriptionReturn => {
       if (error) throw error;
 
       if (data) {
+        // Fetch snack columns separately — they may not exist yet if the migration
+        // hasn't been applied. Fall back to 0 silently so the rest of the app works.
+        let snacksPerMonth = 0;
+        let snacksUsedThisMonth = 0;
+        const { data: snackData, error: snackError } = await (supabase as any)
+          .from("subscriptions")
+          .select("snacks_per_month, snacks_used_this_month")
+          .eq("id", data.id)
+          .maybeSingle();
+        if (!snackError && snackData) {
+          snacksPerMonth = snackData.snacks_per_month ?? 0;
+          snacksUsedThisMonth = snackData.snacks_used_this_month ?? 0;
+        }
+        // If snackError exists the columns aren't migrated yet — silently use 0
+
         setSubscription({
           id: data.id!,
           plan: data.plan!,
@@ -78,6 +101,8 @@ export const useSubscription = (): UseSubscriptionReturn => {
           meals_per_week: data.meals_per_week ?? 5,
           meals_used_this_week: data.meals_used_this_week ?? 0,
           week_start_date: data.week_start_date || new Date().toISOString().split('T')[0],
+          snacks_per_month: snacksPerMonth,
+          snacks_used_this_month: snacksUsedThisMonth,
           tier: (data.tier || data.plan) as 'basic' | 'standard' | 'premium' | 'vip' || 'basic',
           active: data.active,
         });
@@ -159,6 +184,31 @@ export const useSubscription = (): UseSubscriptionReturn => {
     : Math.max(0, totalMealsWeekly - mealsUsedWeekly);
 
   const canOrderMeal = hasActiveSubscription && (isUnlimited || remainingMeals > 0);
+
+  // Snack balance
+  const snacksPerMonth = subscription?.snacks_per_month ?? 0;
+  const snacksUsed = subscription?.snacks_used_this_month ?? 0;
+  const remainingSnacks = isUnlimited ? Infinity : Math.max(0, snacksPerMonth - snacksUsed);
+  const hasSnacks = snacksPerMonth > 0 || isUnlimited;
+
+  const incrementSnackUsage = async (): Promise<boolean> => {
+    if (!subscription || !hasActiveSubscription || !hasSnacks) return false;
+    if (!isUnlimited && remainingSnacks <= 0) return false;
+
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ snacks_used_this_month: snacksUsed + 1 } as any)
+        .eq("id", subscription.id);
+
+      if (error) throw error;
+      await fetchSubscription();
+      return true;
+    } catch (err) {
+      console.error("Error incrementing snack usage:", err);
+      return false;
+    }
+  };
 
   const incrementMealUsage = async (): Promise<boolean> => {
     if (!subscription || !hasActiveSubscription) return false;
@@ -252,10 +302,16 @@ export const useSubscription = (): UseSubscriptionReturn => {
     remainingMealsWeekly,
     totalMealsWeekly,
     mealsUsedWeekly,
+    // Snack balance
+    snacksPerMonth,
+    snacksUsed,
+    remainingSnacks,
+    hasSnacks,
     isUnlimited,
     isVip,
     canOrderMeal,
     incrementMealUsage,
+    incrementSnackUsage,
     pauseSubscription,
     resumeSubscription,
     refetch: fetchSubscription,

@@ -135,6 +135,10 @@ export default function SubscriptionPage() {
     remainingMeals, 
     totalMeals, 
     mealsUsed,
+    snacksPerMonth,
+    snacksUsed,
+    remainingSnacks,
+    hasSnacks,
     isUnlimited, 
     isVip,
     refetch 
@@ -471,7 +475,7 @@ setIsProcessing(false);
   // ── No subscription — plan picker ────────────────────────────────────────
   if (!hasActiveSubscription) {
     return (
-      <div className="min-h-screen pb-10">
+      <div className="min-h-screen pb-36">
         {/* Native header */}
         <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
           <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3 rtl:flex-row-reverse">
@@ -610,7 +614,7 @@ setIsProcessing(false);
   // ── Active subscription ───────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-36">
       {/* Native header */}
       <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70">
         <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center gap-3 rtl:flex-row-reverse">
@@ -659,13 +663,29 @@ setIsProcessing(false);
           {!isUnlimited && (
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-white/80">
-                <span>{mealsUsed} {t("of")} {totalMeals} {t("used")}</span>
+                <span>🍽️ {mealsUsed} {t("of")} {totalMeals} {t("used")}</span>
                 <span>{daysRemaining}d {t("until_reset")}</span>
               </div>
               <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-white rounded-full transition-all"
                   style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Snack usage bar */}
+          {hasSnacks && !isUnlimited && snacksPerMonth > 0 && (
+            <div className="space-y-1.5 mt-2">
+              <div className="flex justify-between text-xs text-white/80">
+                <span>🍎 {snacksUsed} {t("of")} {snacksPerMonth} snacks {t("used")}</span>
+                <span>{remainingSnacks} left</span>
+              </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-300 rounded-full transition-all"
+                  style={{ width: `${Math.min((snacksUsed / snacksPerMonth) * 100, 100)}%` }}
                 />
               </div>
             </div>
@@ -688,6 +708,25 @@ setIsProcessing(false);
               <p className="text-xs text-muted-foreground">{t("monthly_meals")}</p>
             </div>
           </div>
+          {hasSnacks && (
+            <div className={`shrink-0 flex items-center gap-2 rounded-2xl px-4 py-3 shadow-sm border ${
+              remainingSnacks === 0 && !isUnlimited
+                ? "bg-red-50 border-red-200"
+                : "bg-amber-50 border-amber-200"
+            }`}>
+              <span className="text-lg leading-none">🍎</span>
+              <div>
+                <p className={`text-base font-bold leading-none ${
+                  remainingSnacks === 0 && !isUnlimited ? "text-red-600" : "text-amber-700"
+                }`}>
+                  {isUnlimited ? '∞' : remainingSnacks}
+                </p>
+                <p className={`text-xs ${remainingSnacks === 0 && !isUnlimited ? "text-red-500" : "text-amber-600"}`}>
+                  snacks left
+                </p>
+              </div>
+            </div>
+          )}
           {rolloverInfo && rolloverInfo.rollover_credits > 0 && (
             <div className="shrink-0 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 shadow-sm">
               <RotateCcw className="h-4 w-4 text-amber-600" />
@@ -759,6 +798,52 @@ setIsProcessing(false);
                 </div>
               ))}
             </div>
+          {/* Snack balance card — only shown when plan includes snacks */}
+          {hasSnacks && snacksPerMonth > 0 && (
+            <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden">
+              <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border/60">
+                <span className="text-base leading-none">🍎</span>
+                <h3 className="font-bold text-foreground">Snack Balance</h3>
+                <span className={`ml-auto text-xs font-bold px-2.5 py-1 rounded-full ${
+                  remainingSnacks === 0 ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"
+                }`}>
+                  {remainingSnacks} remaining
+                </span>
+              </div>
+
+              <div className="px-4 py-4 space-y-3">
+                {/* Progress bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{snacksUsed} of {snacksPerMonth} snacks used</span>
+                    <span>{Math.round((snacksUsed / snacksPerMonth) * 100)}%</span>
+                  </div>
+                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        snacksUsed >= snacksPerMonth ? "bg-red-500" : "bg-amber-400"
+                      }`}
+                      style={{ width: `${Math.min((snacksUsed / snacksPerMonth) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stat row */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {[
+                    { label: "Total", value: snacksPerMonth, color: "text-foreground" },
+                    { label: "Used", value: snacksUsed, color: "text-muted-foreground" },
+                    { label: "Left", value: remainingSnacks, color: remainingSnacks === 0 ? "text-red-600" : "text-amber-600" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="text-center bg-muted/50 rounded-xl py-2.5">
+                      <p className={`text-lg font-bold leading-none ${color}`}>{value}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           </div>
         )}
 
