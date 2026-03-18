@@ -1,13 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Trophy,
-  Flame,
-  Gift,
-  Lock
-} from 'lucide-react';
+import { Trophy, Flame, Gift, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,7 +30,6 @@ export function StreakRewardsWidget() {
 
   const fetchStreakData = async () => {
     try {
-      // Fetch available rewards from database
       const { data: rewardsData, error: rewardsError } = await supabase
         .from('streak_rewards')
         .select('*')
@@ -48,7 +39,6 @@ export function StreakRewardsWidget() {
       if (rewardsError) throw rewardsError;
       setRewards(rewardsData || []);
 
-      // Get user's streak
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('streak_days')
@@ -56,17 +46,14 @@ export function StreakRewardsWidget() {
         .single();
 
       if (profileError) throw profileError;
-
       setStreakDays(profile?.streak_days || 0);
 
-      // Get claimed rewards
       const { data: claimedData, error: claimedError } = await supabase
         .from('streak_rewards_claimed')
         .select('reward_id')
         .eq('user_id', user?.id);
 
       if (claimedError) throw claimedError;
-
       setClaimedRewards(claimedData?.map(r => r.reward_id) || []);
     } catch (err) {
       console.error('Error fetching streak data:', err);
@@ -77,9 +64,7 @@ export function StreakRewardsWidget() {
 
   const claimReward = async (reward: StreakReward) => {
     if (!user?.id) return;
-
     try {
-      // Record the claim
       const { error: claimError } = await supabase
         .from('streak_rewards_claimed')
         .insert({
@@ -92,7 +77,6 @@ export function StreakRewardsWidget() {
 
       if (claimError) throw claimError;
 
-      // Apply the reward
       if (reward.reward_type === 'bonus_credit') {
         const { error: walletError } = await supabase.rpc('credit_wallet', {
           p_user_id: user.id,
@@ -105,16 +89,10 @@ export function StreakRewardsWidget() {
 
         if (walletError) {
           console.error('Wallet credit error:', walletError);
-          // Don't throw - the claim was already recorded
-          toast({
-            title: t('rewardClaimed'),
-            description: t('walletCreditApplied'),
-          });
         }
       }
 
       setClaimedRewards([...claimedRewards, reward.id]);
-
       toast({
         title: t('rewardClaimed'),
         description: t('earnedReward', { description: reward.reward_description }),
@@ -128,125 +106,136 @@ export function StreakRewardsWidget() {
     }
   };
 
-  const getNextMilestone = () => {
-    return rewards.find(r => r.streak_days > streakDays) || rewards[rewards.length - 1];
-  };
+  const getNextMilestone = () =>
+    rewards.find(r => r.streak_days > streakDays) || rewards[rewards.length - 1];
 
   const formatRewardValue = (reward: StreakReward) => {
     switch (reward.reward_type) {
-      case 'bonus_credit':
-        return t('streak_reward_credit', { amount: reward.reward_value });
-      case 'discount':
-        return t('streak_reward_discount', { value: reward.reward_value });
-      case 'free_meal':
-        return t('streak_reward_free_meal');
+      case 'bonus_credit': return t('streak_reward_credit', { amount: reward.reward_value });
+      case 'discount': return t('streak_reward_discount', { value: reward.reward_value });
+      case 'free_meal': return t('streak_reward_free_meal');
       case 'badge':
-        // Use translation key based on streak days
         if (reward.streak_days === 7) return t('streak_7_day_desc');
         if (reward.streak_days === 30) return t('streak_30_day_desc');
         if (reward.streak_days === 60) return t('streak_60_day_desc');
         if (reward.streak_days === 90) return t('streak_90_day_desc');
         return reward.reward_description;
-      default:
-        return reward.reward_description;
+      default: return reward.reward_description;
     }
   };
+
+  if (loading) return null;
 
   const nextMilestone = getNextMilestone();
   const progressToNext = nextMilestone
     ? Math.min((streakDays / nextMilestone.streak_days) * 100, 100)
     : 100;
 
-  if (loading) return null;
+  const claimableRewards = rewards.filter(
+    r => r.streak_days <= streakDays && !claimedRewards.includes(r.id)
+  );
+  const upcomingRewards = rewards.filter(r => r.streak_days > streakDays);
 
   return (
-    <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-600" />
-            <CardTitle className="text-base font-semibold">{t('streakRewards')}</CardTitle>
-          </div>
-          <Badge variant="outline" className="bg-white/50">
-            <Flame className="w-3 h-3 mr-1 text-orange-500" />
-            {streakDays} {t('days')}
-          </Badge>
-        </div>
-      </CardHeader>
+    <>
+      {/* Streak Hero Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-400 px-5 pt-5 pb-5">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl pointer-events-none" />
 
-      <CardContent className="space-y-4">
-        {/* Progress to next milestone */}
+        <div className="relative flex items-center gap-4">
+          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-white/20 shrink-0">
+            <Flame className="w-6 h-6 text-white" />
+            <span className="text-white text-xl font-bold leading-none mt-0.5">{streakDays}</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-white font-bold text-lg leading-tight">
+              {streakDays === 0 ? t('start_your_streak') : `${streakDays} ${t('day_streak')}`}
+            </p>
+            <p className="text-white/75 text-sm mt-0.5">
+              {streakDays === 0
+                ? t('order_today_to_begin')
+                : streakDays === 1
+                ? t('great_start_keep_going')
+                : t('keep_ordering_to_earn')}
+            </p>
+          </div>
+          <div className="flex flex-col items-center gap-0.5 shrink-0">
+            <Trophy className="w-5 h-5 text-white/60" />
+            <span className="text-white/60 text-[10px] font-medium">{t('rewards')}</span>
+          </div>
+        </div>
+
         {nextMilestone && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t('nextReward')}</span>
-              <span className="font-medium">{nextMilestone.streak_days} {t('days')}</span>
+          <div className="relative mt-4 space-y-1.5">
+            <div className="flex justify-between text-xs text-white/80">
+              <span>{t('next')}: {nextMilestone.streak_days} {t('day_reward')}</span>
+              <span>{streakDays}/{nextMilestone.streak_days}</span>
             </div>
-            <div className="w-full bg-amber-200 rounded-full h-2">
+            <div className="w-full bg-white/25 rounded-full h-1.5">
               <div
-                className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all"
+                className="bg-white h-full rounded-full transition-all duration-700"
                 style={{ width: `${progressToNext}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t('daysToUnlock', { days: Math.max(0, nextMilestone.streak_days - streakDays), reward: formatRewardValue(nextMilestone) })}
+            <p className="text-xs text-white/70">
+              {Math.max(0, nextMilestone.streak_days - streakDays) === 0
+                ? `${t('ready_to_claim')}: ${formatRewardValue(nextMilestone)}`
+                : `${Math.max(0, nextMilestone.streak_days - streakDays)} ${t('days_to_unlock')} ${formatRewardValue(nextMilestone)}`}
             </p>
           </div>
         )}
+      </div>
 
-        {/* Available rewards */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium">{t('availableRewards')}</p>
-          <div className="space-y-2">
-            {rewards.filter(r => r.streak_days <= streakDays && !claimedRewards.includes(r.id)).map((reward) => (
-              <div
-                key={reward.id}
-                className="flex items-center justify-between p-3 bg-white/60 rounded-lg border border-amber-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                    <Gift className="w-5 h-5 text-amber-600" />
+      {/* Ready to Claim */}
+      {claimableRewards.length > 0 && (
+        <>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">{t('ready_to_claim')}</p>
+          <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50">
+            {claimableRewards.map((reward, idx, arr) => (
+              <div key={reward.id}>
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                    <Gift className="w-4 h-4 text-amber-600" />
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{reward.streak_days} {t('dayStreak')}</p>
-                    <p className="text-xs text-muted-foreground">{formatRewardValue(reward)}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{reward.streak_days} {t('dayStreak')}</p>
+                    <p className="text-xs text-muted-foreground truncate">{formatRewardValue(reward)}</p>
                   </div>
+                  <button
+                    onClick={() => claimReward(reward)}
+                    className="shrink-0 px-3 py-1.5 rounded-full bg-amber-500 text-white text-xs font-semibold active:opacity-80 transition-opacity"
+                  >
+                    {t('claim')}
+                  </button>
                 </div>
-                <Button size="sm" onClick={() => claimReward(reward)}>
-                  {t('claim')}
-                </Button>
+                {idx < arr.length - 1 && <div className="h-px bg-border/60 ml-[52px]" />}
               </div>
             ))}
-            {rewards.filter(r => r.streak_days <= streakDays && !claimedRewards.includes(r.id)).length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-2">
-                {t('noRewardsAvailable')}
-              </p>
-            )}
           </div>
-        </div>
+        </>
+      )}
 
-        {/* Locked rewards preview */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{t('upcoming')}</p>
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {rewards.filter(r => r.streak_days > streakDays).slice(0, 3).map((reward) => (
+      {/* Upcoming Milestones */}
+      {upcomingRewards.length > 0 && (
+        <>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1">{t('upcoming')}</p>
+          <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {upcomingRewards.slice(0, 6).map((reward) => (
               <div
                 key={reward.id}
-                className="flex-shrink-0 p-3 bg-white/40 rounded-lg border border-dashed border-amber-300 opacity-60"
+                className="flex-shrink-0 flex flex-col items-center gap-1.5 px-4 py-3 bg-card rounded-2xl border border-border/50 min-w-[80px]"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Lock className="w-3 h-3" />
-                  <span className="text-xs font-medium">{reward.streak_days} {t('days')}</span>
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <Lock className="w-3.5 h-3.5 text-muted-foreground" />
                 </div>
-                <p className="text-xs text-muted-foreground">{formatRewardValue(reward)}</p>
+                <p className="text-xs font-bold text-foreground">{reward.streak_days}d</p>
+                <p className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2">{formatRewardValue(reward)}</p>
               </div>
             ))}
-            {rewards.filter(r => r.streak_days > streakDays).length === 0 && (
-              <p className="text-xs text-muted-foreground">{t('allRewardsUnlocked')}</p>
-            )}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </>
+      )}
+    </>
   );
 }

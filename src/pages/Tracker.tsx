@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Droplets, Minus, Plus, Pencil, Loader2 } from "lucide-react";
+import { Droplets, Minus, Plus, Pencil, Loader2, ChevronLeft } from "lucide-react";
 import { TrackerInsights } from "@/components/TrackerInsights";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -128,7 +128,15 @@ export default function Tracker() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="container mx-auto px-4 py-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-4">{t("tracker")}</h1>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0"
+          >
+            <ChevronLeft className="h-5 w-5 text-gray-600" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">{t("tracker")}</h1>
+        </div>
 
         {/* Tab bar */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">

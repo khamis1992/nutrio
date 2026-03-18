@@ -1821,7 +1821,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowAutoFillDialog(false)}
+              onClick={() => { setShowAutoFillDialog(false); onCancel(); }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
             <motion.div
@@ -1835,6 +1835,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               onDragEnd={(_, info) => {
                 if (info.offset.y > 100) {
                   setShowAutoFillDialog(false);
+                  onCancel();
                 }
               }}
               className="fixed bottom-0 left-0 right-0 bg-[#F2F2F7] dark:bg-zinc-950 rounded-t-[32px] z-50 max-h-[85vh] overflow-hidden flex flex-col"
@@ -1857,7 +1858,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowAutoFillDialog(false)}
+                    onClick={() => { setShowAutoFillDialog(false); onCancel(); }}
                     className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition-transform"
                   >
                     <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
@@ -2259,7 +2260,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 
                 {/* Secondary Action - Cancel */}
                 <motion.button
-                  onClick={() => setShowAutoFillDialog(false)}
+                  onClick={() => { setShowAutoFillDialog(false); onCancel(); }}
                   whileTap={{ scale: 0.97 }}
                   className="w-full h-[48px] mt-3 rounded-[14px] text-zinc-500 dark:text-zinc-400 font-medium text-[17px] active:bg-zinc-100 dark:active:bg-zinc-800/50 transition-colors"
                 >

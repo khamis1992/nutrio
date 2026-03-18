@@ -1091,67 +1091,50 @@ const Profile = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 8 }}
               transition={{ duration: 0.2 }}
-              className="px-4 pt-4 space-y-4"
+              className="px-4 pt-4 space-y-3"
             >
+              {/* Streak section */}
+              <GroupLabel>{t("streakRewards")}</GroupLabel>
               <StreakRewardsWidget />
 
+              {/* Affiliate earnings (approved affiliates only) */}
               {isApprovedAffiliate && platformSettings.features.referral_program && (
-                <AffiliateEarningsWidget />
+                <>
+                  <GroupLabel>{t("affiliate_earnings")}</GroupLabel>
+                  <AffiliateEarningsWidget />
+                </>
               )}
 
-              {platformSettings.features.referral_program && (
-                <Card className="bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-background border-violet-500/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
-                        <CrownIcon className="h-5 w-5 text-violet-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-sm">{t("affiliate_program")}</h3>
-                          <Badge className="bg-violet-500 text-white text-xs">{t("earn_more")}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-3">{t("become_affiliate")}</p>
-                        <Link to={isApprovedAffiliate ? "/affiliate" : "/profile"}>
-                          <Button variant="outline" className="w-full h-9 text-sm border-violet-500/30 text-violet-600 hover:bg-violet-500/10">
-                            <TrendingUp className="h-4 w-4 mr-2" />
-                            {isApprovedAffiliate ? t("view_affiliate_dashboard") : t("apply_affiliate_program")}
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                        <Flame className="h-4 w-4 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-xs">{t("daily_streaks")}</p>
-                        <p className="text-xs text-muted-foreground leading-tight">{t("order_daily_earn_bonuses")}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                        <Star className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-xs">{t("wallet_bonuses")}</p>
-                        <p className="text-xs text-muted-foreground leading-tight">{t("get_bonus_credits")}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              {/* Programs */}
+              <GroupLabel>{t("affiliate_program")}</GroupLabel>
+              <NativeSection>
+                {platformSettings.features.referral_program && (
+                  <NativeRow
+                    icon={<CrownIcon className="w-4 h-4 text-white" />}
+                    iconBg="bg-violet-500"
+                    label={isApprovedAffiliate ? t("view_affiliate_dashboard") : t("affiliate_program")}
+                    subtitle={isApprovedAffiliate ? t("commission_balance") : t("become_affiliate")}
+                    onClick={() => navigate(isApprovedAffiliate ? "/affiliate" : "/profile")}
+                    showDivider={true}
+                  />
+                )}
+                <NativeRow
+                  icon={<Flame className="w-4 h-4 text-white" />}
+                  iconBg="bg-amber-500"
+                  label={t("daily_streaks")}
+                  subtitle={t("order_daily_earn_bonuses")}
+                  right={<span />}
+                  showDivider={true}
+                />
+                <NativeRow
+                  icon={<Star className="w-4 h-4 text-white" />}
+                  iconBg="bg-green-500"
+                  label={t("wallet_bonuses")}
+                  subtitle={t("get_bonus_credits")}
+                  right={<span />}
+                  showDivider={false}
+                />
+              </NativeSection>
             </motion.div>
           )}
 
