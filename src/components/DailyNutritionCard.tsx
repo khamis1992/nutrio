@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Flame, Plus, Calendar } from "lucide-react";
+import { Flame, Plus, Calendar, Utensils, Droplets, Activity } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,48 +23,85 @@ interface DailyNutritionCardProps {
   onDateChange?: (date: Date) => void;
 }
 
-const MacroRing = ({
+const MacroCard = ({
   value,
   max,
   label,
-  color,
+  icon,
+  ringColor,
+  bgClass,
+  textClass,
 }: {
   value: number;
   max: number;
   label: string;
-  color: string;
+  icon: React.ReactNode;
+  ringColor: string;
+  bgClass: string;
+  textClass: string;
 }) => {
-  const r = 28;
+  const pct = Math.min(Math.round((value / (max || 1)) * 100), 999);
+  const isOver = value > max;
+  const r = 18;
   const circ = 2 * Math.PI * r;
-  const pct = Math.min((value / (max || 1)) * 100, 100);
-  const offset = circ - (pct / 100) * circ;
+  const displayPct = Math.min(pct, 100);
+  const offset = circ - (displayPct / 100) * circ;
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative w-16 h-16">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r={r} fill="none" stroke="#f1f5f9" strokeWidth="5" />
-          <motion.circle
-            cx="32"
-            cy="32"
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            initial={{ strokeDashoffset: circ }}
-            animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-bold text-gray-800">{value}</span>
+    <motion.div
+      initial={{ y: 12, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className={`flex-1 rounded-2xl p-3.5 ${bgClass} relative overflow-hidden`}
+    >
+      {isOver && (
+        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+          <span className="text-white text-[10px] font-bold">!</span>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between mb-2">
+        <div className="w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center shadow-sm">
+          {icon}
+        </div>
+        <div className="relative w-11 h-11">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="3.5" />
+            <motion.circle
+              cx="22" cy="22" r={r} fill="none"
+              stroke={isOver ? "#ef4444" : ringColor}
+              strokeWidth="3.5" strokeLinecap="round"
+              strokeDasharray={circ}
+              initial={{ strokeDashoffset: circ }}
+              animate={{ strokeDashoffset: offset }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[10px] font-bold text-white">{value}g</span>
+          </div>
         </div>
       </div>
-      <span className="text-[11px] text-gray-400">/ {max}g</span>
-      <span className="text-xs font-semibold text-gray-600">{label}</span>
-    </div>
+
+      <p className={`text-[11px] font-semibold uppercase tracking-wide ${textClass} opacity-80`}>
+        {label}
+      </p>
+      <p className={`text-2xl font-black ${textClass} leading-none mt-0.5`}>
+        {value}g
+      </p>
+      <div className="flex items-center justify-end gap-2 mt-1">
+        <span className="text-[11px] font-bold text-black/60">/{max}g</span>
+        {isOver ? (
+          <span className="text-[10px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded-full">
+            Over Goal
+          </span>
+        ) : (
+          <span className="text-[10px] font-bold text-black/60 bg-black/10 px-1.5 py-0.5 rounded-full">
+            {pct}%
+          </span>
+        )}
+      </div>
+    </motion.div>
   );
 };
 
@@ -104,7 +141,6 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
     onDateChange?.(next);
   };
 
-  // Load burned calories for selected date
   useEffect(() => {
     if (!user) return;
     const load = async () => {
@@ -121,18 +157,16 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   }, [user, todayStr]);
 
   const calLeft = Math.max(0, focusCalories - totalCalories + totalBurned);
-  const today = format(selectedDate, "EEE, MMM d");
-
-  // Main ring geometry — shows calories REMAINING (starts full, depletes as you eat)
-  const R = 68;
-  const circ = 2 * Math.PI * R;
+  const dateLabel = format(selectedDate, "EEE, MMM d");
   const remainingPct = Math.min((calLeft / (focusCalories || 1)) * 100, 100);
+
+  const R = 62;
+  const circ = 2 * Math.PI * R;
   const offset = circ - (remainingPct / 100) * circ;
 
-  // Ring color shifts green → orange → red as budget runs out
   const ringColor =
-    remainingPct > 50 ? "hsl(var(--primary))" :
-    remainingPct > 20 ? "#f97316" :
+    remainingPct > 50 ? "#f97316" :
+    remainingPct > 20 ? "#fb923c" :
     "#ef4444";
 
   return (
@@ -142,121 +176,170 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div className="rounded-3xl overflow-hidden border border-gray-100" style={{
+          background: "#ffffff",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+        }}>
 
-          {/* ── Date navigation row ── */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <button onClick={goToPrevDay} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-              <NavChevronLeft className="w-5 h-5 text-gray-400" />
-            </button>
+          {/* Date navigation */}
+          <div className="flex items-center justify-between px-5 py-4">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-800">{today}</span>
-              <Calendar className="w-4 h-4 text-gray-400" />
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="font-bold text-gray-700 text-sm">{dateLabel}</span>
             </div>
-            <button onClick={goToNextDay} disabled={isToday} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-              <NavChevronRight className="w-5 h-5 text-gray-400" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={goToPrevDay}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 bg-white"
+                style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+              >
+                <NavChevronLeft className="w-4 h-4 text-gray-500" />
+              </button>
+              <button
+                onClick={goToNextDay}
+                disabled={isToday}
+                className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 border border-gray-200 bg-white"
+                style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+              >
+                <NavChevronRight className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
           </div>
 
-          {/* ── Calorie ring row ── */}
-          <div className="flex items-center justify-between px-6 py-5">
-            {/* Eaten */}
-            <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
-              <span className="text-xs text-gray-400 font-medium">{t("nutrition_eaten")}</span>
-              <motion.span
-                className="text-2xl font-bold text-gray-800"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {totalCalories}
-              </motion.span>
-              <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
-            </div>
-
-            {/* Big ring */}
-            <div className="relative w-40 h-40">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
-                <circle cx="80" cy="80" r={R} fill="none" stroke="#f1f5f9" strokeWidth="12" />
-                <motion.circle
-                  cx="80"
-                  cy="80"
-                  r={R}
-                  fill="none"
-                  stroke={ringColor}
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                  strokeDasharray={circ}
-                  initial={{ strokeDashoffset: circ }}
-                  animate={{ strokeDashoffset: offset }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {/* Calorie hero section */}
+          <div className="mx-4 mb-4 rounded-2xl px-5 py-5 flex items-center justify-between border border-gray-100" style={{
+            background: "#f8f9fb",
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.04)",
+          }}>
+            {/* Nutrition consumed */}
+            <div className="flex flex-col items-start gap-1 min-w-[80px]">
+              <span className="text-[11px] text-gray-500 font-medium">{t("nutrition_eaten")}</span>
+              <div className="flex items-center gap-2">
                 <motion.span
-                  className="text-3xl font-black text-gray-900 leading-none"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3 }}
+                  className="text-3xl font-black text-gray-800 leading-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
                 >
-                  {calLeft}
+                  {totalCalories}
                 </motion.span>
-                <span className="text-xs text-gray-400 mt-1">{t("nutrition_cal_left")}</span>
+                <Utensils className="w-5 h-5 text-gray-400" />
+              </div>
+              <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
+            </div>
+
+            {/* Central ring */}
+            <div className="relative w-36 h-36 mx-2">
+              <div className="absolute inset-0 rounded-full border border-gray-200" style={{
+                background: "#f3f4f6",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.8)",
+              }} />
+              <div className="absolute inset-[6px] rounded-full bg-white border border-gray-100" style={{
+                boxShadow: "inset 0 2px 6px rgba(0,0,0,0.05)",
+              }}>
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+                  <circle cx="70" cy="70" r={R} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="10" />
+                  <motion.circle
+                    cx="70" cy="70" r={R} fill="none"
+                    stroke={ringColor} strokeWidth="10" strokeLinecap="round"
+                    strokeDasharray={circ}
+                    initial={{ strokeDashoffset: circ }}
+                    animate={{ strokeDashoffset: offset }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    style={{ filter: "drop-shadow(0 2px 4px rgba(249,115,22,0.3))" }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <motion.span
+                    className="text-2xl font-black text-gray-900 leading-none"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    {calLeft}
+                  </motion.span>
+                  <span className="text-[10px] font-bold text-orange-500 mt-0.5 uppercase tracking-wide">
+                    {t("nutrition_cal_left")}
+                  </span>
+                  <span className="text-[9px] text-gray-400 mt-0.5">
+                    {Math.round(remainingPct)}% Remaining
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Burned */}
-            <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
-              <div className="flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
-                <span className="text-xs text-gray-400 font-medium">{t("nutrition_burned")}</span>
+            {/* Daily burned */}
+            <div className="flex flex-col items-end gap-1 min-w-[80px]">
+              <span className="text-[11px] text-gray-500 font-medium">{t("nutrition_burned")}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🔥</span>
+                <motion.span
+                  className="text-3xl font-black text-gray-800 leading-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  {totalBurned}
+                </motion.span>
               </div>
-              <motion.span
-                className="text-2xl font-bold text-gray-800"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                {totalBurned}
-              </motion.span>
               <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
             </div>
           </div>
 
-          {/* ── Macro circles ── */}
-          <div className="px-5 pb-4">
-            <p className="text-xs text-gray-400 font-medium mb-4">{t("nutrition_eaten")}</p>
-            <div className="flex justify-around">
-              <MacroRing value={totalCarbs}   max={targetCarbs}   label={t("macro_carbs")}   color="#eab308" />
-              <MacroRing value={totalProtein} max={targetProtein} label={t("macro_protein")} color="#f97316" />
-              <MacroRing value={totalFat}     max={targetFat}     label={t("macro_fat")}     color="#94a3b8" />
-            </div>
+          {/* Macro cards */}
+          <div className="px-4 pb-4 flex gap-2.5">
+            <MacroCard
+              value={totalCarbs} max={targetCarbs} label={t("macro_carbs")}
+              icon={<span className="text-sm">🌾</span>}
+              ringColor="#ffffff"
+              bgClass="bg-gradient-to-br from-amber-400 to-yellow-500"
+              textClass="text-white"
+            />
+            <MacroCard
+              value={totalProtein} max={targetProtein} label={t("macro_protein")}
+              icon={<span className="text-sm">💪</span>}
+              ringColor="#ffffff"
+              bgClass="bg-gradient-to-br from-orange-400 to-orange-500"
+              textClass="text-white"
+            />
+            <MacroCard
+              value={totalFat} max={targetFat} label={t("macro_fat")}
+              icon={<span className="text-sm">🥑</span>}
+              ringColor={totalFat > targetFat ? "#ef4444" : "#ffffff"}
+              bgClass="bg-gradient-to-br from-slate-500 to-slate-600"
+              textClass="text-white"
+            />
           </div>
 
-          {/* ── Burned section ── */}
-          <div className="px-5 pb-5 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium mt-4 mb-3">{t("nutrition_burned")}</p>
-            <div className="flex items-center gap-3">
-              {/* Total burned summary */}
-              <div className="flex-1 bg-gray-50 rounded-2xl p-3 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
-                  <Flame className="w-5 h-5 text-orange-500" />
+          {/* Activity details */}
+          <div className="px-4 pb-4">
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Activity Details
+            </p>
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1 rounded-2xl px-4 py-3 flex items-center gap-3 border border-gray-100 bg-gray-50">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-sm">
+                  <Flame className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[11px] text-gray-400">{t("nutrition_total_burned")}</p>
-                  <p className="text-base font-bold text-gray-800 leading-none">{totalBurned}</p>
-                  <p className="text-[10px] text-gray-400">
-                    {totalBurned > 0 
-                      ? t("nutrition_cal_from_activities") 
-                      : t("nutrition_no_activities")}
-                  </p>
+                  <p className="text-[10px] text-gray-400 font-medium">{t("nutrition_total_burned")}</p>
+                  <p className="text-lg font-black text-gray-800 leading-none">{totalBurned} Cal</p>
                 </div>
               </div>
 
-              {/* Open activity logger */}
+              <div className="flex-1 rounded-2xl px-4 py-3 flex items-center gap-3 border border-gray-100 bg-gray-50">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-sm">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Activities</p>
+                  <p className="text-lg font-black text-gray-800 leading-none">{totalBurned} cal</p>
+                </div>
+              </div>
+
               <button
                 onClick={() => setSheetOpen(true)}
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm active:scale-95 transition-transform gradient-primary"
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-lg shadow-emerald-500/30"
               >
                 <Plus className="w-5 h-5 text-white" />
               </button>
