@@ -60,7 +60,7 @@ jobs:
         if: github.event.inputs.dry_run == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_${{ github.event.inputs.environment }} }}
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
         run: |
           echo "## Dry Run Preview" >> $GITHUB_STEP_SUMMARY
           echo "Migration: ${{ github.event.inputs.migration_file }}" >> $GITHUB_STEP_SUMMARY
@@ -71,10 +71,11 @@ jobs:
         if: github.event.inputs.dry_run != 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_${{ github.event.inputs.environment }} }}
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
         run: |
           echo "Applying migration: ${{ github.event.inputs.migration_file }}"
-          supabase db push --db-url "${{ secrets.SUPABASE_DB_URL_${{ github.event.inputs.environment }} }}"
+          echo "Database URL: ${{ secrets[format('SUPABASE_DB_URL_{0}', github.event.inputs.environment)] }}"
+          supabase db push --db-url "${{ secrets[format('SUPABASE_DB_URL_{0}', github.event.inputs.environment)] }}"
 
       - name: Summary
         run: |
