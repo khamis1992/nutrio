@@ -194,3 +194,4 @@ jobs:
     - name: Check for vulnerable dependencies
       run: npx audit-ci --high
       continue-on-error: true # Report but don't block the pipeline
+
