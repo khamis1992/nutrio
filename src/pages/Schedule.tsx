@@ -34,6 +34,7 @@ import {
   CalendarCheck,
   Clock,
   Wallet,
+  Sparkles,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -178,6 +179,7 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState(0);
+  const [wizardAutoFill, setWizardAutoFill] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Bottom sheet for meal details
@@ -391,6 +393,7 @@ const Schedule = () => {
 
   const openWizard = (mealType: string) => {
     setWizardInitialStep(MEAL_TYPE_STEP[mealType] ?? 0);
+    setWizardAutoFill(false);
     setShowWizard(true);
   };
 
@@ -637,11 +640,29 @@ const Schedule = () => {
       >
         {/* Day header */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white">
-            {isToday(selectedDate)
-              ? t("today_meals")
-              : `${format(selectedDate, "EEEE, MMM d")}`}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+              {isToday(selectedDate)
+                ? t("today_meals")
+                : `${format(selectedDate, "EEEE, MMM d")}`}
+            </h2>
+            {hasActiveSubscription && (
+              <motion.button
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.04 }}
+                onClick={() => { setWizardAutoFill(true); setShowWizard(true); }}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-sm"
+                style={{
+                  background: "linear-gradient(135deg, #f97316, #ea580c)",
+                  color: "#fff",
+                  boxShadow: "0 2px 8px rgba(234,88,12,0.35)",
+                }}
+              >
+                <Sparkles className="h-3 w-3" />
+                Auto-fill
+              </motion.button>
+            )}
+          </div>
           {dailyNutrition.total > 0 && (
             <div className="flex items-center gap-1 text-xs text-gray-400 font-medium">
               <Flame className="h-3.5 w-3.5 text-orange-400" />
@@ -838,8 +859,9 @@ const Schedule = () => {
             userId={user.id}
             selectedDate={selectedDate}
             initialStep={wizardInitialStep}
-            onComplete={() => { setShowWizard(false); fetchSchedules(); }}
-            onCancel={() => setShowWizard(false)}
+            autoFill={wizardAutoFill}
+            onComplete={() => { setShowWizard(false); setWizardAutoFill(false); fetchSchedules(); }}
+            onCancel={() => { setShowWizard(false); setWizardAutoFill(false); }}
           />
         )}
       </AnimatePresence>

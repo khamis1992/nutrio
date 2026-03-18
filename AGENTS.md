@@ -4,7 +4,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-Nutrio Fuel is a healthy meal delivery and nutrition tracking platform for Qatar. It is a React SPA with four distinct user portals: **Customer**, **Partner (Restaurant)**, **Admin**, and **Driver**. The backend is entirely Supabase (auth, Postgres DB, Edge Functions). The app also targets native mobile via Capacitor (iOS/Android).
+Nutrio Fuel is a healthy meal delivery and nutrition tracking platform for Qatar. It is a React SPA with five distinct user portals: **Customer**, **Partner (Restaurant)**, **Admin**, **Driver**, and **Fleet Management**. The backend is entirely Supabase (auth, Postgres DB, Edge Functions). The app also targets native mobile via Capacitor (iOS/Android).
 
 ## Build & Dev Commands
 
@@ -61,7 +61,7 @@ Component tree:
 </React.StrictMode>
 ```
 
-### Four Portals / Route Structure
+### Five Portals / Route Structure
 
 All portals share a single SPA. Routes are defined in `src/App.tsx`. Most routes are wrapped in `<ProtectedRoute>` which redirects to `/auth` if unauthenticated.
 
@@ -69,6 +69,7 @@ All portals share a single SPA. Routes are defined in `src/App.tsx`. Most routes
 - **Partner** (`/partner/*`) — Restaurant portal for menu management, order fulfillment, analytics, payouts. Has its own auth at `/partner/auth` and layout in `src/components/PartnerLayout.tsx`
 - **Admin** (`/admin/*`) — Platform management: users, restaurants, orders, promotions, IP management, drivers. Layout in `src/components/AdminLayout.tsx` + `AdminSidebar.tsx`
 - **Driver** (`/driver/*`) — Delivery driver portal for orders, earnings, payouts. Has its own auth at `/driver/auth` and layout in `src/components/DriverLayout.tsx`
+- **Fleet Management** (`/fleet/*`) — Internal operations portal for dispatch, live driver tracking, vehicle management, route optimization, driver management, payouts, and analytics. Has its own auth at `/fleet/login`, its own auth context in `src/fleet/context/FleetAuthContext.tsx`, and layout in `src/fleet/components/FleetLayout.tsx`. Routes are defined in `src/fleet/routes.tsx`.
 
 All non-critical pages are lazy-loaded. Only `Index`, `Auth`, and `NotFound` are eagerly loaded.
 

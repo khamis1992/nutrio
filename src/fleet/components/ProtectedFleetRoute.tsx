@@ -75,6 +75,27 @@ export function ProtectedFleetRoute({ children }: ProtectedFleetRouteProps) {
 
     const checkRole = async () => {
       try {
+        // Admins get full fleet access without needing a fleet_managers record
+        const { data: adminRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (adminRole) {
+          setFleetManager({
+            id: user.id,
+            fullName: user.email || "Admin",
+            email: user.email || "",
+            role: "super_admin",
+            isActive: true,
+            assignedCityIds: [],
+          });
+          setIsAuthorized(true);
+          return;
+        }
+
         const fm = await getFleetManager(user.id);
         
         if (!fm) {

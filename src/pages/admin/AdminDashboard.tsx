@@ -12,6 +12,7 @@ import {
   BarChart3,
   Wallet,
   UserCheck,
+  Truck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +43,9 @@ interface Stats {
   pendingPayoutsAmount: number;
   totalCommissionsPaid: number;
   pendingAffiliatePayouts: number;
+  fleetOnlineDrivers: number;
+  fleetOrdersInProgress: number;
+  fleetTodayDeliveries: number;
 }
 
 interface DailyData {
@@ -80,6 +84,9 @@ const AdminDashboard = () => {
     pendingPayoutsAmount: 0,
     totalCommissionsPaid: 0,
     pendingAffiliatePayouts: 0,
+    fleetOnlineDrivers: 0,
+    fleetOrdersInProgress: 0,
+    fleetTodayDeliveries: 0,
   });
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [commissionData, setCommissionData] = useState<CommissionData[]>([]);
@@ -118,6 +125,13 @@ const AdminDashboard = () => {
       supabase.from("payouts").select("amount").eq("status", "pending"),
       supabase.from("affiliate_commissions").select("commission_amount, created_at, status").gte("created_at", thirtyDaysAgo.toISOString()),
       supabase.from("affiliate_payouts").select("amount").eq("status", "pending"),
+    ]);
+
+    // Fleet stats
+    const [fleetDriversRes, fleetOrdersRes, fleetTodayRes] = await Promise.all([
+      supabase.from("drivers").select("is_online", { count: "exact" }).eq("is_online", true),
+      supabase.from("delivery_jobs").select("id", { count: "exact" }).in("status", ["assigned", "accepted", "picked_up", "in_transit"]),
+      supabase.from("delivery_jobs").select("id", { count: "exact" }).eq("status", "completed").gte("delivered_at", today),
     ]);
 
     // Also count partner-initiated payout requests (pending + processing)
@@ -257,6 +271,9 @@ const AdminDashboard = () => {
       pendingPayoutsAmount,
       totalCommissionsPaid,
       pendingAffiliatePayouts,
+      fleetOnlineDrivers: fleetDriversRes.count || 0,
+      fleetOrdersInProgress: fleetOrdersRes.count || 0,
+      fleetTodayDeliveries: fleetTodayRes.count || 0,
     });
   };
 
@@ -330,6 +347,47 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Fleet Stats */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="h-4 w-4 text-indigo-500" />
+              Fleet Operations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <Truck className="h-4 w-4 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold">{stats.fleetOnlineDrivers}</p>
+                  <p className="text-xs text-muted-foreground">Online Drivers</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                  <ShoppingBag className="h-4 w-4 text-indigo-500" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold">{stats.fleetOrdersInProgress}</p>
+                  <p className="text-xs text-muted-foreground">In Progress</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold">{stats.fleetTodayDeliveries}</p>
+                  <p className="text-xs text-muted-foreground">Delivered Today</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Pending Approvals Alert */}
         {stats.pendingApprovals > 0 && (

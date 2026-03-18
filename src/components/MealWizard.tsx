@@ -75,6 +75,7 @@ interface MealWizardProps {
   onCancel: () => void;
   initialStep?: number;
   singleMode?: boolean;
+  autoFill?: boolean;
 }
 
 const STEPS = [
@@ -84,7 +85,7 @@ const STEPS = [
   { id: "snack", labelKey: "snacks_salad", icon: Apple, color: "bg-emerald-500", lightColor: "bg-emerald-50", descKey: "snacks_desc" },
 ];
 
-const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 0, singleMode = false }: MealWizardProps) => {
+const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 0, singleMode = false, autoFill = false }: MealWizardProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -176,6 +177,15 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         }
       });
   }, []);
+
+  // When opened via the Schedule page auto-fill button, skip mode screen and trigger auto-fill immediately
+  useEffect(() => {
+    if (autoFill) {
+      setLocalSingleMode(false);
+      setPhase("scheduling");
+      handleAutoFillDay(false);
+    }
+  }, [autoFill]);
 
   useEffect(() => {
     if (selectedRestaurant) {
@@ -1377,40 +1387,6 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               );
             })()}
 
-            {/* Auto-fill Day Button */}
-            {getTotalSelectedMeals() < STEPS.length && (
-              <motion.button
-                initial={{ opacity: 0, y: -10 }}
-                animate={autoFillLoading ? { opacity: 1, y: 0 } : {
-                  opacity: 1,
-                  y: 0,
-                  boxShadow: [
-                    "0 0 0px 0px #EA580C00",
-                    "0 0 12px 4px #EA580C66",
-                    "0 0 0px 0px #EA580C00",
-                  ],
-                }}
-                transition={autoFillLoading ? {} : {
-                  boxShadow: { duration: 1.4, repeat: Infinity, ease: "easeInOut" },
-                }}
-                onClick={() => handleAutoFillDay(false)}
-                disabled={autoFillLoading}
-                className="w-full mb-4 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-semibold transition-colors disabled:opacity-50"
-                style={{
-                  background: "linear-gradient(to right, #EA580C1A, #EA580C2A)",
-                  border: "2px solid #EA580C66",
-                  color: "#EA580C",
-                }}
-              >
-                {autoFillLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <>
-                    <span>Auto-fill My Day</span>
-                  </>
-                )}
-              </motion.button>
-            )}
 
             {/* Recommended for You Section */}
             {showRecommendations && recommendedMeals.length > 0 && (

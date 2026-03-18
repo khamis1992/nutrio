@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,11 @@ import {
   Flame,
   Utensils,
   LayoutGrid,
-  ArrowLeft
+  ArrowLeft,
+  Sprout,
+  Dumbbell,
+  Scale,
+  Coffee,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,15 +29,6 @@ import { Haptics } from "@/lib/haptics";
 import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 
-// Import filter images
-import allFilterImage from "@/assets/all.png";
-import dietFilterImage from "@/assets/diet.png";
-import vegetarianFilterImage from "@/assets/healthy.png"; // Using healthy as fallback for vegetarian
-import veganFilterImage from "@/assets/vegan.png";
-import ketoFilterImage from "@/assets/keto.png";
-import proteinFilterImage from "@/assets/protein.png";
-import lowCarbFilterImage from "@/assets/low carb.png";
-import breakfastFilterImage from "@/assets/breakfast.png";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 
@@ -89,18 +84,39 @@ const cuisineEmojis: Record<string, string> = {
   "Breakfast": "🍳",
 };
 
-// Cuisine filter images mapping
-const cuisineImages: Record<string, string> = {
-  "All": allFilterImage,
-  "Healthy": dietFilterImage,
-  "Vegetarian": vegetarianFilterImage,
-  "Vegan": veganFilterImage,
-  "Keto": ketoFilterImage,
-  "Protein": proteinFilterImage,
-  "Low Carb": lowCarbFilterImage,
-  "Mediterranean": ketoFilterImage, // Fallback
-  "Breakfast": breakfastFilterImage,
+// Cuisine icon map — used by CuisineScroller
+const cuisineIconMap: Record<string, React.ElementType> = {
+  "Healthy": Heart,
+  "Vegetarian": Leaf,
+  "Vegan": Sprout,
+  "Keto": Flame,
+  "Protein": Dumbbell,
+  "Low Carb": Scale,
+  "Breakfast": Coffee,
 };
+
+// Cuisine icon color map
+const cuisineIconColor: Record<string, string> = {
+  "Healthy": "text-rose-500",
+  "Vegetarian": "text-green-500",
+  "Vegan": "text-emerald-500",
+  "Keto": "text-orange-500",
+  "Protein": "text-blue-500",
+  "Low Carb": "text-purple-500",
+  "Breakfast": "text-amber-500",
+};
+
+// Cuisine icon background map
+const cuisineIconBg: Record<string, string> = {
+  "Healthy": "bg-rose-500/10",
+  "Vegetarian": "bg-green-500/10",
+  "Vegan": "bg-emerald-500/10",
+  "Keto": "bg-orange-500/10",
+  "Protein": "bg-blue-500/10",
+  "Low Carb": "bg-purple-500/10",
+  "Breakfast": "bg-amber-500/10",
+};
+
 
 // Animation configurations
 const springConfig = { type: "spring" as const, stiffness: 380, damping: 25 };
@@ -223,7 +239,7 @@ const RestaurantListCard = ({
                   {/* Delivery Time */}
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="w-3 h-3" />
-                    {restaurant.delivery_time || "25-40 min"}
+                    {(restaurant.delivery_time && restaurant.delivery_time !== "0" && restaurant.delivery_time !== "0m") ? restaurant.delivery_time : "25-40 min"}
                   </span>
                 </div>
                 
@@ -601,11 +617,13 @@ const FilterChip = ({
 const CuisineScroller = ({ 
   selectedCuisine, 
   onSelectCuisine,
-  t
+  t,
+  loading = false,
 }: { 
   selectedCuisine: string | null;
   onSelectCuisine: (cuisine: string | null) => void;
   t: ReturnType<typeof useLanguage>["t"];
+  loading?: boolean;
 }) => {
   const cuisines = Object.keys(cuisineEmojis);
   const isAllActive = selectedCuisine === null;
@@ -615,9 +633,9 @@ const CuisineScroller = ({
       <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
         {/* All */}
         <motion.button
-          onClick={() => onSelectCuisine(null)}
-          whileTap={{ scale: 0.92 }}
-          className="flex-shrink-0 flex flex-col items-center gap-1.5"
+          onClick={() => !loading && onSelectCuisine(null)}
+          whileTap={{ scale: loading ? 1 : 0.92 }}
+          className={`flex-shrink-0 flex flex-col items-center gap-1.5 ${loading ? "opacity-50 pointer-events-none" : ""}`}
         >
           <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all ${
             isAllActive
@@ -635,25 +653,25 @@ const CuisineScroller = ({
 
         {cuisines.map((cuisine) => {
           const isActive = selectedCuisine === cuisine;
-          const cuisineImage = cuisineImages[cuisine];
+          const Icon = cuisineIconMap[cuisine];
+          const iconColor = cuisineIconColor[cuisine] ?? "text-muted-foreground";
+          const iconBg = cuisineIconBg[cuisine] ?? "bg-muted";
           return (
             <motion.button
               key={cuisine}
-              onClick={() => onSelectCuisine(cuisine)}
-              whileTap={{ scale: 0.92 }}
-              className="flex-shrink-0 flex flex-col items-center gap-1.5"
+              onClick={() => !loading && onSelectCuisine(cuisine)}
+              whileTap={{ scale: loading ? 1 : 0.92 }}
+              className={`flex-shrink-0 flex flex-col items-center gap-1.5 ${loading ? "opacity-50 pointer-events-none" : ""}`}
             >
-              <div className={`w-14 h-14 rounded-full overflow-hidden border-2 transition-all ${
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all ${
                 isActive
-                  ? "border-primary shadow-md shadow-primary/20"
-                  : "border-border/40"
+                  ? `border-primary ${iconBg} shadow-md shadow-primary/20`
+                  : `border-border/40 ${iconBg}`
               }`}>
-                {cuisineImage ? (
-                  <img src={cuisineImage} alt={cuisine} className="w-full h-full object-cover" />
+                {Icon ? (
+                  <Icon className={`w-6 h-6 ${isActive ? "text-primary" : iconColor}`} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl bg-card/90">
-                    {cuisineEmojis[cuisine]}
-                  </div>
+                  <span className="text-2xl">{cuisineEmojis[cuisine]}</span>
                 )}
               </div>
               <span className={`text-[11px] font-semibold whitespace-nowrap leading-tight ${
@@ -949,7 +967,7 @@ const Meals = () => {
                 </Button>
               </motion.div>
             </Link>
-            <h1 className="text-base font-bold tracking-tight">{t("restaurants")}</h1>
+            <h1 className="text-base font-bold tracking-tight">{t("meals")}</h1>
           </div>
           <motion.div whileTap={{ scale: 0.9 }}>
             <Button
@@ -1001,10 +1019,11 @@ const Meals = () => {
           animate={{ opacity: 1 }}
           className="mb-4"
         >
-          <CuisineScroller 
+          <CuisineScroller
             selectedCuisine={selectedCuisine}
             onSelectCuisine={setSelectedCuisine}
             t={t}
+            loading={loading}
           />
         </motion.div>
 

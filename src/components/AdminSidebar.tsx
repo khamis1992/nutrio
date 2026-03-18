@@ -21,6 +21,8 @@ import {
   TrendingUp,
   ClipboardCheck,
   Crown,
+  Truck,
+  ExternalLink,
 } from "lucide-react";
 import {
   Sidebar,
@@ -63,6 +65,7 @@ const navItems = [
   { icon: Download, label: "Exports", to: "/admin/exports" },
   { icon: Settings, label: "Settings", to: "/admin/settings" },
   { icon: Shield, label: "IP Management", to: "/admin/ip-management" },
+  { icon: Truck, label: "Fleet Portal", to: "/fleet" },
 ];
 
 export function AdminSidebar() {
@@ -131,6 +134,17 @@ export function AdminSidebar() {
               <Link to="/dashboard">
                 <Users className="h-4 w-4" />
                 <span>View as Customer</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="Open Fleet Portal"
+            >
+              <Link to="/fleet" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                <span>Open Fleet Portal</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -54,8 +54,6 @@ import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "fra
 import { hapticFeedback } from "@/lib/capacitor";
 import { getMealImage } from "@/lib/meal-images";
 import { toast as sonnerToast } from "sonner";
-import MealWizard from "@/components/MealWizard";
-
 interface MealDetail {
   id: string;
   name: string;
@@ -368,8 +366,9 @@ const ScheduleSheet = ({
   walletBalance: number;
   hasAddons: boolean;
 }) => {
-  // Fetch user addresses when sheet opens
+  const [addonsOpen, setAddonsOpen] = useState(false);
   const [addresses, setAddresses] = useState<{ id: string; label: string; address_line1: string; city: string; is_default: boolean }[]>([]);
+
   useEffect(() => {
     if (!isOpen || !userId) return;
     supabase
@@ -380,7 +379,6 @@ const ScheduleSheet = ({
       .then(({ data }) => {
         if (data && data.length > 0) {
           setAddresses(data);
-          // Pre-select default address if none chosen yet
           if (!selectedAddressId) {
             const def = data.find(a => a.is_default) || data[0];
             setSelectedAddressId(def.id);
@@ -389,156 +387,87 @@ const ScheduleSheet = ({
         }
       });
   }, [isOpen, userId]);
+
   const dateOptions = generateDateOptions();
+  const selectedType = MEAL_TYPES.find(t => t.id === selectedMealType);
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="bottom" className="h-[92vh] sm:h-[85vh] rounded-t-[2.5rem] border-0 bg-gradient-to-b from-background via-background to-muted/20 flex flex-col shadow-2xl">
-        {/* Decorative Top Bar */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full bg-muted-foreground/20" />
-        
-        <SheetHeader className="pt-8 pb-4 shrink-0">
-          <SheetTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center">
-              <CalendarIcon className="w-5 h-5 text-white" />
+      <SheetContent
+        side="bottom"
+        className="h-auto max-h-[92vh] rounded-t-3xl border-0 bg-background flex flex-col p-0 shadow-2xl"
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+        </div>
+
+        {/* Meal preview header */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-border/50 shrink-0">
+          {meal?.image_url ? (
+            <img
+              src={meal.image_url}
+              alt={meal.name}
+              className="w-14 h-14 rounded-2xl object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Utensils className="w-6 h-6 text-primary" />
             </div>
-            Schedule Your Meal
-          </SheetTitle>
-          <p className="text-center text-sm text-muted-foreground">
-            Choose when you&apos;d like to enjoy {meal?.name}
-          </p>
-        </SheetHeader>
-        
-        <div className="flex-1 space-y-6 overflow-y-auto px-1 pb-4">
-          {/* Add-ons Section — shown first so it's immediately visible */}
-          {hasAddons && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-3"
-            >
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-sm">Add-ons <span className="text-muted-foreground font-normal">(charged to wallet)</span></h3>
-                {addonsTotal > 0 && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {formatCurrency(addonsTotal)}
-                  </Badge>
-                )}
-              </div>
-
-              {Object.entries(groupedAddons).map(([category, items]) => (
-                <div key={category} className="space-y-2">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">{category}</p>
-                  {items.map((addon) => {
-                    const isSelected = selectedAddons.has(addon.id);
-                    return (
-                      <button
-                        key={addon.id}
-                        type="button"
-                        onClick={() => toggleAddon(addon.id)}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                          isSelected
-                            ? "bg-primary/10 border-primary/40 text-primary"
-                            : "bg-card border-border/50 text-foreground"
-                        }`}
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{addon.name}</p>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          <span className="text-sm font-semibold">{formatCurrency(addon.price)}</span>
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? "bg-primary border-primary" : "border-muted-foreground/40"
-                          }`}>
-                            {isSelected && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-
-              {addonsTotal > 0 && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
-                  <Wallet className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    Wallet balance: <span className="font-semibold text-foreground">{formatCurrency(walletBalance)}</span>
-                    {walletBalance < addonsTotal && (
-                      <span className="text-destructive ml-1">— insufficient for add-ons</span>
-                    )}
-                  </span>
-                </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-base leading-tight truncate">{meal?.name}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              {meal?.calories && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Flame className="w-3 h-3 text-orange-400" />
+                  {meal.calories} kcal
+                </span>
               )}
-
-              <div className="border-t border-border/40" />
-            </motion.div>
-          )}
-
-          {/* Selected Date Context Card */}
-          {selectedDate && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-2xl bg-gradient-to-r from-green-50 via-teal-50 to-background border border-green-200"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-lg shadow-green-500/30">
-                  <CalendarIcon className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-lg font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">{getDateContext(selectedDate)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Horizontal Date Scroller */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">
-                Select Date
-              </h3>
-              <span className="text-xs text-muted-foreground">Swipe →</span>
+              {hasActiveSubscription && (
+                <Badge variant="secondary" className="text-xs px-2 py-0">
+                  {isUnlimited ? "Unlimited" : `${remainingMeals} left`}
+                </Badge>
+              )}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {dateOptions.map((date, index) => {
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0"
+          >
+            <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5 min-h-0">
+
+          {/* — Date — */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">When</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+              {dateOptions.map((date, i) => {
                 const isSelected = selectedDate?.toDateString() === date.toDateString();
                 const isToday = new Date().toDateString() === date.toDateString();
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                const dayNum = date.getDate();
-                
                 return (
                   <motion.button
-                    key={index}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.03 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setSelectedDate(date)}
-                    className={`
-                      flex-shrink-0 p-3 rounded-2xl flex flex-col items-center min-w-[70px] transition-all
-                      ${isSelected 
-                        ? 'bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-lg shadow-green-500/30 scale-110' 
-                        : 'bg-white border border-green-100 hover:border-green-300'
-                      }
-                    `}
+                    key={i}
+                    whileTap={{ scale: 0.93 }}
+                    onClick={() => { setSelectedDate(date); hapticFeedback.buttonPress(); }}
+                    className={`flex-shrink-0 flex flex-col items-center px-3 py-2.5 rounded-2xl min-w-[60px] border-2 transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border/50 bg-card text-foreground"
+                    }`}
                   >
-                    <span className={`text-xs font-medium ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
-                      {dayName}
+                    <span className={`text-[10px] font-semibold uppercase ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      {date.toLocaleDateString("en-US", { weekday: "short" })}
                     </span>
-                    <span className={`text-lg font-bold mt-1 ${isSelected ? 'text-white' : 'text-foreground'}`}>
-                      {dayNum}
+                    <span className={`text-lg font-bold leading-tight ${isSelected ? "text-primary-foreground" : ""}`}>
+                      {date.getDate()}
                     </span>
                     {isToday && (
-                      <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-orange-400'}`} />
+                      <div className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-primary-foreground/60" : "bg-primary"}`} />
                     )}
                   </motion.button>
                 );
@@ -546,68 +475,46 @@ const ScheduleSheet = ({
             </div>
           </div>
 
-          {/* Meal Type Selection */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide px-1">
-              Meal Type
-            </h3>
-            <div className="space-y-3">
-              {MEAL_TYPES.map((type, index) => {
-                const IconComponent = type.icon;
+          {/* — Meal type — */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meal type</p>
+            <div className="grid grid-cols-2 gap-2">
+              {MEAL_TYPES.map((type) => {
+                const Icon = type.icon;
                 const isSelected = selectedMealType === type.id;
                 return (
                   <motion.button
                     key={type.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setSelectedMealType(type.id);
-                      hapticFeedback.buttonPress();
-                    }}
-                    className={`
-                      w-full p-4 rounded-2xl border-2 transition-all flex items-center gap-4
-                      ${isSelected 
-                        ? 'border-transparent bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-500/25' 
-                        : 'border-green-100 bg-white hover:border-green-300'
-                      }
-                    `}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => { setSelectedMealType(type.id); hapticFeedback.buttonPress(); }}
+                    className={`flex items-center gap-2.5 p-3 rounded-2xl border-2 text-left transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/8 text-primary"
+                        : "border-border/50 bg-card text-foreground"
+                    }`}
                   >
-                    <div 
-                      className={`
-                        w-12 h-12 rounded-xl flex items-center justify-center transition-all
-                        ${isSelected ? 'bg-white/20' : `bg-${type.color === '#F59E0B' ? 'orange' : type.color === '#F97316' ? 'orange' : type.color === '#6366F1' ? 'indigo' : 'green'}-100`}
-                      `}
-                      style={{ 
-                        backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : undefined,
-                        color: isSelected ? 'white' : type.color 
-                      }}
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        isSelected ? "bg-primary/15" : "bg-muted"
+                      }`}
                     >
-                      <IconComponent className="w-6 h-6" />
+                      <Icon className={`w-4.5 h-4.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} style={{ width: 18, height: 18 }} />
                     </div>
-                    <div className="flex-1 text-left">
-                      <p className={`font-bold text-lg ${isSelected ? 'text-white' : 'text-foreground'}`}>{type.label}</p>
-                      <p className={`text-sm ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>{type.time}</p>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-semibold leading-tight ${isSelected ? "text-primary" : ""}`}>{type.label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{type.time}</p>
                     </div>
-                    {isSelected && (
-                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                        <Check className="w-5 h-5 text-white" />
-                      </div>
-                    )}
+                    {isSelected && <Check className="w-4 h-4 text-primary ml-auto shrink-0" />}
                   </motion.button>
                 );
               })}
             </div>
           </div>
 
-          {/* Delivery Address Picker */}
+          {/* — Delivery address — */}
           {addresses.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide px-1 flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
-                Delivery Address
-              </h3>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deliver to</p>
               <div className="space-y-2">
                 {addresses.map((addr) => {
                   const isSelected = selectedAddressId === addr.id;
@@ -618,145 +525,155 @@ const ScheduleSheet = ({
                       onClick={() => {
                         setSelectedAddressId(addr.id);
                         setSelectedAddressLabel(`${addr.label} – ${addr.address_line1}, ${addr.city}`);
+                        hapticFeedback.buttonPress();
                       }}
-                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all ${
+                      className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl border-2 text-left transition-all ${
                         isSelected
-                          ? "border-transparent bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg shadow-green-500/25"
-                          : "border-green-100 bg-white hover:border-green-300"
+                          ? "border-primary bg-primary/8"
+                          : "border-border/50 bg-card"
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? "bg-white/20" : "bg-green-50"}`}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? "bg-primary/15" : "bg-muted"}`}>
                         {addr.label.toLowerCase() === "home" ? (
-                          <Home className={`w-5 h-5 ${isSelected ? "text-white" : "text-green-600"}`} />
+                          <Home className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                         ) : addr.label.toLowerCase() === "work" || addr.label.toLowerCase() === "office" ? (
-                          <Briefcase className={`w-5 h-5 ${isSelected ? "text-white" : "text-green-600"}`} />
+                          <Briefcase className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                         ) : (
-                          <MapPin className={`w-5 h-5 ${isSelected ? "text-white" : "text-green-600"}`} />
+                          <MapPin className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={`font-bold text-sm ${isSelected ? "text-white" : "text-foreground"}`}>{addr.label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className={`text-sm font-semibold ${isSelected ? "text-primary" : ""}`}>{addr.label}</p>
                           {addr.is_default && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${isSelected ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
-                              Default
-                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Default</span>
                           )}
                         </div>
-                        <p className={`text-xs truncate mt-0.5 ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
-                          {addr.address_line1}, {addr.city}
-                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{addr.address_line1}, {addr.city}</p>
                       </div>
-                      {isSelected && (
-                        <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                          <Check className="w-4 h-4 text-white" />
-                        </div>
-                      )}
+                      {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
                     </motion.button>
                   );
                 })}
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => window.open("/addresses", "_blank")}
-                  className="w-full flex items-center gap-2 p-3 rounded-2xl border-2 border-dashed border-green-200 text-green-600 hover:border-green-400 hover:bg-green-50 transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="text-sm font-semibold">Add new address</span>
-                </motion.button>
               </div>
             </div>
           )}
 
-          {/* Subscription Info Card — only show when meals are available */}
-          {hasActiveSubscription && (isUnlimited || remainingMeals > 0) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="p-5 rounded-2xl bg-gradient-to-br from-green-50 via-teal-50 to-background border border-green-200"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center shadow-md shadow-green-500/30">
-                    <Utensils className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Meals Remaining</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isUnlimited ? 'Enjoy unlimited meals' : 'Use them wisely!'}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge variant="default" className="text-sm px-3 py-1">
-                    {isUnlimited ? (
-                      <span className="flex items-center gap-1">Unlimited</span>
-                    ) : (
-                      `${remainingMeals} left`
+          {/* — Add-ons (collapsible) — */}
+          {hasAddons && (
+            <div className="space-y-2">
+              <button
+                onClick={() => setAddonsOpen(v => !v)}
+                className="w-full flex items-center justify-between py-1"
+              >
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  Add-ons
+                  {addonsTotal > 0 && (
+                    <span className="normal-case text-primary font-bold">· {formatCurrency(addonsTotal)}</span>
+                  )}
+                </p>
+                <ChevronLeft className={`w-4 h-4 text-muted-foreground transition-transform ${addonsOpen ? "-rotate-90" : "rotate-90"}`} />
+              </button>
+
+              <AnimatePresence>
+                {addonsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 overflow-hidden"
+                  >
+                    {Object.entries(groupedAddons).map(([category, items]) => (
+                      <div key={category} className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground font-medium">{category}</p>
+                        {items.map((addon) => {
+                          const isSel = selectedAddons.has(addon.id);
+                          return (
+                            <button
+                              key={addon.id}
+                              onClick={() => toggleAddon(addon.id)}
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all ${
+                                isSel ? "bg-primary/8 border-primary/40" : "bg-card border-border/50"
+                              }`}
+                            >
+                              <div>
+                                <p className={`text-sm font-medium ${isSel ? "text-primary" : ""}`}>{addon.name}</p>
+                                {addon.description && <p className="text-xs text-muted-foreground">{addon.description}</p>}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 ml-3">
+                                <span className="text-sm font-semibold">{formatCurrency(addon.price)}</span>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                  isSel ? "bg-primary border-primary" : "border-muted-foreground/30"
+                                }`}>
+                                  {isSel && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    {addonsTotal > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-2">
+                        <Wallet className="w-3.5 h-3.5 shrink-0" />
+                        Wallet: <span className="font-semibold text-foreground">{formatCurrency(walletBalance)}</span>
+                        {walletBalance < addonsTotal && (
+                          <span className="text-destructive">— not enough</span>
+                        )}
+                      </div>
                     )}
-                  </Badge>
-                </div>
-              </div>
-            </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
         </div>
 
-        {/* Schedule Button - Fixed at bottom */}
-        <div className="shrink-0 pt-4 pb-[env(safe-area-inset-bottom)] bg-gradient-to-t from-background via-background to-transparent">
-          <motion.div
-            whileHover={selectedDate ? { scale: 1.02 } : {}}
-            whileTap={selectedDate ? { scale: 0.98 } : {}}
-          >
-            <Button
-              onClick={onSchedule}
-              disabled={loading || !selectedDate}
-              className={`
-                w-full h-14 text-lg font-semibold rounded-2xl shadow-lg transition-all
-                ${!selectedDate 
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed' 
-                  : 'bg-primary hover:bg-primary/90 hover:shadow-primary/30 hover:shadow-xl'
-                }
-              `}
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-7.5l-2.8 2.8m-8.4 8.4l-2.8 2.8m0-14l2.8 2.8m8.4 8.4l2.8 2.8" />
-                    </svg>
-                  </motion.div>
-                  Adding to Schedule...
-                </span>
-              ) : !selectedDate ? (
-                <span className="flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5" />
-                  Select a Date First
-                </span>
-              ) : addonsTotal > 0 ? (
-                <span className="flex items-center gap-2">
-                  Schedule + Pay {formatCurrency(addonsTotal)}
-                  <ArrowRight className="w-5 h-5" />
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  Add to Schedule
-                  <ArrowRight className="w-5 h-5" />
-                </span>
-              )}
-            </Button>
-          </motion.div>
-          
-          {selectedDate && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center text-xs text-muted-foreground mt-3"
-            >
-              Your meal will be delivered on {getDateContext(selectedDate)}
-            </motion.p>
+        {/* Fixed confirm bar */}
+        <div className="shrink-0 px-5 pt-3 pb-[max(env(safe-area-inset-bottom),16px)] border-t border-border/40 bg-background">
+          {selectedDate && selectedType && (
+            <p className="text-center text-xs text-muted-foreground mb-2">
+              {selectedType.label} · {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+            </p>
           )}
+          <motion.button
+            whileTap={{ scale: loading ? 1 : 0.97 }}
+            onClick={onSchedule}
+            disabled={loading || !selectedDate}
+            className={`w-full h-13 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 transition-all ${
+              !selectedDate
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:shadow-none"
+            }`}
+            style={{ height: 52 }}
+          >
+            {loading ? (
+              <>
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 2v4m0 12v4M2 12h4m12 0h4" strokeLinecap="round" />
+                  </svg>
+                </motion.div>
+                Scheduling…
+              </>
+            ) : !selectedDate ? (
+              <>
+                <CalendarIcon className="w-5 h-5" />
+                Pick a date to continue
+              </>
+            ) : addonsTotal > 0 ? (
+              <>
+                Confirm · {formatCurrency(addonsTotal)}
+                <ArrowRight className="w-5 h-5" />
+              </>
+            ) : (
+              <>
+                Confirm
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
+          </motion.button>
         </div>
       </SheetContent>
     </Sheet>
@@ -816,7 +733,6 @@ const MealDetail = () => {
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [showWizard, setShowWizard] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
@@ -984,7 +900,7 @@ const MealDetail = () => {
       return;
     }
 
-    setShowWizard(true);
+    setSheetOpen(true);
   };
 
   // ── Buy 1 meal credit with wallet ──────────────────────────────────────
@@ -1023,7 +939,7 @@ const MealDetail = () => {
         title: "Meal credit added! ✅",
         description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted.`,
       });
-      setShowWizard(true);
+      setSheetOpen(true);
     } catch (err: any) {
       toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
     } finally {
@@ -1420,54 +1336,9 @@ const MealDetail = () => {
           </motion.div>
         )}
 
-        {/* Add-ons Section */}
-        {hasAddons && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-            className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <ShoppingCart className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold">Add-ons</h2>
-              <span className="text-xs text-muted-foreground ml-1">(optional · charged to wallet)</span>
-            </div>
-            <div className="space-y-4">
-              {Object.entries(groupedAddons).map(([category, items]) => (
-                <div key={category}>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-2">{category.replace(/_/g, ' ')}</p>
-                  <div className="space-y-2">
-                    {items.map((addon) => (
-                      <div key={addon.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                        <div>
-                          <p className="text-sm font-medium">{addon.name}</p>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <span className="text-sm font-semibold text-primary ml-4 shrink-0">+{formatCurrency(addon.price)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">Select add-ons when you tap "Add to Schedule"</p>
-          </motion.div>
-        )}
 
       </div>
 
-      {/* MealWizard — same experience as Schedule page */}
-      {showWizard && (
-        <MealWizard
-          userId={user?.id || ""}
-          selectedDate={selectedDate || new Date()}
-          onComplete={() => setShowWizard(false)}
-          onCancel={() => setShowWizard(false)}
-        />
-      )}
 
       {/* Schedule Bottom Sheet */}
       <ScheduleSheet

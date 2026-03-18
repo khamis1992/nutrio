@@ -9,9 +9,10 @@ import { Camera, CameraSource, CameraResultType } from "@capacitor/camera";
 import { isNative } from "@/lib/capacitor";
 import {
   Loader2, Search, Plus, Check, ChevronRight,
-  X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2,
+  X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2, Barcode,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -90,6 +91,10 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState<FoodItem[]>([]);
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
+
+  // Barcode scanner
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [barcodeProduct, setBarcodeProduct] = useState<ScannedProduct | null>(null);
 
 
   // ── Reset on open ──────────────────────────────────────────────────────────
@@ -368,6 +373,50 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       }
     } catch {
       toast({ title: "Scan failed", description: "Try again or enter manually.", variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // ── Barcode scan ──────────────────────────────────────────────────────────
+  const handleBarcodeScanned = async (barcode: string) => {
+    setScanning(true);
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`
+      );
+      const data = await response.json();
+      
+      if (data.status === 1 && data.product) {
+        const product = data.product;
+        const nutriments = product.nutriments || {};
+        
+        const item: FoodItem = {
+          id: `barcode-${barcode}-${Date.now()}`,
+          name: product.product_name_en || product.product_name || "Unknown Product",
+          calories: Math.round(nutriments["energy-kcal_100g"] || 0),
+          protein_g: Math.round(nutriments.proteins_100g || 0),
+          carbs_g: Math.round(nutriments.carbohydrates_100g || 0),
+          fat_g: Math.round(nutriments.fat_100g || 0),
+          source: "meal",
+        };
+        
+        setScanResults([item]);
+        setTab("Scan");
+        
+        // Auto-select the scanned product
+        setSelected((prev) => {
+          const next = new Map(prev);
+          next.set(item.id, { ...item, quantity: 1 });
+          return next;
+        });
+        
+        toast({ title: "Product found!", description: item.name });
+      } else {
+        toast({ title: "Product not found", description: "Try searching manually", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Lookup failed", description: "Check your internet connection", variant: "destructive" });
     } finally {
       setScanning(false);
     }
@@ -655,6 +704,18 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           <div className="text-left">
                             <p className="font-bold text-sm text-gray-900">{t("upload_from_gallery")}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{t("pick_existing_photo")}</p>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => setShowBarcodeScanner(true)}
+                          className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-colors"
+                        >
+                          <div className="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                            <Barcode className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-bold text-sm text-gray-900">{t("scan_barcode") || "Scan Barcode"}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{t("scan_barcode_desc") || "Look up nutrition info by barcode"}</p>
                           </div>
                         </button>
                       </div>
@@ -1032,6 +1093,16 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
             </div>
           </>
         )}
+
+        {/* ── BARCODE SCANNER ── */}
+        <BarcodeScanner
+          isOpen={showBarcodeScanner}
+          onClose={() => setShowBarcodeScanner(false)}
+          onScan={(barcode) => {
+            // Fetch product data and add to selection
+            handleBarcodeScanned(barcode);
+          }}
+        />
       </SheetContent>
     </Sheet>
   );
