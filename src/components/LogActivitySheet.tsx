@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isNative } from "@/lib/capacitor";
 
 // ─── Activity Database ───────────────────────────────────────────────────────
 interface Activity {
@@ -249,6 +250,10 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                     {!googleFitConnected && (
                       <button
                         onClick={() => {
+                          if (isNative) {
+                            toast({ title: "Google Fit is not available on the mobile app. Please connect via the web browser." });
+                            return;
+                          }
                           const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;
                           if (clientId) {
                             const redirectUri = `${window.location.origin}/auth/google-fit/callback`;

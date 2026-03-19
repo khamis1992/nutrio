@@ -531,7 +531,7 @@ const Schedule = () => {
         </div>
 
         {/* Compact Week navigation */}
-        <div className="flex items-center justify-between px-2 pb-2">
+        <div className="flex items-center justify-between px-2 pt-3 pb-2">
           <button
             onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
             className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:bg-gray-200"

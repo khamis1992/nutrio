@@ -251,8 +251,8 @@ const Dashboard = () => {
                   {/* Header row */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                        {isVip ? <Crown className="w-4 h-4 text-white" /> : <Zap className="w-4 h-4 text-white" />}
+                      <div className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                        {isVip ? <Crown className="w-5 h-5 text-white" /> : <Zap className="w-5 h-5 text-white" />}
                       </div>
                       <div>
                         <p className="font-bold text-sm capitalize">{subscription.plan} Plan</p>
@@ -291,34 +291,50 @@ const Dashboard = () => {
                     </div>
                   ) : (
                     /* ── Meals remaining state ── */
-                    <>
-                      <div className="flex items-end justify-between mb-2">
-                        <div>
-                          <p className="text-3xl font-black">
-                            {isUnlimited ? "∞" : remainingMeals}
+                    <div className="space-y-3">
+                      {/* Large centered count */}
+                      <div className="text-center">
+                        <p className="text-5xl font-black leading-none" style={{ textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+                          {isUnlimited ? "∞" : remainingMeals}
+                        </p>
+                        <p className="text-sm font-bold text-white/90 mt-1">
+                          {isUnlimited ? t("plan_card_unlimited") : t("plan_card_meals_left") || "meals left"}
+                        </p>
+                        {!isUnlimited && (
+                          <p className="text-xs text-white/60 mt-0.5">
+                            {t("plan_card_meals_used").replace("{used}", String(mealsUsed)).replace("{total}", String(totalMeals))}
                           </p>
-                          <p className="text-xs text-white/70 -mt-0.5">
-                            {isUnlimited
-                              ? t("plan_card_unlimited")
-                              : t("plan_card_meals_used").replace("{used}", String(mealsUsed)).replace("{total}", String(totalMeals))}
-                          </p>
+                        )}
+                      </div>
+
+                      {/* Segmented progress bar */}
+                      {!isUnlimited && totalMeals > 0 && (
+                        <div className="flex gap-1">
+                          {Array.from({ length: totalMeals }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="flex-1 h-5 rounded-md transition-all"
+                              style={{
+                                background: i < mealsUsed
+                                  ? 'linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)'
+                                  : 'rgba(255,255,255,0.15)',
+                              }}
+                            />
+                          ))}
                         </div>
+                      )}
+
+                      {/* Footer row */}
+                      <div className="flex items-center justify-between text-xs text-white/60">
+                        <span>{t("plan_card_progress_reset") || "Progress towards reset"}</span>
                         {!isUnlimited && resetDate && (
-                          <div className="flex items-center gap-1 text-xs text-white/70">
-                            <CalendarClock className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1">
+                            <CalendarClock className="w-3 h-3" />
                             <span>{t("plan_card_resets_on").replace("{date}", resetDate)}</span>
                           </div>
                         )}
                       </div>
-                      {!isUnlimited && totalMeals > 0 && (
-                        <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-white rounded-full transition-all"
-                            style={{ width: `${Math.min((mealsUsed / totalMeals) * 100, 100)}%` }}
-                          />
-                        </div>
-                      )}
-                    </>
+                    </div>
                   )}
                 </CardContent>
               </Card>

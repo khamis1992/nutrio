@@ -154,75 +154,92 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
 
   // ── Has credits ───────────────────────────────────────────────────────────
   const nextExpiry = rollovers[0];
-  // Use the earlier of: credit expiry or plan end date
   const effectiveExpiry = subscriptionEndDate && isBefore(parseISO(subscriptionEndDate), parseISO(nextExpiry.expiry_date))
     ? subscriptionEndDate
     : nextExpiry.expiry_date;
   const daysLeft = differenceInDays(parseISO(effectiveExpiry), new Date());
-  const isExpiringSoon = daysLeft <= 7;
+
+  const maxSlots = 10;
+  const filledSlots = Math.min(totalRollover, maxSlots);
 
   return (
-    <Card className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-emerald-200/50">
-      <CardContent className="p-5 space-y-4">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-emerald-600" />
+    <div className="relative rounded-2xl overflow-hidden" style={{
+      background: 'linear-gradient(135deg, #059669 0%, #0d9488 40%, #10b981 70%, #34d399 100%)',
+    }}>
+      {/* Decorative sparkle */}
+      <Sparkles className="absolute bottom-3 right-3 w-8 h-8 text-white/10" />
+
+      <div className="relative p-5 space-y-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
+              <RefreshCw className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-white text-sm tracking-wide uppercase">
+                {t('rollover_credits_title')}
+              </h3>
+              <p className="text-white/70 text-xs">{t('rollover_credits_subtitle')}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-emerald-900">{t('rollover_credits_title')}</h3>
-            <p className="text-emerald-600 text-sm">{t('rollover_credits_subtitle')}</p>
+          <div className="text-right">
+            <p className="text-4xl font-black text-white leading-none">{totalRollover}</p>
+            <p className="text-white/70 text-[10px] font-medium mt-0.5">Available Meals</p>
           </div>
         </div>
 
-        {/* Credit count + expiry */}
-        <div className="bg-white/60 rounded-2xl px-4 py-3 border border-emerald-100 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-emerald-600 mb-0.5">{t('rollover_available_credits')}</p>
-            <p className="text-3xl font-black text-emerald-700">
-              {totalRollover}
-              <span className="text-base font-semibold ml-1">{t('rollover_meals')}</span>
-            </p>
+        {/* Meal slots progress bar */}
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+            <ShoppingBag className="w-3.5 h-3.5 text-white" />
           </div>
-          {isExpiringSoon ? (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              {daysLeft}d left
-            </div>
-          ) : (
-            <div className="text-right">
-              <p className="text-xs text-emerald-500">Expires with plan</p>
-              <p className="text-sm font-semibold text-emerald-700">{format(parseISO(effectiveExpiry), 'MMM d, yyyy')}</p>
-            </div>
-          )}
+          <div className="flex-1 flex gap-1">
+            {Array.from({ length: maxSlots }).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 h-6 rounded-md"
+                style={{
+                  background: i < filledSlots
+                    ? 'linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(167,243,208,0.55) 100%)'
+                    : 'rgba(255,255,255,0.18)',
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/25 bg-white/10 backdrop-blur-sm shrink-0">
+            <Clock className="w-3 h-3 text-amber-200" />
+            <span className="text-[11px] font-semibold text-amber-100">{daysLeft}d left</span>
+          </div>
         </div>
+        <p className="text-center text-white/50 text-[11px] -mt-2">{totalRollover} available meal(s)</p>
 
-        {/* CTA — disabled once activated this session */}
-        <Button
-          onClick={handleUseCredits}
+        {/* CTA button */}
+        <button
+          onClick={activated ? undefined : handleUseCredits}
           disabled={activated}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border border-white/25 bg-white/10 backdrop-blur-sm text-white disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-transform"
           style={{ height: 48 }}
         >
           {activated ? (
             <>
-              <CheckCircle2 className="w-4 h-4 mr-2" />
+              <CheckCircle2 className="w-4 h-4" />
               Credits activated — browse meals!
             </>
           ) : (
             <>
-              <ShoppingBag className="w-4 h-4 mr-2" />
+              <ShoppingBag className="w-4 h-4" />
               {t('rollover_use_credits')}
             </>
           )}
-        </Button>
+        </button>
 
-        {/* Footer */}
-        <div className="flex items-start gap-2 text-xs text-emerald-600">
+        {/* Footer note */}
+        <div className="flex items-start gap-2 text-[11px] text-white/50">
           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <p>Credits are automatically deducted when you schedule a meal. They expire with your current plan.</p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

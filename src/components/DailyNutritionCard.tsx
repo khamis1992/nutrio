@@ -52,19 +52,19 @@ const MacroCard = ({
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className={`flex-1 rounded-2xl p-3.5 ${bgClass} relative overflow-hidden`}
+      className={`flex-1 min-w-0 rounded-2xl p-2.5 sm:p-3.5 ${bgClass} relative overflow-hidden`}
     >
       {isOver && (
-        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-          <span className="text-white text-[10px] font-bold">!</span>
+        <div className="absolute top-1.5 right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500 flex items-center justify-center">
+          <span className="text-white text-[9px] sm:text-[10px] font-bold">!</span>
         </div>
       )}
 
-      <div className="flex items-start justify-between mb-2">
-        <div className="w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center shadow-sm">
+      <div className="flex items-start justify-between mb-1.5 sm:mb-2">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/80 flex items-center justify-center shadow-sm">
           {icon}
         </div>
-        <div className="relative w-11 h-11">
+        <div className="relative w-9 h-9 sm:w-11 sm:h-11">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
             <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="3.5" />
             <motion.circle
@@ -78,25 +78,25 @@ const MacroCard = ({
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-white">{value}g</span>
+            <span className="text-[8px] sm:text-[10px] font-bold text-white">{value}g</span>
           </div>
         </div>
       </div>
 
-      <p className={`text-[11px] font-semibold uppercase tracking-wide ${textClass} opacity-80`}>
+      <p className={`text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide ${textClass} opacity-80`}>
         {label}
       </p>
-      <p className={`text-2xl font-black ${textClass} leading-none mt-0.5`}>
+      <p className={`text-lg sm:text-2xl font-black ${textClass} leading-none mt-0.5`}>
         {value}g
       </p>
-      <div className="flex items-center justify-end gap-2 mt-1">
-        <span className="text-[11px] font-bold text-black/60">/{max}g</span>
+      <div className="flex items-center justify-end gap-1 sm:gap-2 mt-1">
+        <span className="text-[10px] sm:text-[11px] font-bold text-black/60">/{max}g</span>
         {isOver ? (
-          <span className="text-[10px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded-full">
+          <span className="text-[9px] sm:text-[10px] font-bold text-white bg-red-600 px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap">
             Over Goal
           </span>
         ) : (
-          <span className="text-[10px] font-bold text-black/60 bg-black/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[9px] sm:text-[10px] font-bold text-black/60 bg-black/10 px-1 sm:px-1.5 py-0.5 rounded-full">
             {pct}%
           </span>
         )}
@@ -182,15 +182,15 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
         }}>
 
           {/* Date navigation */}
-          <div className="flex items-center justify-between px-5 py-4">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Calendar className="w-4 h-4 text-gray-500" />
-              <span className="font-bold text-gray-700 text-sm">{dateLabel}</span>
+              <span className="font-bold text-gray-700 text-[13px] sm:text-sm">{dateLabel}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={goToPrevDay}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 bg-white"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 bg-white"
                 style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
               >
                 <NavChevronLeft className="w-4 h-4 text-gray-500" />
@@ -198,7 +198,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               <button
                 onClick={goToNextDay}
                 disabled={isToday}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 border border-gray-200 bg-white"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 border border-gray-200 bg-white"
                 style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
               >
                 <NavChevronRight className="w-4 h-4 text-gray-500" />
@@ -207,34 +207,34 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
           </div>
 
           {/* Calorie hero section */}
-          <div className="mx-4 mb-4 rounded-2xl px-5 py-5 flex items-center justify-between border border-gray-100" style={{
+          <div className="mx-3 sm:mx-4 mb-3 sm:mb-4 rounded-2xl px-3 sm:px-5 py-4 sm:py-5 flex items-center justify-between border border-gray-100" style={{
             background: "#f8f9fb",
             boxShadow: "inset 0 2px 6px rgba(0,0,0,0.04)",
           }}>
             {/* Nutrition consumed */}
-            <div className="flex flex-col items-start gap-1 min-w-[80px]">
-              <span className="text-[11px] text-gray-500 font-medium">{t("nutrition_eaten")}</span>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-0.5 sm:gap-1 min-w-0 flex-shrink-0">
+              <span className="text-[10px] sm:text-[11px] text-gray-500 font-medium">{t("nutrition_eaten")}</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <motion.span
-                  className="text-3xl font-black text-gray-800 leading-none"
+                  className="text-2xl sm:text-3xl font-black text-gray-800 leading-none"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
                 >
                   {totalCalories}
                 </motion.span>
-                <Utensils className="w-5 h-5 text-gray-400" />
+                <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               </div>
-              <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
+              <span className="text-[10px] sm:text-xs text-gray-400">{t("nutrition_cal")}</span>
             </div>
 
             {/* Central ring */}
-            <div className="relative w-36 h-36 mx-2">
+            <div className="relative w-28 h-28 sm:w-36 sm:h-36 mx-1 sm:mx-2 flex-shrink-0">
               <div className="absolute inset-0 rounded-full border border-gray-200" style={{
                 background: "#f3f4f6",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.8)",
               }} />
-              <div className="absolute inset-[6px] rounded-full bg-white border border-gray-100" style={{
+              <div className="absolute inset-[5px] sm:inset-[6px] rounded-full bg-white border border-gray-100" style={{
                 boxShadow: "inset 0 2px 6px rgba(0,0,0,0.05)",
               }}>
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
@@ -251,17 +251,17 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <motion.span
-                    className="text-2xl font-black text-gray-900 leading-none"
+                    className="text-xl sm:text-2xl font-black text-gray-900 leading-none"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.3 }}
                   >
                     {calLeft}
                   </motion.span>
-                  <span className="text-[10px] font-bold text-orange-500 mt-0.5 uppercase tracking-wide">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-orange-500 mt-0.5 uppercase tracking-wide">
                     {t("nutrition_cal_left")}
                   </span>
-                  <span className="text-[9px] text-gray-400 mt-0.5">
+                  <span className="text-[8px] sm:text-[9px] text-gray-400 mt-0.5">
                     {Math.round(remainingPct)}% Remaining
                   </span>
                 </div>
@@ -269,12 +269,12 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             </div>
 
             {/* Daily burned */}
-            <div className="flex flex-col items-end gap-1 min-w-[80px]">
-              <span className="text-[11px] text-gray-500 font-medium">{t("nutrition_burned")}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🔥</span>
+            <div className="flex flex-col items-end gap-0.5 sm:gap-1 min-w-0 flex-shrink-0">
+              <span className="text-[10px] sm:text-[11px] text-gray-500 font-medium">{t("nutrition_burned")}</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-xl sm:text-2xl">🔥</span>
                 <motion.span
-                  className="text-3xl font-black text-gray-800 leading-none"
+                  className="text-2xl sm:text-3xl font-black text-gray-800 leading-none"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
@@ -282,12 +282,12 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                   {totalBurned}
                 </motion.span>
               </div>
-              <span className="text-xs text-gray-400">{t("nutrition_cal")}</span>
+              <span className="text-[10px] sm:text-xs text-gray-400">{t("nutrition_cal")}</span>
             </div>
           </div>
 
           {/* Macro cards */}
-          <div className="px-4 pb-4 flex gap-2.5">
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex gap-2 sm:gap-2.5">
             <MacroCard
               value={totalCarbs} max={targetCarbs} label={t("macro_carbs")}
               icon={<span className="text-sm">🌾</span>}
@@ -312,34 +312,34 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
           </div>
 
           {/* Activity details */}
-          <div className="px-4 pb-4">
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+            <p className="text-[10px] sm:text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Activity Details
             </p>
-            <div className="flex items-center gap-2.5">
-              <div className="flex-1 rounded-2xl px-4 py-3 flex items-center gap-3 border border-gray-100 bg-gray-50">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-sm">
-                  <Flame className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="flex-1 min-w-0 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 border border-gray-100 bg-gray-50">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 font-medium">{t("nutrition_total_burned")}</p>
-                  <p className="text-lg font-black text-gray-800 leading-none">{totalBurned} Cal</p>
+                <div className="min-w-0">
+                  <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">{t("nutrition_total_burned")}</p>
+                  <p className="text-base sm:text-lg font-black text-gray-800 leading-none">{totalBurned} Cal</p>
                 </div>
               </div>
 
-              <div className="flex-1 rounded-2xl px-4 py-3 flex items-center gap-3 border border-gray-100 bg-gray-50">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-sm">
-                  <Activity className="w-5 h-5 text-white" />
+              <div className="flex-1 min-w-0 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 border border-gray-100 bg-gray-50">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                  <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-                <div>
-                  <p className="text-[10px] text-gray-400 font-medium">Activities</p>
-                  <p className="text-lg font-black text-gray-800 leading-none">{totalBurned} cal</p>
+                <div className="min-w-0">
+                  <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">Activities</p>
+                  <p className="text-base sm:text-lg font-black text-gray-800 leading-none">{totalBurned} cal</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setSheetOpen(true)}
-                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-lg shadow-emerald-500/30"
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-lg shadow-emerald-500/30"
               >
                 <Plus className="w-5 h-5 text-white" />
               </button>

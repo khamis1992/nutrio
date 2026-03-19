@@ -34,6 +34,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
       - name: Install Lighthouse
         run: npm install -g lighthouse
 
@@ -44,18 +49,17 @@ jobs:
             --preset=desktop \
             --output=json \
             --output-path=lighthouse-desktop.json \
-            --chrome-flags="--headless" \
-            --quiet
+            --chrome-path=$(which google-chrome-stable) \
+            --chrome-flags="--headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu"
 
       - name: Run Lighthouse Mobile
         if: github.event.inputs.device == 'mobile' || github.event.inputs.device == 'both'
         run: |
           lighthouse "${{ github.event.inputs.url }}" \
-            --preset=perf-emulated-mobile \
             --output=json \
             --output-path=lighthouse-mobile.json \
-            --chrome-flags="--headless" \
-            --quiet
+            --chrome-path=$(which google-chrome-stable) \
+            --chrome-flags="--headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu"
 
       - name: Parse Desktop Results
         if: github.event.inputs.device == 'desktop' || github.event.inputs.device == 'both'
@@ -68,8 +72,7 @@ jobs:
             "| Performance | " + (.categories.performance.score * 100 | tostring) + "/100 |\n" +
             "| Accessibility | " + (.categories.accessibility.score * 100 | tostring) + "/100 |\n" +
             "| Best Practices | " + (.categories."best-practices".score * 100 | tostring) + "/100 |\n" +
-            "| SEO | " + (.categories.seo.score * 100 | tostring) + "/100 |\n" +
-            "| PWA | " + (.categories.pwa.score * 100 | tostring) + "/100 |\n\n" +
+            "| SEO | " + (.categories.seo.score * 100 | tostring) + "/100 |\n\n" +
             "### Metrics\n" +
             "| Metric | Value |\n" +
             "|-------|-------|\n" +
@@ -91,8 +94,7 @@ jobs:
             "| Performance | " + (.categories.performance.score * 100 | tostring) + "/100 |\n" +
             "| Accessibility | " + (.categories.accessibility.score * 100 | tostring) + "/100 |\n" +
             "| Best Practices | " + (.categories."best-practices".score * 100 | tostring) + "/100 |\n" +
-            "| SEO | " + (.categories.seo.score * 100 | tostring) + "/100 |\n" +
-            "| PWA | " + (.categories.pwa.score * 100 | tostring) + "/100 |\n\n" +
+            "| SEO | " + (.categories.seo.score * 100 | tostring) + "/100 |\n\n" +
             "### Metrics\n" +
             "| Metric | Value |\n" +
             "|-------|-------|\n" +
@@ -114,16 +116,23 @@ jobs:
       - name: Check Thresholds
         run: |
           THRESHOLD=50
-          if [ "${{ github.event.inputs.device }}" == "desktop" ]; then
-            SCORE=$(cat lighthouse-desktop.json | jq -r '.categories.performance.score * 100' | cut -d'.' -f1)
-          else
-            SCORE=$(cat lighthouse-mobile.json | jq -r '.categories.performance.score * 100' | cut -d'.' -f1)
+          DEVICE="${{ github.event.inputs.device }}"
+
+          check_score() {
+            local FILE=$1
+            local LABEL=$2
+            local SCORE=$(cat "$FILE" | jq -r '.categories.performance.score * 100' | cut -d'.' -f1)
+            echo "$LABEL Performance Score: $SCORE"
+            if [ "$SCORE" -lt "$THRESHOLD" ]; then
+              echo "⚠️ $LABEL performance score below threshold ($THRESHOLD)"
+            else
+              echo "✅ $LABEL performance score meets threshold"
+            fi
+          }
+
+          if [ "$DEVICE" == "desktop" ] || [ "$DEVICE" == "both" ]; then
+            check_score lighthouse-desktop.json "Desktop"
           fi
-          
-          echo "Performance Score: $SCORE"
-          
-          if [ "$SCORE" -lt "$THRESHOLD" ]; then
-            echo "⚠️ Performance score below threshold ($THRESHOLD)"
-          else
-            echo "✅ Performance score meets threshold"
+          if [ "$DEVICE" == "mobile" ] || [ "$DEVICE" == "both" ]; then
+            check_score lighthouse-mobile.json "Mobile"
           fi
