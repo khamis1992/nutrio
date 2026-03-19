@@ -20,6 +20,8 @@ import {
   Wallet,
   CreditCard,
   BellRing,
+  CheckCircle2,
+  Apple,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
@@ -635,14 +637,17 @@ setIsProcessing(false);
             ? "bg-gradient-to-br from-violet-500 to-purple-700 shadow-violet-500/25"
             : "gradient-primary shadow-primary/20"
         }`}>
-          <div className="flex items-start justify-between mb-4">
+          {/* Header row */}
+          <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                 {isVip ? <Crown className="h-6 w-6 text-white" /> : <Zap className="h-6 w-6 text-white" />}
               </div>
               <div>
-                <h2 className="text-lg font-bold capitalize">{subscription?.plan || 'Standard'} {t("plan_label")}</h2>
-                <p className="text-xs text-white/70 mt-0.5 capitalize">
+                <h2 className="text-lg font-extrabold uppercase tracking-wide">
+                  {subscription?.plan || 'Standard'} {t("plan_label")}
+                </h2>
+                <p className="text-sm text-white/80 capitalize">
                   {subscription?.status === 'cancelled'
                     ? `Cancelled · ends ${subscription?.end_date ? format(new Date(subscription.end_date), "MMM dd") : ""}`
                     : subscription?.status}
@@ -651,82 +656,104 @@ setIsProcessing(false);
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold">{isUnlimited ? '∞' : effectiveMealsLeft}</p>
-              <p className="text-xs text-white/70">{isUnlimited ? t("unlimited") : t("meals_left")}</p>
+              <p className="text-4xl font-extrabold leading-none">{isUnlimited ? '∞' : effectiveMealsLeft}</p>
+              <p className="text-xs text-white/70 mt-1">{isUnlimited ? t("unlimited") : t("meals_left")}</p>
               {!isUnlimited && rolloverCredits > 0 && remainingMeals === 0 && (
                 <p className="text-xs text-white/60 mt-0.5">({rolloverCredits} rollover)</p>
               )}
             </div>
           </div>
 
-          {/* Meal usage bar */}
+          {/* Segmented meal bar */}
           {!isUnlimited && (
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs text-white/80">
-                <span>🍽️ {mealsUsed} {t("of")} {totalMeals} {t("used")}</span>
-                <span>{daysRemaining}d {t("until_reset")}</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <Utensils className="h-5 w-5 text-white/90 shrink-0" />
+                <div className="flex gap-[3px] flex-1">
+                  {Array.from({ length: totalMeals }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-3 flex-1 rounded-sm transition-all ${
+                        i < mealsUsed ? "bg-white" : "bg-white/20"
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full transition-all"
-                  style={{ width: `${Math.min(percentageUsed, 100)}%` }}
-                />
+              <div className="flex items-center justify-between text-xs text-white/80 pl-8">
+                <span>{mealsUsed} {t("of")} {totalMeals} {t("meals")} {t("used")}</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {daysRemaining} {t("days")} {t("until_reset")}
+                </span>
               </div>
             </div>
           )}
 
-          {/* Snack usage bar */}
+          {/* Segmented snack bar */}
           {hasSnacks && !isUnlimited && snacksPerMonth > 0 && (
-            <div className="space-y-1.5 mt-2">
-              <div className="flex justify-between text-xs text-white/80">
-                <span>🍎 {snacksUsed} {t("of")} {snacksPerMonth} snacks {t("used")}</span>
-                <span>{remainingSnacks} left</span>
+            <div className="space-y-2 mt-3">
+              <div className="flex items-center gap-3">
+                <Apple className="h-5 w-5 text-white/90 shrink-0" />
+                <div className="flex gap-[3px] flex-1">
+                  {Array.from({ length: snacksPerMonth }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-3 flex-1 rounded-sm transition-all ${
+                        i < snacksUsed
+                          ? "bg-gradient-to-r from-red-400 to-amber-400"
+                          : "bg-white/20"
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-300 rounded-full transition-all"
-                  style={{ width: `${Math.min((snacksUsed / snacksPerMonth) * 100, 100)}%` }}
-                />
+              <div className="flex items-center justify-between text-xs text-white/80 pl-8">
+                <span>{snacksUsed} {t("of")} {snacksPerMonth} snacks {t("used")}</span>
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {remainingSnacks} left
+                </span>
               </div>
             </div>
           )}
         </div>
 
         {/* Quick stat chips */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-          <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
-            <Calendar className="h-4 w-4 text-primary" />
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1">
+          <div className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-card/95 border border-border/70 rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm">
+            <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             <div>
-              <p className="text-base font-bold text-foreground leading-none">{daysRemaining}</p>
-              <p className="text-xs text-muted-foreground">{t("days_left")}</p>
+              <p className="text-sm sm:text-base font-bold text-foreground leading-none">{daysRemaining}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t("days_left")}</p>
             </div>
           </div>
-          <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
-            <Utensils className="h-4 w-4 text-primary" />
+          <div className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-card/95 border border-border/70 rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm">
+            <Utensils className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             <div>
-              <p className="text-base font-bold text-foreground leading-none">{isUnlimited ? '∞' : totalMeals}</p>
-              <p className="text-xs text-muted-foreground">{t("monthly_meals")}</p>
+              <p className="text-sm sm:text-base font-bold text-foreground leading-none">{isUnlimited ? '∞' : totalMeals}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t("monthly_meals")}</p>
             </div>
           </div>
           {hasSnacks && (
-            <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
-              <span className="text-lg leading-none">🍎</span>
+            <div className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-card/95 border border-border/70 rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm">
+              <span className="text-base sm:text-lg leading-none">🍎</span>
               <div>
-                <p className={`text-base font-bold leading-none ${
+                <p className={`text-sm sm:text-base font-bold leading-none ${
                   remainingSnacks === 0 && !isUnlimited ? "text-red-600" : "text-foreground"
                 }`}>
                   {isUnlimited ? '∞' : remainingSnacks}
                 </p>
-                <p className="text-xs text-muted-foreground">snacks left</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">snacks left</p>
               </div>
             </div>
           )}
           {rolloverInfo && rolloverInfo.rollover_credits > 0 && (
-            <div className="shrink-0 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 shadow-sm">
-              <RotateCcw className="h-4 w-4 text-amber-600" />
+            <div className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm">
+              <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
               <div>
-                <p className="text-base font-bold text-amber-600 leading-none">{rolloverInfo.rollover_credits}</p>
-                <p className="text-xs text-amber-600">{t("rollover")}</p>
+                <p className="text-sm sm:text-base font-bold text-amber-600 leading-none">{rolloverInfo.rollover_credits}</p>
+                <p className="text-[10px] sm:text-xs text-amber-600">{t("rollover")}</p>
               </div>
             </div>
           )}
