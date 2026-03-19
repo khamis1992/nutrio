@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect } from "react";
-import { initSentry } from "@/lib/sentry";
 import { Toaster } from "@/components/ui/sonner";
 import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,7 +15,11 @@ import { fleetRoutes } from "@/fleet/routes";
 import CustomerLayout from "@/components/CustomerLayout";
 
 // Critical first-render pages (eager loaded)
-import Index from "./pages/Index";
+// NOTE: Index (landing page) is lazy-loaded because on native APK,
+// NativeRouteRedirect immediately redirects away from it. Eager-loading
+// Index was bundling ~35MB of PNG assets into the main JS chunk, which
+// significantly increased initial load time and caused blank screen on slow devices.
+const Index = lazy(() => import("./pages/Index"));
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -138,9 +141,6 @@ const ScrollToTop = () => {
 };
 
 const queryClient = new QueryClient();
-
-// Initialize Sentry error tracking
-initSentry();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

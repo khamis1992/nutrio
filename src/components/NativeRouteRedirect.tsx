@@ -38,9 +38,10 @@ function detectNative(): boolean {
  * On native (APK), redirects to auth or dashboard instead of showing landing page.
  * On web, shows the landing page normally.
  *
- * FIX: Instead of returning null (which causes a blank white screen), we now
- * render a full-screen loading indicator while auth state is being resolved.
- * This prevents the blank page that users see when the app first launches.
+ * KEY FIX: On native, we ALWAYS render a full-screen loading indicator.
+ * We never return null — returning null causes a blank white screen.
+ * The useEffect navigates away once auth state resolves, at which point
+ * this component is unmounted and the target route renders instead.
  */
 export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
   const navigate = useNavigate();
@@ -60,23 +61,22 @@ export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
     }
   }, [isNativePlatform, loading, user, navigate]);
 
-  // On native platform: show a loading spinner while auth state resolves,
-  // then the useEffect above will navigate away. This prevents the blank screen.
+  // On native platform: ALWAYS render the loading screen.
+  // - While loading=true: show spinner (auth resolving)
+  // - After loading=false: keep showing logo (navigate() is in-flight,
+  //   the component will unmount as soon as the new route renders)
+  // This ensures there is NEVER a blank/white frame on the screen.
   if (isNativePlatform) {
-    if (loading) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
-          <img
-            src="/logo.png"
-            alt="Nutrio"
-            className="h-14 w-auto object-contain opacity-90"
-          />
-          <Loader2 className="w-7 h-7 animate-spin text-primary" />
-        </div>
-      );
-    }
-    // Auth resolved — redirect is in-flight via useEffect, show nothing briefly
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
+        <img
+          src="/logo.png"
+          alt="Nutrio"
+          className="h-14 w-auto object-contain opacity-90"
+        />
+        {loading && <Loader2 className="w-7 h-7 animate-spin text-primary" />}
+      </div>
+    );
   }
 
   return <>{children}</>;

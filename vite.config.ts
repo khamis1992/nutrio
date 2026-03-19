@@ -31,11 +31,14 @@ export default defineConfig(({ mode }) => ({
       devTarget: 'es2020',
     }), 
     mode === "development" && componentTagger(),
-    // Sentry plugin for source maps (only in production)
-    mode === 'production' && sentryVitePlugin({
+    // Sentry plugin for source maps (only in production AND only when auth token is available)
+    // Without this guard, the build fails silently when SENTRY_AUTH_TOKEN is not set
+    mode === 'production' && !!process.env.SENTRY_AUTH_TOKEN && sentryVitePlugin({
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
       authToken: process.env.SENTRY_AUTH_TOKEN,
+      // Don't fail the build if Sentry upload fails
+      errorHandler: (err) => { console.warn('[Sentry] Source map upload failed:', err.message); },
     }),
   ].filter(Boolean),
   resolve: {
