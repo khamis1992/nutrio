@@ -50,14 +50,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // THEN check for existing session — with error handling so loading is
+    // always resolved even if Supabase is unreachable or keys are missing.
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('[AuthContext] getSession failed:', err);
+        // Ensure loading is cleared even on failure so the app doesn't hang
+        setLoading(false);
+      });
 
-    return () => subscription.unsubscribe();
+    // Safety timeout: if neither getSession nor onAuthStateChange fires within
+    // 8 seconds (e.g. network unreachable), force loading to false so the
+    // app can still render the login screen instead of a blank page.
+    const safetyTimeout = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) {
+          console.warn('[AuthContext] Auth loading timeout — forcing loading=false');
+          return false;
+        }
+        return prev;
+      });
+    }, 8000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {

@@ -18,8 +18,13 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   );
 }
 
-// Custom storage adapter for Capacitor that uses native Preferences
+// Custom storage adapter for Capacitor that uses native Preferences.
+// The `isAsyncStorage: true` flag is required by Supabase v2 when using
+// an async storage backend (like Capacitor Preferences). Without this flag,
+// Supabase may treat the adapter as synchronous and mishandle session reads,
+// which can result in a perpetual loading state and a blank screen on launch.
 const capacitorStorage = {
+  isAsyncStorage: true as const,
   getItem: async (key: string): Promise<string | null> => {
     try {
       const { value } = await Preferences.get({ key });

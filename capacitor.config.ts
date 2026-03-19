@@ -18,14 +18,20 @@ const config: CapacitorConfig = {
   // Plugins configuration
   plugins: {
     SplashScreen: {
-      launchShowDuration: 300,
-      launchAutoHide: true,
-      backgroundColor: '#000000',
+      // Keep the native splash visible until the app explicitly hides it
+      // via splashScreen.hideFadeOut() in initializeNativeApp().
+      // Setting launchAutoHide:false prevents the brief blank screen that
+      // appears between the native splash disappearing and React rendering.
+      launchShowDuration: 0,
+      launchAutoHide: false,
+      backgroundColor: '#ffffff',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
+      fadeInDuration: 200,
+      fadeOutDuration: 300,
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

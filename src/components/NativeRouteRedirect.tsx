@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Capacitor } from "@capacitor/core";
+import { Loader2 } from "lucide-react";
 
 interface NativeRouteRedirectProps {
   children: React.ReactNode;
@@ -36,6 +37,10 @@ function detectNative(): boolean {
  * Component that handles routing for native vs web platforms.
  * On native (APK), redirects to auth or dashboard instead of showing landing page.
  * On web, shows the landing page normally.
+ *
+ * FIX: Instead of returning null (which causes a blank white screen), we now
+ * render a full-screen loading indicator while auth state is being resolved.
+ * This prevents the blank page that users see when the app first launches.
  */
 export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
   const navigate = useNavigate();
@@ -55,9 +60,22 @@ export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
     }
   }, [isNativePlatform, loading, user, navigate]);
 
-  // On native, render nothing while the redirect is in-flight
-  // (splash screen covers the blank frame)
+  // On native platform: show a loading spinner while auth state resolves,
+  // then the useEffect above will navigate away. This prevents the blank screen.
   if (isNativePlatform) {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
+          <img
+            src="/logo.png"
+            alt="Nutrio"
+            className="h-14 w-auto object-contain opacity-90"
+          />
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+        </div>
+      );
+    }
+    // Auth resolved — redirect is in-flight via useEffect, show nothing briefly
     return null;
   }
 

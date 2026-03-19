@@ -585,7 +585,15 @@ export const biometricAuth = {
 // ========================================
 
 /**
- * Initialize app with native settings
+ * Initialize app with native settings.
+ *
+ * IMPORTANT: The splash screen is NOT hidden here immediately. Instead, we
+ * hide it after a short delay to ensure React has had time to render the
+ * first meaningful frame. This prevents the blank white screen that appears
+ * when the native splash hides before the WebView has painted anything.
+ *
+ * The capacitor.config.ts sets launchAutoHide:false so the native splash
+ * stays visible until we explicitly call hideFadeOut() below.
  */
 export const initializeNativeApp = async () => {
   if (!isNative) return;
@@ -595,15 +603,27 @@ export const initializeNativeApp = async () => {
     await statusBar.setStyle(Style.Light);
     await statusBar.setOverlaysWebView(false);
 
-    // Hide native splash screen quickly so the video splash takes over
-    await splashScreen.hideFadeOut(300);
+    // Give React ~500ms to render the first frame before hiding the native
+    // splash screen. This prevents the blank white flash between the splash
+    // and the first rendered UI.
+    setTimeout(async () => {
+      try {
+        await splashScreen.hideFadeOut(300);
+      } catch (e) {
+        console.warn('Could not hide splash screen:', e);
+      }
+    }, 500);
 
-    // Request notification permissions
-    await pushNotifications.checkPermissions();
+    // Request notification permissions (non-blocking)
+    pushNotifications.checkPermissions().catch((err) =>
+      console.warn('Push notification permission check failed:', err)
+    );
 
     console.log('Native app initialized successfully');
   } catch (error) {
     console.error('Error initializing native app:', error);
+    // Ensure splash is hidden even if initialization fails
+    try { await splashScreen.hideFadeOut(300); } catch {}
   }
 };
 
