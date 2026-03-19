@@ -709,21 +709,15 @@ setIsProcessing(false);
             </div>
           </div>
           {hasSnacks && (
-            <div className={`shrink-0 flex items-center gap-2 rounded-2xl px-4 py-3 shadow-sm border ${
-              remainingSnacks === 0 && !isUnlimited
-                ? "bg-red-50 border-red-200"
-                : "bg-amber-50 border-amber-200"
-            }`}>
+            <div className="shrink-0 flex items-center gap-2 bg-card/95 border border-border/70 rounded-2xl px-4 py-3 shadow-sm">
               <span className="text-lg leading-none">🍎</span>
               <div>
                 <p className={`text-base font-bold leading-none ${
-                  remainingSnacks === 0 && !isUnlimited ? "text-red-600" : "text-amber-700"
+                  remainingSnacks === 0 && !isUnlimited ? "text-red-600" : "text-foreground"
                 }`}>
                   {isUnlimited ? '∞' : remainingSnacks}
                 </p>
-                <p className={`text-xs ${remainingSnacks === 0 && !isUnlimited ? "text-red-500" : "text-amber-600"}`}>
-                  snacks left
-                </p>
+                <p className="text-xs text-muted-foreground">snacks left</p>
               </div>
             </div>
           )}
@@ -798,52 +792,6 @@ setIsProcessing(false);
                 </div>
               ))}
             </div>
-          {/* Snack balance card — only shown when plan includes snacks */}
-          {hasSnacks && snacksPerMonth > 0 && (
-            <div className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden">
-              <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border/60">
-                <span className="text-base leading-none">🍎</span>
-                <h3 className="font-bold text-foreground">Snack Balance</h3>
-                <span className={`ml-auto text-xs font-bold px-2.5 py-1 rounded-full ${
-                  remainingSnacks === 0 ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"
-                }`}>
-                  {remainingSnacks} remaining
-                </span>
-              </div>
-
-              <div className="px-4 py-4 space-y-3">
-                {/* Progress bar */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{snacksUsed} of {snacksPerMonth} snacks used</span>
-                    <span>{Math.round((snacksUsed / snacksPerMonth) * 100)}%</span>
-                  </div>
-                  <div className="h-2.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        snacksUsed >= snacksPerMonth ? "bg-red-500" : "bg-amber-400"
-                      }`}
-                      style={{ width: `${Math.min((snacksUsed / snacksPerMonth) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Stat row */}
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  {[
-                    { label: "Total", value: snacksPerMonth, color: "text-foreground" },
-                    { label: "Used", value: snacksUsed, color: "text-muted-foreground" },
-                    { label: "Left", value: remainingSnacks, color: remainingSnacks === 0 ? "text-red-600" : "text-amber-600" },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="text-center bg-muted/50 rounded-xl py-2.5">
-                      <p className={`text-lg font-bold leading-none ${color}`}>{value}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
           </div>
         )}
 

@@ -743,6 +743,7 @@ const MealDetail = () => {
     isUnlimited,
     canOrderMeal,
     incrementMealUsage,
+    incrementSnackUsage,
     subscription,
     refetch: refetchSubscription,
   } = useSubscription();
@@ -997,6 +998,11 @@ const MealDetail = () => {
         setSheetOpen(false);
         setBuyMealDialogOpen(true);
         return;
+      }
+
+      // If this order is a snack, also increment the snack counter
+      if (selectedMealType === "snack") {
+        await incrementSnackUsage();
       }
 
       // Check if wallet has enough for add-ons before scheduling

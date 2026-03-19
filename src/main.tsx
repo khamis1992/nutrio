@@ -19,8 +19,9 @@ initializeNativeApp();
 
 const Root = () => {
   const isDevelopment = import.meta.env.DEV;
-  // Show splash video only on native (Android/iOS) app launch
-  const [splashDone, setSplashDone] = useState(!isNative);
+  // Always show app immediately - splash video can cause blank screen issues on some devices
+  // The video will still play but won't block app rendering
+  const [splashDone, setSplashDone] = useState(true);
 
   const AppWrapper = (
     <LanguageProvider>

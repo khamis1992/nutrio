@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { Search, Trash2, ArrowLeft, Flame, Clock, Loader2, CheckCircle2 } from "lucide-react";
+import { Search, Trash2, ArrowLeft, Flame, Clock, Loader2, CheckCircle2, Dumbbell, Link, RefreshCw, X, Plus } from "lucide-react";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -102,13 +102,25 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
   const [category, setCategory] = useState("All");
   const [selected, setSelected] = useState<Activity | null>(null);
   const [duration, setDuration] = useState("");
+  const [customCal, setCustomCal] = useState("");
   const [saving, setSaving] = useState(false);
   const [sessions, setSessions] = useState<LoggedSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [googleFitConnected, setGoogleFitConnected] = useState(false);
+  const [showActivityPicker, setShowActivityPicker] = useState(false);
 
   const estimatedCal = selected && duration
     ? calcCalories(selected.met, weightKg, parseInt(duration) || 0)
     : 0;
+
+  // Keep customCal in sync with the formula whenever duration/activity changes
+  const prevDurationRef = useRef("");
+  useEffect(() => {
+    if (duration !== prevDurationRef.current) {
+      prevDurationRef.current = duration;
+      setCustomCal(estimatedCal > 0 ? String(estimatedCal) : "");
+    }
+  }, [estimatedCal, duration]);
 
   // Load today's sessions
   const loadSessions = async () => {
@@ -134,7 +146,11 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
       setView("list");
       setSearch("");
       setCategory("All");
+      setShowActivityPicker(false);
       loadSessions();
+      // Check Google Fit via stored token flag
+      const storedToken = localStorage.getItem("google_fit_access_token");
+      setGoogleFitConnected(!!storedToken);
     }
   }, [open]);
 
@@ -142,6 +158,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
   const pickActivity = (a: Activity) => {
     setSelected(a);
     setDuration("");
+    setCustomCal("");
     setView("detail");
   };
 
@@ -153,7 +170,9 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
 
     setSaving(true);
     try {
-      const cal = calcCalories(selected.met, weightKg, mins);
+      const cal = customCal && parseInt(customCal) > 0
+        ? parseInt(customCal)
+        : calcCalories(selected.met, weightKg, mins);
       const { error } = await supabase.from("workout_sessions").insert({
         user_id: user.id,
         session_date: todayStr,
@@ -216,40 +235,102 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {/* Today's log */}
-              {sessions.length > 0 && (
-                <div className="px-5 pt-4 pb-2">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("log_activity_todays_activities")}</p>
+              {/* Detected Workouts */}
+              <div className="px-5 pt-4 pb-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                    <Dumbbell className="w-5 h-5 text-purple-500" />
+                    {t('detected_workouts') || 'Detected Workouts'}
+                    {googleFitConnected && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Google Fit</span>
+                    )}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {!googleFitConnected && (
+                      <button
+                        onClick={() => {
+                          const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;
+                          if (clientId) {
+                            const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+                            const params = new URLSearchParams({
+                              client_id: clientId,
+                              redirect_uri: redirectUri,
+                              response_type: "code",
+                              scope: "https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.body.read",
+                              access_type: "offline",
+                              prompt: "consent",
+                            });
+                            window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+                          }
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+                      >
+                        <Link className="w-3 h-3" />
+                        Connect Google Fit
+                      </button>
+                    )}
+                    <button
+                      onClick={loadSessions}
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                      aria-label="Refresh workouts"
+                    >
+                      <RefreshCw className={`w-4 h-4 text-gray-400 ${loadingSessions ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {loadingSessions ? (
+                  <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-purple-400" /></div>
+                ) : sessions.length > 0 ? (
                   <div className="space-y-2">
                     {sessions.map((s) => {
                       const act = ACTIVITIES.find((a) => a.name === s.workout_type);
                       return (
-                        <div key={s.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
-                          <span className="text-xl">{act?.emoji ?? "🏃"}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-800 truncate">{act ? activityName(act) : s.workout_type}</p>
-                            <div className="flex items-center gap-3 mt-0.5">
-                              <span className="flex items-center gap-1 text-xs text-gray-400">
-                                <Clock className="w-3 h-3" /> {s.duration_minutes} {t("min_label")}
-                              </span>
-                              <span className="flex items-center gap-1 text-xs text-orange-500 font-medium">
-                                <Flame className="w-3 h-3" /> {s.calories_burned} {t("cal")}
-                              </span>
+                        <div key={s.id} className="flex items-center justify-between bg-purple-50 rounded-xl px-4 py-3 border border-purple-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                              <span className="text-lg">{act?.emoji ?? "🏋️"}</span>
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900 text-sm">{act ? activityName(act) : s.workout_type}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="flex items-center gap-1 text-xs text-gray-500">
+                                  <Clock className="w-3 h-3" /> {s.duration_minutes} {t("min_label")}
+                                </span>
+                                <span className="text-xs font-bold text-purple-600">
+                                  {s.calories_burned} cal
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <button
                             onClick={() => deleteSession(s.id)}
-                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
+                            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                            aria-label="Remove workout"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <X className="w-4 h-4 text-gray-600" />
                           </button>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="border-t border-gray-100 my-4" />
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-4">No workouts logged today</p>
+                )}
+
+                {/* Add Manual Workout */}
+                <button
+                  onClick={() => setShowActivityPicker((v) => !v)}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-purple-400 hover:text-purple-600 transition-colors text-sm font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Manual Workout
+                </button>
+              </div>
+
+              {showActivityPicker && (
+              <>
+              <div className="border-t border-gray-100 my-3" />
 
               {/* Search */}
               <div className="px-5 pb-3 pt-4">
@@ -281,9 +362,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
 
               {/* Activity list */}
               <div className="px-5 pb-8 space-y-5">
-                {loadingSessions ? (
-                  <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-gray-300" /></div>
-                ) : Object.entries(groupedByCategory).map(([cat, items]) => (
+                {Object.entries(groupedByCategory).map(([cat, items]) => (
                   <div key={cat}>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{categoryLabel(cat)}</p>
                     <div className="space-y-1">
@@ -305,6 +384,8 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                   </div>
                 ))}
               </div>
+              </>
+              )}
             </div>
           </>
         )}
@@ -380,15 +461,24 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                 </div>
               </div>
 
-              {/* Calorie preview */}
+              {/* Calorie preview — editable */}
               {estimatedCal > 0 && (
                 <div className="bg-orange-50 rounded-2xl p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
                     <Flame className="w-6 h-6 text-orange-500" />
                   </div>
-                  <div>
-                    <p className="text-xs text-orange-400 font-medium">{t("log_activity_estimated_burn")}</p>
-                    <p className="text-3xl font-black text-orange-600">{estimatedCal} <span className="text-base font-semibold">{t("cal")}</span></p>
+                  <div className="flex-1">
+                    <p className="text-xs text-orange-400 font-medium mb-1">{t("log_activity_estimated_burn")}</p>
+                    <div className="flex items-baseline gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={customCal}
+                        onChange={(e) => setCustomCal(e.target.value)}
+                        className="w-24 text-3xl font-black text-orange-600 bg-transparent border-b-2 border-orange-300 focus:border-orange-500 outline-none text-center"
+                      />
+                      <span className="text-base font-semibold text-orange-600">{t("cal")}</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -408,7 +498,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
               >
                 {saving
                   ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : <><CheckCircle2 className="w-5 h-5 mr-2" /> {estimatedCal > 0 ? t("log_activity_log_button").replace("{cal}", String(estimatedCal)) : t("log_activity")}</>
+                  : <><CheckCircle2 className="w-5 h-5 mr-2" /> {customCal || estimatedCal > 0 ? t("log_activity_log_button").replace("{cal}", customCal || String(estimatedCal)) : t("log_activity")}</>
                 }
               </Button>
             </div>
