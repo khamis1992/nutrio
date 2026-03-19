@@ -71,11 +71,21 @@ jobs:
         if: github.event.inputs.dry_run != 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          DB_URL_PRODUCTION: ${{ secrets.SUPABASE_DB_URL_PRODUCTION }}
         run: |
           echo "Applying migration: ${{ github.event.inputs.migration_file }}"
-          echo "Database URL: ${{ secrets[format('SUPABASE_DB_URL_{0}', github.event.inputs.environment)] }}"
-          supabase db push --db-url "${{ secrets[format('SUPABASE_DB_URL_{0}', github.event.inputs.environment)] }}"
+
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            DB_URL="$DB_URL_PRODUCTION"
+          else
+            DB_URL="$DB_URL_STAGING"
+          fi
+
+          supabase db push \
+            --db-url "$DB_URL" \
+            --project-ref "$SUPABASE_PROJECT_ID"
 
       - name: Summary
         run: |
