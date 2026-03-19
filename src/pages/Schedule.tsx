@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -201,15 +201,7 @@ const Schedule = () => {
     }
   }, [profile, navigate]);
 
-  useEffect(() => {
-    if (settings.features.meal_scheduling) {
-      fetchSchedules();
-    } else if (!settingsLoading) {
-      setLoading(false);
-    }
-  }, [user, currentWeekStart, settings.features.meal_scheduling, settingsLoading]);
-
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
@@ -271,7 +263,24 @@ const Schedule = () => {
     setSchedules(mergedSchedules);
     setLoading(false);
     setIsRefreshing(false);
-  };
+  }, [user, currentWeekStart, t]);
+
+  useEffect(() => {
+    if (settings.features.meal_scheduling) {
+      fetchSchedules();
+    } else if (!settingsLoading) {
+      setLoading(false);
+    }
+  }, [fetchSchedules, settings.features.meal_scheduling, settingsLoading]);
+
+  // Re-fetch whenever the wizard closes so new meals always appear immediately
+  const prevShowWizard = useRef(false);
+  useEffect(() => {
+    if (!showWizard && prevShowWizard.current && settings.features.meal_scheduling) {
+      fetchSchedules();
+    }
+    prevShowWizard.current = showWizard;
+  }, [showWizard, fetchSchedules, settings.features.meal_scheduling]);
 
   // Swipe gesture handler
   const handleSwipe = (event: PanInfo) => {

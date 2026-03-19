@@ -572,10 +572,13 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         .map(([mealType, meal]) => ({
           user_id: userId,
           meal_id: meal.id,
+          restaurant_id: meal.restaurant_id ?? null,
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           meal_type: mealType,
           is_completed: false,
+          order_status: "pending",
           delivery_type: selectedAddr ? `delivery:${selectedAddressId}` : "delivery",
+          ...(selectedAddressId ? { delivery_address_id: selectedAddressId } : {}),
           ...(deliveryTimeSlot ? { delivery_time_slot: deliveryTimeSlot } : {}),
         }));
 
