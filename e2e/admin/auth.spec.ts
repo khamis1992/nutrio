@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/test';
 import { waitForNetworkIdle } from '../utils/helpers';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Admin - Auth', () => {
 
@@ -15,7 +15,7 @@ test.describe('Admin - Auth', () => {
     await waitForNetworkIdle(authenticatedAdminPage);
     
     // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis--1992@hotmail.com');
+    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
     await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
     
     // Click Sign In button
@@ -37,7 +37,7 @@ test.describe('Admin - Auth', () => {
     await waitForNetworkIdle(authenticatedAdminPage);
     
     // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis--1992@hotmail.com');
+    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
     await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
     
     // Click Sign In button
@@ -89,7 +89,7 @@ test.describe('Admin - Auth', () => {
     await waitForNetworkIdle(authenticatedAdminPage);
     
     // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis--1992@hotmail.com');
+    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
     await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
     
     // Click Sign In button
@@ -111,7 +111,7 @@ test.describe('Admin - Auth', () => {
     await waitForNetworkIdle(authenticatedAdminPage);
     
     // Fill login form using actual selectors from Auth.tsx
-    await authenticatedAdminPage.fill('input#email', 'khamis--1992@hotmail.com');
+    await authenticatedAdminPage.fill('input#email', 'khamis-1992@hotmail.com');
     await authenticatedAdminPage.fill('input#password', 'Khamees1992#');
     
     // Click Sign In button

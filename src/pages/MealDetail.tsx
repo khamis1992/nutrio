@@ -1233,7 +1233,9 @@ const MealDetail = () => {
             </div>
             <div className="flex items-center gap-1 text-amber-500">
               <Star className="w-4 h-4 fill-current" />
-              <span className="font-semibold text-sm">{meal.rating.toFixed(1)}</span>
+              <span className="font-semibold text-sm">
+                {meal.rating === 0 || meal.rating === 0.0 ? "New" : `${meal.rating.toFixed(1)}`}
+              </span>
             </div>
           </div>
 

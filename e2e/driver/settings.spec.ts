@@ -1,7 +1,7 @@
-import { test, expect } from '../fixtures/test';
+﻿import { test, expect } from '../fixtures/test';
 import { waitForNetworkIdle } from '../utils/helpers';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Driver - Settings', () => {
 

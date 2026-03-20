@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Subscription Management Workflow
  * 
  * Tests the complete subscription lifecycle:
@@ -29,7 +29,7 @@ import {
   getTextContent,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Subscription Management Workflow', () => {
   let browser: Browser;

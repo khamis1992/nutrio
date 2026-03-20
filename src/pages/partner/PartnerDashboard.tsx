@@ -62,6 +62,7 @@ interface Stats {
   totalMeals: number;
   activeOrders: number;
   todayOrders: number;
+  urgentOrders: number; // Today's pending/confirmed — needs immediate attention
   totalRevenue: number;
   weeklyRevenue: number;
   lastWeekRevenue: number;
@@ -158,6 +159,7 @@ const PartnerDashboard = () => {
           totalMeals: 0,
           activeOrders: 0,
           todayOrders: 0,
+          urgentOrders: 0,
           totalRevenue: 0,
           weeklyRevenue: 0,
           lastWeekRevenue: 0,
@@ -201,9 +203,10 @@ const PartnerDashboard = () => {
       setRecentSchedules(transformedSchedules);
 
       // Fetch all schedules for stats (not limited)
+      // Include order_status to determine urgent orders
       const { data: allSchedules } = await supabase
         .from("meal_schedules")
-        .select("id, scheduled_date, is_completed, meal_id")
+        .select("id, scheduled_date, is_completed, meal_id, order_status")
         .in("meal_id", mealIds);
 
       // Calculate stats
@@ -224,11 +227,20 @@ const PartnerDashboard = () => {
       lastSunday.setDate(thisMonday.getDate() - 1);
       const lastSundayStr = lastSunday.toISOString().split("T")[0];
 
-      const activeOrders = allSchedules?.filter(
-        (s) => !s.is_completed && s.scheduled_date >= todayStr
+      // Count active orders (not completed/cancelled) — for dashboard stat
+      // Note: includes future orders so restaurant can plan prep
+      const activeOrders = (allSchedules || []).filter(
+        (s) => !s.is_completed
       ).length || 0;
-      const todayOrders = allSchedules?.filter(
+      // Today's orders — for dashboard stat (orders scheduled for today)
+      const todayOrders = (allSchedules || []).filter(
         (s) => s.scheduled_date === todayStr
+      ).length || 0;
+      // Urgent orders: today's pending/confirmed orders that need immediate attention
+      const urgentOrders = (allSchedules || []).filter(
+        (s) => !s.is_completed &&
+               s.scheduled_date === todayStr &&
+               (s.order_status === "pending" || s.order_status === "confirmed")
       ).length || 0;
       
       // Revenue calculation: meals_prepared × payout_rate (subscription model)
@@ -251,6 +263,7 @@ const PartnerDashboard = () => {
         totalMeals: mealsCount || 0,
         activeOrders,
         todayOrders,
+        urgentOrders,
         totalRevenue,
         weeklyRevenue,
         lastWeekRevenue,
@@ -471,7 +484,7 @@ const PartnerDashboard = () => {
               bg: "bg-amber-500/10",
               border: "border-l-amber-500",
               href: "/partner/orders",
-              urgent: stats.activeOrders > 0,
+              urgent: stats.urgentOrders > 0,
             },
             {
               label: "Today's Orders",

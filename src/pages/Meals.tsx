@@ -191,10 +191,16 @@ const RestaurantCard = ({
               </div>
 
               <div className="flex items-center gap-2 mt-2">
-                <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                  <span className="text-xs font-semibold">{restaurant.rating.toFixed(1)}</span>
-                </div>
+                {restaurant.rating && restaurant.rating > 0 ? (
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                    <span className="text-xs font-semibold">{restaurant.rating.toFixed(1)}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-semibold">New</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1 text-xs text-gray-400">
                   <Clock className="w-3 h-3" />
                   <span>{restaurant.delivery_time && restaurant.delivery_time !== "0" && restaurant.delivery_time !== "0m" ? restaurant.delivery_time : "25-40 min"}</span>
@@ -620,7 +626,11 @@ const Meals = () => {
           .from("restaurants")
           .select("id, name, description, logo_url, rating, total_orders, cuisine_types")
           .eq("approval_status", "approved")
-          .eq("is_active", true);
+          .eq("is_active", true)
+          // Exclude test/placeholder restaurants
+          .neq("name", "test")
+          .not("name", "ilike", "%test%")
+          .not("description", "ilike", "%test%");
 
         if (restaurantsError) throw restaurantsError;
 

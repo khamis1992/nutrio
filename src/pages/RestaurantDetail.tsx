@@ -173,7 +173,9 @@ const RestaurantDetail = () => {
       const { data: mealsData, error: mealsError } = await supabase
         .from("meals")
         .select("*")
-        .eq("restaurant_id", id);
+        .eq("restaurant_id", id)
+        .eq("is_test", false)
+        .not("name", "ilike", "test%");
 
       if (mealsError) throw mealsError;
 

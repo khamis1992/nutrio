@@ -91,8 +91,18 @@ export default function FleetLogin() {
         .maybeSingle();
 
       if (fleetError || !fleetManager) {
-        await supabase.auth.signOut();
-        throw new Error("You don't have fleet manager access. Please contact your administrator.");
+        // Fall back: admins get full fleet access without a fleet_managers record
+        const { data: adminRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (!adminRole) {
+          await supabase.auth.signOut();
+          throw new Error("You don't have fleet manager access. Please contact your administrator.");
+        }
       }
 
       if (!fleetManager.is_active) {
@@ -100,11 +110,13 @@ export default function FleetLogin() {
         throw new Error("Your fleet manager account has been deactivated.");
       }
 
-      // Update last login
-      await supabase
-        .from("fleet_managers")
-        .update({ last_login_at: new Date().toISOString() })
-        .eq("id", fleetManager.id);
+      // Update last login (only if a fleet_managers record exists)
+      if (fleetManager) {
+        await supabase
+          .from("fleet_managers")
+          .update({ last_login_at: new Date().toISOString() })
+          .eq("id", fleetManager.id);
+      }
 
       // Store remember me preference
       if (rememberMe) {
@@ -115,7 +127,7 @@ export default function FleetLogin() {
 
       toast({
         title: "Welcome back!",
-        description: `Signed in as ${fleetManager.full_name}`,
+        description: `Signed in as ${fleetManager?.full_name ?? data.user.email}`,
       });
 
       // Small delay to ensure auth context updates before navigation

@@ -5,28 +5,28 @@
 
 import { Page, BrowserContext, expect } from '@playwright/test';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
-// Test user credentials
+// Test user credentials â€” must match actual accounts in database
 export const TEST_USERS = {
   customer: {
-    email: 'khamis--1992@hotmail.com',
-    password: 'Khamees1992#',
-    name: 'Test Customer',
+    email: 'eng.aljabor@gmail.com',
+    password: '123456789',
+    name: 'Khamis',
   },
   admin: {
-    email: 'admin@nutrio.com',
+    email: 'khamis-1992@hotmail.com',
     password: 'Khamees1992#',
-    name: 'Test Admin',
+    name: 'Admin',
   },
   partner: {
-    email: 'partner@nutrio.com',
-    password: 'Partner123!',
-    name: 'Test Partner Restaurant',
+    email: 'khamis4everever@gmail.com',
+    password: '123456789',
+    name: 'Khamis Kitchen',
   },
   driver: {
     email: 'driver@nutriofuel.com',
-    password: 'Driver123!',
+    password: '123456789',
     name: 'Test Driver',
   },
 };
@@ -99,9 +99,16 @@ export const loginAsCustomer = async (page: Page) => {
   await page.goto(`${BASE_URL}/auth`);
   await waitForNetworkIdle(page);
   
-  await safeFill(page, 'input#email', TEST_USERS.customer.email);
-  await safeFill(page, 'input#password', TEST_USERS.customer.password);
-  await safeClick(page, 'button:has-text("Sign in")');
+  // Click "Sign In" on welcome screen if it exists
+  const signinBtn = page.locator('button', { hasText: /sign in|log in/i });
+  if (await signinBtn.count() > 0) {
+    await signinBtn.first().click();
+    await page.waitForTimeout(1000);
+  }
+  
+  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.customer.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.customer.password);
+  await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*dashboard|.*onboarding/, { timeout: 10000 });
 };
@@ -119,8 +126,15 @@ export const loginAsAdmin = async (page: Page) => {
     return; // Already logged in
   }
   
-  await safeFill(page, 'input[type="email"]', TEST_USERS.admin.email);
-  await safeFill(page, 'input[type="password"]', TEST_USERS.admin.password);
+  // Click "Sign In" on welcome screen if it exists
+  const signinBtn = page.locator('button', { hasText: /sign in|log in/i });
+  if (await signinBtn.count() > 0) {
+    await signinBtn.first().click();
+    await page.waitForTimeout(1000);
+  }
+  
+  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.admin.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.admin.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*admin/, { timeout: 10000 });
@@ -138,8 +152,15 @@ export const loginAsPartner = async (page: Page) => {
     return;
   }
   
-  await safeFill(page, 'input[type="email"]', TEST_USERS.partner.email);
-  await safeFill(page, 'input[type="password"]', TEST_USERS.partner.password);
+  // Click "Sign In" on welcome screen if it exists
+  const signinBtn = page.locator('button', { hasText: /sign in|log in/i });
+  if (await signinBtn.count() > 0) {
+    await signinBtn.first().click();
+    await page.waitForTimeout(1000);
+  }
+  
+  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.partner.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.partner.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*partner/, { timeout: 10000 });
@@ -157,8 +178,15 @@ export const loginAsDriver = async (page: Page) => {
     return;
   }
   
-  await safeFill(page, 'input[type="email"]', TEST_USERS.driver.email);
-  await safeFill(page, 'input[type="password"]', TEST_USERS.driver.password);
+  // Click "Sign In" on welcome screen if it exists
+  const signinBtn = page.locator('button', { hasText: /sign in|log in/i });
+  if (await signinBtn.count() > 0) {
+    await signinBtn.first().click();
+    await page.waitForTimeout(1000);
+  }
+  
+  await safeFill(page, 'input#si-email, input[type="email"]', TEST_USERS.driver.email);
+  await safeFill(page, 'input#si-password, input[type="password"]', TEST_USERS.driver.password);
   await safeClick(page, 'button[type="submit"]');
   
   await page.waitForURL(/.*driver/, { timeout: 10000 });

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Customer Journey Workflow
  * 
  * Tests the complete customer experience:
@@ -24,7 +24,7 @@ import {
   elementExists,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Customer Journey Workflow', () => {
   let browser: Browser;

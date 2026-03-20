@@ -11,11 +11,8 @@ import {
   Flame,
   Target,
   Droplets,
-  Activity,
   CheckCircle2,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   X,
   ArrowRight,
   RefreshCw,
@@ -89,8 +86,6 @@ export function ProfessionalWeeklyReport({
   const { t } = useLanguage();
   const weekStart = subDays(new Date(), 7);
   const weekEnd = new Date();
-  const [dismissedInsights, setDismissedInsights] = useState<Set<string>>(new Set());
-  const [expandedInsight, setExpandedInsight] = useState<string | null>(null);
   const [dismissedRecs, setDismissedRecs] = useState<Set<number>>(new Set());
 
   const stats = useMemo(() => {
@@ -339,46 +334,14 @@ export function ProfessionalWeeklyReport({
         )}
       </Button>
 
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm">{t("report_daily_log_status")}</h3>
-            <span className="text-xs text-muted-foreground">{t("report_days_logged", { current: stats.daysWithLogs, total: 7 })}</span>
-          </div>
-          <div className="flex gap-1.5">
-            {dailyData.map((day, index) => {
-              const logged = day.calories > 0;
-              const onTarget = logged && day.calories >= stats.calorieTarget * 0.9 && day.calories <= stats.calorieTarget * 1.1;
-              return (
-                <div key={index} className="flex-1 text-center">
-                  <div
-                    className={cn(
-                      "w-full aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-all",
-                      onTarget
-                        ? "bg-emerald-500 text-white"
-                        : logged
-                          ? "bg-primary/20 text-primary"
-                          : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {onTarget ? <CheckCircle2 className="w-4 h-4" /> : format(new Date(day.date), "dd")}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(day.date), "EEE")}</p>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-orange-500" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
+              <Flame className="w-4.5 h-4.5 text-orange-500" />
             </div>
             <span className={cn(
-              "text-xs font-medium px-2 py-1 rounded-full",
+              "text-[10px] font-medium px-2 py-0.5 rounded-full",
               stats.calorieProgress >= 90 && stats.calorieProgress <= 110
                 ? "bg-emerald-100 text-emerald-600"
                 : stats.calorieProgress > 110
@@ -392,26 +355,30 @@ export function ProfessionalWeeklyReport({
                   : t("report_status_below")}
             </span>
           </div>
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-2xl font-bold text-slate-900">{Math.round(stats.avgCalories)}</span>
-            <span className="text-xs text-slate-400">/ {stats.calorieTarget}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-3xl font-extrabold text-slate-900">{Math.round(stats.avgCalories)}</span>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-slate-600">{Math.round(stats.avgCalories)} <span className="text-slate-400">of {stats.calorieTarget}</span></p>
+              <p className="text-[10px] text-slate-400">{t("report_target")}</p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mb-3">{t("report_daily_avg_calories")}</p>
+          <p className="text-xs text-slate-500 mt-1 mb-2">{t("report_daily_avg_calories")}</p>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500"
               style={{ width: `${Math.min((stats.avgCalories / stats.calorieTarget) * 100, 100)}%` }}
             />
           </div>
+          <p className="text-[10px] text-slate-400 mt-1.5">{t("report_metric_calories")} ({t("report_avg_daily")})</p>
         </div>
 
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center">
-              <Target className="w-5 h-5 text-blue-500" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center">
+              <Target className="w-4.5 h-4.5 text-blue-500" />
             </div>
             <span className={cn(
-              "text-xs font-medium px-2 py-1 rounded-full",
+              "text-[10px] font-medium px-2 py-0.5 rounded-full",
               stats.proteinProgress >= 80
                 ? "bg-emerald-100 text-emerald-600"
                 : stats.proteinProgress >= 50
@@ -421,53 +388,69 @@ export function ProfessionalWeeklyReport({
               {stats.proteinProgress >= 80 ? t("report_status_great") : stats.proteinProgress >= 50 ? t("report_status_good") : t("report_status_keep_going")}
             </span>
           </div>
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-2xl font-bold text-slate-900">{Math.round(stats.avgProtein)}</span>
-            <span className="text-xs text-slate-400">/ {stats.proteinTarget}g</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-0.5">
+              <span className="text-3xl font-extrabold text-slate-900">{Math.round(stats.avgProtein)}</span>
+              <span className="text-lg font-bold text-slate-400">g</span>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-slate-600">{Math.round(stats.avgProtein)} <span className="text-slate-400">of {stats.proteinTarget}g</span></p>
+              <p className="text-[10px] text-slate-400">{t("report_target")}</p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mb-3">{t("report_daily_avg_protein")}</p>
+          <p className="text-xs text-slate-500 mt-1 mb-2">{t("report_daily_avg_protein")}</p>
           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(stats.proteinProgress, 100)}%` }}
             />
           </div>
+          <p className="text-[10px] text-slate-400 mt-1.5">{t("report_protein")} ({t("report_avg_daily")})</p>
         </div>
 
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
+              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
             </div>
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-100 text-emerald-600">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">
               {stats.consistency}%
             </span>
           </div>
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-2xl font-bold text-slate-900">{stats.consistency}</span>
-            <span className="text-xs text-slate-400">%</span>
+          <div className="flex items-baseline gap-0.5 mb-1">
+            <span className="text-3xl font-extrabold text-slate-900">{stats.consistency}</span>
+            <span className="text-lg font-bold text-slate-400">%</span>
           </div>
-          <p className="text-xs text-slate-500 mb-3">{t("report_consistency_score")}</p>
-          <div className="flex gap-1">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-1.5 flex-1 rounded-full transition-all",
-                  i < Math.round(stats.consistency / 20) ? "bg-emerald-400" : "bg-slate-100"
-                )}
-              />
-            ))}
+          <p className="text-xs text-slate-500 mb-2">{t("report_consistency_score")}</p>
+          <div className="grid grid-cols-7 gap-1">
+            {dailyData.map((day, i) => {
+              const logged = day.calories > 0;
+              return (
+                <div key={i} className="flex items-center justify-center">
+                  <div className={cn(
+                    "w-6 h-6 rounded-md flex items-center justify-center",
+                    logged ? "bg-emerald-100" : "bg-slate-100"
+                  )}>
+                    {logged ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-slate-300" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+          <p className="text-[10px] text-slate-400 mt-2">{t("report_goal_consistency")}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 flex items-center justify-center">
-              <Droplets className="w-5 h-5 text-cyan-500" />
+          <div className="flex items-center justify-between mb-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 flex items-center justify-center">
+              <Droplets className="w-4.5 h-4.5 text-cyan-500" />
             </div>
             <span className={cn(
-              "text-xs font-medium px-2 py-1 rounded-full",
+              "text-[10px] font-medium px-2 py-0.5 rounded-full",
               stats.hydration >= 80
                 ? "bg-emerald-100 text-emerald-600"
                 : stats.hydration >= 50
@@ -477,18 +460,24 @@ export function ProfessionalWeeklyReport({
               {stats.hydration >= 80 ? t("report_status_well_done") : stats.hydration >= 50 ? t("report_status_good") : t("report_status_drink_more")}
             </span>
           </div>
-          <div className="flex items-baseline gap-1 mb-1">
-            <span className="text-2xl font-bold text-slate-900">{stats.avgWater.toFixed(1)}</span>
-            <span className="text-xs text-slate-400">/ 8 {t("report_unit_glasses")}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-extrabold text-slate-900">{stats.avgWater.toFixed(1)}</span>
+              <span className="text-sm font-medium text-slate-400">{t("report_unit_glasses")}</span>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-slate-600">{stats.avgWater.toFixed(1)} <span className="text-slate-400">of 8 {t("report_unit_glasses")}</span></p>
+              <p className="text-[10px] text-slate-400">{t("report_target")}</p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mb-3">{t("report_daily_avg_water")}</p>
-          <div className="flex gap-1">
+          <p className="text-xs text-slate-500 mt-1 mb-2">{t("report_daily_avg_water")}</p>
+          <div className="flex gap-1.5 justify-center">
             {[...Array(8)].map((_, i) => (
-              <div
+              <Droplets
                 key={i}
                 className={cn(
-                  "h-1.5 flex-1 rounded-full transition-all",
-                  i < Math.round(stats.avgWater) ? "bg-cyan-400" : "bg-slate-100"
+                  "w-4 h-4 transition-all",
+                  i < Math.round(stats.avgWater) ? "text-cyan-400" : "text-slate-200"
                 )}
               />
             ))}
@@ -498,31 +487,18 @@ export function ProfessionalWeeklyReport({
 
       <div className="grid grid-cols-4 gap-2">
         {[
-          { label: t("report_metric_consistency"), value: stats.consistency, color: "emerald" },
-          { label: t("report_metric_calories"), value: stats.calorieProgress, color: "amber" },
-          { label: t("report_metric_protein"), value: stats.proteinProgress, color: "violet" },
-          { label: t("report_metric_hydration"), value: stats.hydration, color: "sky" },
+          { label: t("report_daily_goals_met"), sublabel: t("report_goals_achieved_today"), value: stats.daysWithLogs, unit: "" },
+          { label: t("report_calories_today"), sublabel: "", value: Math.round(stats.avgCalories), unit: "" },
+          { label: t("report_protein_today"), sublabel: "", value: Math.round(stats.avgProtein), unit: "g" },
+          { label: t("report_water_today"), sublabel: "", value: stats.avgWater.toFixed(1), unit: "" },
         ].map((item) => (
-          <Card key={item.label} className="border-0 shadow-md">
+          <Card key={item.label} className="border-0 shadow-sm">
             <CardContent className="p-3 text-center">
-              <div className="relative w-12 h-12 mx-auto mb-2">
-                <svg className="w-12 h-12 -rotate-90">
-                  <circle cx="24" cy="24" r="20" fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
-                  <circle
-                    cx="24"
-                    cy="24"
-                    r="20"
-                    fill="none"
-                    stroke={`hsl(var(--${item.color}))`}
-                    strokeWidth="4"
-                    strokeDasharray={`${Math.min(item.value, 100) * 1.256} 125.6`}
-                    strokeLinecap="round"
-                    className="transition-all duration-700"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">{Math.min(item.value, 100)}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="text-2xl font-extrabold text-slate-900">
+                {item.value}{item.unit && <span className="text-sm font-bold text-slate-400">{item.unit}</span>}
+              </p>
+              <p className="text-[10px] font-medium text-slate-600 mt-1 leading-tight">{item.label}</p>
+              {item.sublabel && <p className="text-[9px] text-slate-400 mt-0.5">{item.sublabel}</p>}
             </CardContent>
           </Card>
         ))}
@@ -582,324 +558,104 @@ export function ProfessionalWeeklyReport({
         </CardContent>
       </Card>
 
-      {/* ── التحليلات (Analytics) Section ── */}
-      <Card className="border-0 shadow-lg overflow-hidden">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-4 h-4 text-primary" />
-            <h3 className="font-semibold text-sm">{t("report_analytics")}</h3>
-          </div>
 
-          {/* Water Intake Chart */}
-          <p className="text-xs text-muted-foreground font-medium mb-2">{t("report_analytics_water")}</p>
-          <div className="h-28 mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={waterChartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barSize={18}>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, "auto"]} />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                  formatter={(value: number) => [`${value} ${t("report_unit_glasses")}`, t("report_water")]}
+      <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+        {/* Score hero */}
+        <div className="relative px-5 pt-5 pb-4">
+          <div className="flex items-center gap-5">
+            <div className="relative shrink-0">
+              <svg viewBox="0 0 100 100" className="w-20 h-20 -rotate-90">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke={`url(#insightScoreGrad)`}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${stats.overallScore * 2.639} 263.9`}
+                  className="transition-all duration-1000"
                 />
-                <Bar dataKey="water" fill="#bae6fd" radius={[4, 4, 0, 0]}
-                  activeBar={{ fill: "#0ea5e9" }}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                <defs>
+                  <linearGradient id="insightScoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor={stats.overallScore >= 80 ? "#34d399" : stats.overallScore >= 60 ? "#fbbf24" : "#f87171"} />
+                    <stop offset="100%" stopColor={stats.overallScore >= 80 ? "#10b981" : stats.overallScore >= 60 ? "#f59e0b" : "#ef4444"} />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-extrabold text-slate-900 leading-none">{stats.overallScore}</span>
+                <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">{t("report_score_label")}</span>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold text-slate-900">{t("report_insights")}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{t("report_weekly_progress")}</p>
+              <div className={cn(
+                "inline-flex items-center gap-1.5 mt-2 text-xs font-semibold px-2.5 py-1 rounded-full",
+                stats.overallScore >= 80 ? "bg-emerald-50 text-emerald-600"
+                  : stats.overallScore >= 60 ? "bg-amber-50 text-amber-600"
+                  : "bg-red-50 text-red-600"
+              )}>
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  stats.overallScore >= 80 ? "bg-emerald-500" : stats.overallScore >= 60 ? "bg-amber-500" : "bg-red-500"
+                )} />
+                {getScoreLabel(stats.overallScore)}
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Macros Breakdown Chart */}
-          <p className="text-xs text-muted-foreground font-medium mb-2">{t("report_analytics_macros")}</p>
-          <div className="h-28">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={macroChartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barSize={10}>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, "auto"]} />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                  formatter={(value: number, name: string) => [`${value}g`, name]}
-                />
-                <Bar dataKey="protein" fill="#c4b5fd" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="carbs"   fill="#86efac" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="fat"     fill="#fcd34d" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Divider */}
+        <div className="h-px bg-slate-100 mx-5" />
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-violet-300 inline-block" />{t("report_protein")}</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-300 inline-block" />{t("report_carbs")}</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-300 inline-block" />{t("report_fat")}</span>
-          </div>
+        {/* Insight rows */}
+        <div className="px-5 py-3">
+          {insights.map((insight, idx) => {
+            const pct = insight.current != null && insight.target
+              ? Math.min((insight.current / insight.target) * 100, 100)
+              : null;
 
-          {/* BMI Gauge */}
-          {bmi != null && (() => {
-            const clampedBmi = Math.max(15, Math.min(40, bmi));
-            const angleDeg = ((clampedBmi - 15) / 25) * 180;
-            const angleRad = ((angleDeg - 180) * Math.PI) / 180;
-            const cx = 120, cy = 110, r = 90;
-            const needleX = cx + r * Math.cos(angleRad);
-            const needleY = cy + r * Math.sin(angleRad);
-            const segments = [
-              { start: 180, end: 210, color: "#6366f1" },
-              { start: 210, end: 240, color: "#3b82f6" },
-              { start: 240, end: 270, color: "#22c55e" },
-              { start: 270, end: 300, color: "#f59e0b" },
-              { start: 300, end: 330, color: "#f97316" },
-              { start: 330, end: 360, color: "#ef4444" },
-            ];
-            function polarToCartesian(pcx: number, pcy: number, pr: number, deg: number) {
-              const a = (deg * Math.PI) / 180;
-              return { x: pcx + pr * Math.cos(a), y: pcy + pr * Math.sin(a) };
-            }
-            function arcPath(pcx: number, pcy: number, pr: number, startDeg: number, endDeg: number) {
-              const s = polarToCartesian(pcx, pcy, pr, startDeg);
-              const e = polarToCartesian(pcx, pcy, pr, endDeg);
-              const large = endDeg - startDeg > 180 ? 1 : 0;
-              return `M ${s.x} ${s.y} A ${pr} ${pr} 0 ${large} 1 ${e.x} ${e.y}`;
-            }
-            const getBmiColor = (b: number) => b < 18.5 ? "#3b82f6" : b < 25 ? "#22c55e" : b < 30 ? "#f59e0b" : b < 35 ? "#f97316" : "#ef4444";
-            const bmiRanges = [
-              { label: `${t("underweight")} II`, range: "< 16.0",      color: "#6366f1" },
-              { label: `${t("underweight")} I`,  range: "16.0–18.4",   color: "#3b82f6" },
-              { label: t("normal"),              range: "18.5–24.9",   color: "#22c55e" },
-              { label: t("overweight"),          range: "25.0–29.9",   color: "#f59e0b" },
-              { label: `${t("obese")} I`,        range: "30.0–34.9",   color: "#f97316" },
-              { label: `${t("obese")} II`,       range: "35.0–39.9",   color: "#ef4444" },
-            ];
             return (
-              <div className="mt-5 pt-4 border-t border-gray-100">
-                <p className="text-xs text-muted-foreground font-medium mb-3">{t("bmi")} — مؤشر كتلة الجسم</p>
-                <svg viewBox="0 0 240 140" className="w-full max-w-xs mx-auto">
-                  <path d={arcPath(cx, cy, r, 180, 360)} fill="none" stroke="#e5e7eb" strokeWidth="18" strokeLinecap="butt" />
-                  {segments.map((seg, i) => (
-                    <path key={i} d={arcPath(cx, cy, r, seg.start, seg.end)} fill="none" stroke={seg.color} strokeWidth="18" strokeLinecap="butt" />
-                  ))}
-                  <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke="#1f2937" strokeWidth="2.5" strokeLinecap="round" />
-                  <circle cx={cx} cy={cy} r="6" fill="#1f2937" />
-                  <text x={cx} y={cy - 18} textAnchor="middle" fontSize="26" fontWeight="900" fill="#1f2937">{bmi.toFixed(1)}</text>
-                  <text x={cx} y={cy + 20} textAnchor="middle" fontSize="9" fill="#9ca3af">BMI (kg/m²)</text>
-                </svg>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 px-2">
-                  {bmiRanges.map((range, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: range.color }} />
-                      <span className="text-[10px] text-gray-500 truncate">{range.label}</span>
-                      <span className="text-[10px] text-gray-400 ml-auto">{range.range}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 text-center">
-                  <span className="text-xs font-semibold px-3 py-1 rounded-full text-white" style={{ background: getBmiColor(bmi) }}>
-                    {bmiLabel ?? (bmi < 18.5 ? t("underweight") : bmi < 25 ? t("normal") : bmi < 30 ? t("overweight") : bmi < 35 ? `${t("obese")} I` : `${t("obese")} II`)}
-                  </span>
-                </div>
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="border-0 shadow-md bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                <Target className="w-5 h-5 text-violet-600" />
-              </div>
-              <div>
-                <p className="text-xs text-violet-600 dark:text-violet-400">{t("report_protein")}</p>
-                <p className="text-lg font-bold text-violet-700 dark:text-violet-300">
-                  {Math.round(stats.avgProtein)}g
-                </p>
-                <p className="text-xs text-violet-500/70">/ {stats.proteinTarget}g {t("report_target")}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-md bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center">
-                <Droplets className="w-5 h-5 text-sky-600" />
-              </div>
-              <div>
-                <p className="text-xs text-sky-600 dark:text-sky-400">{t("report_water")}</p>
-                <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{Math.round(stats.avgWater)}</p>
-                <p className="text-xs text-sky-500/70">{t("report_glasses_per_day")}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border-0 shadow-lg overflow-hidden">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold text-sm">{t("report_insights")}</h3>
-            </div>
-            <div className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
-              stats.overallScore >= 80 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                : stats.overallScore >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-            )}>
-              <span>{stats.overallScore}</span>
-              <span className="font-normal opacity-70">/ 100</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {insights.filter(i => !dismissedInsights.has(i.id)).map((insight) => {
-              const isExpanded = expandedInsight === insight.id;
-              const pct = insight.current != null && insight.target
-                ? Math.min((insight.current / insight.target) * 100, 100)
-                : null;
-
-              return (
-                <div
-                  key={insight.id}
-                  className={cn(
-                    "rounded-xl border transition-all duration-200",
-                    insight.type === "success"
-                      ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900"
-                      : insight.type === "warning"
-                        ? "bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900"
-                        : "bg-sky-50 dark:bg-sky-950/30 border-sky-100 dark:border-sky-900"
-                  )}
-                >
-                  <div className="flex items-start gap-3 p-3">
+              <div key={insight.id}>
+                <div className="flex items-center gap-3 py-3">
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                    insight.type === "success" ? "bg-emerald-50"
+                      : insight.type === "warning" ? "bg-amber-50"
+                      : "bg-sky-50"
+                  )}>
                     <insight.icon
                       className={cn(
-                        "w-4 h-4 mt-0.5 shrink-0",
-                        insight.type === "success" ? "text-emerald-600" : insight.type === "warning" ? "text-amber-600" : "text-sky-600"
+                        "w-4 h-4",
+                        insight.type === "success" ? "text-emerald-500" : insight.type === "warning" ? "text-amber-500" : "text-sky-500"
                       )}
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground leading-snug">{insight.text}</p>
-
-                      {insight.trendLabel && (
-                        <div className={cn(
-                          "inline-flex items-center gap-1 mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                          insight.trend === "down" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : insight.trend === "up" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                            : "bg-muted text-muted-foreground"
-                        )}>
-                          {insight.trend === "up" ? <TrendingUp className="w-2.5 h-2.5" /> : insight.trend === "down" ? <TrendingDown className="w-2.5 h-2.5" /> : null}
-                          {insight.trendLabel}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-slate-800 leading-snug">{insight.text}</p>
+                    {pct !== null && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-700",
+                              insight.type === "success" ? "bg-emerald-500" : insight.type === "warning" ? "bg-amber-500" : "bg-sky-500"
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
-                      )}
-
-                      {isExpanded && insight.metric && (
-                        <div className="mt-3 space-y-1.5">
-                          {pct !== null && insight.current != null && (
-                            <div>
-                              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                                <span>{insight.current}{insight.unit}</span>
-                                <span>{t("report_target")}: {insight.target}{insight.unit}</span>
-                              </div>
-                              <div className="h-2 bg-white/60 dark:bg-black/20 rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full transition-all duration-700",
-                                    insight.type === "success" ? "bg-emerald-500" : insight.type === "warning" ? "bg-amber-500" : "bg-sky-500"
-                                  )}
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                          {insight.metric === "calories" && (
-                            <div className="flex items-end gap-0.5 h-10 mt-2">
-                              {dailyData.map((day, i) => {
-                                const h = day.calories > 0 ? Math.max(4, (day.calories / stats.calorieTarget) * 40) : 4;
-                                return (
-                                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
-                                    <div
-                                      className={cn(
-                                        "w-full rounded-sm transition-all",
-                                        day.calories >= stats.calorieTarget * 0.9 && day.calories <= stats.calorieTarget * 1.1
-                                          ? "bg-emerald-400"
-                                          : day.calories > stats.calorieTarget * 1.1
-                                            ? "bg-amber-400"
-                                            : day.calories > 0 ? "bg-sky-400" : "bg-muted"
-                                      )}
-                                      style={{ height: `${h}px` }}
-                                    />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {insight.metric === "hydration" && (
-                            <div className="flex items-end gap-0.5 h-10 mt-2">
-                              {dailyData.map((day, i) => {
-                                const h = day.water > 0 ? Math.max(4, (day.water / 8) * 40) : 4;
-                                return (
-                                  <div key={i} className="flex-1">
-                                    <div
-                                      className={cn("w-full rounded-sm", day.water >= 8 ? "bg-cyan-400" : day.water > 0 ? "bg-sky-300" : "bg-muted")}
-                                      style={{ height: `${h}px` }}
-                                    />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {insight.metric === "consistency" && (
-                            <div className="flex gap-1 mt-2">
-                              {dailyData.map((day, i) => (
-                                <div
-                                  key={i}
-                                  className={cn("flex-1 h-4 rounded-sm", day.calories > 0 ? "bg-emerald-400" : "bg-muted")}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {insight.metric && (
-                        <button
-                          onClick={() => setExpandedInsight(isExpanded ? null : insight.id)}
-                          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all"
-                        >
-                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setDismissedInsights(new Set([...dismissedInsights, insight.id]))}
-                        className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <span className="text-[10px] font-medium text-slate-400 tabular-nums shrink-0">{Math.round(pct)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-            {insights.filter(i => !dismissedInsights.has(i.id)).length === 0 && (
-              <div className="text-center py-6 space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-300 mx-auto" />
-                <p className="text-sm text-muted-foreground">{t("report_all_insights_reviewed")}</p>
-                {dismissedInsights.size > 0 && (
-                  <button
-                    onClick={() => setDismissedInsights(new Set())}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {t("report_show_again")}
-                  </button>
-                )}
+                {idx < insights.length - 1 && <div className="h-px bg-slate-50 ml-12" />}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            );
+          })}
+        </div>
+      </div>
 
       <Card className="border-0 shadow-lg overflow-hidden">
         <CardContent className="p-4">

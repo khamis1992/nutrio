@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Affiliate & Referral Workflow
  * 
  * Tests the complete affiliate program:
@@ -31,7 +31,7 @@ import {
   getTestTimestamp,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Affiliate & Referral Workflow', () => {
   let browser: Browser;

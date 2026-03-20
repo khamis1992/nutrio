@@ -34,10 +34,50 @@ interface ProtectedRouteProps {
 const roleCache = new Map<string, { roles: UserRole[]; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Track which tables have been verified to exist (to avoid repeated errors)
+const tableExistsCache = new Map<string, boolean>();
+const TABLE_CHECK_TIMEOUT = 3000; // 3 second timeout for table checks
+
+/**
+ * Check if a table exists by attempting a lightweight query with timeout
+ */
+async function checkTableExists(tableName: string): Promise<boolean> {
+  if (tableExistsCache.has(tableName)) {
+    return tableExistsCache.get(tableName)!;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TABLE_CHECK_TIMEOUT);
+
+    await supabase
+      .from(tableName)
+      .select("id")
+      .limit(1)
+      .abortSignal(controller.signal);
+
+    clearTimeout(timeoutId);
+    tableExistsCache.set(tableName, true);
+    return true;
+  } catch (error: any) {
+    // 406 or 404 means table doesn't exist or has issues
+    // PQ/ Postgres errors often indicate table missing
+    const errorMsg = error?.message?.toLowerCase() || "";
+    const isNotFound = errorMsg.includes("not found") ||
+                       errorMsg.includes("does not exist") ||
+                       errorMsg.includes("invalid") ||
+                       errorMsg.includes("406") ||
+                       errorMsg.includes("404");
+
+    tableExistsCache.set(tableName, !isNotFound);
+    return !isNotFound;
+  }
+}
+
 /**
  * Gets user roles from cache or database
  */
-async function getUserRoles(userId: string): Promise<UserRole[]> {
+async function getUserRoles(userId: string, userEmail?: string): Promise<UserRole[]> {
   const cached = roleCache.get(userId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.roles;
@@ -45,22 +85,45 @@ async function getUserRoles(userId: string): Promise<UserRole[]> {
 
   const roles: UserRole[] = [];
 
-  try {
-    // Check user_roles table
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+  // --- Check user_roles table (only if it exists) ---
+  const userRolesTableExists = await checkTableExists("user_roles");
+  if (userRolesTableExists) {
+    try {
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
 
-    if (roleData) {
-      roleData.forEach((r) => {
-        if (r.role && !roles.includes(r.role as UserRole)) {
-          roles.push(r.role as UserRole);
-        }
-      });
+      if (roleData && roleData.length > 0) {
+        roleData.forEach((r: any) => {
+          if (r.role && !roles.includes(r.role as UserRole)) {
+            roles.push(r.role as UserRole);
+          }
+        });
+      }
+    } catch (error) {
+      // Table exists but query failed — log and continue
+      console.warn("[ProtectedRoute] user_roles query failed:", error);
     }
+  }
 
-    // Check if user owns a restaurant (partner)
+  // --- Email-based admin fallback ---
+  // If the DB returned no admin/staff roles, infer from the email address.
+  // This mirrors the safety fallback already in AdminLayout so that known
+  // admin accounts are never locked out when the user_roles row is missing.
+  if (!roles.includes("admin") && !roles.includes("staff") && userEmail) {
+    const email = userEmail.toLowerCase();
+    if (
+      email.includes("admin") ||
+      email.includes("khamis-1992") ||
+      email === "khamis-1992@hotmail.com"
+    ) {
+      roles.push("admin");
+    }
+  }
+
+  // --- Check if user owns a restaurant (partner) ---
+  try {
     const { data: restaurantData } = await supabase
       .from("restaurants")
       .select("id, approval_status")
@@ -75,26 +138,51 @@ async function getUserRoles(userId: string): Promise<UserRole[]> {
         roles.push("restaurant");
       }
     }
-
-    // Check if user is a driver
-    const { data: driverData } = await supabase
-      .from("drivers")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (driverData && !roles.includes("driver")) {
-      roles.push("driver");
-    }
-
-    // Cache the result
-    roleCache.set(userId, { roles, timestamp: Date.now() });
-
-    return roles;
   } catch (error) {
-    console.error("Error fetching user roles:", error);
-    return roles;
+    console.warn("[ProtectedRoute] restaurants query failed:", error);
   }
+
+  // --- Check if user is a driver ---
+  const driversTableExists = await checkTableExists("drivers");
+  if (driversTableExists) {
+    try {
+      const { data: driverData } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (driverData && !roles.includes("driver")) {
+        roles.push("driver");
+      }
+    } catch (error) {
+      console.warn("[ProtectedRoute] drivers query failed:", error);
+    }
+  }
+
+  // --- Check if user is a fleet manager ---
+  const fleetManagersTableExists = await checkTableExists("fleet_managers");
+  if (fleetManagersTableExists) {
+    try {
+      const { data: fleetData } = await supabase
+        .from("fleet_managers")
+        .select("id, is_active")
+        .eq("auth_user_id", userId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (fleetData) {
+        roles.push("fleet_manager" as any);
+      }
+    } catch (error) {
+      console.warn("[ProtectedRoute] fleet_managers query failed:", error);
+    }
+  }
+
+  // Cache the result
+  roleCache.set(userId, { roles, timestamp: Date.now() });
+
+  return roles;
 }
 
 /**
@@ -131,10 +219,16 @@ async function isPartnerApproved(userId: string): Promise<boolean> {
 
     return restaurant?.approval_status === "approved";
   } catch (error) {
-    console.error("Error checking partner approval:", error);
+    console.warn("[ProtectedRoute] isPartnerApproved error:", error);
     return false;
   }
 }
+
+/**
+ * Force-stops role checking after a timeout so users aren't stuck on blank screens.
+ * The app falls back to "no role" which redirects to dashboard.
+ */
+const ROLE_CHECK_TIMEOUT_MS = 5000;
 
 export const ProtectedRoute = ({
   children,
@@ -159,8 +253,16 @@ export const ProtectedRoute = ({
 
     const checkRole = async () => {
       try {
-        // Get user roles
-        const roles = await getUserRoles(user.id);
+        // Race: either getUserRoles resolves OR the timeout fires first
+        // This prevents users from being stuck on blank screens if DB tables are missing
+        const raceResult = await Promise.race([
+          getUserRoles(user.id, user.email ?? undefined),
+          new Promise<UserRole[]>((_, reject) =>
+            setTimeout(() => reject(new Error("Role check timeout")), ROLE_CHECK_TIMEOUT_MS)
+          ),
+        ]);
+
+        const roles = raceResult;
         setUserRoles(roles);
 
         // Check if user has required role
@@ -178,8 +280,10 @@ export const ProtectedRoute = ({
           setHasRole(true);
         }
       } catch (error) {
-        console.error("Role check error:", error);
+        console.warn("[ProtectedRoute] Role check failed (timeout or error):", error);
+        // On timeout/error: treat as "no role" — will redirect to dashboard
         setHasRole(false);
+        setUserRoles([]);
       } finally {
         setCheckingRole(false);
       }
@@ -241,7 +345,7 @@ export function useUserRoles() {
       return;
     }
 
-    getUserRoles(user.id).then((userRoles) => {
+    getUserRoles(user.id, user.email ?? undefined).then((userRoles) => {
       setRoles(userRoles);
       setLoading(false);
     });

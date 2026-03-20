@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Payouts Workflow
  * 
  * Tests the complete payout process:
@@ -30,7 +30,7 @@ import {
   elementExists,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Payouts Workflow', () => {
   let browser: Browser;

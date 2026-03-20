@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Complete Order Lifecycle
  * 
  * Tests the full order flow:
@@ -25,7 +25,7 @@ import {
   elementExists,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Order Lifecycle Workflow', () => {
   let browser: Browser;

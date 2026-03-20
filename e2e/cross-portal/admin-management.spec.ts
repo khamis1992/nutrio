@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Admin Management Workflow
  * 
  * Tests admin oversight across all portals:
@@ -23,7 +23,7 @@ import {
   safeClick,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Admin Management Workflow', () => {
   let browser: Browser;

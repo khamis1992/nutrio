@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 
 test('App loads correctly', async ({ page }) => {
-  await page.goto('http://localhost:8080/auth');
+  await page.goto('http://localhost:5173/auth');
   
   // Wait for the page to load
   await page.waitForLoadState('networkidle');

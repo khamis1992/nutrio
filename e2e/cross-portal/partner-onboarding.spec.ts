@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Partner Onboarding Workflow
  * 
  * Tests the partner approval flow:
@@ -23,7 +23,7 @@ import {
   elementExists,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Partner Onboarding Workflow', () => {
   let browser: Browser;

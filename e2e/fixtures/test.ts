@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Playwright Test Fixtures
  * Extends base test with authentication and utilities
  */

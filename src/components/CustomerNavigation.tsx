@@ -61,7 +61,7 @@ export function CustomerNavigation() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50 safe-bottom-nav">
+    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50 safe-bottom-nav">
       <div className="container mx-auto px-4">
         <div className="flex justify-around items-center h-16">
           {navItems.map((item) => {

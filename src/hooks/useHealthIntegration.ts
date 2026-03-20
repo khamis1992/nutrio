@@ -151,7 +151,7 @@ export function useHealthIntegration() {
           .select("access_token, expires_at")
           .eq("user_id", user.id)
           .eq("provider", "google_fit")
-          .single();
+          .maybeSingle();
         
         if (tokens?.access_token) {
           const workouts = await fetchGoogleFitWorkouts(
@@ -224,7 +224,7 @@ export function useHealthIntegration() {
       .select("access_token, expires_at")
       .eq("user_id", user.id)
       .eq("provider", "google_fit")
-      .single();
+      .maybeSingle();
     
     if (!tokens?.access_token) {
       console.log("No Google Fit tokens found");

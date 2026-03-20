@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Portal Integration Test: Driver Delivery Workflow
  * 
  * Tests the driver assignment and delivery flow:
@@ -27,7 +27,7 @@ import {
   elementExists,
 } from './utils';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
 test.describe('Cross-Portal: Driver Delivery Workflow', () => {
   let browser: Browser;

@@ -1,33 +1,33 @@
-/**
+﻿/**
  * Test Utilities and Helpers
  * Shared functions for all E2E tests
  */
 
 import { Page, expect } from '@playwright/test';
 
-// Test user credentials
+// Test user credentials (match actual accounts)
 export const TEST_USERS = {
   customer: {
-    email: 'khamis--1992@hotmail.com',
-    password: 'Khamees1992#',
+    email: 'eng.aljabor@gmail.com',
+    password: '123456789',
   },
   admin: {
-    email: 'admin@nutrio.com',
+    email: 'khamis-1992@hotmail.com',
     password: 'Khamees1992#',
   },
   partner: {
-    email: 'partner@nutrio.com',
-    password: 'Partner123!',
+    email: 'khamis4everever@gmail.com',
+    password: '123456789',
   },
   driver: {
     email: 'driver@nutriofuel.com',
-    password: 'Driver123!',
+    password: '123456789',
   },
 };
 
 // Portal URLs
 export const URLS = {
-  base: 'http://localhost:8080',
+  base: 'http://localhost:5173',
   auth: '/auth',
   dashboard: '/dashboard',
   meals: '/meals',

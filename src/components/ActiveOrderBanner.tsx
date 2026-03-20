@@ -224,8 +224,11 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         };
       });
 
+      // Deduplicate orders by ID just in case
+      const uniqueOrders = Array.from(new Map(orders.map(o => [o.id, o])).values());
+
       // Fetch ETA for out_for_delivery orders
-      const outForDeliveryIds = orders
+      const outForDeliveryIds = uniqueOrders
         .filter(o => o.order_status === "out_for_delivery")
         .map(o => o.id);
 
@@ -237,7 +240,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
         if (jobs) {
           for (const job of jobs) {
-            const order = orders.find(o => o.id === job.schedule_id);
+            const order = uniqueOrders.find(o => o.id === job.schedule_id);
             if (order && job.picked_up_at && job.estimated_distance_km) {
               const totalMinutes = (job.estimated_distance_km / 30) * 60;
               const elapsedMinutes = (Date.now() - new Date(job.picked_up_at).getTime()) / 60000;
@@ -247,7 +250,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         }
       }
 
-      setActiveOrders(orders);
+      setActiveOrders(uniqueOrders);
     } catch (err) {
       console.error("Error fetching active orders:", err);
     } finally {

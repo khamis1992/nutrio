@@ -16,6 +16,8 @@ import { checkIPLocation } from "@/lib/ipCheck";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
 
+type AuthView = "welcome" | "signin" | "signup" | "forgot" | "otp";
+
 const Auth = () => {
   const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
@@ -81,26 +83,52 @@ const Auth = () => {
     const checkUserRole = async () => {
       if (!user) return;
       setCheckingRole(true);
+
+      // Race a query against a 5s timeout — prevents hanging when tables don't exist
+      const raceWithTimeout = (query: () => Promise<any>): Promise<any> => {
+        return Promise.race([
+          query(),
+          new Promise<any>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
+        ]);
+      };
+
       try {
-        const { data: adminRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-        if (adminRole) { navigate("/admin", { replace: true }); return; }
+        // Admin role (with email-based fallback for when table is missing)
+        const adminRole = await raceWithTimeout(() =>
+          supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+        );
+        if (adminRole?.data || user.email === "khamis-1992@hotmail.com") {
+          navigate("/admin", { replace: true }); setCheckingRole(false); return;
+        }
 
-        const { data: staffRole } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "staff").maybeSingle();
-        if (staffRole) { navigate("/admin", { replace: true }); return; }
+        // Staff role
+        const staffRole = await raceWithTimeout(() =>
+          supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "staff").maybeSingle()
+        );
+        if (staffRole?.data) {
+          navigate("/admin", { replace: true }); setCheckingRole(false); return;
+        }
 
-        const { data: fleetManager } = await supabase.from("fleet_managers").select("id, role").eq("auth_user_id", user.id).eq("is_active", true).maybeSingle();
-        if (fleetManager) { navigate("/fleet", { replace: true }); return; }
+        // Fleet manager (with email-based fallback)
+        const fleetManager = await raceWithTimeout(() =>
+          supabase.from("fleet_managers").select("id, role").eq("auth_user_id", user.id).eq("is_active", true).maybeSingle()
+        );
+        if (fleetManager?.data || user.email === "admin@nutrio.com") {
+          navigate("/fleet", { replace: true }); setCheckingRole(false); return;
+        }
 
+        // Driver (drivers table should exist — no timeout needed)
         const { data: driver } = await supabase.from("drivers").select("id, approval_status").eq("user_id", user.id).maybeSingle();
         if (driver) {
           navigate(driver.approval_status === "approved" ? "/driver" : "/driver/onboarding", { replace: true });
-          return;
+          setCheckingRole(false); return;
         }
 
+        // Restaurant partner (restaurants table should exist — no timeout needed)
         const { data: restaurant } = await supabase.from("restaurants").select("id, approval_status").eq("owner_id", user.id).maybeSingle();
         if (restaurant) {
           navigate(restaurant.approval_status === "approved" ? "/partner" : "/partner/pending-approval", { replace: true });
-          return;
+          setCheckingRole(false); return;
         }
 
         const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";

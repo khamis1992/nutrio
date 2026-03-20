@@ -54,7 +54,6 @@ import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import { useSmartAdjustments, type AdjustmentSuggestion } from "@/hooks/useSmartAdjustments";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { ProfessionalWeeklyReport } from "@/components/progress/ProfessionalWeeklyReport";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from "@/lib/nutrition-calculator";
@@ -558,101 +557,123 @@ const ProgressDashboard = () => {
               </div>
             </div>
 
-            {/* Stats Grid — 4 colored cards */}
+            {/* Ring Gauge Cards — Calories & Protein */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Calories — Orange */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 shadow-md">
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                    <Flame className="w-4 h-4 text-white" />
+              {/* Calories Ring */}
+              <div className="relative rounded-2xl bg-white p-4 shadow-sm flex flex-col items-center">
+                <p className="text-sm font-semibold text-slate-700 mb-3">{t("calories")}</p>
+                <div className="relative w-28 h-28">
+                  <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                    <circle
+                      cx="50" cy="50" r="42" fill="none"
+                      stroke="url(#calGrad)" strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray={`${Math.min(calorieProgress, 100) * 2.639} 263.9`}
+                      className="transition-all duration-700"
+                    />
+                    <defs>
+                      <linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#f97316" />
+                        <stop offset="100%" stopColor="#ef4444" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-300/40">
+                      <Flame className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                  <span className="text-xs text-white/80 font-medium">{t("calories")}</span>
                 </div>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-2xl font-bold">{todayCalories}</span>
-                  <span className="text-sm text-white/60">/ {dailyCalorieTarget}</span>
+                <div className="mt-3 text-center">
+                  <p className="text-lg font-bold text-slate-900">
+                    <span className="text-orange-500">{todayCalories}</span>
+                    <span className="text-slate-400 text-sm font-normal">/{dailyCalorieTarget}</span>
+                  </p>
+                  <p className="text-xs text-slate-400">{calorieProgress}% {t("of_goal")}</p>
                 </div>
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min(calorieProgress, 100)}%` }} />
-                </div>
-                <p className="text-xs text-white/60 mt-2">{calorieProgress}% {t("of_goal")}</p>
               </div>
 
-              {/* Protein — Blue */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 shadow-md">
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                    <Target className="w-4 h-4 text-white" />
+              {/* Protein Ring */}
+              <div className="relative rounded-2xl bg-white p-4 shadow-sm flex flex-col items-center">
+                <p className="text-sm font-semibold text-slate-700 mb-3">{t("protein")}</p>
+                <div className="relative w-28 h-28">
+                  <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                    <circle
+                      cx="50" cy="50" r="42" fill="none"
+                      stroke="url(#proGrad)" strokeWidth="8" strokeLinecap="round"
+                      strokeDasharray={`${Math.min(proteinProgress, 100) * 2.639} 263.9`}
+                      className="transition-all duration-700"
+                    />
+                    <defs>
+                      <linearGradient id="proGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#6366f1" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-300/40">
+                      <Target className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                  <span className="text-xs text-white/80 font-medium">{t("protein")}</span>
                 </div>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-2xl font-bold">{todayProtein}g</span>
-                  <span className="text-sm text-white/60">/ {dailyProteinTarget}g</span>
+                <div className="mt-3 text-center">
+                  <p className="text-lg font-bold text-slate-900">
+                    <span className="text-blue-500">{todayProtein}g</span>
+                    <span className="text-slate-400 text-sm font-normal">/{dailyProteinTarget}g</span>
+                  </p>
+                  <p className="text-xs text-slate-400">{proteinProgress}% {t("of_goal")}</p>
                 </div>
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min(proteinProgress, 100)}%` }} />
-                </div>
-                <p className="text-xs text-white/60 mt-2">{proteinProgress}% {t("of_goal")}</p>
-              </div>
-
-              {/* Burned — Amber */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 shadow-md">
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                    <Flame className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-xs text-white/80 font-medium">{t("burned")}</span>
-                </div>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-2xl font-bold">{todayBurned}</span>
-                  <span className="text-sm text-white/60">cal</span>
-                </div>
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${Math.min((todayBurned / 500) * 100, 100)}%` }} />
-                </div>
-                <p className="text-xs text-white/60 mt-2">{todayBurned > 0 ? t("from_activities") : t("no_activities_yet")}</p>
-              </div>
-
-              {/* Streak — Emerald */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 shadow-md">
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full" />
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                    <Flame className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-xs text-white/80 font-medium">{t("streak")}</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold">{streaks?.logging?.currentStreak || 0}</span>
-                  <span className="text-sm text-white/60">{t("days")}</span>
-                </div>
-                <p className="text-xs text-white/60 mt-2">{t("best_streak")}: {streaks?.logging?.bestStreak || 0} {t("days")}</p>
               </div>
             </div>
 
+            {/* Burned — Horizontal bar */}
+            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center gap-4 px-4 py-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-semibold text-slate-700">{t("burned")}</span>
+                </div>
+                <div className="flex-1 h-2 rounded-full bg-amber-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-700"
+                    style={{ width: `${Math.min((todayBurned / 500) * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="shrink-0 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-sm font-bold px-3 py-1 rounded-lg">
+                  {todayBurned} cal
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 px-4 pb-3 -mt-1">{todayBurned > 0 ? t("from_activities") : t("no_activities_yet")}</p>
+            </div>
 
             {/* Meal Quality */}
             {!qualityLoading && (
-              <Card className="border-0 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-lg">
-                        {averageScore || 0}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900">{t("meal_quality")}</p>
-                        <p className="text-sm text-slate-500">{t("todays_score")}</p>
+              <div className="rounded-2xl bg-white shadow-sm">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <p className="text-base font-bold text-slate-900">{t("meal_quality")}</p>
+                    <p className="text-xs text-slate-400">{t("todays_score")}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-11 h-11">
+                      <svg viewBox="0 0 44 44" className="w-full h-full -rotate-90">
+                        <circle cx="22" cy="22" r="18" fill="none" stroke="#d1fae5" strokeWidth="4" />
+                        <circle
+                          cx="22" cy="22" r="18" fill="none"
+                          stroke="#10b981" strokeWidth="4" strokeLinecap="round"
+                          strokeDasharray={`${Math.min((averageScore || 0) * 1.131, 113.1)} 113.1`}
+                          className="transition-all duration-700"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold text-emerald-600">{averageScore || 0}</span>
                       </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-300" />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {/* Recommendation */}
@@ -903,6 +924,21 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated, setGoa
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
+      {/* Create New Goal Button */}
+      <button
+        onClick={() => setShowCreateGoal(true)}
+        className="w-full flex items-center gap-4 bg-white rounded-2xl px-4 py-3.5 shadow-sm active:scale-[0.98] transition-transform"
+      >
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Plus className="w-5 h-5 text-primary" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-[15px] font-semibold text-slate-900">{t("create_new_goal")}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{t("create_goal_description")}</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+      </button>
+
       {/* Hero Goal Card */}
       {currentGoal ? (
         <div className={cn("relative overflow-hidden rounded-2xl text-white p-5 shadow-md", currentGoal.bgColor)}>
@@ -1035,265 +1071,350 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated, setGoa
       </Card>
 
       {/* Smart Adjustments */}
-      <Card className="border-0 shadow-sm bg-gradient-to-r from-emerald-50 to-teal-50 overflow-hidden">
-        <div className="p-4">
-          {/* Header row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white">
-                <Sparkles className="w-5 h-5" />
+      <div className="rounded-2xl bg-white overflow-hidden shadow-sm">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <Target className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-[15px]">{t("smart_adjustments")}</h3>
+              <p className="text-xs text-slate-400">
+                {suggestions.length > 0
+                  ? t("suggestions_based_on_days", { count: suggestions.length, plural: suggestions.length !== 1 ? "s" : "", days: suggestions[0]?.daysAnalyzed ?? 0 })
+                  : t("goal_optimization")}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {adjustHistory.length > 0 && (
+              <button
+                className="text-slate-400 hover:text-slate-600 p-1 transition-colors"
+                onClick={() => setShowHistory(h => !h)}
+              >
+                <History className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              role="switch"
+              aria-checked={smartAdjustment}
+              onClick={() => setSmartAdjustment(!smartAdjustment)}
+              className={cn(
+                "relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-300",
+                smartAdjustment ? "bg-emerald-500" : "bg-slate-300"
+              )}
+            >
+              <span className={cn(
+                "absolute text-[9px] font-bold uppercase tracking-wide transition-opacity duration-200",
+                smartAdjustment ? "left-2 text-white opacity-100" : "left-2 text-white opacity-0"
+              )}>ON</span>
+              <span className={cn(
+                "absolute text-[9px] font-bold uppercase tracking-wide transition-opacity duration-200",
+                !smartAdjustment ? "right-2 text-slate-500 opacity-100" : "right-2 text-slate-500 opacity-0"
+              )}>OFF</span>
+              <span className={cn(
+                "inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-300",
+                smartAdjustment ? "translate-x-8" : "translate-x-1"
+              )} />
+            </button>
+          </div>
+        </div>
+
+        {/* History panel */}
+        {showHistory && adjustHistory.length > 0 && (
+          <div className="mx-5 mb-3 pt-3 border-t border-slate-100">
+            <p className="text-[10px] font-semibold text-slate-400 mb-2 uppercase tracking-wide">{t("applied_history")}</p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {adjustHistory.slice(0, 8).map(h => (
+                <div key={h.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2">
+                  <div>
+                    <p className="text-xs font-medium text-slate-700">{h.field.replace(/_/g, " ").replace("target", "").trim()}</p>
+                    <p className="text-xs text-slate-400">
+                      {h.oldValue} → <span className="text-emerald-600 font-semibold">{h.newValue}</span>
+                      {" · "}{new Date(h.appliedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </p>
+                  </div>
+                  {h.feedback ? (
+                    <span className="text-xs text-slate-400">{h.feedback === "helpful" ? "👍" : "👎"}</span>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button className="text-slate-300 hover:text-emerald-500 transition-colors" onClick={() => { recordFeedback(h.id, "helpful"); setFeedbackId(h.id); }}>
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button className="text-slate-300 hover:text-red-400 transition-colors" onClick={() => { recordFeedback(h.id, "not_helpful"); setFeedbackId(h.id); }}>
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Suggestions */}
+        {smartAdjustment && (
+          <div className="px-5 pb-5 space-y-3">
+            {adjustLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400 py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {t("analyzing_21_days")}
+              </div>
+            ) : suggestions.length === 0 ? (
+              <div className="text-sm text-slate-500 text-center py-6 space-y-1">
+                <p className="font-medium">
+                  {activeGoal ? t("not_enough_data") : t("no_active_goal")}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {activeGoal ? t("log_meals_4_days") : t("set_nutrition_goal_first")}
+                </p>
+              </div>
+            ) : (
+              <>
+                {highConfidenceSuggestions.length > 1 && (
+                  <button
+                    className="w-full flex items-center justify-between bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl px-4 py-2.5 transition-colors active:scale-[0.98]"
+                    disabled={applyingAll}
+                    onClick={applyAllHighConfidence}
+                  >
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <CheckCheck className="w-4 h-4" />
+                      {t("apply")} {highConfidenceSuggestions.length} {t("high_confidence_changes")}
+                    </div>
+                    {applyingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                )}
+
+                {suggestions.map((s) => {
+                  const unit = s.field.includes("calorie") ? " kcal" : "g";
+                  const diff = s.suggestedValue - s.currentValue;
+                  const isExpanded = expandedImpact === s.id;
+                  const pct = s.confidenceScore;
+                  const nutrientName = s.field.replace("_target_g", "").replace("daily_calorie_target", "calories").replace(/_/g, " ");
+
+                  return (
+                    <div key={s.id} className="rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden">
+                      <div className="p-4">
+                        {/* Top badges */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-1.5">
+                            {s.id === "on-track" ? (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                <CheckCheck className="w-3 h-3" /> {t("on_track")}
+                              </span>
+                            ) : s.safetyBlock ? (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                <ShieldAlert className="w-3 h-3" /> {t("safety_tip")}
+                              </span>
+                            ) : (
+                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", {
+                                "bg-emerald-100 text-emerald-700": s.confidence === "high",
+                                "bg-amber-100 text-amber-700": s.confidence === "medium",
+                                "bg-slate-200 text-slate-500": s.confidence === "low",
+                              })}>
+                                {s.confidence === "high" ? t("high_confidence") : s.confidence === "medium" ? t("suggestion") : t("exploratory")}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 capitalize">{t(s.category)}</span>
+                          </div>
+                          <button className="text-slate-300 hover:text-slate-500 p-0.5 transition-colors" onClick={() => dismiss(s.id)}>
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Gauge + Info layout */}
+                        <div className="flex gap-4">
+                          {/* Gauge ring */}
+                          <div className="shrink-0 flex flex-col items-center">
+                            <div className="relative w-20 h-20">
+                              <svg viewBox="0 0 80 80" className="w-20 h-20 -rotate-90">
+                                <circle cx="40" cy="40" r="32" fill="none" stroke="#f1f5f9" strokeWidth="6" />
+                                <circle
+                                  cx="40" cy="40" r="32"
+                                  fill="none"
+                                  stroke="url(#gaugeGradLight)"
+                                  strokeWidth="6"
+                                  strokeLinecap="round"
+                                  strokeDasharray={`${Math.min(pct, 100) * 2.01} 201`}
+                                  className="transition-all duration-700"
+                                />
+                                <defs>
+                                  <linearGradient id="gaugeGradLight" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#34d399" />
+                                    <stop offset="100%" stopColor="#10b981" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-lg font-extrabold text-slate-800 leading-none">{pct}%</span>
+                              </div>
+                            </div>
+                            <p className="text-[9px] text-slate-400 text-center mt-1 capitalize">{nutrientName} · {t("high_confidence")}</p>
+                          </div>
+
+                          {/* Info side */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 mb-1">{s.label}</p>
+                            <p className="text-xs text-slate-500 leading-relaxed">{s.reason}</p>
+                          </div>
+                        </div>
+
+                        {/* Step-down journey */}
+                        <div className="mt-4 pt-3 border-t border-slate-200">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">{t("target_step_down_journey")}</p>
+                          <div className="flex items-center gap-1">
+                            <div className="flex flex-col items-center">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
+                              <p className="text-[9px] text-emerald-600 font-semibold mt-1">{s.currentValue}{unit}</p>
+                              <p className="text-[8px] text-slate-400">{t("current_average")}</p>
+                            </div>
+                            <div className="flex-1 h-px bg-gradient-to-r from-emerald-400 to-teal-400 relative mx-1">
+                              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded text-[9px] text-teal-700 font-semibold whitespace-nowrap">
+                                {diff > 0 ? "↑" : "↓"} {diff > 0 ? "+" : ""}{diff}{unit}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <div className="w-2.5 h-2.5 rounded-full bg-teal-500 ring-2 ring-teal-100" />
+                              <p className="text-[9px] text-teal-600 font-semibold mt-1">{s.suggestedValue}{unit}</p>
+                              <p className="text-[8px] text-slate-400">{t("smart_goal")}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Estimated Benefits */}
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">{t("estimated_benefits")}</p>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {[
+                              { label: t("habit_consistency"), value: "+18%" },
+                              { label: t("reduced_daily_pressure") },
+                              { label: t("sustained_support") },
+                            ].map((b, i) => (
+                              <div key={i} className="bg-white border border-slate-100 rounded-xl px-2 py-2 text-center">
+                                {b.value && <p className="text-xs font-bold text-emerald-600 mb-0.5">{b.value}</p>}
+                                <p className="text-[9px] text-slate-500 leading-tight">{b.label}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Footer: Impact + Apply */}
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-200">
+                          <button
+                            className="flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-700 transition-colors active:scale-[0.98]"
+                            onClick={() => setExpandedImpact(isExpanded ? null : s.id)}
+                          >
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            {isExpanded ? t("hide_impact") : t("view_impact_projection")}
+                          </button>
+                          {!s.safetyBlock && (
+                            <button
+                              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors active:scale-[0.95] disabled:opacity-50"
+                              disabled={applyingId === s.id}
+                              onClick={() => applyAdjustment(s)}
+                            >
+                              {applyingId === s.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <>
+                                  <CheckCheck className="w-3.5 h-3.5" />
+                                  {t("apply").toUpperCase()}
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Expanded impact */}
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-slate-200 text-xs text-slate-500 leading-relaxed">
+                            {s.impact}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Milestones */}
+      <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-amber-200/50">
+                <Trophy className="w-4.5 h-4.5 text-white w-[18px] h-[18px]" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">{t("smart_adjustments")}</h3>
-                <p className="text-sm text-slate-500">
-                  {suggestions.length > 0
-                    ? t("suggestions_based_on_days", { count: suggestions.length, plural: suggestions.length !== 1 ? "s" : "", days: suggestions[0]?.daysAnalyzed ?? 0 })
-                    : t("goal_optimization")}
+                <h3 className="font-bold text-slate-900 text-sm">{t("milestones")}</h3>
+                <p className="text-[11px] text-slate-400">
+                  {milestones.filter(m => m.achieved).length} / {milestones.length} {t("achieved")}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {adjustHistory.length > 0 && (
-                <button
-                  className="text-slate-400 hover:text-slate-600 p-1"
-                  onClick={() => setShowHistory(h => !h)}
-                  title="View history"
-                >
-                  <History className="w-4 h-4" />
-                </button>
-              )}
-              <Switch checked={smartAdjustment} onCheckedChange={setSmartAdjustment} />
-            </div>
+            <span className="text-xs font-semibold text-amber-500 bg-amber-50 px-2.5 py-1 rounded-full">
+              {Math.round((milestones.filter(m => m.achieved).length / milestones.length) * 100)}%
+            </span>
           </div>
 
-          {/* History panel */}
-          {showHistory && adjustHistory.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-emerald-200/50">
-              <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">{t("applied_history")}</p>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {adjustHistory.slice(0, 8).map(h => (
-                  <div key={h.id} className="flex items-center justify-between bg-white/70 rounded-xl px-3 py-2">
-                    <div>
-                      <p className="text-xs font-medium text-slate-700">{h.field.replace(/_/g, " ").replace("target", "").trim()}</p>
-                      <p className="text-xs text-slate-400">
-                        {h.oldValue} → <span className="text-emerald-600 font-semibold">{h.newValue}</span>
-                        {" · "}{new Date(h.appliedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </p>
-                    </div>
-                    {h.feedback ? (
-                      <span className="text-xs text-slate-400">{h.feedback === "helpful" ? "👍" : "👎"}</span>
-                    ) : (
-                      <div className="flex gap-1">
-                        <button className="text-slate-300 hover:text-emerald-500" onClick={() => { recordFeedback(h.id, "helpful"); setFeedbackId(h.id); }}>
-                          <ThumbsUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button className="text-slate-300 hover:text-red-400" onClick={() => { recordFeedback(h.id, "not_helpful"); setFeedbackId(h.id); }}>
-                          <ThumbsDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Overall progress bar */}
+          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-700"
+              style={{ width: `${Math.round((milestones.filter(m => m.achieved).length / milestones.length) * 100)}%` }}
+            />
+          </div>
+        </div>
 
-          {/* Suggestions */}
-          {smartAdjustment && (
-            <div className="mt-4 pt-4 border-t border-emerald-200/50 space-y-3">
-              {adjustLoading ? (
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {t("analyzing_21_days")}
-                </div>
-              ) : suggestions.length === 0 ? (
-                <div className="text-sm text-slate-500 text-center py-3 space-y-1">
-                  <p className="font-medium">
-                    {activeGoal ? t("not_enough_data") : t("no_active_goal")}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {activeGoal
-                      ? t("log_meals_4_days")
-                      : t("set_nutrition_goal_first")}
-                  </p>
+        {/* Milestone rows */}
+        <div className="divide-y divide-slate-50">
+          {milestones.map((milestone) => (
+            <div
+              key={milestone.id}
+              className={cn(
+                "flex items-center gap-4 px-5 py-3.5 transition-colors",
+                milestone.achieved ? "bg-amber-50/60" : "bg-white"
+              )}
+            >
+              {/* Emoji badge */}
+              <div className={cn(
+                "w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0",
+                milestone.achieved ? "bg-amber-100" : "bg-slate-100"
+              )}>
+                {milestone.icon}
+              </div>
+
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "font-semibold text-sm truncate",
+                  milestone.achieved ? "text-slate-900" : "text-slate-500"
+                )}>
+                  {milestone.title}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">{milestone.description}</p>
+              </div>
+
+              {/* Status badge */}
+              {milestone.achieved ? (
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shadow-amber-200/60 shrink-0">
+                  <Award className="w-3.5 h-3.5 text-white" />
                 </div>
               ) : (
-                <>
-                  {/* Apply all high-confidence banner */}
-                  {highConfidenceSuggestions.length > 1 && (
-                    <button
-                      className="w-full flex items-center justify-between bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl px-4 py-2.5 transition-colors"
-                      disabled={applyingAll}
-                      onClick={applyAllHighConfidence}
-                    >
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <CheckCheck className="w-4 h-4" />
-                        {t("apply")} {highConfidenceSuggestions.length} {t("high_confidence_changes")}
-                      </div>
-                      {applyingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                  )}
-
-                  {/* Individual suggestion cards */}
-                  {suggestions.map((s) => {
-                    const unit = s.field.includes("calorie") ? " kcal" : "g";
-                    const diff = s.suggestedValue - s.currentValue;
-                    const isExpanded = expandedImpact === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        className={cn(
-                          "bg-white rounded-2xl border shadow-sm overflow-hidden transition-all",
-                          s.safetyBlock ? "border-amber-200" : s.confidence === "high" ? "border-emerald-200" : "border-slate-100"
-                        )}
-                      >
-                        <div className="p-4">
-                          {/* Top row: badges + dismiss */}
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {s.id === "on-track" ? (
-                                <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                  <CheckCheck className="w-3 h-3" /> {t("on_track")}
-                                </span>
-                              ) : s.safetyBlock ? (
-                                <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                  <ShieldAlert className="w-3 h-3" /> {t("safety_tip")}
-                                </span>
-                              ) : (
-                                <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full", {
-                                  "bg-emerald-100 text-emerald-700": s.confidence === "high",
-                                  "bg-amber-100 text-amber-700": s.confidence === "medium",
-                                  "bg-slate-100 text-slate-500": s.confidence === "low",
-                                })}>
-                                  {s.confidence === "high" ? t("high_confidence") : s.confidence === "medium" ? t("suggestion") : t("exploratory")}
-                                </span>
-                              )}
-                              <span className="text-xs text-slate-400 capitalize">{t(s.category)}</span>
-                            </div>
-                            <button
-                              className="text-slate-300 hover:text-slate-500 p-0.5"
-                              onClick={() => dismiss(s.id)}
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          {/* Confidence bar */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={cn("h-full rounded-full transition-all", {
-                                  "bg-emerald-500": s.confidence === "high",
-                                  "bg-amber-400": s.confidence === "medium",
-                                  "bg-slate-300": s.confidence === "low",
-                                })}
-                                style={{ width: `${s.confidenceScore}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-slate-400 tabular-nums w-8 text-right">{s.confidenceScore}%</span>
-                          </div>
-
-                          {/* Label + reason */}
-                          <p className="text-sm font-semibold text-slate-800 mb-1">{s.label}</p>
-                          <p className="text-sm text-slate-500 leading-snug">{s.reason}</p>
-
-                          {/* Value change */}
-                          <div className="flex items-center gap-2 mt-3">
-                            <span className="text-sm text-slate-400 line-through">{s.currentValue}{unit}</span>
-                            <span className="text-slate-300">→</span>
-                            <span className={cn("text-sm font-bold", s.direction === "down" ? "text-blue-600" : "text-emerald-600")}>
-                              {s.suggestedValue}{unit}
-                            </span>
-                            <span className={cn("text-xs ml-1", s.direction === "down" ? "text-blue-400" : "text-emerald-400")}>
-                              ({diff > 0 ? "+" : ""}{diff}{unit})
-                            </span>
-                          </div>
-
-                          {/* Impact toggle + Apply */}
-                          <div className="flex items-center justify-between mt-3 gap-2">
-                            <button
-                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                              onClick={() => setExpandedImpact(isExpanded ? null : s.id)}
-                            >
-                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                              {isExpanded ? t("hide_impact") : t("expected_impact")}
-                            </button>
-                            {!s.safetyBlock && (
-                              <Button
-                                size="sm"
-                                variant={s.confidence === "high" ? "default" : "outline"}
-                                className="rounded-xl text-xs h-8 px-4 shrink-0"
-                                disabled={applyingId === s.id}
-                                onClick={() => applyAdjustment(s)}
-                              >
-                                {applyingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t("apply")}
-                              </Button>
-                            )}
-                          </div>
-
-                          {/* Impact preview */}
-                          {isExpanded && (
-                            <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
-                              {s.impact}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
+                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                  <div className="w-3 h-3 rounded-full border-2 border-slate-300" />
+                </div>
               )}
             </div>
-          )}
+          ))}
         </div>
-      </Card>
-
-      {/* Milestones */}
-      <Card className="border-0 shadow-sm">
-        <div className="p-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white">
-              <Trophy className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-slate-900">{t("milestones")}</h3>
-              <p className="text-sm text-slate-500">{milestones.filter(m => m.achieved).length} / {milestones.length} {t("achieved")}</p>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            {milestones.map((milestone) => (
-              <div 
-                key={milestone.id}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-xl transition-colors",
-                  milestone.achieved ? "bg-amber-50" : "bg-slate-50"
-                )}
-              >
-                <div className="text-2xl">{milestone.icon}</div>
-                <div className="flex-1">
-                  <p className={cn("font-medium text-sm", milestone.achieved ? "text-slate-900" : "text-slate-600")}>
-                    {milestone.title}
-                  </p>
-                  <p className="text-xs text-slate-500">{milestone.description}</p>
-                </div>
-                {milestone.achieved && (
-                  <Award className="w-5 h-5 text-amber-500" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* Create New Goal Button */}
-      <Button 
-        onClick={() => setShowCreateGoal(true)}
-        className="w-full h-14 text-base font-semibold rounded-xl shadow-lg shadow-primary/25 bg-gradient-to-r from-primary to-primary/90 hover:opacity-90 transition-opacity"
-      >
-        <Plus className="w-5 h-5 mr-2" />
-        {t("create_new_goal")}
-      </Button>
+      </div>
 
       {/* Create Goal Modal */}
       {showCreateGoal && (

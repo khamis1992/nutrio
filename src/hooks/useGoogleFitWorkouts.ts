@@ -53,7 +53,7 @@ export function useGoogleFitWorkouts() {
       .select("provider, access_token, expires_at")
       .eq("user_id", user.id)
       .eq("provider", "google_fit")
-      .single();
+      .maybeSingle();
     
     if (data?.access_token) {
       // Check if token is valid
@@ -75,7 +75,7 @@ export function useGoogleFitWorkouts() {
       .select("refresh_token")
       .eq("user_id", user.id)
       .eq("provider", "google_fit")
-      .single();
+      .maybeSingle();
     
     if (!tokenData?.refresh_token) {
       console.log("No refresh token found");
@@ -199,7 +199,7 @@ export function useGoogleFitWorkouts() {
         .select("access_token, expires_at")
         .eq("user_id", user.id)
         .eq("provider", "google_fit")
-        .single();
+        .maybeSingle();
       
       if (!tokenData?.access_token) {
         console.log("No Google Fit token found");
@@ -220,7 +220,7 @@ export function useGoogleFitWorkouts() {
           .select("access_token, expires_at")
           .eq("user_id", user.id)
           .eq("provider", "google_fit")
-          .single();
+          .maybeSingle();
         
         if (!newTokenData?.access_token) return [];
         

@@ -14,9 +14,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE deliveries;
 ALTER TABLE drivers REPLICA IDENTITY FULL;
 ALTER PUBLICATION supabase_realtime ADD TABLE drivers;
 
--- Enable realtime for schedules table (order schedule updates)
-ALTER TABLE schedules REPLICA IDENTITY FULL;
-ALTER PUBLICATION supabase_realtime ADD TABLE schedules;
+-- Enable realtime for meal_schedules table (order schedule updates)
+ALTER TABLE meal_schedules REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE meal_schedules;
 
 -- Enable realtime for notifications table (push notification sync)
 ALTER TABLE notifications REPLICA IDENTITY FULL;
