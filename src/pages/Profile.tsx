@@ -79,7 +79,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useWallet, type TopUpPackage } from "@/hooks/useWallet";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard";
 import { WalletBalance } from "@/components/wallet/WalletBalance";
 import { TopUpPackages } from "@/components/wallet/TopUpPackages";
@@ -1320,10 +1320,7 @@ const Profile = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
-
-      <CustomerNavigation />
-    </div>
+      </main>    </div>
   );
 };
 

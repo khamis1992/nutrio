@@ -46,7 +46,7 @@ export default function FleetDashboard() {
       if (!data) return;
 
       const driverIds = [...new Set(data.map(r => r.driver_id).filter(Boolean))];
-      let nameMap: Record<string, string> = {};
+      const nameMap: Record<string, string> = {};
       if (driverIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")

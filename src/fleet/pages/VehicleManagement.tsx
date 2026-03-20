@@ -42,7 +42,7 @@ export default function VehicleManagement() {
   const fetchVehicles = async () => {
     setIsLoading(true);
     try {
-      let query = supabase
+      const query = supabase
         .from('vehicles')
         .select('*')
         .order('created_at', { ascending: false });

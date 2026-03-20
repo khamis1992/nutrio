@@ -28,7 +28,6 @@ import { useAffiliateProgram } from "@/hooks/useAffiliateProgram";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
 import { useProfile } from "@/hooks/useProfile";
 import { formatCurrency } from "@/lib/currency";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AffiliateLeaderboard } from "@/components/AffiliateLeaderboard";
 import { ReferralMilestones } from "@/components/ReferralMilestones";
 import { AffiliateApplicationCard } from "@/components/AffiliateApplicationCard";
@@ -218,9 +217,7 @@ export default function Affiliate() {
         <NativeHeader title={t("affiliate_title")} onBack={() => navigate(-1)} />
         <div className="px-4 pt-5 space-y-4">
           <AffiliateApplicationCard />
-        </div>
-        <CustomerNavigation />
-      </div>
+        </div>      </div>
     );
   }
 
@@ -239,9 +236,7 @@ export default function Affiliate() {
           <p className="text-sm text-muted-foreground max-w-xs">
             {t("affiliate_program_disabled_message")}
           </p>
-        </div>
-        <CustomerNavigation />
-      </div>
+        </div>      </div>
     );
   }
 
@@ -728,10 +723,7 @@ export default function Affiliate() {
             </button>
           </div>
         </div>
-      </BottomSheet>
-
-      <CustomerNavigation />
-    </div>
+      </BottomSheet>    </div>
   );
 }
 

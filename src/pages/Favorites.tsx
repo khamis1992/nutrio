@@ -19,7 +19,6 @@ import {
   TrendingUp,
   Calendar
 } from "lucide-react";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -368,10 +367,7 @@ const Favorites = () => {
             </>
           )}
         </Tabs>
-      </div>
-
-      <CustomerNavigation />
-    </div>
+      </div>    </div>
   );
 };
 

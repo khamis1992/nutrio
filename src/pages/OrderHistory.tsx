@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { OneTapReorder } from "@/components/OneTapReorder";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { isOrderModifiable } from "@/hooks/useOrderModification";
@@ -963,10 +962,7 @@ const OrderHistory = () => {
           // Refresh the scheduled meals after modification
           fetchScheduledMeals(0, false);
         }}
-      />
-
-      <CustomerNavigation />
-    </div>
+      />    </div>
   );
 };
 

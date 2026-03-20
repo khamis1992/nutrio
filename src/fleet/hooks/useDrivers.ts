@@ -53,7 +53,7 @@ export function useDrivers(options: UseDriversOptions = {}) {
 
       // Fetch vehicle plates for these drivers
       const driverIds = (data || []).map((d: any) => d.id);
-      let plateMap: Record<string, string> = {};
+      const plateMap: Record<string, string> = {};
       if (driverIds.length > 0) {
         const { data: vehicles } = await supabase
           .from("vehicles")
@@ -138,7 +138,7 @@ export function useFleetStats(cityIds?: string[]) {
     setIsLoading(true);
     try {
       // Fetch all drivers regardless of city selection
-      let driversQuery = supabase
+      const driversQuery = supabase
         .from("drivers")
         .select("approval_status, is_online, is_active", { count: "exact" });
       

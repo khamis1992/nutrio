@@ -21,7 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { downloadInvoice } from "@/services/walletService";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { formatCurrency } from "@/lib/currency";
 import { format } from "date-fns";
 
@@ -115,9 +115,7 @@ export default function InvoiceHistory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <CustomerNavigation />
-        <main className="container max-w-md mx-auto px-4 py-6">
+      <div className="min-h-screen bg-background">        <main className="container max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold">Invoice History</h1>
@@ -141,10 +139,7 @@ export default function InvoiceHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <CustomerNavigation />
-      
-      <main className="container max-w-md mx-auto px-4 py-6 pb-24">
+    <div className="min-h-screen bg-background">      <main className="container max-w-md mx-auto px-4 py-6 pb-24">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Invoice History</h1>

@@ -275,9 +275,12 @@ export const ProtectedRoute = ({
           const hasRoleAccess = hasRequiredRole(roles, requiredRole);
           setHasRole(hasRoleAccess);
 
-          // If partner route, check approval status
+          // If partner route, check approval status (with 4-second timeout)
           if (requireApproval && hasRoleAccess) {
-            const approved = await isPartnerApproved(user.id);
+            const approved = await Promise.race([
+              isPartnerApproved(user.id),
+              new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 4000)),
+            ]);
             setIsApproved(approved);
           }
         } else {

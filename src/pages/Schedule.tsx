@@ -9,7 +9,6 @@ import { useWallet } from "@/hooks/useWallet";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
@@ -483,9 +482,7 @@ const Schedule = () => {
           description={loginPromptConfig.description}
           actionLabel={loginPromptConfig.actionLabel}
           signUpLabel={loginPromptConfig.signUpLabel}
-        />
-        <CustomerNavigation />
-      </div>
+        />      </div>
     );
   }
 
@@ -998,10 +995,7 @@ const Schedule = () => {
         description={loginPromptConfig.description}
         actionLabel={loginPromptConfig.actionLabel}
         signUpLabel={loginPromptConfig.signUpLabel}
-      />
-
-      <CustomerNavigation />
-    </div>
+      />    </div>
   );
 };
 

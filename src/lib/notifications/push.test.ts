@@ -235,7 +235,7 @@ describe("Push Notification Service", () => {
     const originalLocation = window.location;
 
     beforeEach(() => {
-      // @ts-ignore
+      // @ts-expect-error -- testing invalid argument type intentionally
       delete window.location;
       window.location = { href: "" } as any;
     });

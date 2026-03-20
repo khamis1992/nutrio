@@ -27,7 +27,6 @@ import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { motion, AnimatePresence } from "framer-motion";
 import { getRestaurantImage } from "@/lib/meal-images";
 import { Haptics } from "@/lib/haptics";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -906,11 +905,7 @@ const Meals = () => {
             ))}
           </div>
         )}
-      </main>
-
-      <CustomerNavigation />
-
-      <FilterSheet
+      </main>      <FilterSheet
         isOpen={filterSheetOpen}
         onClose={() => setFilterSheetOpen(false)}
         showFavoritesOnly={showFavoritesOnly}

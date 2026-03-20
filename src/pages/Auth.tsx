@@ -18,8 +18,11 @@ import { motion } from "framer-motion";
 
 type AuthView = "welcome" | "signin" | "signup" | "forgot" | "otp";
 
+// Module-level schemas (reused across handlers)
+const emailSchema = z.string().email();
+
 const Auth = () => {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signIn, signUp, loading: authLoading } = useAuth();
@@ -29,7 +32,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [name] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingRole, setCheckingRole] = useState(false);
@@ -41,7 +44,7 @@ const Auth = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
   const [otpCountdown, setOtpCountdown] = useState(60);
@@ -144,23 +147,15 @@ const Auth = () => {
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
-    const emailSchema = z.string().email(t("invalid_email"));
+    const localEmailSchema = z.string().email(t("invalid_email"));
     const passwordSchema = z.string().min(8, t("password_min_chars"));
     
-    try { emailSchema.parse(email); } catch (err) { if (err instanceof z.ZodError) newErrors.email = err.errors[0].message; }
+    try { localEmailSchema.parse(email); } catch (err) { if (err instanceof z.ZodError) newErrors.email = err.errors[0].message; }
     try { passwordSchema.parse(password); } catch (err) { if (err instanceof z.ZodError) newErrors.password = err.errors[0].message; }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSocialLogin = async (provider: "google" | "apple" | "facebook" | "twitter") => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/auth` } });
-      if (error) throw error;
-    } catch {
-      toast({ title: t("coming_soon"), description: `${provider} ${t("provider_login_soon")}`, variant: "destructive" });
-    }
-  };
 
   const handleBiometricLogin = async () => {
     setBiometricLoading(true);

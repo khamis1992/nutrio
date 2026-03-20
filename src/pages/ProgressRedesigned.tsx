@@ -35,7 +35,6 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { cn } from "@/lib/utils";
 import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 import { nutrioReportPDF } from "@/lib/nutrio-report-pdf";
@@ -736,11 +735,7 @@ const ProgressDashboard = () => {
             setGoal={setGoal}
           />
         )}
-      </main>
-
-      <CustomerNavigation />
-
-      {user && (
+      </main>      {user && (
         <LogMealDialog
           open={logMealOpen}
           onOpenChange={setLogMealOpen}

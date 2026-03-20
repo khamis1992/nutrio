@@ -27,7 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/currency";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 
 interface ReferralDetail {
   id: string;
@@ -461,9 +461,6 @@ export default function ReferralTracking() {
             </CardContent>
           </Card>
         )}
-      </div>
-
-      <CustomerNavigation />
-    </div>
+      </div>    </div>
   );
 }

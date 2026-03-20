@@ -23,6 +23,9 @@ export function RolloverCreditsDisplay({
 }: RolloverCreditsDisplayProps) {
   const { data: rolloverInfo, isLoading } = useRolloverCredits(subscriptionId);
 
+  // Must call hook unconditionally before any early returns (Rules of Hooks)
+  const expiryCountdown = useRolloverExpiryCountdown(rolloverInfo?.expiry_date ?? null);
+
   if (isLoading) {
     return (
       <Card className={cn("animate-pulse", className)}>
@@ -38,7 +41,6 @@ export function RolloverCreditsDisplay({
   }
 
   const { rollover_credits, expiry_date, total_credits, new_credits } = rolloverInfo;
-  const expiryCountdown = useRolloverExpiryCountdown(expiry_date);
   
   // Calculate percentage
   const rolloverPercentage = total_credits > 0 

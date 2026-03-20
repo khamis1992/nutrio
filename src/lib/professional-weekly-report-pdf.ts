@@ -1252,7 +1252,7 @@ export class ProfessionalWeeklyReportPDF {
         const imgSize = 32;
         
         // Try to load actual meal image
-        let mealImageBase64 =
+        const mealImageBase64 =
           data.mealImages?.get(meal.id) ||
           (typeof meal.image_url === "string" && meal.image_url.startsWith("data:image/")
             ? meal.image_url

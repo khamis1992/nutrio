@@ -6,7 +6,6 @@ import { useWaterEntries } from "@/hooks/useWaterEntries";
 import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -336,11 +335,7 @@ export default function Tracker() {
         </div>
         )}
 
-      </div>
-
-      <CustomerNavigation />
-
-      {/* Weight Update Dialog */}
+      </div>      {/* Weight Update Dialog */}
       <Dialog open={weightDialogOpen} onOpenChange={setWeightDialogOpen}>
         <DialogContent className="rounded-2xl" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
           <DialogHeader>

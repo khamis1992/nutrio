@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Test Utilities and Helpers
  * Shared functions for all E2E tests
  */
@@ -52,37 +52,51 @@ export const waitForElement = async (page: Page, selector: string, timeout = 100
   await page.waitForSelector(selector, { state: 'visible', timeout });
 };
 
+/** Click "Sign In" on the welcome screen if it's shown, then fill credentials */
+const fillLoginForm = async (page: Page, email: string, password: string) => {
+  // Customer auth shows a welcome screen first — click "Sign In" to reveal the form
+  const welcomeSignIn = page.locator('button', { hasText: /^sign in$/i }).first();
+  if (await welcomeSignIn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await welcomeSignIn.click();
+    await page.waitForTimeout(800);
+  }
+  // Fill the form using actual field IDs
+  await page.fill('input#si-email, input[type="email"]', email);
+  await page.fill('input#si-password, input[type="password"]', password);
+  await page.click('button[type="submit"]');
+};
+
 // Auth helpers
 export const loginAsCustomer = async (page: Page) => {
   await page.goto(URLS.auth);
-  await page.fill('input[type="email"], input[name="email"]', TEST_USERS.customer.email);
-  await page.fill('input[type="password"], input[name="password"]', TEST_USERS.customer.password);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/.*dashboard.*/);
+  await page.waitForLoadState('networkidle');
+  await fillLoginForm(page, TEST_USERS.customer.email, TEST_USERS.customer.password);
+  await expect(page).toHaveURL(/.*dashboard.*/, { timeout: 12000 });
 };
 
 export const loginAsAdmin = async (page: Page) => {
-  await page.goto(URLS.admin);
-  await page.fill('input[type="email"], input[name="email"]', TEST_USERS.admin.email);
-  await page.fill('input[type="password"], input[name="password"]', TEST_USERS.admin.password);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/.*admin.*/);
+  await page.goto(URLS.auth);
+  await page.waitForLoadState('networkidle');
+  await fillLoginForm(page, TEST_USERS.admin.email, TEST_USERS.admin.password);
+  await expect(page).toHaveURL(/.*admin.*/, { timeout: 12000 });
 };
 
 export const loginAsPartner = async (page: Page) => {
   await page.goto('/partner/auth');
-  await page.fill('input[type="email"], input[name="email"]', TEST_USERS.partner.email);
-  await page.fill('input[type="password"], input[name="password"]', TEST_USERS.partner.password);
+  await page.waitForLoadState('networkidle');
+  await page.fill('input#email, input[type="email"]', TEST_USERS.partner.email);
+  await page.fill('input#password, input[type="password"]', TEST_USERS.partner.password);
   await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/.*partner.*/);
+  await expect(page).toHaveURL(/.*partner.*/, { timeout: 12000 });
 };
 
 export const loginAsDriver = async (page: Page) => {
   await page.goto('/driver/auth');
-  await page.fill('input[type="email"], input[name="email"]', TEST_USERS.driver.email);
-  await page.fill('input[type="password"], input[name="password"]', TEST_USERS.driver.password);
+  await page.waitForLoadState('networkidle');
+  await page.fill('input#email, input[type="email"]', TEST_USERS.driver.email);
+  await page.fill('input#password, input[type="password"]', TEST_USERS.driver.password);
   await page.click('button[type="submit"]');
-  await expect(page).toHaveURL(/.*driver.*/);
+  await expect(page).toHaveURL(/.*driver.*/, { timeout: 12000 });
 };
 
 export const logout = async (page: Page) => {

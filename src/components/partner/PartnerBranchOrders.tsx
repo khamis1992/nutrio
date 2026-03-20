@@ -185,20 +185,9 @@ export function PartnerBranchOrders() {
     );
   }
 
+  // Branches are optional — single-location restaurants don't need them
   if (branches.length === 0) {
-    return (
-      <Card className="bg-amber-50 border-amber-200">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-amber-500" />
-            <p className="font-medium text-amber-800">No Branches Found</p>
-            <p className="text-sm text-amber-600 mt-1">
-              Please contact support to add your restaurant branches.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   const pendingCount = orders.filter(o => o.status === "pending").length;

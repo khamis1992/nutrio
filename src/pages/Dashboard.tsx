@@ -28,7 +28,6 @@ import { LogMealDialog } from "@/components/LogMealDialog";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
 import { RoleIndicator } from "@/components/RoleIndicator";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
 import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
@@ -559,11 +558,7 @@ const Dashboard = () => {
             </div>
           </div>
         </section>
-      </main>
-
-      <CustomerNavigation />
-
-      {/* Log Meal Dialog */}
+      </main>      {/* Log Meal Dialog */}
       {user && (
         <LogMealDialog
           open={logMealOpen}

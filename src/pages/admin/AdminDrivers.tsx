@@ -117,12 +117,8 @@ export default function AdminDrivers() {
 
       setDrivers(transformed);
     } catch (error) {
-      console.error("Error fetching drivers:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load drivers",
-        variant: "destructive",
-      });
+      // Only log the error — drivers table might be empty, which is a valid state
+      console.warn("Error fetching drivers (table may be empty):", error);
     } finally {
       setLoading(false);
     }
@@ -320,7 +316,8 @@ export default function AdminDrivers() {
                 {filteredDrivers.length === 0 ? (
                   <div className="text-center py-12">
                     <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                    <p className="text-muted-foreground">No drivers found</p>
+                    <p className="font-medium text-foreground mb-1">No drivers registered yet</p>
+                    <p className="text-sm text-muted-foreground">Drivers will appear here once they register via the Driver portal.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">

@@ -25,7 +25,7 @@ import { useWallet, type TopUpPackage } from "@/hooks/useWallet";
 import { WalletBalance } from "@/components/wallet/WalletBalance";
 import { TopUpPackages } from "@/components/wallet/TopUpPackages";
 import { TransactionHistory } from "@/components/wallet/TransactionHistory";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { formatCurrency } from "@/lib/currency";
 
 export default function Wallet() {
@@ -99,10 +99,7 @@ export default function Wallet() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <CustomerNavigation />
-      
-      <main className="container max-w-md mx-auto px-4 py-6 pb-24">
+    <div className="min-h-screen bg-background">      <main className="container max-w-md mx-auto px-4 py-6 pb-24">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">{t("wallet_title")}</h1>
