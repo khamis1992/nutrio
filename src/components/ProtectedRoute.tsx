@@ -244,7 +244,12 @@ export const ProtectedRoute = ({
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) {
+      // Don't keep user in loading state if auth context is still loading but user is already null
+      // This fixes the infinite blank screen when session fails to restore on direct navigation
+      setCheckingRole(false);
+      return;
+    }
 
     if (!user) {
       setCheckingRole(false);

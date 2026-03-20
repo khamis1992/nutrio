@@ -68,13 +68,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // 8 seconds (e.g. network unreachable), force loading to false so the
     // app can still render the login screen instead of a blank page.
     const safetyTimeout = setTimeout(() => {
-      setLoading((prev) => {
-        if (prev) {
-          console.warn('[AuthContext] Auth loading timeout — forcing loading=false');
-          return false;
-        }
-        return prev;
-      });
+      console.warn('[AuthContext] Auth loading timeout — forcing loading=false');
+      setLoading(false);
     }, 8000);
 
     return () => {

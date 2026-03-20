@@ -323,8 +323,20 @@ const PartnerOrders = () => {
 
       if (restaurantError) throw restaurantError;
       if (!restaurant) {
-        navigate("/partner");
-        return;
+        // If no restaurant found, wait briefly and retry in case auth is still settling
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        const { data: retryRestaurant } = await supabase
+          .from("restaurants")
+          .select("id, name")
+          .eq("owner_id", user.id)
+          .maybeSingle();
+        if (!retryRestaurant) {
+          navigate("/partner");
+          return;
+        }
+        setRestaurantId(retryRestaurant.id);
+        setRestaurantName(retryRestaurant.name);
+        return fetchOrders();
       }
 
       setRestaurantId(restaurant.id);

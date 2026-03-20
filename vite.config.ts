@@ -8,7 +8,7 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 export default defineConfig(({ mode }) => ({
   // Use absolute paths for Vercel web deployment
   // Use relative paths only for Capacitor mobile builds
-  base: process.env.VERCEL ? '/' : (mode === 'production' ? './' : '/'),
+  base: process.env.VERCEL ? '/' : (mode === 'production' ? '/' : '/'),
   server: {
     host: "::",
     port: 5173,

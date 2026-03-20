@@ -62,6 +62,7 @@ const Support = lazy(() => import("./pages/Support"));
 const Wallet = lazy(() => import("./pages/Wallet"));
 const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
 const Checkout = lazy(() => import("./pages/Checkout"));
+const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 
 // Partner pages
 const PartnerAuth = lazy(() => import("./pages/partner/PartnerAuth"));
@@ -276,7 +277,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route path="/orders" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             <Route path="/order/:id" element={<Navigate to="/dashboard" replace />} />
             <Route path="/tracking" element={<Navigate to="/dashboard" replace />} />
             <Route 
