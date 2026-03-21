@@ -1,114 +1,62 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Logo } from "@/components/Logo";
-import { formatCurrency } from "@/lib/currency";
 import { PromoVideo } from "@/components/PromoVideo";
-import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
+import { useLandingStats, formatStat } from "@/hooks/useLandingStats";
 import {
-  Utensils,
-  Target,
-  TrendingUp,
-  Calendar,
-  ChefHat,
-  Flame,
-  Users,
   ArrowRight,
-  Check,
   Star,
-  Store,
   Menu,
   X,
-  Zap,
-  Crown,
-  Sparkles,
   ChevronRight,
-  Heart,
-  Timer,
+  Smartphone,
+  ChefHat,
+  Target,
+  TrendingUp,
+  Truck,
+  ShieldCheck,
+  Utensils,
   Leaf,
-  Dumbbell,
-  ChevronLeft,
+  Download,
+  Store,
 } from "lucide-react";
+import appScreenshot from "@/assets/tracking order.png";
 import heroFood from "@/assets/Gemini_Generated_Image_j18tosj18tosj18t.png";
 import meal1 from "@/assets/1.png";
 import meal2 from "@/assets/2.png";
 import meal3 from "@/assets/3.png";
 
-import { useLanguage } from "@/contexts/LanguageContext";
-
-const TIER_META: Record<string, { icon: typeof Star; color: string; description: string; popular: boolean; isVip: boolean }> = {
-  basic:    { icon: Star,     color: "from-emerald-700 to-teal-600",  description: "perfect_start",   popular: false, isVip: false },
-  standard: { icon: Zap,     color: "from-orange-600 to-amber-500",  description: "most_popular",    popular: true,  isVip: false },
-  premium:  { icon: Crown,   color: "from-amber-600 to-orange-500",   description: "serious_goals",   popular: false, isVip: false },
-  vip:      { icon: Sparkles,color: "from-rose-600 to-pink-500",      description: "unlimited_desc",       popular: false, isVip: true  },
-};
-
-function dbToLandingPlan(p: DbSubscriptionPlan) {
-  const meta = TIER_META[p.tier] ?? TIER_META.basic;
-  return {
-    id: p.id,
-    name: p.tier.charAt(0).toUpperCase() + p.tier.slice(1),
-    price: p.price_qar ?? 0,
-    period: "month",
-    mealsPerWeek: p.meals_per_week ?? 0,
-    mealsPerMonth: p.meals_per_month ?? 0,
-    description: meta.description,
-    icon: meta.icon,
-    color: meta.color,
-    features: Array.isArray(p.features) ? p.features : [],
-    popular: meta.popular,
-    isVip: meta.isVip,
-  };
-}
-
-const getStories = (t: (key: string) => string) => [
-  { id: 1, emoji: "🥗", label: t("category_healthy"), color: "bg-emerald-700" },
-  { id: 2, emoji: "💪", label: t("category_protein"), color: "bg-stone-700" },
-  { id: 3, emoji: "🌱", label: t("category_vegan"), color: "bg-forest-700" },
-  { id: 4, emoji: "🔥", label: t("category_keto"), color: "bg-orange-700" },
-  { id: 5, emoji: "⚡", label: t("category_quick"), color: "bg-amber-700" },
-  { id: 6, emoji: "🍰", label: t("category_low_cal"), color: "bg-rose-700" },
+// Fallback values shown while loading or if data is unavailable
+const MARQUEE_FALLBACK = [
+  { val: "50+",  lbl: "Partner Restaurants" },
+  { val: "12K+", lbl: "Members" },
+  { val: "4.9★", lbl: "App Rating" },
+  { val: "3M+",  lbl: "Meals Delivered" },
+  { val: "#1",   lbl: "in Qatar" },
 ];
 
-const getFeaturedMeals = (_t: (key: string) => string) => [
-  {
-    id: 1,
-    nameKey: "meal_salmon_bowl",
-    calories: 485,
-    protein: "32g",
-    timeKey: "time_15_min",
-    rating: 4.9,
-    image: meal1,
-    tagKey: "high_protein",
-    tagColor: "bg-orange-700",
-  },
-  {
-    id: 2,
-    nameKey: "meal_quinoa_salad",
-    calories: 320,
-    protein: "18g",
-    timeKey: "time_10_min",
-    rating: 4.8,
-    image: meal2,
-    tagKey: "vegan",
-    tagColor: "bg-forest-700",
-  },
-  {
-    id: 3,
-    nameKey: "meal_beef_stirfry",
-    calories: 420,
-    protein: "45g",
-    timeKey: "time_20_min",
-    rating: 4.9,
-    image: meal3,
-    tagKey: "keto",
-    tagColor: "bg-orange-700",
-  },
+const STEPS = [
+  { num: "1", title: "Download the App", desc: "Get Nutrio free on iOS or Android. Takes 10 seconds.", icon: Download },
+  { num: "2", title: "Set Your Goals", desc: "Tell us your dietary preferences, allergies, and macro targets.", icon: Target },
+  { num: "3", title: "Get Meals Delivered", desc: "Order from 50+ restaurants. Fresh, healthy meals at your door in 30 min.", icon: Truck },
+];
+
+const FEATURES = [
+  { icon: Target,      title: "AI Nutrition Tracking",  desc: "Scan any meal to auto-log calories, protein, carbs, and fat. Precise to the gram." },
+  { icon: ChefHat,     title: "50+ Restaurant Partners", desc: "Browse curated menus from Qatar's best healthy restaurants — all in one app." },
+  { icon: TrendingUp,  title: "Visual Progress",        desc: "Beautiful charts that track your weight, streaks, and macro balance over time." },
+  { icon: Utensils,    title: "Meal Plans",             desc: "Personalized weekly meal plans built by certified nutritionists, adapted to you." },
+  { icon: ShieldCheck, title: "Freshness Guaranteed",   desc: "Every order quality-checked. Delivered fresh within 30 minutes of preparation." },
+  { icon: Leaf,        title: "Every Diet Style",       desc: "Keto, vegan, high-protein, halal, low-carb — all crafted with premium ingredients." },
+];
+
+const REVIEWS = [
+  { name: "Sarah M.", rating: 5, text: "Lost 8 kg in 3 months. The meal tracking feature is incredibly accurate and the food is delicious." },
+  { name: "Ahmed K.", rating: 5, text: "Best healthy food app in Qatar. The variety of restaurants is amazing — never gets boring." },
+  { name: "Fatima A.", rating: 5, text: "My whole family uses Nutrio now. The kids love the meals and I love the nutrition tracking." },
 ];
 
 const Index = () => {
@@ -121,276 +69,234 @@ const Index = () => {
       (window.location.hostname === "localhost" &&
         window.location.protocol === "https:" &&
         !window.location.port);
-
     if (isNative && !authLoading) {
       navigate(user ? "/dashboard" : "/walkthrough", { replace: true });
     }
   }, [authLoading, user, navigate]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { plans: dbPlans, loading: loadingPlans } = useSubscriptionPlans();
-  const plans = dbPlans.map(dbToLandingPlan);
-  const [activeStory, setActiveStory] = useState<number | null>(null);
-  const [currentTime, setCurrentTime] = useState("");
   const [scrolled, setScrolled] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { t } = useLanguage();
+  const stats = useLandingStats();
+
+  // Build live marquee — falls back gracefully while loading
+  const marqueeItems = stats.loading
+    ? MARQUEE_FALLBACK
+    : [
+        { val: stats.restaurants !== null ? `${stats.restaurants}+` : "50+",          lbl: "Partner Restaurants" },
+        { val: stats.members !== null ? formatStat(stats.members) : "12K+",            lbl: "Members" },
+        { val: stats.avgRating !== null ? `${stats.avgRating}★` : "4.9★",            lbl: "App Rating" },
+        { val: stats.ordersDelivered !== null ? formatStat(stats.ordersDelivered) : "3M+", lbl: "Meals Delivered" },
+        { val: "#1", lbl: "in Qatar" },
+      ];
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
+    const h = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", h);
+    return () => window.removeEventListener("scroll", h);
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const els = document.querySelectorAll(".rv");
+    const obs = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("vis")),
+      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" }
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
   }, []);
 
-  const scroll = (direction: "left" | "right") => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 300;
-      scrollContainerRef.current.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      });
-    }
+  const downloadButtons = (size: "lg" | "sm" = "lg") => {
+    const h = size === "lg" ? 56 : 48;
+    const px = size === "lg" ? 28 : 22;
+    const fs = size === "lg" ? ".95rem" : ".85rem";
+    return (
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <a href="#" style={{ textDecoration: "none" }}>
+          <button className="btn-dark" style={{ height: h, padding: `0 ${px}px`, fontSize: fs, gap: 10 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.51-3.23 0-1.44.64-2.2.45-3.06-.4C3.79 16.17 4.36 9.05 8.93 8.82c1.25.07 2.12.72 2.88.76.98-.2 1.92-.87 3.01-.79 1.28.1 2.24.61 2.88 1.56-2.65 1.58-2.02 5.09.37 6.07-.5 1.3-.9 2.6-1.87 3.84l-.15.02zM12.03 8.75c-.12-2.08 1.57-3.82 3.53-3.97.28 2.34-2.12 4.1-3.53 3.97z"/></svg>
+            App Store
+          </button>
+        </a>
+        <a href="#" style={{ textDecoration: "none" }}>
+          <button className="btn-dark" style={{ height: h, padding: `0 ${px}px`, fontSize: fs, gap: 10 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.61 1.81L13.42 12 3.61 22.19c-.36-.44-.61-1.04-.61-1.74V3.55c0-.7.25-1.3.61-1.74zm.75-.62L15.1 6.88l-2.76 2.76L4.36 1.19zm11.35 5.97L17.6 8.33 5.36 22.81l7.3-7.45 3.05-3.1-.01-.01 3.05-3.1-2.44-1.17zM17.6 15.67l-2.44-1.17-3.05 3.1L5.36 22.81l9.17-4.85 3.07-2.29z"/></svg>
+            Google Play
+          </button>
+        </a>
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#2C2416]">
-      {/* Custom Styles for Warm Organic Luxury */}
+    <div style={{ fontFamily: "'Inter', sans-serif", background: "#fff", color: "#111", minHeight: "100vh" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { box-sizing: border-box; }
         
-        .organic-blob {
-          background: radial-gradient(circle at 30% 70%, rgba(196, 112, 75, 0.1) 0%, transparent 50%);
+        /* Override Ionic's body styles that break scrolling on non-Ionic pages */
+        body {
+          overflow: visible !important;
+          position: static !important;
+          min-height: auto;
         }
-        
-        .organic-blob-reverse {
-          background: radial-gradient(circle at 70% 30%, rgba(45, 90, 61, 0.1) 0%, transparent 50%);
+        html, body, #root {
+          height: auto;
+          overflow: visible;
         }
-        
-        .text-foreground-strong {
-          color: #2C2416;
+
+        :root {
+          --accent: #111;
+          --green:  #22C55E;
+          --orange: #F97316;
+          --muted:  #6B7280;
+          --border: #E5E7EB;
+          --bg2:    #F9FAFB;
         }
-        
-        .text-foreground-muted {
-          color: #5C4E3F;
+
+        .rv { opacity:0; transform:translateY(20px); transition:opacity .6s cubic-bezier(.22,1,.36,1), transform .6s cubic-bezier(.22,1,.36,1); }
+        .rv.vis { opacity:1; transform:none; }
+        .rv-now { opacity:1!important; transform:none!important; }
+        .d1{transition-delay:.1s} .d2{transition-delay:.2s} .d3{transition-delay:.3s} .d4{transition-delay:.4s}
+
+        .lift { transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s; }
+        .lift:hover { transform:translateY(-5px); box-shadow:0 20px 44px -12px rgba(0,0,0,.12); }
+
+        /* ── Primary download CTA ── */
+        .btn-dark {
+          background:#111; color:#fff; border:none; border-radius:14px;
+          font-weight:600; cursor:pointer; display:inline-flex; align-items:center;
+          font-family:'Inter',sans-serif; transition:all .2s; white-space:nowrap;
         }
-        
-        .bg-forest-700 {
-          background-color: #2D5A3D;
+        .btn-dark:hover { background:#222; transform:translateY(-2px); box-shadow:0 8px 28px -4px rgba(0,0,0,.35); }
+
+        .btn-green {
+          background:var(--green); color:#fff; border:none; border-radius:14px;
+          padding:14px 28px; font-weight:700; font-size:.9rem; cursor:pointer;
+          display:inline-flex; align-items:center; gap:8px;
+          font-family:'Inter',sans-serif; transition:all .2s; white-space:nowrap;
         }
-        
-        .shadow-terracotta {
-          box-shadow: 0 10px 25px -5px rgba(196, 112, 75, 0.2), 0 8px 10px -6px rgba(196, 112, 75, 0.1);
+        .btn-green:hover { background:#1ea74e; transform:translateY(-2px); box-shadow:0 8px 24px -4px rgba(34,197,94,.4); }
+
+        .btn-ghost {
+          background:transparent; color:#111; border:1.5px solid var(--border); border-radius:14px;
+          padding:13px 24px; font-weight:500; font-size:.9rem; cursor:pointer;
+          display:inline-flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; transition:all .2s;
         }
-        
-        .shadow-forest {
-          box-shadow: 0 10px 25px -5px rgba(45, 90, 61, 0.2), 0 8px 10px -6px rgba(45, 90, 61, 0.1);
+        .btn-ghost:hover { border-color:#9CA3AF; background:#F9FAFB; }
+
+        .nav-lnk { color:var(--muted); font-size:.875rem; font-weight:500; transition:color .2s; text-decoration:none; }
+        .nav-lnk:hover { color:#111; }
+
+        .mq-track { display:flex; animation:mq 26s linear infinite; width:max-content; }
+        .mq-track:hover { animation-play-state:paused; }
+        @keyframes mq { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+        .sh::-webkit-scrollbar{display:none} .sh{-ms-overflow-style:none;scrollbar-width:none}
+
+        @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        .fl1{animation:floatY 5s ease-in-out infinite} .fl2{animation:floatY 6s ease-in-out 1s infinite}
+
+        .phone-mock {
+          border-radius:32px; overflow:hidden; border:8px solid #111;
+          box-shadow:0 40px 80px -20px rgba(0,0,0,.3), 0 0 0 1px rgba(0,0,0,.1);
+          background:#111; position:relative;
         }
-        
-        .shadow-stone {
-          box-shadow: 0 10px 25px -5px rgba(120, 113, 108, 0.2), 0 8px 10px -6px rgba(120, 113, 108, 0.1);
+        .phone-mock::before {
+          content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+          width:80px; height:20px; background:#111; border-radius:0 0 14px 14px; z-index:5;
         }
-        
-        .border-warm {
-          border-color: rgba(196, 112, 75, 0.2);
+
+        .safe-t { padding-top:env(safe-area-inset-top,0px); }
+
+        /* Green glow for download sections */
+        .dl-glow {
+          background: linear-gradient(135deg, #111 0%, #1a2e1a 50%, #111 100%);
+          position: relative; overflow: hidden;
         }
-        
-        .hover-lift {
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .hover-lift:hover {
-          transform: translateY(-4px);
-        }
-        
-        .gradient-terracotta {
-          background: linear-gradient(135deg, #C4704B 0%, #B85C3E 100%);
-        }
-        
-        .gradient-forest {
-          background: linear-gradient(135deg, #2D5A3D 0%, #1F3D2A 100%);
-        }
-        
-        .gradient-amber {
-          background: linear-gradient(135deg, #A9752A 0%, #D4A853 100%);
-        }
-        
-        .gradient-stone {
-          background: linear-gradient(135deg, #78716C 0%, #57534E 100%);
-        }
-        
-        .reveal-on-scroll {
-          opacity: 0;
-          transform: translateY(20px);
-          transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .reveal-on-scroll.revealed {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        
-        .stagger-delay-1 { transition-delay: 0.1s; }
-        .stagger-delay-2 { transition-delay: 0.2s; }
-        .stagger-delay-3 { transition-delay: 0.3s; }
-        
-        @keyframes organic-float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-15px) rotate(1deg); }
-        }
-        
-        .animate-organic-float {
-          animation: organic-float 6s ease-in-out infinite;
-        }
-        
-        @keyframes organic-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.05); }
-        }
-        
-        .animate-organic-pulse {
-          animation: organic-pulse 4s ease-in-out infinite;
-        }
-        
-        .font-display {
-          font-family: 'DM Serif Display', serif;
-        }
-        
-        .text-gradient-terracotta {
-          background: linear-gradient(135deg, #C4704B 0%, #A9752A 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        
-        .text-gradient-forest {
-          background: linear-gradient(135deg, #2D5A3D 0%, #1F3D2A 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+        .dl-glow::before {
+          content:''; position:absolute; top:-200px; right:-200px; width:600px; height:600px;
+          border-radius:50%; background:radial-gradient(circle, rgba(34,197,94,.15) 0%, transparent 60%);
+          pointer-events:none;
         }
       `}</style>
 
-      {/* Enhanced Status Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-[60] px-6 py-2 flex justify-between items-center text-xs font-medium text-foreground-strong/80 bg-[#FAF7F2]/80 backdrop-blur-md safe-area-top">
-        <span className="font-medium">{currentTime || "9:41"}</span>
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 rounded-sm bg-stone-400/30" />
-          <div className="w-4 h-4 rounded-sm bg-stone-400/30" />
-          <div className="w-6 h-3 rounded border border-stone-400/30 relative">
-            <div className="absolute inset-0.5 right-1 bg-stone-600 rounded-sm" />
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation - Warm Organic Style */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 safe-area-top pt-8 md:pt-0 ${scrolled ? 'bg-[#FAF7F2]/95 backdrop-blur-2xl border-b border-warm' : 'bg-[#FAF7F2]/80 backdrop-blur-xl border-b border-warm/30'}`}>
-        <div className="flex items-center justify-between px-4 py-4 max-w-md mx-auto md:max-w-none md:container md:px-8">
-          <Link to="/" className="flex items-center gap-3 group">
+      {/* ── NAV ── */}
+      <header className="safe-t" style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+        background: scrolled ? "rgba(255,255,255,.97)" : "rgba(255,255,255,.9)",
+        backdropFilter: "blur(14px)",
+        borderBottom: scrolled ? "1px solid #E5E7EB" : "none",
+        boxShadow: scrolled ? "0 2px 24px rgba(0,0,0,.05)" : "none",
+        transition: "all .3s",
+      }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
             <Logo size="md" />
-            <span className="text-xl font-display font-bold text-foreground-strong">Nutrio</span>
           </Link>
-          
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-medium text-forest-700 hover:text-terracotta transition-colors">Features</a>
-            <a href="#meals" className="text-sm font-medium text-forest-700 hover:text-terracotta transition-colors">Meals</a>
-            <a href="#pricing" className="text-sm font-medium text-forest-700 hover:text-terracotta transition-colors">Pricing</a>
-            <Link to="/faq" className="text-sm font-medium text-forest-700 hover:text-terracotta transition-colors">FAQ</Link>
+
+          <nav className="hidden md:flex" style={{ alignItems: "center", gap: 28 }}>
+            <a href="#features" className="nav-lnk">Features</a>
+            <a href="#how-it-works" className="nav-lnk">How It Works</a>
+            <a href="#reviews" className="nav-lnk">Reviews</a>
+            <Link to="/faq" className="nav-lnk">FAQ</Link>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <Link to="/auth" className="hidden md:block">
-              <Button variant="ghost" className="text-forest-700 font-medium hover:text-terracotta">Sign In</Button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Link to="/auth" className="hidden md:block" style={{ textDecoration: "none" }}>
+              <button className="btn-ghost" style={{ padding: "10px 18px", fontSize: ".8rem" }}>Sign In</button>
             </Link>
-            <Link to="/onboarding" className="hidden md:block">
-              <Button className="gradient-terracotta text-white font-semibold rounded-full hover-lift px-6 shadow-terracotta">Get Started</Button>
-            </Link>
-            
+            <a href="#" className="hidden md:block" style={{ textDecoration: "none" }}>
+              <button className="btn-dark" style={{ padding: "10px 22px", fontSize: ".8rem", height: "auto", gap: 6 }}>
+                <Download size={15} /> Download App
+              </button>
+            </a>
+
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden h-11 w-11 rounded-full bg-white/80 shadow-stone hover:bg-white">
-                  <Menu className="h-5 w-5 text-forest-700" />
-                </Button>
+                <button className="md:hidden" style={{ width: 42, height: 42, borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <Menu size={20} color="#6B7280" />
+                </button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:w-[420px] p-0 rounded-t-3xl sm:rounded-none bg-[#FAF7F2]">
+              <SheetContent side="right" style={{ width: "100%", maxWidth: 400, background: "#fff", padding: 0 }}>
                 <SheetTitle className="sr-only">Navigation</SheetTitle>
-                <div className="flex flex-col h-full">
-                  <div className="flex justify-center pt-3 pb-2">
-                    <div className="w-10 h-1 rounded-full bg-stone-400/30" />
-                  </div>
-                  
-                  <div className="flex items-center justify-between px-6 py-6 border-b border-warm/30">
-                    <div className="flex items-center gap-3">
+                <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 24, borderBottom: "1px solid #E5E7EB" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <Logo size="sm" />
-                      <span className="text-lg font-display font-bold text-foreground-strong">Nutrio</span>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="rounded-full bg-white/80 shadow-stone">
-                      <X className="h-5 w-5 text-forest-700" />
-                    </Button>
+                    <button onClick={() => setMobileMenuOpen(false)} style={{ width: 38, height: 38, borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <X size={16} color="#6B7280" />
+                    </button>
                   </div>
-
-                  <nav className="flex-1 px-6 py-6 space-y-2">
+                  <nav style={{ flex: 1, padding: 24 }}>
                     {[
-                      { label: "Home", to: "/" },
-                      { label: "Browse Meals", to: "/meals" },
-                      { label: "How It Works", href: "#how-it-works" },
-                      { label: "Pricing", href: "#pricing" },
-                      { label: "FAQ", to: "/faq" },
-                      { label: "Contact", to: "/contact" },
+                      { label: "Home", to: "/" }, { label: "Browse Meals", to: "/meals" },
+                      { label: "How It Works", href: "#how-it-works" }, { label: "Reviews", href: "#reviews" },
+                      { label: "FAQ", to: "/faq" }, { label: "Contact", to: "/contact" },
                       { label: "Partner Portal", to: "/partner/auth" },
-                    ].map((item) => (
+                    ].map((item) =>
                       item.href ? (
-                        <a
-                          key={item.label}
-                          href={item.href}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            const element = document.querySelector(item.href!);
-                            if (element) {
-                              element.scrollIntoView({ behavior: "smooth" });
-                              setMobileMenuOpen(false);
-                            }
-                          }}
-                          className="flex items-center justify-between py-4 text-lg font-medium border-b border-warm/20 text-forest-700 hover:text-terracotta transition-colors"
-                        >
-                          {item.label}
-                          <ChevronRight className="h-5 w-5 text-stone-400" />
+                        <a key={item.label} href={item.href}
+                          onClick={(e) => { e.preventDefault(); document.querySelector(item.href!)?.scrollIntoView({ behavior: "smooth" }); setMobileMenuOpen(false); }}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: "1px solid #F3F4F6", color: "#6B7280", textDecoration: "none", fontWeight: 500 }}>
+                          {item.label}<ChevronRight size={16} color="#D1D5DB" />
                         </a>
                       ) : (
-                        <Link
-                          key={item.label}
-                          to={item.to!}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between py-4 text-lg font-medium border-b border-warm/20 text-forest-700 hover:text-terracotta transition-colors"
-                        >
-                          {item.label}
-                          <ChevronRight className="h-5 w-5 text-stone-400" />
+                        <Link key={item.label} to={item.to!} onClick={() => setMobileMenuOpen(false)}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: "1px solid #F3F4F6", color: "#6B7280", textDecoration: "none", fontWeight: 500 }}>
+                          {item.label}<ChevronRight size={16} color="#D1D5DB" />
                         </Link>
                       )
-                    ))}
+                    )}
                   </nav>
-
-                  <div className="p-6 space-y-3 bg-gradient-to-t from-white/50 to-transparent">
-                    <Link to="/onboarding" onClick={() => setMobileMenuOpen(false)}>
-                      <Button className="w-full rounded-2xl h-14 text-base font-semibold gradient-terracotta text-white shadow-terracotta hover-lift">
-                        Start Your Journey
-                      </Button>
-                    </Link>
-                    <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="outline" className="w-full rounded-2xl h-14 text-base font-semibold border-2 border-stone-300 text-forest-700 hover:bg-stone-100">
-                        I Have an Account
-                      </Button>
+                  <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+                    <a href="#" style={{ textDecoration: "none" }}>
+                      <button className="btn-dark" style={{ width: "100%", justifyContent: "center", height: 52, padding: "0 20px", fontSize: ".9rem", gap: 8 }}>
+                        <Download size={18} /> Download App
+                      </button>
+                    </a>
+                    <Link to="/auth" onClick={() => setMobileMenuOpen(false)} style={{ textDecoration: "none" }}>
+                      <button className="btn-ghost" style={{ width: "100%", justifyContent: "center", height: 52, marginTop: 0 }}>Sign In</button>
                     </Link>
                   </div>
                 </div>
@@ -400,463 +306,301 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="h-24 lg:h-28" />
+      <div style={{ height: 80 }} />
 
-      {/* Hero Section - Asymmetric Luxury Layout */}
-      <main className="pb-32 lg:pb-8">
-        <section className="px-4 pt-4 lg:pt-8 reveal-on-scroll stagger-delay-1">
-          <div className="max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-            <div className="relative lg:grid lg:grid-cols-12 lg:gap-8 lg:items-center">
-              {/* Hero Image - Left Side, Large */}
-              <div className="lg:col-span-7 lg:order-1 mb-8 lg:mb-0">
-                <div className="relative">
-                  <div className="organic-blob absolute inset-0 rounded-3xl animate-organic-pulse" />
-                  <div className="relative rounded-3xl overflow-hidden shadow-terracotta group">
-                    <img 
-                      src={heroFood} 
-                      alt="Healthy meals and nutrition" 
-                      className="w-full h-[400px] lg:h-[600px] object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
-                  </div>
-                  
-                  {/* Floating Achievement Cards with Organic Luxury Style */}
-                  <Card className="absolute -right-6 top-1/3 max-w-[180px] shadow-terracotta reveal-on-scroll stagger-delay-2 hover-lift bg-white/95 backdrop-blur-sm border-warm">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                          <Target className="w-5 h-5 text-orange-700" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-forest-700">Daily Goal</p>
-                          <p className="text-xs text-stone-600">1,850 Calories</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+      <main>
 
-                  <Card className="absolute -left-6 bottom-1/4 max-w-[170px] shadow-forest reveal-on-scroll stagger-delay-3 hover-lift bg-white/95 backdrop-blur-sm border-stone-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-forest-700/10 flex items-center justify-center">
-                          <TrendingUp className="w-5 h-5 text-forest-700" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-forest-700">-5 kg</p>
-                          <p className="text-xs text-stone-600">This month</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+        {/* ═══════ HERO — App download focus ═══════ */}
+        <section style={{ position: "relative", overflow: "hidden", padding: "48px 24px 0" }}>
+          <div style={{ position: "absolute", top: -100, right: -100, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "center" }} className="hero-g">
+
+              {/* Left: copy */}
+              <div className="rv rv-now">
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 999, padding: "6px 16px", marginBottom: 24, fontSize: ".75rem", fontWeight: 600, color: "#16A34A" }}>
+                  <Star size={13} fill="#22C55E" color="#22C55E" />
+                  {stats.avgRating !== null ? `${stats.avgRating} Rated` : "4.9 Rated"} —{" "}
+                  {stats.members !== null ? formatStat(stats.members) : "12K+"} Downloads
                 </div>
-              </div>
-              
-              {/* Hero Content - Right Side, Overlapping */}
-              <div className="lg:col-span-5 lg:order-2 lg:-ml-16 relative z-10">
-                <div className="bg-[#FAF7F2]/95 backdrop-blur-md rounded-3xl p-6 lg:p-10 shadow-stone border border-stone-200">
-                  {/* Premium Badge */}
-                  <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full mb-6">
-                    <Sparkles className="w-4 h-4 text-orange-700" />
-                    <span className="text-sm font-semibold">#1 Nutrition Platform in Qatar</span>
-                  </div>
-                  
-                  {/* Headline with Serif Display */}
-                  <h1 className="text-4xl lg:text-6xl font-display font-bold leading-tight mb-6">
-                    <span className="text-forest-700">Eat Smart,</span><br/>
-                    <span className="text-gradient-terracotta">Live Better</span>
-                  </h1>
-                  
-                  <p className="text-lg text-stone-700 mb-8 leading-relaxed max-w-lg">
-                    Personalized meal plans from Qatar's finest restaurants, crafted for your health journey with premium ingredients and expert nutrition guidance.
-                  </p>
-                  
-                  {/* Category Pills - Organic Style */}
-                  <div className="flex flex-wrap gap-3 mb-8">
-                    {getStories(t).map((story) => (
-                      <button
-                        key={story.id}
-                        onClick={() => setActiveStory(activeStory === story.id ? null : story.id)}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all hover-lift ${activeStory === story.id ? 'bg-forest-700 text-white shadow-forest' : 'bg-white/80 text-forest-700 border border-stone-300 shadow-stone'}`}
-                      >
-                        <span className="text-lg">{story.emoji}</span>
-                        <span>{story.label}</span>
-                      </button>
+
+                <h1 className="rv rv-now d1" style={{ fontWeight: 900, fontSize: "clamp(2.5rem, 5.5vw, 4.5rem)", lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 22, color: "#111" }}>
+                  Your Nutrition,<br />
+                  <span style={{ color: "var(--green)" }}>One App Away.</span>
+                </h1>
+
+                <p className="rv rv-now d2" style={{ fontSize: "1.05rem", lineHeight: 1.7, color: "var(--muted)", marginBottom: 36, maxWidth: 440 }}>
+                  Track meals, order from 50+ healthy restaurants, and reach your fitness goals — all from one beautifully designed app. Free on iOS & Android.
+                </p>
+
+                <div className="rv rv-now d3" style={{ marginBottom: 32 }}>
+                  {downloadButtons("lg")}
+                </div>
+
+                <div className="rv rv-now d4" style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                  <div style={{ display: "flex" }}>
+                    {[meal1, meal2, meal3].map((img, i) => (
+                      <div key={i} style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid #fff", overflow: "hidden", marginLeft: i > 0 ? -10 : 0, position: "relative", zIndex: 3 - i }}>
+                        <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
                     ))}
                   </div>
-                  
-                  {/* CTA Buttons - Luxury Style */}
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link to="/onboarding" className="flex-1">
-                      <Button className="w-full h-14 rounded-2xl text-lg font-semibold gradient-terracotta text-white hover-lift shadow-terracotta">
-                        Start Your Journey
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                      </Button>
-                    </Link>
-                    <Link to="/auth" className="flex-1">
-                      <Button variant="outline" className="w-full h-14 rounded-2xl text-lg font-semibold border-2 border-stone-300 text-forest-700 hover:bg-stone-100 hover-lift">
-                        Sign In
-                      </Button>
-                    </Link>
+                  <p style={{ fontSize: ".8rem", color: "var(--muted)" }}>
+                    <strong style={{ color: "#111" }}>
+                      {stats.members !== null ? formatStat(stats.members) : "12K+"}
+                    </strong>{" "}
+                    people are already eating smarter
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: phone mockup with app screenshot */}
+              <div className="rv rv-now d1" style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+                <div style={{ position: "absolute", width: 360, height: 360, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.06)", top: "50%", left: "50%", transform: "translate(-50%,-50%)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", width: 260, height: 260, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.04)", top: "50%", left: "50%", transform: "translate(-50%,-50%)", pointerEvents: "none" }} />
+
+                <div className="fl1" style={{ width: 260, position: "relative", zIndex: 2 }}>
+                  <div className="phone-mock">
+                    <img src={appScreenshot} alt="Nutrio app" style={{ width: "100%", display: "block" }} />
                   </div>
+                </div>
+
+                {/* Floating badges */}
+                <div className="fl2" style={{ position: "absolute", top: 40, right: 10, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "10px 16px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 8, zIndex: 3 }}>
+                  <Utensils size={16} color="var(--green)" />
+                  <span style={{ fontSize: ".75rem", fontWeight: 600 }}>50+ Restaurants</span>
+                </div>
+                <div className="fl1" style={{ position: "absolute", bottom: 60, left: 0, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "10px 16px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 8, zIndex: 3 }}>
+                  <Target size={16} color="var(--orange)" />
+                  <span style={{ fontSize: ".75rem", fontWeight: 600 }}>AI Tracking</span>
                 </div>
               </div>
             </div>
           </div>
+
+          <style>{`@media(max-width:768px){.hero-g{grid-template-columns:1fr!important;gap:32px!important;}}`}</style>
         </section>
 
-        {/* Featured Meals - Editorial Grid */}
-        <section id="meals" className="mb-16 lg:mb-20 reveal-on-scroll stagger-delay-2">
-          <div className="px-4 mb-8 max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-3xl lg:text-4xl font-display font-bold text-forest-700 mb-2">Featured Meals</h2>
-                <p className="text-lg text-stone-700">Handpicked by our nutritionists for you today</p>
+        {/* ═══════ MARQUEE ═══════ */}
+        <div style={{ overflow: "hidden", borderTop: "1px solid #E5E7EB", borderBottom: "1px solid #E5E7EB", padding: "16px 0", background: "#FAFAFA", marginTop: 48 }}>
+          <div className="mq-track">
+            {[...marqueeItems, ...marqueeItems].map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 36px", flexShrink: 0 }}>
+                <span style={{ fontWeight: 800, fontSize: "1.2rem", color: "#111" }}>{s.val}</span>
+                <span style={{ fontSize: ".78rem", fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.lbl}</span>
+                <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#E5E7EB", marginLeft: 8 }} />
               </div>
-              <Link to="/meals" className="text-foreest-700 font-medium hover:text-orange-700 transition-colors flex items-center gap-2">
-                View All
-                <ChevronRight className="w-5 h-5" />
-              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ═══════ APP SCREENSHOTS ═══════ */}
+        <section style={{ padding: "80px 24px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div className="rv" style={{ textAlign: "center", marginBottom: 48 }}>
+              <p style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--green)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>SEE IT IN ACTION</p>
+              <h2 style={{ fontWeight: 800, fontSize: "clamp(1.6rem, 4vw, 2.6rem)", letterSpacing: "-0.02em", color: "#111" }}>
+                Everything in <span style={{ color: "var(--green)" }}>One Place</span>
+              </h2>
             </div>
 
-            <div className="relative">
-              <button 
-                onClick={() => scroll("left")}
-                className="hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-stone items-center justify-center hover:bg-stone-50 transition-colors hover-lift"
-              >
-                <ChevronLeft className="w-5 h-5 text-stone-600" />
-              </button>
-              <button 
-                onClick={() => scroll("right")}
-                className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white shadow-stone items-center justify-center hover:bg-stone-50 transition-colors hover-lift"
-              >
-                <ChevronRight className="w-5 h-5 text-stone-600" />
-              </button>
+            <div className="sh" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, overflow: "visible" }}>
+              {[
+                { img: heroFood, title: "Browse 500+ Meals", desc: "Filter by diet, cuisine, macros, and restaurant. Every meal has full nutrition info." },
+                { img: appScreenshot, title: "Track Your Nutrition", desc: "AI-powered tracking logs every meal. See calories, protein, carbs, fat in real time." },
+                { img: meal1, title: "Order & Get Delivered", desc: "One-tap ordering from 50+ restaurants. Fresh meals at your door in under 30 minutes." },
+              ].map((s, i) => (
+                <div key={i} className={`lift rv`} style={{ borderRadius: 20, overflow: "hidden", border: "1px solid #E5E7EB", background: "#fff", transitionDelay: `${i * 0.12}s` }}>
+                  <div style={{ height: 220, overflow: "hidden" }}>
+                    <img src={s.img} alt={s.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                  <div style={{ padding: "20px 22px" }}>
+                    <h3 style={{ fontWeight: 700, fontSize: ".95rem", marginBottom: 6, color: "#111" }}>{s.title}</h3>
+                    <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.6 }}>{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <style>{`@media(max-width:768px){#app-screens .sh{grid-template-columns:repeat(3,280px)!important;overflow-x:auto!important;}}`}</style>
+          </div>
+        </section>
 
-              <div 
-                ref={scrollContainerRef}
-                className="flex gap-6 overflow-x-auto scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-8"
-              >
-                {getFeaturedMeals(t).map((meal) => (
-                  <Card 
-                    key={meal.id}
-                    className="flex-shrink-0 w-[320px] lg:w-auto overflow-hidden group hover-lift bg-white border border-stone-200 shadow-stone"
-                  >
-                    <div className="relative h-56 lg:h-64 overflow-hidden">
-                      <img 
-                        src={meal.image} 
-                        alt={t(meal.nameKey)}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                      <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-lg ${meal.tagColor}`}>
-                        {t(meal.tagKey)}
-                      </div>
-                      <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-md hover:scale-110 transition-transform">
-                        <Heart className="w-4 h-4 text-stone-600 hover:text-orange-700" />
-                      </button>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <h3 className="text-xl font-semibold font-display text-forest-700">{t(meal.nameKey)}</h3>
-                        <div className="flex items-center gap-1 text-sm text-stone-700">
-                          <Star className="w-4 h-4 fill-orange-500 text-orange-500" />
-                          {meal.rating}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-stone-700">
-                        <div className="flex items-center gap-6">
-                          <span className="flex items-center gap-2">
-                            <Flame className="w-4 h-4 text-orange-700" />
-                            {meal.calories} cal
-                          </span>
-                          <span className="flex items-center gap-2">
-                            <Dumbbell className="w-4 h-4 text-forest-700" />
-                            {meal.protein}
-                          </span>
-                        </div>
-                        <span className="flex items-center gap-2">
-                          <Timer className="w-4 h-4 text-stone-600" />
-                          15 min
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+        {/* ═══════ HOW IT WORKS ═══════ */}
+        <section id="how-it-works" style={{ padding: "80px 24px", background: "#F9FAFB" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div className="rv" style={{ textAlign: "center", marginBottom: 48 }}>
+              <p style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--green)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>3 EASY STEPS</p>
+              <h2 style={{ fontWeight: 800, fontSize: "clamp(1.6rem, 4vw, 2.6rem)", letterSpacing: "-0.02em", color: "#111" }}>
+                Get Started in <span style={{ color: "var(--green)" }}>60 Seconds</span>
+              </h2>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+              {STEPS.map((step, i) => (
+                <div key={i} className={`lift rv`} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 20, padding: "32px 26px", position: "relative", overflow: "hidden", transitionDelay: `${i * 0.12}s` }}>
+                  <div style={{ position: "absolute", top: -12, right: 16, fontSize: "5rem", fontWeight: 900, color: "rgba(0,0,0,0.03)", lineHeight: 1, userSelect: "none" }}>{step.num}</div>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: i === 0 ? "var(--green)" : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
+                    <step.icon size={22} color={i === 0 ? "#fff" : "#111"} />
+                  </div>
+                  <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: 8, color: "#111" }}>{step.title}</h3>
+                  <p style={{ fontSize: ".85rem", color: "var(--muted)", lineHeight: 1.65 }}>{step.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rv d3" style={{ textAlign: "center", marginTop: 40 }}>
+              {downloadButtons("sm")}
             </div>
           </div>
         </section>
 
-        {/* Features - Editorial Magazine Grid */}
-        <section id="features" className="mb-16 lg:mb-20 reveal-on-scroll stagger-delay-3">
-          <div className="px-4 max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl lg:text-5xl font-display font-bold text-forest-700 mb-4">Crafted for Excellence</h2>
-              <p className="text-xl text-stone-700 max-w-3xl mx-auto">Every detail designed to elevate your healthy lifestyle journey</p>
+        {/* ═══════ FEATURES ═══════ */}
+        <section id="features" style={{ padding: "80px 24px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div className="rv" style={{ textAlign: "center", marginBottom: 48 }}>
+              <p style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--green)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>PACKED WITH FEATURES</p>
+              <h2 style={{ fontWeight: 800, fontSize: "clamp(1.6rem, 4vw, 2.6rem)", letterSpacing: "-0.02em", color: "#111" }}>
+                Why {stats.members !== null ? formatStat(stats.members) : "12K+"} People{" "}
+                <span style={{ color: "var(--green)" }}>Love Nutrio</span>
+              </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[
-                { 
-                  icon: Target, 
-                  title: "Precision Nutrition", 
-                  desc: "AI-powered targets calibrated to your unique biochemistry and lifestyle goals", 
-                  color: "bg-orange-100",
-                  iconColor: "text-orange-700"
-                },
-                { 
-                  icon: ChefHat, 
-                  title: "Culinary Partners", 
-                  desc: "50+ of Qatar's finest restaurants crafting meals that nourish and delight", 
-                  color: "bg-amber-100",
-                  iconColor: "text-amber-700"
-                },
-                { 
-                  icon: Calendar, 
-                  title: "Intelligent Planning", 
-                  desc: "Schedule weeks ahead with flexible delivery that adapts to your lifestyle", 
-                  color: "bg-green-100",
-                  iconColor: "text-green-700"
-                },
-                { 
-                  icon: TrendingUp, 
-                  title: "Visual Progress", 
-                  desc: "Track your journey with elegant analytics that celebrate every milestone", 
-                  color: "bg-blue-100",
-                  iconColor: "text-blue-700"
-                },
-                { 
-                  icon: Leaf, 
-                  title: "Diverse Lifestyles", 
-                  desc: "Keto, vegan, high-protein, and more — all crafted with premium ingredients", 
-                  color: "bg-emerald-100",
-                  iconColor: "text-emerald-700"
-                },
-                { 
-                  icon: Users, 
-                  title: "Expert Support", 
-                  desc: "Nutritionists and wellness coaches ready to guide your transformation", 
-                  color: "bg-rose-100",
-                  iconColor: "text-rose-700"
-                },
-              ].map((feature, index) => (
-                <Card 
-                  key={index} 
-                  className="p-8 hover-lift bg-white border border-stone-200 shadow-stone group"
-                >
-                  <div className={`w-16 h-16 rounded-2xl ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                    <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
+              {FEATURES.map((f, i) => (
+                <div key={i} className={`lift rv`} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "28px 24px", transitionDelay: `${(i % 3) * 0.1}s` }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: i % 2 === 0 ? "rgba(34,197,94,0.1)" : "rgba(249,115,22,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                    <f.icon size={20} color={i % 2 === 0 ? "var(--green)" : "var(--orange)"} />
                   </div>
-                  <h3 className="text-2xl font-display font-semibold text-forest-700 mb-3">{feature.title}</h3>
-                  <p className="text-stone-700 leading-relaxed">{feature.desc}</p>
-                </Card>
+                  <h3 style={{ fontWeight: 700, fontSize: ".9rem", marginBottom: 8, color: "#111" }}>{f.title}</h3>
+                  <p style={{ fontSize: ".82rem", color: "var(--muted)", lineHeight: 1.6 }}>{f.desc}</p>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* How It Works - Organic Flow */}
-        <section id="how-it-works" className="mb-16 lg:mb-20 reveal-on-scroll stagger-delay-1">
-          <div className="px-4 max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-            <div className="organic-blob rounded-3xl p-8 lg:p-12">
-              <div className="text-center mb-12">
-                <h2 className="text-3xl lg:text-5xl font-display font-bold text-forest-700 mb-4">Your Journey to Wellness</h2>
-                <p className="text-xl text-stone-700">Three simple steps to transform your relationship with food</p>
-              </div>
+        {/* ═══════ REVIEWS ═══════ */}
+        <section id="reviews" style={{ padding: "80px 24px", background: "#F9FAFB" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div className="rv" style={{ textAlign: "center", marginBottom: 48 }}>
+              <p style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--green)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>APP STORE REVIEWS</p>
+              <h2 style={{ fontWeight: 800, fontSize: "clamp(1.6rem, 4vw, 2.6rem)", letterSpacing: "-0.02em", color: "#111" }}>
+                Loved by <span style={{ color: "var(--green)" }}>Thousands</span>
+              </h2>
+            </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18 }}>
+              {REVIEWS.map((r, i) => (
+                <div key={i} className={`lift rv`} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "28px 24px", transitionDelay: `${i * 0.12}s` }}>
+                  <div style={{ display: "flex", gap: 2, marginBottom: 14 }}>
+                    {Array.from({ length: r.rating }).map((_, j) => (
+                      <Star key={j} size={16} fill="#F59E0B" color="#F59E0B" />
+                    ))}
+                  </div>
+                  <p style={{ fontSize: ".875rem", color: "#374151", lineHeight: 1.65, marginBottom: 18, fontStyle: "italic" }}>"{r.text}"</p>
+                  <p style={{ fontSize: ".8rem", fontWeight: 700, color: "#111" }}>{r.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════ FINAL DOWNLOAD CTA ═══════ */}
+        <section style={{ padding: "0 24px", margin: "60px 0" }}>
+          <div className="rv" style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div className="dl-glow" style={{ borderRadius: 28, padding: "64px 48px", textAlign: "center" }}>
+              <div style={{ position: "relative", zIndex: 2 }}>
+                <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: 20, background: "var(--green)", marginBottom: 24 }}>
+                  <Smartphone size={30} color="#fff" />
+                </div>
+                <h2 style={{ fontWeight: 900, fontSize: "clamp(1.8rem, 4vw, 3rem)", color: "#fff", marginBottom: 14, letterSpacing: "-0.02em" }}>
+                  Start Eating Smarter Today
+                </h2>
+                <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.6)", marginBottom: 36, maxWidth: 480, margin: "0 auto 36px" }}>
+                  Download Nutrio for free. Track your meals, order healthy food, and transform your nutrition — all in one app.
+                </p>
+                <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+                  <a href="#" style={{ textDecoration: "none" }}>
+                    <button style={{ background: "#fff", color: "#111", border: "none", borderRadius: 14, padding: "16px 30px", fontWeight: 700, fontSize: ".9rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, transition: "all .2s", fontFamily: "'Inter',sans-serif" }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#111"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.51-3.23 0-1.44.64-2.2.45-3.06-.4C3.79 16.17 4.36 9.05 8.93 8.82c1.25.07 2.12.72 2.88.76.98-.2 1.92-.87 3.01-.79 1.28.1 2.24.61 2.88 1.56-2.65 1.58-2.02 5.09.37 6.07-.5 1.3-.9 2.6-1.87 3.84l-.15.02zM12.03 8.75c-.12-2.08 1.57-3.82 3.53-3.97.28 2.34-2.12 4.1-3.53 3.97z"/></svg>
+                      Download for iOS
+                    </button>
+                  </a>
+                  <a href="#" style={{ textDecoration: "none" }}>
+                    <button style={{ background: "#fff", color: "#111", border: "none", borderRadius: 14, padding: "16px 30px", fontWeight: 700, fontSize: ".9rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, transition: "all .2s", fontFamily: "'Inter',sans-serif" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#111"><path d="M3.61 1.81L13.42 12 3.61 22.19c-.36-.44-.61-1.04-.61-1.74V3.55c0-.7.25-1.3.61-1.74zm.75-.62L15.1 6.88l-2.76 2.76L4.36 1.19zm11.35 5.97L17.6 8.33 5.36 22.81l7.3-7.45 3.05-3.1-.01-.01 3.05-3.1-2.44-1.17zM17.6 15.67l-2.44-1.17-3.05 3.1L5.36 22.81l9.17-4.85 3.07-2.29z"/></svg>
+                      Download for Android
+                    </button>
+                  </a>
+                </div>
+                <p style={{ fontSize: ".75rem", color: "rgba(255,255,255,0.4)" }}>Free download • No credit card required</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════ PARTNER CTA (small) ═══════ */}
+        <section style={{ padding: "0 24px 60px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div className="rv" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 20, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 20, padding: "28px 32px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Store size={20} color="#fff" />
+                </div>
+                <div>
+                  <h4 style={{ fontWeight: 700, fontSize: ".9rem", color: "#111" }}>Own a Restaurant?</h4>
+                  <p style={{ fontSize: ".78rem", color: "var(--muted)" }}>
+                Partner with us and reach {stats.members !== null ? formatStat(stats.members) : "12K+"} health-conscious customers
+              </p>
+                </div>
+              </div>
+              <Link to="/partner/auth" style={{ textDecoration: "none" }}>
+                <button className="btn-green" style={{ padding: "10px 22px", fontSize: ".8rem", borderRadius: 12 }}>Join Our Network →</button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════ FOOTER ═══════ */}
+        <footer style={{ background: "#111", padding: "40px 24px 24px", color: "#fff" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Logo size="sm" />
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center" }}>
                 {[
-                  { 
-                    step: "01", 
-                    title: "Discover Your Goals", 
-                    desc: "Share your wellness vision, dietary preferences, and lifestyle. Our nutritionists craft your personalized roadmap.", 
-                    icon: Target, 
-                    color: "from-orange-600 to-amber-500",
-                    accent: "border-orange-600"
-                  },
-                  { 
-                    step: "02", 
-                    title: "Receive Your Blueprint", 
-                    desc: "Get your custom nutrition plan with precise macro targets and curated meal selections from Qatar's best kitchens.", 
-                    icon: Sparkles, 
-                    color: "from-forest-700 to-emerald-600",
-                    accent: "border-forest-700"
-                  },
-                  { 
-                    step: "03", 
-                    title: "Nourish & Flourish", 
-                    desc: "Order with confidence, track your progress, and watch your transformation unfold with elegant visual insights.", 
-                    icon: TrendingUp, 
-                    color: "from-amber-600 to-orange-500",
-                    accent: "border-amber-600"
-                  },
-                ].map((item, index) => (
-                  <Card key={index} className={`p-8 hover-lift bg-white border-2 ${item.accent} shadow-stone relative overflow-hidden`}>
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-stone-50 to-transparent rounded-bl-full" />
-                    <div className="relative">
-                      <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-6 shadow-lg`}>
-                        <item.icon className="w-8 h-8 text-white" />
-                      </div>
-                      <div className="text-4xl font-display font-bold text-stone-300 mb-2">{item.step}</div>
-                      <h3 className="text-2xl font-display font-semibold text-forest-700 mb-4">{item.title}</h3>
-                      <p className="text-stone-700 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </Card>
+                  { label: "About", to: "/about" }, { label: "Contact", to: "/contact" },
+                  { label: "FAQ", to: "/faq" }, { label: "Privacy", to: "/privacy" }, { label: "Terms", to: "/terms" },
+                ].map((link) => (
+                  <Link key={link.label} to={link.to} style={{ fontSize: ".82rem", color: "rgba(255,255,255,0.5)", textDecoration: "none", fontWeight: 500, transition: "color .2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+                  >{link.label}</Link>
                 ))}
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Pricing - Warm Organic Cards */}
-        <section id="pricing" className="mb-16 lg:mb-20 reveal-on-scroll stagger-delay-2">
-          <div className="px-4 max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl lg:text-5xl font-display font-bold text-forest-700 mb-4">Choose Your Wellness Plan</h2>
-              <p className="text-xl text-stone-700">Flexible options designed for every lifestyle and goal</p>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 20 }}>
+              <p style={{ fontSize: ".75rem", color: "rgba(255,255,255,0.35)" }}>©2026 Nutrio Fuel Ltd. All Rights Reserved.</p>
+              <div style={{ display: "flex", gap: 10 }}>
+                {downloadButtons("sm")}
+              </div>
             </div>
-
-            {loadingPlans ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-600"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-                {plans.map((plan) => {
-                  const Icon = plan.icon;
-                  return (
-                    <Card 
-                      key={plan.id}
-                      className={`overflow-hidden hover-lift bg-white border border-stone-200 shadow-stone relative ${plan.popular ? 'md:scale-105 md:z-10' : ''}`}
-                    >
-                      {plan.popular && (
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-600 to-amber-500" />
-                      )}
-                      <CardContent className="p-8">
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${plan.color} flex items-center justify-center shadow-md`}>
-                            <Icon className="w-6 h-6 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="text-2xl font-display font-semibold text-forest-700">{plan.name}</h3>
-                            {plan.popular && (
-                              <Badge className="bg-orange-100 text-orange-700 text-xs mt-1">Most Popular</Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mb-6">
-                          <span className="text-3xl font-bold text-forest-700">{formatCurrency(plan.price)}</span>
-                          <span className="text-stone-600">/week</span>
-                        </div>
-
-                        <p className="text-stone-700 mb-6 leading-relaxed">{t(plan.description)}</p>
-
-                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-gradient-to-br ${plan.color} text-white mb-6`}>
-                          <Utensils className="w-4 h-4" />
-                          {plan.mealsPerWeek === 0 ? "Unlimited" : `${plan.mealsPerWeek} meals/week`}
-                        </div>
-
-                        <ul className="space-y-3 mb-8">
-                          {plan.features.slice(0, 4).map((feature, i) => (
-                            <li key={i} className="flex items-start gap-3 text-sm text-stone-700">
-                              <Check className="w-5 h-5 shrink-0 text-orange-600 mt-0.5" />
-                              <span>{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-
-                        <Link to="/subscription" className="block">
-                          <Button 
-                            className={`w-full rounded-xl h-12 font-semibold ${plan.popular ? 'gradient-terracotta text-white shadow-terracotta' : 'border-2 border-stone-300 text-forest-700 hover:bg-stone-100'}`}
-                          >
-                            {plan.popular ? 'Get Started' : 'Choose Plan'}
-                          </Button>
-                        </Link>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
           </div>
-        </section>
-
-        {/* Restaurant Partner CTA - Warm Organic */}
-        <section className="mb-16 lg:mb-20 reveal-on-scroll stagger-delay-3">
-          <div className="px-4 max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-            <Card className="overflow-hidden bg-gradient-to-br from-orange-50 via-[#FAF7F2] to-green-50 border-orange-200">
-              <CardContent className="p-8 lg:p-12 flex flex-col lg:flex-row items-center gap-8">
-                <div className="lg:flex-1 text-center lg:text-left">
-                  <div className="w-20 h-20 rounded-2xl gradient-terracotta flex items-center justify-center shadow-terracotta mb-6 lg:mb-0 lg:absolute lg:-left-10">
-                    <Store className="w-10 h-10 text-white" />
-                  </div>
-                  <h3 className="text-3xl lg:text-4xl font-display font-bold text-forest-700 mb-4 lg:pl-16">Own a Restaurant?</h3>
-                  <p className="text-xl text-stone-700 lg:pl-16 mb-6 lg:mb-0">Partner with Qatar's leading nutrition platform and reach thousands of health-conscious customers who value quality ingredients and exceptional taste.</p>
-                </div>
-                <Link to="/partner/auth">
-                  <Button className="gradient-terracotta text-white font-semibold rounded-xl px-8 h-14 hover-lift shadow-terracotta whitespace-nowrap">
-                    Join Our Network
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* Footer - Minimal Luxury */}
-        <footer className="px-4 max-w-md mx-auto lg:max-w-none lg:container lg:px-8">
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-sm text-stone-600 mb-8">
-            <Link to="/about" className="hover:text-forest-700 transition-colors font-medium">About</Link>
-            <Link to="/contact" className="hover:text-forest-700 transition-colors font-medium">Contact</Link>
-            <Link to="/faq" className="hover:text-forest-700 transition-colors font-medium">FAQ</Link>
-            <Link to="/privacy" className="hover:text-forest-700 transition-colors font-medium">Privacy</Link>
-            <Link to="/terms" className="hover:text-forest-700 transition-colors font-medium">Terms</Link>
-          </div>
-          <p className="text-center text-sm text-stone-600">
-            © 2026 NUTRIO. Crafted with care for Qatar's wellness community.
-          </p>
         </footer>
       </main>
 
-      {/* Floating Action Button */}
-      <div className="lg:hidden fixed bottom-8 right-4 z-40">
-        <Link to="/onboarding">
-          <Button className="w-16 h-16 rounded-full gradient-terracotta text-white hover-lift shadow-terracotta">
-            <ArrowRight className="w-7 h-7" />
-          </Button>
-        </Link>
+      {/* Mobile FAB — Download */}
+      <div className="lg:hidden" style={{ position: "fixed", bottom: 24, right: 20, zIndex: 40 }}>
+        <a href="#" style={{ textDecoration: "none" }}>
+          <button className="btn-dark" style={{ width: 54, height: 54, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }}>
+            <Download size={22} />
+          </button>
+        </a>
       </div>
 
       <PromoVideo />
-
-      {/* Scroll Reveal Script */}
-      <script dangerouslySetInnerHTML={{
-        __html: `
-          function initScrollReveal() {
-            const revealElements = document.querySelectorAll('.reveal-on-scroll');
-            
-            const observer = new IntersectionObserver((entries) => {
-              entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                  entry.target.classList.add('revealed');
-                }
-              });
-            }, {
-              threshold: 0.1,
-              rootMargin: '0px 0px -50px 0px'
-            });
-            
-            revealElements.forEach(el => observer.observe(el));
-          }
-          
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initScrollReveal);
-          } else {
-            initScrollReveal();
-          }
-        `
-      }} />
     </div>
   );
 };
