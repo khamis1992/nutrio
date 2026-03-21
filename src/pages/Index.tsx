@@ -583,9 +583,6 @@ const Index = () => {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 20 }}>
               <p style={{ fontSize: ".75rem", color: "#9CA3AF" }}>©2026 Nutrio Fuel Ltd. All Rights Reserved.</p>
-              <div style={{ display: "flex", gap: 10 }}>
-                {downloadButtons("sm")}
-              </div>
             </div>
           </div>
         </footer>
