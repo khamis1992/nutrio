@@ -567,7 +567,7 @@ const Index = () => {
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, paddingBottom: 24, borderBottom: "1px solid #E5E7EB" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Logo size="sm" className="!h-40" />
+                <Logo size="sm" className="!h-20" />
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 24, justifyContent: "center" }}>
                 {[
