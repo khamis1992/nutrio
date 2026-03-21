@@ -23,11 +23,11 @@ import {
   Download,
   Store,
 } from "lucide-react";
-import appScreenshot from "@/assets/tracking order.png";
-import heroFood from "@/assets/Gemini_Generated_Image_j18tosj18tosj18t.png";
-import meal1 from "@/assets/1.png";
-import meal2 from "@/assets/2.png";
-import meal3 from "@/assets/3.png";
+import appScreenshot from "@/assets/dashboard-app.png";
+import heroFood from "@/assets/schedule-app.png";
+import meal1 from "@/assets/meals-app.png";
+import meal2 from "@/assets/orders-app.png";
+import meal3 from "@/assets/wallet-app.png";
 
 // Fallback values shown while loading or if data is unavailable
 const MARQUEE_FALLBACK = [
