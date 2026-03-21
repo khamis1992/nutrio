@@ -563,9 +563,9 @@ const Index = () => {
         </section>
 
         {/* ═══════ FOOTER ═══════ */}
-        <footer style={{ background: "#111", padding: "40px 24px 24px", color: "#fff" }}>
+        <footer style={{ background: "#fff", padding: "40px 24px 24px", color: "#111", borderTop: "1px solid #E5E7EB" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20, paddingBottom: 24, borderBottom: "1px solid #E5E7EB" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Logo size="sm" />
               </div>
@@ -574,15 +574,15 @@ const Index = () => {
                   { label: "About", to: "/about" }, { label: "Contact", to: "/contact" },
                   { label: "FAQ", to: "/faq" }, { label: "Privacy", to: "/privacy" }, { label: "Terms", to: "/terms" },
                 ].map((link) => (
-                  <Link key={link.label} to={link.to} style={{ fontSize: ".82rem", color: "rgba(255,255,255,0.5)", textDecoration: "none", fontWeight: 500, transition: "color .2s" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
+                  <Link key={link.label} to={link.to} style={{ fontSize: ".82rem", color: "#6B7280", textDecoration: "none", fontWeight: 500, transition: "color .2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#111")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "#6B7280")}
                   >{link.label}</Link>
                 ))}
               </div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 20 }}>
-              <p style={{ fontSize: ".75rem", color: "rgba(255,255,255,0.35)" }}>©2026 Nutrio Fuel Ltd. All Rights Reserved.</p>
+              <p style={{ fontSize: ".75rem", color: "#9CA3AF" }}>©2026 Nutrio Fuel Ltd. All Rights Reserved.</p>
               <div style={{ display: "flex", gap: 10 }}>
                 {downloadButtons("sm")}
               </div>
