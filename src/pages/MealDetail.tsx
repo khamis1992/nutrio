@@ -1005,6 +1005,34 @@ const MealDetail = () => {
         await incrementSnackUsage();
       }
 
+      // CRITICAL: Check meal availability before scheduling
+      // This prevents scheduling unavailable meals which causes cancellations
+      const { data: mealCheck, error: mealCheckError } = await supabase
+        .from("meals")
+        .select("id, is_available, restaurant_id")
+        .eq("id", meal.id)
+        .single();
+
+      if (mealCheckError || !mealCheck) {
+        toast({
+          title: "Meal not found",
+          description: "This meal is no longer available. Please select another meal.",
+          variant: "destructive",
+        });
+        setScheduling(false);
+        return;
+      }
+
+      if (mealCheck.is_available === false) {
+        toast({
+          title: "Meal unavailable",
+          description: "This meal is currently unavailable. Please select another meal or check back later.",
+          variant: "destructive",
+        });
+        setScheduling(false);
+        return;
+      }
+
       // Check if wallet has enough for add-ons before scheduling
       const addonsTotal = getSelectedAddonsTotal();
       if (addonsTotal > 0 && (wallet?.balance || 0) < addonsTotal) {

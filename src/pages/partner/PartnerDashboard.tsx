@@ -227,10 +227,12 @@ const PartnerDashboard = () => {
       lastSunday.setDate(thisMonday.getDate() - 1);
       const lastSundayStr = lastSunday.toISOString().split("T")[0];
 
-      // Count active orders (not completed/cancelled) — for dashboard stat
-      // Note: includes future orders so restaurant can plan prep
+      // Count active orders for today — matches what PartnerOrders page shows
+      // Note: only today's pending/confirmed orders so restaurant can plan prep
       const activeOrders = (allSchedules || []).filter(
-        (s) => !s.is_completed
+        (s) => !s.is_completed &&
+               s.scheduled_date === todayStr &&
+               (s.order_status === "pending" || s.order_status === "confirmed")
       ).length || 0;
       // Today's orders — for dashboard stat (orders scheduled for today)
       const todayOrders = (allSchedules || []).filter(

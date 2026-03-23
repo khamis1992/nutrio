@@ -104,6 +104,7 @@ export function DriverLayout() {
   const handleGeolocationError = (error: GeolocationPositionError, driverId: string, isRetry: boolean) => {
     let errorMessage: string;
     let logMessage: string;
+    const isTimeout = error.code === 3;
 
     switch (error.code) {
       case 1: // PERMISSION_DENIED
@@ -114,7 +115,7 @@ export function DriverLayout() {
         logMessage = `Geolocation position unavailable (code: ${error.code})`;
         errorMessage = "Unable to determine your location. Please check your device's location services.";
         break;
-      case 3: // TIMEOUT
+      case 3: // TIMEOUT - this is normal during poor conditions, not a critical error
         logMessage = `Geolocation request timed out (code: ${error.code})`;
         errorMessage = "Location request timed out. Retrying with lower accuracy...";
         break;
@@ -123,7 +124,12 @@ export function DriverLayout() {
         errorMessage = "An unexpected error occurred while getting your location.";
     }
 
-    console.error(logMessage);
+    // Use console.warn for timeouts (expected behavior), console.error for actual errors
+    if (isTimeout) {
+      console.warn(logMessage);
+    } else {
+      console.error(logMessage);
+    }
 
     if (error.code === 3 && !isRetry) {
       // Retry with lower accuracy for timeout

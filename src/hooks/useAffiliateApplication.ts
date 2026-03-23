@@ -34,12 +34,19 @@ export function useAffiliateApplication() {
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (error) throw error;
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 = "The result contains 0 rows" - this is expected when no application exists
+          throw error;
+        }
 
-        setApplication(data);
+        // No application found is not an error - just set null
+        setApplication(data || null);
         setIsApprovedAffiliate(data?.status === "approved");
       } catch (err) {
-        console.error("Error fetching affiliate application:", err);
+        // Only log if it's a real error (not the expected "no rows" case)
+        if ((err as { code?: string }).code !== 'PGRST116') {
+          console.warn("Error fetching affiliate application:", err);
+        }
       } finally {
         setLoading(false);
       }

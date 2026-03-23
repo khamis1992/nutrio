@@ -592,6 +592,28 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         return;
       }
 
+      // CRITICAL: Check for existing pending schedules on this date
+      // This prevents duplicate scheduling when auto-fill runs multiple times
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      const { data: existingSchedules, error: existingError } = await supabase
+        .from("meal_schedules")
+        .select("id, meal_type")
+        .eq("user_id", userId)
+        .eq("scheduled_date", dateStr)
+        .eq("order_status", "pending")
+        .neq("order_status", "cancelled");
+
+      if (!existingError && existingSchedules && existingSchedules.length > 0) {
+        const existingTypes = existingSchedules.map((s: any) => s.meal_type).join(", ");
+        toast({
+          title: "Meals already scheduled",
+          description: `You already have ${existingSchedules.length} meal(s) scheduled for this day (${existingTypes}). Please cancel existing meals first or choose a different date.`,
+          variant: "destructive",
+        });
+        setScheduling(false);
+        return;
+      }
+
       // Check quota before scheduling
       if (!isUnlimited && remainingMeals < allSelectedMeals.length) {
         toast({

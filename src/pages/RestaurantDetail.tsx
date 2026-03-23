@@ -144,14 +144,26 @@ const RestaurantDetail = () => {
   const fetchData = async () => {
     if (!id) return;
 
+    setLoading(true);
+    
     try {
+      // First, fetch the restaurant
       const { data: restaurantData, error: restaurantError } = await supabase
         .from("restaurants")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (restaurantError) throw restaurantError;
+      if (restaurantError) {
+        console.error("Restaurant query error:", restaurantError);
+        toast({
+          title: t("error"),
+          description: "Failed to load restaurant details",
+          variant: "destructive"
+        });
+        navigate("/meals");
+        return;
+      }
 
       setRestaurant({
         id: restaurantData.id,
@@ -170,34 +182,40 @@ const RestaurantDetail = () => {
         delivery_fee: 0,
       });
 
-      const { data: mealsData, error: mealsError } = await supabase
-        .from("meals")
-        .select("*")
-        .eq("restaurant_id", id)
-        .eq("is_test", false)
-        .not("name", "ilike", "test%");
+      // Then fetch meals - don't fail if meals query has issues
+      try {
+        const { data: mealsData, error: mealsError } = await supabase
+          .from("meals")
+          .select("*")
+          .eq("restaurant_id", id);
 
-      if (mealsError) throw mealsError;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const transformedMeals: Meal[] = (mealsData || []).map((meal: any) => ({
-        id: String(meal.id),
-        name: String(meal.name),
-        image_url: meal.image_url ? String(meal.image_url) : null,
-        calories: Number(meal.calories) || 0,
-        protein_g: parseFloat(String(meal.protein_g)) || 0,
-        carbs_g: parseFloat(String(meal.carbs_g)) || 0,
-        fat_g: parseFloat(String(meal.fat_g)) || 0,
-        rating: meal.rating ? parseFloat(String(meal.rating)) : 4.5,
-        prep_time_minutes: Number(meal.prep_time_minutes) || 15,
-        diet_tags: Array.isArray(meal.diet_tags) ? meal.diet_tags.map(String) : [],
-        is_vip_exclusive: Boolean(meal.is_vip_exclusive),
-        price: parseFloat(String(meal.price)) || 0,
-        meal_type: String(meal.meal_type || "lunch"),
-        description: meal.description ? String(meal.description) : undefined,
-      }));
-
-      setMeals(transformedMeals);
+        if (!mealsError && mealsData) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const transformedMeals: Meal[] = (mealsData || []).map((meal: any) => ({
+            id: String(meal.id),
+            name: String(meal.name),
+            image_url: meal.image_url ? String(meal.image_url) : null,
+            calories: Number(meal.calories) || 0,
+            protein_g: parseFloat(String(meal.protein_g)) || 0,
+            carbs_g: parseFloat(String(meal.carbs_g)) || 0,
+            fat_g: parseFloat(String(meal.fat_g)) || 0,
+            rating: meal.rating ? parseFloat(String(meal.rating)) : 4.5,
+            prep_time_minutes: Number(meal.prep_time_minutes) || 15,
+            diet_tags: Array.isArray(meal.diet_tags) ? meal.diet_tags.map(String) : [],
+            is_vip_exclusive: Boolean(meal.is_vip_exclusive),
+            price: parseFloat(String(meal.price)) || 0,
+            meal_type: String(meal.meal_type || "lunch"),
+            description: meal.description ? String(meal.description) : undefined,
+          }));
+          setMeals(transformedMeals);
+        } else if (mealsError) {
+          console.warn("Meals query warning (non-blocking):", mealsError);
+        }
+      } catch (mealsErr) {
+        console.warn("Meals fetch failed (non-blocking):", mealsErr);
+        // Continue with empty meals array
+        setMeals([]);
+      }
     } catch (err) {
       console.error("Error fetching restaurant data:", err);
       navigate("/meals");

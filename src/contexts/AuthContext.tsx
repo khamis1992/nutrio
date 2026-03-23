@@ -64,12 +64,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(false);
       });
 
-    // Safety timeout: if neither getSession nor onAuthStateChange fires within
-    // 8 seconds (e.g. network unreachable), force loading to false so the
-    // app can still render the login screen instead of a blank page.
     const safetyTimeout = setTimeout(() => {
-      console.warn('[AuthContext] Auth loading timeout — forcing loading=false');
-      setLoading(false);
+      if (loading) {
+        console.warn('[AuthContext] Auth check timed out — rendering without auth');
+        setLoading(false);
+      }
     }, 8000);
 
     return () => {
