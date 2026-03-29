@@ -12,9 +12,10 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Guard: prevent crash if env vars are missing (e.g. APK built without secrets configured)
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.error(
+  throw new Error(
     '[Nutrio] Missing Supabase configuration. ' +
-    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set in your build environment.'
+    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set in your build environment. ' +
+    'Current values - URL: ' + SUPABASE_URL + ', KEY: ' + SUPABASE_PUBLISHABLE_KEY
   );
 }
 
@@ -49,7 +50,6 @@ const capacitorStorage = {
   },
 };
 
-// Use Capacitor Preferences for native apps, localStorage for web
 const storage = isNative ? capacitorStorage : localStorage;
 
 export const supabase = createClient<Database>(
@@ -62,7 +62,11 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
     },
     realtime: {
-      enabled: true,
-    }
+      params: {
+        headers: {
+          'x-custom-header': 'nutrio',
+        },
+      },
+    },
   }
 );
