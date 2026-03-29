@@ -742,53 +742,85 @@ const Schedule = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: typeIndex * 0.05 }}
                 >
-                  <div className={`bg-white dark:bg-gray-900 rounded-xl border flex items-center gap-2 p-2 ${
-                    noMealsLeft ? "border-amber-200 dark:border-amber-800" : "border-dashed border-gray-200 dark:border-gray-700"
-                  }`}>
+                  <div
+                    onClick={() => {
+                      if (!user) {
+                        promptLogin({
+                          title: t("sign_in_to_schedule"),
+                          description: t("sign_in_to_schedule_desc"),
+                          actionLabel: t("sign_in"),
+                          signUpLabel: t("create_free_account"),
+                        });
+                      } else {
+                        openWizard(mealType);
+                      }
+                    }}
+                    className={`bg-white dark:bg-gray-900 rounded-2xl border flex flex-col items-start gap-3 p-3 active:scale-[0.98] active:shadow-sm transition-all cursor-pointer touch-manipulation ${
+                      noMealsLeft ? "border-amber-200 dark:border-amber-800" : "border-dashed border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                    }`}
+                  >
                     {/* Muted left accent */}
-                    <div className={`w-1 h-10 rounded-full shrink-0 ${config.color.replace('from-', 'bg-').replace(' to-', '-').split(' ')[0]} opacity-25`} />
+                    <div className={`w-1.5 h-full rounded-full shrink-0 ${config.color.replace('from-', 'bg-').replace(' to-', '-').split(' ')[0]} opacity-25`} />
 
-                    {/* Icon placeholder */}
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${config.bgColor} opacity-60`}>
-                      <MealIcon className={`h-4 w-4 ${config.textColor}`} />
+                    <div className="flex items-center gap-3 w-full">
+                      {/* Icon placeholder */}
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${config.bgColor} opacity-60`}>
+                        <MealIcon className={`h-6 w-6 ${config.textColor}`} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <span className={`block text-[11px] font-bold uppercase ${config.textColor} opacity-60 mb-0.5`}>
+                          {mealTypeName}
+                        </span>
+                        <p className="text-xs text-gray-500 mb-2">
+                          {timeLabel} · {noMealsLeft ? t("no_meals_left") : t("no_meals_scheduled")}
+                        </p>
+                        
+                        {/* CTA Button - larger and more prominent */}
+                        <div className="flex items-center justify-between mt-1">
+                          {noMealsLeft ? (
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 setShowBuyCredit(true);
+                               }}
+                               className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-full active:scale-95 transition-transform min-w-[90px]"
+                             >
+                               <Wallet className="h-4 w-4" />
+                               {t("buy_credits")}
+                             </button>
+                           ) : (
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 if (!user) {
+                                   promptLogin({
+                                     title: t("sign_in_to_schedule"),
+                                     description: t("sign_in_to_schedule_desc"),
+                                     actionLabel: t("sign_in"),
+                                     signUpLabel: t("create_free_account"),
+                                   });
+                                 } else {
+                                   openWizard(mealType);
+                                 }
+                               }}
+                               className="flex items-center justify-center px-5 py-2 bg-primary text-white text-xs font-bold rounded-full active:scale-95 transition-transform min-w-[100px]"
+                             >
+                               <Plus className="h-4 w-4 mr-1.5" />
+                               {t("add_meal")}
+                             </button>
+                           )}
+                           
+                           {!noMealsLeft && (
+                             <div className="text-gray-300 dark:text-gray-600">
+                               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                 <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                               </svg>
+                             </div>
+                           )}
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="flex-1 min-w-0">
-                      <span className={`text-[10px] font-semibold uppercase ${config.textColor} opacity-60`}>
-                        {mealTypeName}
-                      </span>
-                      <p className="text-[9px] text-gray-400">
-                        {timeLabel} · {noMealsLeft ? t("no_meals_left") : t("no_meals_scheduled")}
-                      </p>
-                    </div>
-
-                    {/* CTA - smaller */}
-                    {noMealsLeft ? (
-                      <button
-                        onClick={() => setShowBuyCredit(true)}
-                        className="shrink-0 px-2 py-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-lg"
-                      >
-                        <Wallet className="h-3 w-3" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          if (!user) {
-                            promptLogin({
-                              title: t("sign_in_to_schedule"),
-                              description: t("sign_in_to_schedule_desc"),
-                              actionLabel: t("sign_in"),
-                              signUpLabel: t("create_free_account"),
-                            });
-                          } else {
-                            openWizard(mealType);
-                          }
-                        }}
-                        className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center"
-                      >
-                        <Plus className="h-4 w-4 text-primary" />
-                      </button>
-                    )}
                   </div>
                 </motion.div>
               );

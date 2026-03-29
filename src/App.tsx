@@ -7,19 +7,11 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { NativeRouteRedirect } from "@/components/NativeRouteRedirect";
 import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Loader2 } from "lucide-react";
 import { fleetRoutes } from "@/fleet/routes";
 import CustomerLayout from "@/components/CustomerLayout";
-
-// Critical first-render pages (eager loaded)
-// NOTE: Index (landing page) is lazy-loaded because on native APK,
-// NativeRouteRedirect immediately redirects away from it. Eager-loading
-// Index was bundling ~35MB of PNG assets into the main JS chunk, which
-// significantly increased initial load time and caused blank screen on slow devices.
-const Index = lazy(() => import("./pages/Index"));
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -158,11 +150,7 @@ const App = () => (
                 <Routes>
             <Route
               path="/"
-              element={
-                <NativeRouteRedirect>
-                  <Index />
-                </NativeRouteRedirect>
-              }
+              element={<Navigate to="/auth" replace />}
             />
             <Route path="/walkthrough" element={<WalkthroughScreen />} />
             <Route path="/about" element={<About />} />
