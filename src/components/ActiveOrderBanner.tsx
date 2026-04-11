@@ -585,20 +585,32 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                 </div>
               </Link>
 
-              {/* Cancel button — outside Link so it doesn't navigate */}
+              {/* Cancel button — integrated into card with better UX */}
               {canCancel && cancellableOrderId && (
-                <button
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border-t border-red-100 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-100 active:scale-[0.98] transition-all disabled:opacity-50 rounded-b-3xl"
-                  onClick={(e) => handleCancelOrder(cancellableOrderId, e)}
-                  disabled={cancelling === cancellableOrderId}
+                <motion.div 
+                  className="relative mt-2"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 + 0.2 }}
                 >
-                  {cancelling === cancellableOrderId ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <X className="h-4 w-4" />
-                  )}
-                  {t("order_cancel")}
-                </button>
+                  <button
+                    className="group w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-transparent border border-red-200/60 text-red-500/80 text-xs font-medium hover:bg-red-50 hover:border-red-300 hover:text-red-600 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={(e) => handleCancelOrder(cancellableOrderId, e)}
+                    disabled={cancelling === cancellableOrderId}
+                  >
+                    {cancelling === cancellableOrderId ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>{t("order_cancelling") || "Cancelling..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        <X className="h-3.5 w-3.5 group-hover:rotate-90 transition-transform duration-200" />
+                        <span>{t("order_cancel")}</span>
+                      </>
+                    )}
+                  </button>
+                </motion.div>
               )}
             </motion.div>
           );

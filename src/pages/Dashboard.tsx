@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { motion, Variants, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import flamAvatar from "@/assets/flam.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,22 +9,20 @@ import { format } from "date-fns";
 import {
   Utensils,
   Bell,
-  Loader2,
   Plus,
   Crown,
   Flame,
   BarChart3,
   ChevronRight,
-  Zap,
-  CalendarClock,
+  Crown as SubscriptionIcon,
+  Heart,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
-import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { useAdaptiveGoals } from "@/hooks/useAdaptiveGoals";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { LogMealDialog } from "@/components/LogMealDialog";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
@@ -33,6 +32,62 @@ import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+const spring = { type: "spring" as const, stiffness: 300, damping: 25, mass: 0.8 };
+const springBouncy = { type: "spring" as const, stiffness: 400, damping: 17, mass: 0.6 };
+const springGentle = { type: "spring" as const, stiffness: 200, damping: 30, mass: 1 };
+
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: spring
+  }
+};
+
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06, delayChildren: 0.1 }
+  }
+};
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, x: 30 },
+  visible: { 
+    opacity: 1, 
+    x: 0,
+    transition: spring
+  }
+};
+
+const pulseVariants: Variants = {
+  pulse: {
+    scale: [1, 1.1, 1],
+    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+  }
+};
+
+const glowVariants: Variants = {
+  glow: {
+    boxShadow: [
+      "0 0 0px rgba(251, 146, 60, 0)",
+      "0 0 8px rgba(251, 146, 60, 0.4)",
+      "0 0 0px rgba(251, 146, 60, 0)"
+    ],
+    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+  }
+};
+
+const breatheVariants: Variants = {
+  breathe: {
+    opacity: [1, 0.85, 1],
+    transition: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+  }
+};
+
 interface Restaurant {
   id: string;
   name: string;
@@ -45,19 +100,16 @@ interface Restaurant {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
-  const { hasActiveSubscription, remainingMeals, totalMeals, mealsUsed, remainingMealsWeekly, totalMealsWeekly, isUnlimited, isVip, subscription } = useSubscription();
-  const { settings: platformSettings } = usePlatformSettings();
+  const { hasActiveSubscription, remainingMeals, isUnlimited, isVip, subscription } = useSubscription();
   const { 
     recommendation, 
-    predictions, 
     hasUnviewedAdjustment, 
     loading: adaptiveLoading, 
     applyAdjustment, 
-    dismissAdjustment
+    dismissAdjustment 
   } = useAdaptiveGoals();
-  const { toast } = useToast();
   const { t } = useLanguage();
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -76,7 +128,6 @@ const Dashboard = () => {
   const [hasRestaurant, setHasRestaurant] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch unread notification count
   useEffect(() => {
     if (!user) return;
     const fetchUnread = async () => {
@@ -90,7 +141,6 @@ const Dashboard = () => {
     fetchUnread();
   }, [user]);
 
-  // Check if user has a restaurant (for role switcher)
   useEffect(() => {
     const checkRestaurant = async () => {
       if (!user) return;
@@ -104,14 +154,12 @@ const Dashboard = () => {
     checkRestaurant();
   }, [user]);
 
-  // Redirect to onboarding if not completed
   useEffect(() => {
     if (!profileLoading && profile && !profile.onboarding_completed) {
       navigate("/onboarding");
     }
   }, [profile, profileLoading, navigate]);
 
-  // Fetch progress for selected date
   useEffect(() => {
     const fetchTodayProgress = async () => {
       if (!user) return;
@@ -142,10 +190,8 @@ const Dashboard = () => {
     fetchTodayProgress();
   }, [user, progressKey, selectedDate]);
 
-  // Use featured restaurants from hook
   useEffect(() => {
     if (!featuredLoading) {
-      // Map featured restaurants to the Restaurant interface
       const mappedRestaurants: Restaurant[] = featuredRestaurants.map((fr) => ({
         id: fr.id,
         name: fr.name,
@@ -160,15 +206,6 @@ const Dashboard = () => {
     }
   }, [featuredRestaurants, featuredLoading]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: t("signed_out"),
-      description: t("signed_out_desc"),
-    });
-    navigate("/");
-  };
-
   const userStats = {
     dailyCalories: profile?.daily_calorie_target || 2000,
     consumedCalories: todayProgress.calories,
@@ -179,386 +216,486 @@ const Dashboard = () => {
 
   const userName = profile?.full_name?.split(" ")[0] || "there";
 
+  // Streak week data
+  const weekTarget = hasActiveSubscription ? 7 : 5;
+  const completedThisWeek = Math.min((profile?.streak_days || 0) % weekTarget, weekTarget);
+  const weekDays = [
+    { label: "Sat" }, { label: "Sun" }, { label: "Mon" }, { label: "Tue" },
+    { label: "Wed" }, { label: "Thu" }, { label: "Fri" },
+  ];
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll();
+  const subscriptionY = useTransform(scrollY, [0, 200], [0, -10]);
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#ECFDF5]/30 gap-4 px-5">
+        <style>{`
+          @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+        <div className="w-full max-w-[480px] space-y-4">
+          <div className="h-14 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+          <div className="h-32 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+          <div className="h-24 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+          <div className="h-12 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+        </div>
       </div>
     );
   }
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t("good_morning");
+    if (hour < 18) return t("good_afternoon");
+    return t("good_evening");
+  };
+
   return (
-    <div className="min-h-screen">
-      {/* Enhanced Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border pt-safe">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* User Avatar with Greeting */}
-            <div className="flex items-center gap-3">
-              <Link to="/profile" className={`relative w-10 h-10 rounded-full overflow-hidden border-2 block ${
-                isVip ? "border-violet-500" : "border-primary/30"
+    <motion.div 
+      ref={containerRef}
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+      className="min-h-screen bg-white"
+      style={{ overscrollBehaviorY: "contain" }}
+    >
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+      {/* Header - Clean, iOS-style */}
+      <motion.header 
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={spring}
+        className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[#E1F2ED]/50 pt-2"
+      >
+        <div className="max-w-[480px] mx-auto px-5 h-14 flex items-center justify-between">
+          <motion.div whileTap={{ scale: 0.97, transition: springBouncy }}>
+            <Link to="/profile" className="flex items-center gap-3 transition-transform">
+              <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 ${
+                isVip ? "border-amber-400/80" : "border-[#E1F2ED]"
               }`}>
                 <img
                   src={profile?.avatar_url || flamAvatar}
                   alt={userName}
-                  className="w-full h-full object-contain object-center p-0.5"
+                  loading="eager"
+                  className="w-full h-full object-cover"
                 />
                 {isVip && (
-                  <div className="absolute -bottom-1 -right-1 bg-violet-500 rounded-full p-0.5">
+                  <motion.div 
+                    variants={pulseVariants}
+                    animate="pulse"
+                    className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full p-0.5 shadow-sm"
+                  >
                     <Crown className="w-3 h-3 text-white" />
-                  </div>
+                  </motion.div>
                 )}
-              </Link>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  {new Date().getHours() < 12 ? t("good_morning") : 
-                   new Date().getHours() < 18 ? t("good_afternoon") : t("good_evening")}
-                </p>
-                <p className="font-semibold text-sm">{userName}</p>
               </div>
-            </div>
-          </div>
+              <div>
+                <p className="text-xs text-[#64748B] leading-tight">
+                  {getGreeting()}
+                </p>
+                <p className="font-semibold text-sm text-[#0F172A] leading-tight">{userName}</p>
+              </div>
+            </Link>
+          </motion.div>
           <div className="flex items-center gap-1">
             {hasRestaurant && <RoleIndicator role="customer" />}
-            <Link to="/notifications">
-              <Button variant="ghost" size="icon" className="relative hover:bg-primary/10">
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-                )}
-              </Button>
+            <Link to="/notifications" className="relative">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.9, transition: springBouncy }}
+                animate={unreadCount > 0 ? { x: [0, -2, 2, -2, 2, 0] } : {}}
+                transition={{ duration: 0.5, repeat: unreadCount > 0 ? Infinity : 0, repeatDelay: 3 }}
+              >
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="w-11 h-11 rounded-full hover:bg-[#059669]/10 transition-transform"
+                >
+                  <Bell className="w-5 h-5 text-[#64748B]" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-[#DC2626] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </motion.div>
             </Link>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      <main className="container mx-auto px-4 py-4 space-y-4 pb-20">
+      <motion.main 
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+        className="max-w-[480px] mx-auto px-5 py-4 space-y-6 pb-24"
+      >
+        {/* PRIORITY 1: Subscription Status - Simplified */}
+        <AnimatePresence mode="wait">
+          {hasActiveSubscription && subscription && (
+            <motion.div 
+              key={subscription.id}
+              variants={fadeInUp}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -20, transition: spring }}
+            >
+              <motion.div 
+                whileTap={{ scale: 0.98, transition: springBouncy }}
+                style={{ y: subscriptionY }}
+              >
+                <Link to="/subscription">
+                  {(() => {
+                    const allUsed = !isUnlimited && remainingMeals === 0;
+                    const resetDate = subscription?.end_date ? format(new Date(subscription.end_date), "MMM d") : null;
+                    
+                    return (
+                      <motion.div
+                        layout
+                        transition={spring}
+                        className={`relative overflow-hidden rounded-2xl border-0 shadow-sm ${
+                          allUsed
+                            ? "bg-gradient-to-br from-amber-50 to-orange-50"
+                            : "bg-gradient-to-br from-[#059669] to-[#10B981]"
+                        }`}
+                      >
+                        <CardContent className="relative p-4">
+                          <AnimatePresence mode="wait">
+                            {allUsed ? (
+                              <motion.div 
+                                key="allUsed"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={spring}
+                                className="flex items-center gap-3"
+                              >
+                                <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                                  <Utensils className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-sm text-amber-900">{t("plan_card_all_used_title")}</p>
+                                  <p className="text-xs text-amber-700 mt-0.5">
+                                    {resetDate
+                                      ? t("plan_card_all_used_reset").replace("{date}", resetDate)
+                                      : t("plan_card_all_used_next_renewal")}
+                                  </p>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-amber-600 shrink-0" />
+                              </motion.div>
+                            ) : (
+                              <motion.div 
+                                key="active"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={spring}
+                                className="flex items-center gap-3"
+                              >
+                                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                                  {isVip ? <Crown className="w-5 h-5 text-white" /> : <Flame className="w-5 h-5 text-white" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold text-sm text-white/90 capitalize">{subscription?.plan}</p>
+                                    <Badge variant="outline" className="bg-white/20 text-white border-white/30 text-[10px] px-2 py-0.5">
+                                      {t("plan_card_active")}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-baseline gap-1.5 mt-1">
+                                    <span className="text-3xl font-black text-white leading-none">
+                                      {isUnlimited ? "∞" : remainingMeals}
+                                    </span>
+                                    <span className="text-sm font-medium text-white/80">
+                                      {isUnlimited ? t("plan_card_unlimited") : t("plan_card_meals_left")}
+                                    </span>
+                                  </div>
+                                </div>
+                                <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </CardContent>
+                      </motion.div>
+                    );
+                  })()}
+                </Link>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Active Plan Meal Summary Card — top of page */}
-        {hasActiveSubscription && subscription && (() => {
-          const allUsed = !isUnlimited && remainingMeals === 0;
-          const resetDate = subscription.end_date ? format(new Date(subscription.end_date), "MMM d") : null;
-          return (
-            <Link to="/subscription">
-              <Card className={`border-0 shadow-lg overflow-hidden ${
-                allUsed
-                  ? "bg-gradient-to-br from-amber-500 to-orange-500 shadow-amber-400/30"
-                  : "bg-gradient-to-br from-primary/90 to-primary shadow-primary/20"
-              } text-white`}>
-                <CardContent className="p-4">
-                  {/* Header row */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                        {isVip ? <Crown className="w-5 h-5 text-white" /> : <Zap className="w-5 h-5 text-white" />}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm capitalize">{subscription.plan} Plan</p>
-                        <p className="text-xs text-white/70">{t("plan_card_active")}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-white/80">
-                      <p className="text-xs">{t("plan_card_view_details")}</p>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-
-                  {allUsed ? (
-                    /* ── All meals used state ── */
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                          <Utensils className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-base leading-tight">{t("plan_card_all_used_title")}</p>
-                          <p className="text-xs text-white/80">
-                            {resetDate
-                              ? t("plan_card_all_used_reset").replace("{date}", resetDate)
-                              : t("plan_card_all_used_next_renewal")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="bg-white/20 rounded-xl px-3 py-2 text-xs text-white/90 flex items-center gap-1.5">
-                        <CalendarClock className="w-3.5 h-3.5 shrink-0" />
-                        <span>{t("plan_card_rollover_hint")}</span>
-                      </div>
-                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                        <div className="h-full w-full bg-white rounded-full" />
-                      </div>
-                    </div>
-                  ) : (
-                    /* ── Meals remaining state ── */
-                    <div className="space-y-3">
-                      {/* Large centered count */}
-                      <div className="text-center">
-                        <p className="text-5xl font-black leading-none" style={{ textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
-                          {isUnlimited ? "∞" : remainingMeals}
-                        </p>
-                        <p className="text-sm font-bold text-white/90 mt-1">
-                          {isUnlimited ? t("plan_card_unlimited") : t("plan_card_meals_left") || "meals left"}
-                        </p>
-                        {!isUnlimited && (
-                          <p className="text-xs text-white/60 mt-0.5">
-                            {t("plan_card_meals_used").replace("{used}", String(mealsUsed)).replace("{total}", String(totalMeals))}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Segmented progress bar */}
-                      {!isUnlimited && totalMeals > 0 && (
-                        <div className="flex gap-1">
-                          {Array.from({ length: totalMeals }).map((_, i) => (
-                            <div
-                              key={i}
-                              className="flex-1 h-5 rounded-md transition-all"
-                              style={{
-                                background: i < mealsUsed
-                                  ? 'linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.35) 100%)'
-                                  : 'rgba(255,255,255,0.15)',
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Footer row */}
-                      <div className="flex items-center justify-between text-xs text-white/60">
-                        <span>{t("plan_card_progress_reset") || "Progress towards reset"}</span>
-                        {!isUnlimited && resetDate && (
-                          <div className="flex items-center gap-1">
-                            <CalendarClock className="w-3 h-3" />
-                            <span>{t("plan_card_resets_on").replace("{date}", resetDate)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })()}
-
-        {/* AI Behavior Prediction */}
-        <BehaviorPredictionWidget />
-
-        {/* AI Adaptive Goal Suggestion */}
-        {hasUnviewedAdjustment && recommendation && (
-          <AdaptiveGoalCard
-            recommendation={recommendation}
-            currentCalories={profile?.daily_calorie_target || 2000}
-            currentProtein={profile?.protein_target_g || 150}
-            currentCarbs={profile?.carbs_target_g || 200}
-            currentFat={profile?.fat_target_g || 65}
-            onApply={applyAdjustment}
-            onDismiss={dismissAdjustment}
-            loading={adaptiveLoading}
+        {/* PRIORITY 2: Nutrition Progress */}
+        <motion.div variants={fadeInUp}>
+          <DailyNutritionCard
+            totalCalories={Math.round(userStats.consumedCalories)}
+            totalProtein={userStats.protein.consumed}
+            totalCarbs={userStats.carbs.consumed}
+            totalFat={userStats.fat.consumed}
+            focusCalories={userStats.dailyCalories}
+            targetProtein={userStats.protein.target}
+            targetCarbs={userStats.carbs.target}
+            targetFat={userStats.fat.target}
+            dayLabel={t("todays_progress")}
+            onDateChange={setSelectedDate}
           />
+        </motion.div>
+
+        {/* Active Order - after nutrition, before quick actions */}
+        {user && (
+          <motion.div variants={fadeInUp}>
+            <motion.div variants={breatheVariants} animate="breathe">
+              <ActiveOrderBanner userId={user.id} />
+            </motion.div>
+          </motion.div>
         )}
 
-        {/* Daily Nutrition Card */}
-        <DailyNutritionCard
-          totalCalories={Math.round(userStats.consumedCalories)}
-          totalProtein={userStats.protein.consumed}
-          totalCarbs={userStats.carbs.consumed}
-          totalFat={userStats.fat.consumed}
-          focusCalories={userStats.dailyCalories}
-          targetProtein={userStats.protein.target}
-          targetCarbs={userStats.carbs.target}
-          targetFat={userStats.fat.target}
-          dayLabel={t("todays_progress")}
-          onDateChange={setSelectedDate}
-        />
+        {/* PRIORITY 4: Log Meal Button - Primary CTA */}
+        <motion.div variants={fadeInUp}>
+          <motion.button
+            onClick={() => setLogMealOpen(true)}
+            whileTap={{ scale: 0.97, transition: springBouncy }}
+            whileHover={{ boxShadow: "0 4px 12px rgba(234, 88, 12, 0.3)" }}
+            className="w-full rounded-2xl h-12 font-semibold text-sm text-white shadow-sm transition-shadow"
+            style={{ background: "linear-gradient(135deg, #EA580C 0%, #F97316 100%)" }}
+          >
+            <Plus className="w-5 h-5 mr-2 inline-block" />
+            {t("log_meal")}
+          </motion.button>
+        </motion.div>
 
-        {/* Log Meal Button */}
-        <Button
-          onClick={() => setLogMealOpen(true)}
-          className={`w-full rounded-2xl h-11 font-semibold text-sm border-0 shadow-md ${
-            isVip
-              ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
-              : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground"
-          }`}
+        {/* PRIORITY 4: Quick Actions - Simple icon row */}
+        <motion.div variants={fadeInUp} className="grid grid-cols-4 gap-3">
+          {[
+            { to: "/tracker", icon: BarChart3, label: t("tracker"), color: "text-[#059669]" },
+            { to: "/subscription", icon: SubscriptionIcon, label: t("subscription"), color: "text-violet-600" },
+            { to: "/favorites", icon: Heart, label: t("favorites"), color: "text-rose-500" },
+            { to: "/progress", icon: TrendingUp, label: t("progress"), color: "text-emerald-600" },
+          ].map((action) => (
+            <Link 
+              key={action.to} 
+              to={action.to}
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <motion.div 
+                whileHover={{ scale: 1.05, transition: spring }}
+                whileTap={{ scale: 0.9, transition: springBouncy }}
+                className="w-12 h-12 rounded-2xl bg-white border border-[#E1F2ED] flex items-center justify-center shadow-sm"
+              >
+                <action.icon className={`w-5 h-5 ${action.color}`} />
+              </motion.div>
+              <span className="text-[11px] font-medium text-[#64748B]">{action.label}</span>
+            </Link>
+          ))}
+        </motion.div>
+
+        {/* PRIORITY 5: AI Widgets - Subtle, helpful suggestions */}
+        <motion.div variants={fadeInUp}>
+          <BehaviorPredictionWidget />
+        </motion.div>
+
+        {hasUnviewedAdjustment && recommendation && (
+          <motion.div variants={fadeInUp}>
+            <AdaptiveGoalCard
+              recommendation={recommendation}
+              currentCalories={profile?.daily_calorie_target || 2000}
+              currentProtein={profile?.protein_target_g || 150}
+              currentCarbs={profile?.carbs_target_g || 200}
+              currentFat={profile?.fat_target_g || 65}
+              onApply={applyAdjustment}
+              onDismiss={dismissAdjustment}
+              loading={adaptiveLoading}
+            />
+          </motion.div>
+        )}
+
+        {/* PRIORITY 6: Streak - Compact pill */}
+        <motion.div 
+          variants={fadeInUp}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-[#E1F2ED]"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          {t("log_meal")}
-        </Button>
-
-
-        {/* Quota Warning Banner - Shows at 75%+ usage */}
-
-        {/* QUICK ACTIONS — compact horizontal icon row */}
-        <div className="flex justify-around">
-          <Link to="/tracker" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <BarChart3 className="w-6 h-6 text-primary" />
-            </div>
-            <span className="text-xs font-medium text-foreground">{t("tracker")}</span>
-          </Link>
-
-          <Link to="/subscription" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center">
-              <Crown className="w-6 h-6 text-violet-600" />
-            </div>
-            <span className="text-xs font-medium text-foreground">{t("subscription")}</span>
-          </Link>
-
-          <Link to="/favorites" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center">
-              <svg className="w-6 h-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </div>
-            <span className="text-xs font-medium text-foreground">{t("favorites")}</span>
-          </Link>
-
-          <Link to="/progress" className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
-              <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <span className="text-xs font-medium text-foreground">{t("progress")}</span>
-          </Link>
-        </div>
-
-        {/* Active Orders Banner - Shows when there are active orders */}
-        {user && <ActiveOrderBanner userId={user.id} />}
-
-        {/* STREAK STRIP */}
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shrink-0">
-            <Flame className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-amber-900 leading-tight">
-              {profile?.streak_days || 0} {t("day")} {t("streak")}!
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex-1 bg-amber-200 rounded-full h-1.5">
-                <div
-                  className="bg-gradient-to-r from-amber-400 to-orange-500 h-full rounded-full transition-all"
-                  style={{
-                    width: `${hasActiveSubscription
-                      ? Math.min(((profile?.streak_days || 0) % 7) * (100 / 7), 100)
-                      : Math.min(((profile?.streak_days || 0) % 5) * (100 / 5), 100)
-                    }%`
-                  }}
-                />
+          {/* Streak Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <motion.div 
+                variants={glowVariants}
+                animate="glow"
+                className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm"
+              >
+                <Flame className="w-4.5 h-4.5 text-white" />
+              </motion.div>
+              <div>
+                <p className="text-sm font-bold text-[#0F172A]">{profile?.streak_days || 0} {t("day")} {t("streak")}</p>
+                <p className="text-[11px] text-[#64748B]">{t("keep_going") || "Keep it up!"}</p>
               </div>
-              <span className="text-xs text-amber-700 shrink-0">
-                {(profile?.streak_days || 0) % (hasActiveSubscription ? 7 : 5)}/{hasActiveSubscription ? 7 : 5} {t("days_this_week")}
-              </span>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-black text-[#059669]">{completedThisWeek}<span className="text-xs font-normal text-[#64748B]">/{weekTarget}</span></p>
+              <p className="text-[10px] text-[#64748B]">{t("this_week")}</p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-white/70 text-amber-700 border-amber-300 text-xs shrink-0">
-            🔥 {7 - (profile?.streak_days || 0) % 7}d left
-          </Badge>
-        </div>
 
-        {/* ENHANCED RESTAURANTS SECTION */}
-        <section className="space-y-4">
+          {/* 7-Day Visual Row — Duolingo style */}
+          <div className="flex justify-between gap-1">
+            {weekDays.map((day, i) => {
+              const isCompleted = i < completedThisWeek;
+              const isToday = i === completedThisWeek;
+              return (
+                <div key={day.label} className="flex-1 flex flex-col items-center gap-1.5">
+                  <motion.div 
+                    whileTap={{ scale: 0.85, transition: springBouncy }}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                      isCompleted
+                        ? "bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm"
+                        : isToday
+                        ? "border-2 border-dashed border-amber-400 bg-amber-50"
+                        : "bg-[#F0F8F6]"
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <motion.span 
+                        initial={{ scale: 0 }} 
+                        animate={{ scale: 1 }} 
+                        transition={{ type: "spring" as const, stiffness: 500, damping: 15 }}
+                        className="text-white text-xs"
+                      >✓</motion.span>
+                    ) : isToday ? (
+                      <span className="text-amber-500 text-[10px] font-bold">{i + 1}</span>
+                    ) : (
+                      <span className="text-[#64748B]/40 text-[10px]">{i + 1}</span>
+                    )}
+                  </motion.div>
+                  <span className={`text-[10px] font-medium ${isToday ? "text-amber-600" : "text-[#64748B]/60"}`}>
+                    {day.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* PRIORITY 7: Restaurants - Last on home */}
+        <motion.section variants={fadeInUp} className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">{t("top_rated")} {t("restaurants")}</h2>
+            <h2 className="text-base font-bold text-[#0F172A]">{t("top_rated")} {t("restaurants")}</h2>
           </div>
 
-          {/* Horizontal Scrolling Restaurant Cards */}
-          <div className="relative -mx-4 px-4">
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+          <div className="relative -mx-5 px-5 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-4 pb-2 snap-x snap-mandatory">
               {restaurantsLoading ? (
-                <div className="flex items-center justify-center py-12 w-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
+                <>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex-shrink-0 w-[240px]">
+                      <div 
+                        className="h-[148px] rounded-2xl"
+                        style={{
+                          background: "linear-gradient(90deg, rgb(241 245 249) 0%, rgb(241 245 249/0.5) 50%, rgb(241 245 249) 100%)",
+                          backgroundSize: "200% 100%",
+                          animation: "shimmer 1.5s infinite"
+                        }}
+                      />
+                    </div>
+                  ))}
+                </>
               ) : restaurants.length === 0 ? (
-                <Card className="w-full min-w-[300px]">
-                  <CardContent className="p-8 text-center">
-                    <h3 className="font-semibold mb-2">{t("no_featured_restaurants")}</h3>
-                    <p className="text-sm text-muted-foreground">
+                <Card className="w-full min-w-[240px] rounded-2xl shadow-sm border border-[#E1F2ED]">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="font-semibold mb-2 text-[#0F172A]">{t("no_featured_restaurants")}</h3>
+                    <p className="text-sm text-[#64748B]">
                       {t("check_back_restaurants")}
                     </p>
                   </CardContent>
                 </Card>
               ) : (
                 restaurants.map((restaurant) => (
-                  <div 
-                    key={restaurant.id} 
-                    className="flex-shrink-0 w-[280px] snap-start"
+                  <motion.div
+                    key={restaurant.id}
+                    variants={fadeInUp}
+                    className="flex-shrink-0 w-[240px] snap-start"
+                    whileTap={{ scale: 0.98, transition: springBouncy }}
                   >
                     <Link to={`/restaurant/${restaurant.id}`} className="block group">
-                      <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-0 shadow-md">
-                        {/* Restaurant Image */}
-                        <div className="relative h-32 bg-muted">
+                      <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200 border border-[#E1F2ED] bg-white rounded-2xl shadow-sm">
+                        <div className="relative h-24 bg-[#F0F8F6]">
                           {restaurant.logo_url ? (
                             <img 
                               src={restaurant.logo_url} 
                               alt={restaurant.name}
+                              loading="lazy"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-                              <Utensils className="w-12 h-12 text-primary/40" />
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#059669]/5 to-[#10B981]/5">
+                              <Utensils className="w-8 h-8 text-[#059669]/30" />
                             </div>
                           )}
-                          {/* Favorite Button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-2 right-2 bg-white/90 hover:bg-white shadow-sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              toggleFavorite(restaurant.id, restaurant.name);
-                            }}
-                          >
-                            <svg 
-                              className={`w-5 h-5 ${isFavorite(restaurant.id) ? 'fill-rose-500 text-rose-500' : 'text-muted-foreground'}`}
-                              viewBox="0 0 24 24" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              strokeWidth="2"
+                          <motion.div whileTap={{ scale: 0.9, transition: springBouncy }}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute top-2 right-2 w-8 h-8 bg-white/90 hover:bg-white rounded-full shadow-sm"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleFavorite(restaurant.id, restaurant.name);
+                              }}
                             >
-                              <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                            </svg>
-                          </Button>
-                          {/* Featured Badge */}
-                          <Badge className="absolute top-2 left-2 bg-amber-500 text-white border-0">
+                              <svg 
+                                className={`w-4 h-4 ${isFavorite(restaurant.id) ? 'fill-rose-500 text-rose-500' : 'text-[#64748B]'}`}
+                                viewBox="0 0 24 24" 
+                                fill={isFavorite(restaurant.id) ? 'currentColor' : 'none'} 
+                                stroke="currentColor" 
+                                strokeWidth="2"
+                              >
+                                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                              </svg>
+                            </Button>
+                          </motion.div>
+                          <Badge className="absolute top-2 left-2 bg-amber-500/95 text-white border-0 text-[10px] font-semibold px-2 py-0.5 shadow-sm">
                             {t("featured_badge")}
                           </Badge>
                         </div>
                         
-                        {/* Restaurant Info */}
-                        <CardContent className="p-4">
-                          <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                        <CardContent className="p-3">
+                          <h3 className="font-bold text-sm text-[#0F172A] mb-0.5 group-hover:text-[#059669] transition-colors line-clamp-1">
                             {restaurant.name}
                           </h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          <p className="text-xs text-[#64748B] line-clamp-2 mb-2">
                             {restaurant.description || t("delicious_healthy_meals") || "Delicious healthy meals"}
                           </p>
                           
-                          {/* Stats Row */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
+                              <svg className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
                                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                               </svg>
-                              <span className="text-sm font-medium">{restaurant.rating.toFixed(1)}</span>
+                              <span className="text-xs font-medium text-[#0F172A]">{restaurant.rating.toFixed(1)}</span>
                             </div>
-                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <span>{restaurant.meal_count} {t("meals_label")}</span>
-                            <span>•</span>
-                            <span>{restaurant.total_orders} {t("orders_label")}</span>
+                            <div className="flex items-center gap-2 text-xs text-[#64748B]">
+                              <span>{restaurant.meal_count} {t("meals_label")}</span>
+                              <span className="text-[#E1F2ED]">•</span>
+                              <span>{restaurant.total_orders} {t("orders_label")}</span>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     </Link>
-                  </div>
+                  </motion.div>
                 ))
               )}
             </div>
           </div>
-        </section>
-      </main>      {/* Log Meal Dialog */}
+        </motion.section>
+      </motion.main>
+
       {user && (
         <LogMealDialog
           open={logMealOpen}
@@ -567,7 +704,7 @@ const Dashboard = () => {
           onMealLogged={() => setProgressKey((k) => k + 1)}
         />
       )}
-    </div>
+    </motion.div>
   );
 };
 
