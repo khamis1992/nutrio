@@ -1,13 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Package, Navigation, Store, RefreshCw } from "lucide-react";
+import { MapPin, Package, Navigation, Store, RefreshCw, Play, Square, Wifi, WifiOff, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  startBroadcasting,
+  stopBroadcasting,
+  subscribe,
+  type BroadcastStatus,
+} from "@/services/driver-location-service";
 
 
 interface AvailableDelivery {
@@ -43,6 +49,27 @@ export default function DriverDashboard() {
   const [activeDelivery, setActiveDelivery] = useState<AvailableDelivery | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [stats, setStats] = useState({ today: 0, week: 0, balance: 0 });
+  const [gpsStatus, setGpsStatus] = useState<BroadcastStatus>("idle");
+  const [gpsError, setGpsError] = useState<string | undefined>();
+  const [gpsLastUpdate, setGpsLastUpdate] = useState<Date | null>(null);
+  const [driverProfileId, setDriverProfileId] = useState<string | null>(null);
+
+  // Subscribe to GPS broadcast state
+  useEffect(() => {
+    const unsub = subscribe((s) => {
+      setGpsStatus(s.status);
+      setGpsError(s.errorMessage);
+      setGpsLastUpdate(s.lastUpdate);
+    });
+    return unsub;
+  }, []);
+
+  // Ensure GPS broadcasting stops on unmount
+  useEffect(() => {
+    return () => {
+      stopBroadcasting();
+    };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -103,6 +130,14 @@ export default function DriverDashboard() {
 
       setDriverId(driver.id);
       setIsOnline(driver.is_online || false);
+
+      // Get driver_profile ID for GPS broadcasting
+      const { data: profile } = await supabase
+        .from("driver_profiles")
+        .select("id")
+        .eq("driver_id", driver.id)
+        .maybeSingle();
+      if (profile) setDriverProfileId(profile.id);
     } catch (error) {
       console.error("Error fetching driver data:", error);
       toast({
@@ -351,6 +386,31 @@ export default function DriverDashboard() {
     }
   };
 
+  const handleStartShift = useCallback(async () => {
+    if (!driverProfileId) {
+      toast({ title: "Error", description: "Driver profile not found", variant: "destructive" });
+      return;
+    }
+    const ok = await startBroadcasting(driverProfileId);
+    if (!ok) {
+      toast({ title: "GPS Error", description: gpsError || "Could not start GPS", variant: "destructive" });
+      return;
+    }
+    // Also set driver online
+    await supabase.from("drivers").update({ is_online: true }).eq("id", driverId);
+    setIsOnline(true);
+    toast({ title: "Shift Started", description: "GPS broadcasting active. You're now online." });
+  }, [driverProfileId, driverId, gpsError, toast]);
+
+  const handleEndShift = useCallback(async () => {
+    await stopBroadcasting();
+    if (driverId) {
+      await supabase.from("drivers").update({ is_online: false }).eq("id", driverId);
+    }
+    setIsOnline(false);
+    toast({ title: "Shift Ended", description: "GPS broadcasting stopped." });
+  }, [driverId, toast]);
+
   if (loading) {
     return (
       <div className="p-4 space-y-4">
@@ -365,21 +425,49 @@ export default function DriverDashboard() {
 
   return (
     <div className="p-4 space-y-4">
-        {!isOnline && (
-          <Card className="bg-amber-500/10 border-amber-500/20">
-            <CardContent className="py-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                <Package className="h-5 w-5 text-amber-600" />
+        {/* GPS / Shift Control Card */}
+        <Card className={`border ${gpsStatus === "broadcasting" ? "bg-green-500/10 border-green-500/20" : gpsStatus === "error" ? "bg-red-500/10 border-red-500/20" : "bg-amber-500/10 border-amber-500/20"}`}>
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {gpsStatus === "broadcasting" ? (
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Wifi className="h-5 w-5 text-green-600" />
+                  </div>
+                ) : gpsStatus === "error" ? (
+                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <WifiOff className="h-5 w-5 text-amber-600" />
+                  </div>
+                )}
+                <div>
+                  <p className={`font-medium ${gpsStatus === "broadcasting" ? "text-green-600" : gpsStatus === "error" ? "text-red-600" : "text-amber-600"}`}>
+                    {gpsStatus === "broadcasting" ? "GPS Active" : gpsStatus === "error" ? "GPS Error" : "GPS Off"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {gpsStatus === "broadcasting"
+                      ? `Last update: ${gpsLastUpdate ? new Date(gpsLastUpdate).toLocaleTimeString() : "waiting..."}`
+                      : gpsStatus === "error"
+                      ? gpsError || "Check GPS permissions"
+                      : "Start your shift to begin broadcasting"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-amber-600">You're Offline</p>
-                <p className="text-sm text-muted-foreground">
-                  Go online to see and claim delivery orders
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              {gpsStatus === "broadcasting" ? (
+                <Button variant="destructive" size="sm" onClick={handleEndShift} className="gap-1.5">
+                  <Square className="w-3.5 h-3.5" /> End Shift
+                </Button>
+              ) : (
+                <Button size="sm" onClick={handleStartShift} className="gap-1.5 bg-green-600 hover:bg-green-700">
+                  <Play className="w-3.5 h-3.5" /> Start Shift
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {activeDelivery && (
           <Card className="bg-green-500/10 border-green-500/20 cursor-pointer" onClick={() => navigate(`/driver/orders/${activeDelivery.id}`)}>

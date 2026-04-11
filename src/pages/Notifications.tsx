@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Bell,
   BellOff,
   Truck,
-  CheckCircle2,
   Star,
   TrendingUp,
   Crown,
@@ -15,6 +13,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -56,7 +55,6 @@ const TYPE_TO_FILTER: Record<Notification["type"], FilterKey> = {
 
 export default function Notifications() {
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -183,13 +181,11 @@ export default function Notifications() {
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-              <BellOff className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">No notifications</p>
-            <p className="text-sm text-gray-400">You're all caught up!</p>
-          </div>
+          <EmptyState
+            icon={<BellOff className="w-8 h-8" />}
+            title="No notifications"
+            description="You're all caught up!"
+          />
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {filtered.map((n) => {

@@ -188,6 +188,37 @@ export function CustomerDeliveryTracker({
             }
           }
         )
+        // Also subscribe to driver_locations table for high-frequency updates
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "driver_locations",
+            filter: `driver_id=eq.${deliveryJob.driver_id}`,
+          },
+          (payload) => {
+            const loc = payload.new as any;
+            if (loc.location) {
+              // Parse PostGIS point: "SRID=4326;POINT(lng lat)"
+              const match = loc.location.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
+              if (match) {
+                setDriverLocation(prev => ({
+                  lat: parseFloat(match[2]),
+                  lng: parseFloat(match[1]),
+                  updated_at: loc.recorded_at || new Date().toISOString(),
+                  speed_kmh: prev?.speed_kmh,
+                  heading: prev?.heading,
+                }));
+                setRouteHistory(prev => [...prev.slice(-200), {
+                  lat: parseFloat(match[2]),
+                  lng: parseFloat(match[1]),
+                  timestamp: loc.recorded_at,
+                }]);
+              }
+            }
+          }
+        )
         .subscribe();
 
       // Poll for location updates every 15 seconds as fallback

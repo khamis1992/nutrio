@@ -42,7 +42,6 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
         setRefreshToken(storedRefreshToken);
         setUser(parsedUser);
       } catch {
-        // Invalid stored data, clear it
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
@@ -51,26 +50,44 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  // Token refresh interval
+  const logout = useCallback(async () => {
+    try {
+      await logoutFleetManager();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setToken(null);
+      setRefreshToken(null);
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      navigate('/fleet/login');
+    }
+  }, [navigate]);
+
+  // Token refresh interval - uses localStorage to avoid stale closure
   useEffect(() => {
     if (!refreshToken) return;
 
     const refreshInterval = setInterval(async () => {
       try {
-        const { token: newToken, refreshToken: newRefreshToken } = await refreshFleetToken(refreshToken);
+        const currentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+        if (!currentRefreshToken) return;
+
+        const { token: newToken, refreshToken: newRefreshToken } = await refreshFleetToken(currentRefreshToken);
         setToken(newToken);
         setRefreshToken(newRefreshToken);
         localStorage.setItem(TOKEN_KEY, newToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
       } catch (error) {
         console.error('Failed to refresh token:', error);
-        // Token refresh failed, logout user
-        await logout();
+        logout();
       }
-    }, 55 * 60 * 1000); // Refresh every 55 minutes
+    }, 55 * 60 * 1000);
 
     return () => clearInterval(refreshInterval);
-  }, [refreshToken]);
+  }, [refreshToken, logout]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -104,22 +121,6 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [navigate, toast]);
 
-  const logout = useCallback(async () => {
-    try {
-      await logoutFleetManager();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      setToken(null);
-      setRefreshToken(null);
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-      navigate('/fleet/login');
-    }
-  }, [navigate]);
-
   const hasCityAccess = useCallback((cityId: string): boolean => {
     if (!user) return false;
     if (user.role === 'super_admin') return true;
@@ -152,7 +153,6 @@ export function useFleetAuth() {
   return context;
 }
 
-// Hook for protected route checks
 export function useRequireFleetAuth(requiredRole?: FleetManagerRole) {
   const { user, isAuthenticated, isLoading } = useFleetAuth();
   const navigate = useNavigate();

@@ -156,3 +156,63 @@ export function formatDeliveryTime(distance: number): string {
   const mins = minutes % 60;
   return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
 }
+
+// ── GPS Tracking ETA Utilities ──────────────────────────────────────────────
+
+/**
+ * Calculate ETA in minutes from driver to destination
+ * Uses actual speed if available, otherwise falls back to average city speed
+ */
+export function calculateETA(
+  driverLat: number,
+  driverLng: number,
+  destLat: number,
+  destLng: number,
+  speedKmh?: number
+): number {
+  const distKm = calculateDistance(driverLat, driverLng, destLat, destLng);
+  const speed = speedKmh && speedKmh > 3 ? speedKmh : 25; // city average
+  return Math.max(1, Math.round((distKm / speed) * 60));
+}
+
+/**
+ * Format ETA for display
+ */
+export function formatETA(minutes: number): string {
+  if (minutes < 1) return "Less than 1 min";
+  if (minutes === 1) return "1 min";
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+}
+
+/**
+ * Check if driver is "nearby" (within 500m)
+ */
+export function isNearby(
+  driverLat: number,
+  driverLng: number,
+  destLat: number,
+  destLng: number,
+  thresholdMeters = 500
+): boolean {
+  return calculateDistanceMeters(driverLat, driverLng, destLat, destLng) <= thresholdMeters;
+}
+
+/**
+ * Calculate bearing from driver to destination (for heading display)
+ */
+export function calculateBearing(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): number {
+  const dLng = ((toLng - fromLng) * Math.PI) / 180;
+  const lat1 = (fromLat * Math.PI) / 180;
+  const lat2 = (toLat * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { OneTapReorder } from "@/components/OneTapReorder";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
-import { isOrderModifiable } from "@/hooks/useOrderModification";
+import { EmptyState } from "@/components/EmptyState";
 import { 
   ArrowLeft, 
   Package,
@@ -584,18 +584,13 @@ const OrderHistory = () => {
   const renderScheduledMeals = (meals: ScheduledMeal[]) => {
     if (meals.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-          <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-4 shadow-sm">
-            <ShoppingBag className="h-9 w-9 text-muted-foreground/50" />
-          </div>
-          <h3 className="font-bold text-lg text-foreground mb-1">{t("no_scheduled_meals_title")}</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            {t("schedule_meals_cta")}
-          </p>
-          <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 shadow-sm shadow-primary/20">
-            {t("browse_meals_btn")}
-          </Button>
-        </div>
+        <EmptyState
+          icon={<ShoppingBag className="w-9 h-9" />}
+          title={t("no_scheduled_meals_title")}
+          description={t("schedule_meals_cta")}
+          actionLabel={t("browse_meals_btn")}
+          actionHref="/meals"
+        />
       );
     }
 
@@ -819,18 +814,13 @@ const OrderHistory = () => {
             {activeTab === "orders" && (
               <>
                 {orders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                    <div className="w-20 h-20 rounded-3xl bg-muted flex items-center justify-center mb-4 shadow-sm">
-                      <ShoppingBag className="h-9 w-9 text-muted-foreground/50" />
-                    </div>
-                    <h3 className="font-bold text-lg text-foreground mb-1">{t("no_data")}</h3>
-                    <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-                      {t("no_data_desc_orders")}
-                    </p>
-                    <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 shadow-sm shadow-primary/20">
-                      {t("browse_meals_btn")}
-                    </Button>
-                  </div>
+                  <EmptyState
+                    icon={<ShoppingBag className="w-9 h-9" />}
+                    title={t("no_data")}
+                    description={t("no_data_desc_orders")}
+                    actionLabel={t("browse_meals_btn")}
+                    actionHref="/meals"
+                  />
                 ) : (
                   <div className="space-y-3">
                     {orders.map((order) => {

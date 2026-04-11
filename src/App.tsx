@@ -36,6 +36,9 @@ const Tracker = lazy(() => import("./pages/Tracker"));
 const WaterTracker = lazy(() => import("./pages/WaterTracker"));
 const StepCounter = lazy(() => import("./pages/StepCounter"));
 const WeightTracking = lazy(() => import("./pages/WeightTracking"));
+const BloodWorkUpload = lazy(() => import("./pages/health/BloodWorkUpload"));
+const BloodWorkResults = lazy(() => import("./pages/health/BloodWorkResults"));
+const HealthDashboard = lazy(() => import("./pages/health/HealthDashboard"));
 
 const Profile = lazy(() => import("./pages/Profile"));
 const Dietary = lazy(() => import("./pages/Dietary"));
@@ -55,6 +58,11 @@ const Wallet = lazy(() => import("./pages/Wallet"));
 const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
+
+// Recovery pages
+const RecoveryPartners = lazy(() => import("./pages/recovery/RecoveryPartners"));
+const RecoveryDetail = lazy(() => import("./pages/recovery/RecoveryDetail"));
+const MyBookings = lazy(() => import("./pages/recovery/MyBookings"));
 
 // Partner pages
 const PartnerAuth = lazy(() => import("./pages/partner/PartnerAuth"));
@@ -140,7 +148,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster position="top-right" />
       <RadixToaster />
-      <BrowserRouter>
+      <BrowserRouter basename="/nutrio">
         <AuthProvider>
           <AnalyticsProvider>
             <SessionTimeoutManager>
@@ -230,6 +238,30 @@ const App = () => (
               } 
             />
             <Route 
+              path="/health/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <HealthDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/health/blood-work" 
+              element={
+                <ProtectedRoute>
+                  <BloodWorkUpload />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/health/blood-work/results" 
+              element={
+                <ProtectedRoute>
+                  <BloodWorkResults />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/goals" 
               element={<Navigate to="/progress?tab=goals" replace />} 
             />
@@ -289,6 +321,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Wallet />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/recovery" 
+              element={
+                <ProtectedRoute>
+                  <RecoveryPartners />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/recovery/:id" 
+              element={
+                <ProtectedRoute>
+                  <RecoveryDetail />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/recovery/bookings" 
+              element={
+                <ProtectedRoute>
+                  <MyBookings />
                 </ProtectedRoute>
               } 
             />

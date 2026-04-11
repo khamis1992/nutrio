@@ -4681,6 +4681,7 @@ export type Database = {
           target_weight_kg: number | null
           tier1_referrer_id: string | null
           tier2_referrer_id: string | null
+          taste_profile: Json | null
           tier3_referrer_id: string | null
           total_affiliate_earnings: number | null
           total_meals_logged: number | null
@@ -4725,6 +4726,7 @@ export type Database = {
           target_weight_kg?: number | null
           tier1_referrer_id?: string | null
           tier2_referrer_id?: string | null
+          taste_profile?: Json | null
           tier3_referrer_id?: string | null
           total_affiliate_earnings?: number | null
           total_meals_logged?: number | null
@@ -4769,6 +4771,7 @@ export type Database = {
           target_weight_kg?: number | null
           tier1_referrer_id?: string | null
           tier2_referrer_id?: string | null
+          taste_profile?: Json | null
           tier3_referrer_id?: string | null
           total_affiliate_earnings?: number | null
           total_meals_logged?: number | null

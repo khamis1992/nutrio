@@ -5,8 +5,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useWallet } from "@/hooks/useWallet";
 import { useMealAddons } from "@/hooks/useMealAddons";
+import { useMealCustomization } from "@/hooks/useMealCustomization";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { IngredientList } from "@/components/meal/IngredientList";
+import { PortionSelector } from "@/components/meal/PortionSelector";
+import { HPVariantToggle } from "@/components/meal/HPVariantToggle";
 import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -418,6 +422,7 @@ const ScheduleSheet = ({
             <img
               src={meal.image_url}
               alt={meal.name}
+              loading="lazy"
               className="w-14 h-14 rounded-2xl object-cover shrink-0"
             />
           ) : (
@@ -766,6 +771,19 @@ const MealDetail = () => {
     clearSelectedAddons,
     hasAddons,
   } = useMealAddons(id);
+
+  const {
+    removedIngredientIds,
+    toggleIngredient,
+    setPortionSize,
+    setHPVariant,
+    getSummary,
+    getCustomizationData,
+    hasCustomizations,
+    reset: resetCustomization,
+    customization,
+  } = useMealCustomization();
+
   const [loading, setLoading] = useState(true);
   const [scheduling, setScheduling] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -1188,6 +1206,7 @@ const MealDetail = () => {
           <img
             src={getMealImage(meal.image_url, meal.id)}
             alt={meal.name}
+            loading="eager"
             className="w-full h-full object-cover"
           />
         </motion.div>
@@ -1245,7 +1264,7 @@ const MealDetail = () => {
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
               {meal.restaurant.logo_url ? (
-                <img src={meal.restaurant.logo_url} alt="" className="w-full h-full object-cover" />
+                <img src={meal.restaurant.logo_url} alt="" loading="lazy" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-lg">🏪</span>
               )}
@@ -1380,34 +1399,58 @@ const MealDetail = () => {
           </motion.div>
         )}
 
-        {/* Ingredients */}
+        {/* Meal Customization */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="bg-card rounded-3xl shadow-lg border border-border/50 p-6 space-y-5"
+        >
+          <PortionSelector
+            selectedSize={customization.portionSize}
+            onSelect={setPortionSize}
+            basePrice={meal.price}
+            baseCalories={meal.calories || 0}
+          />
+          <HPVariantToggle
+            enabled={customization.hpVariant}
+            onToggle={setHPVariant}
+            baseProtein={meal.protein || 0}
+          />
+        </motion.div>
+
+        {/* Ingredients (interactive) */}
         {meal.ingredients && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
           >
-            <h2 className="text-lg font-bold mb-4">Ingredients</h2>
-            <ul className="space-y-2">
-              {Array.isArray(meal.ingredients) ? (
-                meal.ingredients.map((ingredient: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    {ingredient}
-                  </li>
-                ))
-              ) : typeof meal.ingredients === 'string' && meal.ingredients.length > 0 ? (
-                meal.ingredients.split(',').map((ingredient: string, idx: number) => (
-                  <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    {ingredient.trim()}
-                  </li>
-                ))
-              ) : null}
-            </ul>
+            <IngredientList
+              ingredients={Array.isArray(meal.ingredients) ? meal.ingredients : typeof meal.ingredients === 'string' ? meal.ingredients.split(',').map(i => i.trim()) : []}
+              removedIngredients={removedIngredientIds}
+              onToggleIngredient={toggleIngredient}
+            />
           </motion.div>
         )}
+
+        {/* Customization Summary */}
+        {hasCustomizations && (() => {
+          const summary = getSummary(meal.price, meal.calories || 0, meal.protein || 0, meal.carbs || 0, meal.fats || 0);
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-1"
+            >
+              <p className="text-sm font-semibold text-primary">Customization Summary</p>
+              {summary.portionSize === 'large' && <p className="text-xs text-muted-foreground">🍽️ Large portion (+{summary.calorieAdjustment} cal, +{formatCurrency(summary.priceAdjustment)})</p>}
+              {summary.hpVariant && <p className="text-xs text-muted-foreground">💪 High Protein (+{summary.proteinAdjustment}g protein, +{formatCurrency(15)})</p>}
+              {summary.removedIngredientNames.length > 0 && <p className="text-xs text-muted-foreground">🚫 Removed: {summary.removedIngredientNames.join(', ')}</p>}
+              <p className="text-xs font-medium text-primary mt-1">Total adjustment: +{formatCurrency(summary.priceAdjustment)}</p>
+            </motion.div>
+          );
+        })()}
 
 
       </div>

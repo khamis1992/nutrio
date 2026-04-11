@@ -25,6 +25,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useToast } from "@/hooks/use-toast";
 import { useTopMeals } from "@/hooks/useTopMeals";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -39,12 +40,12 @@ interface FavoriteRestaurant {
 }
 
 const Favorites = () => {
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
-  const { favoriteIds, toggleFavorite } = useFavoriteRestaurants();
+  const { toggleFavorite } = useFavoriteRestaurants();
   const { topMeals, loading: topMealsLoading, removeFromTopMeals, fetchTopMeals } = useTopMeals();
   
   const [restaurants, setRestaurants] = useState<FavoriteRestaurant[]>([]);
@@ -186,18 +187,13 @@ const Favorites = () => {
             <>
               <TabsContent value="restaurants" className="space-y-4">
                 {restaurants.length === 0 ? (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="font-semibold mb-2">{t("no_favorite_restaurants_title")}</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {t("no_favorite_restaurants_desc")}
-                      </p>
-                      <Button onClick={() => navigate("/meals")}>
-                        {t("browse_restaurants_btn")}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  <EmptyState
+                    icon={<Heart className="w-8 h-8" />}
+                    title={t("no_favorite_restaurants_title")}
+                    description={t("no_favorite_restaurants_desc")}
+                    actionLabel={t("browse_restaurants_btn")}
+                    actionHref="/meals"
+                  />
                 ) : (
                   restaurants.map((restaurant) => (
                     <Card key={restaurant.id} className="overflow-hidden">
@@ -278,18 +274,13 @@ const Favorites = () => {
                 </Card>
 
                 {topMeals.length === 0 ? (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <UtensilsCrossed className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="font-semibold mb-2">{t("no_top_meals_title")}</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {t("no_top_meals_desc")}
-                      </p>
-                      <Button onClick={() => navigate("/meals")}>
-                        {t("browse_meals_btn")}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  <EmptyState
+                    icon={<UtensilsCrossed className="w-8 h-8" />}
+                    title={t("no_top_meals_title")}
+                    description={t("no_top_meals_desc")}
+                    actionLabel={t("browse_meals_btn")}
+                    actionHref="/meals"
+                  />
                 ) : (
                   topMeals.map((meal) => (
                     <Card key={meal.id} className="overflow-hidden">

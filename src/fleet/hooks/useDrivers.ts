@@ -219,72 +219,55 @@ export function useDriverDetail(driverId: string) {
         .from("drivers")
         .select("*")
         .eq("id", driverId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
-      if (data) {
-        const assignedVehicleId: string | undefined = data.assigned_vehicle_id || undefined;
+      if (!data) {
+        setDriver(null);
+        setVehicle(null);
+        setIsLoading(false);
+        return;
+      }
 
-        setDriver({
-          id: data.id,
-          authUserId: data.user_id,
-          email: "",
-          phone: data.phone_number || "",
-          fullName: `Driver ${data.phone_number?.slice(-4) || data.id.slice(0, 8)}`,
-          cityId: "doha",
-          assignedZoneIds: [],
-          status: data.approval_status === "approved" && data.is_active 
-            ? "active" 
-            : data.approval_status === "pending" 
-              ? "pending_verification" 
-              : "inactive",
-          currentLatitude: data.current_lat || undefined,
-          currentLongitude: data.current_lng || undefined,
-          locationUpdatedAt: data.last_location_update || undefined,
-          isOnline: data.is_online || false,
-          totalDeliveries: data.total_deliveries || 0,
-          rating: data.rating || 5.0,
-          cancellationRate: 0,
-          currentBalance: data.wallet_balance || 0,
-          totalEarnings: data.total_earnings || 0,
-          assignedVehicleId,
-          createdAt: data.created_at || new Date().toISOString(),
-        });
+      const assignedVehicleId: string | undefined = (data as any).assigned_vehicle_id || undefined;
 
-        // Fetch vehicle record if assigned
-        if (assignedVehicleId) {
-          const { data: vData } = await supabase
-            .from("vehicles")
-            .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
-            .eq("id", assignedVehicleId)
-            .single();
+      setDriver({
+        id: data.id,
+        authUserId: data.user_id,
+        email: "",
+        phone: data.phone_number || "",
+        fullName: `Driver ${data.phone_number?.slice(-4) || data.id.slice(0, 8)}`,
+        cityId: "doha",
+        assignedZoneIds: [],
+        status: data.approval_status === "approved" && data.is_active 
+          ? "active" 
+          : data.approval_status === "pending" 
+            ? "pending_verification" 
+            : "inactive",
+        currentLatitude: data.current_lat || undefined,
+        currentLongitude: data.current_lng || undefined,
+        locationUpdatedAt: data.last_location_update || undefined,
+        isOnline: data.is_online || false,
+        totalDeliveries: data.total_deliveries || 0,
+        rating: data.rating || 5.0,
+        cancellationRate: 0,
+        currentBalance: data.wallet_balance || 0,
+        totalEarnings: data.total_earnings || 0,
+        assignedVehicleId,
+        createdAt: data.created_at || new Date().toISOString(),
+      });
 
-          if (vData) {
-            setVehicle({
-              id: vData.id,
-              plateNumber: vData.plate_number,
-              type: vData.type,
-              make: vData.make,
-              model: vData.model,
-              year: vData.year,
-              color: vData.color,
-              insuranceExpiry: vData.insurance_expiry,
-              status: vData.status,
-            });
-          } else {
-            setVehicle(null);
-          }
-        } else {
-          // Also try looking up by assigned_driver_id on vehicles table
-          const { data: vData } = await supabase
-            .from("vehicles")
-            .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
-            .eq("assigned_driver_id", data.id)
-            .eq("status", "assigned")
-            .maybeSingle();
+      // Fetch vehicle record if assigned
+      if (assignedVehicleId) {
+        const { data: vData } = await supabase
+          .from("vehicles")
+          .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
+          .eq("id", assignedVehicleId)
+          .maybeSingle();
 
-          setVehicle(vData ? {
+        if (vData) {
+          setVehicle({
             id: vData.id,
             plateNumber: vData.plate_number,
             type: vData.type,
@@ -293,9 +276,31 @@ export function useDriverDetail(driverId: string) {
             year: vData.year,
             color: vData.color,
             insuranceExpiry: vData.insurance_expiry,
-            status: vData.status,
-          } : null);
+            status: vData.status || "unknown",
+          });
+        } else {
+          setVehicle(null);
         }
+      } else {
+        // Also try looking up by assigned_driver_id on vehicles table
+        const { data: vData } = await supabase
+          .from("vehicles")
+          .select("id, plate_number, type, make, model, year, color, insurance_expiry, status")
+          .eq("assigned_driver_id", data.id)
+          .eq("status", "assigned")
+          .maybeSingle();
+
+        setVehicle(vData ? {
+          id: vData.id,
+          plateNumber: vData.plate_number,
+          type: vData.type,
+          make: vData.make,
+          model: vData.model,
+          year: vData.year,
+          color: vData.color,
+          insuranceExpiry: vData.insurance_expiry,
+          status: vData.status || "unknown",
+        } : null);
       }
     } catch (error) {
       console.error("Error fetching driver detail:", error);
