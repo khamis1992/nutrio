@@ -17,9 +17,9 @@ import {
   CircleCheck,
   Loader2,
   X,
+  Flame,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import flameLogo from "@/assets/flam.png";
 
 type OrderStatus =
   | "pending"
@@ -538,13 +538,12 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                                         animate={{ scale: [1.2, 1.6, 1.2], opacity: [0.4, 0.1, 0.4] }}
                                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                       />
-                                      <motion.img
-                                        src={flameLogo}
-                                        alt="NutrioFuel"
-                                        className="w-7 h-7 object-contain relative z-10"
-                                        animate={{ scale: [1, 1.12, 1], rotate: [0, 5, -5, 0] }}
+                                      <motion.div
+                                        animate={{ scale: [1, 1.1, 1], rotate: [0, 3, -3, 0] }}
                                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                                      />
+                                      >
+                                        <Flame className="w-6 h-6 text-orange-500 relative z-10" />
+                                      </motion.div>
                                     </motion.div>
                                   </div>
                                 ) : (
