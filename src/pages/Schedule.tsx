@@ -29,14 +29,16 @@ import {
   X,
   Check,
   Utensils,
+  UtensilsCrossed,
   Calendar as CalendarIcon,
   CalendarCheck,
   Clock,
   Wallet,
   Sparkles,
+  ChevronRight,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { motion, AnimatePresence, PanInfo, useMotionValue, useTransform, spring } from "framer-motion";
 import MealWizard from "@/components/MealWizard";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -63,34 +65,38 @@ const MEAL_TYPE_CONFIG = {
   breakfast: { 
     icon: Coffee, 
     label: "breakfast", 
-    color: "from-amber-400 to-orange-400",
+    gradient: "from-amber-400 to-orange-500",
     bgColor: "bg-amber-50",
     textColor: "text-amber-700",
-    borderColor: "border-amber-200"
+    borderColor: "border-amber-200",
+    glowColor: "shadow-amber-500/20"
   },
   lunch: { 
     icon: Sun, 
     label: "lunch", 
-    color: "from-orange-400 to-red-400",
+    gradient: "from-orange-400 to-red-500",
     bgColor: "bg-orange-50",
     textColor: "text-orange-700",
-    borderColor: "border-orange-200"
+    borderColor: "border-orange-200",
+    glowColor: "shadow-orange-500/20"
   },
   dinner: { 
     icon: Moon, 
     label: "dinner", 
-    color: "from-indigo-400 to-purple-400",
+    gradient: "from-indigo-400 to-purple-500",
     bgColor: "bg-indigo-50",
     textColor: "text-indigo-700",
-    borderColor: "border-indigo-200"
+    borderColor: "border-indigo-200",
+    glowColor: "shadow-indigo-500/20"
   },
   snack: { 
     icon: Apple, 
     label: "snack", 
-    color: "from-emerald-400 to-teal-400",
+    gradient: "from-emerald-400 to-teal-500",
     bgColor: "bg-emerald-50",
     textColor: "text-emerald-700",
-    borderColor: "border-emerald-200"
+    borderColor: "border-emerald-200",
+    glowColor: "shadow-emerald-500/20"
   },
 };
 
@@ -98,10 +104,10 @@ const DAYS_EN = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_AR = ["أ", "إ", "ث", "أ", "خ", "ج", "س"];
 
 const MEAL_TYPE_TIMES: Record<string, string> = {
-  breakfast: "8AM",
-  lunch: "1PM",
-  snack: "3PM",
-  dinner: "7PM",
+  breakfast: "8:00 AM",
+  lunch: "1:00 PM",
+  snack: "3:00 PM",
+  dinner: "7:00 PM",
 };
 
 const MEAL_TYPE_STEP: Record<string, number> = {
@@ -111,7 +117,6 @@ const MEAL_TYPE_STEP: Record<string, number> = {
   snack: 3,
 };
 
-// Native Mobile Schedule Component
 const Schedule = () => {
   const { t, isRTL } = useLanguage();
   const DAYS = isRTL ? DAYS_AR : DAYS_EN;
@@ -124,9 +129,8 @@ const Schedule = () => {
   const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, refetch: refetchSubscription } = useSubscription();
   const { wallet, refresh: refetchWallet } = useWallet();
 
-  const pricePerMeal = 50; // Fixed extra meal credit price in QAR
+  const pricePerMeal = 50;
 
-  // ── Buy 1 meal credit with wallet ─────────────────────────────────────
   const [showBuyCredit, setShowBuyCredit] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
 
@@ -136,7 +140,6 @@ const Schedule = () => {
     if (balance < pricePerMeal) { navigate("/wallet"); return; }
     setBuyLoading(true);
     try {
-      // Debit wallet
       const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
         p_user_id: user.id,
         p_amount: pricePerMeal,
@@ -146,7 +149,6 @@ const Schedule = () => {
       });
       if (debitErr) throw debitErr;
 
-      // Add 1 meal to the subscription's monthly allowance
       const { error: subErr } = await supabase
         .from("subscriptions")
         .update({ meals_per_month: subscription.meals_per_month + 1 })
@@ -157,8 +159,8 @@ const Schedule = () => {
       await refetchSubscription();
       setShowBuyCredit(false);
       toast({
-        title: "Meal credit added! ✅",
-        description: `1 meal added to your plan — QAR ${pricePerMeal} deducted. You can now schedule your meal.`,
+        title: "Meal credit added!",
+        description: `1 meal added to your plan — QAR ${pricePerMeal} deducted.`,
       });
     } catch (err: any) {
       toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
@@ -181,16 +183,13 @@ const Schedule = () => {
   const [wizardAutoFill, setWizardAutoFill] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Inline auto-fill preview state
   const [showInlinePreview, setShowInlinePreview] = useState(false);
   const [inlinePreviewLoading, setInlinePreviewLoading] = useState(false);
   const [inlinePreviewMeals, setInlinePreviewMeals] = useState<any[]>([]);
 
-  // Bottom sheet for meal details
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);
   const [showMealSheet, setShowMealSheet] = useState(false);
 
-  // Time slot selector
   const [showTimeSlotDialog, setShowTimeSlotDialog] = useState(false);
   const [selectedScheduleForTimeSlot, setSelectedScheduleForTimeSlot] = useState<string | null>(null);
 
@@ -272,7 +271,6 @@ const Schedule = () => {
     }
   }, [fetchSchedules, settings.features.meal_scheduling, settingsLoading]);
 
-  // Re-fetch whenever the wizard closes so new meals always appear immediately
   const prevShowWizard = useRef(false);
   useEffect(() => {
     if (!showWizard && prevShowWizard.current && settings.features.meal_scheduling) {
@@ -281,14 +279,11 @@ const Schedule = () => {
     prevShowWizard.current = showWizard;
   }, [showWizard, fetchSchedules, settings.features.meal_scheduling]);
 
-  // Swipe gesture handler
   const handleSwipe = (event: PanInfo) => {
     const threshold = 50;
     if (event.offset.x > threshold) {
-      // Swipe right - previous week
       setCurrentWeekStart(prev => subWeeks(prev, 1));
     } else if (event.offset.x < -threshold) {
-      // Swipe left - next week
       setCurrentWeekStart(prev => addWeeks(prev, 1));
     }
   };
@@ -327,7 +322,6 @@ const Schedule = () => {
       setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
 
       if (!isCompleted && !result.was_already_completed) {
-        // Save to meal_history so it appears in Log a Meal → Recent tab
         supabase.from("meal_history").insert({
           user_id: user.id,
           name: schedule.meal.name,
@@ -339,7 +333,6 @@ const Schedule = () => {
           if (error) console.error("Could not save to meal history:", error);
         });
 
-        // Haptic feedback simulation
         if (navigator.vibrate) navigator.vibrate(10);
       }
     } catch (err: any) {
@@ -363,7 +356,6 @@ const Schedule = () => {
     }
   };
 
-  // Update delivery time slot
   const updateDeliveryTimeSlot = async (scheduleId: string, timeSlot: string) => {
     try {
       const { error } = await (supabase as any)
@@ -442,7 +434,6 @@ const Schedule = () => {
   const displayMeals = getMealsForDay(selectedDate);
   const dailyNutrition = getDailyNutrition(selectedDate);
 
-  // Calculate week progress — only count meals within the current displayed week
   const currentWeekEnd = addDays(currentWeekStart, 6);
   const thisWeekSchedules = schedules.filter(s => {
     const d = new Date(s.scheduled_date);
@@ -452,28 +443,32 @@ const Schedule = () => {
   const weekProgress = {
     total: thisWeekSchedules.length,
     completed: thisWeekSchedules.filter(s => s.is_completed).length,
-    calories: thisWeekSchedules.reduce((sum, s) => sum + (s.is_completed ? s.meal?.calories ?? 0 : 0), 0),
+    calories: thisWeekSchedules.reduce((sum, s) => sum + (isCompleted ? s.meal?.calories ?? 0 : 0), 0),
   };
+  
+  const isCompleted = true;
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="min-h-screen pb-24">
-        <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/40">
+      <div className="min-h-screen pb-24 bg-gray-50 dark:bg-gray-950">
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/40 safe-top">
           <div className="flex items-center justify-between px-4 h-14">
-            <button onClick={() => navigate("/dashboard")} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+            <button onClick={() => navigate("/dashboard")} className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-transform cursor-pointer">
               <NavChevronLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-base font-semibold">{t("schedule")}</h1>
-            <div className="w-8" />
+            <h1 className="text-lg font-bold">{t("schedule")}</h1>
+            <div className="w-11" />
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center h-[70vh] px-6">
-          <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center mb-4">
+        <div className="flex flex-col items-center justify-center min-h-[70vh] px-6">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/10">
             <AlertTriangle className="h-10 w-10 text-amber-500" />
           </div>
-          <h2 className="text-xl font-bold mb-2">{t("scheduling_unavailable")}</h2>
-          <p className="text-gray-500 text-center text-sm mb-6">{t("scheduling_disabled_desc")}</p>
-          <Button onClick={() => navigate("/dashboard")} className="rounded-full px-8">{t("go_back")}</Button>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">{t("scheduling_unavailable")}</h2>
+          <p className="text-gray-500 text-center text-sm mb-8 max-w-xs">{t("scheduling_disabled_desc")}</p>
+          <Button onClick={() => navigate("/dashboard")} className="rounded-2xl px-8 h-12 text-base font-semibold bg-primary hover:bg-primary/90">
+            {t("go_back")}
+          </Button>
         </div>
         <GuestLoginPrompt
           open={showLoginPrompt}
@@ -482,186 +477,237 @@ const Schedule = () => {
           description={loginPromptConfig.description}
           actionLabel={loginPromptConfig.actionLabel}
           signUpLabel={loginPromptConfig.signUpLabel}
-        />      </div>
+        />
+      </div>
     );
   }
 
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 overflow-x-hidden">
-
-      {/* ── Compact Header ─────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 pt-safe">
-        {/* Title + Badge row */}
-        <div className="flex items-center justify-between px-3 py-2">
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate("/dashboard")} className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <NavChevronLeft className="h-5 w-5" />
+    <motion.div 
+      className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden"
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.2}
+      onDragEnd={handleSwipe}
+    >
+      {/* ── Native Header ─────────────────────────────── */}
+      <div className="safe-top bg-white dark:bg-gray-900">
+        {/* Status bar spacer handled by safe-top */}
+        <div className="px-4 pt-2 pb-3">
+          {/* Header Row */}
+          <div className="flex items-center justify-between mb-4">
+            <button 
+              onClick={() => navigate("/dashboard")} 
+              className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            >
+              <NavChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{t("my_schedule")}</h1>
-              <p className="text-[10px] text-gray-400">
-                {format(currentWeekStart, "MMM d")} – {format(addDays(currentWeekStart, 6), "MMM d")}
+            
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{t("my_schedule")}</h1>
+              <p className="text-xs text-gray-400 font-medium">
+                {format(currentWeekStart, "MMM d")} — {format(addDays(currentWeekStart, 6), "MMM d, yyyy")}
               </p>
             </div>
+            
+            {/* Meal Credits Badge */}
+            {hasActiveSubscription && (
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold ${
+                isUnlimited 
+                  ? "bg-emerald-500 text-white" 
+                  : remainingMeals <= 0
+                  ? "bg-red-500 text-white"
+                  : remainingMeals <= 3
+                  ? "bg-amber-500 text-white"
+                  : "bg-primary text-white"
+              }`}>
+                {isUnlimited ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Unlimited</span>
+                  </>
+                ) : (
+                  <>
+                    <Utensils className="h-3.5 w-3.5" />
+                    <span>{remainingMeals}</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          {/* Remaining meals badge */}
-          {hasActiveSubscription && !isUnlimited && (
-            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-              remainingMeals <= 0
-                ? "bg-red-100 text-red-600"
-                : remainingMeals <= 3
-                ? "bg-amber-100 text-amber-700"
-                : "bg-primary/10 text-primary"
-            }`}>
-              <Utensils className="h-3 w-3" />
-              {remainingMeals <= 0 ? "0" : remainingMeals}
+
+          {/* Week Navigator */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
+              className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+            >
+              <NavChevronLeft className="h-4 w-4 text-gray-500" />
+            </button>
+
+            <div className="flex-1 flex justify-between px-1">
+              {weekDays.map((day) => {
+                const isSelected = isSameDay(day, selectedDate);
+                const isTodayDate = isToday(day);
+                const dayStatus = getDayStatus(day);
+                return (
+                  <motion.button
+                    key={day.toISOString()}
+                    onClick={() => setSelectedDate(day)}
+                    whileTap={{ scale: 0.9 }}
+                    className={`flex flex-col items-center justify-center w-10 h-14 rounded-2xl transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-gradient-to-b from-orange-500 to-red-500 shadow-lg shadow-orange-500/30"
+                        : isTodayDate
+                        ? "bg-gray-100 dark:bg-gray-800"
+                        : "bg-transparent"
+                    }`}
+                  >
+                    <span className={`text-[10px] font-semibold mb-0.5 ${
+                      isSelected ? "text-white/80" : "text-gray-400"
+                    }`}>
+                      {DAYS[day.getDay()]}
+                    </span>
+                    <span className={`text-base font-bold ${
+                      isSelected ? "text-white" : isTodayDate ? "text-orange-500" : "text-gray-700 dark:text-gray-200"
+                    }`}>
+                      {format(day, "d")}
+                    </span>
+                    {dayStatus === "completed" && !isSelected && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+                    )}
+                    {dayStatus === "partial" && !isSelected && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-0.5" />
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
-          )}
-          {isUnlimited && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-primary/10 text-primary">
-              <CalendarCheck className="h-3 w-3" />
-              {t("unlimited")}
-            </div>
-          )}
-        </div>
 
-        {/* Compact Week navigation */}
-        <div className="flex items-center justify-between px-2 pt-3 pb-2">
-          <button
-            onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
-            className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:bg-gray-200"
-          >
-            <NavChevronLeft className="h-3.5 w-3.5 text-gray-500" />
-          </button>
-
-          {/* Day strip - more compact */}
-          <div className="flex-1 flex justify-between px-1">
-            {weekDays.map((day) => {
-              const isSelected = isSameDay(day, selectedDate);
-              const isTodayDate = isToday(day);
-              const dayStatus = getDayStatus(day);
-              return (
-                <motion.button
-                  key={day.toISOString()}
-                  onClick={() => setSelectedDate(day)}
-                  className={`flex flex-col items-center py-1.5 px-2 rounded-lg transition-all ${
-                    isSelected
-                      ? "bg-primary"
-                      : isTodayDate
-                      ? "bg-primary/10"
-                      : "bg-transparent"
-                  }`}
-                >
-                  <span className={`text-[9px] font-semibold ${
-                    isSelected ? "text-white/80" : "text-gray-400"
-                  }`}>
-                    {DAYS[day.getDay()]}
-                  </span>
-                  <span className={`text-sm font-bold ${
-                    isSelected ? "text-white" : isTodayDate ? "text-primary" : "text-gray-700 dark:text-gray-200"
-                  }`}>
-                    {format(day, "d")}
-                  </span>
-                </motion.button>
-              );
-            })}
+            <button
+              onClick={() => setCurrentWeekStart(prev => addWeeks(prev, 1))}
+              className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+            >
+              <NavChevronRight className="h-4 w-4 text-gray-500" />
+            </button>
           </div>
-
-          <button
-            onClick={() => setCurrentWeekStart(prev => addWeeks(prev, 1))}
-            className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:bg-gray-200"
-          >
-            <NavChevronRight className="h-3.5 w-3.5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Mini Stats Bar */}
-        <div className="flex items-center gap-3 px-3 pb-2">
-          <div className="flex items-center gap-1.5">
-            <Utensils className="h-3.5 w-3.5 text-primary" />
-            <span className="text-sm font-bold text-gray-900 dark:text-white">
-              {weekProgress.completed}<span className="text-xs font-medium text-gray-400">/{weekProgress.total}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Flame className="h-3.5 w-3.5 text-orange-500" />
-            <span className="text-sm font-bold text-gray-900 dark:text-white">
-              {weekProgress.calories.toLocaleString()}<span className="text-[10px] font-medium text-gray-400">kcal</span>
-            </span>
-          </div>
-          <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${weekProgressPct}%` }}
-              className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full"
-            />
-          </div>
-          <span className="text-sm font-black text-primary">{weekProgressPct}%</span>
         </div>
       </div>
 
-      {/* ── Day Meals ─────────────────────────────────────── */}
-      <motion.div
-        key={selectedDate.toISOString()}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="px-3 mt-3"
-      >
-        {/* Day header - compact */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-white">
-              {isToday(selectedDate)
-                ? t("today_meals")
-                : format(selectedDate, "EEE, MMM d")}
+      {/* ── Stats Dashboard ─────────────────────────────── */}
+      <div className="px-4 py-4">
+        <div className="bg-white dark:bg-gray-900 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">This Week Progress</span>
+            <span className="text-lg font-black text-orange-500">{weekProgressPct}%</span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mb-3">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${weekProgressPct}%` }}
+              transition={{ duration: 0.5, type: "spring" }}
+              className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full"
+            />
+          </div>
+          
+          {/* Stats Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 dark:text-white leading-none">{weekProgress.completed}</p>
+                <p className="text-[10px] text-gray-400 font-medium">Completed</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-1.5">
+              <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
+                <Flame className="h-4 w-4 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 dark:text-white leading-none">{weekProgress.calories.toLocaleString()}</p>
+                <p className="text-[10px] text-gray-400 font-medium">Calories</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-1.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                <Utensils className="h-4 w-4 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-gray-900 dark:text-white leading-none">{weekProgress.total}</p>
+                <p className="text-[10px] text-gray-400 font-medium">Total Meals</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Day Section Header ──────────────────────────── */}
+      <div className="px-4 mb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              {isToday(selectedDate) ? t("today_meals") : format(selectedDate, "EEEE, MMMM d")}
             </h2>
             {dailyNutrition.total > 0 && (
-              <span className="text-[10px] text-gray-400 font-medium">
-                {dailyNutrition.calories}kcal · {dailyNutrition.completed}/{dailyNutrition.total}
-              </span>
+              <p className="text-xs text-gray-400 font-medium">
+                {dailyNutrition.calories.toLocaleString()} kcal · {dailyNutrition.completed}/{dailyNutrition.total} meals
+              </p>
             )}
           </div>
-          {hasActiveSubscription && (
-            <motion.button
-              whileTap={{ scale: 0.93 }}
-              onClick={() => { setWizardAutoFill(true); setShowWizard(true); }}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-sm"
-              style={{
-                background: "linear-gradient(135deg, #fb923c, #ea580c)",
-                color: "#fff",
-                boxShadow: "0 2px 8px rgba(234,88,12,0.35)",
-              }}
+          
+          {hasActiveSubscription && !isUnlimited && remainingMeals <= 0 && (
+            <button
+              onClick={() => setShowBuyCredit(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-amber-500 text-white text-xs font-bold active:scale-95 transition-transform cursor-pointer"
             >
-              Auto-fill
-            </motion.button>
+              <Wallet className="h-3.5 w-3.5" />
+              Buy Credits
+            </button>
           )}
         </div>
+      </div>
 
-        {/* Refresh indicator */}
-        <AnimatePresence>
-          {isRefreshing && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="flex items-center justify-center py-2 gap-2"
-            >
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-xs text-gray-400">{t("refreshing")}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+      {/* ── Meals List ─────────────────────────────────── */}
+      <div className="px-4 pb-32">
         {loading ? (
-          <div className="flex items-center justify-center py-14">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <div className="flex items-center justify-center py-20">
+            <div className="w-12 h-12 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />
           </div>
         ) : (
-          <div className="space-y-2.5 pb-4">
-            {MEAL_TYPES.map((mealType, typeIndex) => {
+          <div className="space-y-3">
+            {/* Swipe hint for empty slots */}
+            {displayMeals.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-2xl p-3 mb-2"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-900 flex items-center justify-center shadow-sm">
+                    <svg className="h-5 w-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 4h6v6" />
+                      <path d="M14 10L21 3" />
+                      <path d="M10 20H4v-6" />
+                      <path d="M10 14L3 21" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Swipe empty slots to add meals</p>
+                    <p className="text-xs text-gray-500">Right = Add specific meal · Left = Auto-fill day</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {MEAL_TYPES.map((mealType) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
               const typeMeals = displayMeals.filter(m => m.meal_type === mealType);
@@ -670,164 +716,230 @@ const Schedule = () => {
               const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
               if (typeMeals.length > 0) {
-                return typeMeals.map((schedule, mealIndex) => (
+                return typeMeals.map((schedule) => (
                   <motion.div
                     key={schedule.id}
-                    initial={{ x: -8, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: typeIndex * 0.05 + mealIndex * 0.02 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
-                    className="w-full active:scale-[0.99] transition-transform cursor-pointer"
+                    className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all cursor-pointer"
                   >
-                    <div className={`bg-white dark:bg-gray-900 rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-2 p-2 ${
-                      schedule.is_completed ? "opacity-70" : ""
-                    }`}>
-                      {/* Colored left accent */}
-                      <div className={`w-1 h-12 rounded-full shrink-0 ${config.color.replace('from-', 'bg-').replace(' to-', '-').split(' ')[0]}`} />
-
-                      {/* Meal image - smaller */}
+                    <div className="flex items-center gap-3 p-3">
+                      {/* Gradient Accent */}
+                      <div className={`w-1.5 h-14 rounded-full bg-gradient-to-b ${config.gradient} shrink-0`} />
+                      
+                      {/* Meal Image */}
                       {schedule.meal?.image_url ? (
                         <img
                           src={schedule.meal.image_url}
                           alt={schedule.meal.name}
-                          className="w-10 h-10 rounded-lg object-cover shrink-0"
+                          className="w-16 h-16 rounded-2xl object-cover shrink-0"
                         />
                       ) : (
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${config.bgColor}`}>
-                          <MealIcon className={`h-5 w-5 ${config.textColor}`} />
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${config.bgColor}`}>
+                          <MealIcon className={`h-7 w-7 ${config.textColor}`} />
                         </div>
                       )}
-
-                      {/* Info - compact */}
+                      
+                      {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className={`text-[9px] font-semibold uppercase ${config.textColor}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${config.textColor}`}>
                             {mealTypeName}
                           </span>
-                          <span className="text-[9px] text-gray-400">
+                          <span className="text-[10px] text-gray-300">·</span>
+                          <span className="text-[10px] text-gray-400 font-medium">
                             {schedule.delivery_time_slot || timeLabel}
                           </span>
                         </div>
-                        <h3 className={`text-sm font-bold text-gray-900 dark:text-white truncate ${
+                        <h3 className={`text-base font-bold text-gray-900 dark:text-white truncate ${
                           schedule.is_completed ? "line-through text-gray-400" : ""
                         }`}>
                           {schedule.meal?.name}
                         </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-400 font-medium">{schedule.meal.calories} kcal</span>
+                          <span className="text-xs text-gray-300">·</span>
+                          <span className="text-xs text-gray-400 font-medium">{schedule.meal.protein_g}g protein</span>
+                        </div>
                       </div>
-
-                      {/* Completion toggle - smaller */}
+                      
+                      {/* Completion Toggle */}
                       <button
                         onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
                           schedule.is_completed
-                            ? "bg-emerald-500"
-                            : "border-2 border-gray-200 dark:border-gray-700"
+                            ? "bg-emerald-500 shadow-lg shadow-emerald-500/30"
+                            : "bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700"
                         }`}
                       >
-                        {schedule.is_completed
-                          ? <Check className="h-3.5 w-3.5 text-white" />
-                          : <Circle className="h-3 w-3 text-gray-300" />
-                        }
+                        {schedule.is_completed ? (
+                          <Check className="h-5 w-5 text-white" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-gray-300" />
+                        )}
                       </button>
                     </div>
                   </motion.div>
                 ));
               }
 
-              /* ── Empty slot ────────────────────────────── */
+              /* ── Swipeable Empty Slot Card (swipe-only, no tap confusion) ─── */
+              const SwipeableEmptySlot = () => {
+                const [swipeX, setSwipeX] = useState(0);
+                const hasTriggered = useRef(false);
+
+                const handleDrag = (_: any, info: PanInfo) => {
+                  if (info.offset.x < 0) {
+                    setSwipeX(Math.max(info.offset.x, -80));
+                  } else {
+                    setSwipeX(Math.min(Math.max(info.offset.x, 0), 80));
+                  }
+                };
+
+                const handleDragEnd = (_: any, info: PanInfo) => {
+                  if (info.offset.x > 60 && !hasTriggered.current) {
+                    hasTriggered.current = true;
+                    setSwipeX(0);
+                    if (!user) {
+                      promptLogin({
+                        title: t("sign_in_to_schedule"),
+                        description: t("sign_in_to_schedule_desc"),
+                        actionLabel: t("sign_in"),
+                        signUpLabel: t("create_free_account"),
+                      });
+                    } else if (!noMealsLeft) {
+                      openWizard(mealType);
+                    }
+                  } else if (info.offset.x < -60 && !hasTriggered.current) {
+                    hasTriggered.current = true;
+                    setSwipeX(0);
+                    if (!user) {
+                      promptLogin({
+                        title: t("sign_in_to_schedule"),
+                        description: t("sign_in_to_schedule_desc"),
+                        actionLabel: t("sign_in"),
+                        signUpLabel: t("create_free_account"),
+                      });
+                    } else if (!noMealsLeft) {
+                      setWizardAutoFill(true);
+                      setShowWizard(true);
+                    }
+                  } else {
+                    setSwipeX(0);
+                  }
+                  setTimeout(() => { hasTriggered.current = false; }, 300);
+                };
+
+                return (
+                  <div className="relative overflow-hidden rounded-2xl">
+                    {/* Swipe hint (subtle animated background) */}
+                    <div className="absolute inset-0 flex items-center justify-end pr-4">
+                      <motion.div
+                        initial={{ opacity: 0.4 }}
+                        animate={{ opacity: swipeX !== 0 ? 0 : [0.4, 0.6, 0.4] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="flex items-center gap-1"
+                      >
+                        <ChevronRight className="h-4 w-4 text-gray-300" />
+                        <ChevronRight className="h-4 w-4 text-gray-200 -ml-2" />
+                      </motion.div>
+                    </div>
+
+                    {/* Swipe Actions Background */}
+                    <div className="absolute inset-0 flex items-center justify-between px-4">
+                      {/* Left action (swipe right = Add) */}
+                      <motion.div
+                        animate={{ x: swipeX > 20 ? 0 : -80 }}
+                        className="w-16 h-full flex items-center justify-center rounded-2xl bg-emerald-500"
+                      >
+                        <div className="flex flex-col items-center">
+                          <Plus className="h-5 w-5 text-white" />
+                          <span className="text-[10px] text-white font-bold mt-0.5">Add</span>
+                        </div>
+                      </motion.div>
+                      
+                      {/* Right action (swipe left = Auto-fill) */}
+                      <motion.div
+                        animate={{ x: swipeX < -20 ? 0 : 80 }}
+                        className="w-16 h-full flex items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600"
+                      >
+                        <div className="flex flex-col items-center">
+                          <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+                            <path d="M9 18h6" />
+                            <path d="M10 22h4" />
+                          </svg>
+                          <span className="text-[10px] text-white font-bold mt-0.5">Fill</span>
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    {/* Main Card (draggable) */}
+                    <motion.div
+                      drag="x"
+                      dragConstraints={{ left: -100, right: 100 }}
+                      dragElastic={0.15}
+                      onDrag={handleDrag}
+                      onDragEnd={handleDragEnd}
+                      animate={{ x: swipeX }}
+                      transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                      className={`relative bg-white dark:bg-gray-900 border-2 ${
+                        noMealsLeft 
+                          ? "border-amber-300 dark:border-amber-700" 
+                          : "border-gray-100 dark:border-gray-800"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 p-4">
+                        {/* Icon */}
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${config.bgColor}`}>
+                          <MealIcon className={`h-6 w-6 ${config.textColor}`} />
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-[11px] font-bold uppercase tracking-wider ${config.textColor} opacity-70`}>
+                            {mealTypeName}
+                          </span>
+                          <p className="text-sm text-gray-400 font-medium">
+                            {timeLabel}
+                          </p>
+                        </div>
+                        
+                        {noMealsLeft ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowBuyCredit(true);
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-500 text-white text-xs font-bold rounded-2xl active:scale-95 transition-transform cursor-pointer"
+                          >
+                            <Wallet className="h-4 w-4" />
+                            Buy Credits
+                          </button>
+                        ) : (
+                          <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+                            <UtensilsCrossed className="h-4 w-4 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </div>
+                );
+              };
+
               return (
                 <motion.div
                   key={`empty-${mealType}`}
-                  initial={{ x: -8, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: typeIndex * 0.05 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                 >
-                  <div
-                    onClick={() => {
-                      if (!user) {
-                        promptLogin({
-                          title: t("sign_in_to_schedule"),
-                          description: t("sign_in_to_schedule_desc"),
-                          actionLabel: t("sign_in"),
-                          signUpLabel: t("create_free_account"),
-                        });
-                      } else {
-                        openWizard(mealType);
-                      }
-                    }}
-                    className={`bg-white dark:bg-gray-900 rounded-2xl border flex flex-col items-start gap-3 p-3 active:scale-[0.98] active:shadow-sm transition-all cursor-pointer touch-manipulation ${
-                      noMealsLeft ? "border-amber-200 dark:border-amber-800" : "border-dashed border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                    }`}
-                  >
-                    {/* Muted left accent */}
-                    <div className={`w-1.5 h-full rounded-full shrink-0 ${config.color.replace('from-', 'bg-').replace(' to-', '-').split(' ')[0]} opacity-25`} />
-
-                    <div className="flex items-center gap-3 w-full">
-                      {/* Icon placeholder */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${config.bgColor} opacity-60`}>
-                        <MealIcon className={`h-6 w-6 ${config.textColor}`} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <span className={`block text-[11px] font-bold uppercase ${config.textColor} opacity-60 mb-0.5`}>
-                          {mealTypeName}
-                        </span>
-                        <p className="text-xs text-gray-500 mb-2">
-                          {timeLabel} · {noMealsLeft ? t("no_meals_left") : t("no_meals_scheduled")}
-                        </p>
-                        
-                        {/* CTA Button - larger and more prominent */}
-                        <div className="flex items-center justify-between mt-1">
-                          {noMealsLeft ? (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 setShowBuyCredit(true);
-                               }}
-                               className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-full active:scale-95 transition-transform min-w-[90px]"
-                             >
-                               <Wallet className="h-4 w-4" />
-                               {t("buy_credits")}
-                             </button>
-                           ) : (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 if (!user) {
-                                   promptLogin({
-                                     title: t("sign_in_to_schedule"),
-                                     description: t("sign_in_to_schedule_desc"),
-                                     actionLabel: t("sign_in"),
-                                     signUpLabel: t("create_free_account"),
-                                   });
-                                 } else {
-                                   openWizard(mealType);
-                                 }
-                               }}
-                               className="flex items-center justify-center px-5 py-2 bg-primary text-white text-xs font-bold rounded-full active:scale-95 transition-transform min-w-[100px]"
-                             >
-                               <Plus className="h-4 w-4 mr-1.5" />
-                               {t("add_meal")}
-                             </button>
-                           )}
-                           
-                           {!noMealsLeft && (
-                             <div className="text-gray-300 dark:text-gray-600">
-                               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                 <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                               </svg>
-                             </div>
-                           )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <SwipeableEmptySlot />
                 </motion.div>
               );
             })}
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* ── Meal Wizard ─────────────────────────────────── */}
       <AnimatePresence>
@@ -852,96 +964,138 @@ const Schedule = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMealSheet(false)}
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
             />
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto"
+              className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-50 max-h-[90vh] overflow-y-auto safe-bottom"
             >
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-gray-200 dark:bg-gray-700 rounded-full" />
+              {/* Drag Handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
               </div>
 
-              <div className="p-5" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
-                {/* Sheet header */}
+              <div className="p-5" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
+                {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 min-w-0">
                     {(() => {
                       const cfg = MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG];
                       const Icon = cfg.icon;
                       return (
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.bgColor} ${cfg.textColor} mb-2`}>
-                          <Icon className="h-3 w-3" />
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold ${cfg.bgColor} ${cfg.textColor} mb-2`}>
+                          <Icon className="h-3.5 w-3.5" />
                           {t(cfg.label as any)}
                         </span>
                       );
                     })()}
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white leading-tight truncate">{selectedMeal.meal.name}</h2>
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedMeal.meal.name}</h2>
                   </div>
                   <button
                     onClick={() => setShowMealSheet(false)}
-                    className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 ml-3"
+                    className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 ml-3 cursor-pointer active:scale-95 transition-transform"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
 
-                {/* Meal image */}
+                {/* Hero Image */}
                 {selectedMeal.meal.image_url ? (
-                  <img src={selectedMeal.meal.image_url} alt={selectedMeal.meal.name} className="w-full h-44 object-cover rounded-2xl mb-4" />
+                  <img 
+                    src={selectedMeal.meal.image_url} 
+                    alt={selectedMeal.meal.name} 
+                    className="w-full h-48 object-cover rounded-3xl mb-5 shadow-lg" 
+                  />
                 ) : (
-                  <div className="w-full h-44 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-5xl mb-4">🍽️</div>
+                  <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-3xl flex items-center justify-center mb-5">
+                    <Utensils className="h-16 w-16 text-gray-400" />
+                  </div>
                 )}
 
-                {/* Nutrition row */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-3 flex items-center gap-2">
-                    <Flame className="h-4 w-4 text-orange-500 shrink-0" />
-                    <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white leading-none">{selectedMeal.meal.calories}</p>
-                      <p className="text-xs text-orange-500 font-medium">{t("calories")}</p>
-                    </div>
+                {/* Nutrition Grid */}
+                <div className="grid grid-cols-3 gap-3 mb-5">
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 rounded-2xl p-4 text-center">
+                    <Flame className="h-5 w-5 text-orange-500 mx-auto mb-1" />
+                    <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.calories}</p>
+                    <p className="text-[10px] text-orange-500 font-semibold uppercase tracking-wide">Calories</p>
                   </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 flex items-center gap-2">
-                    <Beef className="h-4 w-4 text-red-500 shrink-0" />
-                    <div>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white leading-none">{selectedMeal.meal.protein_g}g</p>
-                      <p className="text-xs text-red-500 font-medium">{t("protein")}</p>
-                    </div>
+                  <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/30 dark:to-pink-900/30 rounded-2xl p-4 text-center">
+                    <Beef className="h-5 w-5 text-red-500 mx-auto mb-1" />
+                    <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.protein_g}g</p>
+                    <p className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">Protein</p>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-2xl p-4 text-center">
+                    <svg className="h-5 w-5 text-blue-500 mx-auto mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 3v18M3 12h18" strokeLinecap="round" />
+                    </svg>
+                    <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.carbs_g}g</p>
+                    <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">Carbs</p>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="space-y-2">
+                {/* Delivery Time */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 mb-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                        <Clock className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Delivery Time</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">
+                          {selectedMeal.delivery_time_slot || "Not scheduled"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleOpenTimeSlotSelector(selectedMeal.id)}
+                      className="px-4 py-2 rounded-2xl bg-primary/10 text-primary text-xs font-bold active:scale-95 transition-transform cursor-pointer"
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
                   <button
                     onClick={() => { toggleMealCompletion(selectedMeal.id, selectedMeal.is_completed); setShowMealSheet(false); }}
-                    className={`w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${
+                    className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
                       selectedMeal.is_completed
                         ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                        : "bg-emerald-500 text-white shadow-md shadow-emerald-300/30"
+                        : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
                     }`}
                   >
-                    {selectedMeal.is_completed
-                      ? <><Circle className="h-4.5 w-4.5" />{t("mark_not_done")}</>
-                      : <><CheckCircle2 className="h-4.5 w-4.5" />{t("mark_completed")}</>}
+                    {selectedMeal.is_completed ? (
+                      <>
+                        <Circle className="h-5 w-5" />
+                        Mark as Incomplete
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-5 w-5" />
+                        Mark as Completed
+                      </>
+                    )}
                   </button>
+                  
                   <button
                     onClick={() => navigate(`/meals/${selectedMeal.meal.id}`)}
-                    className="w-full py-3.5 rounded-2xl font-semibold text-sm bg-primary text-white flex items-center justify-center gap-2"
+                    className="w-full py-4 rounded-2xl font-bold text-base bg-primary text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                   >
-                    <Utensils className="h-4.5 w-4.5" />
-                    {t("view_meal_details")}
+                    <Utensils className="h-5 w-5" />
+                    View Meal Details
                   </button>
+                  
                   <button
                     onClick={() => deleteMeal(selectedMeal.id)}
-                    className="w-full py-3.5 rounded-2xl font-semibold text-sm bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center gap-2"
+                    className="w-full py-4 rounded-2xl font-bold text-base bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                   >
-                    <Trash2 className="h-4.5 w-4.5" />
-                    {t("remove_from_schedule")}
+                    <Trash2 className="h-5 w-5" />
+                    Remove from Schedule
                   </button>
                 </div>
               </div>
@@ -954,7 +1108,7 @@ const Schedule = () => {
       <Dialog open={showTimeSlotDialog} onOpenChange={setShowTimeSlotDialog}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
               <Clock className="h-5 w-5 text-primary" />
               {t("schedule_delivery")}
             </DialogTitle>
@@ -971,47 +1125,54 @@ const Schedule = () => {
 
       {/* ── Buy Meal Credit Dialog ────────────────────────── */}
       <Dialog open={showBuyCredit} onOpenChange={setShowBuyCredit}>
-        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden mx-4">
-          <div className="p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <Wallet className="w-5 h-5 text-amber-600" />
+        <DialogContent className="max-w-sm rounded-3xl p-0 overflow-hidden mx-4">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center shrink-0">
+                <Wallet className="w-7 h-7 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Buy Extra Meal Credit</h3>
-                <p className="text-xs text-gray-400">Add 1 meal to your plan</p>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">Buy Extra Meal</h3>
+                <p className="text-xs text-gray-400 font-medium">Add 1 credit to your plan</p>
               </div>
             </div>
 
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 space-y-3 mb-4">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 space-y-3 mb-5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Meal credit price</span>
-                <span className="font-bold text-amber-600">{formatCurrency(pricePerMeal)}</span>
+                <span className="text-gray-500">Price per credit</span>
+                <span className="font-bold text-amber-600 text-lg">{formatCurrency(pricePerMeal)}</span>
               </div>
               <div className="h-px bg-amber-200/50" />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Your wallet</span>
+                <span className="text-gray-500">Your wallet balance</span>
                 <span className={`font-bold ${(wallet?.balance || 0) >= pricePerMeal ? "text-emerald-600" : "text-red-500"}`}>
                   {formatCurrency(wallet?.balance || 0)}
                 </span>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowBuyCredit(false)} className="flex-1 rounded-xl">
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowBuyCredit(false)} 
+                className="flex-1 rounded-2xl h-12 font-semibold cursor-pointer"
+              >
                 Cancel
               </Button>
               {(wallet?.balance || 0) < pricePerMeal ? (
-                <Button onClick={() => navigate("/wallet")} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl">
+                <Button 
+                  onClick={() => navigate("/wallet")} 
+                  className="flex-1 h-12 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-semibold cursor-pointer"
+                >
                   Top Up Wallet
                 </Button>
               ) : (
                 <Button
                   onClick={handleBuyMealCredit}
                   disabled={buyLoading}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl"
+                  className="flex-1 h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-2xl font-semibold cursor-pointer"
                 >
-                  {buyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Pay ${formatCurrency(pricePerMeal)}`}
+                  {buyLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Pay ${formatCurrency(pricePerMeal)}`}
                 </Button>
               )}
             </div>
@@ -1027,7 +1188,18 @@ const Schedule = () => {
         description={loginPromptConfig.description}
         actionLabel={loginPromptConfig.actionLabel}
         signUpLabel={loginPromptConfig.signUpLabel}
-      />    </div>
+      />
+
+      {/* ── Safe Area Styles ─────────────────────────────── */}
+      <style>{`
+        .safe-top {
+          padding-top: env(safe-area-inset-top, 0px);
+        }
+        .safe-bottom {
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+      `}</style>
+    </motion.div>
   );
 };
 

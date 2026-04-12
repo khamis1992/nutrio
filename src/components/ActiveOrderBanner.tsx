@@ -75,7 +75,7 @@ interface Restaurant {
 }
 
 const FoodEmoji = () => (
-  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-green-100 text-xs mr-2">
+  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-orange-100 to-emerald-100 text-xs mr-2">
     🥗
   </span>
 );
@@ -109,43 +109,43 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     pending: {
       label: t("order_status_pending"),
       shortLabel: t("order_status_pending_short"),
-      badgeClass: "bg-[#bef264]",
-      textClass: "text-green-900",
+      badgeClass: "bg-emerald-100",
+      textClass: "text-emerald-700",
     },
     confirmed: {
       label: t("order_status_confirmed"),
       shortLabel: t("order_status_confirmed_short"),
-      badgeClass: "bg-[#bef264]",
-      textClass: "text-green-900",
+      badgeClass: "bg-emerald-100",
+      textClass: "text-emerald-700",
     },
     preparing: {
       label: t("order_status_preparing"),
       shortLabel: t("order_status_preparing_short"),
-      badgeClass: "bg-[#bef264]",
-      textClass: "text-green-900",
+      badgeClass: "bg-emerald-100",
+      textClass: "text-emerald-700",
     },
     ready: {
       label: t("order_status_ready"),
       shortLabel: t("order_status_ready_short"),
-      badgeClass: "bg-[#bef264]",
-      textClass: "text-green-900",
+      badgeClass: "bg-emerald-100",
+      textClass: "text-emerald-700",
     },
     out_for_delivery: {
       label: t("order_status_on_the_way"),
       shortLabel: t("order_status_on_the_way_short"),
-      badgeClass: "bg-green-700",
-      textClass: "text-[#bef264]",
+      badgeClass: "bg-emerald-700",
+      textClass: "text-emerald-100",
     },
     delivered: {
       label: t("order_status_delivered"),
       shortLabel: t("order_status_delivered_short"),
-      badgeClass: "bg-green-700",
+      badgeClass: "bg-emerald-700",
       textClass: "text-white",
     },
     completed: {
       label: t("order_status_completed"),
       shortLabel: t("order_status_completed_short"),
-      badgeClass: "bg-green-700",
+      badgeClass: "bg-emerald-700",
       textClass: "text-white",
     },
     cancelled: {
@@ -379,7 +379,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         className="flex items-center justify-between"
       >
         <h3 className="font-semibold text-base flex items-center gap-2 text-slate-800">
-          <span className="text-green-600">
+          <span className="text-emerald-600">
             <Utensils className="w-5 h-5" />
           </span>
           {t("order_active_orders")} ({groupedOrders.length})
@@ -388,7 +388,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-8 text-sm font-medium hover:bg-green-50 hover:text-green-700 transition-colors text-slate-600"
+            className="h-8 text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-slate-600"
           >
             {t("order_view_all")}
             <ChevronRight className="w-4 h-4 ml-1" />
@@ -417,7 +417,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
               layout
             >
               <Link to={`/live/${group.orders[0].id}`}>
-                <div className="group relative overflow-hidden rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white via-green-50/60 to-green-100/70 border border-green-100">
+                <div className="group relative overflow-hidden rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white via-emerald-50/60 to-emerald-100/70 border border-emerald-100">
                   <div className="p-5">
                     {/* Header Row */}
                     <div className="flex items-start justify-between mb-4">
@@ -442,21 +442,21 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                         </div>
 
                         {/* Restaurant Name */}
-                        <h4 className="font-bold text-xl text-green-950 mb-2">
+                        <h4 className="font-bold text-xl text-emerald-950 mb-2">
                           {group.restaurant_name}
                         </h4>
 
                         {/* Meal Items */}
                         <div className="space-y-1">
                           {group.meal_names.slice(0, 2).map((mealName, idx) => (
-                            <p key={idx} className="text-sm text-green-900/70 flex items-center font-medium">
+                            <p key={idx} className="text-sm text-emerald-900/70 flex items-center font-medium">
                               <span className="mr-2">•</span>
                               <FoodEmoji />
                               {mealName}
                             </p>
                           ))}
                           {group.meal_names.length > 2 && (
-                            <p className="text-xs text-green-700/60 ml-6">
+                            <p className="text-xs text-emerald-700/60 ml-6">
                               +{group.meal_names.length - 2} {t("order_more_meals")}
                             </p>
                           )}
@@ -464,17 +464,31 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                       </div>
 
                       {/* Status Icon — top right */}
-                      <div className="relative flex-shrink-0">
-                        <motion.div
-                          className="relative w-12 h-12 rounded-full bg-green-800 flex items-center justify-center shadow-lg"
-                          animate={{ scale: [1, 1.08, 1] }}
-                          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                        >
-                          {group.latest_status === "out_for_delivery"
-                            ? <Truck className="w-6 h-6 text-white" />
-                            : <Clock className="w-6 h-6 text-white" />
-                          }
-                        </motion.div>
+                      <div className="relative flex-shrink-0 flex flex-col items-center gap-2">
+                        {canCancel && cancellableOrderId ? (
+                          <button
+                            onClick={(e) => handleCancelOrder(cancellableOrderId, e)}
+                            disabled={cancelling === cancellableOrderId}
+                            className="w-9 h-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                          >
+                            {cancelling === cancellableOrderId ? (
+                              <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+                            ) : (
+                              <X className="w-4 h-4 text-red-500" />
+                            )}
+                          </button>
+                        ) : (
+                          <motion.div
+                            className="relative w-12 h-12 rounded-full bg-emerald-800 flex items-center justify-center shadow-lg"
+                            animate={{ scale: [1, 1.08, 1] }}
+                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                          >
+                            {group.latest_status === "out_for_delivery"
+                              ? <Truck className="w-6 h-6 text-white" />
+                              : <Clock className="w-6 h-6 text-white" />
+                            }
+                          </motion.div>
+                        )}
                       </div>
                     </div>
 
@@ -482,11 +496,11 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                     <div className="mt-6 mb-2">
                       <div className="relative px-1">
                         {/* Background Line */}
-                        <div className="absolute top-5 left-6 right-6 h-0.5 bg-green-200/80" />
+                        <div className="absolute top-5 left-6 right-6 h-0.5 bg-emerald-200/80" />
 
                         {/* Active Progress Line */}
                         <motion.div
-                          className="absolute top-5 left-6 h-0.5 bg-green-600"
+                          className="absolute top-5 left-6 h-0.5 bg-emerald-600"
                           initial={{ width: "0%" }}
                           animate={{
                             width: `${(currentStepIndex / (journeySteps.length - 1)) * (100 - 8)}%`
@@ -512,15 +526,15 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                                 {isCurrent ? (
                                   <div className="relative flex items-center justify-center w-11 h-11">
                                     {/* Ping rings — current step only */}
-                                    <span className="absolute inset-0 rounded-full bg-green-400 opacity-40 animate-ping" />
-                                    <span className="absolute inset-0 rounded-full bg-green-300 opacity-20 animate-ping [animation-delay:0.4s]" />
+                                    <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-40 animate-ping" />
+                                    <span className="absolute inset-0 rounded-full bg-emerald-300 opacity-20 animate-ping [animation-delay:0.4s]" />
                                     <motion.div
-                                      className="relative w-11 h-11 flex items-center justify-center rounded-full bg-white shadow-lg ring-2 ring-green-500 z-10"
+                                      className="relative w-11 h-11 flex items-center justify-center rounded-full bg-white shadow-lg ring-2 ring-emerald-500 z-10"
                                       animate={{ scale: [1, 1.06, 1] }}
                                       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                     >
                                       <motion.div
-                                        className="absolute inset-0 rounded-full bg-green-400 blur-md"
+                                        className="absolute inset-0 rounded-full bg-emerald-400 blur-md"
                                         animate={{ scale: [1.2, 1.6, 1.2], opacity: [0.4, 0.1, 0.4] }}
                                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                                       />
@@ -538,14 +552,14 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                                     className={`
                                       relative flex items-center justify-center rounded-full z-10 transition-all duration-300 w-9 h-9
                                       ${isCompleted
-                                        ? 'bg-green-700 text-white shadow-md'
-                                        : 'bg-white/80 text-green-300 border border-green-200'
+                                        ? 'bg-emerald-700 text-white shadow-md'
+                                        : 'bg-white/80 text-emerald-300 border border-emerald-200'
                                       }
                                     `}
                                   >
                                     {isCompleted
                                       ? <Check className="w-4 h-4" />
-                                      : <StepIcon className="w-4 h-4 text-green-300" />
+                                      : <StepIcon className="w-4 h-4 text-emerald-300" />
                                     }
                                   </div>
                                 )}
@@ -553,14 +567,14 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                                 {/* Step Label */}
                                 <span className={`
                                   text-[10px] mt-1.5 text-center whitespace-nowrap leading-tight
-                                  ${isCurrent ? 'font-bold text-green-900' : isCompleted ? 'font-semibold text-green-800' : 'font-medium text-green-400'}
+                                  ${isCurrent ? 'font-bold text-emerald-900' : isCompleted ? 'font-semibold text-emerald-800' : 'font-medium text-emerald-400'}
                                 `}>
                                   {step.label}
                                 </span>
 
                                 {/* Sublabel for current step */}
                                 {isCurrent && step.sublabel && (
-                                  <span className="text-[9px] text-green-700/70 mt-0.5 whitespace-nowrap italic">
+                                  <span className="text-[9px] text-emerald-700/70 mt-0.5 whitespace-nowrap italic">
                                     {step.sublabel}
                                   </span>
                                 )}
@@ -574,7 +588,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                     {/* Track Order Button */}
                     <div className="flex justify-end mt-4">
                       <motion.div
-                        className="flex items-center gap-1 text-sm font-semibold text-green-900 bg-white/80 hover:bg-white border border-green-200 px-4 py-2 rounded-xl transition-colors cursor-pointer shadow-sm"
+                        className="flex items-center gap-1 text-sm font-semibold text-emerald-800 bg-white/80 hover:bg-white border border-emerald-200 px-4 py-2 rounded-xl transition-colors cursor-pointer shadow-sm"
                         whileHover={{ x: 2 }}
                       >
                         <span>{t("order_track")}</span>
@@ -584,34 +598,6 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                   </div>
                 </div>
               </Link>
-
-              {/* Cancel button — integrated into card with better UX */}
-              {canCancel && cancellableOrderId && (
-                <motion.div 
-                  className="relative mt-2"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 + 0.2 }}
-                >
-                  <button
-                    className="group w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-transparent border border-red-200/60 text-red-500/80 text-xs font-medium hover:bg-red-50 hover:border-red-300 hover:text-red-600 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={(e) => handleCancelOrder(cancellableOrderId, e)}
-                    disabled={cancelling === cancellableOrderId}
-                  >
-                    {cancelling === cancellableOrderId ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>{t("order_cancelling") || "Cancelling..."}</span>
-                      </>
-                    ) : (
-                      <>
-                        <X className="h-3.5 w-3.5 group-hover:rotate-90 transition-transform duration-200" />
-                        <span>{t("order_cancel")}</span>
-                      </>
-                    )}
-                  </button>
-                </motion.div>
-              )}
             </motion.div>
           );
         })}

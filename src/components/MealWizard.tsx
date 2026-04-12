@@ -2101,25 +2101,6 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                       </div>
                     </div>
 
-                    {/* AI Explanation - Why these meals */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-100 dark:border-blue-900/50 rounded-2xl p-4 mb-5">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-                          <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Personalized for you</p>
-                          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 leading-relaxed">
-                            Based on your {autoFillPreferences.maxCalories !== 2000 ? `${autoFillPreferences.maxCalories} calorie` : 'daily'} target
-                            {autoFillPreferences.proteinFocus && ', we prioritized protein-rich options'}
-                            {autoFillPreferences.vegetarian && ', filtered for vegetarian choices'}
-                            {autoFillPreferences.quickPrep && ', and selected quick-prep meals'}.
-                            These meals complement each other for balanced nutrition throughout the day.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
                     {/* Meals Header with Refresh */}
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
