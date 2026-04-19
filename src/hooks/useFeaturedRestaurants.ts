@@ -22,7 +22,6 @@ export function useFeaturedRestaurants() {
   useEffect(() => {
     const fetchFeaturedRestaurants = async () => {
       try {
-        // Use the database's current time for comparison
         const { data: listings, error: listingsError } = await supabase
           .from("featured_listings")
           .select(`
@@ -41,54 +40,53 @@ export function useFeaturedRestaurants() {
         }
 
         if (!listings || listings.length === 0) {
-          console.log("No active featured listings found");
           setFeaturedRestaurants([]);
           setFeaturedIds(new Set());
           setLoading(false);
           return;
         }
 
-        console.log("Found featured listings:", listings.length, listings);
-
-        // Fetch restaurant details for featured listings
         const restaurantIds = listings.map((l) => l.restaurant_id);
-        const { data: restaurants, error: restaurantsError } = await supabase
-          .from("restaurants")
-          .select(`
-            id,
-            name,
-            description,
-            logo_url,
-            rating,
-            total_orders
-          `)
-          .in("id", restaurantIds)
-          .eq("approval_status", "approved")
-          .eq("is_active", true);
 
-        if (restaurantsError) {
-          console.error("Error fetching restaurants:", restaurantsError);
-          throw restaurantsError;
+        const [restaurantsResult, mealCountsResult] = await Promise.all([
+          supabase
+            .from("restaurants")
+            .select(`
+              id,
+              name,
+              description,
+              logo_url,
+              rating,
+              total_orders
+            `)
+            .in("id", restaurantIds)
+            .eq("approval_status", "approved")
+            .eq("is_active", true),
+          supabase
+            .from("meals")
+            .select("restaurant_id, id")
+            .in("restaurant_id", restaurantIds)
+            .eq("is_available", true),
+        ]);
+
+        if (restaurantsResult.error) {
+          console.error("Error fetching restaurants:", restaurantsResult.error);
+          throw restaurantsResult.error;
         }
 
-        console.log("Found restaurants:", restaurants?.length, restaurants);
-
-        // Fetch meal counts for each restaurant
-        const { data: mealCounts, error: mealError } = await supabase
-          .from("meals")
-          .select("restaurant_id, id")
-          .in("restaurant_id", restaurantIds)
-          .eq("is_available", true);
-
-        if (mealError) {
-          console.error("Error fetching meals:", mealError);
+        const restaurants = restaurantsResult.data;
+        const mealCounts = mealCountsResult.data;
+        if (mealCountsResult.error) {
+          console.error("Error fetching meals:", mealCountsResult.error);
         }
 
         // Count meals per restaurant
         const mealCountMap = new Map<string, number>();
         mealCounts?.forEach((meal) => {
-          const current = mealCountMap.get(meal.restaurant_id) || 0;
-          mealCountMap.set(meal.restaurant_id, current + 1);
+          if (meal.restaurant_id) {
+            const current = mealCountMap.get(meal.restaurant_id) || 0;
+            mealCountMap.set(meal.restaurant_id, current + 1);
+          }
         });
 
         // Map restaurants with featured listing info
@@ -107,8 +105,6 @@ export function useFeaturedRestaurants() {
             ends_at: listing?.ends_at || "",
           };
         });
-
-        console.log("Mapped featured restaurants:", featured.length, featured);
 
         setFeaturedRestaurants(featured);
         setFeaturedIds(new Set(featured.map((f) => f.id)));

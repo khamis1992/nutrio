@@ -47,7 +47,7 @@ const DashboardScreen = () => (
   <div style={{ width: "100%", height: "100%", background: "#fff", display: "flex", flexDirection: "column", overflow: "hidden" }}>
     {/* App bar */}
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px 5px", borderBottom: "1px solid #f3f4f6" }}>
-      <img src="/logo.png" alt="Nutrio" style={{ height: 20, width: "auto", objectFit: "contain" }} />
+      <img src="/nutrio/logo.png" alt="Nutrio" style={{ height: 20, width: "auto", objectFit: "contain" }} />
       <span style={{ fontSize: 10, fontWeight: 700 }}>Nutrio</span>
       <div style={{ width: 20, height: 20, borderRadius: "50%", border: "1.5px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>🔔</div>
     </div>
@@ -133,7 +133,7 @@ const InsightsScreen = () => {
 
       {/* App bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px 5px", borderBottom: "1px solid #f3f4f6" }}>
-        <img src="/logo.png" alt="Nutrio" style={{ height: 18, width: "auto", objectFit: "contain" }} />
+        <img src="/nutrio/logo.png" alt="Nutrio" style={{ height: 18, width: "auto", objectFit: "contain" }} />
         <span style={{ fontSize: 10, fontWeight: 700 }}>Insights</span>
         <div style={{ display: "flex", gap: 2 }}>
           {[0,1,2].map(i => <div key={i} style={{ width: 3, height: 3, borderRadius: "50%", background: "#9ca3af" }} />)}
@@ -256,7 +256,7 @@ const ProgressScreen = () => {
   return (
     <div style={{ width: "100%", height: "100%", background: "#fff", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px 5px", borderBottom: "1px solid #f3f4f6" }}>
-        <img src="/logo.png" alt="Nutrio" style={{ height: 20, width: "auto", objectFit: "contain" }} />
+        <img src="/nutrio/logo.png" alt="Nutrio" style={{ height: 20, width: "auto", objectFit: "contain" }} />
         <span style={{ fontSize: 10, fontWeight: 700 }}>Progress</span>
         <span style={{ fontSize: 14 }}>📅</span>
       </div>

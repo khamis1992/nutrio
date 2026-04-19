@@ -192,7 +192,7 @@ export const AdaptiveGoalCard = ({
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin">⏳</span>
+                <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
                 {t('adaptiveGoals_applying')}
               </span>
             ) : (

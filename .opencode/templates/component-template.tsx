@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ComponentNameProps {
-  // TODO: Define props interface
+  className?: string;
 }
 
 const ComponentName = (props: ComponentNameProps) => {

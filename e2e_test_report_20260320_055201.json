@@ -1,0 +1,146 @@
+{
+  "execution_start": "2026-03-20T05:50:59.671000",
+  "tests": [
+    {
+      "name": "customer login",
+      "status": "FAIL",
+      "details": "Still on auth page: http://localhost:4173/auth",
+      "timestamp": "2026-03-20T05:51:09.150390"
+    },
+    {
+      "name": "partner login",
+      "status": "FAIL",
+      "details": "Locator.wait_for: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"input#si-email, input[type=\\\"email\\\"]\").first to be visible\n",
+      "timestamp": "2026-03-20T05:51:20.316854"
+    },
+    {
+      "name": "admin login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/admin",
+      "timestamp": "2026-03-20T05:51:29.709446"
+    },
+    {
+      "name": "driver login",
+      "status": "FAIL",
+      "details": "Locator.wait_for: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"input#si-email, input[type=\\\"email\\\"]\").first to be visible\n",
+      "timestamp": "2026-03-20T05:51:50.575257"
+    },
+    {
+      "name": "fleet login",
+      "status": "FAIL",
+      "details": "Locator.wait_for: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"input#si-email, input[type=\\\"email\\\"]\").first to be visible\n",
+      "timestamp": "2026-03-20T05:52:01.724717"
+    }
+  ],
+  "bugs": [
+    {
+      "title": "Customer login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "customer",
+      "timestamp": "2026-03-20T05:51:09.150412"
+    },
+    {
+      "title": "Partner login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "partner",
+      "timestamp": "2026-03-20T05:51:20.316871"
+    },
+    {
+      "title": "Driver login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "driver",
+      "timestamp": "2026-03-20T05:51:50.575273"
+    },
+    {
+      "title": "Fleet login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "fleet",
+      "timestamp": "2026-03-20T05:52:01.724733"
+    }
+  ],
+  "workflows": [],
+  "ui_issues": [
+    {
+      "description": "No buttons found on after_login",
+      "location": "admin - after_login",
+      "timestamp": "2026-03-20T05:51:31.718180"
+    },
+    {
+      "description": "No inputs found on after_login",
+      "location": "admin - after_login",
+      "timestamp": "2026-03-20T05:51:31.718191"
+    },
+    {
+      "description": "No buttons found on /admin/dashboard",
+      "location": "admin - /admin/dashboard",
+      "timestamp": "2026-03-20T05:51:33.256276"
+    },
+    {
+      "description": "No inputs found on /admin/dashboard",
+      "location": "admin - /admin/dashboard",
+      "timestamp": "2026-03-20T05:51:33.256283"
+    },
+    {
+      "description": "No buttons found on /admin/users",
+      "location": "admin - /admin/users",
+      "timestamp": "2026-03-20T05:51:34.800234"
+    },
+    {
+      "description": "No inputs found on /admin/users",
+      "location": "admin - /admin/users",
+      "timestamp": "2026-03-20T05:51:34.800240"
+    },
+    {
+      "description": "No buttons found on /admin/restaurants",
+      "location": "admin - /admin/restaurants",
+      "timestamp": "2026-03-20T05:51:36.336951"
+    },
+    {
+      "description": "No inputs found on /admin/restaurants",
+      "location": "admin - /admin/restaurants",
+      "timestamp": "2026-03-20T05:51:36.336960"
+    },
+    {
+      "description": "No buttons found on /admin/orders",
+      "location": "admin - /admin/orders",
+      "timestamp": "2026-03-20T05:51:37.870398"
+    },
+    {
+      "description": "No inputs found on /admin/orders",
+      "location": "admin - /admin/orders",
+      "timestamp": "2026-03-20T05:51:37.870406"
+    },
+    {
+      "description": "No buttons found on /admin/drivers",
+      "location": "admin - /admin/drivers",
+      "timestamp": "2026-03-20T05:51:39.414499"
+    },
+    {
+      "description": "No inputs found on /admin/drivers",
+      "location": "admin - /admin/drivers",
+      "timestamp": "2026-03-20T05:51:39.414508"
+    }
+  ],
+  "performance_issues": [],
+  "execution_end": "2026-03-20T05:52:01.797454"
+}

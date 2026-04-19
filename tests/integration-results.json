@@ -1,0 +1,20 @@
+[
+  {
+    "suite": "Test Runner",
+    "name": "Fatal Error",
+    "status": "failed",
+    "details": {
+      "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/nutrio/dashboard\nCall log:\n\u001b[2m  - navigating to \"http://localhost:5173/nutrio/dashboard\", waiting until \"load\"\u001b[22m\n"
+    },
+    "timestamp": "2026-04-18T17:03:09.886Z"
+  },
+  {
+    "suite": "Test Runner",
+    "name": "Fatal Error",
+    "status": "failed",
+    "details": {
+      "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/nutrio/dashboard\nCall log:\n\u001b[2m  - navigating to \"http://localhost:5173/nutrio/dashboard\", waiting until \"load\"\u001b[22m\n"
+    },
+    "timestamp": "2026-04-18T17:03:09.921Z"
+  }
+]

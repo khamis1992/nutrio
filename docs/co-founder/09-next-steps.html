@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio Co-Founder Proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1a1a1a;
+            --color-secondary: #4a4a4a;
+            --color-accent: #c9a227;
+            --color-accent-light: #e8d48a;
+            --color-bg: #f8f7f4;
+            --color-surface: #ffffff;
+            --color-border: #e5e5e5;
+            --color-muted: #8a8a8a;
+            --color-success: #2e7d32;
+            --color-warning: #ed6c02;
+            --color-danger: #d32f2f;
+            --color-info: #0288d1;
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Source Sans 3', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 20mm; }
+        body { font-family: var(--font-body); font-size: 10pt; line-height: 1.7; color: var(--color-primary); background: var(--color-bg); }
+        .page { width: 210mm; min-height: 297mm; background: var(--color-surface); margin: 0 auto 20px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .page:last-child { margin-bottom: 0; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: var(--spacing-xl); border-bottom: 3px solid var(--color-primary); margin-bottom: var(--spacing-2xl); }
+        .header-left h1 { font-family: var(--font-display); font-size: 24pt; font-weight: 700; color: var(--color-primary); margin-bottom: var(--spacing-xs); }
+        .header-left .subtitle { font-size: 10pt; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 0.02em; }
+        .header-right { text-align: right; }
+        .logo { font-family: var(--font-display); font-size: 20pt; font-weight: 700; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .date { font-size: 9pt; color: var(--color-muted); font-family: var(--font-mono); }
+        .section { margin-bottom: var(--spacing-2xl); break-inside: avoid; }
+        .section-title { font-family: var(--font-display); font-size: 13pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-lg); display: flex; align-items: center; gap: var(--spacing-md); }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+        .section-number { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); font-weight: 600; background: var(--color-accent-light); padding: 2px 8px; border-radius: 2px; }
+        .content-block { margin-bottom: var(--spacing-lg); }
+        .content-block h3 { font-family: var(--font-display); font-size: 11pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-xs); }
+        .content-block p { font-size: 9.5pt; color: var(--color-secondary); margin-bottom: var(--spacing-sm); }
+        ul { list-style: none; padding: 0; }
+        ul li { position: relative; padding-left: var(--spacing-lg); margin-bottom: var(--spacing-sm); font-size: 9.5pt; color: var(--color-secondary); }
+        ul li::before { content: '→'; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: var(--spacing-lg); font-size: 9pt; }
+        th { text-align: left; padding: var(--spacing-sm) var(--spacing-md); background: var(--color-primary); color: var(--color-surface); font-weight: 500; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); color: var(--color-secondary); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) { background: var(--color-bg); }
+        .formula { font-family: var(--font-mono); font-size: 10pt; background: var(--color-primary); color: white; padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0; text-align: center; }
+        .quote { border-left: 3px solid var(--color-accent); padding-left: var(--spacing-lg); margin: var(--spacing-lg) 0; background: var(--color-bg); padding: var(--spacing-md) var(--spacing-lg); }
+        .quote p { font-family: var(--font-display); font-size: 10pt; font-style: italic; color: var(--color-primary); line-height: 1.6; }
+        .quote cite { display: block; margin-top: var(--spacing-sm); font-size: 8pt; color: var(--color-muted); font-style: normal; }
+        .footer { margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; }
+        .footer-left { font-size: 8pt; color: var(--color-muted); }
+        .footer-right { font-family: var(--font-mono); font-size: 8pt; color: var(--color-muted); }
+        @media print { body { background: white; } .page { box-shadow: none; margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Co-Founder Proposal</h1>
+                <p class="subtitle">Nutrio Fuel - Join Our Vision</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">March 2026</div>
+            </div>
+        </header>
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">09</span> Next Steps</h2>
+            <div class="content-block">
+                <h3>Immediate (This Week)</h3>
+                <ul>
+                    <li><strong>Review</strong> all documents thoroughly</li>
+                    <li><strong>Ask questions</strong> - Schedule discussion call</li>
+                    <li><strong>Make decision</strong> - YES or NO within 7 days</li>
+                </ul>
+            </div>
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>Key Metrics Summary</h3>
+                <div style="background: #e3f2fd; padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-md);">
+                    <p><strong>CAC (Customer Acquisition Cost)</strong> = How much money we spend to get ONE new customer. Our CAC is 150 QAR (through referrals, word-of-mouth, not expensive ads).</p>
+                </div>
+                <div style="background: #e8f5e9; padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-md);">
+                    <p><strong>LTV (Lifetime Value)</strong> = Total money a customer spends with us during their entire relationship. Our LTV is 8,400 QAR (average customer stays 12 months at 700 QAR/month).</p>
+                </div>
+                <div style="background: #fff3e0; padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-md);">
+                    <p><strong>LTV:CAC Ratio (56:1)</strong> = For every 1 QAR spent acquiring a customer, we earn 56 QAR back. Industry standard is 3:1. We are 18× more efficient!</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Metric</th><th>Value</th><th>Industry Standard</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>LTV:CAC Ratio</td><td><strong>56:1</strong></td><td>3:1</td></tr>
+                        <tr class="highlight-row"><td>CAC</td><td><strong>150 QAR</strong></td><td>200-500 QAR</td></tr>
+                        <tr><td>LTV</td><td><strong>8,400 QAR</strong></td><td>1,000-3,000 QAR</td></tr>
+                        <tr class="highlight-row"><td>Retention</td><td><strong>>60%</strong></td><td>40-50%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>If NO: What Happens Next</h3>
+                <p>No hard feelings. We understand:</p>
+                <ul>
+                    <li>Different timing or priorities</li>
+                    <li>Different investment requirements</li>
+                    <li>Different risk tolerance</li>
+                    <li>Different passion for this vertical</li>
+                </ul>
+                <p><em>If interested but not ready to commit: Stay in touch for future opportunities or consider advisory role.</em></p>
+            </div>
+        </section>
+        <section class="section" style="margin-top: var(--spacing-3xl); break-before: page;">
+            <h2 class="section-title"><span class="section-number">10</span> Financial Projections</h2>
+            <div class="two-col">
+                <div>
+                    <h3>90-Day Targets</h3>
+                    <table>
+                        <thead>
+                            <tr><th>Metric</th><th>Month 1</th><th>Month 2</th><th>Month 3</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Subscribers</td><td>20</td><td>50</td><td>100</td></tr>
+                            <tr><td>Restaurants</td><td>10</td><td>25</td><td>50</td></tr>
+                            <tr class="highlight-row"><td>Revenue</td><td>56K</td><td>140K</td><td>280K QAR</td></tr>
+                            <tr><td>Profit</td><td>20K</td><td>50K</td><td>100K QAR</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3>24-Month Trajectory</h3>
+                    <table>
+                        <thead>
+                            <tr><th>Period</th><th>Subscribers</th><th>Revenue</th><th>Profit</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Month 3</td><td>100</td><td>280K</td><td>100K</td></tr>
+                            <tr><td>Month 6</td><td>250</td><td>700K</td><td>250K</td></tr>
+                            <tr class="highlight-row"><td>Month 12</td><td>600</td><td>1.68M</td><td>600K</td></tr>
+                            <tr><td>Month 24</td><td>1,500</td><td>4.2M</td><td>1.5M QAR</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>Key Metrics Summary (Explained)</h3>
+                <div style="background: #e3f2fd; padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-md);">
+                    <p><strong>CAC (Customer Acquisition Cost)</strong> = The money we spend to get each new customer. Our target is 150 QAR per customer. This includes marketing, ads, and referral rewards.</p>
+                </div>
+                <div style="background: #e8f5e9; padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-md);">
+                    <p><strong>LTV (Lifetime Value)</strong> = Total revenue a customer generates during their entire relationship with us. Our target is 8,400 QAR per customer.</p>
+                </div>
+                <div style="background: #fff3e0; padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-md);">
+                    <p><strong>LTV:CAC Ratio (56:1)</strong> = For every 1 QAR we spend on marketing, we get 56 QAR back in customer value. Industry standard is 3:1 - we are 18× better!</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Metric</th><th>Value</th><th>Industry Standard</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>LTV:CAC Ratio</td><td><strong>56:1</strong></td><td>3:1</td></tr>
+                        <tr class="highlight-row"><td>CAC</td><td><strong>150 QAR</strong></td><td>200-500 QAR</td></tr>
+                        <tr><td>LTV</td><td><strong>8,400 QAR</strong></td><td>1,000-3,000 QAR</td></tr>
+                        <tr class="highlight-row"><td>Retention</td><td><strong>>60%</strong></td><td>40-50%</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="quote" style="margin-top: var(--spacing-xl);">
+                <p>"The only way to do great work is to love what you do. If you haven't found it yet, keep looking. Don't settle."</p>
+                <cite>— Steve Jobs</cite>
+            </div>
+        </section>
+        <footer class="footer">
+            <div class="footer-left">Nutrio Co-Founder Proposal · March 2026</div>
+            <div class="footer-right">Page 9-10 of 10</div>
+        </footer>
+    </div>
+</body>
+</html>

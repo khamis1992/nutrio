@@ -19,6 +19,16 @@ import {
   X,
   Flame,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type OrderStatus =
@@ -89,6 +99,8 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
 
   // Journey steps with icons for each step
   const journeySteps: { status: OrderStatus; label: string; sublabel?: string; Icon: React.ElementType }[] = [
@@ -211,7 +223,7 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
         }
       }
 
-      const orders: ActiveOrder[] = (schedules as MealSchedule[]).map((schedule) => {
+      const orders: ActiveOrder[] = (schedules as MealSchedule[] ?? []).map((schedule) => {
         const meal = mealsData.find(m => m.id === schedule.meal_id);
         return {
           id: schedule.id,
@@ -258,19 +270,22 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
     }
   }, [userId, t]);
 
-  const handleCancelOrder = async (orderId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirm(t("order_cancel_confirm"))) return;
+const handleCancelOrder = async (orderId: string) => {
     setCancelling(orderId);
+    setCancelDialogOpen(false);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: orderId,
       });
 
+      clearTimeout(timeoutId);
+
       if (error) {
-        const errorMessage = error.message || "";
-        if (errorMessage.includes("preparing")) {
+        const errorCode = (error as { code?: string }).code || error.message;
+        if (errorCode === "ORDER_IN_PROGRESS" || error.message?.includes("preparing") || error.message?.includes("in_progress")) {
           toast.error(t("order_cannot_cancel_title"), {
             description: t("order_cannot_cancel_description"),
           });
@@ -281,10 +296,13 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
 
       if (!data || !(data as { success?: boolean }).success) throw new Error(t("order_cancel_failed"));
 
-      // Refetch from DB to ensure UI reflects the true state (not optimistic)
       await fetchActiveOrders();
       toast.success(t("order_cancel_success"));
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        toast.error(t("order_cancel_error") || "Cancel request timed out. Please try again.");
+        return;
+      }
       const message = err instanceof Error ? err.message : t("order_cancel_error");
       toast.error(message);
     } finally {
@@ -293,31 +311,45 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
   };
 
   useEffect(() => {
-    fetchActiveOrders();
+    let subscription: ReturnType<typeof supabase.channel>;
 
-    const subscription = supabase
-      .channel("active-orders")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "meal_schedules",
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          // Small delay so the DB write is visible before re-reading
-          setTimeout(() => fetchActiveOrders(), 300);
-        }
-      )
-      .subscribe();
+    const init = async () => {
+      fetchActiveOrders();
+
+      subscription = supabase
+        .channel(`active-orders-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "meal_schedules",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            setTimeout(() => fetchActiveOrders(), 300);
+          }
+        )
+        .subscribe();
+    };
+
+    init();
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) subscription.unsubscribe();
     };
   }, [userId, fetchActiveOrders]);
 
-  if (loading || activeOrders.length === 0) {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-4 w-32 rounded bg-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+        <div className="rounded-3xl h-48 bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+      </div>
+    );
+  }
+
+  if (activeOrders.length === 0) {
     return null;
   }
 
@@ -467,9 +499,15 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
                       <div className="relative flex-shrink-0 flex flex-col items-center gap-2">
                         {canCancel && cancellableOrderId ? (
                           <button
-                            onClick={(e) => handleCancelOrder(cancellableOrderId, e)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCancelTargetId(cancellableOrderId);
+                              setCancelDialogOpen(true);
+                            }}
                             disabled={cancelling === cancellableOrderId}
-                            className="w-9 h-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                            aria-label="Cancel order"
+                            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-red-50 border border-red-200 flex items-center justify-center hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                           >
                             {cancelling === cancellableOrderId ? (
                               <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
@@ -601,6 +639,28 @@ export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
           );
         })}
       </AnimatePresence>
+
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("order_cancel_confirm_title") || "Cancel Order?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("order_cancel_confirm") || "Are you sure you want to cancel this order?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("order_cancel_no") || "No, Keep It"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cancelTargetId && handleCancelOrder(cancelTargetId)}
+              disabled={!!cancelling}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {cancelling ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {t("order_cancel_yes") || "Yes, Cancel"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

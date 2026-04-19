@@ -1,0 +1,243 @@
+{
+  "auth_redirect": {
+    "current_url": "http://localhost:5173/nutrio/auth",
+    "redirect_detected": true,
+    "auth_page_elements": {
+      "has_login_form": false,
+      "has_password_field": false,
+      "has_submit_button": true
+    },
+    "access_admin": {
+      "url": "http://localhost:5173/nutrio/auth",
+      "accessible_without_auth": false
+    },
+    "access_partner": {
+      "url": "http://localhost:5173/nutrio/auth",
+      "accessible_without_auth": false
+    },
+    "access_driver": {
+      "url": "http://localhost:5173/nutrio/auth",
+      "accessible_without_auth": false
+    },
+    "access_fleet": {
+      "url": "http://localhost:5173/nutrio/fleet/login",
+      "accessible_without_auth": true
+    }
+  },
+  "responsive": {
+    "iphone_se": {
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 375,
+        "clientWidth": 375,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "iphone_14": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "iphone_14_pro_max": {
+      "viewport": {
+        "width": 430,
+        "height": 932
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 430,
+        "clientWidth": 430,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "android_medium": {
+      "viewport": {
+        "width": 412,
+        "height": 915
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 412,
+        "clientWidth": 412,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "android_small": {
+      "viewport": {
+        "width": 360,
+        "height": 640
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 360,
+        "clientWidth": 360,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "ipad_mini": {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "ipad_pro": {
+      "viewport": {
+        "width": 1024,
+        "height": 1366
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 1024,
+        "clientWidth": 1024,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    },
+    "desktop": {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "overflow": {
+        "horizontalOverflow": false,
+        "scrollWidth": 1920,
+        "clientWidth": 1920,
+        "hasHorizontalScrollbar": false
+      },
+      "final_url": "http://localhost:5173/nutrio/auth"
+    }
+  },
+  "accessibility": {
+    "issues": [],
+    "focusableCount": 5,
+    "hasSkipNav": false,
+    "headings": [
+      {
+        "tag": "H1",
+        "text": "Eat Smart,Live Better"
+      }
+    ],
+    "ariaRoleCount": 0,
+    "langAttr": "en"
+  },
+  "navigation": {},
+  "api_network": {
+    "supabase_calls": [
+      {
+        "url": "http://localhost:5173/nutrio/src/integrations/supabase/client.ts?t=1776461321967",
+        "method": "GET",
+        "headers": {
+          "origin": "http://localhost:5173",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "referer": "http://localhost:5173/nutrio/src/contexts/AuthContext.tsx?t=1776461321967",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
+          "sec-ch-ua": "\"HeadlessChrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+          "sec-ch-ua-mobile": "?0"
+        }
+      },
+      {
+        "url": "http://localhost:5173/nutrio/node_modules/.vite/deps/@supabase_supabase-js.js?v=d962b942",
+        "method": "GET",
+        "headers": {
+          "origin": "http://localhost:5173",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "referer": "http://localhost:5173/nutrio/src/integrations/supabase/client.ts?t=1776461321967",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
+          "sec-ch-ua": "\"HeadlessChrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+          "sec-ch-ua-mobile": "?0"
+        }
+      }
+    ],
+    "total_calls": 2,
+    "external_calls": []
+  },
+  "performance": {
+    "total_load_seconds": 4.05,
+    "web_vitals": {
+      "": {
+        "value": 0.0001411863437824501,
+        "rating": "unknown"
+      },
+      "FCP": {
+        "value": 164
+      }
+    },
+    "resource_count": 93,
+    "total_transfer_bytes": 7572241,
+    "dom_count": 45
+  },
+  "security": {
+    "direct_url_admin_dashboard": {
+      "resolved_url": "http://localhost:5173/nutrio/admin/dashboard",
+      "shows_unauthorized_content": true
+    },
+    "direct_url_partner_dashboard": {
+      "resolved_url": "http://localhost:5173/nutrio/partner/dashboard",
+      "shows_unauthorized_content": true
+    },
+    "direct_url_driver_dashboard": {
+      "resolved_url": "http://localhost:5173/nutrio/driver/dashboard",
+      "shows_unauthorized_content": true
+    },
+    "direct_url_fleet_dashboard": {
+      "resolved_url": "http://localhost:5173/nutrio/fleet/dashboard",
+      "shows_unauthorized_content": true
+    },
+    "storage_contents": {
+      "localStorage": {},
+      "sessionStorage": {}
+    },
+    "sensitive_keys_found": {},
+    "cookies": [],
+    "xss_checks": {
+      "hasCsp": true,
+      "cspContent": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.posthog.com https://*.sentry.io; img-src 'self' data: blob: https://*.supabase.co https://ui-avatars.com; frame-src 'none';",
+      "dangerousInnerHTML_count": 0,
+      "reactRoots": 0
+    }
+  },
+  "functional": {},
+  "edge_cases": {},
+  "errors": [],
+  "browser_chromium": {
+    "loaded": true,
+    "url": "http://localhost:5173/nutrio/auth",
+    "error_count": 0,
+    "errors": []
+  },
+  "browser_firefox": {
+    "loaded": true,
+    "url": "http://localhost:5173/nutrio/auth",
+    "error_count": 0,
+    "errors": []
+  },
+  "browser_webkit": {
+    "loaded": true,
+    "url": "http://localhost:5173/nutrio/auth",
+    "error_count": 0,
+    "errors": []
+  }
+}

@@ -1,6 +1,8 @@
 // Sadad Payment Gateway Integration for Qatar
 // Documentation: https://developer.sadad.qa/
 
+import { createHmac } from 'crypto';
+
 const SADAD_API_URL = import.meta.env.VITE_SADAD_API_URL || 'https://api.sadad.qa';
 const SADAD_MERCHANT_ID = import.meta.env.VITE_SADAD_MERCHANT_ID;
 const SADAD_SECRET_KEY = import.meta.env.VITE_SADAD_SECRET_KEY;
@@ -122,10 +124,8 @@ class SadadService {
   private generateSignature(data: SadadCallbackData): string {
     // Implement signature generation according to Sadad documentation
     // This is a placeholder implementation
-    const crypto = require('crypto');
     const payload = `${data.payment_id}|${data.order_id}|${data.status}|${data.amount}`;
-    return crypto
-      .createHmac('sha256', this.secretKey!)
+    return createHmac('sha256', this.secretKey!)
       .update(payload)
       .digest('hex');
   }

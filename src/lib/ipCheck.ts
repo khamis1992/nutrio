@@ -12,25 +12,8 @@ export interface IPLocationResponse {
 /**
  * Check if an IP address is allowed based on geolocation and blocked status
  * @returns IPLocationResponse with allowed status and location info
- * 
- * NOTE: IP restriction is currently DISABLED for E2E testing.
- * To reactivate Qatar-only restriction, remove the bypass below.
  */
 export const checkIPLocation = async (): Promise<IPLocationResponse> => {
-  // BYPASS FOR E2E TESTING - Allows all IPs including localhost
-  // TODO: Remove this bypass after testing is complete
-  return {
-    allowed: true,
-    blocked: false,
-    ip: '127.0.0.1',
-    countryCode: 'QA',
-    country: 'Qatar',
-    city: 'Doha',
-    reason: 'E2E TESTING MODE - IP restriction disabled',
-  };
-
-  /* ORIGINAL CODE - Commented out for testing
-  // Skip IP check in development/local environment
   if (import.meta.env.DEV || window.location.hostname === 'localhost') {
     return {
       allowed: true,
@@ -42,7 +25,6 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
       reason: 'Development mode - IP check skipped',
     };
   }
-  */
 
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -50,7 +32,7 @@ export const checkIPLocation = async (): Promise<IPLocationResponse> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
       }
     });
 
@@ -96,7 +78,7 @@ export const logUserIP = async (action: 'signup' | 'login', userId?: string) => 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
       },
       body: JSON.stringify({ action, userId })
     });

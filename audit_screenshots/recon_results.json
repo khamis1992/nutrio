@@ -1,0 +1,83 @@
+{
+  "current_url": "http://localhost:5173/nutrio/auth",
+  "load_time_seconds": 4.06,
+  "performance": {
+    "domContentLoaded": 0.5,
+    "loadComplete": 0,
+    "domInteractive": 37.79999999701977,
+    "transferSize": 3507,
+    "decodedBodySize": 3207
+  },
+  "memory": {
+    "usedJSHeapSize": 29400000,
+    "totalJSHeapSize": 33100000
+  },
+  "dom_node_count": 45,
+  "console_messages": [
+    {
+      "type": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "log",
+      "text": "Sentry disabled in development"
+    },
+    {
+      "type": "log",
+      "text": "PostHog disabled in development"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "type": "log",
+      "text": "PostHog disabled in development"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "js_errors": [],
+  "img_alt_issues": [],
+  "small_font_issues": [],
+  "api_calls": [
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:5173/nutrio/src/integrations/supabase/client.ts",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:5173/nutrio/src/integrations/supabase/client.ts",
+      "status": 200,
+      "body_size": "8957"
+    },
+    {
+      "url": "http://localhost:5173/nutrio/node_modules/.vite/deps/@supabase_supabase-js.js?v=637f623f",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:5173/nutrio/node_modules/.vite/deps/@supabase_supabase-js.js?v=637f623f",
+      "status": 200,
+      "body_size": "479568"
+    },
+    {
+      "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap",
+      "status": 200,
+      "body_size": "?"
+    }
+  ],
+  "total_network_requests": 186
+}

@@ -65,13 +65,19 @@ export default function HealthDashboard() {
         // Meal compliance (last 7 days)
         const weekAgo = subDays(new Date(), 7).toISOString();
         const { data: meals } = await supabase
-          .from("meal_logs")
-          .select("date, calories, protein")
+          .from("meal_history")
+          .select("logged_at, calories, protein_g")
           .eq("user_id", user.id)
-          .gte("date", weekAgo)
-          .order("date", { ascending: false });
+          .gte("logged_at", weekAgo)
+          .order("logged_at", { ascending: false });
         if (cancelled) return;
-        setMealLogs((meals as MealLog[]) || []);
+        // Transform to MealLog format (group by date)
+        const transformedMeals: MealLog[] = (meals || []).map((m) => ({
+          date: m.logged_at ? m.logged_at.split("T")[0] : "",
+          calories: m.calories || 0,
+          protein: m.protein_g || 0,
+        }));
+        setMealLogs(transformedMeals);
       } catch {
         if (cancelled) return;
       } finally {

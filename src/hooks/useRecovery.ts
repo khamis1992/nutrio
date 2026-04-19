@@ -236,6 +236,13 @@ export async function createRecoveryBooking(params: {
 }
 
 export async function cancelRecoveryBooking(bookingId: string, userId: string) {
+  const { data: booking } = await supabase
+    .from("recovery_bookings")
+    .select("credits_used")
+    .eq("id", bookingId)
+    .eq("user_id", userId)
+    .single();
+
   const { error } = await supabase
     .from("recovery_bookings")
     .update({ status: "cancelled" })
@@ -243,4 +250,36 @@ export async function cancelRecoveryBooking(bookingId: string, userId: string) {
     .eq("user_id", userId);
 
   if (error) throw error;
+
+  if (booking && booking.credits_used > 0) {
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+
+    try {
+      const { error: rpcError } = await supabase.rpc("decrement_recovery_credits", {
+        p_user_id: userId,
+        p_period_start: periodStart,
+        p_credits: booking.credits_used,
+      });
+
+      if (rpcError) {
+        console.warn("decrement_recovery_credits RPC failed, using direct update:", rpcError);
+        const { data: creditRow } = await supabase
+          .from("member_recovery_credits")
+          .select("used_credits")
+          .eq("user_id", userId)
+          .eq("period_start", periodStart)
+          .single();
+        if (creditRow) {
+          await supabase
+            .from("member_recovery_credits")
+            .update({ used_credits: Math.max(0, creditRow.used_credits - booking.credits_used) })
+            .eq("user_id", userId)
+            .eq("period_start", periodStart);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to decrement recovery credits on cancel:", err);
+    }
+  }
 }

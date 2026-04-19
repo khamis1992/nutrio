@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, Variants, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform, useReducedMotion } from "framer-motion";
 import flamAvatar from "@/assets/flam.png";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import {
   Flame,
   BarChart3,
   ChevronRight,
-  Crown as SubscriptionIcon,
   Heart,
   TrendingUp,
 } from "lucide-react";
@@ -22,7 +21,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAdaptiveGoals } from "@/hooks/useAdaptiveGoals";
-import { supabase } from "@/integrations/supabase/client";
 import { LogMealDialog } from "@/components/LogMealDialog";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
@@ -31,180 +29,67 @@ import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
 import { DailyNutritionCard } from "@/components/DailyNutritionCard";
 import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
 import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
+import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-const spring = { type: "spring" as const, stiffness: 300, damping: 25, mass: 0.8 };
-const springBouncy = { type: "spring" as const, stiffness: 400, damping: 17, mass: 0.6 };
-const springGentle = { type: "spring" as const, stiffness: 200, damping: 30, mass: 1 };
-
-const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: spring
-  }
-};
-
-const staggerContainer: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06, delayChildren: 0.1 }
-  }
-};
-
-const pageVariants: Variants = {
-  hidden: { opacity: 0, x: 30 },
-  visible: { 
-    opacity: 1, 
-    x: 0,
-    transition: spring
-  }
-};
-
-const pulseVariants: Variants = {
-  pulse: {
-    scale: [1, 1.1, 1],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-  }
-};
-
-const glowVariants: Variants = {
-  glow: {
-    boxShadow: [
-      "0 0 0px rgba(251, 146, 60, 0)",
-      "0 0 8px rgba(251, 146, 60, 0.4)",
-      "0 0 0px rgba(251, 146, 60, 0)"
-    ],
-    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-  }
-};
-
-const breatheVariants: Variants = {
-  breathe: {
-    opacity: [1, 0.85, 1],
-    transition: { duration: 3, repeat: Infinity, ease: "easeInOut" }
-  }
-};
-
-interface Restaurant {
-  id: string;
-  name: string;
-  description: string | null;
-  logo_url: string | null;
-  rating: number;
-  total_orders: number;
-  meal_count: number;
-}
+import { getQatarNow, getWeekStartDay, WEEK_DAYS_SATURDAY, WEEK_DAYS_MONDAY } from "@/lib/dateUtils";
+import { spring, springBouncy, fadeInUp, staggerContainer, pageVariants, pulseVariants, glowVariants, breatheVariants } from "@/lib/animations";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits";
+import { useTodayProgress } from "@/hooks/useTodayProgress";
+import { useHasRestaurant } from "@/hooks/useHasRestaurant";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
   const { user } = useAuth();
-  const { profile, loading: profileLoading } = useProfile();
+  const { profile, loading: profileLoading, error: profileError } = useProfile();
   const { hasActiveSubscription, remainingMeals, isUnlimited, isVip, subscription } = useSubscription();
+  const { rolloverCredits } = useDashboardRolloverCredits(user?.id);
   const { 
     recommendation, 
     hasUnviewedAdjustment, 
     loading: adaptiveLoading, 
     applyAdjustment, 
-    dismissAdjustment 
+    dismissAdjustment,
+    edgeFunctionAvailable,
+    adjustmentHistory
   } = useAdaptiveGoals();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [restaurantsLoading, setRestaurantsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
-  const { featuredRestaurants, loading: featuredLoading } = useFeaturedRestaurants();
+  const { featuredRestaurants, loading: restaurantsLoading } = useFeaturedRestaurants();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [todayProgress, setTodayProgress] = useState({
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    fat: 0,
-  });
   const [progressKey, setProgressKey] = useState(0);
-  const [hasRestaurant, setHasRestaurant] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
+  const { hasRestaurant } = useHasRestaurant(user?.id);
+  const { unreadCount } = useNotifications(user?.id);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedToggleFavorite = useCallback((restaurantId: string, restaurantName: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      toggleFavorite(restaurantId, restaurantName);
+    }, 300);
+  }, [toggleFavorite]);
 
   useEffect(() => {
-    if (!user) return;
-    const fetchUnread = async () => {
-      const { count } = await supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "unread");
-      setUnreadCount(count ?? 0);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    fetchUnread();
-  }, [user]);
+  }, []);
 
   useEffect(() => {
-    const checkRestaurant = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("restaurants")
-        .select("id")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      setHasRestaurant(!!data);
-    };
-    checkRestaurant();
-  }, [user]);
+    const handler = () => setProgressKey((k) => k + 1);
+    window.addEventListener("nutrio:meal-progress-changed", handler);
+    return () => window.removeEventListener("nutrio:meal-progress-changed", handler);
+  }, []);
 
   useEffect(() => {
-    if (!profileLoading && profile && !profile.onboarding_completed) {
+    if (!profileLoading && profile && profile.onboarding_completed === false) {
       navigate("/onboarding");
     }
   }, [profile, profileLoading, navigate]);
-
-  useEffect(() => {
-    const fetchTodayProgress = async () => {
-      if (!user) return;
-
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-
-      try {
-        const { data, error } = await supabase
-          .from("progress_logs")
-          .select("calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
-          .eq("user_id", user.id)
-          .eq("log_date", dateStr)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        setTodayProgress({
-          calories: data?.calories_consumed || 0,
-          protein: data?.protein_consumed_g || 0,
-          carbs: data?.carbs_consumed_g || 0,
-          fat: data?.fat_consumed_g || 0,
-        });
-      } catch (err) {
-        console.error("Error fetching progress:", err);
-      }
-    };
-
-    fetchTodayProgress();
-  }, [user, progressKey, selectedDate]);
-
-  useEffect(() => {
-    if (!featuredLoading) {
-      const mappedRestaurants: Restaurant[] = featuredRestaurants.map((fr) => ({
-        id: fr.id,
-        name: fr.name,
-        description: fr.description,
-        logo_url: fr.logo_url,
-        rating: fr.rating,
-        total_orders: fr.total_orders,
-        meal_count: fr.meal_count,
-      }));
-      setRestaurants(mappedRestaurants);
-      setRestaurantsLoading(false);
-    }
-  }, [featuredRestaurants, featuredLoading]);
 
   const userStats = {
     dailyCalories: profile?.daily_calorie_target || 2000,
@@ -214,29 +99,26 @@ const Dashboard = () => {
     fat: { target: profile?.fat_target_g || 65, consumed: todayProgress.fat },
   };
 
-  const userName = profile?.full_name?.split(" ")[0] || "there";
+  const userName = profile?.full_name?.split(" ")[0] || t("guest_greeting") || "there";
 
-  // Streak week data
-  const weekTarget = hasActiveSubscription ? 7 : 5;
-  const completedThisWeek = Math.min((profile?.streak_days || 0) % weekTarget, weekTarget);
-  const weekDays = [
-    { label: "Sat" }, { label: "Sun" }, { label: "Mon" }, { label: "Tue" },
-    { label: "Wed" }, { label: "Thu" }, { label: "Fri" },
-  ];
+  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
+  const canOrder = hasActiveSubscription && (isUnlimited || (Number.isFinite(effectiveMealsLeft) && effectiveMealsLeft > 0));
+  const weekTarget = canOrder ? 7 : 5;
+  const streakDays = profile?.streak_days || 0;
+  const isMultiWeekStreak = streakDays >= weekTarget * 2;
+  const completedThisWeek = isMultiWeekStreak ? weekTarget : streakDays % weekTarget;
+  const weekStartDay = getWeekStartDay(language);
+  const dayOrder = weekStartDay === 6 ? WEEK_DAYS_SATURDAY : WEEK_DAYS_MONDAY;
+  const dayKeys = ["day_sun", "day_mon", "day_tue", "day_wed", "day_thu", "day_fri", "day_sat"] as const;
+  const weekDays = dayOrder.map(d => ({ label: t(dayKeys[d]) }));
 
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll();
-  const subscriptionY = useTransform(scrollY, [0, 200], [0, -10]);
+  const subscriptionY = useTransform(scrollY, [0, 200], prefersReducedMotion ? [0, 0] : [0, -10]);
 
   if (profileLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#ECFDF5]/30 gap-4 px-5">
-        <style>{`
-          @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-          }
-        `}</style>
         <div className="w-full max-w-[480px] space-y-4">
           <div className="h-14 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
           <div className="h-32 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
@@ -247,8 +129,30 @@ const Dashboard = () => {
     );
   }
 
+  if (profileError && !profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#ECFDF5]/30 gap-4 px-5">
+        <div className="w-full max-w-[400px] text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-red-50 flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-[#0F172A]">Something went wrong</h2>
+          <p className="text-sm text-[#64748B]">We couldn&#39;t load your profile. Please try again.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2.5 rounded-xl bg-[#059669] text-white font-semibold text-sm hover:bg-[#047857] transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const getGreeting = () => {
-    const hour = new Date().getHours();
+    const hour = getQatarNow().getHours();
     if (hour < 12) return t("good_morning");
     if (hour < 18) return t("good_afternoon");
     return t("good_evening");
@@ -263,12 +167,15 @@ const Dashboard = () => {
       className="min-h-screen bg-white"
       style={{ overscrollBehaviorY: "contain" }}
     >
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-[#059669] focus:text-sm focus:rounded">
+        {t("skip_to_main") || "Skip to main content"}
+      </a>
+      {/* Profile sync warning — stale data with error */}
+      {profileError && profile && (
+        <div className="bg-amber-50 border-b border-amber-200 px-5 py-2 text-center">
+          <p className="text-xs font-medium text-amber-800">{t("profile_sync_warning") || "Some data may be outdated. Refresh the page to update."}</p>
+        </div>
+      )}
       {/* Header - Clean, iOS-style */}
       <motion.header 
         initial={{ opacity: 0, y: -8 }}
@@ -276,9 +183,9 @@ const Dashboard = () => {
         transition={spring}
         className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[#E1F2ED]/50 pt-2"
       >
-        <div className="max-w-[480px] mx-auto px-5 h-14 flex items-center justify-between">
-          <motion.div whileTap={{ scale: 0.97, transition: springBouncy }}>
-            <Link to="/profile" className="flex items-center gap-3 transition-transform">
+        <div className="max-w-[480-md mx-auto px-5 h-14 flex items-center justify-between">
+          <motion.div whileTap={prefersReducedMotion ? undefined : { scale: 0.97, transition: springBouncy }}>
+            <Link to="/profile" className="flex items-center gap-3 transition-transform" data-testid="header-avatar-link">
               <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 ${
                 isVip ? "border-amber-400/80" : "border-[#E1F2ED]"
               }`}>
@@ -287,11 +194,12 @@ const Dashboard = () => {
                   alt={userName}
                   loading="eager"
                   className="w-full h-full object-cover"
+                  data-testid="user-avatar-image"
                 />
                 {isVip && (
                   <motion.div 
-                    variants={pulseVariants}
-                    animate="pulse"
+                    variants={prefersReducedMotion ? undefined : pulseVariants}
+                    animate={prefersReducedMotion ? undefined : "pulse"}
                     className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full p-0.5 shadow-sm"
                   >
                     <Crown className="w-3 h-3 text-white" />
@@ -307,18 +215,19 @@ const Dashboard = () => {
             </Link>
           </motion.div>
           <div className="flex items-center gap-1">
-            {hasRestaurant && <RoleIndicator role="customer" />}
-            <Link to="/notifications" className="relative">
+            {!hasRestaurant && <RoleIndicator role="customer" />}
+            <Link to="/notifications" className="relative" aria-live="polite">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9, transition: springBouncy }}
-                animate={unreadCount > 0 ? { x: [0, -2, 2, -2, 2, 0] } : {}}
-                transition={{ duration: 0.5, repeat: unreadCount > 0 ? Infinity : 0, repeatDelay: 3 }}
+                animate={!prefersReducedMotion && unreadCount > 0 ? { x: [0, -2, 2, -2, 2, 0] } : {}}
+                transition={{ duration: 0.5, repeat: !prefersReducedMotion && unreadCount > 0 ? Infinity : 0, repeatDelay: 3 }}
               >
                 <Button 
                   variant="ghost" 
                   size="icon" 
                   className="w-11 h-11 rounded-full hover:bg-[#059669]/10 transition-transform"
+                  aria-label={unreadCount > 0 ? t("notifications_unread") || `Notifications (${unreadCount})` : t("notifications") || "Notifications"}
                 >
                   <Bell className="w-5 h-5 text-[#64748B]" />
                   {unreadCount > 0 && (
@@ -334,10 +243,11 @@ const Dashboard = () => {
       </motion.header>
 
       <motion.main 
+        id="main-content"
         variants={staggerContainer}
         initial="hidden"
         animate="visible"
-        className="max-w-[480px] mx-auto px-5 py-4 space-y-6 pb-24"
+        className="max-w-[480px] md:max-w-lg mx-auto px-5 py-4 space-y-6 pb-24"
       >
         {/* PRIORITY 1: Subscription Status - Simplified */}
         <AnimatePresence mode="wait">
@@ -350,12 +260,12 @@ const Dashboard = () => {
               exit={{ opacity: 0, y: -20, transition: spring }}
             >
               <motion.div 
-                whileTap={{ scale: 0.98, transition: springBouncy }}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.98, transition: springBouncy }}
                 style={{ y: subscriptionY }}
               >
                 <Link to="/subscription">
                   {(() => {
-                    const allUsed = !isUnlimited && remainingMeals === 0;
+                    const allUsed = !isUnlimited && effectiveMealsLeft === 0;
                     const resetDate = subscription?.end_date ? format(new Date(subscription.end_date), "MMM d") : null;
                     
                     return (
@@ -411,9 +321,9 @@ const Dashboard = () => {
                                       {t("plan_card_active")}
                                     </Badge>
                                   </div>
-                                  <div className="flex items-baseline gap-1.5 mt-1">
+                                  <div className="flex items-baseline gap-1.5 mt-1" aria-live="polite">
                                     <span className="text-3xl font-black text-white leading-none">
-                                      {isUnlimited ? "∞" : remainingMeals}
+                                      {isUnlimited ? "∞" : effectiveMealsLeft}
                                     </span>
                                     <span className="text-sm font-medium text-white/80">
                                       {isUnlimited ? t("plan_card_unlimited") : t("plan_card_meals_left")}
@@ -434,9 +344,29 @@ const Dashboard = () => {
           )}
         </AnimatePresence>
 
+        {!hasActiveSubscription && (
+          <motion.div variants={fadeInUp}>
+            <Link to="/subscription/plans">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#059669]/10 to-[#10B981]/10 border border-[#059669]/20 shadow-sm">
+                <CardContent className="relative p-4 flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-[#059669]/20 flex items-center justify-center shrink-0">
+                    <Crown className="w-5 h-5 text-[#059669]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-[#059669]">{t("subscribe_cta_title") || "Start Your Journey"}</p>
+                    <p className="text-xs text-[#059669]/70 mt-0.5">{t("subscribe_cta_desc") || "Choose a meal plan and start eating smart today"}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-[#059669]/60 shrink-0" />
+                </CardContent>
+              </div>
+            </Link>
+          </motion.div>
+        )}
+
         {/* PRIORITY 2: Nutrition Progress */}
-        <motion.div variants={fadeInUp}>
-          <DailyNutritionCard
+        <DashboardErrorBoundary name="nutrition card">
+          <motion.div variants={fadeInUp}>
+            <DailyNutritionCard
             totalCalories={Math.round(userStats.consumedCalories)}
             totalProtein={userStats.protein.consumed}
             totalCarbs={userStats.carbs.consumed}
@@ -447,24 +377,29 @@ const Dashboard = () => {
             targetFat={userStats.fat.target}
             dayLabel={t("todays_progress")}
             onDateChange={setSelectedDate}
-          />
-        </motion.div>
+/>
+          </motion.div>
+        </DashboardErrorBoundary>
 
         {/* Active Order - after nutrition, before quick actions */}
         {user && (
-          <motion.div variants={fadeInUp}>
-            <motion.div variants={breatheVariants} animate="breathe">
-              <ActiveOrderBanner userId={user.id} />
+          <DashboardErrorBoundary name="active orders">
+            <motion.div variants={fadeInUp}>
+              <motion.div variants={prefersReducedMotion ? undefined : breatheVariants} animate={prefersReducedMotion ? undefined : "breathe"}>
+                <ActiveOrderBanner userId={user.id} />
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </DashboardErrorBoundary>
         )}
 
         {/* PRIORITY 4: Log Meal Button - Primary CTA */}
         <motion.div variants={fadeInUp}>
           <motion.button
+            data-testid="log-meal-button"
             onClick={() => setLogMealOpen(true)}
-            whileTap={{ scale: 0.97, transition: springBouncy }}
-            whileHover={{ boxShadow: "0 4px 12px rgba(234, 88, 12, 0.3)" }}
+            aria-label={t("log_meal")}
+            whileTap={prefersReducedMotion ? undefined : { scale: 0.97, transition: springBouncy }}
+            whileHover={prefersReducedMotion ? undefined : { boxShadow: "0 4px 12px rgba(234, 88, 12, 0.3)" }}
             className="w-full rounded-2xl h-12 font-semibold text-sm text-white shadow-sm transition-shadow"
             style={{ background: "linear-gradient(135deg, #EA580C 0%, #F97316 100%)" }}
           >
@@ -474,10 +409,10 @@ const Dashboard = () => {
         </motion.div>
 
         {/* PRIORITY 4: Quick Actions - Simple icon row */}
-        <motion.div variants={fadeInUp} className="grid grid-cols-4 gap-3">
+        <motion.div variants={fadeInUp} className="grid grid-cols-4 gap-3" data-testid="quick-actions-grid">
           {[
             { to: "/tracker", icon: BarChart3, label: t("tracker"), color: "text-[#059669]" },
-            { to: "/subscription", icon: SubscriptionIcon, label: t("subscription"), color: "text-violet-600" },
+            { to: "/subscription", icon: Crown, label: t("subscription"), color: "text-violet-600" },
             { to: "/favorites", icon: Heart, label: t("favorites"), color: "text-rose-500" },
             { to: "/progress", icon: TrendingUp, label: t("progress"), color: "text-emerald-600" },
           ].map((action) => (
@@ -485,10 +420,11 @@ const Dashboard = () => {
               key={action.to} 
               to={action.to}
               className="flex flex-col items-center gap-1.5 group"
+              data-testid={`quick-action-${action.label}`}
             >
               <motion.div 
-                whileHover={{ scale: 1.05, transition: spring }}
-                whileTap={{ scale: 0.9, transition: springBouncy }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.05, transition: spring }}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.9, transition: springBouncy }}
                 className="w-12 h-12 rounded-2xl bg-white border border-[#E1F2ED] flex items-center justify-center shadow-sm"
               >
                 <action.icon className={`w-5 h-5 ${action.color}`} />
@@ -499,43 +435,68 @@ const Dashboard = () => {
         </motion.div>
 
         {/* PRIORITY 5: AI Widgets - Subtle, helpful suggestions */}
-        <motion.div variants={fadeInUp}>
-          <BehaviorPredictionWidget />
-        </motion.div>
-
-        {hasUnviewedAdjustment && recommendation && (
+        {edgeFunctionAvailable === false ? (
           <motion.div variants={fadeInUp}>
-            <AdaptiveGoalCard
+            <p className="text-xs text-muted-foreground text-center py-2">{t("ai_suggestions_unavailable") || "AI suggestions temporarily unavailable"}</p>
+          </motion.div>
+        ) : edgeFunctionAvailable === null && adaptiveLoading ? (
+          <motion.div variants={fadeInUp}>
+            <div className="h-16 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+          </motion.div>
+        ) : (
+          <DashboardErrorBoundary name="AI insight">
+            <motion.div variants={fadeInUp}>
+              <BehaviorPredictionWidget />
+            </motion.div>
+          </DashboardErrorBoundary>
+        )}
+
+        {edgeFunctionAvailable !== false && hasUnviewedAdjustment && recommendation && (
+          <DashboardErrorBoundary name="adaptive goals">
+            <motion.div variants={fadeInUp}>
+              <AdaptiveGoalCard
               recommendation={recommendation}
               currentCalories={profile?.daily_calorie_target || 2000}
               currentProtein={profile?.protein_target_g || 150}
               currentCarbs={profile?.carbs_target_g || 200}
               currentFat={profile?.fat_target_g || 65}
+              adjustmentId={adjustmentHistory.length > 0 ? adjustmentHistory.find(h => !h.applied)?.id : undefined}
               onApply={applyAdjustment}
               onDismiss={dismissAdjustment}
               loading={adaptiveLoading}
             />
-          </motion.div>
+            </motion.div>
+          </DashboardErrorBoundary>
         )}
 
         {/* PRIORITY 6: Streak - Compact pill */}
         <motion.div 
           variants={fadeInUp}
           className="bg-white rounded-2xl p-4 shadow-sm border border-[#E1F2ED]"
+          role="status"
+          aria-live="polite"
+          aria-label={t("streak_status") || "Streak status"}
         >
           {/* Streak Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <motion.div 
-                variants={glowVariants}
-                animate="glow"
+                variants={prefersReducedMotion ? undefined : glowVariants}
+                animate={prefersReducedMotion ? undefined : "glow"}
                 className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm"
               >
                 <Flame className="w-4.5 h-4.5 text-white" />
               </motion.div>
               <div>
-                <p className="text-sm font-bold text-[#0F172A]">{profile?.streak_days || 0} {t("day")} {t("streak")}</p>
-                <p className="text-[11px] text-[#64748B]">{t("keep_going") || "Keep it up!"}</p>
+                <p className="text-sm font-bold text-[#0F172A]">
+                  {streakDays === 0 
+                    ? t("start_your_streak") || "Start your streak!"
+                    : isMultiWeekStreak 
+                      ? `${Math.floor(streakDays / weekTarget)}+ ${t("weeks")}`
+                      : `${streakDays} ${t("day")} ${t("streak")}`
+                  }
+                </p>
+                <p className="text-[11px] text-[#64748B]">{streakDays === 0 ? (t("log_your_first_meal") || "Log your first meal today!") : (t("keep_going") || "Keep it up!")}</p>
               </div>
             </div>
             <div className="text-right">
@@ -551,8 +512,8 @@ const Dashboard = () => {
               const isToday = i === completedThisWeek;
               return (
                 <div key={day.label} className="flex-1 flex flex-col items-center gap-1.5">
-                  <motion.div 
-                    whileTap={{ scale: 0.85, transition: springBouncy }}
+                  <div
+                    aria-label={isCompleted ? `${day.label} completed` : isToday ? `${day.label} today` : `${day.label} upcoming`}
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       isCompleted
                         ? "bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm"
@@ -573,7 +534,7 @@ const Dashboard = () => {
                     ) : (
                       <span className="text-[#64748B]/40 text-[10px]">{i + 1}</span>
                     )}
-                  </motion.div>
+                  </div>
                   <span className={`text-[10px] font-medium ${isToday ? "text-amber-600" : "text-[#64748B]/60"}`}>
                     {day.label}
                   </span>
@@ -589,7 +550,7 @@ const Dashboard = () => {
             <h2 className="text-base font-bold text-[#0F172A]">{t("top_rated")} {t("restaurants")}</h2>
           </div>
 
-          <div className="relative -mx-5 px-5 overflow-x-auto scrollbar-hide">
+          <div className="relative -mx-5 px-5 overflow-x-auto scrollbar-hide" role="region" aria-label={t("top_rated") + " " + t("restaurants")}>
             <div className="flex gap-4 pb-2 snap-x snap-mandatory">
               {restaurantsLoading ? (
                 <>
@@ -606,7 +567,7 @@ const Dashboard = () => {
                     </div>
                   ))}
                 </>
-              ) : restaurants.length === 0 ? (
+              ) : featuredRestaurants.length === 0 ? (
                 <Card className="w-full min-w-[240px] rounded-2xl shadow-sm border border-[#E1F2ED]">
                   <CardContent className="p-6 text-center">
                     <h3 className="font-semibold mb-2 text-[#0F172A]">{t("no_featured_restaurants")}</h3>
@@ -616,12 +577,12 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               ) : (
-                restaurants.map((restaurant) => (
+                featuredRestaurants.map((restaurant) => (
                   <motion.div
                     key={restaurant.id}
                     variants={fadeInUp}
                     className="flex-shrink-0 w-[240px] snap-start"
-                    whileTap={{ scale: 0.98, transition: springBouncy }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.98, transition: springBouncy }}
                   >
                     <Link to={`/restaurant/${restaurant.id}`} className="block group">
                       <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200 border border-[#E1F2ED] bg-white rounded-2xl shadow-sm">
@@ -629,7 +590,7 @@ const Dashboard = () => {
                           {restaurant.logo_url ? (
                             <img 
                               src={restaurant.logo_url} 
-                              alt={restaurant.name}
+                              alt={`${restaurant.name} logo`}
                               loading="lazy"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
@@ -638,14 +599,15 @@ const Dashboard = () => {
                               <Utensils className="w-8 h-8 text-[#059669]/30" />
                             </div>
                           )}
-                          <motion.div whileTap={{ scale: 0.9, transition: springBouncy }}>
+                          <motion.div whileTap={prefersReducedMotion ? undefined : { scale: 0.9, transition: springBouncy }}>
                             <Button
                               variant="ghost"
                               size="icon"
                               className="absolute top-2 right-2 w-8 h-8 bg-white/90 hover:bg-white rounded-full shadow-sm"
+                              aria-label={isFavorite(restaurant.id) ? t("remove_from_favorites") : t("add_to_favorites")}
                               onClick={(e) => {
                                 e.preventDefault();
-                                toggleFavorite(restaurant.id, restaurant.name);
+                                debouncedToggleFavorite(restaurant.id, restaurant.name);
                               }}
                             >
                               <svg 
@@ -674,15 +636,21 @@ const Dashboard = () => {
                           
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1">
-                              <svg className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                              </svg>
-                              <span className="text-xs font-medium text-[#0F172A]">{restaurant.rating.toFixed(1)}</span>
+                              {restaurant.rating > 0 ? (
+                                <>
+                                  <svg className="w-3.5 h-3.5 text-amber-500 fill-amber-500" viewBox="0 0 24 24">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                  </svg>
+                                  <span className="text-xs font-medium text-[#0F172A]">{restaurant.rating.toFixed(1)}</span>
+                                </>
+                              ) : (
+                                <span className="text-xs font-medium text-[#64748B] italic">{t("new_restaurant") || "New"}</span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 text-xs text-[#64748B]">
                               <span>{restaurant.meal_count} {t("meals_label")}</span>
                               <span className="text-[#E1F2ED]">•</span>
-                              <span>{restaurant.total_orders} {t("orders_label")}</span>
+                              <span>{restaurant.total_orders} {t("orders_count_label")}</span>
                             </div>
                           </div>
                         </CardContent>
@@ -692,6 +660,7 @@ const Dashboard = () => {
                 ))
               )}
             </div>
+            <div className="pointer-events-none absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-white to-transparent" aria-hidden="true" />
           </div>
         </motion.section>
       </motion.main>

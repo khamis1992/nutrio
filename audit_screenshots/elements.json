@@ -1,0 +1,27 @@
+{
+  "buttons": [
+    "Create Free Account",
+    "Sign In"
+  ],
+  "links": [
+    {
+      "text": "Privacy Policy",
+      "href": "/nutrio/privacy"
+    },
+    {
+      "text": "Terms & Conditions",
+      "href": "/nutrio/terms"
+    }
+  ],
+  "inputs": [],
+  "images": [
+    {
+      "src": "/logo.png",
+      "alt": "Nutrio Fuel"
+    }
+  ],
+  "badges": [],
+  "aria_live": [
+    "polite"
+  ]
+}

@@ -1,13 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, ScanLine, X, CheckCircle, Camera } from "lucide-react";
+import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
+import { toast } from "sonner";
 
 interface DriverQRScannerProps {
   onScan: (qrData: string) => void;
   onClose: () => void;
   isScanning: boolean;
   scanResult: { success: boolean; message: string } | null;
+  deliveryJobId?: string;
 }
 
 export function DriverQRScanner({
@@ -18,84 +21,138 @@ export function DriverQRScanner({
 }: DriverQRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const lastScanRef = useRef<string | null>(null);
+  const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [hasCamera, setHasCamera] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [scanningActive, setScanningActive] = useState(false);
+
+  const stopCamera = useCallback(() => {
+    if (cameraTimeoutRef.current) {
+      clearTimeout(cameraTimeoutRef.current);
+      cameraTimeoutRef.current = null;
+    }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+      codeReaderRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setScanningActive(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError("Camera API not available on this device.");
+        setHasCamera(false);
+        return;
+      }
+
+      // Set camera timeout - if no image within 30 seconds, show error
+      cameraTimeoutRef.current = setTimeout(() => {
+        if (scanningActive) {
+          setCameraError("Camera is taking too long. Please try again or use manual entry.");
+          stopCamera();
+        }
+      }, 30000);
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      // Initialize ZXing code reader
+      const codeReader = new BrowserMultiFormatReader();
+      codeReaderRef.current = codeReader;
+      setScanningActive(true);
+
+      // Decode loop
+      const decodeLoop = async () => {
+        if (!videoRef.current || !scanningActive || !codeReaderRef.current) return;
+
+        try {
+          const result = await codeReader.decodeOnceFromVideoElement(videoRef.current);
+          if (result) {
+            const text = result.getText();
+            // Prevent duplicate scans
+            if (text !== lastScanRef.current) {
+              lastScanRef.current = text;
+              toast.success(`QR Code detected!`);
+              onScan(text);
+              stopCamera();
+              return;
+            }
+          }
+        } catch (err) {
+          if (!(err instanceof NotFoundException)) {
+            console.error("QR detection error:", err);
+          }
+        }
+
+        if (scanningActive && streamRef.current) {
+          rafRef.current = requestAnimationFrame(decodeLoop);
+        }
+      };
+
+      // Start decode loop after video is ready
+      videoRef.current.onloadedmetadata = () => {
+        if (cameraTimeoutRef.current) {
+          clearTimeout(cameraTimeoutRef.current);
+        }
+        decodeLoop();
+      };
+
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Camera access error:", error);
+      setHasCamera(false);
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        setCameraError("Camera permission denied. Please allow camera access in your device settings, then try again.");
+      } else if (error.name === "NotFoundError") {
+        setCameraError("No camera found on this device.");
+      } else {
+        setCameraError("Could not access camera. Use manual code entry below.");
+      }
+    }
+  }, [onScan, stopCamera, scanningActive]);
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-
-    const startCamera = async () => {
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          setCameraError("Camera API not available on this device.");
-          setHasCamera(false);
-          return;
-        }
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err: any) {
-        console.error("Camera access error:", err);
-        setHasCamera(false);
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setCameraError("Camera permission denied. Please allow camera access in your device settings, then try again.");
-        } else if (err.name === "NotFoundError") {
-          setCameraError("No camera found on this device.");
-        } else {
-          setCameraError("Could not access camera. Use manual code entry below.");
-        }
-      }
-    };
-
     startCamera();
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      stopCamera();
     };
   }, []);
 
-  // Simple QR detection using canvas
-  useEffect(() => {
-    if (!videoRef.current || !canvasRef.current || showManualEntry) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) return;
-
-    const scanFrame = () => {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Get image data for QR detection
-        // In production, use a library like jsQR or zxing
-        // For now, we'll rely on manual entry
-      }
-
-      requestAnimationFrame(scanFrame);
-    };
-
-    const animationId = requestAnimationFrame(scanFrame);
-
-    return () => cancelAnimationFrame(animationId);
-  }, [showManualEntry]);
-
+  // Handle manual code entry
   const handleManualSubmit = () => {
     if (manualCode.length === 6) {
       onScan(manualCode);
     }
+  };
+
+  const handleClose = () => {
+    stopCamera();
+    onClose();
   };
 
   return (
@@ -106,7 +163,7 @@ export function DriverQRScanner({
           <ScanLine className="w-5 h-5" />
           Scan QR Code
         </h2>
-        <Button variant="ghost" size="icon" onClick={onClose} className="text-white">
+        <Button variant="ghost" size="icon" onClick={handleClose} className="text-white">
           <X className="w-6 h-6" />
         </Button>
       </div>
@@ -135,6 +192,14 @@ export function DriverQRScanner({
                     <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary" />
                     <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary" />
                   </div>
+                  
+                  {/* Scanning indicator */}
+                  {scanningActive && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 text-white px-3 py-1.5 rounded-full">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Scanning...</span>
+                    </div>
+                  )}
                 </>
               ) : (
                 <Card className="w-full h-full flex items-center justify-center bg-muted">

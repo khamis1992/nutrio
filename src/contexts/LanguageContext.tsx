@@ -69,7 +69,7 @@ export const translations = {
     delete: "Delete",
     confirm: "Confirm",
     loading: "Loading...",
-    saving: "Saving…",
+    saving: "Saving...",
     search: "Search",
     filter: "Filter",
     all: "All",
@@ -178,6 +178,7 @@ export const translations = {
     top_rated_nearby: "Top-rated restaurants nearby",
 
     // Search
+    search_meals_placeholder: "Search meals, restaurants...",
     search_restaurants_placeholder: "Search restaurants...",
 
     // Cuisine Types
@@ -562,7 +563,7 @@ export const translations = {
     maintenance: "Maintenance",
     general_health: "General Health",
     not_enough_data: "Not enough data yet",
-    no_active_goal: "No active goal",
+    no_active_goal: "No Active Goal",
     set_nutrition_goal: "Set a nutrition goal first so we can analyze your progress.",
     goal_optimization: "Goal optimization based on your data",
     target_step_down_journey: "Target Step-down Journey",
@@ -668,9 +669,11 @@ export const translations = {
     address_added: "Address Added",
     address_deleted: "Address Deleted",
     default_address_updated: "Default Address Updated",
+    failed_load_addresses: "Failed to load addresses",
+    failed_delete_address: "Failed to delete address",
+    failed_update_default_address: "Failed to update default address",
 
     // Subscription
-    subscription: "Subscription",
     subscribe: "Subscribe",
     current_plan: "Current Plan",
     upgrade: "Upgrade",
@@ -829,56 +832,7 @@ export const translations = {
     nut_free: "Nut-Free",
     per_week: "/week",
     meals_per_week: "meals/week",
-    unlimited_meals: "Unlimited",
-    choose_plan: "Choose Plan",
-    popular_badge: "Popular",
-    why_choose_us: "Why Choose Us",
-    everything_you_need: "Everything you need to succeed",
-    feature_smart_goals: "Smart Goals",
-    feature_ai_powered: "AI-powered targets",
-    feature_top_restaurants: "Top Restaurants",
-    feature_50_partners: "50+ partners",
-    feature_easy_planning: "Easy Planning",
-    feature_schedule_ahead: "Schedule ahead",
-    feature_visual_analytics: "Visual analytics",
-    feature_diet_options: "Diet Options",
-    feature_all_lifestyles: "All lifestyles",
-    feature_community: "Community",
-    feature_get_support: "Get support",
-    how_it_works: "How It Works",
-    get_started_in_steps: "Get started in 3 simple steps",
-    step_label: "Step",
-    step_1_title: "Set Your Goals",
-    step_1_desc: "Tell us about your body and objectives",
-    step_2_title: "Get Your Plan",
-    step_2_desc: "Receive personalized nutrition targets",
-    step_3_title: "Order & Track",
-    step_3_desc: "Browse meals and monitor progress",
-    choose_your_plan: "Choose Your Plan",
-    flexible_options: "Flexible options for every lifestyle",
-    partner_cta_title: "Own a Restaurant?",
-    partner_cta_desc: "Partner with us and reach thousands of health-conscious customers in Qatar.",
-    join: "Join",
-    privacy: "Privacy",
-    copyright: "© 2026 NUTRIO. All rights reserved.",
-    time_15_min: "15 min",
-    time_10_min: "10 min",
-    time_20_min: "20 min",
-    navigation_menu: "Navigation Menu",
-
-    // Featured Meals
-    meal_salmon_bowl: "Grilled Salmon Bowl",
-    meal_quinoa_salad: "Quinoa Power Salad",
-    meal_beef_stirfry: "Lean Beef Stir-fry",
-
-    // Dashboard Page additions
-    featured_badge: "Featured",
-    orders_label: "orders",
-    kg_lost: "kg lost",
-    perfect_start: "Perfect start",
-    most_popular: "Most popular",
-    serious_goals: "Serious goals",
-    unlimited_desc: "Unlimited",
+    unlimited_meals_short: "Unlimited",
 
     // Macros & Nutrition
     macro_carbs: "Carbs",
@@ -952,7 +906,6 @@ export const translations = {
     wallet_label: "Wallet Balance",
     balance: "Balance",
     insufficient_wallet_balance: "Insufficient wallet balance.",
-    cancel_btn: "Cancel",
     confirm_upgrade: "Confirm Upgrade",
     confirm_downgrade: "Confirm Downgrade",
     plan_updated_toast: "Plan Updated",
@@ -1047,7 +1000,7 @@ export const translations = {
     no_top_meals_desc: "Order meals to see your favorites here",
     browse_meals_btn: "Browse Meals",
     removed_from_top_meals: "Removed from Top Meals",
-    refreshed_toast: "Refreshed",
+    refreshed_toast_short: "Refreshed",
     top_meals_refreshed_desc: "Your top meals list has been updated",
     last_ordered: "Last ordered",
     failed_to_load_favorites: "Failed to load favorites",
@@ -1183,6 +1136,11 @@ export const translations = {
     earn_xp_maintain_streak: "Maintain a streak (+50 XP/day)",
     earn_xp_hit_goals: "Hit your nutrition goals (+25 XP)",
     earn_xp_unlock_badges: "Unlock badges (+100-500 XP)",
+    confirm_delete_meal: "Delete this meal from your log?",
+    meal_deleted: "Meal deleted",
+    meal_deleted_desc: "Removed {calories} cal from today",
+    xp_earned: "+{amount} XP earned!",
+    meal_logged: "Meal logged!",
     badge_first_bite: "First Bite",
     badge_first_bite_desc: "Log your first meal",
     badge_week_warrior: "Week Warrior",
@@ -1304,6 +1262,8 @@ export const translations = {
     great: "Great",
     good: "Good",
     keep_going: "Keep Going",
+    weeks: "weeks",
+    ai_suggestions_unavailable: "AI suggestions temporarily unavailable",
     first_week_complete: "First Week Complete",
     logged_meals_7_days: "Logged meals for 7 days",
     protein_pro: "Protein Pro",
@@ -1398,7 +1358,6 @@ export const translations = {
     active_goal: "Active Goal",
     target_weight: "Target Weight",
     target_date: "Target Date",
-    no_active_goal: "No Active Goal",
     set_goal_hint: "Set a goal to start tracking your progress",
     daily_targets: "Daily Targets",
     your_nutrition_goals: "Your nutrition goals",
@@ -1406,7 +1365,6 @@ export const translations = {
     track_physical_progress: "Track your physical progress",
     applied_history: "Applied History",
     on_track: "On track",
-    safety_tip: "Safety tip",
     milestones: "Milestones",
     achieved: "achieved",
     create_new_goal: "Create New Goal",
@@ -1437,7 +1395,6 @@ export const translations = {
     weight_input_label: "Weight (kg)",
     add_entry: "Add",
     failed_add_water: "Failed to add water",
-    report_downloaded: "Report downloaded!",
     report_saved: "Your weekly progress report has been saved.",
     failed_generate_report: "Failed to generate report",
     no_data_available: "No data available",
@@ -1577,7 +1534,6 @@ export const translations = {
     weekly_progress: "Weekly Progress",
     today_meals: "Today Meals",
     day_meals: "Meals",
-    status_delivered: "Delivered",
     status_scheduled: "Scheduled",
     choose_meal: "Choose Meal",
     cal_unit: "cal",
@@ -1657,7 +1613,6 @@ export const translations = {
     top_up_packages: "Top-up Packages",
     get_bonus_credits_desc: "Get bonus credits on top-ups",
     best_value: "Best Value",
-    popular: "Popular",
     // Streak Rewards
     streakRewardTitle: "Streak Reward",
     rewardClaimed: "Reward Claimed",
@@ -1674,7 +1629,6 @@ export const translations = {
     allRewardsUnlocked: "All rewards unlocked",
     streakRewards: "Streak Rewards",
     start_your_streak: "Start Your Streak",
-    day_streak: "Day Streak",
     order_today_to_begin: "Order today to begin",
     great_start_keep_going: "Great start! Keep going",
     keep_ordering_to_earn: "Keep ordering to earn rewards",
@@ -1724,9 +1678,7 @@ export const translations = {
     affiliate_request_payout: "Request Payout",
     affiliate_minimum_payout: "Minimum payout",
     affiliate_your_tier: "Your Tier",
-    affiliate_progress_to: "Progress to",
     affiliate_share_and_earn: "Share & Earn",
-    affiliate_commission_tiers: "commission tiers",
     affiliate_your_referral_code: "Your Referral Code",
     affiliate_copy_link: "Copy Link",
     affiliate_share: "Share",
@@ -1755,9 +1707,6 @@ export const translations = {
     affiliate_status_processing: "Processing",
     affiliate_status_pending: "Pending",
     affiliate_how_it_works: "How It Works",
-    affiliate_tier1_explanation: "People you directly refer",
-    affiliate_tier2_explanation: "People referred by your referrals",
-    affiliate_tier3_explanation: "People referred by tier 2",
     affiliate_tab_commissions: "Commissions",
     affiliate_tab_network: "Network",
     affiliate_tab_payouts: "Payouts",
@@ -1928,7 +1877,6 @@ export const translations = {
     terms_account_terminate: "We reserve the right to suspend or terminate accounts that violate these Terms.",
 
     // Cancellation Flow
-    cancel_subscription: "Cancel Subscription",
     step_1_of_4: "Step 1 of 4",
     step_2_of_4: "Step 2 of 4",
     step_3_of_4: "Step 3 of 4",
@@ -1952,7 +1900,7 @@ export const translations = {
     continue_to_cancel: "Continue to Cancel",
     how_about_discount: "How about a discount?",
     special_discount_for_you: "We've applied a special discount just for you. Stay and save!",
-    save_percent: "SAVE {percent}%",
+    save_percent_upper: "SAVE {percent}%",
     you_save_amount: "You save {amount}!",
     apply_discount: "Apply Discount",
     no_discount_offers: "No discount offers available",
@@ -2283,7 +2231,6 @@ export const translations = {
     goal_created_successfully: "Goal created successfully.",
     calories_burned: "Calories Burned",
     streak_days: "Day Streak",
-    saving: "Saving...",
     view_options: "View Options",
     unknown_restaurant: "Unknown Restaurant",
     payout_rate: "Payout Rate",
@@ -2304,7 +2251,6 @@ export const translations = {
     value: "Value", you: "You",
 
     // Data field labels (used in tables / forms)
-    id: "ID", status: "Status", rating: "Rating", role: "Role",
     created_at: "Created At", applied_at: "Applied At",
     auth_user_id: "User ID", diet_tag_id: "Diet Tag ID",
     restaurant_id: "Restaurant ID", scheduled_date_label: "Scheduled",
@@ -2318,6 +2264,44 @@ export const translations = {
 
     // Goal active state
     goal_active_state: "Active",
+
+    // Behavior Prediction Widget
+    bp_ai_insight: "AI Insight",
+    bp_engagement: "engagement",
+    bp_we_miss_you: "We Miss You!",
+    bp_personal_outreach_desc: "Your nutrition coach wants to check in with you.",
+    bp_bonus_credit: "Special Bonus for You",
+    bp_bonus_credit_desc: "You've earned a bonus credit! Check your wallet.",
+    bp_try_something_new: "Try Something New",
+    bp_cuisine_exploration_desc: "Explore new restaurants and cuisines this week.",
+    bp_refresh_plan: "Refresh Your Meal Plan",
+    bp_plan_regeneration_desc: "Your AI recommends regenerating your meal plan.",
+    bp_challenge_yourself: "Challenge Yourself",
+    bp_gamification_desc: "Complete this week's challenge to earn rewards!",
+    bp_scheduling_tip: "Scheduling Tip",
+    bp_flexible_scheduling_desc: "Try flexible scheduling to match your lifestyle.",
+    bp_ai_recommendation: "AI Recommendation",
+    bp_ai_recommendation_desc: "Personalized suggestion based on your usage.",
+    bp_churn_risk: "Churn risk",
+    bp_time_for_variety: "Time for variety!",
+
+    // Role Indicator
+    role_partner: "Partner",
+    role_customer: "Customer",
+    switch_to_customer: "Switch to Customer",
+    switch_to_partner: "Switch to Partner",
+
+    // Daily Nutrition Card
+    macro_over_goal: "Over Goal",
+    activity_details: "Activity Details",
+    activity_sessions: "Sessions",
+
+    // Dashboard fixes
+    skip_to_main: "Skip to main content",
+    profile_sync_warning: "Profile sync issue — some data may be delayed",
+    subscribe_cta_title: "Start Your Journey",
+    subscribe_cta_desc: "Subscribe to unlock meals and nutrition tracking",
+    page_refresh_to_update: "Refresh the page to update",
   },
 
   // ──────────────────────────────────────────────────────────────────────────────
@@ -2375,7 +2359,7 @@ export const translations = {
     delete: "حذف",
     confirm: "تأكيد",
     loading: "جاري التحميل...",
-    saving: "جاري الحفظ…",
+    saving: "جاري الحفظ...",
     search: "بحث",
     filter: "تصفية",
     all: "الكل",
@@ -2450,6 +2434,7 @@ export const translations = {
     snack: "وجبة خفيفة",
     search_food: "ابحث عن طعام...",
     search_restaurants: "ابحث عن مطاعم...",
+    search_meals_placeholder: "ابحث عن الوجبات، المطاعم...",
     all_restaurants: "جميع المطاعم",
     your_favorites: "المفضلة لديك",
     favorite_meals: "الوجبات المفضلة",
@@ -2913,7 +2898,6 @@ export const translations = {
     top_up_packages: "باقات إعادة الشحن",
     get_bonus_credits_desc: "احصل على رصيد إضافي عند إعادة الشحن",
     best_value: "الأفضل قيمة",
-    popular: "الأكثر طلباً",
 
     // Addresses
     addresses: "العناوين",
@@ -2967,7 +2951,9 @@ export const translations = {
     address_added: "تمت إضافة العنوان",
     address_deleted: "تم حذف العنوان",
     default_address_updated: "تم تحديث العنوان الافتراضي",
-    subscription: "الاشتراك",
+    failed_load_addresses: "فشل تحميل العناوين",
+    failed_delete_address: "فشل حذف العنوان",
+    failed_update_default_address: "فشل تحديث العنوان الافتراضي",
     subscribe: "اشترك",
     current_plan: "الخطة الحالية",
     upgrade: "ترقية",
@@ -3222,13 +3208,13 @@ export const translations = {
 
     // Dashboard Page additions (Arabic)
     featured_badge: "مميز",
-    orders_label: "طلبات",
+    orders_count_label: "طلبات",
     kg_lost: "كغ فُقدت",
     perfect_start: "بداية مثالية",
     most_popular: "الأكثر شعبية",
     serious_goals: "أهداف جادة",
     unlimited_desc: "غير محدود",
-    unlimited_meals: "غير محدود",
+    unlimited_meals_short: "غير محدود",
 
     // Meals per week (Arabic)
     meals_per_week: "وجبة/أسبوع",
@@ -3272,7 +3258,7 @@ export const translations = {
     no_top_meals_desc: "اطلب وجبات لترى مفضلاتك هنا",
     browse_meals_btn: "تصفح الوجبات",
     removed_from_top_meals: "تمت الإزالة من الوجبات المفضلة",
-    refreshed_toast: "تم التحديث",
+    refreshed_toast_short: "تم التحديث",
     top_meals_refreshed_desc: "تم تحديث قائمة وجباتك المفضلة",
     last_ordered: "آخر طلب",
     failed_to_load_favorites: "فشل تحميل المفضلة",
@@ -3407,6 +3393,11 @@ export const translations = {
     earn_xp_maintain_streak: "الحفاظ على الاستمرارية (+50 نقطة/يوم)",
     earn_xp_hit_goals: "تحقيق أهدافك الغذائية (+25 نقطة)",
     earn_xp_unlock_badges: "فتح الشارات (+100-500 نقطة)",
+    confirm_delete_meal: "حذف هذه الوجبة من سجلك؟",
+    meal_deleted: "تم حذف الوجبة",
+    meal_deleted_desc: "تمت إزالة {calories} سعرة من اليوم",
+    xp_earned: "+{amount} نقطة مكتسبة!",
+    meal_logged: "تم تسجيل الوجبة!",
     badge_first_bite: "القضمة الأولى",
     badge_first_bite_desc: "سجّل وجبتك الأولى",
     badge_week_warrior: "محارب الأسبوع",
@@ -3577,7 +3568,6 @@ export const translations = {
     fuel_your_health: "غذِّ صحتك",
     plan_hero_desc: "اختر خطة وابدأ رحلة التغذية الشخصية.",
     pay_annual_desc: "ادفع سنوياً ووفّر حتى",
-    most_popular: "الأكثر شيوعاً",
     vip_elite: "VIP نخبة",
     more_benefits: "مزايا إضافية",
     get_started_btn: "ابدأ الآن",
@@ -3624,8 +3614,6 @@ export const translations = {
     cancel_desc: "يمكنك الإلغاء في أي وقت. يستمر الوصول حتى نهاية الفترة.",
     available_plans: "الخطط المتاحة",
     upgrade_anytime: "ترقية أو تخفيض في أي وقت.",
-    upgrade: "ترقية",
-    current_plan: "الخطة الحالية",
     downgrade_btn: "تخفيض",
     current_badge: "الحالية",
     meals_per_month: "وجبة/شهر",
@@ -3640,7 +3628,6 @@ export const translations = {
     subscription_expire_warning: "سينتهي اشتراكك في",
     end_of_billing_period: "نهاية فترة الفوترة",
     change_plan: "تغيير الخطة",
-    subscription: "الاشتراك",
     select_plan_to_change: "اختر خطة لتغيير اشتراكك.",
     promo_code_label: "رمز الخصم",
     enter_promo_code: "أدخل رمز الخصم",
@@ -3651,9 +3638,6 @@ export const translations = {
     wallet_label: "المحفظة",
     balance: "الرصيد",
     insufficient_wallet_balance: "رصيد المحفظة غير كافٍ.",
-    cancel_btn: "إلغاء",
-    processing: "جاري المعالجة...",
-    confirm: "تأكيد",
     confirm_upgrade: "تأكيد الترقية",
     confirm_downgrade: "تأكيد التخفيض",
     save_17_percent: "وفّر 17%",
@@ -3664,6 +3648,7 @@ export const translations = {
     plan_standard_desc: "تخطيط بالذكاء الاصطناعي لعشاق الصحة.",
     plan_premium_desc: "وصول كامل مع استشارات أخصائي التغذية.",
     plan_vip_desc: "وجبات غير محدودة ومدرب تغذية شخصي.",
+    plan_elite_desc: "باقة كاملة مع 60 وجبة + 40 وجبة خفيفة. 3 وجبات + 2 وجبات خفيفة يومياً. أفضل قيمة للمستخدمين الملتزمين.",
     remember_me: "تذكرني",
     signing_in: "جاري تسجيل الدخول...",
     join_nutrio_today: "انضم إلى نوتريو اليوم",
@@ -3728,7 +3713,6 @@ export const translations = {
     weekly_progress: "التقدم الأسبوعي",
     today_meals: "وجبات اليوم",
     day_meals: "وجبات",
-    status_delivered: "تم التوصيل",
     status_scheduled: "مجدول",
     choose_meal: "اختر وجبة",
     cal_unit: "سعرة",
@@ -3739,8 +3723,6 @@ export const translations = {
     mark_completed: "تحديد كمنتهية",
     view_meal_details: "عرض تفاصيل الوجبة",
     remove_from_schedule: "إزالة من الجدول",
-    swipe_to_change_week: "اسحب لتغيير الأسبوع",
-    schedule_delivery: "جدولة التوصيل",
 
     // TrackerInsights charts
     calorie: "السعرة الحرارية",
@@ -3837,6 +3819,8 @@ export const translations = {
     great: "ممتاز",
     good: "جيد",
     keep_going: "استمر",
+    weeks: "أسابيع",
+    ai_suggestions_unavailable: "اقتراحات الذكاء الاصطناعي غير متاحة مؤقتاً",
     first_week_complete: "أول أسبوع مكتمل",
     logged_meals_7_days: "سجّلت وجبات لمدة 7 أيام",
     protein_pro: "محترف البروتين",
@@ -3855,7 +3839,6 @@ export const translations = {
     active_goal: "الهدف النشط",
     target_weight: "الوزن المستهدف",
     target_date: "التاريخ المستهدف",
-    no_active_goal: "لا يوجد هدف نشط",
     set_goal_hint: "ضع هدفًا لبدء تتبع تقدمك",
     daily_targets: "الأهداف اليومية",
     your_nutrition_goals: "أهدافك الغذائية",
@@ -3863,7 +3846,6 @@ export const translations = {
     track_physical_progress: "تتبع تقدمك الجسدي",
     applied_history: "سجل التطبيق",
     on_track: "على المسار",
-    safety_tip: "نصيحة أمان",
     high_confidence: "ثقة عالية",
     suggestion: "اقتراح",
     exploratory: "استكشافي",
@@ -3897,7 +3879,6 @@ export const translations = {
     weight_input_label: "الوزن (كغ)",
     add_entry: "إضافة",
     failed_add_water: "فشل إضافة الماء",
-    report_downloaded: "تم تنزيل التقرير!",
     report_saved: "تم حفظ تقرير تقدمك الأسبوعي.",
     failed_generate_report: "فشل إنشاء التقرير",
     no_data_available: "لا توجد بيانات متاحة",
@@ -3970,7 +3951,6 @@ export const translations = {
     // Streak Rewards
     streakRewards: "مكافآت الاستمرارية",
     start_your_streak: "ابدأ تسلسلك",
-    day_streak: "يوم متواصل",
     order_today_to_begin: "اطلب اليوم للبدء",
     great_start_keep_going: "بداية رائعة! استمر",
     keep_ordering_to_earn: "استمر في الطلب لكسب المكافآت",
@@ -4043,9 +4023,7 @@ export const translations = {
     affiliate_request_payout: "طلب سحب",
     affiliate_minimum_payout: "الحد الأدنى للسحب",
     affiliate_your_tier: "مستواك",
-    affiliate_progress_to: "التقدم نحو",
     affiliate_share_and_earn: "شارك واكسب",
-    affiliate_commission_tiers: "مستويات العمولة",
     affiliate_your_referral_code: "رمز الإحالة الخاص بك",
     affiliate_copy_link: "نسخ الرابط",
     affiliate_share: "مشاركة",
@@ -4074,9 +4052,6 @@ export const translations = {
     affiliate_status_processing: "قيد المعالجة",
     affiliate_status_pending: "معلقة",
     affiliate_how_it_works: "كيف يعمل",
-    affiliate_tier1_explanation: "أشخاص أحالتهم مباشرة",
-    affiliate_tier2_explanation: "أشخاص أحالهم من أحالتهم",
-    affiliate_tier3_explanation: "أشخاص أحالهم المستوى الثاني",
     affiliate_tab_commissions: "العمولات",
     affiliate_tab_network: "الشبكة",
     affiliate_tab_payouts: "المدفوعات",
@@ -4124,7 +4099,6 @@ export const translations = {
     rollover_footer_note: "تنتهي صلاحية أرصدة التمديد في نهاية دورة الفوترة القادمة. استخدمها قبل انتهاء صلاحيتها!",
 
     // Cancellation Flow
-    cancel_subscription: "إلغاء الاشتراك",
     step_1_of_4: "الخطوة 1 من 4",
     step_2_of_4: "الخطوة 2 من 4",
     step_3_of_4: "الخطوة 3 من 4",
@@ -4148,7 +4122,7 @@ export const translations = {
     continue_to_cancel: "المتابعة إلى الإلغاء",
     how_about_discount: "ماذا عن خصم؟",
     special_discount_for_you: "لقد طبقنا خصماً خاصاً لك فقط. ابقَ ووفّر!",
-    save_percent: "وفّر {percent}%",
+    save_percent_upper: "وفّر {percent}%",
     you_save_amount: "توفّر {amount}!",
 
     // Billing Interval Toggle (Arabic)
@@ -4489,7 +4463,6 @@ export const translations = {
     goal_created_successfully: "تم إنشاء الهدف بنجاح.",
     calories_burned: "سعرات محروقة",
     streak_days: "أيام متتالية",
-    saving: "جاري الحفظ...",
     view_options: "عرض الخيارات",
     unknown_restaurant: "مطعم غير معروف",
     payout_rate: "معدل العائد",
@@ -4585,6 +4558,44 @@ export const translations = {
     recovery_insufficient_credits_ar: "أرصدة غير كافية",
     recovery_view_details: "View Details",
     recovery_view_details_ar: "عرض التفاصيل",
+
+    // Behavior Prediction Widget
+    bp_ai_insight: "رؤية الذكاء الاصطناعي",
+    bp_engagement: "تفاعل",
+    bp_we_miss_you: "نحن نفتقدك!",
+    bp_personal_outreach_desc: "يريد مدربك الغذائي التواصل معك.",
+    bp_bonus_credit: "مكافأة خاصة لك",
+    bp_bonus_credit_desc: "لقد حصلت على رصيد مكافأة! تحقق من محفظتك.",
+    bp_try_something_new: "جرّب شيئاً جديداً",
+    bp_cuisine_exploration_desc: "استكشف مطاعم ومطابخ جديدة هذا الأسبوع.",
+    bp_refresh_plan: "حدّث خطة وجباتك",
+    bp_plan_regeneration_desc: "يوصي الذكاء الاصطناعي بإعادة إنشاء خطة وجباتك.",
+    bp_challenge_yourself: "تحدّى نفسك",
+    bp_gamification_desc: "أكمل تحدي هذا الأسبوع لتحصل على مكافآت!",
+    bp_scheduling_tip: "نصيحة جدولة",
+    bp_flexible_scheduling_desc: "جرّب الجدولة المرنة لتتناسب مع نمط حياتك.",
+    bp_ai_recommendation: "توصية الذكاء الاصطناعي",
+    bp_ai_recommendation_desc: "اقتراح مخصص بناءً على استخدامك.",
+    bp_churn_risk: "خطر المغادرة",
+    bp_time_for_variety: "حان وقت التنويع!",
+
+    // Role Indicator
+    role_partner: "شريك",
+    role_customer: "عميل",
+    switch_to_customer: "التبديل إلى العميل",
+    switch_to_partner: "التبديل إلى الشريك",
+
+    // Daily Nutrition Card
+    macro_over_goal: "فوق الهدف",
+    activity_details: "تفاصيل النشاط",
+    activity_sessions: "الجلسات",
+
+    // Dashboard fixes
+    skip_to_main: "تخطي إلى المحتوى الرئيسي",
+    profile_sync_warning: "مشكلة مزامنة الملف — قد تتأخر بعض البيانات",
+    subscribe_cta_title: "ابدأ رحلتك",
+    subscribe_cta_desc: "اشترك لفتح الوجبات وتتبع التغذية",
+    page_refresh_to_update: "حدّث الصفحة للحصول على أحدث البيانات",
   },
 } as const;
 
@@ -4621,7 +4632,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     try {
       localStorage.setItem("nutrio_language", lang);
-    } catch {}
+    } catch (e) {
+      // Silently ignore localStorage errors (e.g., private browsing)
+      console.warn("[LanguageContext] Failed to save language preference:", e);
+    }
   };
 
   // Apply dir and lang attributes to the document root

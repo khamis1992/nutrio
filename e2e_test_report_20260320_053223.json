@@ -1,0 +1,91 @@
+{
+  "execution_start": "2026-03-20T05:32:07.337410",
+  "tests": [],
+  "bugs": [
+    {
+      "title": "Customer login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "customer",
+      "timestamp": "2026-03-20T05:32:10.925244"
+    },
+    {
+      "title": "Partner login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "partner",
+      "timestamp": "2026-03-20T05:32:14.035600"
+    },
+    {
+      "title": "Admin login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "admin",
+      "timestamp": "2026-03-20T05:32:17.106770"
+    },
+    {
+      "title": "Driver login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "driver",
+      "timestamp": "2026-03-20T05:32:20.186597"
+    },
+    {
+      "title": "Fleet login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "fleet",
+      "timestamp": "2026-03-20T05:32:23.193181"
+    }
+  ],
+  "workflows": [],
+  "ui_issues": [
+    {
+      "description": "Email input not found on customer login page",
+      "location": "login form",
+      "timestamp": "2026-03-20T05:32:10.925213"
+    },
+    {
+      "description": "Email input not found on partner login page",
+      "location": "login form",
+      "timestamp": "2026-03-20T05:32:14.035575"
+    },
+    {
+      "description": "Email input not found on admin login page",
+      "location": "login form",
+      "timestamp": "2026-03-20T05:32:17.106749"
+    },
+    {
+      "description": "Email input not found on driver login page",
+      "location": "login form",
+      "timestamp": "2026-03-20T05:32:20.186579"
+    },
+    {
+      "description": "Email input not found on fleet login page",
+      "location": "login form",
+      "timestamp": "2026-03-20T05:32:23.193148"
+    }
+  ],
+  "performance_issues": [],
+  "execution_end": "2026-03-20T05:32:23.255649"
+}

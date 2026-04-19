@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWaterEntries } from "@/hooks/useWaterEntries";
 import { format, subDays, isSameDay, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isToday } from "date-fns";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -443,8 +443,6 @@ export default function WaterTracker() {
           </Button>
         </div>
       </div>
-
-      <CustomerNavigation />
 
       {/* Goal edit dialog */}
       <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -73,6 +74,34 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Brand Overrides - Deep Emerald #0E9F6E
+        emerald: {
+          50: "#D1FAE5",
+          100: "#A7F3D0",
+          200: "#6EE7B7",
+          300: "#34D399",
+          400: "#10B981",
+          500: "#0E9F6E",
+          600: "#0B8A60",
+          700: "#087249",
+          800: "#065933",
+          900: "#044024",
+          950: "#022A19",
+        },
+        // Accent Override - Warm Gold #F59E0B
+        amber: {
+          50: "#FEF3C7",
+          100: "#FDE68A",
+          200: "#FCD34D",
+          300: "#FBBF24",
+          400: "#F59E0B",
+          500: "#D97706",
+          600: "#B45309",
+          700: "#92400E",
+          800: "#78350F",
+          900: "#451A03",
+          950: "#451A03",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -123,5 +152,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

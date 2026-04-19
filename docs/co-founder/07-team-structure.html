@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio Co-Founder Proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1a1a1a;
+            --color-secondary: #4a4a4a;
+            --color-accent: #c9a227;
+            --color-accent-light: #e8d48a;
+            --color-bg: #f8f7f4;
+            --color-surface: #ffffff;
+            --color-border: #e5e5e5;
+            --color-muted: #8a8a8a;
+            --color-success: #2e7d32;
+            --color-warning: #ed6c02;
+            --color-danger: #d32f2f;
+            --color-info: #0288d1;
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Source Sans 3', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 20mm; }
+        body { font-family: var(--font-body); font-size: 10pt; line-height: 1.7; color: var(--color-primary); background: var(--color-bg); }
+        .page { width: 210mm; min-height: 297mm; background: var(--color-surface); margin: 0 auto 20px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .page:last-child { margin-bottom: 0; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: var(--spacing-xl); border-bottom: 3px solid var(--color-primary); margin-bottom: var(--spacing-2xl); }
+        .header-left h1 { font-family: var(--font-display); font-size: 24pt; font-weight: 700; color: var(--color-primary); margin-bottom: var(--spacing-xs); }
+        .header-left .subtitle { font-size: 10pt; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 0.02em; }
+        .header-right { text-align: right; }
+        .logo { font-family: var(--font-display); font-size: 20pt; font-weight: 700; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .date { font-size: 9pt; color: var(--color-muted); font-family: var(--font-mono); }
+        .section { margin-bottom: var(--spacing-2xl); break-inside: avoid; }
+        .section-title { font-family: var(--font-display); font-size: 13pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-lg); display: flex; align-items: center; gap: var(--spacing-md); }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+        .section-number { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); font-weight: 600; background: var(--color-accent-light); padding: 2px 8px; border-radius: 2px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); }
+        .content-block { margin-bottom: var(--spacing-lg); }
+        .content-block h3 { font-family: var(--font-display); font-size: 11pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-xs); }
+        .content-block p { font-size: 9.5pt; color: var(--color-secondary); margin-bottom: var(--spacing-sm); }
+        ul { list-style: none; padding: 0; }
+        ul li { position: relative; padding-left: var(--spacing-lg); margin-bottom: var(--spacing-sm); font-size: 9.5pt; color: var(--color-secondary); }
+        ul li::before { content: '→'; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: var(--spacing-lg); font-size: 9pt; }
+        th { text-align: left; padding: var(--spacing-sm) var(--spacing-md); background: var(--color-primary); color: var(--color-surface); font-weight: 500; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); color: var(--color-secondary); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) { background: var(--color-bg); }
+        .highlight-row { background: #e8f5e9 !important; }
+        .tag { display: inline-block; padding: 2px 6px; font-size: 7pt; font-weight: 500; text-transform: uppercase; border-radius: 2px; margin: 2px; }
+        .tag-success { background: #e8f5e9; color: #2e7d32; }
+        .tag-warning { background: #fff3e0; color: #e65100; }
+        .tag-danger { background: #ffebee; color: #c62828; }
+        .checklist { background: var(--color-bg); padding: var(--spacing-lg); border-radius: 4px; border: 1px solid var(--color-border); }
+        .checklist h3 { font-family: var(--font-display); font-size: 10pt; font-weight: 600; margin-bottom: var(--spacing-md); }
+        .checklist-item { display: flex; align-items: flex-start; gap: var(--spacing-md); margin-bottom: var(--spacing-sm); font-size: 9pt; color: var(--color-secondary); }
+        .checkbox { width: 14px; height: 14px; border: 1px solid var(--color-border); border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+        .formula { font-family: var(--font-mono); font-size: 10pt; background: var(--color-primary); color: white; padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0; text-align: center; }
+        .footer { margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; }
+        .footer-left { font-size: 8pt; color: var(--color-muted); }
+        .footer-right { font-family: var(--font-mono); font-size: 8pt; color: var(--color-muted); }
+        @media print { body { background: white; } .page { box-shadow: none; margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Co-Founder Proposal</h1>
+                <p class="subtitle">Nutrio Fuel - Join Our Vision</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">March 2026</div>
+            </div>
+        </header>
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">07</span> Team Structure</h2>
+            
+            <!-- Organization Chart -->
+            <div class="content-block" style="margin-bottom: var(--spacing-lg);">
+                <h3>Leadership Structure</h3>
+                <table>
+                    <thead>
+                        <tr><th>Role</th><th>Responsibility</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="highlight-row"><td><strong>CEO</strong><td>Strategy, Operations, Growth</td><td>Co-Founder (to be negotiated)</td></tr>
+                        <tr><td><strong>CTO</strong><td>Technology, Product, Architecture</td><td>Co-Founder (to be negotiated)td></tr>
+                        <tr><td><strong>CMO</strong><td>Marketing, Sales, Partnerships</td><td>Co-Founder (to be negotiated)</td></tr>
+                    </tbody>
+                </table>
+                <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: var(--spacing-md); border-radius: 4px; margin-top: var(--spacing-md); font-size: 9pt; color: var(--color-secondary);">
+                    <strong>Note:</strong> Equity split will be negotiated based on contributions, timing, and expertise. The founder can comfortable taking CTO initially but would prefer a developer co-founder to share the technical load.
+                </div>
+            </div>
+
+            <div class="two-col" style="margin-top: var(--spacing-xl);">
+                <div>
+                    <h3>CTO Responsibilities</h3>
+                    <ul>
+                        <li><strong>Tech Stack:</strong> React/TypeScript, Supabase, PostgreSQL, Capacitor</li>
+                        <li><strong>Experience:</strong> 3+ years full-stack, production deployment</li>
+                        <li><strong>Focus:</strong> Architecture, feature development, DevOps, mobile apps</li>
+                        <li><strong>Day 90 Goals:</strong> Platform stable for 100+ users, AI functions activated, mobile production-ready</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>CMO Responsibilities</h3>
+                    <ul>
+                        <li><strong>Skills:</strong> Marketing, sales, partnerships, brand building</li>
+                        <li><strong>Experience:</strong> Qatar/UAE market network, subscription business experience</li>
+                        <li><strong>Focus:</strong> Restaurant acquisition, corporate B2B2C, marketing campaigns, growth</li>
+                        <li><strong>Day 90 Goals:</strong> 100 subs, 50 restaurants, retention >60%, brand awareness</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>First Hires (Day 1-90)</h3>
+                <table>
+                    <thead>
+                        <tr><th>Role</th><th>Start</th><th>Target</th><th>Compensation</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Sales Lead</td><td>Day 8</td><td>5-10 restaurants/week</td><td>QAR 3,000-5,000/month</td></tr>
+                        <tr><td>Brand Ambassadors</td><td>Day 30</td><td>Customer referrals & marketing</td><td>Affiliate commission (5-10%)</td></tr>
+                        <tr class="highlight-row"><td>Customer Support</td><td>Day 30</td><td>Part-time (20 hrs)</td><td>QAR 2,000-3,000/month</td></tr>
+                    </tbody>
+                </table>
+                <div style="background: #fff8e1;0%, #ffecb3 100%); padding: var(--spacing-md); border-radius: 4px; margin-top: var(--spacing-md); font-size: 8pt; color: var(--color-secondary);">
+                    <strong>Note:</strong> Sales Lead compensation is fixed monthly salary, no commission on restaurant acquisition. Brand Ambassadors earn through our affiliate program (5-10% commission on referred customers).
+                </div>
+            </div>
+
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>Team Culture</h3>
+                <p style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0;">
+                    <strong>Philosophy: "You Build, Others Sell"</strong><br>
+                    As founders, we focus on product and scale. Hire help for everything else to minimize burn, maximize velocity.
+                </p>
+            </div>
+        </section>
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>Team Culture</h3>
+                <p class="highlight-row" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0;">
+                    <strong>Philosophy: "You Build, Others Sell"</strong><br>
+                    As technical founders, we focus on product and scale. Hire help for everything else to minimize burn, maximize velocity.
+                </p>
+            </div>
+        </section>
+        <footer class="footer">
+            <div class="footer-left">Nutrio Co-Founder Proposal · March 2026</div>
+            <div class="footer-right">Page 7 of 10</div>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+/* Ionic Theme Variables - Integrated with Tailwind */
+
+:root {
+  /* Primary colors - matching Tailwind */
+  --ion-color-primary: #22c55e;
+  --ion-color-primary-rgb: 34, 197, 94;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #1ead52;
+  --ion-color-primary-tint: #38cb6e;
+
+  /* Secondary - warm neutral */
+  --ion-color-secondary: #f5f5f4;
+  --ion-color-secondary-rgb: 245, 245, 244;
+  --ion-color-secondary-contrast: #1c1917;
+  --ion-color-secondary-contrast-rgb: 28, 25, 23;
+  --ion-color-secondary-shade: #d8d8d7;
+  --ion-color-secondary-tint: #f6f6f5;
+
+  /* Tertiary - teal accent */
+  --ion-color-tertiary: #14b8a6;
+  --ion-color-tertiary-rgb: 20, 184, 166;
+  --ion-color-tertiary-contrast: #ffffff;
+  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
+  --ion-color-tertiary-shade: #12a292;
+  --ion-color-tertiary-tint: #2cbfb0;
+
+  /* Success */
+  --ion-color-success: #22c55e;
+  --ion-color-success-rgb: 34, 197, 94;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #1ead52;
+  --ion-color-success-tint: #38cb6e;
+
+  /* Warning */
+  --ion-color-warning: #f59e0b;
+  --ion-color-warning-rgb: 245, 158, 11;
+  --ion-color-warning-contrast: #000000;
+  --ion-color-warning-contrast-rgb: 0, 0, 0;
+  --ion-color-warning-shade: #d88b0a;
+  --ion-color-warning-tint: #f6a823;
+
+  /* Danger */
+  --ion-color-danger: #ef4444;
+  --ion-color-danger-rgb: 239, 68, 68;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #d23c3c;
+  --ion-color-danger-tint: #f15757;
+
+  /* Light */
+  --ion-color-light: #f6f7f9;
+  --ion-color-light-rgb: 246, 247, 249;
+  --ion-color-light-contrast: #000000;
+  --ion-color-light-contrast-rgb: 0, 0, 0;
+  --ion-color-light-shade: #d8d9da;
+  --ion-color-light-tint: #f7f8fa;
+
+  /* Medium */
+  --ion-color-medium: #9ca3af;
+  --ion-color-medium-rgb: 156, 163, 175;
+  --ion-color-medium-contrast: #000000;
+  --ion-color-medium-contrast-rgb: 0, 0, 0;
+  --ion-color-medium-shade: #898f9a;
+  --ion-color-medium-tint: #a6acb5;
+
+  /* Dark */
+  --ion-color-dark: #1f2937;
+  --ion-color-dark-rgb: 31, 41, 55;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-dark-contrast-rgb: 255, 255, 255;
+  --ion-color-dark-shade: #1b2430;
+  --ion-color-dark-tint: #353e4b;
+
+  /* Background - matches Tailwind */
+  --ion-background-color: #fafcfb;
+  --ion-background-color-rgb: 250, 252, 251;
+
+  /* Text */
+  --ion-text-color: #0f1f17;
+  --ion-text-color-rgb: 15, 31, 23;
+
+  /* Toolbar */
+  --ion-toolbar-background: #ffffff;
+  --ion-toolbar-color: #0f1f17;
+
+  /* Item */
+  --ion-item-background: #ffffff;
+  --ion-item-color: #0f1f17;
+
+  /* Safe area */
+  --ion-safe-area-top: env(safe-area-inset-top);
+  --ion-safe-area-bottom: env(safe-area-inset-bottom);
+  --ion-safe-area-left: env(safe-area-inset-left);
+  --ion-safe-area-right: env(safe-area-inset-right);
+
+  /* Font - matches Tailwind */
+  --ion-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Border radius - matches Tailwind */
+  --ion-border-radius: 1rem;
+}
+
+/* Dark mode */
+.dark {
+  --ion-color-primary: #4ade80;
+  --ion-color-primary-rgb: 74, 222, 128;
+  --ion-color-primary-contrast: #0f1f17;
+  --ion-color-primary-contrast-rgb: 15, 31, 23;
+  --ion-color-primary-shade: #41c170;
+  --ion-color-primary-tint: #5ce18d;
+
+  --ion-background-color: #0c1412;
+  --ion-background-color-rgb: 12, 20, 18;
+
+  --ion-text-color: #f6fdf9;
+  --ion-text-color-rgb: 246, 253, 249;
+
+  --ion-toolbar-background: #141f1c;
+  --ion-toolbar-color: #f6fdf9;
+
+  --ion-item-background: #141f1c;
+  --ion-item-color: #f6fdf9;
+}
+
+/* Override Ionic defaults to match Tailwind */
+ion-content {
+  --background: var(--ion-background-color);
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+ion-header {
+  box-shadow: none;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+ion-toolbar {
+  --background: var(--ion-toolbar-background);
+  --color: var(--ion-toolbar-color);
+  --border-width: 0;
+  --min-height: 56px;
+}
+
+ion-title {
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+ion-button {
+  --border-radius: var(--radius);
+  font-weight: 500;
+}
+
+ion-card {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  margin: 0;
+}
+
+ion-item {
+  --background: transparent;
+  --border-color: hsl(var(--border));
+  --padding-start: 1rem;
+  --padding-end: 1rem;
+  --min-height: 48px;
+}
+
+ion-list {
+  background: transparent;
+  padding: 0;
+}
+
+/* Page transitions */
+.ion-page {
+  background: var(--ion-background-color);
+}
+
+/* Safe area utilities */
+.ion-safe-area-top {
+  padding-top: var(--ion-safe-area-top);
+}
+
+.ion-safe-area-bottom {
+  padding-bottom: var(--ion-safe-area-bottom);
+}
+
+/* Hide scrollbar but keep functionality */
+ion-content::part(scroll) {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+ion-content::part(scroll)::-webkit-scrollbar {
+  width: 6px;
+}
+
+ion-content::part(scroll)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+ion-content::part(scroll)::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}

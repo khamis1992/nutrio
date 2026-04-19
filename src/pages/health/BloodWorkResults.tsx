@@ -360,7 +360,7 @@ export default function BloodWorkResults() {
                       {/* Actions */}
                       <div className="flex gap-2 pt-2">
                         {record.report_url && (
-                          <a href={record.report_url} target="_blank" rel="noopener">
+                          <a href={record.report_url} target="_blank" rel="noopener noreferrer">
                             <Button variant="outline" size="sm">
                               <FileText className="w-4 h-4 mr-1" />
                               {isRTL ? "التقرير" : "Report"}

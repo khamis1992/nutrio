@@ -70,7 +70,7 @@ export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
         <img
-          src="/logo.png"
+          src="/nutrio/logo.png"
           alt="Nutrio"
           className="h-14 w-auto object-contain opacity-90"
         />

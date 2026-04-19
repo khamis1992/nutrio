@@ -28,7 +28,7 @@ export const SplashVideo: React.FC<SplashVideoProps> = ({ onComplete }) => {
     >
       <video
         ref={videoRef}
-        src="/splash.mp4"
+        src="/nutrio/splash.mp4"
         autoPlay
         playsInline
         onEnded={finish}

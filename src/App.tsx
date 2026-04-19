@@ -185,10 +185,10 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            {/* Public routes - accessible without login (guest browsing) */}
-            <Route path="/meals" element={<Meals />} />
-            <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-            <Route path="/meals/:id" element={<MealDetail />} />
+            {/* Customer browsing routes - auth required */}
+            <Route path="/meals" element={<ProtectedRoute><Meals /></ProtectedRoute>} />
+            <Route path="/restaurant/:id" element={<ProtectedRoute><RestaurantDetail /></ProtectedRoute>} />
+            <Route path="/meals/:id" element={<ProtectedRoute><MealDetail /></ProtectedRoute>} />
             <Route 
               path="/schedule" 
               element={
@@ -300,6 +300,9 @@ const App = () => (
             <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             <Route path="/order/:id" element={<Navigate to="/dashboard" replace />} />
             <Route path="/tracking" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/plans" element={<Navigate to="/subscription/plans" replace />} />
+            <Route path="/subscribe" element={<Navigate to="/subscription" replace />} />
+            <Route path="/cart" element={<Navigate to="/checkout" replace />} />
             <Route 
               path="/subscription" 
               element={
@@ -691,7 +694,7 @@ const App = () => (
             <Route 
               path="/admin/promotions" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminPromotions />
                 </ProtectedRoute>
               } 
@@ -703,7 +706,7 @@ const App = () => (
             <Route 
               path="/admin/support" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminSupport />
                 </ProtectedRoute>
               } 
@@ -711,7 +714,7 @@ const App = () => (
             <Route 
               path="/admin/notifications" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AdminNotifications />
                 </ProtectedRoute>
               } 
@@ -719,7 +722,7 @@ const App = () => (
 <Route 
   path="/admin/drivers" 
   element={
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="admin">
       <AdminDrivers />
     </ProtectedRoute>
   } 
@@ -727,7 +730,7 @@ const App = () => (
 <Route
   path="/admin/deliveries"
   element={
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="admin">
       <AdminDeliveries />
     </ProtectedRoute>
   }
@@ -735,7 +738,7 @@ const App = () => (
 <Route 
   path="/admin/ip-management" 
   element={
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="admin">
       <AdminIPManagement />
     </ProtectedRoute>
   } 
@@ -743,7 +746,7 @@ const App = () => (
 <Route 
   path="/admin/freeze-management" 
   element={
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="admin">
       <AdminFreezeManagement />
     </ProtectedRoute>
   } 
@@ -751,7 +754,7 @@ const App = () => (
 <Route 
   path="/admin/retention-analytics" 
   element={
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="admin">
       <AdminRetentionAnalytics />
     </ProtectedRoute>
   } 
@@ -761,13 +764,13 @@ const App = () => (
             <Route 
               path="/driver/onboarding" 
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="driver">
                   <DriverOnboarding />
                 </ProtectedRoute>
               } 
             />
             <Route path="/driver" element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="driver">
                 <DriverLayout />
               </ProtectedRoute>
             }>

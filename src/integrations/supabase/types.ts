@@ -3489,14 +3489,18 @@ export type Database = {
           health_insights: boolean | null
           id: string
           meal_reminders: boolean | null
+          order_updates: boolean | null
           plan_updates: boolean | null
+          promotional_emails: boolean | null
           push_notifications: boolean | null
           quiet_hours_end: string | null
           quiet_hours_start: string | null
+          reminder_time: string | null
           subscription_updates: boolean | null
           system_alerts: boolean | null
           updated_at: string | null
           user_id: string | null
+          weekly_summary: boolean | null
         }
         Insert: {
           achievements?: boolean | null
@@ -3506,14 +3510,18 @@ export type Database = {
           health_insights?: boolean | null
           id?: string
           meal_reminders?: boolean | null
+          order_updates?: boolean | null
           plan_updates?: boolean | null
+          promotional_emails?: boolean | null
           push_notifications?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          reminder_time?: string | null
           subscription_updates?: boolean | null
           system_alerts?: boolean | null
           updated_at?: string | null
           user_id?: string | null
+          weekly_summary?: boolean | null
         }
         Update: {
           achievements?: boolean | null
@@ -3523,14 +3531,18 @@ export type Database = {
           health_insights?: boolean | null
           id?: string
           meal_reminders?: boolean | null
+          order_updates?: boolean | null
           plan_updates?: boolean | null
+          promotional_emails?: boolean | null
           push_notifications?: boolean | null
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          reminder_time?: string | null
           subscription_updates?: boolean | null
           system_alerts?: boolean | null
           updated_at?: string | null
           user_id?: string | null
+          weekly_summary?: boolean | null
         }
         Relationships: [
           {

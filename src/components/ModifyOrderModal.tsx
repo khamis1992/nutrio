@@ -87,22 +87,29 @@ export const ModifyOrderModal = ({
     if (!schedule) return;
     setSaving(true);
     try {
-      const updates: Record<string, string> = {};
-      if (newDate) updates.scheduled_date = newDate;
-      if (newMealType) updates.meal_type = newMealType;
-
-      if (Object.keys(updates).length === 0) {
+      if (!newDate && !newMealType) {
         toast({ title: t("no_changes"), description: t("select_new_date_or_meal_type") });
         setSaving(false);
         return;
       }
 
-      const { error } = await supabase
-        .from("meal_schedules")
-        .update(updates)
-        .eq("id", schedule.id);
+      const { data, error } = await supabase.rpc("reschedule_meal" as any, {
+        p_schedule_id: schedule.id,
+        p_new_date: newDate || null,
+        p_new_meal_type: newMealType || null,
+      } as any);
 
       if (error) throw error;
+
+      const result = data as { success?: boolean; error?: string };
+      if (!result?.success) {
+        toast({
+          title: t("failed_to_modify_order"),
+          description: result?.error || t("please_try_again"),
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({ title: t("order_modified"), description: t("order_updated_successfully") });
       onModified();

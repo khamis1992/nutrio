@@ -4,11 +4,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { jwtVerify } from 'https://esm.sh/jose@5.2.0';
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const JWT_SECRET = new TextEncoder().encode(Deno.env.get('FLEET_JWT_SECRET') || '');
 
 // Rate limiting: 50 requests per minute per manager for payout operations
-// TODO: Implement Redis-based rate limiting for production
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -568,6 +568,16 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
   
+  // Rate limiting
+  const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const rateLimit = await checkRateLimit(supabase, `fleet-payouts:${clientIP}`, 50, 60);
+  if (!rateLimit.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded', retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000) }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+  
   // Validate JWT
   const user = await validateToken(req);
   if (!user) {
@@ -589,16 +599,16 @@ serve(async (req) => {
     if (req.method === 'POST') {
       return await handleCreatePayout(req, supabase, user);
     }
+  } else if (pathParts.length === 1 && pathParts[0] === 'bulk') {
+    // /fleet/payouts/bulk
+    if (req.method === 'POST') {
+      return await handleBulkPayouts(req, supabase, user);
+    }
   } else if (pathParts.length === 1) {
     const payoutId = pathParts[0];
     // /fleet/payouts/:id/process
     if (req.method === 'POST') {
       return await handleProcessPayout(req, supabase, user, payoutId);
-    }
-  } else if (pathParts.length === 1 && pathParts[0] === 'bulk') {
-    // /fleet/payouts/bulk
-    if (req.method === 'POST') {
-      return await handleBulkPayouts(req, supabase, user);
     }
   }
   

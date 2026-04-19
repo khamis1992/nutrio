@@ -13,6 +13,7 @@ import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPr
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
+import { trackEvent } from "@/lib/analytics";
 import {
   Flame,
   Beef,
@@ -40,6 +41,7 @@ import {
 import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
 import { motion, AnimatePresence, PanInfo, useMotionValue, useTransform, spring } from "framer-motion";
 import MealWizard from "@/components/MealWizard";
+import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ScheduledMeal {
@@ -48,6 +50,7 @@ interface ScheduledMeal {
   meal_type: string;
   is_completed: boolean;
   delivery_time_slot: string | null;
+  order_status: string;
   meal: {
     id: string;
     name: string;
@@ -140,7 +143,7 @@ const Schedule = () => {
     if (balance < pricePerMeal) { navigate("/wallet"); return; }
     setBuyLoading(true);
     try {
-      const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
+      const { error: debitErr } = await supabase.rpc("debit_wallet", {
         p_user_id: user.id,
         p_amount: pricePerMeal,
         p_reference_type: "order",
@@ -191,6 +194,7 @@ const Schedule = () => {
   const [showMealSheet, setShowMealSheet] = useState(false);
 
   const [showTimeSlotDialog, setShowTimeSlotDialog] = useState(false);
+  const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedScheduleForTimeSlot, setSelectedScheduleForTimeSlot] = useState<string | null>(null);
 
   useEffect(() => {
@@ -213,11 +217,13 @@ const Schedule = () => {
         meal_type,
         is_completed,
         meal_id,
-        delivery_time_slot
+        delivery_time_slot,
+        order_status
       `)
       .eq("user_id", user.id)
       .gte("scheduled_date", format(currentWeekStart, "yyyy-MM-dd"))
       .lte("scheduled_date", format(weekEnd, "yyyy-MM-dd"))
+      .neq("order_status", "cancelled")
       .order("scheduled_date", { ascending: true });
 
     if (schedulesError) {
@@ -247,6 +253,7 @@ const Schedule = () => {
       meal_type: schedule.meal_type,
       is_completed: schedule.is_completed,
       delivery_time_slot: schedule.delivery_time_slot || null,
+      order_status: schedule.order_status || "pending",
       meal: mealsMap[schedule.meal_id] || {
         id: schedule.meal_id,
         name: t("unknown_meal"),
@@ -295,12 +302,12 @@ const Schedule = () => {
 
     try {
       const { data, error } = isCompleted
-        ? await (supabase.rpc as any)('uncomplete_meal_atomic', {
+        ? await supabase.rpc('uncomplete_meal_atomic', {
             p_schedule_id: scheduleId,
             p_user_id: user.id,
             p_log_date: schedule.scheduled_date,
           })
-        : await (supabase.rpc as any)('complete_meal_atomic', {
+        : await supabase.rpc('complete_meal_atomic', {
             p_schedule_id: scheduleId,
             p_user_id: user.id,
             p_log_date: schedule.scheduled_date,
@@ -321,18 +328,9 @@ const Schedule = () => {
 
       setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
 
-      if (!isCompleted && !result.was_already_completed) {
-        supabase.from("meal_history").insert({
-          user_id: user.id,
-          name: schedule.meal.name,
-          calories: schedule.meal.calories || 0,
-          protein_g: schedule.meal.protein_g || 0,
-          carbs_g: schedule.meal.carbs_g || 0,
-          fat_g: schedule.meal.fat_g || 0,
-        }).then(({ error }) => {
-          if (error) console.error("Could not save to meal history:", error);
-        });
+      window.dispatchEvent(new CustomEvent("nutrio:meal-progress-changed"));
 
+      if (!isCompleted && !result.was_already_completed) {
         if (navigator.vibrate) navigator.vibrate(10);
       }
     } catch (err: any) {
@@ -346,21 +344,69 @@ const Schedule = () => {
   };
 
   const deleteMeal = async (scheduleId: string) => {
-    const { error } = await supabase.from("meal_schedules").delete().eq("id", scheduleId);
-    if (error) {
-      toast({ title: t("error"), description: t("failed_to_remove_meal"), variant: "destructive" });
-    } else {
+    if (!confirm(t("cancel_meal_confirm") || "Are you sure you want to remove this meal from your schedule? Your meal credit will be refunded.")) {
+      return;
+    }
+    
+    const scheduleToDelete = schedules.find(s => s.id === scheduleId);
+    
+    try {
+      const { data, error } = await supabase.rpc("cancel_meal_schedule", {
+        p_schedule_id: scheduleId,
+      });
+
+      if (error) {
+        console.error("Cancel error:", error);
+        toast({ 
+          title: t("error"), 
+          description: error.message || t("failed_to_remove_meal"), 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      const result = data as { success?: boolean; error?: string; refunded_addons?: number };
+      if (!result?.success) {
+        toast({ 
+          title: t("error"), 
+          description: result?.error || t("failed_to_remove_meal"), 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      // Track analytics event
+      trackEvent("meal_schedule_cancelled", {
+        meal_id: scheduleToDelete?.meal?.id,
+        meal_name: scheduleToDelete?.meal?.name,
+        meal_type: scheduleToDelete?.meal_type,
+        scheduled_date: scheduleToDelete?.scheduled_date,
+        had_addons: (result.refunded_addons || 0) > 0,
+        addon_amount: result.refunded_addons || 0,
+      });
+
       setSchedules(prev => prev.filter(s => s.id !== scheduleId));
       setShowMealSheet(false);
-      toast({ title: t("meal_removed"), description: t("meal_removed") });
+      refetchSubscription();
+      toast({ 
+        title: t("meal_removed"), 
+        description: t("meal_removed_desc") || "Meal removed and credit refunded." 
+      });
+    } catch (err: any) {
+      console.error("Delete meal error:", err);
+      toast({ 
+        title: t("error"), 
+        description: err.message || t("failed_to_remove_meal"), 
+        variant: "destructive" 
+      });
     }
   };
 
   const updateDeliveryTimeSlot = async (scheduleId: string, timeSlot: string) => {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("meal_schedules")
-        .update({ delivery_time_slot: timeSlot })
+        .update({ delivery_time_slot: timeSlot } as Record<string, unknown>)
         .eq("id", scheduleId);
 
       if (error) throw error;
@@ -443,10 +489,8 @@ const Schedule = () => {
   const weekProgress = {
     total: thisWeekSchedules.length,
     completed: thisWeekSchedules.filter(s => s.is_completed).length,
-    calories: thisWeekSchedules.reduce((sum, s) => sum + (isCompleted ? s.meal?.calories ?? 0 : 0), 0),
+    calories: thisWeekSchedules.reduce((sum, s) => sum + (s.is_completed ? s.meal?.calories ?? 0 : 0), 0),
   };
-  
-  const isCompleted = true;
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
@@ -1089,6 +1133,14 @@ const Schedule = () => {
                     <Utensils className="h-5 w-5" />
                     View Meal Details
                   </button>
+
+                  <button
+                    onClick={() => { setShowMealSheet(false); setShowModifyModal(true); }}
+                    className="w-full py-4 rounded-2xl font-bold text-base bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                  >
+                    <CalendarIcon className="h-5 w-5" />
+                    Reschedule
+                  </button>
                   
                   <button
                     onClick={() => deleteMeal(selectedMeal.id)}
@@ -1188,6 +1240,14 @@ const Schedule = () => {
         description={loginPromptConfig.description}
         actionLabel={loginPromptConfig.actionLabel}
         signUpLabel={loginPromptConfig.signUpLabel}
+      />
+
+      {/* ── Reschedule Meal Modal ────────────────────────── */}
+      <ModifyOrderModal
+        isOpen={showModifyModal}
+        onClose={() => setShowModifyModal(false)}
+        schedule={selectedMeal}
+        onModified={() => { fetchSchedules(); setShowModifyModal(false); }}
       />
 
       {/* ── Safe Area Styles ─────────────────────────────── */}

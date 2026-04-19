@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { checkIPLocation } from "@/lib/ipCheck";
 import { Capacitor } from "@capacitor/core";
 import { pushNotificationService } from "@/lib/notifications/push";
+import { clearRoleCache } from "@/components/ProtectedRoute";
 
 interface AuthContextType {
   user: User | null;
@@ -34,9 +35,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-// Set up auth state listener FIRST
+    let isMounted = true;
+    let authResolved = false;
+    let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (!isMounted) return;
+        authResolved = true;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -54,26 +61,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // always resolved even if Supabase is unreachable or keys are missing.
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        if (!isMounted) return;
+        authResolved = true;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       })
       .catch((err) => {
+        if (!isMounted) return;
         console.error('[AuthContext] getSession failed:', err);
-        // Ensure loading is cleared even on failure so the app doesn't hang
+        authResolved = true;
         setLoading(false);
       });
 
-    const safetyTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('[AuthContext] Auth check timed out — rendering without auth');
+    // Safety timeout: force-clear loading if auth check takes too long
+    // Only nullify user/session if auth never resolved (Supabase unreachable)
+    // Uses authResolved ref instead of stale `loading` closure to avoid
+    // clearing a valid session that was set by onAuthStateChange
+    safetyTimeout = setTimeout(() => {
+      if (isMounted && !authResolved) {
+        console.warn('[AuthContext] Auth check timed out after 30s — clearing auth state');
+        setSession(null);
+        setUser(null);
         setLoading(false);
       }
-    }, 8000);
+    }, 10000);
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
     };
   }, []);
 
@@ -128,11 +145,11 @@ const signIn = async (email: string, password: string) => {
     }
   };
 
-  const signOut = async () => {
-    // Clear remembered email on logout
+  const signOut = useCallback(async () => {
     localStorage.removeItem("remembered_email");
+    clearRoleCache();
     await supabase.auth.signOut();
-  };
+  }, []);
 
   const value = {
     user,

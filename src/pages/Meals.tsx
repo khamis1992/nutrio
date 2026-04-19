@@ -9,6 +9,13 @@ import {
   SlidersHorizontal,
   Flame,
   ArrowLeft,
+  Utensils,
+  Coffee,
+  Soup,
+  utensils,
+  UtensilsCrossed,
+  Cake,
+  Droplet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +25,8 @@ import { getRestaurantImage } from "@/lib/meal-images";
 import { Haptics } from "@/lib/haptics";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 const spring = { type: "spring" as const, stiffness: 300, damping: 25, mass: 0.8 };
 
@@ -65,14 +74,14 @@ interface MealResult {
   meal_type: string | null;
 }
 
-const categoryConfig: Record<MealCategory, { labelKey: string; icon: string }> = {
-  all: { labelKey: "all_cuisine", icon: "🍽️" },
-  breakfast: { labelKey: "cuisine_breakfast", icon: "🍳" },
-  lunch: { labelKey: "lunch", icon: "🥗" },
-  dinner: { labelKey: "dinner", icon: "🍜" },
-  snacks: { labelKey: "snacks", icon: "🥨" },
-  desserts: { labelKey: "desserts", icon: "🍰" },
-  beverages: { labelKey: "beverages", icon: "🥤" },
+const categoryConfig: Record<MealCategory, { labelKey: string; icon: React.ElementType }> = {
+  all: { labelKey: "all_cuisine", icon: Utensils },
+  breakfast: { labelKey: "cuisine_breakfast", icon: Coffee },
+  lunch: { labelKey: "lunch", icon: Soup },
+  dinner: { labelKey: "dinner", icon: Soup },
+  snacks: { labelKey: "snacks", icon: UtensilsCrossed },
+  desserts: { labelKey: "desserts", icon: Cake },
+  beverages: { labelKey: "beverages", icon: Droplet },
 };
 
 const formatPrice = (price: number | null): string => {
@@ -323,133 +332,179 @@ const FilterSheet = ({
   calorieRange: CalorieRange;
   onChangeCalorieRange: (range: CalorieRange) => void;
   t: ReturnType<typeof useLanguage>["t"];
-}) => (
-  <AnimatePresence>
-    {isOpen && (
-      <>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
-        />
-        <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 28, stiffness: 320 }}
-          className="fixed left-0 right-0 bg-white rounded-t-3xl z-50 overflow-hidden flex flex-col"
-          style={{ bottom: "64px", maxHeight: "calc(85vh - 64px)" }}
-        >
-          <div className="pt-3 pb-2 flex justify-center flex-shrink-0">
-            <div className="w-10 h-1 bg-gray-200 rounded-full" />
-          </div>
+}) => {
+  const sortOptions = [
+    { id: "rating", icon: "⭐", label: t("top_rated_filter") },
+    { id: "fastest", icon: "⚡", label: t("fastest_filter") },
+    { id: "popular", icon: "🔥", label: t("popular") },
+  ];
 
-          <div className="px-5 overflow-y-auto flex-1">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-lg font-bold text-[#0F172A]">{t("filters")}</h3>
-                <p className="text-sm text-[#64748B]">{resultCount} {t("meals")}</p>
+  const calorieOptions = [
+    { id: "all", label: t("all_cuisine") },
+    { id: "under300", label: t("under_300") },
+    { id: "300-500", label: t("range_300_500") },
+    { id: "500-700", label: t("range_500_700") },
+    { id: "700plus", label: t("over_700") },
+  ];
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/40 z-40"
+            aria-hidden="true"
+          />
+           <motion.div
+             initial={{ y: "100%" }}
+             animate={{ y: 0 }}
+             exit={{ y: "100%" }}
+             transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
+             className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-b-[24px] shadow-[0_-20px_40px_rgba(0,0,0,0.15)]"
+             style={{ 
+               maxHeight: "80vh", 
+               overflow: "hidden",
+               paddingBottom: "max(80px, env(safe-area-inset-bottom, 80px))"
+             }}
+             aria-modal="true"
+             role="dialog"
+           >
+            <div 
+              className="w-[40px] h-[4px] bg-gray-300 rounded-[2px] mx-auto mb-5 cursor-pointer hover:bg-gray-400 transition-colors"
+              onClick={onClose}
+              role="presentation"
+            />
+
+            <div className="px-6 pb-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-[20px] font-bold text-[#1F2937]">{t("filters")}</h2>
+                <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+                  {resultCount} {resultCount === 1 ? t("meal") : t("meals")}
+                </span>
               </div>
-              <button onClick={onClose} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
 
-            {/* Sort */}
-            <div className="mb-5">
-              <p className="text-sm font-bold text-gray-800 mb-3">{t("sort_by")}</p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { id: "rating", label: t("top_rated_filter") },
-                  { id: "fastest", label: t("fastest_filter") },
-                  { id: "popular", label: t("popular") },
-                ].map((s) => (
-                  <motion.button
-                    key={s.id}
-                    onClick={() => { Haptics.impact({ style: "light" }); onChangeSort(s.id as typeof activeSort); }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                      activeSort === s.id
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-gray-200 bg-gray-50 text-gray-500"
+              <div className="mb-8">
+                <p className="text-[14px] font-semibold text-[#1F2937] mb-3">{t("sort_by")}</p>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("sort_by")}>
+                  {sortOptions.map((option) => (
+                    <motion.button
+                      key={option.id}
+                      onClick={() => {
+                        Haptics.impact({ style: "light" });
+                        onChangeSort(option.id as typeof activeSort);
+                      }}
+                      whileTap={{ scale: 1.02 }}
+                      role="radio"
+                      aria-checked={activeSort === option.id}
+                      className={`filter-chip px-4 py-2 rounded-[20px] text-[14px] font-medium transition-all border-none shadow-sm ${
+                        activeSort === option.id
+                          ? "bg-primary text-white"
+                          : "bg-[#F9FAFB] text-gray-600"
+                      }`}
+                      style={{
+                        boxShadow: activeSort === option.id ? "0 4px 6px rgba(16, 185, 129, 0.3)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
+                      }}
+                    >
+                      <span className="mr-1">{option.icon}</span>
+                      {option.label}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <p className="text-[14px] font-semibold text-[#1F2937] mb-3">{t("filter_by_calories")}</p>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("filter_by_calories")}>
+                  {calorieOptions.map((option) => (
+                    <motion.button
+                      key={option.id}
+                      onClick={() => {
+                        Haptics.impact({ style: "light" });
+                        onChangeCalorieRange(option.id as CalorieRange);
+                      }}
+                      whileTap={{ scale: 1.02 }}
+                      role="radio"
+                      aria-checked={calorieRange === option.id}
+                      className={`px-4 py-2 rounded-[20px] text-[14px] font-medium transition-all border-none shadow-sm flex flex-col items-center justify-center gap-1 ${
+                        calorieRange === option.id
+                          ? "bg-[#F59E0B] text-white shadow-[0_4px_6px_rgba(245,158,11,0.3)]"
+                          : "bg-[#F9FAFB] text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {option.id === "all" && <span>{option.label}</span>}
+                      {option.id !== "all" && (
+                        <>
+                          <span className="text-[12px] font-medium">
+                            {option.id === "under300" ? t("under") : option.id === "700plus" ? t("above") : ""}
+                          </span>
+                          <span className="text-[16px] font-bold">
+                            {option.id === "under300" 
+                              ? "300" 
+                              : option.id === "700plus" 
+                                ? "700+" 
+                                : option.label}
+                          </span>
+                        </>
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <p className="text-[14px] font-semibold text-[#1F2937] mb-4">{t("favorites_only")}</p>
+                <motion.button
+                  onClick={() => {
+                    Haptics.impact({ style: "medium" });
+                    onToggleFavorites();
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center w-full"
+                  role="switch"
+                  aria-checked={showFavoritesOnly}
+                >
+                  <div
+                    className={`w-[52px] h-[32px] rounded-[16px] relative transition-colors ${
+                      showFavoritesOnly ? "bg-primary" : "bg-gray-300"
                     }`}
                   >
-                    {s.label}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-
-            {/* Calorie Range */}
-            <div className="mb-5">
-              <p className="text-sm font-bold text-gray-800 mb-3">{t("filter_by_calories")}</p>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { id: "all", label: t("all_cuisine") },
-                  { id: "under300", label: t("under_300") },
-                  { id: "300-500", label: t("range_300_500") },
-                  { id: "500-700", label: t("range_500_700") },
-                  { id: "700plus", label: t("over_700") },
-                ].map((r) => (
-                  <motion.button
-                    key={r.id}
-                    onClick={() => { Haptics.impact({ style: "light" }); onChangeCalorieRange(r.id as CalorieRange); }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
-                      calorieRange === r.id
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-gray-200 bg-gray-50 text-gray-500"
+                    <motion.div
+                      className="absolute top-[4px] left-[4px] w-[24px] h-[24px] bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+                      animate={{ x: showFavoritesOnly ? 20 : 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
+                    />
+                  </div>
+                  <span 
+                    className={`ml-3 text-[14px] transition-colors ${
+                      showFavoritesOnly ? "text-primary" : "text-gray-600"
                     }`}
                   >
-                    <Flame className="w-3.5 h-3.5" />
-                    {r.label}
-                  </motion.button>
-                ))}
+                    {showFavoritesOnly ? t("on") : t("off")}
+                  </span>
+                </motion.button>
               </div>
-            </div>
 
-            {/* Favorites toggle */}
-            <div className="mb-5">
-              <p className="text-sm font-bold text-gray-800 mb-3">{t("other_filters")}</p>
               <motion.button
-                onClick={() => { Haptics.impact({ style: "medium" }); onToggleFavorites(); }}
+                onClick={onClose}
                 whileTap={{ scale: 0.98 }}
-                className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
-                  showFavoritesOnly ? "border-rose-400 bg-rose-50" : "border-gray-200 bg-gray-50"
-                }`}
+                className="w-full h-[56px] bg-primary rounded-[14px] text-white font-semibold text-[16px] shadow-[0_4px_6px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2 transition-all"
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${showFavoritesOnly ? "bg-rose-100" : "bg-gray-100"}`}>
-                    <Heart className={`w-5 h-5 ${showFavoritesOnly ? "fill-rose-500 text-rose-500" : "text-gray-400"}`} />
-                  </div>
-                  <div className="text-left">
-                    <span className="font-semibold block text-gray-900">{t("favorites_only")}</span>
-                    <span className="text-xs text-gray-400">{t("favorites_only_desc")}</span>
-                  </div>
-                </div>
-                <div className={`w-11 h-6 rounded-full p-1 transition-colors ${showFavoritesOnly ? "bg-rose-500" : "bg-gray-200"}`}>
-                  <motion.div
-                    className="w-4 h-4 bg-white rounded-full shadow"
-                    animate={{ x: showFavoritesOnly ? 20 : 0 }}
-                    transition={spring}
-                  />
-                </div>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                {t("apply_filters")}
               </motion.button>
             </div>
-          </div>
-
-          <div className="px-5 pt-4 pb-6 border-t border-gray-100 flex-shrink-0" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
-            <Button onClick={onClose} className="w-full h-12 rounded-2xl font-bold text-base bg-primary hover:bg-primary/90">
-              {t("show_results")} ({resultCount})
-            </Button>
-          </div>
-        </motion.div>
-      </>
-    )}
-  </AnimatePresence>
-);
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
 
 const Meals = () => {
   const { t } = useLanguage();
@@ -713,24 +768,26 @@ const Meals = () => {
 
         {/* Category Pills */}
         <div className="px-4 pb-3 -mx-4 px-4 scrollbar-hide">
-          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory">
+          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory outline-none" role="tablist" aria-label={t("meal_types")}>
             {(Object.keys(categoryConfig) as MealCategory[]).map((cat) => {
               const isActive = selectedCategory === cat;
               const config = categoryConfig[cat];
+              const Icon = config.icon;
               return (
                 <motion.button
                   key={cat}
                   onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat); }}
                   whileTap={{ scale: 0.95 }}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap snap-start transition-all ${
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-[20px] text-sm font-semibold whitespace-nowrap snap-start transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
                     isActive
-                      ? "bg-primary text-white shadow-lg shadow-primary/30"
+                      ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/40"
                       : "bg-white text-[#64748B] border border-[#E1F2ED]/50 hover:border-primary/30"
                   }`}
-                  layout
                 >
-                  <span className="mr-1">{config.icon}</span>
-                  {t(config.labelKey as any)}
+                  <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-primary"}`} />
+                  <span className="ml-1.5">{t(config.labelKey)}</span>
                 </motion.button>
               );
             })}

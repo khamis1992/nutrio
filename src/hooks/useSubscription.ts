@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getQatarDay } from "@/lib/dateUtils";
 
 export interface Subscription {
   id: string;
@@ -18,6 +19,13 @@ export interface Subscription {
   snacks_used_this_month: number;
   tier: 'basic' | 'standard' | 'premium' | 'vip';
   active: boolean | null;
+}
+
+type IncrementMonthlyMealUsageResult = boolean;
+type UseRolloverCreditResult = { used_rollover?: boolean };
+
+interface Database {
+  rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: Error | null }>;
 }
 
 interface UseSubscriptionReturn {
@@ -60,51 +68,57 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
 
     try {
-      // Fetch active, pending, or cancelled (not yet expired) subscriptions
-      const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
+      const today = getQatarDay();
+      const selectCols = "id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active, snacks_per_month, snacks_used_this_month";
+      const { data: activeOrPending, error: activeError } = await supabase
         .from("subscriptions")
-        .select("id, plan, status, start_date, end_date, meals_per_month, meals_used_this_month, month_start_date, meals_per_week, meals_used_this_week, week_start_date, tier, active")
+        .select(selectCols)
         .eq("user_id", user.id)
-        .or(`status.in.("active","pending"),and(status.eq."cancelled",end_date.gte.${today})`)
+        .in("status", ["active", "pending"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (activeError) throw activeError;
+
+      let data = activeOrPending;
+
+      if (!data) {
+        const { data: cancelledData, error: cancelledError } = await supabase
+          .from("subscriptions")
+          .select(selectCols)
+          .eq("user_id", user.id)
+          .eq("status", "cancelled")
+          .gte("end_date", today)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (cancelledError) throw cancelledError;
+        data = cancelledData;
+      }
 
       if (data) {
-        // Fetch snack columns separately — they may not exist yet if the migration
-        // hasn't been applied. Fall back to 0 silently so the rest of the app works.
-        let snacksPerMonth = 0;
-        let snacksUsedThisMonth = 0;
-        const { data: snackData, error: snackError } = await (supabase as any)
-          .from("subscriptions")
-          .select("snacks_per_month, snacks_used_this_month")
-          .eq("id", data.id)
-          .maybeSingle();
-        if (!snackError && snackData) {
-          snacksPerMonth = snackData.snacks_per_month ?? 0;
-          snacksUsedThisMonth = snackData.snacks_used_this_month ?? 0;
-        }
-        // If snackError exists the columns aren't migrated yet — silently use 0
+        const row = data as any;
+        const snacksPerMonth = row.snacks_per_month ?? 0;
+        const snacksUsedThisMonth = row.snacks_used_this_month ?? 0;
 
         setSubscription({
-          id: data.id!,
-          plan: data.plan!,
-          status: data.status!,
-          start_date: data.start_date!,
-          end_date: data.end_date!,
-          meals_per_month: data.meals_per_month ?? 0,
-          meals_used_this_month: data.meals_used_this_month ?? 0,
-          month_start_date: data.month_start_date || new Date().toISOString().split('T')[0],
-          meals_per_week: data.meals_per_week ?? 5,
-          meals_used_this_week: data.meals_used_this_week ?? 0,
-          week_start_date: data.week_start_date || new Date().toISOString().split('T')[0],
+          id: row.id,
+          plan: row.plan,
+          status: row.status,
+          start_date: row.start_date,
+          end_date: row.end_date,
+          meals_per_month: row.meals_per_month ?? 0,
+          meals_used_this_month: row.meals_used_this_month ?? 0,
+          month_start_date: row.month_start_date || getQatarDay(),
+          meals_per_week: row.meals_per_week ?? 5,
+          meals_used_this_week: row.meals_used_this_week ?? 0,
+          week_start_date: row.week_start_date || getQatarDay(),
           snacks_per_month: snacksPerMonth,
           snacks_used_this_month: snacksUsedThisMonth,
-          tier: (data.tier || data.plan) as 'basic' | 'standard' | 'premium' | 'vip' || 'basic',
-          active: data.active,
+          tier: (row.tier || row.plan || 'basic') as 'basic' | 'standard' | 'premium' | 'vip',
+          active: row.active,
         });
       } else {
         setSubscription(null);
@@ -166,8 +180,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const isPaused: boolean = subscription?.status === "pending";
   const isVip = subscription?.tier === "vip";
   
-  // VIP tier gets unlimited meals (meals_per_month = 0)
-  const isUnlimited = subscription?.tier === "vip" || subscription?.meals_per_month === 0;
+  // VIP tier gets unlimited meals
+  // Note: "pending" status means both "awaiting activation" AND "paused" — disambiguate with subscription.active
+  const isUnlimited = subscription?.tier === "vip";
   
   // Use monthly values for calculations
   const totalMeals = isUnlimited ? 0 : (subscription?.meals_per_month || 0);
@@ -196,12 +211,20 @@ export const useSubscription = (): UseSubscriptionReturn => {
     if (!isUnlimited && remainingSnacks <= 0) return false;
 
     try {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ snacks_used_this_month: snacksUsed + 1 } as any)
-        .eq("id", subscription.id);
+      const { error } = await (supabase as Database).rpc("increment_snack_usage", {
+        p_subscription_id: subscription.id,
+      }) as { data: boolean; error: Error | null };
 
-      if (error) throw error;
+      if (error) {
+        console.warn("Snack RPC not available, falling back to direct update:", error);
+        const { error: fallbackError } = await supabase
+          .from("subscriptions")
+          .update({ snacks_used_this_month: snacksUsed + 1 } as Record<string, number>)
+          .eq("id", subscription.id);
+
+        if (fallbackError) throw fallbackError;
+      }
+
       await fetchSubscription();
       return true;
     } catch (err) {
@@ -216,9 +239,9 @@ export const useSubscription = (): UseSubscriptionReturn => {
     try {
       // If monthly quota is still available — use it (don't touch rollover)
       if (canOrderMeal) {
-        const { data, error } = await (supabase as unknown as { rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: boolean | null; error: Error | null }> }).rpc("increment_monthly_meal_usage", {
+        const { data, error } = await (supabase as Database).rpc("increment_monthly_meal_usage", {
           p_subscription_id: subscription.id,
-        });
+        }) as { data: IncrementMonthlyMealUsageResult; error: Error | null };
         if (error) throw error;
         if (data) {
           await fetchSubscription();
@@ -228,10 +251,10 @@ export const useSubscription = (): UseSubscriptionReturn => {
       }
 
       // Monthly quota exhausted — try rollover credits as bonus meals
-      const { data: rolloverData, error: rolloverError } = await (supabase as any).rpc(
+      const { data: rolloverData, error: rolloverError } = await (supabase as Database).rpc(
         "use_rollover_credit_if_available",
         { p_subscription_id: subscription.id, p_user_id: user!.id }
-      );
+      ) as { data: UseRolloverCreditResult; error: Error | null };
 
       if (rolloverError) {
         console.error("Rollover check failed:", rolloverError);
@@ -256,12 +279,19 @@ export const useSubscription = (): UseSubscriptionReturn => {
     if (!subscription || !hasActiveSubscription) return false;
 
     try {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ status: "pending" })
-        .eq("id", subscription.id);
+      const { error } = await (supabase as Database).rpc("pause_subscription", {
+        p_subscription_id: subscription.id,
+      }) as { data: boolean; error: Error | null };
 
-      if (error) throw error;
+      if (error) {
+        console.warn("pause_subscription RPC not available, falling back to direct update:", error);
+        const { error: fallbackError } = await supabase
+          .from("subscriptions")
+          .update({ status: "pending" })
+          .eq("id", subscription.id);
+
+        if (fallbackError) throw fallbackError;
+      }
 
       await fetchSubscription();
       return true;
@@ -275,12 +305,19 @@ export const useSubscription = (): UseSubscriptionReturn => {
     if (!subscription || !isPaused) return false;
 
     try {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ status: "active" })
-        .eq("id", subscription.id);
+      const { error } = await (supabase as Database).rpc("resume_subscription", {
+        p_subscription_id: subscription.id,
+      }) as { data: boolean; error: Error | null };
 
-      if (error) throw error;
+      if (error) {
+        console.warn("resume_subscription RPC not available, falling back to direct update:", error);
+        const { error: fallbackError } = await supabase
+          .from("subscriptions")
+          .update({ status: "active" })
+          .eq("id", subscription.id);
+
+        if (fallbackError) throw fallbackError;
+      }
 
       await fetchSubscription();
       return true;
@@ -290,8 +327,17 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
   };
 
+  const stableSubscription = useMemo(() => subscription, [
+    subscription?.id,
+    subscription?.status,
+    subscription?.meals_used_this_month,
+    subscription?.meals_used_this_week,
+    subscription?.snacks_used_this_month,
+    subscription?.active,
+  ]);
+
   return {
-    subscription,
+    subscription: stableSubscription,
     loading,
     hasActiveSubscription,
     isPaused,

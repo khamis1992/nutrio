@@ -1,0 +1,194 @@
+{
+  "desktop": {
+    "load_time_seconds": 4.7,
+    "current_url": "http://localhost:5173/nutrio/auth",
+    "body_text_preview": "Eat Smart,\nLive Better\n\nTrack, eat, and live smarter every day.\n\nCreate Free Account\nSign In\n\nPrivacy Policy\u2022Terms & Conditions",
+    "interactive_elements_count": {
+      "buttons": 2,
+      "links": 2,
+      "inputs": 0
+    },
+    "interactive_elements": {
+      "buttons": [
+        {
+          "text": "Create Free Account",
+          "aria_label": "",
+          "disabled": false,
+          "visible": true
+        },
+        {
+          "text": "Sign In",
+          "aria_label": "",
+          "disabled": false,
+          "visible": true
+        }
+      ],
+      "links": [
+        {
+          "text": "Privacy Policy",
+          "href": "/nutrio/privacy",
+          "visible": true
+        },
+        {
+          "text": "Terms & Conditions",
+          "href": "/nutrio/terms",
+          "visible": true
+        }
+      ],
+      "inputs": []
+    },
+    "loading_indicators_count": 0,
+    "error_elements_count": 0,
+    "performance_metrics": {
+      "hasNavigation": true,
+      "dns": 0,
+      "tcp": 6.600000000093132,
+      "ttfb": 4.400000000372529,
+      "download": 0.6999999997206032,
+      "domInteractive": 35.299999999813735,
+      "domComplete": 3669.2999999998137,
+      "loadEvent": 3669.2999999998137,
+      "transferSize": 2990,
+      "encodedBodySize": 2690
+    },
+    "resource_counts": {
+      "document": 1,
+      "script": 87,
+      "stylesheet": 1,
+      "image": 2,
+      "font": 1
+    },
+    "api_calls_count": 2,
+    "api_responses": [
+      {
+        "url": "http://localhost:5173/nutrio/src/integrations/supabase/client.ts?t=1776276291918",
+        "status": 200,
+        "status_text": "OK"
+      },
+      {
+        "url": "http://localhost:5173/nutrio/node_modules/.vite/deps/@supabase_supabase-js.js?v=f1d83f75",
+        "status": 200,
+        "status_text": "OK"
+      }
+    ],
+    "failed_requests": [
+      {
+        "url": "http://localhost:5173/logo.png",
+        "status": 404,
+        "status_text": "Not Found"
+      },
+      {
+        "url": "http://localhost:5173/logo.png",
+        "status": 404,
+        "status_text": "Not Found"
+      }
+    ],
+    "console_errors_count": 5,
+    "console_errors": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      },
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      }
+    ],
+    "console_logs_sample": [
+      {
+        "type": "log",
+        "text": "Sentry disabled in development"
+      },
+      {
+        "type": "log",
+        "text": "PostHog disabled in development"
+      },
+      {
+        "type": "log",
+        "text": "PostHog disabled in development"
+      }
+    ],
+    "local_storage_keys": [],
+    "local_storage": {},
+    "session_storage": {},
+    "network_requests_total": 92
+  },
+  "mobile_iphone14": {
+    "load_time_seconds": 1.83,
+    "body_text_preview": "Eat Smart,\nLive Better\n\nTrack, eat, and live smarter every day.\n\nCreate Free Account\nSign In\n\nPrivacy Policy\u2022Terms & Conditions",
+    "links_count": 2,
+    "buttons_count": 2,
+    "overflow_elements": [
+      {
+        "tag": "DIV",
+        "class": "",
+        "right": 471.4825439453125,
+        "width": 239.3626708984375
+      }
+    ],
+    "viewport_width": 393
+  },
+  "ipad": {
+    "viewport": "1024x1366"
+  },
+  "android": {
+    "viewport": "360x800",
+    "overflow_issues": [
+      {
+        "tag": "DIV",
+        "class": ""
+      }
+    ]
+  },
+  "small_device": {
+    "viewport": "320x568"
+  },
+  "landscape": {
+    "viewport": "852x393"
+  },
+  "security": {
+    "admin_redirect": "http://localhost:5173/nutrio/auth",
+    "driver_redirect": "http://localhost:5173/nutrio/auth",
+    "partner_redirect": "http://localhost:5173/nutrio/auth",
+    "wallet_redirect": "http://localhost:5173/nutrio/auth"
+  },
+  "xss_check": {
+    "inlineScripts": true,
+    "javascriptUrls": false,
+    "cspPresent": false,
+    "cspContent": null
+  },
+  "accessibility": {
+    "imgNoAlt": 0,
+    "imgEmptyAlt": 0,
+    "buttonsNoLabel": 0,
+    "linksNoText": 0,
+    "focusableCount": 5,
+    "noFocusIndicatorCount": 5,
+    "headingLevels": [
+      1
+    ],
+    "headingSkips": false,
+    "headingsCount": 1,
+    "hasLangAttribute": true
+  },
+  "memory": {
+    "jsHeapSizeLimit": 3760000000,
+    "totalJSHeapSize": 27600000,
+    "usedJSHeapSize": 26000000,
+    "resourceCount": 90,
+    "longTasks": 0
+  }
+}

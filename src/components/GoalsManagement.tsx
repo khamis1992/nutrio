@@ -710,7 +710,21 @@ export const GoalsManagement = () => {
       )}
 
       {/* Create New Goal Button */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        setShowCreateDialog(open);
+        if (!open) {
+          setFormData({
+            goal_type: "general_health",
+            target_weight_kg: "",
+            target_date: "",
+            daily_calorie_target: 2000,
+            protein_target_g: 120,
+            carbs_target_g: 250,
+            fat_target_g: 65,
+            fiber_target_g: 30,
+          });
+        }
+      }}>
         <DialogTrigger asChild>
           <Button className="w-full h-12 text-base font-medium" size="lg">
             <Plus className="w-5 h-5 mr-2" />

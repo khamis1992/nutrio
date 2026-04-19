@@ -533,7 +533,11 @@ const PartnerOrders = () => {
   );
   
   const completedOrders = orders.filter((o) => 
-    o.order_status === "completed" || o.order_status === "cancelled"
+    o.order_status === "completed"
+  );
+
+  const cancelledOrders = orders.filter((o) =>
+    o.order_status === "cancelled"
   );
 
   if (loading) {
@@ -801,7 +805,7 @@ const PartnerOrders = () => {
       }
     >
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 w-full mb-6">
+        <TabsList className="grid grid-cols-3 w-full mb-6">
           <TabsTrigger value="active" className="relative">
             Active Orders
             {activeOrders.length > 0 && (
@@ -811,6 +815,14 @@ const PartnerOrders = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="cancelled">
+            Cancelled
+            {cancelledOrders.length > 0 && (
+              <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {cancelledOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -819,6 +831,10 @@ const PartnerOrders = () => {
 
         <TabsContent value="completed" className="space-y-4">
           {renderOrders(completedOrders)}
+        </TabsContent>
+
+        <TabsContent value="cancelled" className="space-y-4">
+          {renderOrders(cancelledOrders)}
         </TabsContent>
       </Tabs>
     </PartnerLayout>

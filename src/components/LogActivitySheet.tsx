@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isNative } from "@/lib/capacitor";
 
@@ -79,7 +79,6 @@ function calcCalories(met: number, weightKg: number, durationMinutes: number): n
 export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActivitySheetProps) {
   const { user } = useAuth();
   const { profile } = useProfile();
-  const { toast } = useToast();
   const { t, isRTL } = useLanguage();
   const activityName = (a: Activity) => isRTL ? a.nameAr : a.name;
 
@@ -183,11 +182,11 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
       });
       if (error) throw error;
 
-      toast({ title: t("log_activity_success_title"), description: t("log_activity_success_desc").replace("{name}", selected.name).replace("{cal}", String(cal)) });
+      toast.success(t("log_activity_success_title"), { description: t("log_activity_success_desc").replace("{name}", selected.name).replace("{cal}", String(cal)) });
       setView("list");
       await loadSessions();
     } catch {
-      toast({ title: t("log_activity_failed_title"), description: t("log_activity_failed_desc"), variant: "destructive" });
+      toast.error(t("log_activity_failed_title"), { description: t("log_activity_failed_desc") });
     } finally {
       setSaving(false);
     }
@@ -251,7 +250,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                       <button
                         onClick={() => {
                           if (isNative) {
-                            toast({ title: "Google Fit is not available on the mobile app. Please connect via the web browser." });
+                            toast.info("Google Fit is not available on the mobile app. Please connect via the web browser.");
                             return;
                           }
                           const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;

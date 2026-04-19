@@ -120,11 +120,12 @@ class TrackingSocketService {
         console.log('[TrackingSocket] Subscribed to city:', (data as { cityId: string }).cityId);
         break;
 
-      case 'error':
+      case 'error': {
         const errorData = data as { message: string };
         console.error('[TrackingSocket] Server error:', errorData);
         this.config?.onError?.(new Error(errorData.message || 'Unknown error'));
         break;
+      }
 
       default:
         console.log('[TrackingSocket] Unknown event:', event);

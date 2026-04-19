@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio Co-Founder Proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1a1a1a;
+            --color-secondary: #4a4a4a;
+            --color-accent: #c9a227;
+            --color-accent-light: #e8d48a;
+            --color-bg: #f8f7f4;
+            --color-surface: #ffffff;
+            --color-border: #e5e5e5;
+            --color-muted: #8a8a8a;
+            --color-success: #2e7d32;
+            --color-warning: #ed6c02;
+            --color-danger: #d32f2f;
+            --color-info: #0288d1;
+            
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Source Sans 3', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --spacing-3xl: 64px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 20mm; }
+        body { font-family: var(--font-body); font-size: 10pt; line-height: 1.7; color: var(--color-primary); background: var(--color-bg); }
+        .page { width: 210mm; min-height: 297mm; background: var(--color-surface); margin: 0 auto 20px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .page:last-child { margin-bottom: 0; }
+        .page-break { page-break-after: always; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: var(--spacing-xl); border-bottom: 3px solid var(--color-primary); margin-bottom: var(--spacing-2xl); }
+        .header-left h1 { font-family: var(--font-display); font-size: 24pt; font-weight: 700; color: var(--color-primary); margin-bottom: var(--spacing-xs); }
+        .header-left .subtitle { font-size: 10pt; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 0.02em; }
+        .header-right { text-align: right; }
+        .logo { font-family: var(--font-display); font-size: 20pt; font-weight: 700; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .date { font-size: 9pt; color: var(--color-muted); font-family: var(--font-mono); }
+
+        .section { margin-bottom: var(--spacing-2xl); break-inside: avoid; }
+        .section-title { font-family: var(--font-display); font-size: 13pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-lg); display: flex; align-items: center; gap: var(--spacing-md); }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+        .section-number { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); font-weight: 600; background: var(--color-accent-light); padding: 2px 8px; border-radius: 2px; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-xl); }
+        .metric-card { background: var(--color-bg); padding: var(--spacing-lg); border-left: 3px solid var(--color-accent); }
+        .metric-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-muted); margin-bottom: var(--spacing-xs); }
+        .metric-value { font-family: var(--font-display); font-size: 18pt; font-weight: 600; color: var(--color-primary); }
+        .metric-sub { font-size: 8pt; color: var(--color-secondary); margin-top: var(--spacing-xs); }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); }
+        .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg); }
+        .four-col { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); }
+
+        .content-block { margin-bottom: var(--spacing-lg); }
+        .content-block h3 { font-family: var(--font-display); font-size: 11pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-xs); }
+        .content-block p { font-size: 9.5pt; color: var(--color-secondary); margin-bottom: var(--spacing-sm); }
+        ul { list-style: none; padding: 0; }
+        ul li { position: relative; padding-left: var(--spacing-lg); margin-bottom: var(--spacing-sm); font-size: 9.5pt; color: var(--color-secondary); }
+        ul li::before { content: '→'; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: var(--spacing-lg); font-size: 9pt; }
+        th { text-align: left; padding: var(--spacing-sm) var(--spacing-md); background: var(--color-primary); color: var(--color-surface); font-weight: 500; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; }
+        th:first-child { border-radius: 4px 0 0 0; }
+        th:last-child { border-radius: 0 4px 0 0; }
+        td { padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); color: var(--color-secondary); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) { background: var(--color-bg); }
+
+        .tag { display: inline-block; padding: 2px 6px; font-size: 7pt; font-weight: 500; text-transform: uppercase; border-radius: 2px; margin: 2px; }
+        .tag-success { background: #e8f5e9; color: #2e7d32; }
+        .tag-warning { background: #fff3e0; color: #e65100; }
+        .tag-danger { background: #ffebee; color: #c62828; }
+        .tag-info { background: #e3f2fd; color: #1565c0; }
+
+        .timeline { position: relative; padding-left: var(--spacing-xl); }
+        .timeline::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 1px; background: var(--color-border); }
+        .timeline-item { position: relative; margin-bottom: var(--spacing-lg); }
+        .timeline-item::before { content: ''; position: absolute; left: -20px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); border: 2px solid var(--color-surface); }
+        .timeline-item h4 { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .timeline-item p { font-size: 9pt; color: var(--color-secondary); }
+
+        .checklist { background: var(--color-bg); padding: var(--spacing-lg); border-radius: 4px; border: 1px solid var(--color-border); }
+        .checklist h3 { font-family: var(--font-display); font-size: 10pt; font-weight: 600; margin-bottom: var(--spacing-md); }
+        .checklist-item { display: flex; align-items: flex-start; gap: var(--spacing-md); margin-bottom: var(--spacing-sm); font-size: 9pt; color: var(--color-secondary); }
+        .checkbox { width: 14px; height: 14px; border: 1px solid var(--color-border); border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+
+        .quote { border-left: 3px solid var(--color-accent); padding-left: var(--spacing-lg); margin: var(--spacing-lg) 0; background: var(--color-bg); padding: var(--spacing-md) var(--spacing-lg); }
+        .quote p { font-family: var(--font-display); font-size: 10pt; font-style: italic; color: var(--color-primary); line-height: 1.6; }
+        .quote cite { display: block; margin-top: var(--spacing-sm); font-size: 8pt; color: var(--color-muted); font-style: normal; }
+
+        .alert { padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-lg); border-left: 4px solid; }
+        .alert-success { background: #e8f5e9; border-color: var(--color-success); }
+        .alert-warning { background: #fff8e1; border-color: var(--color-warning); }
+
+        .formula { font-family: var(--font-mono); font-size: 10pt; background: var(--color-primary); color: white; padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0; text-align: center; }
+
+        .highlight-box { background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: var(--spacing-lg); border-radius: 8px; margin: var(--spacing-lg) 0; border: 1px solid var(--color-accent); }
+        .highlight-box h3 { font-family: var(--font-display); font-size: 11pt; margin-bottom: var(--spacing-sm); }
+
+        .footer { margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; }
+        .footer-left { font-size: 8pt; color: var(--color-muted); }
+        .footer-right { font-family: var(--font-mono); font-size: 8pt; color: var(--color-muted); }
+
+        @media print { body { background: white; } .page { box-shadow: none; margin: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- PAGE 1: Cover -->
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Co-Founder Proposal</h1>
+                <p class="subtitle">Nutrio Fuel - Join Our Vision</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">March 2026</div>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">01</span> Executive Summary</h2>
+            <div class="two-col">
+                <div class="content-block">
+                    <h3>What We Have</h3>
+                    <ul>
+                        <li><strong>Production Platform</strong> - 5 portals (Customer, Partner, Admin, Driver, Fleet)</li>
+                        <li><strong>Complete Tech Stack</strong> - React/TypeScript, Supabase, Capacitor</li>
+                        <li><strong>100+ Migrations</strong> - Production-ready infrastructure</li>
+                        <li><strong>39 Edge Functions</strong> - Automated workflows, AI-ready</li>
+                        <li><strong>E2E Testing</strong> - Comprehensive test coverage</li>
+                    </ul>
+                </div>
+                <div class="content-block">
+                    <h3>Team Structure</h3>
+                    <ul>
+                        <li><strong>CTO (Technical Co-Founder)</strong> - Full-stack engineering, architecture</li>
+                        <li><strong>CMO (Business Co-Founder)</strong> - Marketing, sales, partnerships</li>
+                        <li><strong>CEO (You)</strong> - Strategy, operations, growth</li>
+                    </ul>
+                    <p class="highlight-box" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); margin: var(--spacing-lg) 0; border: 1px solid var(--color-info);">
+                        <strong>Note:</strong> Equity split will be negotiated based on contributions, timing, and expertise. You are comfortable taking CTO initially but would prefer a developer to share the technical load.
+                    </p>
+                </div>
+            </div>
+            <div class="highlight-box" style="margin-top: var(--spacing-lg);">
+                <h3>🔥 Key Metrics</h3>
+                <table>
+                    <thead>
+                        <tr><th>Metric</th><th>Value</th><th>What It Means</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Day 90 Subscribers</td><td>100</td><td>Paying customers</td></tr>
+                        <tr><td>Day 90 Restaurants</td><td>50</td><td>Partner restaurants</td></tr>
+                        <tr><td>Day 90 Revenue</td><td>280K QAR</td><td>Monthly revenue</td></tr>
+                        <tr class="highlight-row"><td>Day 90 Profit</td><td>100K QAR</td><td>Monthly profit</td></tr>
+                        <tr><td><strong>LTV</strong> (Lifetime Value)</td><td>8,400 QAR</td><td>Total money a customer spends with us over their entire relationship (average customer stays 12 months × 700 QAR/month)</td></tr>
+                        <tr><td><strong>CAC</strong> (Customer Acquisition Cost)</td><td>150 QAR</td><td>How much we spend to get ONE new customer (marketing, sales, referral rewards)</td></tr>
+                        <tr class="highlight-row"><td><strong>LTV:CAC Ratio</strong></td><td>56:1</td><td>For every 1 QAR we spend to get a customer, we earn 56 QAR back! (Industry standard is 3:1 — we are 18× better!)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-left">Nutrio Co-Founder Proposal · March 2026</div>
+            <div class="footer-right">Page 1 of 10</div>
+        </footer>
+    </div>

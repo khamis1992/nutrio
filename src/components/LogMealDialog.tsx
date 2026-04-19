@@ -3,16 +3,19 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Camera, CameraSource, CameraResultType } from "@capacitor/camera";
 import { isNative } from "@/lib/capacitor";
 import {
   Loader2, Search, Plus, Check, ChevronRight,
-  X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2, Barcode,
+  X, Zap, Pencil, ScanLine, Flame, Wheat, Droplets, Beef, Trash2, Barcode, Minus,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
+import { trackEvent, AnalyticsEvents } from "@/lib/analytics";
+import { getQatarNow } from "@/lib/dateUtils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface FoodItem {
@@ -24,6 +27,7 @@ interface FoodItem {
   fat_g: number;
   source: "meal" | "history";
   scheduleId?: string;
+  scheduledDate?: string;
   image_url?: string;
   logged_at?: string;
 }
@@ -33,6 +37,68 @@ interface SelectedItem extends FoodItem {
 }
 
 type Tab = "Recent" | "Scan";
+
+interface MealScheduleRow {
+  id: string;
+  meal_type: string;
+  scheduled_date: string;
+  meals: {
+    id: string;
+    name: string;
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    image_url: string | null;
+  } | null;
+}
+
+interface DeleteMealEntryResult {
+  success: boolean;
+  xp_deducted?: number;
+  audit_id?: string;
+  meal_deleted?: string;
+}
+
+interface CompleteMealAtomicResult {
+  success: boolean;
+  schedule_id?: string;
+  is_completed?: boolean;
+  was_already_completed?: boolean;
+  nutrition_added?: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  message?: string;
+  error?: string;
+  code?: string;
+}
+
+interface AwardXpResult {
+  success: boolean;
+  xp_awarded: number;
+  new_total: number;
+}
+
+interface IncrementMealsLoggedResult {
+  success: boolean;
+  meals_logged: number;
+}
+
+interface AnalyzedMealItem {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+interface AnalyzeMealImageResponse {
+  success?: boolean;
+  detectedItems?: AnalyzedMealItem[];
+}
 
 function formatRecency(loggedAt: string | undefined): string {
   if (!loggedAt) return "";
@@ -63,7 +129,6 @@ interface LogMealDialogProps {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogMealDialogProps) {
-  const { toast } = useToast();
   const { t } = useLanguage();
 
   const [tab, setTab] = useState<Tab>("Recent");
@@ -91,29 +156,18 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState<FoodItem[]>([]);
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
+  const [scanQuantities, setScanQuantities] = useState<Map<string, number>>(new Map());
 
   // Barcode scanner
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<ScannedProduct | null>(null);
 
-
-  // ── Reset on open ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (open) {
-      setView("main");
-      setSearchQuery("");
-      setSearchResults([]);
-      setSelected(new Map());
-      setTab("Recent");
-      setScanResults([]);
-      setScanPreviewUrl(null);
-      loadRecent();
-      loadScheduled();
-    }
-  }, [open, userId]);
+  // Delete confirmation dialog
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<FoodItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // ── Load recent meals ──────────────────────────────────────────────────────
-  const loadRecent = async () => {
+  const loadRecent = useCallback(async () => {
     if (!userId) return;
     setLoadingRecent(true);
     try {
@@ -132,10 +186,10 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     } finally {
       setLoadingRecent(false);
     }
-  };
+  }, [userId]);
 
   // ── Load today's scheduled meals ───────────────────────────────────────────
-  const loadScheduled = async () => {
+  const loadScheduled = useCallback(async () => {
     if (!userId) return;
     setLoadingScheduled(true);
     const now = new Date();
@@ -151,33 +205,99 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
       setScheduledItems(
         (data || [])
-          .filter((s: any) => s.meals)
-          .map((s: any) => ({
-            id: s.meals.id,
-            name: s.meals.name,
-            calories: s.meals.calories,
-            protein_g: s.meals.protein_g,
-            carbs_g: s.meals.carbs_g,
-            fat_g: s.meals.fat_g,
-            image_url: s.meals.image_url ?? undefined,
+          .filter((s: MealScheduleRow) => s.meals !== null)
+          .map((s: MealScheduleRow) => ({
+            id: s.meals!.id,
+            name: s.meals!.name,
+            calories: s.meals!.calories,
+            protein_g: s.meals!.protein_g,
+            carbs_g: s.meals!.carbs_g,
+            fat_g: s.meals!.fat_g,
+            image_url: s.meals!.image_url ?? undefined,
             source: "meal" as const,
             scheduleId: s.id,
+            scheduledDate: s.scheduled_date,
           }))
       );
     } finally {
       setLoadingScheduled(false);
     }
-  };
+  }, [userId]);
+
+  // ── Reset on open ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (open) {
+      setView("main");
+      setSearchQuery("");
+      setSearchResults([]);
+      setSelected(new Map());
+      setTab("Recent");
+      setScanResults([]);
+      setScanPreviewUrl(null);
+      loadRecent();
+      loadScheduled();
+    }
+  }, [open, userId, loadRecent, loadScheduled]);
 
   // ── Delete from recent history ────────────────────────────────────────────
-  const deleteRecentItem = async (item: FoodItem) => {
-    // Optimistically remove from UI
-    setRecentItems((prev) => prev.filter((r) => r.id !== item.id));
-    // Also remove from selection if selected
-    setSelected((prev) => { const next = new Map(prev); next.delete(item.id); return next; });
-    // Delete from DB (history entries use uuid id)
-    if (item.source === "history") {
-      await supabase.from("meal_history").delete().eq("id", item.id);
+  const handleDeleteItem = async (item: FoodItem) => {
+    if (item.source !== "history") return;
+    
+    setDeleting(true);
+    try {
+      const now = new Date();
+
+      // Use atomic delete_meal_entry_atomic which handles all steps in one transaction:
+      // 1. Subtract from progress_logs
+      // 2. Uncomplete scheduled meal (using original scheduled_date)
+      // 3. Deduct XP
+      // 4. Decrement meals logged counter
+      // 5. Audit log the deletion
+      // 6. Delete from meal_history
+      const { data, error } = await supabase.rpc('delete_meal_entry_atomic', {
+        p_user_id: userId,
+        p_meal_history_id: item.id,
+        p_meal_name: item.name,
+        p_calories: item.calories,
+        p_protein_g: item.protein_g,
+        p_carbs_g: item.carbs_g,
+        p_fat_g: item.fat_g,
+        p_logged_at: item.logged_at || now.toISOString(),
+        p_schedule_id: item.scheduleId || null,
+        p_scheduled_date: item.scheduledDate || null,
+        p_xp_amount: 10,
+      });
+
+      if (error) throw error;
+
+      const result = data as DeleteMealEntryResult;
+      if (!result.success) {
+        throw new Error("Failed to delete meal entry");
+      }
+
+      // Update UI
+      setRecentItems((prev) => prev.filter((r) => r.id !== item.id));
+      setSelected((prev) => { const next = new Map(prev); next.delete(item.id); return next; });
+
+      // Track analytics
+      trackEvent("meal_deleted", {
+        meal_name: item.name,
+        calories: item.calories,
+        was_scheduled: !!item.scheduleId,
+        xp_deducted: result.xp_deducted || 0,
+      });
+
+      // Notify parent to refresh
+      onMealLogged();
+
+      toast.success(t("meal_deleted"), { description: t("meal_deleted_desc", { calories: item.calories }) });
+    } catch (error) {
+      console.error("Failed to delete meal:", error);
+      toast.error(t("failed_to_delete"));
+      loadRecent();
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmItem(null);
     }
   };
 
@@ -229,6 +349,29 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     });
   };
 
+  // ── Adjust scan item quantity ─────────────────────────────────────────────
+  const adjustScanQuantity = (itemId: string, delta: number) => {
+    setScanQuantities((prev) => {
+      const next = new Map(prev);
+      const current = next.get(itemId) || 1;
+      const newQty = Math.max(0.5, Math.min(10, current + delta));
+      next.set(itemId, newQty);
+      return next;
+    });
+    
+    // Also update the selected item quantity
+    setSelected((prev) => {
+      const next = new Map(prev);
+      const item = next.get(itemId);
+      if (item) {
+        const current = scanQuantities.get(itemId) || 1;
+        const newQty = Math.max(0.5, Math.min(10, current + delta));
+        next.set(itemId, { ...item, quantity: newQty });
+      }
+      return next;
+    });
+  };
+
   // ── Totals ─────────────────────────────────────────────────────────────────
   const totalCal = Array.from(selected.values()).reduce((s, i) => s + i.calories * i.quantity, 0);
   const totalProtein = Array.from(selected.values()).reduce((s, i) => s + i.protein_g * i.quantity, 0);
@@ -239,8 +382,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const logMeal = async (
     name: string, calories: number, protein: number, carbs: number, fat: number, saveToHistory = true
   ) => {
-    // Use local date (not UTC) to match how fetchTodayProgress reads it in Dashboard
-    const now = new Date();
+    const now = getQatarNow();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { data: existing } = await supabase
       .from("progress_logs")
@@ -272,6 +414,26 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         name: name || `Meal (${calories} cal)`,
         calories, protein_g: protein, carbs_g: carbs, fat_g: fat,
       });
+
+      // Award XP for logging a meal
+      try {
+        await supabase.rpc('award_xp_for_meal_log', {
+          p_user_id: userId,
+          p_xp_amount: 10,
+        });
+        trackEvent("xp_earned", { amount: 10, source: "meal_log" });
+      } catch (xpError) {
+        console.warn("Failed to award XP:", xpError);
+      }
+
+      // Increment meals logged counter
+      try {
+        await supabase.rpc('increment_meals_logged', {
+          p_user_id: userId,
+        });
+      } catch (counterError) {
+        console.warn("Failed to increment meals logged:", counterError);
+      }
     }
   };
 
@@ -280,38 +442,70 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
     if (selected.size === 0) return;
     setLogging(true);
     try {
-      const scheduleIdsToComplete: string[] = [];
+      const scheduleItemsToComplete: { scheduleId: string; calories: number; protein_g: number; carbs_g: number; fat_g: number }[] = [];
+      const loggedItems: { name: string; calories: number; quantity: number }[] = [];
 
       for (const item of selected.values()) {
-        await logMeal(
-          item.name,
-          Math.round(item.calories * item.quantity),
-          Math.round(item.protein_g * item.quantity),
-          Math.round(item.carbs_g * item.quantity),
-          Math.round(item.fat_g * item.quantity),
-          item.source === "meal",
-        );
-        if (item.scheduleId) scheduleIdsToComplete.push(item.scheduleId);
+        if (item.scheduleId) {
+          // Scheduled meals: collect for complete_meal_atomic (which handles progress_logs update)
+          scheduleItemsToComplete.push({
+            scheduleId: item.scheduleId,
+            calories: Math.round(item.calories * item.quantity),
+            protein_g: Math.round(item.protein_g * item.quantity),
+            carbs_g: Math.round(item.carbs_g * item.quantity),
+            fat_g: Math.round(item.fat_g * item.quantity),
+          });
+          loggedItems.push({ name: item.name, calories: Math.round(item.calories * item.quantity), quantity: item.quantity });
+        } else {
+          // Non-scheduled meals: call logMeal which updates progress_logs and meal_history
+          await logMeal(
+            item.name,
+            Math.round(item.calories * item.quantity),
+            Math.round(item.protein_g * item.quantity),
+            Math.round(item.carbs_g * item.quantity),
+            Math.round(item.fat_g * item.quantity),
+            true,
+          );
+          loggedItems.push({ name: item.name, calories: Math.round(item.calories * item.quantity), quantity: item.quantity });
+        }
       }
 
-      // Mark scheduled meals as completed so they disappear from the list
-      if (scheduleIdsToComplete.length > 0) {
-        await supabase
-          .from("meal_schedules")
-          .update({ is_completed: true, completed_at: new Date().toISOString() })
-          .in("id", scheduleIdsToComplete);
+      // Mark scheduled meals as completed atomically with nutrition data
+      if (scheduleItemsToComplete.length > 0) {
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        for (const schedule of scheduleItemsToComplete) {
+          await supabase.rpc('complete_meal_atomic', {
+            p_schedule_id: schedule.scheduleId,
+            p_user_id: userId,
+            p_log_date: today,
+            p_calories: schedule.calories,
+            p_protein_g: schedule.protein_g,
+            p_carbs_g: schedule.carbs_g,
+            p_fat_g: schedule.fat_g,
+            p_fiber_g: 0,
+          });
+        }
 
         // Remove them from local state immediately
         setScheduledItems((prev) =>
-          prev.filter((s) => !scheduleIdsToComplete.includes(s.scheduleId ?? ""))
+          prev.filter((s) => !scheduleItemsToComplete.some((sc) => sc.scheduleId === s.scheduleId))
         );
       }
 
-      toast({ title: "Meal logged!", description: `Added ${Math.round(totalCal)} cal to today.` });
+      // Track analytics
+      trackEvent("meals_logged", {
+        item_count: loggedItems.length,
+        total_calories: Math.round(totalCal),
+        items: loggedItems,
+        source: "gallery_upload",
+      });
+
+      toast.success(t("meal_logged") || "Meal logged!", { description: `${Math.round(totalCal)} cal added to today.` });
       onMealLogged();
       onOpenChange(false);
     } catch {
-      toast({ title: "Error", description: "Failed to log meal.", variant: "destructive" });
+      toast.error("Error", { description: "Failed to log meal." });
     } finally {
       setLogging(false);
     }
@@ -321,7 +515,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const handleQuickLog = async () => {
     const cal = parseInt(quickEntry.calories) || 0;
     if (cal === 0) {
-      toast({ title: "Enter calories", description: "At least calories are required.", variant: "destructive" });
+      toast.error("Enter calories", { description: "At least calories are required." });
       return;
     }
     setLogging(true);
@@ -333,11 +527,11 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         parseInt(quickEntry.carbs) || 0,
         parseInt(quickEntry.fat) || 0,
       );
-      toast({ title: "Logged!", description: `Added ${cal} cal to today.` });
+      toast.success("Logged!", { description: `Added ${cal} cal to today.` });
       onMealLogged();
       onOpenChange(false);
     } catch {
-      toast({ title: "Error", description: "Failed to log.", variant: "destructive" });
+      toast.error("Error", { description: "Failed to log." });
     } finally {
       setLogging(false);
     }
@@ -358,7 +552,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       });
       if (error) throw error;
       if (data?.success && data?.detectedItems?.length > 0) {
-        const items: FoodItem[] = data.detectedItems.map((item: any, i: number) => ({
+        const items: FoodItem[] = (data as AnalyzeMealImageResponse).detectedItems!.map((item: AnalyzedMealItem, i: number) => ({
           id: `scan-${Date.now()}-${i}`,
           name: item.name,
           calories: item.calories,
@@ -368,14 +562,20 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
           source: "meal" as const,
         }));
         setScanResults(items);
+        
+        // Initialize quantities for each item
+        const newQuantities = new Map<string, number>();
+        items.forEach((item) => newQuantities.set(item.id, 1));
+        setScanQuantities(newQuantities);
+        
         const newSelected = new Map(selected);
         items.forEach((item) => newSelected.set(item.id, { ...item, quantity: 1 }));
         setSelected(newSelected);
       } else {
-        toast({ title: "Nothing detected", description: "Try a clearer photo or log manually.", variant: "destructive" });
+        toast.error("Nothing detected", { description: "Try a clearer photo or log manually." });
       }
     } catch {
-      toast({ title: "Scan failed", description: "Try again or enter manually.", variant: "destructive" });
+      toast.error("Scan failed", { description: "Try again or enter manually." });
     } finally {
       setScanning(false);
     }
@@ -383,6 +583,18 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
 
   // ── Barcode scan ─ receives ScannedProduct directly from BarcodeScanner ─────
   const handleBarcodeScanned = (product: ScannedProduct) => {
+    // Check for duplicate barcode in recent items (within last hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const isDuplicate = recentItems.some(
+      (item) => item.name === product.name && 
+               item.logged_at && 
+               new Date(item.logged_at) > new Date(oneHourAgo)
+    );
+
+    if (isDuplicate) {
+      toast.warning("Already logged recently", { description: `"${product.name}" was logged within the last hour. Adding anyway.` });
+    }
+
     const item: FoodItem = {
       id: `barcode-${product.barcode}-${Date.now()}`,
       name: product.name,
@@ -391,6 +603,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       carbs_g: product.carbs,
       fat_g: product.fat,
       source: "meal",
+      logged_at: new Date().toISOString(),
     };
     
     setScanResults([item]);
@@ -403,7 +616,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       return next;
     });
     
-    toast({ title: "Product found!", description: item.name });
+    toast.success("Product found!", { description: item.name });
   };
 
   const handleTakePhoto = async () => {
@@ -412,11 +625,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         // Request camera permission explicitly before opening camera
         const perms = await Camera.requestPermissions({ permissions: ["camera"] });
         if (perms.camera === "denied") {
-          toast({
-            title: "Camera permission required",
-            description: "Please allow camera access in your device settings.",
-            variant: "destructive",
-          });
+          toast.error("Camera permission required", { description: "Please allow camera access in your device settings." });
           return;
         }
         const photo = await Camera.getPhoto({
@@ -429,11 +638,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         const msg = err instanceof Error ? err.message : "";
         // Ignore user-cancelled errors
         if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("dismiss")) {
-          toast({
-            title: "Camera unavailable",
-            description: "Could not open camera. Please try again.",
-            variant: "destructive",
-          });
+          toast.error("Camera unavailable", { description: "Could not open camera. Please try again." });
         }
       }
     } else {
@@ -453,11 +658,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "";
         if (!msg.toLowerCase().includes("cancel") && !msg.toLowerCase().includes("dismiss")) {
-          toast({
-            title: "Gallery unavailable",
-            description: "Could not open photo library. Please try again.",
-            variant: "destructive",
-          });
+          toast.error("Gallery unavailable", { description: "Could not open photo library. Please try again." });
         }
       }
     } else {
@@ -488,8 +689,9 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   const gramsDisplay = (item: FoodItem) =>
     Math.round(item.protein_g + item.carbs_g + item.fat_g);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // --------------------------------------------------------------------------
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
@@ -515,8 +717,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
               </div>
 
               {/* Camera inputs */}
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanImage} />
-              <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleScanImage} />
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanImage} aria-label="Take food photo with camera" />
+              <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleScanImage} aria-label="Upload food photo from gallery" />
 
               {/* Search */}
               <div className="px-5 pb-2">
@@ -597,10 +799,14 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                         </p>
                         <button
                           onClick={() => {
-                            // Remove previously scanned items from selection
+                            // Remove all scanned items from selection (they all have barcode- prefix)
                             setSelected((prev) => {
                               const next = new Map(prev);
-                              scanResults.forEach((item) => next.delete(item.id));
+                              Array.from(next.entries()).forEach(([key]) => {
+                                if (key.startsWith("barcode-") || key.startsWith("scan-")) {
+                                  next.delete(key);
+                                }
+                              });
                               return next;
                             });
                             setScanResults([]);
@@ -613,6 +819,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                       </div>
                       {scanResults.map((item) => {
                         const isSelected = selected.has(item.id);
+                        const qty = scanQuantities.get(item.id) || 1;
+                        const adjustedCalories = Math.round(item.calories * qty);
                         return (
                           <div
                             key={item.id}
@@ -620,7 +828,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                               isSelected ? "border-primary/40 bg-primary/5" : "border-gray-200 bg-white"
                             }`}
                           >
-                            {/* Name + toggle */}
+                            {/* Name + toggle + quantity controls */}
                             <div className="flex items-center gap-3 mb-3">
                               <button
                                 onClick={() => toggleItem(item)}
@@ -633,15 +841,34 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                                   : <Plus className="w-3.5 h-3.5 text-gray-400" />}
                               </button>
                               <p className="font-bold text-gray-900 flex-1 text-sm">{item.name}</p>
-                              <span className="font-black text-primary text-base">{item.calories}</span>
+                              {isSelected && (
+                                <div className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1">
+                                  <button
+                                    onClick={() => adjustScanQuantity(item.id, -0.5)}
+                                    className="w-6 h-6 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors"
+                                    disabled={qty <= 0.5}
+                                  >
+                                    <Minus className="w-3 h-3 text-gray-600" />
+                                  </button>
+                                  <span className="w-8 text-center text-sm font-bold text-gray-900">{qty}</span>
+                                  <button
+                                    onClick={() => adjustScanQuantity(item.id, 0.5)}
+                                    className="w-6 h-6 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors"
+                                    disabled={qty >= 10}
+                                  >
+                                    <Plus className="w-3 h-3 text-gray-600" />
+                                  </button>
+                                </div>
+                              )}
+                              <span className="font-black text-primary text-base">{adjustedCalories}</span>
                               <span className="text-xs text-gray-400">cal</span>
                             </div>
                             {/* Macro breakdown */}
                             <div className="grid grid-cols-3 gap-2">
                               {[
-                                { label: t("protein"), value: item.protein_g, color: "bg-blue-50 text-blue-600" },
-                                { label: t("carbs"), value: item.carbs_g, color: "bg-amber-50 text-amber-600" },
-                                { label: t("fat"), value: item.fat_g, color: "bg-red-50 text-red-500" },
+                                { label: t("protein"), value: item.protein_g * qty, color: "bg-blue-50 text-blue-600" },
+                                { label: t("carbs"), value: item.carbs_g * qty, color: "bg-amber-50 text-amber-600" },
+                                { label: t("fat"), value: item.fat_g * qty, color: "bg-red-50 text-red-500" },
                               ].map(({ label, value, color }) => (
                                 <div key={label} className={`rounded-xl px-3 py-2 text-center ${color}`}>
                                   <p className="font-bold text-sm">{Math.round(value)}g</p>
@@ -783,7 +1010,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           {isSelected && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
                           {isRecent ? (
                             <button
-                              onClick={(e) => { e.stopPropagation(); deleteRecentItem(item); }}
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmItem(item); }}
                               className="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
                               aria-label="Remove from history"
                             >
@@ -958,7 +1185,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 {item.source === "history" ? (
                   <Button
                     onClick={() => {
-                      deleteRecentItem(item);
+                      setDeleteConfirmItem(item);
                       setView("main");
                     }}
                     variant="destructive"
@@ -1086,5 +1313,42 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         />
       </SheetContent>
     </Sheet>
+
+    {/* ── DELETE CONFIRMATION DIALOG ── */}
+    <Dialog open={!!deleteConfirmItem} onOpenChange={() => setDeleteConfirmItem(null)}>
+      <DialogContent className="max-w-md rounded-2xl p-6">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-bold">{t("confirm_delete_meal")}</DialogTitle>
+          <DialogDescription className="text-sm text-gray-500 mt-2">
+            {deleteConfirmItem && (
+              <>
+                <span className="font-semibold text-gray-900">{deleteConfirmItem.name}</span>
+                <br />
+                {deleteConfirmItem.calories} cal
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4 gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setDeleteConfirmItem(null)}
+            className="flex-1 rounded-full"
+          >
+            {t("cancel")}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => deleteConfirmItem && handleDeleteItem(deleteConfirmItem)}
+            disabled={deleting}
+            className="flex-1 rounded-full"
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+            {t("delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

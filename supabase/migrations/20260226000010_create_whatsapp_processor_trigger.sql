@@ -23,7 +23,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON trigger_whatsapp_notification_processor() IS 
+COMMENT ON FUNCTION trigger_whatsapp_notification_processor() IS 
 'Marker function to indicate WhatsApp notifications need processing. 
 In production, set up a cron job to call the process-whatsapp-notifications edge function every minute.';
 

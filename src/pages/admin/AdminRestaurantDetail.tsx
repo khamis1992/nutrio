@@ -264,7 +264,7 @@ const restaurantSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
   description: z.string().max(500, "Description must be less than 500 characters").nullable(),
   email: z.string().email("Invalid email address").nullable().or(z.literal("")),
-  phone: z.string().regex(/^\+?[0-9\s\-\(\)]{8,20}$/, "Invalid phone number").nullable().or(z.literal("")),
+  phone: z.string().regex(/^\+?[0-9\s()-]{8,20}$/, "Invalid phone number").nullable().or(z.literal("")),
   website: z.string().url("Invalid URL").nullable().or(z.literal("")),
   address: z.string().max(300, "Address must be less than 300 characters").nullable().or(z.literal("")),
   cuisine_type: z.string().max(50, "Cuisine type must be less than 50 characters").nullable().or(z.literal("")),

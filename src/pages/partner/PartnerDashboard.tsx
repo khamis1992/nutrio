@@ -51,10 +51,10 @@ interface ScheduledMeal {
   delivery_time_slot: string | null;
   meal_type: string;
   is_completed: boolean;
+  order_status: string;
   created_at: string;
   meal: {
     name: string;
-    // price: REMOVED - Meals are included in subscription
   };
 }
 
@@ -93,12 +93,12 @@ const PartnerDashboard = () => {
     }
   }, [user]);
 
-  // Subscribe to real-time updates for meal schedules
+  // Subscribe to real-time updates for meal schedules (scoped to partner's meals)
   useEffect(() => {
     if (!restaurant) return;
 
     const channel = supabase
-      .channel("partner-dashboard-schedules")
+      .channel(`partner-dashboard-rt-${restaurant.id}`)
       .on(
         "postgres_changes",
         {
@@ -106,9 +106,11 @@ const PartnerDashboard = () => {
           schema: "public",
           table: "meal_schedules",
         },
-        () => {
-          // Refetch data when schedules change
-          fetchPartnerData();
+        (payload) => {
+          const newStatus = (payload.new as Record<string, any>)?.order_status;
+          if (payload.eventType === "INSERT" || newStatus !== "cancelled") {
+            fetchPartnerData();
+          }
         }
       )
       .subscribe();
@@ -179,12 +181,14 @@ const PartnerDashboard = () => {
           delivery_time_slot,
           meal_type,
           is_completed,
+          order_status,
           created_at,
           meals:meal_id (
             name
           )
         `)
         .in("meal_id", mealIds)
+        .neq("order_status", "cancelled")
         .order("scheduled_date", { ascending: true })
         .limit(10);
 
@@ -196,6 +200,7 @@ const PartnerDashboard = () => {
         delivery_time_slot: s.delivery_time_slot || null,
         meal_type: s.meal_type,
         is_completed: s.is_completed || false,
+        order_status: s.order_status || "pending",
         created_at: s.created_at,
         meal: s.meals,
       }));
@@ -207,7 +212,8 @@ const PartnerDashboard = () => {
       const { data: allSchedules } = await supabase
         .from("meal_schedules")
         .select("id, scheduled_date, is_completed, meal_id, order_status")
-        .in("meal_id", mealIds);
+        .in("meal_id", mealIds)
+        .neq("order_status", "cancelled");
 
       // Calculate stats
       const today = new Date();

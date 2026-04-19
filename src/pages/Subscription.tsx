@@ -202,20 +202,19 @@ const [activeTab, setActiveTab] = useState("overview");
   const [autoRenew, setAutoRenew] = useState(true);
   const [autoRenewLoading, setAutoRenewLoading] = useState(false);
 
-  // Sync with DB value when subscription data arrives
-  useState(() => {
+  useEffect(() => {
     if (subscription && (subscription as any).auto_renew !== undefined) {
       setAutoRenew((subscription as any).auto_renew);
     }
-  });
+  }, [subscription]);
 
   const handleToggleAutoRenew = async (value: boolean) => {
     if (!subscription?.id) return;
     setAutoRenewLoading(true);
-    const { error } = await supabase
-      .from("subscriptions")
-      .update({ auto_renew: value } as any)
-      .eq("id", subscription.id);
+    const { error } = await (supabase.rpc as any)("toggle_subscription_auto_renew", {
+      p_subscription_id: subscription.id,
+      p_auto_renew: value,
+    });
     if (error) {
       toast({ title: t("error"), description: t("auto_renewal_error"), variant: "destructive" });
     } else {
@@ -428,31 +427,33 @@ const [activeTab, setActiveTab] = useState("overview");
     setIsProcessing(true);
     
     if (subscription?.id) {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ 
-          status: "active",
-          active: true,
-        })
-        .eq("id", subscription.id);
-
-      if (error) {
-        console.error("Reactivate error:", error);
-        toast({
-          title: "Error",
-          description: `Failed to reactivate subscription: ${error.message}`,
-          variant: "destructive",
+      try {
+        const { data, error } = await (supabase.rpc as any)("reactivate_subscription", {
+          p_subscription_id: subscription.id,
         });
-      } else {
+
+        if (error) throw error;
+        const result = data as any;
+        if (!result?.success) {
+          throw new Error(result?.error || "Reactivation failed");
+        }
+
         toast({
           title: t("subscription_reactivated_toast"),
           description: "Your subscription has been successfully reactivated!",
         });
         await refetch();
+      } catch (err: any) {
+        console.error("Reactivate error:", err);
+        toast({
+          title: "Error",
+          description: `Failed to reactivate subscription: ${err.message}`,
+          variant: "destructive",
+        });
       }
     }
     
-setIsProcessing(false);
+    setIsProcessing(false);
   };
 
   // Calculate days remaining in cycle
@@ -1102,7 +1103,13 @@ setIsProcessing(false);
       {/* Change-plan dialog — kept as-is */}
       <Dialog open={showUpgradeDialog} onOpenChange={(open) => {
         setShowUpgradeDialog(open);
-        if (!open) { setPromoCode(""); setAppliedPromo(null); setPromoError(null); }
+        if (!open) {
+          setPromoCode("");
+          setAppliedPromo(null);
+          setPromoError(null);
+          setSelectedPlan(null);
+          setSelectedPaymentMethod("card");
+        }
       }}>
         <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>

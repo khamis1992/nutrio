@@ -103,8 +103,32 @@ export function SkipReasonModal({
     setIsSubmitting(true);
 
     try {
-      // Record skip reason
-      const { data, error } = await (supabase.rpc as any)("submit_skip_reason", {
+      // First, try to cancel the meal schedule (handles credit refund, addon refund, partner notification)
+      // This will only succeed for pending/confirmed orders - others will throw an error
+      const { data: cancelData, error: cancelError } = await supabase.rpc("cancel_meal_schedule", {
+        p_schedule_id: scheduleId,
+        p_reason: selectedReason || null,
+      });
+
+      if (cancelError) {
+        // If cancellation failed (e.g., order already preparing), show specific error
+        const errorMsg = cancelError.message || "";
+        if (errorMsg.includes("preparing") || errorMsg.includes("delivering") || errorMsg.includes("Cannot cancel")) {
+          toast.error("Cannot skip this meal", {
+            description: "This meal is already being prepared or delivered. Please contact support.",
+          });
+          return;
+        }
+        throw cancelError;
+      }
+
+      const cancelResult = cancelData as { success?: boolean; error?: string };
+      if (!cancelResult?.success) {
+        throw new Error(cancelResult?.error || "Failed to skip meal");
+      }
+
+      // Record skip reason for analytics (after successful cancellation)
+      await (supabase.rpc as any)("submit_skip_reason", {
         p_user_id: user.id,
         p_meal_id: mealId,
         p_schedule_id: scheduleId,
@@ -112,24 +136,14 @@ export function SkipReasonModal({
         p_details: details || null,
         p_scheduled_date: scheduledDate || null,
         p_meal_type: mealType || null,
-        p_ai_confidence_score: null, // Would come from AI service
+        p_ai_confidence_score: null,
+      }).catch((err: any) => {
+        // Don't fail the operation if reason submission fails
+        console.warn("Could not submit skip reason:", err);
       });
 
-      if (error) throw error;
-
-      // Update schedule as skipped
-      const { error: updateError } = await supabase
-        .from("meal_schedules")
-        .update({
-          is_completed: false,
-          skipped_at: new Date().toISOString(),
-        })
-        .eq("id", scheduleId);
-
-      if (updateError) throw updateError;
-
       toast.success("Meal skipped", {
-        description: "Your feedback helps us improve recommendations.",
+        description: "Your meal credit has been refunded.",
       });
 
       onSkipped?.();

@@ -1407,15 +1407,19 @@ const MealDetail = () => {
           className="bg-card rounded-3xl shadow-lg border border-border/50 p-6 space-y-5"
         >
           <PortionSelector
-            selectedSize={customization.portionSize}
-            onSelect={setPortionSize}
+            value={customization.portionSize}
+            onChange={setPortionSize}
             basePrice={meal.price}
             baseCalories={meal.calories || 0}
+            baseProtein={meal.protein_g || 0}
+            baseCarbs={meal.carbs_g || 0}
+            baseFat={meal.fat_g || 0}
           />
           <HPVariantToggle
             enabled={customization.hpVariant}
-            onToggle={setHPVariant}
-            baseProtein={meal.protein || 0}
+            onChange={setHPVariant}
+            baseProtein={meal.protein_g || 0}
+            basePrice={meal.price}
           />
         </motion.div>
 
@@ -1427,16 +1431,16 @@ const MealDetail = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <IngredientList
-              ingredients={Array.isArray(meal.ingredients) ? meal.ingredients : typeof meal.ingredients === 'string' ? meal.ingredients.split(',').map(i => i.trim()) : []}
+              mealId={meal.id}
               removedIngredients={removedIngredientIds}
-              onToggleIngredient={toggleIngredient}
+              onToggle={toggleIngredient}
             />
           </motion.div>
         )}
 
         {/* Customization Summary */}
         {hasCustomizations && (() => {
-          const summary = getSummary(meal.price, meal.calories || 0, meal.protein || 0, meal.carbs || 0, meal.fats || 0);
+          const summary = getSummary(meal.price, meal.calories || 0, meal.protein_g || 0, meal.carbs_g || 0, meal.fat_g || 0);
           return (
             <motion.div
               initial={{ opacity: 0 }}

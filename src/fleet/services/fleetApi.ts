@@ -112,13 +112,49 @@ export async function getDashboardStats(cityId?: string): Promise<DashboardStats
   const activeDrivers = drivers?.filter(d => d.status === 'active').length || 0;
   const onlineDrivers = drivers?.filter(d => d.is_online).length || 0;
 
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+  const ordersQuery = supabase
+    .from('orders')
+    .select('status, delivered_at, created_at, delivery_time_minutes', { count: 'exact' })
+    .gte('created_at', todayStart);
+
+  if (cityId) {
+    const { data: cityDrivers } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('city_id', cityId);
+    const driverIds = cityDrivers?.map(d => d.id) || [];
+    if (driverIds.length > 0) {
+      ordersQuery.in('driver_id', driverIds);
+    }
+  }
+
+  const { data: orders, count: ordersCount } = await ordersQuery;
+
+  const ordersInProgress = orders?.filter(o =>
+    ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery'].includes(o.status)
+  ).length || 0;
+
+  const todayDeliveries = orders?.filter(o =>
+    o.status === 'delivered'
+  ).length || 0;
+
+  const deliveryTimes = orders
+    ?.filter((o: any) => o.delivery_time_minutes)
+    .map((o: any) => o.delivery_time_minutes as number) || [];
+  const averageDeliveryTime = deliveryTimes.length > 0
+    ? Math.round(deliveryTimes.reduce((a: number, b: number) => a + b, 0) / deliveryTimes.length)
+    : 0;
+
   return {
     totalDrivers: count || 0,
     activeDrivers,
     onlineDrivers,
-    ordersInProgress: 0, // TODO: Implement with orders table
-    todayDeliveries: 0, // TODO: Implement with deliveries
-    averageDeliveryTime: 0, // TODO: Calculate from delivery times
+    ordersInProgress,
+    todayDeliveries,
+    averageDeliveryTime,
   };
 }
 

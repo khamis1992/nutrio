@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio Co-Founder Proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #1a1a1a;
+            --color-secondary: #4a4a4a;
+            --color-accent: #c9a227;
+            --color-accent-light: #e8d48a;
+            --color-bg: #f8f7f4;
+            --color-surface: #ffffff;
+            --color-border: #e5e5e5;
+            --color-muted: #8a8a8a;
+            --color-success: #2e7d32;
+            --color-warning: #ed6c02;
+            --color-danger: #d32f2f;
+            --color-info: #0288d1;
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-body: 'Source Sans 3', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4; margin: 20mm; }
+        body { font-family: var(--font-body); font-size: 10pt; line-height: 1.7; color: var(--color-primary); background: var(--color-bg); }
+        .page { width: 210mm; min-height: 297mm; background: var(--color-surface); margin: 0 auto 20px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .page:last-child { margin-bottom: 0; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: var(--spacing-xl); border-bottom: 3px solid var(--color-primary); margin-bottom: var(--spacing-2xl); }
+        .header-left h1 { font-family: var(--font-display); font-size: 24pt; font-weight: 700; color: var(--color-primary); margin-bottom: var(--spacing-xs); }
+        .header-left .subtitle { font-size: 10pt; color: var(--color-secondary); text-transform: uppercase; letter-spacing: 0.02em; }
+        .header-right { text-align: right; }
+        .logo { font-family: var(--font-display); font-size: 20pt; font-weight: 700; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .date { font-size: 9pt; color: var(--color-muted); font-family: var(--font-mono); }
+        .section { margin-bottom: var(--spacing-2xl); break-inside: avoid; }
+        .section-title { font-family: var(--font-display); font-size: 13pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-lg); display: flex; align-items: center; gap: var(--spacing-md); }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+        .section-number { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); font-weight: 600; background: var(--color-accent-light); padding: 2px 8px; border-radius: 2px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); }
+        .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg); }
+        .content-block { margin-bottom: var(--spacing-lg); }
+        .content-block h3 { font-family: var(--font-display); font-size: 11pt; font-weight: 600; color: var(--color-primary); margin-bottom: var(--spacing-sm); border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-xs); }
+        .content-block p { font-size: 9.5pt; color: var(--color-secondary); margin-bottom: var(--spacing-sm); }
+        ul { list-style: none; padding: 0; }
+        ul li { position: relative; padding-left: var(--spacing-lg); margin-bottom: var(--spacing-sm); font-size: 9.5pt; color: var(--color-secondary); }
+        ul li::before { content: '→'; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: var(--spacing-lg); font-size: 9pt; }
+        th { text-align: left; padding: var(--spacing-sm) var(--spacing-md); background: var(--color-primary); color: var(--color-surface); font-weight: 500; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1px solid var(--color-border); color: var(--color-secondary); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) { background: var(--color-bg); }
+        .timeline { position: relative; padding-left: var(--spacing-xl); }
+        .timeline::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 1px; background: var(--color-border); }
+        .timeline-item { position: relative; margin-bottom: var(--spacing-lg); }
+        .timeline-item::before { content: ''; position: absolute; left: -20px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); border: 2px solid var(--color-surface); }
+        .timeline-item h4 { font-family: var(--font-mono); font-size: 8pt; color: var(--color-accent); margin-bottom: var(--spacing-xs); }
+        .timeline-item p { font-size: 9pt; color: var(--color-secondary); }
+        .checklist { background: var(--color-bg); padding: var(--spacing-lg); border-radius: 4px; border: 1px solid var(--color-border); }
+        .checklist h3 { font-family: var(--font-display); font-size: 10pt; font-weight: 600; margin-bottom: var(--spacing-md); }
+        .checklist-item { display: flex; align-items: flex-start; gap: var(--spacing-md); margin-bottom: var(--spacing-sm); font-size: 9pt; color: var(--color-secondary); }
+        .checkbox { width: 14px; height: 14px; border: 1px solid var(--color-border); border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+        .alert { padding: var(--spacing-md); border-radius: 4px; margin-bottom: var(--spacing-lg); border-left: 4px solid; }
+        .alert-success { background: #e8f5e9; border-color: var(--color-success); }
+        .alert-warning { background: #fff8e1; border-color: var(--color-warning); }
+        .formula { font-family: var(--font-mono); font-size: 10pt; background: var(--color-primary); color: white; padding: var(--spacing-md); border-radius: 4px; margin: var(--spacing-sm) 0; text-align: center; }
+        .footer { margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; }
+        .footer-left { font-size: 8pt; color: var(--color-muted); }
+        .footer-right { font-family: var(--font-mono); font-size: 8pt; color: var(--color-muted); }
+        @media print { body { background: white; } .page { box-shadow: none; margin: 0; } }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="header">
+            <div class="header-left">
+                <h1>Co-Founder Proposal</h1>
+                <p class="subtitle">Nutrio Fuel - Join Our Vision</p>
+            </div>
+            <div class="header-right">
+                <div class="logo">NUTRIO</div>
+                <div class="date">March 2026</div>
+            </div>
+        </header>
+        <section class="section">
+            <h2 class="section-title"><span class="section-number">06</span> 90-Day Roadmap</h2>
+            
+            <!-- Organization Chart Section -->
+            <div class="content-block" style="margin-bottom: var(--spacing-lg);">
+                <h3>Organization Structure (Day 1-90)</h3>
+                <table>
+                    <thead>
+                        <tr><th>Role</th><th>Responsibility</th><th>Hire Date</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="highlight-row"><td><strong>CEO</strong><td>Strategy, Operations, Growth</td><td>Day 1</td></tr>
+                        <tr><td><strong>CTO</strong><td>Technology, Product, Architecture</td><td>Day 1</td></tr>
+                        <tr><td><strong>CMO</strong><td>Marketing, Sales, Partnerships</td><td>Day 1</td></tr>
+                        <tr><td><strong>Sales Lead</strong><td>Restaurant Acquisition</td><td>Day 8</td></tr>
+                        <tr><td><strong>Brand Ambassadors</strong><td>Customer Referrals, Marketing</td><td>Day 30</td></tr>
+                        <tr><td><strong>Customer Support</strong><td>User Inquiries, Issue Resolution</td><td>Day 30</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- LTV:CAC Explanation Section -->
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>Understanding LTV:CAC Ratio</h3>
+                <div style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: var(--spacing-lg); border-radius: 8px; border: 1px solid var(--color-accent);">
+                    <p><strong>LTV (Lifetime Value)</strong> = Total money a customer spends with us from signup until they stop subscribing.</p>
+                    <p><strong>CAC (Customer Acquisition Cost)</strong> = Money we spend to get each new customer (marketing, ads, referral programs).</p>
+                    <p><strong>LTV:CAC Ratio</strong> = How efficient our marketing is. For example, 56:1 means for every 1 QAR spent on marketing, we get 56 QAR back in customer value.</p>
+                    <p><strong>Industry Standard:</strong> 3:1 is considered good. Anything above 10:1 is excellent.</p>
+                    <p style="margin-top: var(--spacing-sm); font-size: 8pt; color: var(--color-secondary);"><em>Our 56:1 ratio is exceptionally strong because it shows customers find high value in our service, and we're acquiring them efficiently through referrals and word-of-mouth (not expensive ads).</em></p>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div>
+                    <h3>Phase 1: Launch Foundation (Days 1-30)</h3>
+            <div class="two-col">
+                <div>
+                    <h3>Phase 1: Launch Foundation (Days 1-30)</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <h4>Week 1: Team Setup</h4>
+                            <p>Hire Sales Lead, onboard technical co-founder, create 30-restaurant pipeline</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h4>Week 2-4: First Restaurants</h4>
+                            <p>Onboard 10 restaurants, test platform, activate referral program</p>
+                        </div>
+                    </div>
+                    <div class="checklist" style="margin-top: var(--spacing-lg);">
+                        <h3>Day 30 Milestones</h3>
+                        <div class="checklist-item"><div class="checkbox"></div><span>20 subscribers active</span></div>
+                        <div class="checklist-item"><div class="checkbox"></div><span>10 restaurants live</span></div>
+                        <div class="checklist-item"><div class="checkbox"></div><span>Revenue: 56K QAR</span></div>
+                        <div class="checklist-item"><div class="checkbox"></div><span>Profit: 20K QAR</span></div>
+                    </div>
+                </div>
+                <div>
+                    <h3>Phase 2: Scale & Optimize (Days 31-60)</h3>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <h4>Week 5-8: Acceleration</h4>
+                            <p>25-30 subscribers, 25 restaurants, corporate wellness pilot</p>
+                        </div>
+                    </div>
+                    <div class="checklist" style="margin-top: var(--spacing-lg);">
+                        <h3>Day 60 Milestones</h3>
+                        <div class="checklist-item"><div class="checkbox"></div><span>50 subscribers active</span></div>
+                        <div class="checklist-item"><div class="checkbox"></div><span>25 restaurants live</span></div>
+                        <div class="checklist-item"><div class="checkbox"></div><span>Corporate pilot: 3+ companies</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="content-block" style="margin-top: var(--spacing-xl);">
+                <h3>Phase 3: Growth & Systematize (Days 61-90)</h3>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>Week 9-12: Final Push</h4>
+                        <p>100 subscribers, 50 restaurants, profitability, UAE launch planning</p>
+                    </div>
+                </div>
+                <div class="checklist" style="margin-top: var(--spacing-lg);">
+                    <h3>Day 90 Go/No-Go Decision</h3>
+                    <table>
+                        <thead>
+                            <tr><th>Metric</th><th>Target</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Subscribers</td><td>100</td><td></td></tr>
+                            <tr><td>Restaurants</td><td>50</td><td></td></tr>
+                            <tr><td>Retention</td><td>>60%</td><td></td></tr>
+                            <tr><td>Profit</td><td>>100K QAR</td><td></td></tr>
+                            <tr class="highlight-row"><td>LTV:CAC</td><td>>25:1</td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <footer class="footer">
+            <div class="footer-left">Nutrio Co-Founder Proposal · March 2026</div>
+            <div class="footer-right">Page 6 of 10</div>
+        </footer>
+    </div>
+</body>
+</html>

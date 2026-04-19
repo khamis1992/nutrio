@@ -58,7 +58,8 @@ export function useLandingStats(): LandingStats {
           const avg = sum / ratingRes.data.length;
           setAvgRating(Math.round(avg * 10) / 10);
         }
-      } catch {
+      } catch (e) {
+        console.error("[useLandingStats] Failed to fetch rating:", e);
       } finally {
         if (!cancelled) setLoading(false);
       }

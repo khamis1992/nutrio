@@ -34,7 +34,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from "framer-motion";
 import { hapticFeedback } from "@/lib/capacitor";
@@ -794,8 +794,6 @@ const RestaurantDetail = () => {
 
       {/* Bottom Spacing */}
       <div className="h-8" />
-
-      <CustomerNavigation />
 
       {/* Floating Cart Button */}
       <AnimatePresence>

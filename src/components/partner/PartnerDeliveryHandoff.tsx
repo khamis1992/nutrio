@@ -11,16 +11,28 @@ import {
   CheckCircle2,
   Printer,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  ShieldCheck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface PartnerDeliveryHandoffProps {
   scheduleId: string;
   restaurantName: string;
+  onHandoverConfirmed?: () => void;
 }
 
 interface DeliveryJob {
@@ -51,7 +63,8 @@ interface DeliveryDriver {
 
 export function PartnerDeliveryHandoff({
   scheduleId,
-  restaurantName
+  restaurantName,
+  onHandoverConfirmed
 }: PartnerDeliveryHandoffProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -59,6 +72,9 @@ export function PartnerDeliveryHandoff({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overriding, setOverriding] = useState(false);
 
   useEffect(() => {
     const fetchDeliveryJob = async () => {
@@ -138,6 +154,9 @@ export function PartnerDeliveryHandoff({
 
     setRefreshing(true);
     try {
+      // Notify driver BEFORE refreshing - they need to know the old code is invalid
+      await notifyDriverOfCodeChange();
+
       const { data, error } = await supabase.rpc("refresh_verification_code", {
         p_delivery_job_id: deliveryJob.id,
         p_partner_user_id: user.id,
@@ -148,8 +167,9 @@ export function PartnerDeliveryHandoff({
       if (data?.success) {
         toast({
           title: "Code Refreshed",
-          description: "New verification code generated",
+          description: `New code: ${data.verification_code}. Driver has been notified.`,
         });
+        
         // Refresh the delivery job data
         const { data: jobData } = await supabase
           .from("delivery_jobs")
@@ -158,7 +178,7 @@ export function PartnerDeliveryHandoff({
           .single();
 
         if (jobData) {
-          setDeliveryJob({ ...deliveryJob, ...jobData });
+          setDeliveryJob(jobData as unknown as DeliveryJob);
         }
       } else {
         toast({
@@ -182,6 +202,90 @@ export function PartnerDeliveryHandoff({
   const isCodeExpired = () => {
     if (!deliveryJob?.verification_expires_at) return false;
     return new Date(deliveryJob.verification_expires_at) < new Date();
+  };
+
+  const isCodeExpiringSoon = () => {
+    if (!deliveryJob?.verification_expires_at) return false;
+    const expiryDate = new Date(deliveryJob.verification_expires_at);
+    const now = new Date();
+    const fiveMinutes = 5 * 60 * 1000;
+    return expiryDate.getTime() - now.getTime() < fiveMinutes;
+  };
+
+  const handlePartnerOverride = async () => {
+    if (!deliveryJob || !user) return;
+
+    setOverriding(true);
+    try {
+      const { data, error } = await supabase.rpc("partner_confirm_handover", {
+        p_delivery_job_id: deliveryJob.id,
+        p_partner_user_id: user.id,
+        p_reason: overrideReason || "Partner manual confirmation"
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Handover Confirmed",
+          description: "The order has been marked as picked up",
+        });
+        setShowOverrideDialog(false);
+        setOverrideReason("");
+        
+        // Refresh the delivery job
+        const { data: jobData } = await supabase
+          .from("delivery_jobs")
+          .select("*")
+          .eq("id", deliveryJob.id)
+          .single();
+
+        if (jobData) {
+          setDeliveryJob(jobData as unknown as DeliveryJob);
+        }
+        
+        onHandoverConfirmed?.();
+      } else {
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to confirm handover",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error confirming handover:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to confirm handover",
+        variant: "destructive",
+      });
+    } finally {
+      setOverriding(false);
+    }
+  };
+
+  const notifyDriverOfCodeChange = async () => {
+    if (!deliveryJob?.driver_id) return;
+    
+    try {
+      const { data: driver } = await supabase
+        .from("drivers")
+        .select("user_id")
+        .eq("id", deliveryJob.driver_id)
+        .single();
+      
+      if (driver?.user_id) {
+        await supabase.from("notifications").insert({
+          user_id: driver.user_id,
+          title: "Verification Code Changed",
+          message: "The restaurant has refreshed the pickup verification code. Please get the new code.",
+          type: "delivery_update",
+          metadata: { delivery_job_id: deliveryJob.id }
+        });
+      }
+    } catch (err) {
+      console.warn("Could not notify driver of code change:", err);
+    }
   };
 
   // Set QR code value when delivery job is loaded
@@ -318,6 +422,7 @@ export function PartnerDeliveryHandoff({
   const Icon = config.icon;
 
   return (
+    <>
     <Card className="border-2 border-primary">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -365,7 +470,7 @@ export function PartnerDeliveryHandoff({
               </div>
             )}
             
-            <div className="flex gap-2 justify-center">
+            <div className="flex gap-2 justify-center flex-wrap">
               <Button 
                 variant="outline" 
                 size="sm"
@@ -374,7 +479,7 @@ export function PartnerDeliveryHandoff({
                 <Printer className="w-4 h-4 mr-2" />
                 Print QR Code
               </Button>
-              {isCodeExpired() && (
+              {(isCodeExpired() || isCodeExpiringSoon() || !deliveryJob.pickup_verification_code) && (
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -382,7 +487,18 @@ export function PartnerDeliveryHandoff({
                   disabled={refreshing}
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh Code
+                  {refreshing ? "Refreshing..." : "Refresh Code"}
+                </Button>
+              )}
+              {deliveryJob.status === "assigned" && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowOverrideDialog(true)}
+                  className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Manual Confirm
                 </Button>
               )}
             </div>
@@ -457,5 +573,62 @@ export function PartnerDeliveryHandoff({
         </div>
       </CardContent>
     </Card>
+
+    {/* Partner Override Dialog */}
+    <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            Manual Handover Confirmation
+          </DialogTitle>
+          <DialogDescription>
+            This will mark the order as picked up without QR/code verification. 
+            Use this only if the driver is having technical issues.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Reason (optional)</label>
+            <textarea
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="e.g., Driver QR scanner not working"
+              rows={3}
+              className="w-full px-3 py-2 border rounded-md text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowOverrideDialog(false);
+              setOverrideReason("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handlePartnerOverride}
+            disabled={overriding}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {overriding ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Confirming...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-4 h-4 mr-2" />
+                Confirm Handover
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

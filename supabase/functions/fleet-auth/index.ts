@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { jwtVerify, jwtSign } from 'https://esm.sh/jose@5.2.0';
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 // JWT configuration
 const JWT_SECRET = new TextEncoder().encode(Deno.env.get('FLEET_JWT_SECRET') || '');
@@ -12,7 +13,6 @@ const ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60; // 7 days
 
 // Rate limiting: 5 login attempts per minute per IP
-// TODO: Implement Redis-based rate limiting for production
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,11 +63,24 @@ async function generateTokens(manager: FleetManager) {
 }
 
 // JWT validation middleware
-async function validateAccessToken(token: string) {
+async function validateAccessToken(token: string, supabase?: any) {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     if (payload.type !== 'fleet_access') {
       throw new Error('Invalid token type');
+    }
+    // Check revocation list
+    if (supabase) {
+      const jti = payload.jti as string || token.slice(-64);
+      const { data } = await supabase
+        .from('revoked_tokens')
+        .select('id')
+        .eq('token_jti', jti)
+        .gte('expires_at', new Date().toISOString())
+        .maybeSingle();
+      if (data) {
+        return null;
+      }
     }
     return payload;
   } catch {
@@ -254,9 +267,22 @@ async function handleLogout(req: Request, supabase: any) {
         ip_address: clientIP,
         user_agent: req.headers.get('user-agent') || 'unknown',
       });
+      
+      // Add token to revocation list for immediate invalidation
+      const token = authHeader.substring(7);
+      const decoded = typeof payload.exp === 'number' ? payload : null;
+      const expiresAt = decoded?.exp 
+        ? new Date(decoded.exp * 1000).toISOString()
+        : new Date(Date.now() + 15 * 60 * 1000).toISOString(); // Default 15 min
+      
+      await supabase.from('revoked_tokens').insert({
+        token_jti: payload.jti as string || token.slice(-64),
+        manager_id: payload.managerId as string,
+        expires_at: expiresAt,
+      }).catch(() => {
+        // Silently fail - revocation is best-effort
+      });
     }
-    
-    // TODO: Add token to revocation list (Redis) for immediate invalidation
     
     return new Response(
       JSON.stringify({ success: true }),
@@ -285,6 +311,17 @@ serve(async (req) => {
   
   const url = new URL(req.url);
   const path = url.pathname.replace('/fleet-auth', '').replace('/fleet', '');
+  
+  // Rate limiting
+  const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const limit = path === '/login' ? 5 : 20;
+  const rateLimit = await checkRateLimit(supabase, `fleet-auth:${clientIP}:${path}`, limit, 60);
+  if (!rateLimit.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded', retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000) }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } }
+    );
+  }
   
   // Route handling
   if (req.method === 'POST' && path === '/login') {

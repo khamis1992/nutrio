@@ -113,6 +113,6 @@ export function useMealCustomization() {
     getCustomizationData,
     hasCustomizations,
     reset,
-    removedIngredientIds: customization.removedIngredients,
+    removedIngredientIds: new Set(customization.removedIngredients.keys()),
   };
 }

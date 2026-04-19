@@ -1,0 +1,272 @@
+{
+  "execution_start": "2026-03-20T05:54:35.233943",
+  "tests": [
+    {
+      "name": "customer login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/dashboard",
+      "timestamp": "2026-03-20T05:54:52.173840"
+    },
+    {
+      "name": "partner login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/partner",
+      "timestamp": "2026-03-20T05:55:38.936072"
+    },
+    {
+      "name": "admin login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/admin",
+      "timestamp": "2026-03-20T05:56:25.516682"
+    },
+    {
+      "name": "driver login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/driver",
+      "timestamp": "2026-03-20T05:57:18.136737"
+    },
+    {
+      "name": "fleet login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/fleet",
+      "timestamp": "2026-03-20T05:57:58.680689"
+    }
+  ],
+  "bugs": [],
+  "workflows": [
+    {
+      "name": "Customer portal navigation",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T05:55:22.590345"
+    },
+    {
+      "name": "Partner portal navigation",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T05:56:09.170907"
+    },
+    {
+      "name": "Admin portal navigation",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T05:57:01.802006"
+    },
+    {
+      "name": "Driver portal navigation",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T05:57:42.321819"
+    },
+    {
+      "name": "Fleet portal navigation",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T05:58:28.926134"
+    }
+  ],
+  "ui_issues": [
+    {
+      "description": "No inputs found on after_login",
+      "location": "customer - after_login",
+      "timestamp": "2026-03-20T05:54:58.203283"
+    },
+    {
+      "description": "No inputs found on /dashboard",
+      "location": "customer - /dashboard",
+      "timestamp": "2026-03-20T05:55:04.310611"
+    },
+    {
+      "description": "No inputs found on /orders",
+      "location": "customer - /orders",
+      "timestamp": "2026-03-20T05:55:16.498663"
+    },
+    {
+      "description": "No inputs found on /wallet",
+      "location": "customer - /wallet",
+      "timestamp": "2026-03-20T05:55:22.590336"
+    },
+    {
+      "description": "No inputs found on after_login",
+      "location": "partner - after_login",
+      "timestamp": "2026-03-20T05:55:44.957538"
+    },
+    {
+      "description": "No buttons found on /partner/dashboard",
+      "location": "partner - /partner/dashboard",
+      "timestamp": "2026-03-20T05:55:51.015145"
+    },
+    {
+      "description": "No inputs found on /partner/dashboard",
+      "location": "partner - /partner/dashboard",
+      "timestamp": "2026-03-20T05:55:51.015153"
+    },
+    {
+      "description": "No buttons found on /partner/menu",
+      "location": "partner - /partner/menu",
+      "timestamp": "2026-03-20T05:55:57.066446"
+    },
+    {
+      "description": "No inputs found on /partner/menu",
+      "location": "partner - /partner/menu",
+      "timestamp": "2026-03-20T05:55:57.066454"
+    },
+    {
+      "description": "No buttons found on /partner/orders",
+      "location": "partner - /partner/orders",
+      "timestamp": "2026-03-20T05:56:03.123481"
+    },
+    {
+      "description": "No inputs found on /partner/orders",
+      "location": "partner - /partner/orders",
+      "timestamp": "2026-03-20T05:56:03.123489"
+    },
+    {
+      "description": "No buttons found on /partner/analytics",
+      "location": "partner - /partner/analytics",
+      "timestamp": "2026-03-20T05:56:09.170893"
+    },
+    {
+      "description": "No inputs found on /partner/analytics",
+      "location": "partner - /partner/analytics",
+      "timestamp": "2026-03-20T05:56:09.170901"
+    },
+    {
+      "description": "No inputs found on after_login",
+      "location": "admin - after_login",
+      "timestamp": "2026-03-20T05:56:31.544607"
+    },
+    {
+      "description": "No buttons found on /admin/dashboard",
+      "location": "admin - /admin/dashboard",
+      "timestamp": "2026-03-20T05:56:37.599490"
+    },
+    {
+      "description": "No inputs found on /admin/dashboard",
+      "location": "admin - /admin/dashboard",
+      "timestamp": "2026-03-20T05:56:37.599497"
+    },
+    {
+      "description": "No buttons found on /admin/users",
+      "location": "admin - /admin/users",
+      "timestamp": "2026-03-20T05:56:43.659015"
+    },
+    {
+      "description": "No inputs found on /admin/users",
+      "location": "admin - /admin/users",
+      "timestamp": "2026-03-20T05:56:43.659024"
+    },
+    {
+      "description": "No buttons found on /admin/restaurants",
+      "location": "admin - /admin/restaurants",
+      "timestamp": "2026-03-20T05:56:49.703868"
+    },
+    {
+      "description": "No inputs found on /admin/restaurants",
+      "location": "admin - /admin/restaurants",
+      "timestamp": "2026-03-20T05:56:49.703876"
+    },
+    {
+      "description": "No buttons found on /admin/orders",
+      "location": "admin - /admin/orders",
+      "timestamp": "2026-03-20T05:56:55.752129"
+    },
+    {
+      "description": "No inputs found on /admin/orders",
+      "location": "admin - /admin/orders",
+      "timestamp": "2026-03-20T05:56:55.752138"
+    },
+    {
+      "description": "No buttons found on /admin/drivers",
+      "location": "admin - /admin/drivers",
+      "timestamp": "2026-03-20T05:57:01.801994"
+    },
+    {
+      "description": "No inputs found on /admin/drivers",
+      "location": "admin - /admin/drivers",
+      "timestamp": "2026-03-20T05:57:01.802003"
+    },
+    {
+      "description": "No inputs found on after_login",
+      "location": "driver - after_login",
+      "timestamp": "2026-03-20T05:57:24.158950"
+    },
+    {
+      "description": "No buttons found on /driver/dashboard",
+      "location": "driver - /driver/dashboard",
+      "timestamp": "2026-03-20T05:57:30.216946"
+    },
+    {
+      "description": "No inputs found on /driver/dashboard",
+      "location": "driver - /driver/dashboard",
+      "timestamp": "2026-03-20T05:57:30.216955"
+    },
+    {
+      "description": "No buttons found on /driver/orders",
+      "location": "driver - /driver/orders",
+      "timestamp": "2026-03-20T05:57:36.269915"
+    },
+    {
+      "description": "No inputs found on /driver/orders",
+      "location": "driver - /driver/orders",
+      "timestamp": "2026-03-20T05:57:36.269922"
+    },
+    {
+      "description": "No buttons found on /driver/earnings",
+      "location": "driver - /driver/earnings",
+      "timestamp": "2026-03-20T05:57:42.321806"
+    },
+    {
+      "description": "No inputs found on /driver/earnings",
+      "location": "driver - /driver/earnings",
+      "timestamp": "2026-03-20T05:57:42.321815"
+    },
+    {
+      "description": "No inputs found on after_login",
+      "location": "fleet - after_login",
+      "timestamp": "2026-03-20T05:58:04.710452"
+    },
+    {
+      "description": "No buttons found on /fleet/dashboard",
+      "location": "fleet - /fleet/dashboard",
+      "timestamp": "2026-03-20T05:58:10.768251"
+    },
+    {
+      "description": "No inputs found on /fleet/dashboard",
+      "location": "fleet - /fleet/dashboard",
+      "timestamp": "2026-03-20T05:58:10.768259"
+    },
+    {
+      "description": "No buttons found on /fleet/dispatch",
+      "location": "fleet - /fleet/dispatch",
+      "timestamp": "2026-03-20T05:58:16.818459"
+    },
+    {
+      "description": "No inputs found on /fleet/dispatch",
+      "location": "fleet - /fleet/dispatch",
+      "timestamp": "2026-03-20T05:58:16.818467"
+    },
+    {
+      "description": "No buttons found on /fleet/drivers",
+      "location": "fleet - /fleet/drivers",
+      "timestamp": "2026-03-20T05:58:22.872587"
+    },
+    {
+      "description": "No inputs found on /fleet/drivers",
+      "location": "fleet - /fleet/drivers",
+      "timestamp": "2026-03-20T05:58:22.872595"
+    },
+    {
+      "description": "No buttons found on /fleet/vehicles",
+      "location": "fleet - /fleet/vehicles",
+      "timestamp": "2026-03-20T05:58:28.926123"
+    },
+    {
+      "description": "No inputs found on /fleet/vehicles",
+      "location": "fleet - /fleet/vehicles",
+      "timestamp": "2026-03-20T05:58:28.926131"
+    }
+  ],
+  "performance_issues": [],
+  "execution_end": "2026-03-20T05:58:29.001370"
+}

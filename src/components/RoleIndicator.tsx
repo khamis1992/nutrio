@@ -7,6 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RoleIndicatorProps {
   role: "customer" | "partner";
@@ -15,6 +16,7 @@ interface RoleIndicatorProps {
 
 export function RoleIndicator({ role, showSwitch = true }: RoleIndicatorProps) {
   const isPartner = role === "partner";
+  const { t } = useLanguage();
   
   return (
     <div className="flex items-center gap-2">
@@ -32,7 +34,7 @@ export function RoleIndicator({ role, showSwitch = true }: RoleIndicatorProps) {
           <User className="w-3 h-3" />
         )}
         <span className="text-xs font-medium">
-          {isPartner ? "Partner" : "Customer"}
+          {isPartner ? t("role_partner") || "Partner" : t("role_customer") || "Customer"}
         </span>
       </Badge>
       
@@ -40,13 +42,13 @@ export function RoleIndicator({ role, showSwitch = true }: RoleIndicatorProps) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Link to={isPartner ? "/dashboard" : "/partner"}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={isPartner ? t("switch_to_customer") || "Switch to Customer view" : t("switch_to_partner") || "Switch to Partner view"}>
                 <ArrowLeftRight className="w-4 h-4" />
               </Button>
             </Link>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Switch to {isPartner ? "Customer" : "Partner"} view</p>
+            <p>{isPartner ? t("switch_to_customer") || "Switch to Customer view" : t("switch_to_partner") || "Switch to Partner view"}</p>
           </TooltipContent>
         </Tooltip>
       )}

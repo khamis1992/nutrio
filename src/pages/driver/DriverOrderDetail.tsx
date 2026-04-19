@@ -5,7 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, ScanLine, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { MapPin, Phone, Store, Package, CheckCircle, Navigation, ArrowLeft, ScanLine, Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +75,7 @@ export default function DriverOrderDetail() {
   const [notes, setNotes] = useState("");
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Fetch driver ID on mount
   useEffect(() => {
@@ -475,7 +484,7 @@ export default function DriverOrderDetail() {
           {(delivery.status === "assigned" || delivery.status === "accepted") && (
             <Button
               className="w-full bg-purple-600 hover:bg-purple-700"
-              onClick={() => setShowQRScanner(true)}
+              onClick={() => setShowConfirmDialog(true)}
               disabled={updating}
             >
               <ScanLine className="h-4 w-4 mr-2" />
@@ -559,6 +568,40 @@ export default function DriverOrderDetail() {
         </div>
       </div>
 
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Confirm Pickup
+            </DialogTitle>
+            <DialogDescription>
+              By scanning the QR code, you confirm that you are physically at the restaurant 
+              and have received the order from the partner.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowConfirmDialog(false);
+                setShowQRScanner(true);
+              }}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <ScanLine className="w-4 h-4 mr-2" />
+              Start Scanning
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* QR Scanner Modal */}
       {showQRScanner && (
         <DriverQRScanner
@@ -569,6 +612,7 @@ export default function DriverOrderDetail() {
           }}
           isScanning={updating}
           scanResult={scanResult}
+          deliveryJobId={delivery?.id}
         />
       )}
     </DriverLayout>

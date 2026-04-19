@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutrio - Meals Filter Sheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #10b981;
+            --accent: #f59e0b;
+            --text-dark: #1f2937;
+            --text-gray: #6b7280;
+        }
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+            min-height: 100vh;
+        }
+        
+        .sheet-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .sheet-container.open {
+            transform: translateY(0);
+        }
+        
+        .sheet-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 40;
+            background: rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .sheet-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .sheet-drag-handle {
+            width: 40px;
+            height: 4px;
+            background: #d1d5db;
+            border-radius: 2px;
+            margin: 0 auto 20px;
+            transition: background 0.3s ease;
+        }
+        
+        .sheet-drag-handle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 36px;
+            height: 36px;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+        }
+        
+        .section-title {
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 14px;
+            margin-bottom: 12px;
+            letter-spacing: -0.01em;
+        }
+        
+        .filter-chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            border: none;
+            background: #f9fafb;
+            color: var(--text-gray);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .filter-chip.selected {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.02);
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+        }
+        
+        .filter-chip.accent.selected {
+            background: var(--accent);
+            box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3);
+        }
+        
+        .toggle-switch {
+            width: 52px;
+            height: 32px;
+            background: #d1d5db;
+            border-radius: 16px;
+            position: relative;
+            transition: background 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+        
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .toggle-switch.checked {
+            background: var(--primary);
+        }
+        
+        .toggle-switch.checked::before {
+            transform: translateX(20px);
+        }
+        
+        .apply-btn {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s ease;
+            border: none;
+        }
+        
+        .apply-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+        }
+        
+        @media (min-width: 768px) {
+            .sheet-container {
+                width: 400px;
+                max-height: 80vh;
+                border-radius: 20px;
+                margin: 0 auto;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">Meals Page</h1>
+            <p class="text-gray-600 mb-6">Click "Filters" to open the filter sheet</p>
+            <button onclick="toggleSheet()" class="px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition shadow-lg">
+                🎯 Filters
+            </button>
+        </div>
+    </div>
+
+    <div id="backdrop" class="sheet-backdrop" onclick="toggleSheet()"></div>
+    
+    <div id="sheet" class="sheet-container bg-white overflow-hidden">
+        <div class="bg-white rounded-b-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+            <div 
+                id="dragHandle" 
+                class="sheet-drag-handle w-10 h-1 cursor-pointer hover:bg-gray-300 transition"
+                onclick="toggleSheet()"
+            ></div>
+
+            <div class="px-6 pb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-20 font-bold text-gray-900">Filters</h2>
+                    <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+                        12 results
+                    </span>
+                </div>
+
+                <div class="mb-8">
+                    <p class="section-title mb-3">Sort by</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="filter-chip selected" onclick="selectSort(this, 'rating')">
+                            ⭐ Rating
+                        </button>
+                        <button class="filter-chip" onclick="selectSort(this, 'fastest')">
+                            ⚡ Fastest
+                        </button>
+                        <button class="filter-chip" onclick="selectSort(this, 'popular')">
+                            👥 Popular
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <p class="section-title mb-3">Calories</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="filter-chip selected" onclick="selectCalories(this, 'all')">
+                            All
+                        </button>
+                        <button class="filter-chip accent" onclick="selectCalories(this, 'under300')">
+                            <span class="text-sm font-medium">below</span><br>
+                            <span class="text-base font-bold">300</span>
+                        </button>
+                        <button class="filter-chip accent" onclick="selectCalories(this, '300-500')">
+                            <span class="text-sm font-medium">300—</span><br>
+                            <span class="text-base font-bold">500</span>
+                        </button>
+                        <button class="filter-chip accent" onclick="selectCalories(this, '500-700')">
+                            <span class="text-sm font-medium">500—</span><br>
+                            <span class="text-base font-bold">700</span>
+                        </button>
+                        <button class="filter-chip accent" onclick="selectCalories(this, '700plus')">
+                            <span class="text-sm font-medium">above</span><br>
+                            <span class="text-base font-bold">700+</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <p class="section-title mb-4">Favorites only</p>
+                    <div class="flex items-center" onclick="toggleFavorites()">
+                        <div id="favoritesToggle" class="toggle-switch">
+                        </div>
+                        <span id="favoritesText" class="ml-3 text-gray-600 text-sm">Off</span>
+                    </div>
+                </div>
+
+                <button class="apply-btn w-full flex items-center justify-center gap-2" onclick="applyFilters()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSheet() {
+            const sheet = document.getElementById('sheet');
+            const backdrop = document.getElementById('backdrop');
+            const isOpen = sheet.classList.contains('open');
+            
+            if (isOpen) {
+                sheet.classList.remove('open');
+                backdrop.classList.remove('active');
+                setTimeout(() => {
+                    sheet.style.display = 'none';
+                }, 300);
+            } else {
+                sheet.style.display = 'block';
+                setTimeout(() => {
+                    sheet.classList.add('open');
+                }, 10);
+                backdrop.classList.add('active');
+            }
+        }
+
+        function selectSort(element, type) {
+            document.querySelectorAll('[onclick^="selectSort"]').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            console.log('Selected sort:', type);
+        }
+
+        function selectCalories(element, type) {
+            document.querySelectorAll('[onclick^="selectCalories"]').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            console.log('Selected calories:', type);
+        }
+
+        function toggleFavorites() {
+            const toggle = document.getElementById('favoritesToggle');
+            const text = document.getElementById('favoritesText');
+            const isOn = toggle.classList.contains('checked');
+            
+            if (isOn) {
+                toggle.classList.remove('checked');
+                text.textContent = 'Off';
+                text.classList.remove('text-emerald-600');
+            } else {
+                toggle.classList.add('checked');
+                text.textContent = 'On';
+                text.classList.add('text-emerald-600');
+            }
+            console.log('Favorites toggle:', !isOn);
+        }
+
+        function applyFilters() {
+            console.log('Applying filters...');
+            toggleSheet();
+            console.log('Filters applied successfully');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const sheet = document.getElementById('sheet');
+            sheet.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

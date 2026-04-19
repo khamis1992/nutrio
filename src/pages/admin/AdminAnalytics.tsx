@@ -69,6 +69,26 @@ const AdminAnalytics = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-analytics-rt")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "meal_schedules" },
+        () => { fetchAnalytics(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "meals" },
+        () => { fetchAnalytics(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchAnalytics = async () => {
     const { data: meals } = await supabase
       .from("meals")
@@ -96,7 +116,8 @@ const AdminAnalytics = () => {
 
     const { data: schedules, count: totalOrders } = await supabase
       .from("meal_schedules")
-      .select("*", { count: "exact" });
+      .select("*", { count: "exact" })
+      .neq("order_status", "cancelled");
 
     const { count: totalUsers } = await supabase
       .from("profiles")

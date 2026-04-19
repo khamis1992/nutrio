@@ -29,14 +29,24 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface NotificationPreferences {
   id: string;
-  user_id: string;
-  push_notifications: boolean;
-  email_notifications: boolean;
-  meal_reminders: boolean;
-  order_updates: boolean;
-  promotional_emails: boolean;
-  weekly_summary: boolean;
-  reminder_time: string;
+  user_id: string | null;
+  push_notifications: boolean | null;
+  email_notifications: boolean | null;
+  meal_reminders: boolean | null;
+  order_updates: boolean | null;
+  promotional_emails: boolean | null;
+  weekly_summary: boolean | null;
+  reminder_time: string | null;
+  achievements: boolean | null;
+  delivery_updates: boolean | null;
+  health_insights: boolean | null;
+  plan_updates: boolean | null;
+  subscription_updates: boolean | null;
+  system_alerts: boolean | null;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 const Settings = () => {

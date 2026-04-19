@@ -46,7 +46,7 @@ export function Step3DiscountOffer({ offers, onNext, onAccept, onBack }: Step3Di
                   className="relative overflow-hidden rounded-lg border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-100 p-4"
                 >
                   <div className="absolute -right-4 -top-4 bg-green-500 text-white text-xs font-bold px-4 py-1 rotate-12">
-                    {t("save_percent").replace("{percent}", String(offer.discount_percent || 0))}
+                    {t("save_percent_upper").replace("{percent}", String(offer.discount_percent || 0))}
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white">

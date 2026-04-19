@@ -143,7 +143,7 @@ const Favorites = () => {
   const handleRefreshTopMeals = async () => {
     await fetchTopMeals();
     toast({
-      title: t("refreshed_toast"),
+      title: t("refreshed_toast_short"),
       description: t("top_meals_refreshed_desc"),
     });
   };
@@ -229,7 +229,7 @@ const Favorites = () => {
                                 {restaurant.rating.toFixed(1)}
                               </span>
                               <span>{restaurant.meal_count} {t("meals")}</span>
-                              <span>{restaurant.total_orders} {t("orders_label")}</span>
+                              <span>{restaurant.total_orders} {t("orders_count_label")}</span>
                             </div>
                           </div>
                           <Button
@@ -329,7 +329,7 @@ const Favorites = () => {
                                 className="text-xs"
                               >
                                 <TrendingUp className="w-3 h-3 mr-1" />
-                                {meal.order_count} {t("orders_label")}
+                                {meal.order_count} {t("orders_count_label")}
                               </Badge>
                               {meal.last_ordered_at && (
                                 <span className="text-xs text-muted-foreground flex items-center gap-1">

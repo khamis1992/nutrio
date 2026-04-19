@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { getQatarDay } from "@/lib/dateUtils";
 
 export interface AdjustmentRecommendation {
   new_calories: number;
@@ -35,10 +36,10 @@ export interface AdjustmentHistoryItem {
   new_calories: number;
   reason: string;
   weight_change_kg: number | null;
-  adherence_rate: number;
-  plateau_detected: boolean;
-  ai_confidence: number;
-  applied: boolean;
+  adherence_rate: number | null;
+  plateau_detected: boolean | null;
+  ai_confidence: number | null;
+  applied: boolean | null;
 }
 
 interface UseAdaptiveGoalsReturn {
@@ -50,6 +51,7 @@ interface UseAdaptiveGoalsReturn {
   settingsLoading: boolean;
   historyLoading: boolean;
   hasUnviewedAdjustment: boolean;
+  edgeFunctionAvailable: boolean | null;
   fetchRecommendation: () => Promise<void>;
   fetchSettings: () => Promise<void>;
   fetchHistory: () => Promise<void>;
@@ -70,8 +72,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [hasUnviewedAdjustment, setHasUnviewedAdjustment] = useState(false);
   
-  // Track if edge function is available to avoid repeated failed calls
-  const functionAvailableRef = useRef<boolean | null>(null);
+  const [edgeFunctionAvailable, setEdgeFunctionAvailable] = useState<boolean | null>(null);
 
   // Fetch user's adaptive goal settings
   const fetchSettings = useCallback(async () => {
@@ -88,7 +89,12 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
       if (error) throw error;
       
       if (data) {
-        setSettings(data);
+        setSettings({
+          auto_adjust_enabled: data.auto_adjust_enabled ?? true,
+          adjustment_frequency: (data.adjustment_frequency as 'weekly' | 'biweekly' | 'monthly') ?? 'weekly',
+          min_calorie_floor: data.min_calorie_floor ?? 1200,
+          max_calorie_ceiling: data.max_calorie_ceiling ?? 4000,
+        });
       } else {
         // Create default settings if none exist
         const defaultSettings = {
@@ -117,13 +123,23 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
             
             if (fetchError) throw fetchError;
             if (existingSettings) {
-              setSettings(existingSettings);
+              setSettings({
+                auto_adjust_enabled: existingSettings.auto_adjust_enabled ?? true,
+                adjustment_frequency: (existingSettings.adjustment_frequency as 'weekly' | 'biweekly' | 'monthly') ?? 'weekly',
+                min_calorie_floor: existingSettings.min_calorie_floor ?? 1200,
+                max_calorie_ceiling: existingSettings.max_calorie_ceiling ?? 4000,
+              });
             }
           } else {
             throw insertError;
           }
         } else {
-          setSettings(newSettings);
+          setSettings({
+            auto_adjust_enabled: newSettings.auto_adjust_enabled ?? true,
+            adjustment_frequency: (newSettings.adjustment_frequency as 'weekly' | 'biweekly' | 'monthly') ?? 'weekly',
+            min_calorie_floor: newSettings.min_calorie_floor ?? 1200,
+            max_calorie_ceiling: newSettings.max_calorie_ceiling ?? 4000,
+          });
         }
       }
     } catch (err) {
@@ -137,31 +153,27 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
   const fetchRecommendation = useCallback(async () => {
     if (!user) return;
     
-    // Skip if we already know the function is not available
-    if (functionAvailableRef.current === false) {
+    if (edgeFunctionAvailable === false) {
       return;
     }
 
     try {
       setLoading(true);
       
-      // Call the edge function
       const { data, error } = await supabase.functions.invoke("adaptive-goals", {
         body: { user_id: user.id, dry_run: true }
       });
 
       if (error) {
-        // Silently fail if function not deployed (CORS error)
         if (error.message?.includes('CORS') || error.message?.includes('Failed to send') || error.message?.includes('net::ERR')) {
-          functionAvailableRef.current = false;
+          setEdgeFunctionAvailable(false);
           console.warn("Adaptive goals function not deployed yet - feature disabled");
           return;
         }
         throw error;
       }
       
-      // Function is available
-      functionAvailableRef.current = true;
+      setEdgeFunctionAvailable(true);
       
       if (data?.recommendation) {
         setRecommendation(data.recommendation);
@@ -175,7 +187,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, edgeFunctionAvailable]);
 
   // Fetch adjustment history
   const fetchHistory = useCallback(async () => {
@@ -191,7 +203,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
         .limit(10);
 
       if (error) throw error;
-      setAdjustmentHistory(data || []);
+      setAdjustmentHistory((data || []) as AdjustmentHistoryItem[]);
     } catch (err) {
       console.error("Error fetching adjustment history:", err);
     } finally {
@@ -228,9 +240,9 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
         if (latestAdjustment) {
           setRecommendation({
             new_calories: latestAdjustment.new_calories,
-            new_protein: latestAdjustment.new_macros?.protein || 0,
-            new_carbs: latestAdjustment.new_macros?.carbs || 0,
-            new_fat: latestAdjustment.new_macros?.fat || 0,
+            new_protein: (latestAdjustment.new_macros as Record<string, number> | null)?.protein || 0,
+            new_carbs: (latestAdjustment.new_macros as Record<string, number> | null)?.carbs || 0,
+            new_fat: (latestAdjustment.new_macros as Record<string, number> | null)?.fat || 0,
             reason: latestAdjustment.reason,
             confidence: latestAdjustment.ai_confidence || 0.7,
             plateau_detected: latestAdjustment.plateau_detected || false,
@@ -256,7 +268,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
           protein_target_g: recommendation.new_protein,
           carbs_target_g: recommendation.new_carbs,
           fat_target_g: recommendation.new_fat,
-          last_goal_adjustment_date: new Date().toISOString().split('T')[0],
+          last_goal_adjustment_date: getQatarDay(),
           has_unviewed_adjustment: false
         })
         .eq("user_id", user.id);
@@ -290,15 +302,18 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
     if (!user) return;
 
     try {
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({ has_unviewed_adjustment: false })
         .eq("user_id", user.id);
+
+      if (error) throw error;
 
       setHasUnviewedAdjustment(false);
       toast.info("Adjustment dismissed");
     } catch (err) {
       console.error("Error dismissing adjustment:", err);
+      toast.error("Failed to dismiss adjustment. Please try again.");
     }
   };
 
@@ -329,7 +344,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
     if (!user) return;
     
     // Check if function is available
-    if (functionAvailableRef.current === false) {
+    if (edgeFunctionAvailable === false) {
       toast.info("AI analysis not available yet. Deploy edge functions to enable this feature.");
       return;
     }
@@ -342,9 +357,8 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
       });
 
       if (error) {
-        // Handle function not deployed
         if (error.message?.includes('CORS') || error.message?.includes('Failed to send') || error.message?.includes('net::ERR')) {
-          functionAvailableRef.current = false;
+          setEdgeFunctionAvailable(false);
           console.warn("Adaptive goals function not deployed yet");
           toast.info("AI analysis not available yet. Deploy edge functions to enable this feature.");
           return;
@@ -353,7 +367,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
       }
       
       // Function is available
-      functionAvailableRef.current = true;
+      setEdgeFunctionAvailable(true);
       
       if (data?.adjustment_id) {
         toast.success("Analysis complete! New recommendation available.");
@@ -401,6 +415,7 @@ export const useAdaptiveGoals = (): UseAdaptiveGoalsReturn => {
     applyAdjustment,
     dismissAdjustment,
     updateSettings,
-    analyzeNow
+    analyzeNow,
+    edgeFunctionAvailable:     edgeFunctionAvailable
   };
 };

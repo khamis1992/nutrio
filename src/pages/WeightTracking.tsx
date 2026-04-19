@@ -11,7 +11,7 @@ import {
   format, parseISO, isYesterday, isToday,
   startOfWeek, addDays, addWeeks, subWeeks, isSameDay,
 } from "date-fns";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
@@ -308,7 +308,6 @@ export default function WeightTracking() {
         </div>
       )}
 
-      <CustomerNavigation />
     </div>
   );
 }

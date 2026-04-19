@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Flame, Plus, Calendar, Utensils, Droplets, Activity } from "lucide-react";
+import { Flame, Plus, Calendar, Utensils, Activity } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
+import { getQatarNow } from "@/lib/dateUtils";
 
 interface DailyNutritionCardProps {
   totalCalories: number;
@@ -18,8 +19,8 @@ interface DailyNutritionCardProps {
   targetCarbs?: number;
   targetFat?: number;
   dayLabel?: string;
-  burnedWalking?: number;
-  burnedActivity?: number;
+  burnedCalories?: number;
+  workoutSessionCount?: number;
   onDateChange?: (date: Date) => void;
 }
 
@@ -31,6 +32,7 @@ const MacroCard = ({
   ringColor,
   bgClass,
   textClass,
+  overGoalLabel,
 }: {
   value: number;
   max: number;
@@ -39,6 +41,7 @@ const MacroCard = ({
   ringColor: string;
   bgClass: string;
   textClass: string;
+  overGoalLabel: string;
 }) => {
   const pct = Math.min(Math.round((value / (max || 1)) * 100), 999);
   const isOver = value > max;
@@ -93,7 +96,7 @@ const MacroCard = ({
         <span className="text-[10px] sm:text-[11px] font-bold text-black/60">/{max}g</span>
         {isOver ? (
           <span className="text-[9px] sm:text-[10px] font-bold text-white bg-red-600 px-1 sm:px-1.5 py-0.5 rounded-full whitespace-nowrap">
-            Over Goal
+            {overGoalLabel}
           </span>
         ) : (
           <span className="text-[9px] sm:text-[10px] font-bold text-black/60 bg-black/10 px-1 sm:px-1.5 py-0.5 rounded-full">
@@ -111,19 +114,22 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   totalCarbs,
   totalFat,
   focusCalories,
-  targetProtein = 128,
-  targetCarbs = 224,
-  targetFat = 64,
+  targetProtein = 150,
+  targetCarbs = 200,
+  targetFat = 65,
   onDateChange,
+  burnedCalories: burnedCaloriesProp,
+  workoutSessionCount: workoutSessionCountProp,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [totalBurned, setTotalBurned] = useState(0);
+  const [totalBurned, setTotalBurned] = useState(burnedCaloriesProp ?? 0);
+  const [workoutCount, setWorkoutCount] = useState(workoutSessionCountProp ?? 0);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const todayStart = new Date();
+  const [selectedDate, setSelectedDate] = useState(getQatarNow());
+  const todayStart = getQatarNow();
   todayStart.setHours(0, 0, 0, 0);
-  const isToday = selectedDate >= todayStart;
+  const isToday = selectedDate.toDateString() === todayStart.toDateString();
   const todayStr = format(selectedDate, "yyyy-MM-dd");
 
   const goToPrevDay = () => {
@@ -142,7 +148,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || burnedCaloriesProp !== undefined) return;
     const load = async () => {
       const { data } = await supabase
         .from("workout_sessions")
@@ -151,6 +157,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
         .eq("session_date", todayStr);
       if (data) {
         setTotalBurned(data.reduce((sum, s) => sum + (s.calories_burned ?? 0), 0));
+        setWorkoutCount(data.length);
       }
     };
     load();
@@ -176,10 +183,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="rounded-3xl overflow-hidden border border-gray-100" style={{
-          background: "#ffffff",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
-        }}>
+        <div className="rounded-3xl overflow-hidden border border-gray-100 bg-white shadow-sm">
 
           {/* Date navigation */}
           <div className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4">
@@ -190,16 +194,16 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={goToPrevDay}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 bg-white"
-                style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+                aria-label={t("previous_day") || "Previous day"}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all active:scale-95 border border-gray-200 bg-white shadow-xs"
               >
                 <NavChevronLeft className="w-4 h-4 text-gray-500" />
               </button>
               <button
                 onClick={goToNextDay}
                 disabled={isToday}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 border border-gray-200 bg-white"
-                style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+                aria-label={t("next_day") || "Next day"}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all active:scale-95 disabled:opacity-30 border border-gray-200 bg-white shadow-xs"
               >
                 <NavChevronRight className="w-4 h-4 text-gray-500" />
               </button>
@@ -207,10 +211,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
           </div>
 
           {/* Calorie hero section */}
-          <div className="mx-3 sm:mx-4 mb-3 sm:mb-4 rounded-2xl px-3 sm:px-5 py-4 sm:py-5 flex items-center justify-between border border-gray-100" style={{
-            background: "#f8f9fb",
-            boxShadow: "inset 0 2px 6px rgba(0,0,0,0.04)",
-          }}>
+          <div className="mx-3 sm:mx-4 mb-3 sm:mb-4 rounded-2xl px-3 sm:px-5 py-4 sm:py-5 flex items-center justify-between border border-gray-100 bg-gray-50 shadow-inner">
             {/* Nutrition consumed */}
             <div className="flex flex-col items-start gap-0.5 sm:gap-1 min-w-0 flex-shrink-0">
               <span className="text-[10px] sm:text-[11px] text-gray-500 font-medium">{t("nutrition_eaten")}</span>
@@ -237,7 +238,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               <div className="absolute inset-[5px] sm:inset-[6px] rounded-full bg-white border border-gray-100" style={{
                 boxShadow: "inset 0 2px 6px rgba(0,0,0,0.05)",
               }}>
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140" aria-label={`${calLeft} calories remaining`} aria-roledescription="progress ring">
                   <circle cx="70" cy="70" r={R} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="10" />
                   <motion.circle
                     cx="70" cy="70" r={R} fill="none"
@@ -294,6 +295,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               ringColor="#ffffff"
               bgClass="bg-gradient-to-br from-amber-400 to-yellow-500"
               textClass="text-white"
+              overGoalLabel={t("macro_over_goal") || "Over Goal"}
             />
             <MacroCard
               value={totalProtein} max={targetProtein} label={t("macro_protein")}
@@ -301,6 +303,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               ringColor="#ffffff"
               bgClass="bg-gradient-to-br from-orange-400 to-orange-500"
               textClass="text-white"
+              overGoalLabel={t("macro_over_goal") || "Over Goal"}
             />
             <MacroCard
               value={totalFat} max={targetFat} label={t("macro_fat")}
@@ -308,13 +311,14 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               ringColor={totalFat > targetFat ? "#ef4444" : "#ffffff"}
               bgClass="bg-gradient-to-br from-slate-500 to-slate-600"
               textClass="text-white"
+              overGoalLabel={t("macro_over_goal") || "Over Goal"}
             />
           </div>
 
           {/* Activity details */}
           <div className="px-3 sm:px-4 pb-3 sm:pb-4">
             <p className="text-[10px] sm:text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Activity Details
+              {t("activity_details")}
             </p>
             <div className="flex items-center gap-2 sm:gap-2.5">
               <div className="flex-1 min-w-0 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3 border border-gray-100 bg-gray-50">
@@ -332,13 +336,14 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                   <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">Activities</p>
-                  <p className="text-base sm:text-lg font-black text-gray-800 leading-none">{totalBurned} cal</p>
+                  <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium truncate">{t("activity_sessions") || "Sessions"}</p>
+                  <p className="text-base sm:text-lg font-black text-gray-800 leading-none">{workoutCount}</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setSheetOpen(true)}
+                aria-label={t("log_activity") || "Log activity"}
                 className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-lg shadow-emerald-500/30"
               >
                 <Plus className="w-5 h-5 text-white" />

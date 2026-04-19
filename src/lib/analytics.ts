@@ -144,7 +144,7 @@ export function trackError(error: Error, context?: string) {
 }
 
 // Sanitize properties to remove PII
-function sanitizeProperties(props?: Record<string, any>): Record<string, any> {
+export function sanitizeProperties(props?: Record<string, any>): Record<string, any> {
   if (!props) return {};
 
   const sensitiveKeys = ["email", "phone", "password", "token", "secret", "credit_card"];

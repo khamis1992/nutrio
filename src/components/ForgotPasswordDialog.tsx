@@ -71,12 +71,9 @@ export function ForgotPasswordDialog({ trigger, redirectTo }: ForgotPasswordDial
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
-      // Reset state when dialog closes
-      setTimeout(() => {
-        setEmail("");
-        setSent(false);
-        setError("");
-      }, 200);
+      setEmail("");
+      setSent(false);
+      setError("");
     }
   };
 

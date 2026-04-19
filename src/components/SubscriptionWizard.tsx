@@ -56,7 +56,7 @@ const PLAN_DETAILS = {
 
 type PlanType = keyof typeof PLAN_DETAILS;
 
-export function SubscriptionWizard() {
+export function SubscriptionWizard({ onCancel }: { onCancel?: () => void }) {
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -138,9 +138,16 @@ export function SubscriptionWizard() {
         </RadioGroup>
       </CardContent>
       <CardFooter className="justify-between">
-        <Button variant="ghost" onClick={handleBack} disabled={currentQuestion === 0}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={handleBack} disabled={currentQuestion === 0}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+          {onCancel && (
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+        </div>
         {isLastQuestion ? (
           <Button onClick={() => navigate(`/subscription?recommended=${recommendedPlan}`)}>
             See My Plan <ArrowRight className="ml-2 h-4 w-4" />

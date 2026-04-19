@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format, subDays, isSameDay, isToday, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from "date-fns";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { ArrowLeft, ChevronDown, ChevronUp, Footprints, AlertTriangle, Clock, Flame, MapPin, Plus, Check, Dumbbell, X, RefreshCw, Link, Link2Off } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { cn } from "@/lib/utils";
@@ -635,8 +635,6 @@ export default function StepCounter() {
           </div>
         </div>
       </div>
-
-      <CustomerNavigation />
 
       {/* Add Steps Sheet */}
       {addSheetOpen && (

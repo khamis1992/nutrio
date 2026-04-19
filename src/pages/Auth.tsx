@@ -36,6 +36,15 @@ const Auth = () => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingRole, setCheckingRole] = useState(false);
+
+  const switchView = (newView: AuthView) => {
+    const rememberedEmail = localStorage.getItem("remembered_email");
+    setEmail(rememberedEmail || "");
+    setPassword("");
+    setErrors({});
+    setShowPassword(false);
+    setView(newView);
+  };
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState("");
@@ -44,7 +53,7 @@ const Auth = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSent] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
   const [otpCountdown, setOtpCountdown] = useState(60);
@@ -72,7 +81,7 @@ const Auth = () => {
       // Auto-trigger biometric login if credentials are saved and we haven't done it yet
       if (hasCredentials && !autoTriggered.current) {
         autoTriggered.current = true;
-        setView("signin");
+        switchView("signin");
         // Small delay so the signin view renders before the native prompt appears
         setTimeout(() => {
           handleBiometricLogin();
@@ -90,7 +99,10 @@ const Auth = () => {
       // Race a query against a 5s timeout — prevents hanging when tables don't exist
       const raceWithTimeout = (query: () => Promise<any>): Promise<any> => {
         return Promise.race([
-          query(),
+          query().then(r => {
+            if (r.error) return { data: null };
+            return r;
+          }).catch(() => ({ data: null })),
           new Promise<any>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
         ]);
       };
@@ -425,13 +437,13 @@ const Auth = () => {
               variant="gradient"
               className="w-full rounded-2xl font-bold shadow-lg shadow-primary/25"
               style={{ height: 56, fontSize: 16 }}
-              onClick={() => setView("signup")}
+              onClick={() => switchView("signup")}
             >
               {t("create_free_account")}
             </Button>
             <button
               type="button"
-              onClick={() => setView("signin")}
+              onClick={() => switchView("signin")}
               className="w-full rounded-2xl font-semibold transition-all hover:bg-gray-100 active:scale-[0.98]"
               style={{ height: 56, fontSize: 16, background: "#f8f9fa", border: "1px solid #f1f3f5", cursor: "pointer", color: "#374151" }}
             >
@@ -462,7 +474,7 @@ const Auth = () => {
           {/* Back arrow */}
           <button
             type="button"
-            onClick={() => setView("welcome")}
+            onClick={() => switchView("welcome")}
             className="mb-4 flex items-center justify-center hover:opacity-70 transition-opacity"
           >
             <ArrowLeft className="w-6 h-6 text-gray-800" />

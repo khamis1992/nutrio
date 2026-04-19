@@ -231,11 +231,60 @@ export function useHealthIntegration() {
       return [];
     }
     
-    // Check if token is expired
+    // Check if token is expired and attempt refresh
     if (tokens.expires_at * 1000 < Date.now()) {
-      console.log("Google Fit token expired");
-      // TODO: Implement refresh token flow
-      return [];
+      const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;
+      const clientSecret = import.meta.env.VITE_GOOGLE_FIT_CLIENT_SECRET;
+      
+      const { data: refreshTokenData } = await supabase
+        .from("user_integrations")
+        .select("refresh_token")
+        .eq("user_id", user.id)
+        .eq("provider", "google_fit")
+        .maybeSingle();
+      
+      if (!refreshTokenData?.refresh_token || !clientId || !clientSecret) {
+        console.log("Google Fit token expired and no refresh token available");
+        return [];
+      }
+      
+      try {
+        const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: refreshTokenData.refresh_token,
+            client_id: clientId,
+            client_secret: clientSecret,
+          }),
+        });
+        
+        if (!tokenResponse.ok) {
+          console.error("Google Fit token refresh failed");
+          return [];
+        }
+        
+        const newTokenData = await tokenResponse.json();
+        
+        await supabase
+          .from("user_integrations")
+          .update({
+            access_token: newTokenData.access_token,
+            expires_at: Math.floor((Date.now() + newTokenData.expires_in * 1000) / 1000),
+          })
+          .eq("user_id", user.id)
+          .eq("provider", "google_fit");
+        
+        return await fetchGoogleFitWorkouts(
+          { accessToken: newTokenData.access_token, expiresAt: Math.floor((Date.now() + newTokenData.expires_in * 1000) / 1000) },
+          startDate,
+          endDate
+        );
+      } catch (refreshError) {
+        console.error("Failed to refresh Google Fit token:", refreshError);
+        return [];
+      }
     }
     
     return await fetchGoogleFitWorkouts(

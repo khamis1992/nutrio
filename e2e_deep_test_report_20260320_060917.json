@@ -1,0 +1,71 @@
+{
+  "execution_start": "2026-03-20T05:59:56.576182",
+  "tests": [
+    {
+      "name": "customer login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/dashboard",
+      "timestamp": "2026-03-20T06:00:13.468431"
+    },
+    {
+      "name": "partner login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/partner",
+      "timestamp": "2026-03-20T06:06:51.211418"
+    },
+    {
+      "name": "admin login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/admin",
+      "timestamp": "2026-03-20T06:07:24.773150"
+    },
+    {
+      "name": "driver login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/driver",
+      "timestamp": "2026-03-20T06:08:00.813031"
+    },
+    {
+      "name": "fleet login",
+      "status": "PASS",
+      "details": "Redirected to: http://localhost:4173/fleet",
+      "timestamp": "2026-03-20T06:08:30.349741"
+    }
+  ],
+  "bugs": [],
+  "workflows": [
+    {
+      "name": "Customer workflow",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T06:06:34.892184"
+    },
+    {
+      "name": "Partner workflow",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T06:07:08.440961"
+    },
+    {
+      "name": "Admin workflow",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T06:07:44.492146"
+    },
+    {
+      "name": "Driver workflow",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T06:08:14.018849"
+    },
+    {
+      "name": "Fleet workflow",
+      "status": "COMPLETED",
+      "details": "",
+      "timestamp": "2026-03-20T06:09:17.183616"
+    }
+  ],
+  "ui_issues": [],
+  "performance_issues": [],
+  "execution_end": "2026-03-20T06:09:17.265243"
+}

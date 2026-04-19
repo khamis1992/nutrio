@@ -1,0 +1,96 @@
+{
+  "execution_start": "2026-03-20T05:37:38.754684",
+  "tests": [
+    {
+      "name": "customer login",
+      "status": "FAIL",
+      "details": "Still on auth page: http://localhost:5173/auth",
+      "timestamp": "2026-03-20T05:37:48.447488"
+    },
+    {
+      "name": "partner login",
+      "status": "FAIL",
+      "details": "Still on auth page: http://localhost:5173/auth",
+      "timestamp": "2026-03-20T05:37:57.375923"
+    },
+    {
+      "name": "admin login",
+      "status": "FAIL",
+      "details": "Still on auth page: http://localhost:5173/auth",
+      "timestamp": "2026-03-20T05:38:05.894921"
+    },
+    {
+      "name": "driver login",
+      "status": "FAIL",
+      "details": "Still on auth page: http://localhost:5173/auth",
+      "timestamp": "2026-03-20T05:38:14.431497"
+    },
+    {
+      "name": "fleet login",
+      "status": "FAIL",
+      "details": "Still on auth page: http://localhost:5173/auth",
+      "timestamp": "2026-03-20T05:38:23.121740"
+    }
+  ],
+  "bugs": [
+    {
+      "title": "Customer login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "customer",
+      "timestamp": "2026-03-20T05:37:48.447503"
+    },
+    {
+      "title": "Partner login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "partner",
+      "timestamp": "2026-03-20T05:37:57.375954"
+    },
+    {
+      "title": "Admin login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "admin",
+      "timestamp": "2026-03-20T05:38:05.894956"
+    },
+    {
+      "title": "Driver login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "driver",
+      "timestamp": "2026-03-20T05:38:14.431520"
+    },
+    {
+      "title": "Fleet login failed",
+      "severity": "Critical",
+      "steps": [
+        "Attempted login with valid credentials"
+      ],
+      "expected": "Successful login",
+      "actual": "Login failed",
+      "role": "fleet",
+      "timestamp": "2026-03-20T05:38:23.121774"
+    }
+  ],
+  "workflows": [],
+  "ui_issues": [],
+  "performance_issues": [],
+  "execution_end": "2026-03-20T05:38:23.185926"
+}

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/currency";

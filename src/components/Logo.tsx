@@ -22,7 +22,7 @@ export const Logo: React.FC<LogoProps> = ({
 
   return (
     <img
-      src="/logo.png"
+      src="/nutrio/logo.png"
       alt="Nutrio Fuel"
       className={`${heightClass} w-auto object-contain ${className}`}
     />

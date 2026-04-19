@@ -1,0 +1,149 @@
+[
+  {
+    "category": "Functional",
+    "test": "Page Load",
+    "status": "PASS",
+    "details": "URL: http://localhost:5173/nutrio/dashboard",
+    "severity": "Low"
+  },
+  {
+    "category": "Functional",
+    "test": "Dashboard Accessible",
+    "status": "PASS",
+    "details": "Dashboard loaded directly",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Page Content",
+    "status": "INFO",
+    "details": "Page text length: 0",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Header - Greeting",
+    "status": "FAIL",
+    "details": "Greeting found: False",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Subscription Card",
+    "status": "FAIL",
+    "details": "Subscription info found: False",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Daily Nutrition Card",
+    "status": "FAIL",
+    "details": "Nutrition info found: False",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Log Meal CTA",
+    "status": "FAIL",
+    "details": "Log Meal CTA found: False",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Streak Widget",
+    "status": "INFO",
+    "details": "Streak widget found: False",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "AI Widgets",
+    "status": "INFO",
+    "details": "AI elements found: False",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Interactive Elements",
+    "status": "INFO",
+    "details": "Links: 0, Buttons: 0",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Bottom Navigation Links",
+    "status": "WARN",
+    "details": "Found 0 nav links",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Quick Action Links",
+    "status": "INFO",
+    "details": "Found 0 quick action links",
+    "severity": ""
+  },
+  {
+    "category": "Functional",
+    "test": "Console Errors",
+    "status": "WARN",
+    "details": "Errors: 3, Warnings: 0. First 3 errors: ['[error] Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)', '[error] Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)', '[error] Failed to load resource: the server responded with a status of 504 (Outdated Optimize Dep)']",
+    "severity": "Medium"
+  },
+  {
+    "category": "Performance",
+    "test": "DOMContentLoaded",
+    "status": "INFO",
+    "details": "60ms",
+    "severity": ""
+  },
+  {
+    "category": "Performance",
+    "test": "Full Page Load",
+    "status": "INFO",
+    "details": "500ms",
+    "severity": ""
+  },
+  {
+    "category": "API",
+    "test": "Supabase Request Count",
+    "status": "INFO",
+    "details": "Total: 0",
+    "severity": ""
+  },
+  {
+    "category": "API",
+    "test": "Failed API Response",
+    "status": "WARN",
+    "details": "3 failed: [{'status': 504, 'url': 'http://localhost:5173/nutrio/node_modules/.vite/deps/react_jsx-dev-runtime.js?t=1776229254522&v=de1336ca'}, {'status': 504, 'url': 'http://localhost:5173/nutrio/node_modules/.vite/deps/react.js?t=1776229254520&v=de1336ca'}, {'status': 504, 'url': 'http://localhost:5173/nutrio/node_modules/.vite/deps/react-dom_client.js?t=1776229254516&v=de1336ca'}]",
+    "severity": "High"
+  },
+  {
+    "category": "Security",
+    "test": "LocalStorage Sensitive Data",
+    "status": "PASS",
+    "details": "Sensitive keys: []",
+    "severity": "High"
+  },
+  {
+    "category": "Security",
+    "test": "LocalStorage Item Count",
+    "status": "INFO",
+    "details": "Total items: 0. All keys: []",
+    "severity": ""
+  },
+  {
+    "category": "Performance",
+    "test": "Resource Summary",
+    "status": "INFO",
+    "details": "Resources: 17, Total: 5KB, JS: 3, CSS: 1",
+    "severity": ""
+  },
+  {
+    "category": "Performance",
+    "test": "Largest Resources",
+    "status": "INFO",
+    "details": "Top 10: ['http://localhost:5173/nutrio/@vite/client (0KB)', 'http://localhost:5173/nutrio/src/main.tsx (0KB)', 'http://localhost:5173/nutrio/@react-refresh (0KB)', 'http://localhost:5173/nutrio/node_modules/vite/dist/client/e (0KB)', 'http://localhost:5173/nutrio/node_modules/.vite/deps/react_j (0KB)', 'http://localhost:5173/nutrio/node_modules/.vite/deps/react.j (0KB)', 'http://localhost:5173/nutrio/node_modules/.vite/deps/react-d (0KB)', 'http://localhost:5173/nutrio/src/App.tsx?t=1776229254542 (0KB)', 'http://localhost:5173/nutrio/src/index.css?t=1776228387790 (0KB)', 'http://localhost:5173/nutrio/src/lib/capacitor.ts?t=17762292 (0KB)']",
+    "severity": ""
+  }
+]

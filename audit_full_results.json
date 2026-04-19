@@ -1,0 +1,37 @@
+[
+  {
+    "category": "Functional",
+    "test": "Init Page Load",
+    "status": "INFO",
+    "details": "Navigating to /nutrio/dashboard",
+    "severity": "Low"
+  },
+  {
+    "category": "Functional",
+    "test": "Page Load Error",
+    "status": "FAIL",
+    "details": "Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/nutrio/dashboard\nCall log:\n  - navigating to \"http://localhost:5173/nutrio/dashboard\", waiting until \"domcontentloaded\"\n",
+    "severity": "Critical"
+  },
+  {
+    "category": "Functional",
+    "test": "Page URL",
+    "status": "INFO",
+    "details": "URL: about:blank",
+    "severity": "Low"
+  },
+  {
+    "category": "Functional",
+    "test": "Page Renders Content",
+    "status": "FAIL",
+    "details": "Body text length: 0",
+    "severity": "Critical"
+  },
+  {
+    "category": "Functional",
+    "test": "Page Content Empty",
+    "status": "FAIL",
+    "details": "Page body empty. Console errors: []",
+    "severity": "Critical"
+  }
+]

@@ -1,50 +1,20 @@
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Profile {
-  id: string;
-  user_id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  gender: "male" | "female" | "prefer_not_to_say" | null;
-  age: number | null;
-  height_cm: number | null;
-  current_weight_kg: number | null;
-  target_weight_kg: number | null;
-  health_goal: "lose" | "gain" | "maintain" | null;
-  activity_level: "sedentary" | "light" | "moderate" | "active" | "very_active" | null;
-  daily_calorie_target: number | null;
-  protein_target_g: number | null;
-  carbs_target_g: number | null;
-  fat_target_g: number | null;
-  onboarding_completed: boolean | null;
-  referral_code: string | null;
-  referral_rewards_earned: number | null;
-  referred_by: string | null;
-  affiliate_balance: number | null;
-  total_affiliate_earnings: number | null;
-  affiliate_tier: string | null;
-  streak_days: number | null;
-  created_at: string;
-  updated_at: string;
-}
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+
+export type Profile = ProfileRow;
 
 export const useProfile = () => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchProfile = async () => {
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
+  const { data: profile, isLoading: loading, error, refetch } = useQuery<Profile | null, Error>({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -52,13 +22,11 @@ export const useProfile = () => {
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
-    } catch (err) {
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error("Not authenticated") };
@@ -72,16 +40,12 @@ export const useProfile = () => {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      queryClient.setQueryData(["profile", user.id], data);
       return { data, error: null };
     } catch (err) {
       return { data: null, error: err as Error };
     }
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, [user]);
-
-  return { profile, loading, error, refetch: fetchProfile, updateProfile };
+  return { profile: profile ?? null, loading, error: error ?? null, refetch, updateProfile };
 };

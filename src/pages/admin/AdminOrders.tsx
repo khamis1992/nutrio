@@ -349,6 +349,21 @@ const AdminOrders = () => {
     fetchOrders();
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-orders-rt")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "meal_schedules" },
+        () => { fetchOrders(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -576,12 +591,13 @@ const AdminOrders = () => {
 
   const cancelOrder = async (orderId: string) => {
     try {
-      const { error } = await supabase
-        .from("meal_schedules")
-        .update({ order_status: "cancelled" })
-        .eq("id", orderId);
+      const { data, error } = await supabase.rpc("admin_cancel_meal_schedule", {
+        p_schedule_id: orderId,
+        p_reason: null,
+      });
 
       if (error) throw error;
+      if (!(data as any)?.success) throw new Error((data as any)?.error || "Cancellation failed.");
 
       setOrders((prev) =>
         prev.map((o) =>
@@ -599,7 +615,7 @@ const AdminOrders = () => {
 
       toast({
         title: "Order Cancelled",
-        description: "The order has been cancelled successfully.",
+        description: "The order has been cancelled. meal credit and add-ons refunded.",
       });
     } catch (error: any) {
       console.error("Error cancelling order:", error);
@@ -609,6 +625,54 @@ const AdminOrders = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleBulkCancel = async () => {
+    const ids = Array.from(selectedOrders);
+    let successCount = 0;
+    for (const id of ids) {
+      try {
+        const { data, error } = await supabase.rpc("admin_cancel_meal_schedule", {
+          p_schedule_id: id,
+          p_reason: null,
+        });
+        if (!error && (data as any)?.success) {
+          successCount++;
+          setOrders((prev) =>
+            prev.map((o) => o.id === id ? { ...o, order_status: "cancelled" as OrderStatus } : o)
+          );
+        }
+      } catch {}
+    }
+    setSelectedOrders(new Set());
+    toast({
+      title: "Bulk Cancel",
+      description: `${successCount} of ${ids.length} orders cancelled.`,
+    });
+  };
+
+  const handleBulkComplete = async () => {
+    const ids = Array.from(selectedOrders);
+    let successCount = 0;
+    for (const id of ids) {
+      try {
+        const { error } = await supabase
+          .from("meal_schedules")
+          .update({ is_completed: true, completed_at: new Date().toISOString(), order_status: "completed" })
+          .eq("id", id);
+        if (!error) {
+          successCount++;
+          setOrders((prev) =>
+            prev.map((o) => o.id === id ? { ...o, is_completed: true, order_status: "completed" as OrderStatus } : o)
+          );
+        }
+      } catch {}
+    }
+    setSelectedOrders(new Set());
+    toast({
+      title: "Bulk Complete",
+      description: `${successCount} of ${ids.length} orders marked as completed.`,
+    });
   };
 
   const filteredOrders = orders
@@ -685,13 +749,16 @@ const AdminOrders = () => {
         o.scheduled_date >= today
     ).length,
     completed: orders.filter((o) => o.order_status === "completed").length,
+    cancelled: orders.filter((o) => o.order_status === "cancelled").length,
     overdue: orders.filter(
       (o) =>
         o.order_status !== "completed" &&
         o.order_status !== "cancelled" &&
         o.scheduled_date < today
     ).length,
-    totalRevenue: orders.reduce((sum, o) => sum + o.meal.price * 0.18, 0),
+    totalRevenue: orders
+      .filter((o) => o.order_status !== "cancelled")
+      .reduce((sum, o) => sum + o.meal.price * 0.18, 0),
   };
 
   const openDetail = (order: OrderData) => {
@@ -953,13 +1020,14 @@ const AdminOrders = () => {
               selected
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleBulkComplete}>
                 Mark as Completed
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-red-600 border-red-200"
+                onClick={handleBulkCancel}
               >
                 Cancel Selected
               </Button>

@@ -2,6 +2,7 @@
  * Push Notification Service Tests
  * Tests for Capacitor push notification integration
  */
+/* eslint-disable */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -50,6 +51,8 @@ import { Capacitor } from "@capacitor/core";
 describe("Push Notification Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (pushNotificationService as any).initialized = false;
+    (pushNotificationService as any).fcmToken = null;
   });
 
   afterEach(() => {
@@ -142,7 +145,7 @@ describe("Push Notification Service", () => {
           token: mockToken,
           platform: "ios",
         }),
-        { onConflict: "user_id" }
+        { onConflict: "user_id,token" }
       );
     });
 

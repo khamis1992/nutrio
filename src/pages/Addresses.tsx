@@ -350,7 +350,7 @@ const Addresses = () => {
       console.error("Error fetching addresses:", error);
       toast({
         title: t("error"),
-        description: "Failed to load addresses", // TODO: Add key for this
+        description: t("failed_load_addresses"),
         variant: "destructive"
       });
     } finally {
@@ -474,7 +474,7 @@ const Addresses = () => {
       console.error("Error deleting address:", error);
       toast({
         title: t("error"),
-        description: "Failed to delete address", // TODO: Add key
+        description: t("failed_delete_address"),
         variant: "destructive"
       });
     }
@@ -495,7 +495,7 @@ const Addresses = () => {
       console.error("Error setting default:", error);
       toast({
         title: t("error"),
-        description: "Failed to update default address", // TODO: Add key
+        description: t("failed_update_default_address"),
         variant: "destructive"
       });
     }

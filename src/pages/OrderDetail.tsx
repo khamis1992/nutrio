@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { 
   ArrowLeft, 
   Clock,
@@ -768,7 +768,6 @@ const OrderDetail = () => {
         </Link>
       </div>
 
-      <CustomerNavigation />
     </div>
   );
 };

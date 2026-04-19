@@ -98,6 +98,31 @@ const AdminDashboard = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-dashboard-rt")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "meal_schedules" },
+        () => { fetchData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "restaurants" },
+        () => { fetchData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "subscriptions" },
+        () => { fetchData(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const fetchData = async () => {
     const today = new Date().toISOString().split("T")[0];
     const thirtyDaysAgo = new Date();
@@ -119,9 +144,9 @@ const AdminDashboard = () => {
       supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "approved"),
       supabase.from("restaurants").select("*", { count: "exact", head: true }).eq("approval_status", "pending"),
       supabase.from("profiles").select("*", { count: "exact", head: true }),
-      supabase.from("meal_schedules").select("*", { count: "exact", head: true }),
+      supabase.from("meal_schedules").select("*", { count: "exact", head: true }).neq("order_status", "cancelled"),
       supabase.from("meals").select("*", { count: "exact", head: true }),
-      supabase.from("meal_schedules").select("*", { count: "exact", head: true }).eq("scheduled_date", today),
+      supabase.from("meal_schedules").select("*", { count: "exact", head: true }).eq("scheduled_date", today).neq("order_status", "cancelled"),
       supabase.from("payouts").select("amount").eq("status", "pending"),
       supabase.from("affiliate_commissions").select("commission_amount, created_at, status").gte("created_at", thirtyDaysAgo.toISOString()),
       supabase.from("affiliate_payouts").select("amount").eq("status", "pending"),
@@ -183,7 +208,8 @@ const AdminDashboard = () => {
     const { data: weeklySchedules } = await supabase
       .from("meal_schedules")
       .select("scheduled_date, meal_id")
-      .gte("scheduled_date", weekAgo.toISOString().split("T")[0]);
+      .gte("scheduled_date", weekAgo.toISOString().split("T")[0])
+      .neq("order_status", "cancelled");
 
     const { data: allMeals } = await supabase
       .from("meals")
@@ -228,8 +254,9 @@ const AdminDashboard = () => {
 
     const { data: recentSchedules } = await supabase
       .from("meal_schedules")
-      .select("id, created_at, meals:meal_id(name)")
+      .select("id, created_at, order_status, meals:meal_id(name)")
       .order("created_at", { ascending: false })
+      .neq("order_status", "cancelled")
       .limit(3);
 
     const activities: RecentActivity[] = [];
@@ -249,7 +276,7 @@ const AdminDashboard = () => {
         id: s.id,
         type: "order",
         title: s.meals?.name || "Meal Order",
-        description: "New meal scheduled",
+        description: s.order_status === "completed" ? "Meal completed" : "New meal scheduled",
         time: new Date(s.created_at).toLocaleString(),
       });
     });

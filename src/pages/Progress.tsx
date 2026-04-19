@@ -22,7 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { format, subDays } from "date-fns";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ProgressRings } from "@/components/progress/ProgressRings";
@@ -678,7 +678,6 @@ return (
         )}
       </main>
 
-      <CustomerNavigation />
     </div>
   );
 };

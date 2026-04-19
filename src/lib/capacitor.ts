@@ -623,7 +623,9 @@ export const initializeNativeApp = async () => {
   } catch (error) {
     console.error('Error initializing native app:', error);
     // Ensure splash is hidden even if initialization fails
-    try { await splashScreen.hideFadeOut(300); } catch {}
+    try { await splashScreen.hideFadeOut(300); } catch (e) {
+      console.warn("[Capacitor] Failed to hide splash:", e);
+    }
   }
 };
 

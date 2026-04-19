@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 import { OneTapReorder } from "@/components/OneTapReorder";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { toast as sonnerToast } from "sonner";
@@ -304,8 +304,11 @@ export default function DeliveryTracking() {
         if (!(data as any)?.success) throw new Error("Cancellation failed.");
         setScheduledMeals(prev => prev.map(m => m.id === id ? { ...m, order_status: "cancelled" } : m));
       } else {
-        const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
-        if (error) throw error;
+        const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id });
+        if (error) {
+          const { error: rawError } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
+          if (rawError) throw rawError;
+        }
         setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
       }
       toast({ title: "Order cancelled", description: "Your order has been cancelled." });
@@ -585,7 +588,6 @@ export default function DeliveryTracking() {
         onModified={() => { fetchScheduledMeals(); setModifyingSchedule(null); }}
       />
 
-      <CustomerNavigation />
     </div>
   );
 }

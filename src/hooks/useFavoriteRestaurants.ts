@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export function useFavoriteRestaurants() {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+  const favoriteIdsRef = useRef(favoriteIds);
+  favoriteIdsRef.current = favoriteIds;
 
   // Fetch user's favorite restaurants
   useEffect(() => {
@@ -39,15 +41,12 @@ export function useFavoriteRestaurants() {
 
   const toggleFavorite = useCallback(async (restaurantId: string, restaurantName: string) => {
     if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to save favorites",
-        variant: "destructive",
-      });
+      toast.error("Sign in required", { description: "Please sign in to save favorites" });
       return;
     }
 
-    const isFavorite = favoriteIds.has(restaurantId);
+    const isFavorite = favoriteIdsRef.current.has(restaurantId);
+    setToggling(true);
 
     // Optimistic update
     setFavoriteIds(prev => {
@@ -70,10 +69,7 @@ export function useFavoriteRestaurants() {
 
         if (error) throw error;
 
-        toast({
-          title: "Removed from favorites",
-          description: `${restaurantName} has been removed from your favorites`,
-        });
+        toast.success("Removed from favorites", { description: `${restaurantName} has been removed from your favorites` });
       } else {
         const { error } = await supabase
           .from("user_favorite_restaurants")
@@ -84,10 +80,7 @@ export function useFavoriteRestaurants() {
 
         if (error) throw error;
 
-        toast({
-          title: "Added to favorites",
-          description: `${restaurantName} has been saved to your favorites`,
-        });
+        toast.success("Added to favorites", { description: `${restaurantName} has been saved to your favorites` });
       }
     } catch (err) {
       // Revert optimistic update
@@ -101,13 +94,11 @@ export function useFavoriteRestaurants() {
         return next;
       });
       console.error("Error toggling favorite:", err);
-      toast({
-        title: "Error",
-        description: "Failed to update favorites",
-        variant: "destructive",
-      });
+      toast.error("Error", { description: "Failed to update favorites" });
+    } finally {
+      setToggling(false);
     }
-  }, [user, favoriteIds, toast]);
+  }, [user]);
 
   const isFavorite = useCallback((restaurantId: string) => {
     return favoriteIds.has(restaurantId);
@@ -116,6 +107,7 @@ export function useFavoriteRestaurants() {
   return {
     favoriteIds,
     loading,
+    toggling,
     toggleFavorite,
     isFavorite,
   };

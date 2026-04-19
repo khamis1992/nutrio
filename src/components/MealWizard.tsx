@@ -36,7 +36,7 @@ import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useWallet } from "@/hooks/useWallet";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import { formatCurrency } from "@/lib/currency";
 import { ShoppingCart, Wallet } from "lucide-react";
 
@@ -89,7 +89,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
   const { toast } = useToast();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { remainingMeals, isUnlimited, incrementMealUsage } = useSubscription();
+  const { remainingMeals, isUnlimited, incrementMealUsage, subscription } = useSubscription();
 
   // Phase: "mode" = first screen asking single vs full-day, "scheduling" = normal wizard flow
   const [phase, setPhase] = useState<"mode" | "scheduling">("mode");
@@ -498,6 +498,12 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
     executeNavigation(pendingNav);
   };
 
+  const closeAddonSheet = () => {
+    setSelectedAddonIds(new Set());
+    setShowAddonSheet(false);
+    setPendingNav(null);
+  };
+
   const toggleAddon = (id: string) => {
     setSelectedAddonIds(prev => {
       const next = new Set(prev);
@@ -627,11 +633,17 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         return;
       }
 
-      // Increment quota for each meal being scheduled
+      let quotaIncremented = 0;
       if (!isUnlimited) {
         for (let i = 0; i < allSelectedMeals.length; i++) {
           const ok = await incrementMealUsage();
           if (!ok) {
+            if (quotaIncremented > 0) {
+              await (supabase.rpc as any)("decrement_monthly_meal_usage", {
+                p_subscription_id: subscription!.id,
+                p_count: quotaIncremented,
+              });
+            }
             toast({
               title: "No meals remaining",
               description: "Your quota ran out. You can buy extra meals using your wallet balance.",
@@ -642,6 +654,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
             navigate("/meals");
             return;
           }
+          quotaIncremented++;
         }
       }
 
@@ -650,16 +663,24 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         .insert(allSelectedMeals)
         .select("id, meal_type");
 
-      if (error) throw error;
+      if (error) {
+        if (!isUnlimited && quotaIncremented > 0 && subscription) {
+          await (supabase.rpc as any)("decrement_monthly_meal_usage", {
+            p_subscription_id: subscription.id,
+            p_count: quotaIncremented,
+          });
+        }
+        throw error;
+      }
 
-      // Process add-ons for each scheduled meal
+      let addonDebitFailed = false;
+      const failedScheduleIds: string[] = [];
       for (const schedule of (insertedSchedules || [])) {
         const addons = addonsPerStep[schedule.meal_type] || [];
         if (addons.length === 0) continue;
 
         const total = addons.reduce((sum, a) => sum + a.price, 0);
 
-        // Debit wallet
         const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
           p_user_id: userId,
           p_amount: total,
@@ -668,10 +689,11 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
         });
         if (debitErr) {
           console.error("Wallet debit failed for add-ons:", debitErr);
+          addonDebitFailed = true;
+          failedScheduleIds.push(schedule.id);
           continue;
         }
 
-        // Insert into schedule_addons
         await supabase.from("schedule_addons").insert(
           addons.map(a => ({
             schedule_id: schedule.id,
@@ -680,6 +702,28 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
             unit_price: a.price,
           }))
         );
+      }
+
+      if (addonDebitFailed && failedScheduleIds.length > 0) {
+        const { error: rollbackErr } = await supabase
+          .from("meal_schedules")
+          .delete()
+          .in("id", failedScheduleIds);
+        if (rollbackErr) {
+          console.error("Failed to rollback schedules after add-on debit failure:", rollbackErr);
+        } else if (!isUnlimited && quotaIncremented > 0 && subscription) {
+          await (supabase.rpc as any)("decrement_monthly_meal_usage", {
+            p_subscription_id: subscription.id,
+            p_count: failedScheduleIds.length,
+          });
+        }
+        toast({
+          title: "Wallet payment failed",
+          description: "Could not charge your wallet for add-ons. Please add wallet balance and try again.",
+          variant: "destructive",
+        });
+        setScheduling(false);
+        return;
       }
 
       if (Object.values(addonsPerStep).some(a => a.length > 0)) {
@@ -705,6 +749,32 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
   const getTotalSelectedMeals = () => {
     return Object.values(selectedMeals).filter(meal => meal !== null).length;
   };
+
+  const hasUnsavedSelections = getTotalSelectedMeals() > 0 || scheduling;
+
+  const blocker = useBlocker(hasUnsavedSelections);
+
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      const ok = window.confirm("You have unsaved meal selections. Are you sure you want to leave?");
+      if (ok) {
+        onCancel();
+        blocker.proceed?.();
+      } else {
+        blocker.reset?.();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!hasUnsavedSelections) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedSelections]);
 
   // Calculate remaining nutrition based on locked meals for suggestions
   const calculateRemainingForSuggestions = (lockedMealsList: any[]) => {
@@ -1170,6 +1240,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                   <button
                     onClick={() => {
                       setSelectedMeals(prev => ({ ...prev, [step.id]: null as any }));
+                      setAddonsPerStep(prev => ({ ...prev, [step.id]: [] }));
                       setSelectedRestaurant(null);
                     }}
                     className="hover:text-destructive shrink-0"
@@ -1253,6 +1324,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                     <button
                       onClick={() => {
                         setSelectedMeals(prev => ({ ...prev, [step.id]: null as any }));
+                        setAddonsPerStep(prev => ({ ...prev, [step.id]: [] }));
                         setShowPlanSummary(false);
                       }}
                       className="text-muted-foreground hover:text-destructive shrink-0 ml-1"
@@ -1846,7 +1918,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => { setShowAutoFillDialog(false); onCancel(); }}
+              onClick={() => setShowAutoFillDialog(false)}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
             <motion.div
@@ -1860,7 +1932,6 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               onDragEnd={(_, info) => {
                 if (info.offset.y > 100) {
                   setShowAutoFillDialog(false);
-                  onCancel();
                 }
               }}
               className="fixed bottom-0 left-0 right-0 bg-[#F2F2F7] dark:bg-zinc-950 rounded-t-[32px] z-50 max-h-[85vh] overflow-hidden flex flex-col"
@@ -1883,7 +1954,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                     </div>
                   </div>
                   <button
-                    onClick={() => { setShowAutoFillDialog(false); onCancel(); }}
+                    onClick={() => setShowAutoFillDialog(false)}
                     className="w-9 h-9 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center active:scale-90 transition-transform"
                   >
                     <X className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
@@ -2266,7 +2337,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                 
                 {/* Secondary Action - Cancel */}
                 <motion.button
-                  onClick={() => { setShowAutoFillDialog(false); onCancel(); }}
+                  onClick={() => setShowAutoFillDialog(false)}
                   whileTap={{ scale: 0.97 }}
                   className="w-full h-[48px] mt-3 rounded-[14px] text-zinc-500 dark:text-zinc-400 font-medium text-[17px] active:bg-zinc-100 dark:active:bg-zinc-800/50 transition-colors"
                 >
@@ -2286,7 +2357,7 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={skipAddons}
+              onClick={closeAddonSheet}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200]"
             />
             <motion.div
@@ -2314,9 +2385,9 @@ const MealWizard = ({ userId, selectedDate, onComplete, onCancel, initialStep = 
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={skipAddons}
-                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform"
+                   <button
+                     onClick={closeAddonSheet}
+                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:scale-90 transition-transform"
                   >
                     <X className="w-4 h-4 text-muted-foreground" />
                   </button>

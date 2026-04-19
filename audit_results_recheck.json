@@ -1,0 +1,34 @@
+{
+  "load_time_seconds": 7.41,
+  "current_url": "http://localhost:5173/nutrio/auth",
+  "csp_meta_tag_present": true,
+  "csp_content_preview": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https:",
+  "aria_live_elements_count": 1,
+  "role_status_elements_count": 0,
+  "localStorage_adaptive_keys": [],
+  "console_errors_sample": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "console_warnings_sample": [],
+  "protected_routes": {
+    "/admin": "http://localhost:5173/nutrio/auth",
+    "/driver": "http://localhost:5173/nutrio/auth",
+    "/partner": "http://localhost:5173/nutrio/auth",
+    "/wallet": "http://localhost:5173/nutrio/auth",
+    "/subscription": "http://localhost:5173/nutrio/auth"
+  },
+  "mobile_320_overflow_issues": [
+    {
+      "tag": "DIV",
+      "class": ""
+    }
+  ],
+  "reduced_motion_screenshot_taken": true
+}

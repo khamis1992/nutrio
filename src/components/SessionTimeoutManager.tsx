@@ -10,16 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Timer, LogOut, RefreshCw } from "lucide-react";
 import { isNative } from "@/lib/capacitor";
 
-// Constants
-const IDLE_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-const WARNING_TIME = 2 * 60 * 1000; // Show warning 2 minutes before logout
-const CHECK_INTERVAL = 1000; // Check every second
+const IDLE_TIMEOUT = 30 * 60 * 1000;
+const WARNING_TIME = 2 * 60 * 1000;
+const CHECK_INTERVAL = 1000;
 
-// Events that reset idle timer
 const ACTIVITY_EVENTS = [
   "mousedown",
   "mousemove",
@@ -35,19 +33,14 @@ interface SessionTimeoutManagerProps {
   children: React.ReactNode;
 }
 
-/**
- * Session Timeout Manager Component
- * 
- * Monitors user activity and:
- * 1. Shows warning 2 minutes before timeout
- * 2. Auto-logs out user after 30 minutes of inactivity
- * 3. Syncs across browser tabs using BroadcastChannel
- * 4. Extends timeout during form submissions or API calls
- */
+export const sessionTimeoutControl = {
+  pause: () => {},
+  resume: () => {},
+};
+
 export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   
   const [showWarning, setShowWarning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(IDLE_TIMEOUT);
@@ -55,15 +48,14 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
   
   const lastActivityRef = useRef<number>(Date.now());
   const warningShownRef = useRef<boolean>(false);
+  const showWarningRef = useRef<boolean>(false);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSubmittingRef = useRef<boolean>(false);
 
-  // Initialize BroadcastChannel for cross-tab sync (only for same browser tabs, not different devices)
   useEffect(() => {
     if (typeof window !== "undefined" && "BroadcastChannel" in window && !isNative) {
-      // Only use BroadcastChannel for web (not native apps/APK)
       broadcastChannelRef.current = new BroadcastChannel("session_timeout");
       
       broadcastChannelRef.current.onmessage = (event) => {
@@ -80,17 +72,13 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     };
   }, []);
 
-  // Broadcast activity to other tabs
   const broadcastActivity = useCallback(() => {
     broadcastChannelRef.current?.postMessage({ type: "ACTIVITY" });
   }, []);
 
-  // Handle logout
   const handleLogout = useCallback(async (reason: string = "Session expired") => {
-    // Broadcast logout to other tabs
     broadcastChannelRef.current?.postMessage({ type: "LOGOUT" });
     
-    // Clear intervals
     if (checkIntervalRef.current) {
       clearInterval(checkIntervalRef.current);
     }
@@ -98,44 +86,33 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
       clearInterval(countdownIntervalRef.current);
     }
 
-    // Sign out
     await signOut();
     
-    // Show toast
-    toast({
-      title: "Session Expired",
-      description: reason,
-      variant: "destructive",
-    });
+    toast.error("Session Expired", { description: reason });
 
-    // Navigate to login
     navigate("/auth");
-  }, [signOut, navigate, toast]);
+  }, [signOut, navigate]);
 
-  // Reset idle timer
   const resetIdleTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
     warningShownRef.current = false;
+    showWarningRef.current = false;
     setShowWarning(false);
     setTimeRemaining(IDLE_TIMEOUT);
     setIsExtended(false);
   }, []);
 
-  // Extend session (user clicked "Stay Logged In")
   const extendSession = useCallback(() => {
     resetIdleTimer();
     broadcastActivity();
     setIsExtended(true);
     
-    // Show confirmation
     setTimeout(() => {
       setIsExtended(false);
     }, 2000);
   }, [resetIdleTimer, broadcastActivity]);
 
-  // Activity handler
   const handleActivity = useCallback(() => {
-    // Don't reset if form is being submitted
     if (isSubmittingRef.current) {
       return;
     }
@@ -145,11 +122,11 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     
     if (warningShownRef.current) {
       warningShownRef.current = false;
+      showWarningRef.current = false;
       setShowWarning(false);
     }
   }, [broadcastActivity]);
 
-  // Set up activity listeners
   useEffect(() => {
     if (!user) return;
 
@@ -166,35 +143,30 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     };
   }, [user, handleActivity]);
 
-  // Main timeout checker
   useEffect(() => {
     if (!user) return;
 
-    // Reset timer on mount
     resetIdleTimer();
 
-    // Set up check interval
     checkIntervalRef.current = setInterval(() => {
       const now = Date.now();
       const idleTime = now - lastActivityRef.current;
       const timeLeft = Math.max(0, IDLE_TIMEOUT - idleTime);
 
-      // Show warning when 2 minutes remaining
       if (timeLeft <= WARNING_TIME && !warningShownRef.current) {
         warningShownRef.current = true;
+        showWarningRef.current = true;
         setShowWarning(true);
         setTimeRemaining(timeLeft);
       }
 
-      // Logout when time expires
       if (idleTime >= IDLE_TIMEOUT) {
         handleLogout("You were logged out due to inactivity");
       }
     }, CHECK_INTERVAL);
 
-    // Set up countdown interval for warning dialog
     countdownIntervalRef.current = setInterval(() => {
-      if (showWarning) {
+      if (showWarningRef.current) {
         const now = Date.now();
         const idleTime = now - lastActivityRef.current;
         const timeLeft = Math.max(0, IDLE_TIMEOUT - idleTime);
@@ -214,9 +186,27 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [user, showWarning, resetIdleTimer, handleLogout]);
+  }, [user, resetIdleTimer, handleLogout]);
 
-  // Format time remaining for display
+  // Expose control via module-level object instead of window global
+  useEffect(() => {
+    if (!user) return;
+
+    sessionTimeoutControl.pause = () => {
+      isSubmittingRef.current = true;
+      lastActivityRef.current = Date.now();
+    };
+    sessionTimeoutControl.resume = () => {
+      isSubmittingRef.current = false;
+      lastActivityRef.current = Date.now();
+    };
+
+    return () => {
+      sessionTimeoutControl.pause = () => {};
+      sessionTimeoutControl.resume = () => {};
+    };
+  }, [user]);
+
   const formatTimeRemaining = (ms: number): string => {
     const seconds = Math.ceil(ms / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -224,30 +214,6 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
-  // API to allow other components to temporarily disable timeout
-  // (e.g., during file uploads or long API calls)
-  useEffect(() => {
-    if (!user) return;
-
-    // Expose global function for form submission tracking
-    (window as any).__sessionTimeout = {
-      pause: () => {
-        isSubmittingRef.current = true;
-        // Extend timeout while submitting
-        lastActivityRef.current = Date.now();
-      },
-      resume: () => {
-        isSubmittingRef.current = false;
-        lastActivityRef.current = Date.now();
-      },
-    };
-
-    return () => {
-      delete (window as any).__sessionTimeout;
-    };
-  }, [user]);
-
-  // Don't render if no user
   if (!user) {
     return <>{children}</>;
   }
@@ -256,7 +222,6 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     <>
       {children}
 
-      {/* Warning Dialog */}
       <Dialog open={showWarning} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md [&>button]:hidden">
           <DialogHeader>
@@ -316,27 +281,13 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
   );
 }
 
-/**
- * Hook to temporarily disable session timeout during long operations
- * Usage:
- * const { pauseTimeout, resumeTimeout } = useSessionTimeoutControl();
- * 
- * useEffect(() => {
- *   pauseTimeout();
- *   uploadLargeFile().then(() => resumeTimeout());
- * }, []);
- */
 export function useSessionTimeoutControl() {
   const pauseTimeout = useCallback(() => {
-    if ((window as any).__sessionTimeout) {
-      (window as any).__sessionTimeout.pause();
-    }
+    sessionTimeoutControl.pause();
   }, []);
 
   const resumeTimeout = useCallback(() => {
-    if ((window as any).__sessionTimeout) {
-      (window as any).__sessionTimeout.resume();
-    }
+    sessionTimeoutControl.resume();
   }, []);
 
   return { pauseTimeout, resumeTimeout };

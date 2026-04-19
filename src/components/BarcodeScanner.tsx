@@ -319,14 +319,21 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
   // Start/stop based on isOpen prop
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    } else {
+    let mounted = true;
+    
+    const initCamera = async () => {
+      if (isOpen && mounted) {
+        await startCamera();
+      }
+    };
+    
+    initCamera();
+    
+    return () => {
+      mounted = false;
       stopCamera();
-    }
-
-    return () => stopCamera();
-  }, [isOpen, startCamera, stopCamera]);
+    };
+  }, [isOpen]);
 
   // Manual entry fallback
   const [manualBarcode, setManualBarcode] = useState("");

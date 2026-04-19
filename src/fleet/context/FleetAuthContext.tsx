@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { loginFleetManager, logoutFleetManager, refreshFleetToken } from '@/fleet/services/fleetApi';
 import type { FleetLoginResponse, FleetManagerRole } from '@/fleet/types/fleet';
+import { toast } from 'sonner';
 
 interface FleetAuthContextType {
   user: FleetLoginResponse['user'] | null;
@@ -17,38 +18,12 @@ interface FleetAuthContextType {
 
 const FleetAuthContext = createContext<FleetAuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'fleet_token';
-const REFRESH_TOKEN_KEY = 'fleet_refresh_token';
-const USER_KEY = 'fleet_user';
-
 export function FleetAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FleetLoginResponse['user'] | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const { toast } = useToast();
-
-  // Load auth state from localStorage on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY);
-    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    const storedUser = localStorage.getItem(USER_KEY);
-
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setToken(storedToken);
-        setRefreshToken(storedRefreshToken);
-        setUser(parsedUser);
-      } catch {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-      }
-    }
-    setIsLoading(false);
-  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -59,27 +34,52 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setToken(null);
       setRefreshToken(null);
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
       navigate('/fleet/login');
     }
   }, [navigate]);
 
-  // Token refresh interval - uses localStorage to avoid stale closure
+  useEffect(() => {
+    const trySilentRefresh = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const { data: managerData, error: managerError } = await supabase
+            .from('fleet_managers')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .eq('is_active', true)
+            .single();
+
+          if (!managerError && managerData) {
+            setToken(session.access_token);
+            setRefreshToken(session.refresh_token);
+            setUser({
+              id: managerData.id,
+              email: managerData.email,
+              fullName: managerData.full_name,
+              role: managerData.role,
+              assignedCities: managerData.assigned_city_ids || [],
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Silent fleet auth refresh failed:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    trySilentRefresh();
+  }, []);
+
   useEffect(() => {
     if (!refreshToken) return;
 
     const refreshInterval = setInterval(async () => {
       try {
-        const currentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-        if (!currentRefreshToken) return;
-
-        const { token: newToken, refreshToken: newRefreshToken } = await refreshFleetToken(currentRefreshToken);
+        const { token: newToken, refreshToken: newRefreshToken } = await refreshFleetToken(refreshToken);
         setToken(newToken);
         setRefreshToken(newRefreshToken);
-        localStorage.setItem(TOKEN_KEY, newToken);
-        localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
       } catch (error) {
         console.error('Failed to refresh token:', error);
         logout();
@@ -93,33 +93,22 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       const response = await loginFleetManager({ email, password });
-      
+
       setUser(response.user);
       setToken(response.token);
       setRefreshToken(response.refreshToken);
 
-      localStorage.setItem(TOKEN_KEY, response.token);
-      localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
-      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-
-      toast({
-        title: 'Login Successful',
-        description: `Welcome back, ${response.user.fullName}`,
-      });
+      toast.success(`Welcome back, ${response.user.fullName}`);
 
       navigate('/fleet');
     } catch (error) {
       console.error('Login error:', error);
-      toast({
-        title: 'Login Failed',
-        description: error instanceof Error ? error.message : 'Invalid credentials',
-        variant: 'destructive',
-      });
+      toast.error(error instanceof Error ? error.message : 'Invalid credentials');
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, toast]);
+  }, [navigate]);
 
   const hasCityAccess = useCallback((cityId: string): boolean => {
     if (!user) return false;
@@ -156,27 +145,18 @@ export function useFleetAuth() {
 export function useRequireFleetAuth(requiredRole?: FleetManagerRole) {
   const { user, isAuthenticated, isLoading } = useFleetAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please login to access the fleet management portal',
-        variant: 'destructive',
-      });
+      toast.error('Please login to access the fleet management portal');
       navigate('/fleet/login');
     }
 
     if (requiredRole && user && user.role !== requiredRole && user.role !== 'super_admin') {
-      toast({
-        title: 'Access Denied',
-        description: 'You do not have permission to access this resource',
-        variant: 'destructive',
-      });
+      toast.error('You do not have permission to access this resource');
       navigate('/fleet');
     }
-  }, [isAuthenticated, isLoading, navigate, requiredRole, toast, user]);
+  }, [isAuthenticated, isLoading, navigate, requiredRole, user]);
 
   return { user, isAuthenticated, isLoading };
 }

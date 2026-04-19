@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { MealPlanGenerator } from "@/components/MealPlanGenerator";
-import { CustomerNavigation } from "@/components/CustomerNavigation";
+
 
 export default function MealPlan() {
   const navigate = useNavigate();
@@ -34,8 +34,6 @@ export default function MealPlan() {
         <MealPlanGenerator />
       </main>
 
-      {/* Navigation */}
-      <CustomerNavigation />
     </div>
   );
 }
