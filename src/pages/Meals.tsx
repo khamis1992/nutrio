@@ -12,10 +12,11 @@ import {
   Utensils,
   Coffee,
   Soup,
-  utensils,
   UtensilsCrossed,
   Cake,
   Droplet,
+  Sandwich,
+  Pizza,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,8 +78,8 @@ interface MealResult {
 const categoryConfig: Record<MealCategory, { labelKey: string; icon: React.ElementType }> = {
   all: { labelKey: "all_cuisine", icon: Utensils },
   breakfast: { labelKey: "cuisine_breakfast", icon: Coffee },
-  lunch: { labelKey: "lunch", icon: Soup },
-  dinner: { labelKey: "dinner", icon: Soup },
+  lunch: { labelKey: "lunch", icon: Sandwich },
+  dinner: { labelKey: "dinner", icon: Pizza },
   snacks: { labelKey: "snacks", icon: UtensilsCrossed },
   desserts: { labelKey: "desserts", icon: Cake },
   beverages: { labelKey: "beverages", icon: Droplet },
@@ -137,7 +138,7 @@ const MealCard = ({
               >
                 <Heart
                   className={`w-4 h-4 transition-colors ${
-                    isFavoriteRestaurant ? "fill-rose-500 text-rose-500" : "text-gray-400"
+                    isFavoriteRestaurant ? "fill-primary text-primary" : "text-muted-foreground"
                   }`}
                 />
               </motion.button>
@@ -145,7 +146,7 @@ const MealCard = ({
             {/* Availability Badge */}
             {meal.is_available === false && (
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <span className="text-xs font-semibold text-white bg-gray-800/80 px-3 py-1 rounded-full">
+                <span className="text-xs font-semibold text-white bg-foreground/80 px-3 py-1 rounded-full">
                   {t("currently_unavailable")}
                 </span>
               </div>
@@ -163,8 +164,8 @@ const MealCard = ({
 
             {/* Bottom Row: Calories + Price */}
             <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">
-                <Flame className="w-3 h-3 text-orange-500" />
+              <div className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                <Flame className="w-3 h-3 text-primary" />
                 <span className="text-xs font-semibold">{meal.calories ?? 0}</span>
               </div>
               {meal.price !== null && meal.price !== undefined && (
@@ -179,20 +180,20 @@ const MealCard = ({
               <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100">
                 {meal.protein_g !== null && (
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                    <span className="text-[10px] text-gray-500">P {meal.protein_g}g</span>
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    <span className="text-[10px] text-muted-foreground">P {meal.protein_g}g</span>
                   </div>
                 )}
                 {meal.carbs_g !== null && (
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-orange-400" />
-                    <span className="text-[10px] text-gray-500">C {meal.carbs_g}g</span>
+                    <span className="w-2 h-2 rounded-full bg-warning" />
+                    <span className="text-[10px] text-muted-foreground">C {meal.carbs_g}g</span>
                   </div>
                 )}
                 {meal.fat_g !== null && (
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-yellow-400" />
-                    <span className="text-[10px] text-gray-500">F {meal.fat_g}g</span>
+                    <span className="w-2 h-2 rounded-full bg-warning" />
+                    <span className="text-[10px] text-muted-foreground">F {meal.fat_g}g</span>
                   </div>
                 )}
               </div>
@@ -249,7 +250,7 @@ const RestaurantCard = ({
             >
               <Heart
                 className={`w-4 h-4 transition-colors ${
-                  isFavorite ? "fill-rose-500 text-rose-500" : "text-gray-400"
+                  isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
                 }`}
               />
             </motion.button>
@@ -271,10 +272,6 @@ const RestaurantCard = ({
 
             {/* Stats Row */}
             <div className="flex items-center gap-2 mt-2">
-              <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-                <span className="text-xs font-semibold">{restaurant.rating > 0 ? restaurant.rating.toFixed(1) : "New"}</span>
-                {restaurant.rating > 0 && <span className="text-[10px]">★</span>}
-              </div>
               <span className="text-xs text-[#64748B]">
                 {restaurant.meal_count} {t("meals")}
               </span>
@@ -298,11 +295,11 @@ const GridSkeleton = () => (
           />
         </div>
         <div className="p-3 space-y-2">
-          <div className="h-4 bg-gray-100 rounded-full w-3/4" />
-          <div className="h-3 bg-gray-50 rounded-full w-1/2" />
+          <div className="h-4 bg-muted rounded-full w-3/4" />
+          <div className="h-3 bg-muted-foreground/20 rounded-full w-1/2" />
           <div className="flex gap-2 mt-3">
-            <div className="h-6 w-16 bg-gray-100 rounded-full" />
-            <div className="h-6 w-12 bg-gray-50 rounded-full ml-auto" />
+            <div className="h-6 w-16 bg-muted rounded-full" />
+            <div className="h-6 w-12 bg-muted-foreground/20 rounded-full ml-auto" />
           </div>
         </div>
       </div>
@@ -374,7 +371,7 @@ const FilterSheet = ({
              role="dialog"
            >
             <div 
-              className="w-[40px] h-[4px] bg-gray-300 rounded-[2px] mx-auto mb-5 cursor-pointer hover:bg-gray-400 transition-colors"
+              className="w-[40px] h-[4px] bg-muted rounded-[2px] mx-auto mb-5 cursor-pointer hover:bg-muted-foreground transition-colors"
               onClick={onClose}
               role="presentation"
             />
@@ -382,7 +379,7 @@ const FilterSheet = ({
             <div className="px-6 pb-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-[20px] font-bold text-[#1F2937]">{t("filters")}</h2>
-                <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+                <span className="px-3 py-1 bg-muted text-muted-foreground text-xs font-semibold rounded-full">
                   {resultCount} {resultCount === 1 ? t("meal") : t("meals")}
                 </span>
               </div>
@@ -403,7 +400,7 @@ const FilterSheet = ({
                       className={`filter-chip px-4 py-2 rounded-[20px] text-[14px] font-medium transition-all border-none shadow-sm ${
                         activeSort === option.id
                           ? "bg-primary text-white"
-                          : "bg-[#F9FAFB] text-gray-600"
+                          : "bg-muted text-muted-foreground"
                       }`}
                       style={{
                         boxShadow: activeSort === option.id ? "0 4px 6px rgba(16, 185, 129, 0.3)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
@@ -431,8 +428,8 @@ const FilterSheet = ({
                       aria-checked={calorieRange === option.id}
                       className={`px-4 py-2 rounded-[20px] text-[14px] font-medium transition-all border-none shadow-sm flex flex-col items-center justify-center gap-1 ${
                         calorieRange === option.id
-                          ? "bg-[#F59E0B] text-white shadow-[0_4px_6px_rgba(245,158,11,0.3)]"
-                          : "bg-[#F9FAFB] text-gray-600 hover:bg-gray-100"
+                          ? "bg-warning text-white shadow-[0_4px_6px_rgba(245,158,11,0.3)]"
+                          : "bg-muted text-muted-foreground hover:bg-muted"
                       }`}
                     >
                       {option.id === "all" && <span>{option.label}</span>}
@@ -469,7 +466,7 @@ const FilterSheet = ({
                 >
                   <div
                     className={`w-[52px] h-[32px] rounded-[16px] relative transition-colors ${
-                      showFavoritesOnly ? "bg-primary" : "bg-gray-300"
+                      showFavoritesOnly ? "bg-primary" : "bg-muted"
                     }`}
                   >
                     <motion.div
@@ -480,7 +477,7 @@ const FilterSheet = ({
                   </div>
                   <span 
                     className={`ml-3 text-[14px] transition-colors ${
-                      showFavoritesOnly ? "text-primary" : "text-gray-600"
+                      showFavoritesOnly ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
                     {showFavoritesOnly ? t("on") : t("off")}
@@ -715,16 +712,16 @@ const Meals = () => {
   const displayedCount = filteredMeals.length + filteredRestaurants.length;
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #ECFDF5 0%, #FFFFFF 100%)" }}>
+    <div className="min-h-screen bg-white">
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E1F2ED]/50 pt-safe">
-        <div className="px-4 py-3">
+        <div className="max-w-[480px] md:max-w-lg mx-auto px-4 py-3">
           {/* Back button */}
           <div className="flex items-center gap-3 mb-3">
             <Link to="/dashboard">
               <motion.div
                 whileTap={{ scale: 0.88 }}
-                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                className="w-9 h-9 rounded-full bg-muted hover:bg-muted-foreground flex items-center justify-center transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-700" />
               </motion.div>
@@ -734,12 +731,12 @@ const Meals = () => {
 
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
             <Input
               placeholder={t("search_meals_placeholder") || "Search meals, cuisines..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-11 pr-12 h-11 rounded-2xl bg-white border border-[#E1F2ED]/50 text-sm placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-primary/30"
+              className="pl-11 pr-12 h-11 rounded-2xl bg-white border border-[#E1F2ED]/50 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
             />
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <AnimatePresence>
@@ -749,9 +746,9 @@ const Meals = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0 }}
                     onClick={() => setSearchQuery("")}
-                    className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                    className="w-7 h-7 rounded-full bg-muted hover:bg-muted flex items-center justify-center"
                   >
-                    <X className="w-3.5 h-3.5 text-gray-500" />
+                    <X className="w-3.5 h-3.5 text-muted-foreground" />
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -767,7 +764,7 @@ const Meals = () => {
         </div>
 
         {/* Category Pills */}
-        <div className="px-4 pb-3 -mx-4 px-4 scrollbar-hide">
+        <div className="max-w-[480px] md:max-w-lg mx-auto -mx-4 px-4 pb-3 scrollbar-hide">
           <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory outline-none" role="tablist" aria-label={t("meal_types")}>
             {(Object.keys(categoryConfig) as MealCategory[]).map((cat) => {
               const isActive = selectedCategory === cat;
@@ -795,7 +792,7 @@ const Meals = () => {
         </div>
       </header>
 
-      <main className="px-4 pt-4 pb-28">
+      <main className="max-w-[480px] md:max-w-lg mx-auto px-4 pt-4 pb-28">
         {/* Section Header */}
         <div className="flex items-center justify-between mb-4">
           <div>

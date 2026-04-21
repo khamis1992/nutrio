@@ -68,38 +68,38 @@ const MEAL_TYPE_CONFIG = {
   breakfast: { 
     icon: Coffee, 
     label: "breakfast", 
-    gradient: "from-amber-400 to-orange-500",
-    bgColor: "bg-amber-50",
-    textColor: "text-amber-700",
-    borderColor: "border-amber-200",
-    glowColor: "shadow-amber-500/20"
+    gradient: "from-warning to-warning/80",
+    bgColor: "bg-warning/10",
+    textColor: "text-warning",
+    borderColor: "border-warning/20",
+    glowColor: "shadow-warning/20"
   },
   lunch: { 
     icon: Sun, 
     label: "lunch", 
-    gradient: "from-orange-400 to-red-500",
-    bgColor: "bg-orange-50",
-    textColor: "text-orange-700",
-    borderColor: "border-orange-200",
-    glowColor: "shadow-orange-500/20"
+    gradient: "from-primary to-primary/80",
+    bgColor: "bg-primary/10",
+    textColor: "text-primary",
+    borderColor: "border-primary/20",
+    glowColor: "shadow-primary/20"
   },
   dinner: { 
     icon: Moon, 
     label: "dinner", 
-    gradient: "from-indigo-400 to-purple-500",
-    bgColor: "bg-indigo-50",
-    textColor: "text-indigo-700",
-    borderColor: "border-indigo-200",
-    glowColor: "shadow-indigo-500/20"
+    gradient: "from-primary/80 to-primary/60",
+    bgColor: "bg-primary/10",
+    textColor: "text-primary",
+    borderColor: "border-primary/20",
+    glowColor: "shadow-primary/20"
   },
   snack: { 
     icon: Apple, 
     label: "snack", 
-    gradient: "from-emerald-400 to-teal-500",
-    bgColor: "bg-emerald-50",
-    textColor: "text-emerald-700",
-    borderColor: "border-emerald-200",
-    glowColor: "shadow-emerald-500/20"
+    gradient: "from-primary/60 to-primary/40",
+    bgColor: "bg-primary/10",
+    textColor: "text-primary",
+    borderColor: "border-primary/20",
+    glowColor: "shadow-primary/20"
   },
 };
 
@@ -132,7 +132,7 @@ const Schedule = () => {
   const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, refetch: refetchSubscription } = useSubscription();
   const { wallet, refresh: refetchWallet } = useWallet();
 
-  const pricePerMeal = 50;
+  const pricePerMeal = subscription?.price_per_meal ?? 50;
 
   const [showBuyCredit, setShowBuyCredit] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
@@ -494,10 +494,10 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="min-h-screen pb-24 bg-gray-50 dark:bg-gray-950">
+      <div className="min-h-screen pb-24 bg-background dark:bg-background">
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/40 safe-top">
           <div className="flex items-center justify-between px-4 h-14">
-            <button onClick={() => navigate("/dashboard")} className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-transform cursor-pointer">
+            <button onClick={() => navigate("/dashboard")} className="w-11 h-11 rounded-full bg-muted dark:bg-muted flex items-center justify-center active:scale-95 transition-transform cursor-pointer">
               <NavChevronLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-bold">{t("schedule")}</h1>
@@ -506,10 +506,10 @@ const Schedule = () => {
         </div>
         <div className="flex flex-col items-center justify-center min-h-[70vh] px-6">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/10">
-            <AlertTriangle className="h-10 w-10 text-amber-500" />
+            <AlertTriangle className="h-10 w-10 text-warning" />
           </div>
-          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">{t("scheduling_unavailable")}</h2>
-          <p className="text-gray-500 text-center text-sm mb-8 max-w-xs">{t("scheduling_disabled_desc")}</p>
+          <h2 className="text-2xl font-bold mb-2 text-foreground dark:text-foreground">{t("scheduling_unavailable")}</h2>
+          <p className="text-muted-foreground text-center text-sm mb-8 max-w-xs">{t("scheduling_disabled_desc")}</p>
           <Button onClick={() => navigate("/dashboard")} className="rounded-2xl px-8 h-12 text-base font-semibold bg-primary hover:bg-primary/90">
             {t("go_back")}
           </Button>
@@ -529,38 +529,38 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <motion.div 
-      className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden"
+    <motion.div
+      className="min-h-screen bg-background dark:bg-background overflow-hidden"
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.2}
       onDragEnd={handleSwipe}
     >
       {/* ── Native Header ─────────────────────────────── */}
-      <div className="safe-top bg-white dark:bg-gray-900">
+      <div className="safe-top bg-card dark:bg-card">
         {/* Status bar spacer handled by safe-top */}
-        <div className="px-4 pt-2 pb-3">
+        <div className="max-w-[480px] md:max-w-lg mx-auto px-4 pt-2 pb-3">
           {/* Header Row */}
           <div className="flex items-center justify-between mb-4">
-            <button 
-              onClick={() => navigate("/dashboard")} 
+            <button
+              onClick={() => navigate("/dashboard")}
               className="w-11 h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
             >
               <NavChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </button>
-            
+
             <div className="text-center">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{t("my_schedule")}</h1>
               <p className="text-xs text-gray-400 font-medium">
                 {format(currentWeekStart, "MMM d")} — {format(addDays(currentWeekStart, 6), "MMM d, yyyy")}
               </p>
             </div>
-            
+
             {/* Meal Credits Badge */}
             {hasActiveSubscription && (
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold ${
-                isUnlimited 
-                  ? "bg-emerald-500 text-white" 
+                isUnlimited
+                  ? "bg-emerald-500 text-white"
                   : remainingMeals <= 0
                   ? "bg-red-500 text-white"
                   : remainingMeals <= 3
@@ -641,7 +641,7 @@ const Schedule = () => {
       </div>
 
       {/* ── Stats Dashboard ─────────────────────────────── */}
-      <div className="px-4 py-4">
+      <div className="max-w-[480px] md:max-w-lg mx-auto px-4 py-4">
         <div className="bg-white dark:bg-gray-900 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">This Week Progress</span>
@@ -694,7 +694,7 @@ const Schedule = () => {
       </div>
 
       {/* ── Day Section Header ──────────────────────────── */}
-      <div className="px-4 mb-3">
+      <div className="max-w-[480px] md:max-w-lg mx-auto px-4 mb-3">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -720,7 +720,7 @@ const Schedule = () => {
       </div>
 
       {/* ── Meals List ─────────────────────────────────── */}
-      <div className="px-4 pb-32">
+      <div className="max-w-[480px] md:max-w-lg mx-auto px-4 pb-32">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-12 h-12 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />

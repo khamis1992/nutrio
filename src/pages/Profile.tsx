@@ -569,7 +569,7 @@ const Profile = () => {
         animate={{ y: 0, opacity: 1 }}
         className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/40 pt-safe"
       >
-        <div className="flex items-center gap-3 px-4 h-14">
+        <div className="flex items-center gap-3 px-4 h-14 max-w-[480px] md:max-w-lg mx-auto">
           <button
             onClick={() => navigate(-1)}
             className="w-8 h-8 rounded-full bg-muted flex items-center justify-center active:bg-muted/70"
@@ -581,7 +581,7 @@ const Profile = () => {
       </motion.header>
 
       {/* Scrollable Content */}
-      <main className="pb-24">
+      <main className="max-w-[480px] md:max-w-lg mx-auto pb-24">
         {/* Hero Card */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -669,7 +669,7 @@ const Profile = () => {
                 {/* Personal Info accordion row */}
                 <NativeRow
                   icon={<User className="w-4 h-4 text-white" />}
-                  iconBg="bg-blue-500"
+                  iconBg="bg-primary"
                   label={t("personal_info")}
                   subtitle={t("personal_info_desc")}
                   onClick={() => toggleSection("personal")}
@@ -745,7 +745,7 @@ const Profile = () => {
                 {/* Delivery Addresses */}
                 <NativeRow
                   icon={<MapPin className="w-4 h-4 text-white" />}
-                  iconBg="bg-green-500"
+                  iconBg="bg-primary"
                   label={t("delivery_addresses")}
                   subtitle={t("manage_addresses")}
                   onClick={() => toggleSection("addresses")}
@@ -782,7 +782,7 @@ const Profile = () => {
                 {/* Dietary & Allergies */}
                 <NativeRow
                   icon={<Utensils className="w-4 h-4 text-white" />}
-                  iconBg="bg-orange-500"
+                  iconBg="bg-warning"
                   label={t("dietary_and_allergies")}
                   subtitle={t("manage_dietary_preferences")}
                   onClick={() => toggleSection("dietary")}
@@ -843,7 +843,7 @@ const Profile = () => {
                                     onClick={() => toggleDietPreference(tag.id)}
                                     className={cn(
                                       "flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-all duration-200",
-                                      isSelected ? "border-amber-500 bg-amber-500 text-white" : "border-amber-200 bg-amber-50 text-amber-700"
+                                      isSelected ? "border-warning bg-warning text-white" : "border-warning/20 bg-warning/10 text-warning"
                                     )}
                                   >
                                     {isSelected && <Check className="w-3 h-3" />}
@@ -865,7 +865,7 @@ const Profile = () => {
               <NativeSection>
                 <NativeRow
                   icon={<FileText className="w-4 h-4 text-white" />}
-                  iconBg="bg-slate-500"
+                  iconBg="bg-muted"
                   label={t("policies")}
                   subtitle={`${t("terms_and_conditions")}, ${t("privacy_policy_label")}`}
                   onClick={() => toggleSection("policies")}
@@ -910,7 +910,7 @@ const Profile = () => {
 
                 <NativeRow
                   icon={<HelpCircle className="w-4 h-4 text-white" />}
-                  iconBg="bg-sky-500"
+                  iconBg="bg-primary"
                   label={t("support")}
                   subtitle={t("get_help_report_issues")}
                   onClick={() => toggleSection("support")}
@@ -935,21 +935,21 @@ const Profile = () => {
                         {[
                           {
                             href: "https://wa.me/97412345678?text=Hi%2C%20I%20need%20help%20with%20Nutrio%20Fuel",
-                            icon: <MessageCircle className="w-4 h-4 text-green-500" />,
+                            icon: <MessageCircle className="w-4 h-4 text-primary" />,
                             label: t("chat_on_whatsapp"),
                             right: <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50" />,
                             isExternal: true,
                           },
                           {
                             href: "mailto:support@nutriofuel.com?subject=Support%20Request",
-                            icon: <Mail className="w-4 h-4 text-sky-500" />,
+                            icon: <Mail className="w-4 h-4 text-primary" />,
                             label: t("email_support"),
                             right: <ExternalLink className="w-3.5 h-3.5 text-muted-foreground/50" />,
                             isExternal: true,
                           },
                           {
                             href: "tel:+97412345678",
-                            icon: <Phone className="w-4 h-4 text-violet-500" />,
+                            icon: <Phone className="w-4 h-4 text-primary" />,
                             label: t("call_us"),
                             right: <span className="text-xs text-muted-foreground">{t("phone_number")}</span>,
                             isExternal: true,
@@ -974,7 +974,7 @@ const Profile = () => {
                           onClick={() => navigate("/support")}
                           className="flex items-center gap-3 w-full px-4 py-3 active:bg-muted/50 transition-colors text-sm font-medium"
                         >
-                          <Ticket className="w-4 h-4 text-amber-500 ml-11" />
+                          <Ticket className="w-4 h-4 text-warning ml-11" />
                           <span className="flex-1 text-start">{t("submit_a_ticket")}</span>
                           <NavChevronRight className="w-4 h-4 text-muted-foreground/50" />
                         </button>
@@ -1008,20 +1008,20 @@ const Profile = () => {
               className="px-4 pt-4 space-y-4"
             >
               {paymentStatus === "success" && (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-green-700">{t("payment_successful")}</AlertDescription>
+                <Alert className="bg-success/10 border-success/20">
+                  <CheckCircle className="h-4 w-4 text-success" />
+                  <AlertDescription className="text-success">{t("payment_successful")}</AlertDescription>
                 </Alert>
               )}
               {paymentStatus === "failed" && (
-                <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
                   <XCircle className="h-4 w-4" />
                   <AlertDescription>{t("payment_failed")}</AlertDescription>
                 </Alert>
               )}
-              <Alert className="bg-amber-50 border-amber-200">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-700">{t("simulation_mode")}</AlertDescription>
+              <Alert className="bg-warning/10 border-warning/20">
+                <AlertCircle className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-warning">{t("simulation_mode")}</AlertDescription>
               </Alert>
 
               <WalletBalance
@@ -1058,14 +1058,14 @@ const Profile = () => {
                             <span>{formatCurrency(selectedPackage.amount)}</span>
                           </div>
                           {selectedPackage.bonus_amount > 0 && (
-                            <div className="flex justify-between text-sm text-purple-600">
+                            <div className="flex justify-between text-sm text-primary">
                               <span>{t("bonus_credit")}</span>
                               <span>+{formatCurrency(selectedPackage.bonus_amount)}</span>
                             </div>
                           )}
                           <div className="border-t pt-2 flex justify-between font-semibold text-sm">
                             <span>{t("total_credit")}</span>
-                            <span className="text-green-600">{formatCurrency(totalAmount)}</span>
+                            <span className="text-success">{formatCurrency(totalAmount)}</span>
                           </div>
                         </CardContent>
                       </Card>
@@ -1074,7 +1074,7 @@ const Profile = () => {
                   )}
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>{t("cancel")}</Button>
-                    <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
+                    <Button onClick={handleConfirmPayment} className="bg-primary hover:bg-primary/90">
                       <CreditCard className="h-4 w-4 mr-2" />
                       {t("pay_with_amount")} {formatCurrency(selectedPackage?.amount ?? 0)}
                     </Button>
@@ -1111,7 +1111,7 @@ const Profile = () => {
                 {platformSettings.features.referral_program && (
                   <NativeRow
                     icon={<CrownIcon className="w-4 h-4 text-white" />}
-                    iconBg="bg-violet-500"
+                    iconBg="bg-primary"
                     label={isApprovedAffiliate ? t("view_affiliate_dashboard") : t("affiliate_program")}
                     subtitle={isApprovedAffiliate ? t("commission_balance") : t("become_affiliate")}
                     onClick={() => navigate(isApprovedAffiliate ? "/affiliate" : "/profile")}
@@ -1120,7 +1120,7 @@ const Profile = () => {
                 )}
                 <NativeRow
                   icon={<Flame className="w-4 h-4 text-white" />}
-                  iconBg="bg-amber-500"
+                  iconBg="bg-warning"
                   label={t("daily_streaks")}
                   subtitle={t("order_daily_earn_bonuses")}
                   right={<span />}
@@ -1128,7 +1128,7 @@ const Profile = () => {
                 />
                 <NativeRow
                   icon={<Star className="w-4 h-4 text-white" />}
-                  iconBg="bg-green-500"
+                  iconBg="bg-primary"
                   label={t("wallet_bonuses")}
                   subtitle={t("get_bonus_credits")}
                   right={<span />}
@@ -1177,7 +1177,7 @@ const Profile = () => {
                             className={cn(
                               "h-1 flex-1 rounded-full transition-all duration-300",
                               i < passwordStrength
-                                ? passwordStrength >= 3 ? "bg-green-500" : passwordStrength >= 2 ? "bg-amber-500" : "bg-red-500"
+                                ? passwordStrength >= 3 ? "bg-success" : passwordStrength >= 2 ? "bg-warning" : "bg-destructive"
                                 : "bg-muted"
                             )}
                           />
@@ -1198,7 +1198,7 @@ const Profile = () => {
                       <Shield
                         className={cn(
                           "absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors",
-                          confirmPassword && newPassword === confirmPassword ? "text-green-500" : "text-muted-foreground"
+                          confirmPassword && newPassword === confirmPassword ? "text-success" : "text-muted-foreground"
                         )}
                       />
                     </div>
@@ -1280,7 +1280,7 @@ const Profile = () => {
                   onClick={handleSignOut}
                   className="flex items-center gap-3 w-full px-4 py-3.5 active:bg-muted/50 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gray-500 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                     <LogOut className="w-4 h-4 text-white" />
                   </div>
                   <span className="text-sm font-medium flex-1 text-start">{t("sign_out")}</span>
