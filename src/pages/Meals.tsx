@@ -75,14 +75,14 @@ interface MealResult {
   meal_type: string | null;
 }
 
-const categoryConfig: Record<MealCategory, { labelKey: string; icon: React.ElementType }> = {
-  all: { labelKey: "all_cuisine", icon: Utensils },
-  breakfast: { labelKey: "cuisine_breakfast", icon: Coffee },
-  lunch: { labelKey: "lunch", icon: Sandwich },
-  dinner: { labelKey: "dinner", icon: Pizza },
-  snacks: { labelKey: "snacks", icon: UtensilsCrossed },
-  desserts: { labelKey: "desserts", icon: Cake },
-  beverages: { labelKey: "beverages", icon: Droplet },
+const categoryConfig: Record<MealCategory, { labelKey: string; icon: React.ElementType; gradient: string }> = {
+  all: { labelKey: "all_cuisine", icon: Utensils, gradient: "from-slate-500 to-slate-600" },
+  breakfast: { labelKey: "cuisine_breakfast", icon: Coffee, gradient: "from-amber-500 to-orange-500" },
+  lunch: { labelKey: "lunch", icon: Sandwich, gradient: "from-emerald-500 to-teal-500" },
+  dinner: { labelKey: "dinner", icon: Pizza, gradient: "from-rose-500 to-pink-500" },
+  snacks: { labelKey: "snacks", icon: UtensilsCrossed, gradient: "from-purple-500 to-violet-500" },
+  desserts: { labelKey: "desserts", icon: Cake, gradient: "from-pink-500 to-rose-500" },
+  beverages: { labelKey: "beverages", icon: Droplet, gradient: "from-cyan-500 to-blue-500" },
 };
 
 const formatPrice = (price: number | null): string => {
@@ -763,9 +763,9 @@ const Meals = () => {
           </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="max-w-[480px] md:max-w-lg mx-auto -mx-4 px-4 pb-3 scrollbar-hide">
-          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory outline-none" role="tablist" aria-label={t("meal_types")}>
+        {/* Category Chips - iOS Native Style */}
+        <div className="max-w-[480px] md:max-w-lg mx-auto -mx-4 px-4">
+          <div className="flex gap-1.5 overflow-x-auto pb-3 scrollbar-hide">
             {(Object.keys(categoryConfig) as MealCategory[]).map((cat) => {
               const isActive = selectedCategory === cat;
               const config = categoryConfig[cat];
@@ -775,16 +775,26 @@ const Meals = () => {
                   key={cat}
                   onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat); }}
                   whileTap={{ scale: 0.95 }}
-                  role="tab"
-                  aria-selected={isActive}
-                  className={`flex-shrink-0 px-4 py-2.5 rounded-[20px] text-sm font-semibold whitespace-nowrap snap-start transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
-                    isActive
-                      ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/40"
-                      : "bg-white text-[#64748B] border border-[#E1F2ED]/50 hover:border-primary/30"
-                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  className={`
+                    relative flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full
+                    text-sm font-medium whitespace-nowrap transition-all duration-200
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50
+                    ${isActive
+                      ? "text-white shadow-md"
+                      : "bg-white/80 backdrop-blur text-[#475569] border border-gray-200/60 hover:border-gray-300"
+                    }
+                  `}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-primary"}`} />
-                  <span className="ml-1.5">{t(config.labelKey)}</span>
+                  {isActive && (
+                    <motion.div
+                      className={`absolute inset-0 rounded-full bg-gradient-to-br ${config.gradient} shadow-sm`}
+                      layoutId="activeCategory"
+                      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+                    />
+                  )}
+                  <Icon className={`w-4 h-4 relative z-10 ${isActive ? "text-white" : ""}`} />
+                  <span className="relative z-10">{t(config.labelKey)}</span>
                 </motion.button>
               );
             })}
