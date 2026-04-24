@@ -65,41 +65,45 @@ interface ScheduledMeal {
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 
 const MEAL_TYPE_CONFIG = {
-  breakfast: { 
-    icon: Coffee, 
-    label: "breakfast", 
-    gradient: "from-warning to-warning/80",
-    bgColor: "bg-warning/10",
-    textColor: "text-warning",
-    borderColor: "border-warning/20",
-    glowColor: "shadow-warning/20"
+  breakfast: {
+    icon: Coffee,
+    label: "breakfast",
+    gradient: "from-amber-500 to-orange-500",
+    bgColor: "bg-amber-50 dark:bg-amber-950/30",
+    textColor: "text-amber-600 dark:text-amber-400",
+    borderColor: "border-amber-200 dark:border-amber-800",
+    glowColor: "shadow-amber-500/20",
+    badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
   },
-  lunch: { 
-    icon: Sun, 
-    label: "lunch", 
-    gradient: "from-primary to-primary/80",
-    bgColor: "bg-primary/10",
-    textColor: "text-primary",
-    borderColor: "border-primary/20",
-    glowColor: "shadow-primary/20"
+  lunch: {
+    icon: Sun,
+    label: "lunch",
+    gradient: "from-emerald-500 to-teal-500",
+    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+    textColor: "text-emerald-600 dark:text-emerald-400",
+    borderColor: "border-emerald-200 dark:border-emerald-800",
+    glowColor: "shadow-emerald-500/20",
+    badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
   },
-  dinner: { 
-    icon: Moon, 
-    label: "dinner", 
-    gradient: "from-primary/80 to-primary/60",
-    bgColor: "bg-primary/10",
-    textColor: "text-primary",
-    borderColor: "border-primary/20",
-    glowColor: "shadow-primary/20"
+  dinner: {
+    icon: Moon,
+    label: "dinner",
+    gradient: "from-rose-500 to-pink-500",
+    bgColor: "bg-rose-50 dark:bg-rose-950/30",
+    textColor: "text-rose-600 dark:text-rose-400",
+    borderColor: "border-rose-200 dark:border-rose-800",
+    glowColor: "shadow-rose-500/20",
+    badgeColor: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
   },
-  snack: { 
-    icon: Apple, 
-    label: "snack", 
-    gradient: "from-primary/60 to-primary/40",
-    bgColor: "bg-primary/10",
-    textColor: "text-primary",
-    borderColor: "border-primary/20",
-    glowColor: "shadow-primary/20"
+  snack: {
+    icon: Apple,
+    label: "snack",
+    gradient: "from-purple-500 to-violet-500",
+    bgColor: "bg-purple-50 dark:bg-purple-950/30",
+    textColor: "text-purple-600 dark:text-purple-400",
+    borderColor: "border-purple-200 dark:border-purple-800",
+    glowColor: "shadow-purple-500/20",
+    badgeColor: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300"
   },
 };
 
@@ -719,6 +723,43 @@ const Schedule = () => {
         </div>
       </div>
 
+      {/* ── Meal Type Filter Chips ─────────────────────────────────── */}
+        <div className="max-w-[480px] md:max-w-lg mx-auto -mx-4 px-4 pb-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
+            {(Object.keys(MEAL_TYPE_CONFIG) as (keyof typeof MEAL_TYPE_CONFIG)[]).map((mealType) => {
+              const config = MEAL_TYPE_CONFIG[mealType];
+              const MealIcon = config.icon;
+              const typeMeals = displayMeals.filter(m => m.meal_type === mealType);
+              const mealTypeName = t(config.label as any);
+
+              return (
+                <motion.button
+                  key={mealType}
+                  onClick={() => {
+                    const element = document.getElementById(`meal-type-${mealType}`);
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="relative flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 bg-white/80 backdrop-blur border border-gray-200/60 hover:border-gray-300 text-[#475569]"
+                >
+                  <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${config.gradient} flex items-center justify-center shadow-sm`}>
+                    <MealIcon className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span>{mealTypeName}</span>
+                  {typeMeals.length > 0 && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${config.badgeColor}`}>
+                      {typeMeals.length}
+                    </span>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
       {/* ── Meals List ─────────────────────────────────── */}
       <div className="max-w-[480px] md:max-w-lg mx-auto px-4 pb-32">
         {loading ? (
@@ -751,7 +792,7 @@ const Schedule = () => {
               </motion.div>
             )}
 
-            {MEAL_TYPES.map((mealType) => {
+{MEAL_TYPES.map((mealType) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
               const typeMeals = displayMeals.filter(m => m.meal_type === mealType);
@@ -760,72 +801,76 @@ const Schedule = () => {
               const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
               if (typeMeals.length > 0) {
-                return typeMeals.map((schedule) => (
-                  <motion.div
-                    key={schedule.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
-                    className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 p-3">
-                      {/* Gradient Accent */}
-                      <div className={`w-1.5 h-14 rounded-full bg-gradient-to-b ${config.gradient} shrink-0`} />
-                      
-                      {/* Meal Image */}
-                      {schedule.meal?.image_url ? (
-                        <img
-                          src={schedule.meal.image_url}
-                          alt={schedule.meal.name}
-                          className="w-16 h-16 rounded-2xl object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${config.bgColor}`}>
-                          <MealIcon className={`h-7 w-7 ${config.textColor}`} />
-                        </div>
-                      )}
-                      
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${config.textColor}`}>
-                            {mealTypeName}
-                          </span>
-                          <span className="text-[10px] text-gray-300">·</span>
-                          <span className="text-[10px] text-gray-400 font-medium">
-                            {schedule.delivery_time_slot || timeLabel}
-                          </span>
-                        </div>
-                        <h3 className={`text-base font-bold text-gray-900 dark:text-white truncate ${
-                          schedule.is_completed ? "line-through text-gray-400" : ""
-                        }`}>
-                          {schedule.meal?.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-400 font-medium">{schedule.meal.calories} kcal</span>
-                          <span className="text-xs text-gray-300">·</span>
-                          <span className="text-xs text-gray-400 font-medium">{schedule.meal.protein_g}g protein</span>
-                        </div>
-                      </div>
-                      
-                      {/* Completion Toggle */}
-                      <button
-                        onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
-                          schedule.is_completed
-                            ? "bg-emerald-500 shadow-lg shadow-emerald-500/30"
-                            : "bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700"
-                        }`}
+                return (
+                  <div key={mealType} id={`meal-type-${mealType}`}>
+                    {typeMeals.map((schedule) => (
+                      <motion.div
+                        key={schedule.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
+                        className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all cursor-pointer mb-3"
                       >
-                        {schedule.is_completed ? (
-                          <Check className="h-5 w-5 text-white" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-300" />
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                ));
+                        <div className="flex items-center gap-3 p-3">
+                          {/* Gradient Accent */}
+                          <div className={`w-1.5 h-14 rounded-full bg-gradient-to-b ${config.gradient} shrink-0`} />
+
+                          {/* Meal Image */}
+                          {schedule.meal?.image_url ? (
+                            <img
+                              src={schedule.meal.image_url}
+                              alt={schedule.meal.name}
+                              className="w-16 h-16 rounded-2xl object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${config.bgColor}`}>
+                              <MealIcon className={`h-7 w-7 ${config.textColor}`} />
+                            </div>
+                          )}
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`text-[10px] font-bold uppercase tracking-wider ${config.textColor}`}>
+                                {mealTypeName}
+                              </span>
+                              <span className="text-[10px] text-gray-300">·</span>
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                {schedule.delivery_time_slot || timeLabel}
+                              </span>
+                            </div>
+                            <h3 className={`text-base font-bold text-gray-900 dark:text-white truncate ${
+                              schedule.is_completed ? "line-through text-gray-400" : ""
+                            }`}>
+                              {schedule.meal?.name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-400 font-medium">{schedule.meal.calories} kcal</span>
+                              <span className="text-[10px] text-gray-300">·</span>
+                              <span className="text-xs text-gray-400 font-medium">{schedule.meal.protein_g}g protein</span>
+                            </div>
+                          </div>
+
+                          {/* Completion Toggle */}
+                          <button
+                            onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
+                            className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                              schedule.is_completed
+                                ? "bg-emerald-500 shadow-lg shadow-emerald-500/30"
+                                : "bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700"
+                            }`}
+                          >
+                            {schedule.is_completed ? (
+                              <Check className="h-5 w-5 text-white" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-gray-300" />
+                            )}
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                );
               }
 
               /* ── Swipeable Empty Slot Card (swipe-only, no tap confusion) ─── */
