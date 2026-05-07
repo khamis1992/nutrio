@@ -205,19 +205,6 @@ export function BehaviorPredictionWidget() {
             <p className="text-sm opacity-90">{actionDetails.description}</p>
           </div>
         </div>
-
-        {prediction.churn_risk_score > 0.6 && (
-          <div className="flex items-center gap-2 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            <span>{t('bp_churn_risk') || 'Churn risk'}: {Math.round(prediction.churn_risk_score * 100)}%</span>
-          </div>
-        )}
-
-        {prediction.boredom_risk_score > 0.6 && (
-          <div className="flex items-center gap-2 text-sm">
-            <span>{t('bp_time_for_variety') || 'Time for variety!'}</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

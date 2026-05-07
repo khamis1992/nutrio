@@ -384,7 +384,7 @@ return (
                         <span className="text-lg text-white/80">kg</span>
                       </div>
                       {weightStats.change !== 0 && (
-                        <div className={`flex items-center justify-center gap-1 mt-2 px-3 py-1 rounded-full bg-white/20 w-fit mx-auto ${weightStats.change < 0 ? 'text-green-300' : 'text-red-300'}`}>
+                        <div className={`flex items-center justify-center gap-1 mt-2 px-3 py-1 rounded-full bg-white/20 w-fit mx-auto ${weightStats.change < 0 ? 'text-primary' : 'text-destructive'}`}>
                           {weightStats.change < 0 ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
                           <span className="text-sm font-medium">{Math.abs(weightStats.change).toFixed(1)} kg {weightStats.change < 0 ? t("weight_lost") : t("weight_gained")}</span>
                         </div>
@@ -525,8 +525,8 @@ return (
                 <Card className="border-0 bg-muted transition-transform active:scale-[0.98]">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/15 flex items-center justify-center">
-                        <Droplet className="w-4 h-4 text-cyan-500" />
+                      <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
+                        <Droplet className="w-4 h-4 text-primary" />
                       </div>
                       <span className="text-xs font-medium text-muted-foreground">{t("water")}</span>
                     </div>
@@ -541,7 +541,7 @@ return (
                           className="h-1.5 flex-1 rounded-full"
                           style={{ 
                             backgroundColor: i < (waterSummary?.total || 0) 
-                              ? "hsl(199 89% 48%)" 
+                              ? "hsl(var(--primary))" 
                               : "hsl(var(--border))"
                           }}
                         />

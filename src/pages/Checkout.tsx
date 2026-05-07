@@ -105,8 +105,8 @@ export default function Checkout() {
 
   // Security badge for production
   const SecurityBadge = () => (
-    <div className="bg-emerald-50 border-b border-emerald-200 p-2 text-center">
-      <div className="flex items-center justify-center gap-2 text-emerald-800">
+    <div className="bg-primary/10 border-b border-primary/20 p-2 text-center">
+      <div className="flex items-center justify-center gap-2 text-primary">
         <span className="text-sm font-medium">
           🔒 {t('secure_payment_badge')}
         </span>
@@ -196,8 +196,8 @@ export default function Checkout() {
             
             {/* Quick Simulation Buttons - Development Only */}
             {isDevelopment && (
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                <p className="text-sm font-medium text-blue-800 mb-2">Development Testing:</p>
+              <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg">
+                <p className="text-sm font-medium text-primary mb-2">Development Testing:</p>
                 <div className="flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => handleQuickSimulate('credit_card')}>
                     Test Card
@@ -206,7 +206,7 @@ export default function Checkout() {
                     Test Sadad
                   </Button>
                 </div>
-                <p className="text-xs text-blue-600 mt-2">
+                <p className="text-xs text-primary/70 mt-2">
                   These buttons are only visible in development mode
                 </p>
               </div>

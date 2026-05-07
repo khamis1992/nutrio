@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Flame, Plus, Calendar, Utensils, Activity } from "lucide-react";
+import { Flame, Plus, Calendar, Utensils, Activity, Wheat, Dumbbell, Apple, ChevronRight } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +22,10 @@ interface DailyNutritionCardProps {
   burnedCalories?: number;
   workoutSessionCount?: number;
   onDateChange?: (date: Date) => void;
+  streakDays?: number;
+  weekTarget?: number;
+  completedThisWeek?: number;
+  weekDays?: { label: string }[];
 }
 
 const MacroCard = ({
@@ -120,6 +124,10 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   onDateChange,
   burnedCalories: burnedCaloriesProp,
   workoutSessionCount: workoutSessionCountProp,
+  streakDays,
+  weekTarget,
+  completedThisWeek,
+  weekDays,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -210,6 +218,34 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             </div>
           </div>
 
+          {/* Streak row — compact, inline */}
+          {weekDays && completedThisWeek !== undefined && weekTarget && (
+            <div className="mx-3 sm:mx-4 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/5 border border-warning/10">
+              <Flame className="w-4 h-4 text-warning shrink-0" />
+              <div className="flex items-center gap-1.5 flex-1">
+                {weekDays.map((day, i) => {
+                  const isComp = i < (completedThisWeek || 0);
+                  const isTod = i === (completedThisWeek || 0);
+                  return (
+                    <div
+                      key={day.label}
+                      className={`flex-1 h-1.5 rounded-full ${
+                        isComp
+                          ? "bg-gradient-to-r from-warning to-orange-400"
+                          : isTod
+                          ? "bg-warning/30"
+                          : "bg-muted"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <span className="text-[10px] font-bold text-warning whitespace-nowrap">
+                {completedThisWeek}/{weekTarget}
+              </span>
+            </div>
+          )}
+
           {/* Calorie hero section */}
           <div className="mx-3 sm:mx-4 mb-3 sm:mb-4 rounded-2xl px-3 sm:px-5 py-4 sm:py-5 flex items-center justify-between border border-gray-100 bg-gray-50 shadow-inner">
             {/* Nutrition consumed */}
@@ -273,7 +309,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             <div className="flex flex-col items-end gap-0.5 sm:gap-1 min-w-0 flex-shrink-0">
               <span className="text-[10px] sm:text-[11px] text-gray-500 font-medium">{t("nutrition_burned")}</span>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="text-xl sm:text-2xl">🔥</span>
+                <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                 <motion.span
                   className="text-2xl sm:text-3xl font-black text-gray-800 leading-none"
                   initial={{ opacity: 0 }}
@@ -291,7 +327,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
           <div className="px-3 sm:px-4 pb-3 sm:pb-4 flex gap-2 sm:gap-2.5">
             <MacroCard
               value={totalCarbs} max={targetCarbs} label={t("macro_carbs")}
-              icon={<span className="text-sm">🌾</span>}
+              icon={<Wheat className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-900" />}
               ringColor="#ffffff"
               bgClass="bg-gradient-to-br from-amber-400 to-yellow-500"
               textClass="text-white"
@@ -299,7 +335,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             />
             <MacroCard
               value={totalProtein} max={targetProtein} label={t("macro_protein")}
-              icon={<span className="text-sm">💪</span>}
+              icon={<Dumbbell className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-900" />}
               ringColor="#ffffff"
               bgClass="bg-gradient-to-br from-orange-400 to-orange-500"
               textClass="text-white"
@@ -307,7 +343,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
             />
             <MacroCard
               value={totalFat} max={targetFat} label={t("macro_fat")}
-              icon={<span className="text-sm">🥑</span>}
+              icon={<Apple className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-200" />}
               ringColor={totalFat > targetFat ? "#ef4444" : "#ffffff"}
               bgClass="bg-gradient-to-br from-slate-500 to-slate-600"
               textClass="text-white"

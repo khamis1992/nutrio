@@ -92,9 +92,10 @@ const FoodEmoji = () => (
 
 interface ActiveOrderBannerProps {
   userId: string;
+  compact?: boolean;
 }
 
-export function ActiveOrderBanner({ userId }: ActiveOrderBannerProps) {
+export function ActiveOrderBanner({ userId, compact = false }: ActiveOrderBannerProps) {
   const { t } = useLanguage();
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -449,8 +450,41 @@ const handleCancelOrder = async (orderId: string) => {
               layout
             >
               <Link to={`/live/${group.orders[0].id}`}>
-                <div className="group relative overflow-hidden rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white via-emerald-50/60 to-emerald-100/70 border border-emerald-100">
-                  <div className="p-5">
+                <div className={`group relative overflow-hidden rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer bg-gradient-to-br from-white via-emerald-50/60 to-emerald-100/70 border border-emerald-100 ${compact ? 'p-4' : ''}`}>
+                  <div className={compact ? 'flex items-center gap-3' : 'p-5'}>
+                    {/* Compact variant — single row */}
+                    {compact ? (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-emerald-800 flex items-center justify-center shadow-lg shrink-0">
+                          {group.latest_status === "out_for_delivery"
+                            ? <Truck className="w-5 h-5 text-white" />
+                            : <Flame className="w-5 h-5 text-white" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-semibold text-sm text-emerald-950 truncate">
+                              {group.restaurant_name}
+                            </span>
+                            <span className={`${config.badgeClass} ${config.textClass} font-bold text-[9px] px-2 py-0.5 rounded-full shrink-0`}>
+                              {config.shortLabel}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-emerald-700/70">
+                            <span className="truncate">{group.meal_names.slice(0, 2).join(", ")}{group.meal_names.length > 2 ? ` +${group.meal_names.length - 2}` : ""}</span>
+                            <span>•</span>
+                            <span className="shrink-0">
+                              {group.latest_status === "out_for_delivery" && group.eta_minutes != null
+                                ? `~${group.eta_minutes}m`
+                                : getDateLabel(group.earliest_date)
+                              }
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-emerald-400 shrink-0" />
+                      </>
+                    ) : (
+                      <>
                     {/* Header Row */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
@@ -632,6 +666,8 @@ const handleCancelOrder = async (orderId: string) => {
                         <ChevronRight className="w-4 h-4" />
                       </motion.div>
                     </div>
+                    </>
+                    )}
                   </div>
                 </div>
               </Link>

@@ -103,12 +103,12 @@ interface RawScheduledMeal {
 }
 
 const statusConfig: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
-  pending: { labelKey: "status_pending", icon: CircleDot, color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  confirmed: { labelKey: "status_confirmed", icon: CheckCircle2, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-  preparing: { labelKey: "status_preparing", icon: ChefHat, color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  out_for_delivery: { labelKey: "status_out_for_delivery", icon: Truck, color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-  delivered: { labelKey: "status_delivered", icon: CheckCircle2, color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  cancelled: { labelKey: "status_cancelled", icon: XCircle, color: "bg-red-500/10 text-red-600 border-red-500/20" },
+  pending: { labelKey: "status_pending", icon: CircleDot, color: "bg-warning/10 text-warning border-warning/20" },
+  confirmed: { labelKey: "status_confirmed", icon: CheckCircle2, color: "bg-primary/10 text-primary border-primary/20" },
+  preparing: { labelKey: "status_preparing", icon: ChefHat, color: "bg-primary/10 text-primary border-primary/20" },
+  out_for_delivery: { labelKey: "status_out_for_delivery", icon: Truck, color: "bg-warning/10 text-warning border-warning/20" },
+  delivered: { labelKey: "status_delivered", icon: CheckCircle2, color: "bg-primary/10 text-primary border-primary/20" },
+  cancelled: { labelKey: "status_cancelled", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
 const OrderHistory = () => {
@@ -644,7 +644,7 @@ const OrderHistory = () => {
                     {schedule.meal_type}
                   </span>
                   {schedule.meal?.calories ? (
-                    <span className="flex items-center gap-1 text-xs text-orange-500 font-semibold bg-orange-50 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 text-xs text-warning font-semibold bg-warning/10 px-2 py-1 rounded-full">
                       <Flame className="h-3 w-3" />
                       {schedule.meal.calories} cal
                     </span>
@@ -666,7 +666,7 @@ const OrderHistory = () => {
                     {t("modify_btn")}
                   </button>
                   <button
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50/60 text-sm font-semibold hover:bg-red-50 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-destructive/20 text-destructive bg-destructive/10 text-sm font-semibold hover:bg-destructive/20 active:scale-[0.98] transition-all disabled:opacity-50"
                     onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id, 'scheduled'); }}
                     disabled={cancelling === schedule.id}
                   >
@@ -891,7 +891,7 @@ const OrderHistory = () => {
                                 {format(new Date(order.estimated_delivery_time || order.created_at), "MMM d")}
                               </span>
                               {totalCalories > 0 && (
-                                <span className="flex items-center gap-1 text-xs text-orange-500 font-semibold bg-orange-50 px-2 py-1 rounded-full">
+                                <span className="flex items-center gap-1 text-xs text-warning font-semibold bg-warning/10 px-2 py-1 rounded-full">
                                   <Flame className="h-3 w-3" />
                                   {totalCalories} cal
                                 </span>

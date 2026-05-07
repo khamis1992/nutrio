@@ -15,6 +15,31 @@ const GOOGLE_FIT_SCOPES = [
   "https://www.googleapis.com/auth/fitness.body.read",
 ];
 
+function generateRandomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => chars[byte % chars.length]).join('');
+}
+
+async function sha256(plain: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return crypto.subtle.digest('SHA-256', data);
+}
+
+async function base64urlEncode(buffer: ArrayBuffer): Promise<string> {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  bytes.forEach(byte => binary += String.fromCharCode(byte));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+  const hash = await sha256(codeVerifier);
+  return base64urlEncode(hash);
+}
+
 const WORKOUT_TYPE_MAP: Record<number, string> = {
   0: "Unknown",
   1: "Running",
@@ -127,9 +152,16 @@ export function useGoogleFitWorkouts() {
     }
   }, [user]);
 
-  // Get Google Fit OAuth URL
-  const getOAuthUrl = useCallback((clientId: string) => {
+  // Get Google Fit OAuth URL with PKCE and state
+  const getOAuthUrl = useCallback(async (clientId: string) => {
     const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+    const state = generateRandomString(32);
+    const codeVerifier = generateRandomString(64);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    sessionStorage.setItem('google_oauth_state', state);
+    sessionStorage.setItem('google_code_verifier', codeVerifier);
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -137,6 +169,9 @@ export function useGoogleFitWorkouts() {
       scope: GOOGLE_FIT_SCOPES.join(" "),
       access_type: "offline",
       prompt: "consent",
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }, []);

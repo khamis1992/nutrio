@@ -105,22 +105,22 @@ export default function Wallet() {
             <h1 className="text-2xl font-bold">{t("wallet_title")}</h1>
             <p className="text-muted-foreground">{t("wallet_subtitle")}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-            <WalletIcon className="h-6 w-6 text-green-600" />
+          <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+            <WalletIcon className="h-6 w-6 text-success" />
           </div>
         </div>
 
         {paymentStatus === 'success' && (
-          <Alert className="mb-4 bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-700">
+          <Alert className="mb-4 bg-success/10 border-success/20">
+            <CheckCircle className="h-4 w-4 text-success" />
+            <AlertDescription className="text-success">
               {t("payment_success_alert")}
             </AlertDescription>
           </Alert>
         )}
 
         {paymentStatus === 'failed' && (
-          <Alert className="mb-4 bg-red-50 border-red-200" variant="destructive">
+          <Alert className="mb-4 bg-destructive/10 border-destructive/20" variant="destructive">
             <XCircle className="h-4 w-4" />
             <AlertDescription>
               {t("payment_failed_alert")}
@@ -129,9 +129,9 @@ export default function Wallet() {
         )}
 
         {/* Simulation Mode Notice */}
-        <Alert className="mb-4 bg-amber-50 border-amber-200">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-700">
+        <Alert className="mb-4 bg-warning/10 border-warning/20">
+          <AlertCircle className="h-4 w-4 text-warning" />
+          <AlertDescription className="text-warning">
             {t("simulation_mode_notice")}
           </AlertDescription>
         </Alert>
@@ -182,14 +182,14 @@ export default function Wallet() {
                       <span>{formatCurrency(selectedPackage.amount)}</span>
                     </div>
                     {selectedPackage.bonus_amount > 0 && (
-                      <div className="flex justify-between text-purple-600">
+                      <div className="flex justify-between text-primary">
                         <span>{t("wallet_bonus_credit")}</span>
                         <span>+{formatCurrency(selectedPackage.bonus_amount)}</span>
                       </div>
                     )}
                     <div className="border-t pt-2 flex justify-between font-semibold">
                       <span>{t("wallet_total_credit")}</span>
-                      <span className="text-green-600">{formatCurrency(totalAmount)}</span>
+                      <span className="text-success">{formatCurrency(totalAmount)}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -205,7 +205,7 @@ export default function Wallet() {
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
               {t("button_cancel")}
             </Button>
-            <Button onClick={handleConfirmPayment} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleConfirmPayment} className="bg-primary hover:bg-primary/90">
               <CreditCard className="h-4 w-4 mr-2" />
               {t("button_pay")} {formatCurrency(selectedPackage?.amount ?? 0)}
             </Button>

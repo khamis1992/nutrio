@@ -199,7 +199,7 @@ export default function NutritionDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-8 text-center">
-            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Something went wrong</h3>
             <p className="text-slate-600 mb-6">{error}</p>
             <Button onClick={fetchDashboardData} className="w-full">
@@ -214,11 +214,11 @@ export default function NutritionDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-900 via-teal-900 to-cyan-900 text-white py-12 px-4">
+      <div className="min-h-screen bg-muted">
+        <div className="relative overflow-hidden bg-gradient-to-r from-primary/90 via-primary/80 to-primary/90 text-white py-12 px-4">
           <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-400 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-400 rounded-full blur-3xl" />
+            <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/60 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-primary/60 rounded-full blur-3xl" />
           </div>
           <div className="relative max-w-6xl mx-auto">
             <div className="flex items-center justify-between">
@@ -267,11 +267,11 @@ export default function NutritionDashboard() {
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
-      <div className="relative overflow-hidden bg-gradient-to-r from-emerald-900 via-teal-900 to-cyan-900 text-white py-12 px-4">
+    <div className="min-h-screen bg-background pb-20">
+      <div className="relative overflow-hidden bg-gradient-to-r from-primary/90 via-primary/80 to-primary/90 text-white py-12 px-4">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-400 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-400 rounded-full blur-3xl" />
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/60 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-primary/60 rounded-full blur-3xl" />
         </div>
         
         <div className="relative max-w-6xl mx-auto">
@@ -280,7 +280,7 @@ export default function NutritionDashboard() {
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
                 Nutrition Dashboard
               </h1>
-              <p className="text-emerald-100">
+              <p className="text-white/80">
                 Track your progress and AI-powered insights
               </p>
             </div>
@@ -349,7 +349,7 @@ export default function NutritionDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-violet-500" />
+                    <Calendar className="w-5 h-5 text-primary" />
                     Weekly Adherence
                   </CardTitle>
                 </CardHeader>
@@ -407,7 +407,7 @@ export default function NutritionDashboard() {
                   <Button 
                     variant="outline" 
                     onClick={handleRequestAdjustment}
-                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    className="border-primary/20 text-primary hover:bg-primary/10"
                   >
                     Request AI Analysis
                   </Button>

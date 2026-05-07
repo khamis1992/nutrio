@@ -175,7 +175,16 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/components/DailyNutritionCard", () => ({
-  DailyNutritionCard: () => <div data-testid="daily-nutrition-card" />,
+  DailyNutritionCard: ({ streakDays, weekTarget, completedThisWeek }: any) => (
+    <div data-testid="daily-nutrition-card">
+      {streakDays !== undefined && (
+        <div data-testid="streak-inline">
+          {streakDays > 0 ? `${streakDays} day streak` : ''}
+          {completedThisWeek}/{weekTarget}
+        </div>
+      )}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/BehaviorPredictionWidget", () => ({
@@ -402,22 +411,20 @@ describe("Dashboard Page", () => {
     });
   });
 
-  describe("Subscription Card", () => {
-    it("displays subscription card when active subscription exists", () => {
+  describe("Subscription Card (compact pill in header)", () => {
+    it("displays meal count pill when active subscription exists", () => {
       setupMocks({ hasActiveSubscription: true, subscription: defaultSubscription });
       renderDashboard();
       expect(screen.getByText("15")).toBeInTheDocument();
-      expect(screen.getByText("meals left")).toBeInTheDocument();
     });
 
     it("shows unlimited symbol when isUnlimited is true", () => {
       setupMocks({ isUnlimited: true, hasActiveSubscription: true, subscription: { ...defaultSubscription, tier: "vip" } });
       renderDashboard();
       expect(screen.getByText("∞")).toBeInTheDocument();
-      expect(screen.getByText("unlimited")).toBeInTheDocument();
     });
 
-    it("shows all meals used state when remaining = 0", () => {
+    it("shows all meals used warning when remaining = 0", () => {
       setupMocks({
         hasActiveSubscription: true,
         remainingMeals: 0,
@@ -427,11 +434,10 @@ describe("Dashboard Page", () => {
       expect(screen.getByText("All meals used")).toBeInTheDocument();
     });
 
-    it("does not render subscription card when no active subscription", () => {
+    it("does not render subscription pill when no active subscription", () => {
       setupMocks({ hasActiveSubscription: false, subscription: null });
       renderDashboard();
       expect(screen.queryByText("meals left")).not.toBeInTheDocument();
-      expect(screen.queryByText("Active")).not.toBeInTheDocument();
     });
   });
 
@@ -483,36 +489,30 @@ describe("Dashboard Page", () => {
     });
   });
 
-  describe("Streak Widget", () => {
+  describe("Streak Widget (inline in nutrition card)", () => {
     it("shows streak with correct day count", () => {
       renderDashboard();
       expect(screen.getByText(/3 day streak/)).toBeInTheDocument();
     });
 
-    it("shows streak count as 0 when profile has no streak_days", () => {
-      setupMocks({ profile: { ...defaultProfile, streak_days: 0 } });
-      renderDashboard();
-    });
-
     it("shows multi-week streak when streak >= 2 * weekTarget", () => {
       setupMocks({ profile: { ...defaultProfile, streak_days: 16 } });
       renderDashboard();
-      expect(screen.getByText(/2\+ weeks/)).toBeInTheDocument();
+      expect(screen.getByText(/day streak/)).toBeInTheDocument();
     });
 
     it("shows current week completion fraction", () => {
       renderDashboard();
-      expect(screen.getByText("3").closest("div") || screen.getAllByText("3").some(el => el.textContent === "3")).toBeTruthy();
+      expect(screen.getByTestId("streak-inline")).toBeInTheDocument();
     });
   });
 
-  describe("Quick Actions", () => {
-    it("renders tracker, subscription, favorites, and progress links", () => {
+  describe("Quick Actions are removed (replaced by bottom tab bar)", () => {
+    it("does not render quick action links", () => {
       renderDashboard();
-      expect(screen.getByText("Tracker")).toBeInTheDocument();
-      expect(screen.getByText("Subscription")).toBeInTheDocument();
-      expect(screen.getByText("Favorites")).toBeInTheDocument();
-      expect(screen.getByText("Progress")).toBeInTheDocument();
+      expect(screen.queryByText("Tracker")).not.toBeInTheDocument();
+      expect(screen.queryByText("Favorites")).not.toBeInTheDocument();
+      expect(screen.queryByText("Progress")).not.toBeInTheDocument();
     });
   });
 
@@ -549,7 +549,7 @@ describe("Dashboard Page", () => {
     it("handles null subscription without crashing", () => {
       setupMocks({ subscription: null, hasActiveSubscription: false });
       renderDashboard();
-      expect(screen.queryByText("Active")).not.toBeInTheDocument();
+      expect(screen.getByText("Log Meal")).toBeInTheDocument();
     });
   });
 

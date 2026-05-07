@@ -98,10 +98,42 @@ export async function requestPermissions(requested: {
   return null;
 }
 
+function generateRandomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => chars[byte % chars.length]).join('');
+}
+
+async function sha256(plain: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  return crypto.subtle.digest('SHA-256', data);
+}
+
+async function base64urlEncode(buffer: ArrayBuffer): Promise<string> {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  bytes.forEach(byte => binary += String.fromCharCode(byte));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+  const hash = await sha256(codeVerifier);
+  return base64urlEncode(hash);
+}
+
 /**
- * Get Google Fit OAuth URL for web
+ * Get Google Fit OAuth URL for web with PKCE
  */
-export function getAuthUrl(clientId: string, redirectUri: string): string {
+export async function getAuthUrl(clientId: string, redirectUri: string): Promise<string> {
+  const state = generateRandomString(32);
+  const codeVerifier = generateRandomString(64);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+  sessionStorage.setItem('google_oauth_state', state);
+  sessionStorage.setItem('google_code_verifier', codeVerifier);
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -109,8 +141,11 @@ export function getAuthUrl(clientId: string, redirectUri: string): string {
     scope: GOOGLE_FIT_SCOPES.join(" "),
     access_type: "offline",
     prompt: "consent",
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: "S256",
   });
-  
+
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 

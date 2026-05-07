@@ -2,11 +2,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Target, 
-  Flame, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Flame,
   Dumbbell,
   Calendar,
   Award,
@@ -47,11 +47,11 @@ interface DashboardStatsGridProps {
   onRefresh: () => void;
 }
 
-export function DashboardStatsGrid({ 
-  weightLogs, 
-  adjustments, 
-  weeklyStats, 
-  nutritionData, 
+export function DashboardStatsGrid({
+  weightLogs,
+  adjustments,
+  weeklyStats,
+  nutritionData,
   calculateWeightChange,
   averageAdherence,
   onRefresh
@@ -64,37 +64,37 @@ export function DashboardStatsGrid({
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">Weight Change</span>
+            <span className="text-sm text-muted-foreground">Weight Change</span>
             {weightChange < 0 ? (
-              <TrendingDown className="w-4 h-4 text-emerald-500" />
+              <TrendingDown className="w-4 h-4 text-primary" />
             ) : (
-              <TrendingUp className="w-4 h-4 text-blue-500" />
+              <TrendingUp className="w-4 h-4 text-primary" />
             )}
           </div>
           <div className="flex items-baseline gap-1 mt-2">
             <span className={cn(
               "text-2xl font-bold",
-              weightChange < 0 ? "text-emerald-600" : "text-blue-600"
+              weightChange < 0 ? "text-primary" : "text-primary"
             )}>
               {weightChange > 0 ? "+" : ""}{weightChange}
             </span>
-            <span className="text-sm text-slate-500">kg</span>
+            <span className="text-sm text-muted-foreground">kg</span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Last 30 days</p>
+          <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">Plan Adherence</span>
-            <Calendar className="w-4 h-4 text-violet-500" />
+            <span className="text-sm text-muted-foreground">Plan Adherence</span>
+            <Calendar className="w-4 h-4 text-primary" />
           </div>
           <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-2xl font-bold text-violet-600">
+            <span className="text-2xl font-bold text-primary">
               {avgAdherence}
             </span>
-            <span className="text-sm text-slate-500">%</span>
+            <span className="text-sm text-muted-foreground">%</span>
           </div>
           <Progress value={avgAdherence} className="mt-2 h-2" />
         </CardContent>
@@ -103,26 +103,26 @@ export function DashboardStatsGrid({
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">Daily Calories</span>
-            <Flame className="w-4 h-4 text-orange-500" />
+            <span className="text-sm text-muted-foreground">Daily Calories</span>
+            <Flame className="w-4 h-4 text-warning" />
           </div>
-          <div className="text-2xl font-bold text-orange-600 mt-2">
+          <div className="text-2xl font-bold text-warning mt-2">
             {nutritionData?.target_calories || 2000}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Target</p>
+          <p className="text-xs text-muted-foreground mt-1">Target</p>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">AI Adjustments</span>
-            <AlertCircle className="w-4 h-4 text-amber-500" />
+            <span className="text-sm text-muted-foreground">AI Adjustments</span>
+            <AlertCircle className="w-4 h-4 text-warning" />
           </div>
-          <div className="text-2xl font-bold text-amber-600 mt-2">
+          <div className="text-2xl font-bold text-warning mt-2">
             {adjustments.length}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Total made</p>
+          <p className="text-xs text-muted-foreground mt-1">Total made</p>
         </CardContent>
       </Card>
     </div>

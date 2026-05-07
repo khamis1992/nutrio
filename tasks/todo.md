@@ -166,3 +166,80 @@ Day 3+:
 ## Review Section
 
 *(To be filled after execution)*
+
+---
+
+## Quick Task Plan — Move "Review Order" Button Up
+
+**Date:** April 25, 2026  
+**Status:** Awaiting user approval before execution
+
+- [ ] Locate and confirm the exact fixed bottom button container in `src/components/MealWizard.tsx`
+- [ ] Apply the smallest possible spacing change to move the button upward (likely by increasing the fixed container's bottom offset)
+- [ ] Run a quick lint check for the edited file and ensure no new issues were introduced
+- [ ] Update this review section with what changed and why
+
+## Review Section (Quick Task)
+
+- [x] Locate and confirm the exact fixed bottom button container in `src/components/MealWizard.tsx`
+- [x] Apply the smallest possible spacing change to move the button upward (likely by increasing the fixed container's bottom offset)
+- [x] Run a quick lint check for the edited file and ensure no new issues were introduced
+- [x] Update this review section with what changed and why
+
+### Review Notes
+
+- Updated only one class in `src/components/MealWizard.tsx` for the specific fixed container that renders `Review Order ({...} meal...)` when meals are selected.
+- Changed `bottom-0` to `bottom-4` so the button sits slightly above the bottom edge while keeping all existing styling/behavior intact.
+- Scope kept intentionally minimal to avoid affecting other fixed bottom actions in the wizard.
+- Lint check run on edited files after change.
+- Follow-up adjustment: changed `bottom-4` to `bottom-8` to move the button higher per request, without altering any other styles or behavior.
+- Follow-up adjustment: changed `bottom-8` to `bottom-12` to move it higher again while keeping the same fixed layout behavior.
+- Follow-up adjustment: changed `bottom-12` to `bottom-16` to move the button higher once more with no other UI changes.
+- Additional follow-up: in `src/pages/Schedule.tsx`, increased bottom sheet content padding (`paddingBottom`) to ensure `Remove from Schedule` remains visible above device dock/safe-area overlays.
+- Final follow-up: increased `paddingBottom` floor from `96px` to `112px` in `src/pages/Schedule.tsx` for extra clearance above the dock.
+- Direct visibility fix: moved the meal detail bottom sheet itself up from screen bottom using `style={{ bottom: "max(24px, env(safe-area-inset-bottom))" }}` so action buttons clear dock overlays even when inner padding changes are not enough.
+
+---
+
+## Quick Task Plan — Remove Header "Customer" Role Indicator
+
+**Date:** April 26, 2026  
+**Status:** Awaiting user approval before execution
+
+- [x] Confirm the exact `RoleIndicator` usage in the dashboard header that renders the "Customer" label
+- [x] Remove only that `RoleIndicator` render from `src/pages/Dashboard.tsx` with the smallest possible change
+- [x] Run a quick lint check for the edited file to ensure no new issues were introduced
+- [x] Add a short review note in this file summarizing what changed
+
+## Review Section (Role Indicator Removal)
+
+### Review Notes
+
+- Removed the single dashboard header render `!hasRestaurant && <RoleIndicator role="customer" />` from `src/pages/Dashboard.tsx` so the "Customer" label no longer appears.
+- Removed the now-unused `RoleIndicator` import from the same file.
+- Kept the change intentionally minimal: no other header elements or layout logic were changed.
+- Ran `npx eslint src/pages/Dashboard.tsx` and confirmed it passes for this edit.
+
+---
+
+## Quick Task Plan — Change Apple Icon Color
+
+**Date:** April 26, 2026  
+**Status:** Awaiting user approval before execution
+
+- [ ] Confirm the exact `Apple` icon instance and current Tailwind color class in `src/components/DailyNutritionCard.tsx`
+- [ ] Change only that icon color class to the requested color using the smallest possible edit
+- [ ] Run a quick lint check for the edited file to ensure no new issues were introduced
+- [ ] Add a short review note in this file summarizing the icon color update
+
+---
+
+## Quick Task Plan — Fix Stuck Subscription Badge Count
+
+**Date:** April 26, 2026  
+**Status:** Awaiting user approval before execution
+
+- [ ] Confirm the Dashboard header badge source (`remainingMeals + rolloverCredits`) and identify why it stays stale after meal changes
+- [ ] Add the smallest safe refresh path so Dashboard refetches subscription/rollover data when meal progress changes
+- [ ] Run a quick lint check on edited files to ensure no new issues were introduced
+- [ ] Add a short review note in this file summarizing the fix and files touched

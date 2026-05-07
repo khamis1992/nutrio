@@ -1,13 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Zap, Crown, Loader2 } from "lucide-react";
+import { Check, Zap, Crown, Loader2, ArrowLeft, Utensils, Apple, ShieldCheck, Sparkles, CalendarCheck, ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
+
+const TIER_DISPLAY: Record<string, { en: string; ar: string; icon: typeof Zap; badge: string; badgeClass: string }> = {
+  elite:   { en: "Nutrio Elite",   ar: "نخبة نوتريو",   icon: Crown, badge: "Most Popular", badgeClass: "bg-amber-500" },
+  healthy: { en: "Healthy Balance", ar: "توازن صحي",     icon: Zap,   badge: "Best Value",  badgeClass: "bg-emerald-500" },
+  fresh:   { en: "Fresh Start",     ar: "بداية منعشة",   icon: Zap,   badge: "Starter",     badgeClass: "bg-blue-500" },
+  weekly:  { en: "Weekly Boost",    ar: "دفعة أسبوعية",  icon: Zap,   badge: "Flexible",    badgeClass: "bg-violet-500" },
+};
 
 export default function SubscriptionPlans() {
   const navigate = useNavigate();
@@ -15,286 +21,242 @@ export default function SubscriptionPlans() {
   const [isLoading, setIsLoading] = useState(false);
   const { plans: dbPlans, loading, error } = useSubscriptionPlans();
 
-  // Map database tier to display name
-  const getPlanDisplayName = (plan: DbSubscriptionPlan) => {
-    const names: Record<string, { en: string; ar: string }> = {
-      elite: { en: "Nutrio Elite", ar: "نخبة نوتريو" },
-      healthy: { en: "Healthy Balance", ar: "توازن صحي" },
-      fresh: { en: "Fresh Start", ar: "بداية منعشة" },
-      weekly: { en: "Weekly Boost", ar: "دفعة أسبوعية" },
+  const getPlanDisplay = (plan: DbSubscriptionPlan) => {
+    return TIER_DISPLAY[plan.tier] || {
+      en: plan.tier,
+      ar: plan.name_ar || plan.tier,
+      icon: Zap,
+      badge: "",
+      badgeClass: "bg-slate-500",
     };
-    return names[plan.tier] || { en: plan.tier, ar: plan.name_ar || plan.tier };
   };
 
-  // Get tier badge info
-  const getTierBadge = (tier: string) => {
-    const badges: Record<string, { text: string; color: string }> = {
-      elite: { text: "Most Popular", color: "bg-gradient-to-r from-amber-500 to-orange-500" },
-      healthy: { text: "Best Value", color: "bg-gradient-to-r from-emerald-500 to-teal-500" },
-      fresh: { text: "Starter", color: "bg-gradient-to-r from-blue-500 to-cyan-500" },
-      weekly: { text: "Flexible", color: "bg-gradient-to-r from-violet-500 to-purple-500" },
-    };
-    return badges[tier] || null;
-  };
-
-  const handleSubscribe = async (planId: string) => {
+  const handleSubscribe = async (planTier: string) => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         toast.error("Please sign in to subscribe");
         navigate("/auth");
         return;
       }
-
-      navigate(`/subscription/checkout?plan=${planId}`);
-    } catch (error) {
+      navigate(`/subscription/checkout?plan=${planTier}`);
+    } catch {
       toast.error("Failed to process subscription");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getPricePerMeal = (plan: DbSubscriptionPlan) => {
-    if (plan.meals_per_month > 0) {
-      return (plan.price_qar / plan.meals_per_month).toFixed(2);
-    }
-    return "0";
-  };
-
-  const getDailyBreakdown = (plan: DbSubscriptionPlan) => {
-    const meals = plan.daily_meals || Math.round((plan.meals_per_month || 0) / 30);
-    const snacks = plan.daily_snacks || Math.round((plan.snacks_per_month || 0) / 30);
-    return { meals, snacks };
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Failed to load subscription plans</p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
+          <p className="text-destructive mb-4 font-medium">Failed to load subscription plans</p>
+          <Button onClick={() => window.location.reload()} className="rounded-2xl">
+            Retry
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
-      {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-b from-emerald-900 to-emerald-800 text-white py-20 px-4">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-400 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="px-4 pt-[env(safe-area-inset-top)] h-14 flex items-center gap-3 rtl:flex-row-reverse">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-full bg-muted/80 flex items-center justify-center hover:bg-muted active:scale-95 transition-all"
+          >
+            <ArrowLeft className="h-4 w-4 text-foreground" />
+          </button>
+          <h1 className="text-base font-bold tracking-tight">Choose Your Plan</h1>
         </div>
-        
-        <div className="relative max-w-4xl mx-auto text-center">
-          <Badge className="mb-4 bg-white/10 text-white border-white/20 backdrop-blur-sm">
+      </header>
+
+      <div className="relative overflow-hidden bg-gradient-to-b from-primary to-emerald-700 text-white py-12 px-4">
+        <div className="absolute inset-0 opacity-[0.07]">
+          <div className="absolute top-0 left-0 w-72 h-72 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-72 h-72 bg-emerald-300 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+        </div>
+
+        <div className="relative max-w-lg mx-auto text-center">
+          <Badge className="mb-3 bg-white/15 text-white border-white/20 backdrop-blur-sm px-3 py-1">
+            <Sparkles className="h-3 w-3 mr-1.5" />
             AI-Powered Nutrition
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">
-            Choose Your
-            <span className="block text-emerald-300">Health Journey</span>
+          <h1 className="text-[26px] font-extrabold mb-3 tracking-tight leading-tight">
+            Choose Your Health Journey
           </h1>
-          <p className="text-lg md:text-xl text-emerald-100/80 max-w-2xl mx-auto leading-relaxed">
-            Subscribe to monthly meal credits and let our AI create personalized nutrition plans 
-            tailored to your goals. No per-meal payments, just healthy eating made simple.
+          <p className="text-sm text-white/75 leading-relaxed max-w-sm mx-auto">
+            Subscribe to monthly meal credits and let our AI create personalized nutrition plans tailored to your goals.
           </p>
         </div>
       </div>
 
-      {/* Plans Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-16 -mt-10">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="max-w-lg mx-auto px-4 py-8 -mt-6">
+        <div className="space-y-4">
           {dbPlans.map((plan) => {
-            const displayName = getPlanDisplayName(plan);
-            const tierBadge = getTierBadge(plan.tier);
-            const daily = getDailyBreakdown(plan);
+            const display = getPlanDisplay(plan);
+            const Icon = display.icon;
+            const isSelected = selectedPlan === plan.tier;
             const isPopular = plan.tier === "elite";
+            const pricePerMeal = plan.meals_per_month > 0
+              ? (plan.price_qar / plan.meals_per_month).toFixed(2)
+              : "0";
 
             return (
-              <Card
+              <div
                 key={plan.id}
                 className={cn(
-                  "relative overflow-hidden transition-all duration-300 cursor-pointer",
-                  "hover:shadow-2xl hover:-translate-y-1",
-                  selectedPlan === plan.tier
-                    ? "ring-2 ring-emerald-500 shadow-emerald-500/20"
-                    : "shadow-lg",
-                  isPopular && "md:-mt-4 md:mb-4"
+                  "relative bg-card rounded-[24px] border-2 overflow-hidden transition-all duration-200",
+                  "active:scale-[0.98] cursor-pointer",
+                  isSelected
+                    ? "border-primary shadow-md shadow-primary/10"
+                    : isPopular
+                    ? "border-amber-200 shadow-md"
+                    : "border-border/60 shadow-sm hover:shadow-md"
                 )}
                 onClick={() => setSelectedPlan(plan.tier)}
               >
-                {tierBadge && (
-                  <div className={cn("absolute top-0 left-0 right-0 text-white text-center py-2 text-sm font-medium z-10", tierBadge.color)}>
-                    {tierBadge.text}
+                {display.badge && (
+                  <div className={cn("text-white text-[11px] font-bold text-center py-1.5 tracking-wide", display.badgeClass)}>
+                    {display.badge}
                   </div>
                 )}
 
-                <CardHeader className={cn("pt-8 pb-4", isPopular && "pt-12")}>
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xl font-bold text-slate-900">{displayName.en}</h3>
-                    {plan.tier === "elite" && <Crown className="w-5 h-5 text-amber-500" />}
-                    {plan.tier === "healthy" && <Zap className="w-5 h-5 text-emerald-500" />}
+                <div className={cn("p-5", display.badge && "pt-4")}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-11 h-11 rounded-2xl flex items-center justify-center",
+                        isPopular ? "bg-amber-100" : "bg-primary/10"
+                      )}>
+                        <Icon className={cn("h-5 w-5", isPopular ? "text-amber-600" : "text-primary")} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-foreground">{display.en}</h3>
+                        <p className="text-xs text-emerald-600 font-semibold">{display.ar}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-extrabold text-foreground">{plan.price_qar.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground font-medium">QAR / month</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-emerald-600 font-medium mb-3">{displayName.ar}</p>
-                  
-                  {/* Short Description - الوصف القصير */}
-                  {plan.short_description && (
-                    <p className="text-sm text-slate-500 mb-3">{plan.short_description}</p>
-                  )}
-                  {plan.short_description_ar && (
-                    <p className="text-sm text-slate-400 mb-3">{plan.short_description_ar}</p>
-                  )}
-                  
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold text-slate-900">
-                      {plan.price_qar.toLocaleString()}
-                    </span>
-                    <span className="text-slate-500">QAR</span>
-                  </div>
-                  <p className="text-sm text-slate-500">per month</p>
-                </CardHeader>
 
-                <CardContent className="space-y-4">
-                  {/* Meal & Snack Summary */}
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-slate-600">Meals</span>
-                      <span className="text-2xl font-bold text-emerald-600">
-                        {plan.meals_per_month}
+                  {plan.short_description && (
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{plan.short_description}</p>
+                  )}
+
+                  <div className="bg-muted/60 rounded-2xl p-3 mb-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Utensils className="h-4 w-4 text-primary" />
+                        <span className="text-sm text-foreground font-semibold">
+                          {plan.meals_per_month} meals/month
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        ~{pricePerMeal} QAR/meal
                       </span>
                     </div>
                     {plan.snacks_per_month > 0 && (
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-slate-600">Snacks</span>
-                        <span className="text-2xl font-bold text-amber-600">
-                          {plan.snacks_per_month}
+                      <div className="flex items-center gap-2 border-t border-border/30 pt-2">
+                        <Apple className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm text-foreground font-semibold">
+                          +{plan.snacks_per_month} snacks/month
                         </span>
                       </div>
                     )}
-                    <div className="border-t border-slate-200 pt-2 mt-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-500">Daily</span>
-                        <span className="font-medium text-slate-700">
-                          {daily.meals} meals + {daily.snacks} snacks
-                        </span>
-                      </div>
-                    </div>
                   </div>
 
-                  {/* Price per meal */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Price per meal</span>
-                    <span className="font-semibold text-emerald-600">
-                      {getPricePerMeal(plan)} QAR
-                    </span>
-                  </div>
-
-                  {/* Full Description - الوصف الكامل */}
                   {plan.description_en && (
-                    <p className="text-sm text-slate-600 bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                    <p className="text-xs text-slate-600 bg-emerald-50 rounded-xl p-3 border border-emerald-100 mb-3 leading-relaxed">
                       {plan.description_en}
                     </p>
                   )}
-                  {plan.description && (
-                    <p className="text-sm text-slate-500">{plan.description}</p>
-                  )}
 
-                  {/* Features from database */}
                   {plan.features && plan.features.length > 0 && (
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 mb-4">
                       {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm text-slate-700">{feature}</span>
+                        <li key={idx} className="flex items-start gap-2.5">
+                          <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                            <Check className="h-2.5 w-2.5 text-primary" />
+                          </div>
+                          <span className="text-xs text-foreground leading-snug">{feature}</span>
                         </li>
                       ))}
                     </ul>
                   )}
 
-                  {/* CTA Button */}
                   <Button
                     className={cn(
-                      "w-full py-5 text-base font-semibold transition-all duration-300",
+                      "w-full py-5 text-sm font-bold rounded-2xl transition-all duration-200",
                       isPopular
-                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25"
-                        : "bg-slate-900 hover:bg-slate-800 text-white"
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/20"
+                        : "bg-foreground hover:bg-foreground/90 text-background"
                     )}
-                    onClick={() => handleSubscribe(plan.tier)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSubscribe(plan.tier);
+                    }}
                     disabled={isLoading}
                   >
                     {isLoading && selectedPlan === plan.tier ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      `Subscribe to ${displayName.en}`
+                      `Subscribe to ${display.en}`
                     )}
                   </Button>
 
-                  {/* Money-back guarantee */}
-                  <p className="text-center text-xs text-slate-400">
-                    7-day money-back guarantee • Cancel anytime
+                  <p className="text-center text-[11px] text-muted-foreground mt-2 font-medium">
+                    7-day money-back guarantee · Cancel anytime
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
 
-        {/* Trust badges */}
-        <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-slate-400">
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm">No hidden fees</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm">Secure payment</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm">Instant activation</span>
-          </div>
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-muted-foreground">
+          {[
+            { icon: ShieldCheck, text: "No hidden fees" },
+            { icon: ShieldCheck, text: "Secure payment" },
+            { icon: CalendarCheck, text: "Instant activation" },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="flex items-center gap-2">
+              <Icon className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold">{text}</span>
+            </div>
+          ))}
         </div>
 
-        {/* How it works */}
-        <div className="mt-20 max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-12 text-slate-900">
+        <div className="mt-12 mb-8">
+          <h2 className="text-lg font-extrabold text-center mb-8 text-foreground">
             How Your Subscription Works
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-3 gap-4">
             {[
-              {
-                step: "01",
-                title: "Subscribe",
-                description: "Choose your plan and get instant access to meal credits",
-              },
-              {
-                step: "02",
-                title: "AI Planning",
-                description: "Our AI creates personalized weekly meal plans based on your goals",
-              },
-              {
-                step: "03",
-                title: "Order & Enjoy",
-                description: "Use your credits to order any meal from any restaurant",
-              },
+              { step: "01", title: "Subscribe", desc: "Choose your plan and get instant access to meal credits" },
+              { step: "02", title: "AI Planning", desc: "Our AI creates personalized weekly meal plans" },
+              { step: "03", title: "Order & Enjoy", desc: "Use credits to order meals from any restaurant" },
             ].map((item) => (
               <div key={item.step} className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-base font-extrabold">
                   {item.step}
                 </div>
-                <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-600">{item.description}</p>
+                <h3 className="text-sm font-bold text-foreground mb-1">{item.title}</h3>
+                <p className="text-[11px] text-muted-foreground leading-snug">{item.desc}</p>
               </div>
             ))}
           </div>

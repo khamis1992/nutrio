@@ -309,26 +309,43 @@ export function useHealthIntegration() {
 }
 
 // Helper to initiate Google Fit OAuth flow (for web)
-export function initGoogleFitOAuth(clientId: string) {
+export async function initGoogleFitOAuth(clientId: string) {
   const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
-  const authUrl = getAuthUrl(clientId, redirectUri);
+  const authUrl = await getAuthUrl(clientId, redirectUri);
   window.location.href = authUrl;
 }
 
-// Handle OAuth callback
+// Handle OAuth callback - uses edge function for secure token exchange
 export async function handleGoogleFitCallback(
   code: string,
-  clientId: string,
-  clientSecret: string
+  codeVerifier: string
 ): Promise<boolean> {
-  const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
-  const tokenData = await exchangeCodeForToken(code, clientId, clientSecret, redirectUri);
-  
-  if (!tokenData) {
+  try {
+    const redirectUri = `${window.location.origin}/auth/google-fit/callback`;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      console.error("No authenticated user");
+      return false;
+    }
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-fit-token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          codeVerifier,
+          redirectUri,
+          userId: user.id,
+        }),
+      }
+    );
+
+    return response.ok;
+  } catch (error) {
+    console.error("Google Fit callback error:", error);
     return false;
   }
-  
-  // Store token in database (would need user context)
-  // This should be called from an API route
-  return true;
 }

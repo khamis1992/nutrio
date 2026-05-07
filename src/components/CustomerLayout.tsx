@@ -4,6 +4,7 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar";
 const HIDDEN_NAV_PATHS = [
   "/checkout",
   "/onboarding",
+  "/subscription",
 ];
 
 export const CustomerLayout = () => {

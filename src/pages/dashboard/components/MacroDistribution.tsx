@@ -37,7 +37,7 @@ export function MacroDistribution({ nutritionData }: MacroDistributionProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Target className="w-5 h-5 text-emerald-500" />
+          <Target className="w-5 h-5 text-primary" />
           Macro Distribution
         </CardTitle>
       </CardHeader>

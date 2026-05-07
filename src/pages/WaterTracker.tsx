@@ -68,10 +68,10 @@ function CalendarDayCell({
       onClick={onClick}
       className={cn(
         "relative flex items-center justify-center w-10 h-10 rounded-full transition-colors",
-        !isCurrentMonth && "text-gray-300",
-        isCurrentMonth && !isSelected && !isToday && "text-gray-700",
-        isSelected && "text-blue-600 font-bold",
-        isToday && !isSelected && "text-gray-700"
+        !isCurrentMonth && "text-muted-foreground",
+        isCurrentMonth && !isSelected && !isToday && "text-foreground",
+        isSelected && "text-primary font-bold",
+        isToday && !isSelected && "text-foreground"
       )}
     >
       <span className="relative z-10">{format(date, "d")}</span>
@@ -93,7 +93,7 @@ function CalendarDayCell({
         </svg>
       )}
       {isCurrentMonth && progressPct === 0 && !isSelected && (
-        <span className="absolute inset-0 rounded-full border border-gray-200 pointer-events-none" />
+        <span className="absolute inset-0 rounded-full border border-border pointer-events-none" />
       )}
       {!isCurrentMonth && (
         <span className="absolute inset-0 rounded-full border border-transparent pointer-events-none" />
@@ -139,16 +139,16 @@ function CalendarView({
       <div className="flex items-center justify-between">
         <button
           onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
-          className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+          className="p-2 rounded-full hover:bg-muted text-muted-foreground"
         >
           <NavChevronLeft className="w-5 h-5" />
         </button>
-        <span className="text-base font-bold text-gray-900">
+        <span className="text-base font-bold text-foreground">
           {format(calendarMonth, "MMMM yyyy")}
         </span>
         <button
           onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
-          className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+          className="p-2 rounded-full hover:bg-muted text-muted-foreground"
         >
           <NavChevronRight className="w-5 h-5" />
         </button>
@@ -157,7 +157,7 @@ function CalendarView({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1">
         {dayHeaders.map((h) => (
-          <div key={h} className="text-center text-xs font-medium text-gray-500 py-1">
+          <div key={h} className="text-center text-xs font-medium text-muted-foreground py-1">
             {h}
           </div>
         ))}
@@ -188,7 +188,7 @@ function CalendarView({
 
       <button
         onClick={onClose}
-        className="flex justify-center w-full mt-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+        className="flex justify-center w-full mt-4 p-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <ChevronUp className="w-5 h-5" />
       </button>
@@ -302,21 +302,20 @@ export default function WaterTracker() {
   };
 
   const fillHeight = Math.min(100, percentage);
-  // Glass: top y=20, bottom y=140, height=120
   const waterTopY = 140 - (fillHeight / 100) * 120;
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-gray-100">
+      <div className="sticky top-0 z-10 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">{t('water_title')}</h1>
+          <h1 className="text-lg font-bold text-foreground">{t('water_title')}</h1>
           <div className="w-10 h-10" />
         </div>
 
@@ -332,14 +331,14 @@ export default function WaterTracker() {
                     className={cn(
                       "flex-shrink-0 flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all",
                       isSameDay(d, selectedDate)
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-50"
+                        ? "bg-blue-50 text-primary"
+                        : "text-muted-foreground hover:bg-muted"
                     )}
                   >
                     <span className="text-xs font-medium">{format(d, "EEE")}</span>
                     <span className="text-sm font-bold">{format(d, "d")}</span>
                     {isSameDay(d, selectedDate) && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                     )}
                   </button>
                 ))}
@@ -349,7 +348,7 @@ export default function WaterTracker() {
                   setCalendarMonth(selectedDate);
                   setCalendarOpen(true);
                 }}
-                className="flex justify-center w-full mt-2 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="flex justify-center w-full mt-2 p-2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ChevronDown className="w-5 h-5" />
               </button>
@@ -404,18 +403,18 @@ export default function WaterTracker() {
             </svg>
           </div>
           {loading ? (
-            <Loader2 className="w-8 h-8 animate-spin text-gray-300" />
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           ) : (
             <>
-              <p className="text-3xl font-bold text-gray-900">{totalMl.toLocaleString()} {t('water_ml')}</p>
+              <p className="text-3xl font-bold text-foreground">{totalMl.toLocaleString()} {t('water_ml')}</p>
               <div className="flex items-center gap-3 mt-2">
-                <p className="text-sm text-gray-500">{t('water_daily_goal')}: {goalMl.toLocaleString()} {t('water_ml')}</p>
+                <p className="text-sm text-muted-foreground">{t('water_daily_goal')}: {goalMl.toLocaleString()} {t('water_ml')}</p>
                 <button
                   onClick={() => {
                     setGoalInput(String(goalMl));
                     setGoalDialogOpen(true);
                   }}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                  className="p-1 rounded hover:bg-muted text-muted-foreground"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
@@ -426,18 +425,18 @@ export default function WaterTracker() {
       </div>
 
       {/* Bottom action bar - above nav */}
-      <div className="fixed bottom-20 left-0 right-0 bg-background border-t border-gray-100 p-4 z-40" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+      <div className="fixed bottom-20 left-0 right-0 bg-background border-t border-border p-4 z-40" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
         <div className="container mx-auto flex items-center gap-3">
           <button
             onClick={() => setAddWaterSheetOpen(true)}
-            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-blue-600 hover:bg-gray-200 transition-colors"
+            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-primary hover:bg-muted transition-colors"
           >
             <Droplets className="w-5 h-5" />
           </button>
           <Button
             onClick={() => handleDrink(DEFAULT_DRINK_ML)}
             disabled={adding}
-            className="flex-1 h-12 rounded-xl font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+            className="flex-1 h-12 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : `${t('water_drink')} (${DEFAULT_DRINK_ML} ${t('water_ml')})`}
           </Button>
@@ -483,22 +482,22 @@ export default function WaterTracker() {
                 key={ml}
                 onClick={() => handlePresetDrink(ml)}
                 disabled={adding}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border border-gray-100 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-background border border-border hover:bg-muted active:bg-muted transition-colors disabled:opacity-50"
               >
-                <div className="w-14 h-14 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-background border border-border flex items-center justify-center">
                   <WaterCupIcon fillPercent={(ml / MAX_PRESET) * 100} />
                 </div>
-                <span className="text-sm font-medium text-gray-700">{ml} {t('water_ml')}</span>
+                <span className="text-sm font-medium text-foreground">{ml} {t('water_ml')}</span>
               </button>
             ))}
             <button
               onClick={openCustomDialog}
-              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border border-gray-100 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-background border border-border hover:bg-muted active:bg-muted transition-colors"
             >
-              <div className="w-14 h-14 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                <Plus className="w-6 h-6 text-blue-500" />
+              <div className="w-14 h-14 rounded-full bg-background border border-border flex items-center justify-center">
+                <Plus className="w-6 h-6 text-primary" />
               </div>
-              <span className="text-sm font-medium text-gray-700">{t('water_add_new')}</span>
+              <span className="text-sm font-medium text-foreground">{t('water_add_new')}</span>
             </button>
           </div>
         </SheetContent>
@@ -527,7 +526,7 @@ export default function WaterTracker() {
             <Button
               onClick={handleCustomDrink}
               disabled={!customMl || parseInt(customMl, 10) <= 0}
-              className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700"
+              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90"
             >
               {t('water_add')}
             </Button>

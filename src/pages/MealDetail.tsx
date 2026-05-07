@@ -216,7 +216,7 @@ const FixedBottomActionBar = ({
             <p className="text-sm text-muted-foreground">Selected</p>
             <p className="font-semibold text-foreground">{meal.name}</p>
             {noMealsLeft && (
-              <p className="text-xs text-amber-600 font-medium mt-0.5">No meals left — buy with wallet</p>
+              <p className="text-xs text-warning font-medium mt-0.5">No meals left — buy with wallet</p>
             )}
           </div>
 
@@ -240,7 +240,7 @@ const FixedBottomActionBar = ({
                 ${disabled 
                   ? 'bg-muted text-muted-foreground' 
                   : isSuccess 
-                    ? 'bg-emerald-500 hover:bg-emerald-600'
+                    ? 'bg-primary hover:bg-primary/90'
                     : noMealsLeft
                       ? 'bg-gradient-to-br from-amber-500 to-orange-500 hover:shadow-amber-500/40'
                       : 'bg-gradient-to-br from-green-500 to-teal-500 hover:shadow-green-500/40'
@@ -435,7 +435,7 @@ const ScheduleSheet = ({
             <div className="flex items-center gap-2 mt-0.5">
               {meal?.calories && (
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Flame className="w-3 h-3 text-orange-400" />
+                  <Flame className="w-3 h-3 text-primary" />
                   {meal.calories} kcal
                 </span>
               )}
@@ -755,7 +755,7 @@ const MealDetail = () => {
 
   const { wallet, refresh: refetchWallet } = useWallet();
 
-  const pricePerMeal = 50; // Fixed extra meal price in QAR
+  const pricePerMeal = subscription?.price_per_meal ?? 50; // TODO: fetch from subscription plan's price_per_meal
   const [buyMealDialogOpen, setBuyMealDialogOpen] = useState(false);
   const [topupDialogOpen, setTopupDialogOpen] = useState(false);
   const [buyMealLoading, setBuyMealLoading] = useState(false);
@@ -1244,7 +1244,7 @@ const MealDetail = () => {
             animate={{ opacity: 1, y: 0 }}
             className="absolute bottom-24 right-4"
           >
-            <Badge className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-0 px-3 py-1.5 text-sm font-bold shadow-lg">
+            <Badge className="bg-gradient-to-r from-warning to-yellow-500 text-white border-0 px-3 py-1.5 text-sm font-bold shadow-lg">
               ⭐ VIP Exclusive
             </Badge>
           </motion.div>
@@ -1278,7 +1278,7 @@ const MealDetail = () => {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-1 text-amber-500">
+            <div className="flex items-center gap-1 text-warning">
               <Star className="w-4 h-4 fill-current" />
               <span className="font-semibold text-sm">
                 {meal.rating === 0 || meal.rating === 0.0 ? "New" : `${meal.rating.toFixed(1)}`}
@@ -1299,8 +1299,8 @@ const MealDetail = () => {
           {/* Quick Stats */}
           <div className="flex items-center gap-6 py-4 border-y border-border/50">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                <Flame className="w-4 h-4 text-orange-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Flame className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Calories</p>
@@ -1308,8 +1308,8 @@ const MealDetail = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-blue-500" />
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Prep Time</p>
@@ -1318,8 +1318,8 @@ const MealDetail = () => {
             </div>
             {meal.fiber_g && (
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <Leaf className="w-4 h-4 text-emerald-500" />
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Leaf className="w-4 h-4 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Fiber</p>
@@ -1493,16 +1493,16 @@ const MealDetail = () => {
         <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden">
           <DialogHeader className="px-5 pt-5 pb-4">
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-amber-500" />
+              <Wallet className="w-5 h-5 text-warning" />
               Buy Extra Meal Credit
             </DialogTitle>
           </DialogHeader>
 
           <div className="px-5 pb-2 space-y-4">
-            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 space-y-2">
+            <div className="rounded-xl bg-warning/10 dark:bg-warning/20 border border-warning/20 dark:border-warning/30 p-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Meal credit price</span>
-                <span className="font-bold text-amber-600">{formatCurrency(pricePerMeal)}</span>
+                <span className="font-bold text-warning">{formatCurrency(pricePerMeal)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your wallet balance</span>
@@ -1524,14 +1524,14 @@ const MealDetail = () => {
               <Button
                 onClick={handleWalletMealPurchase}
                 disabled={buyMealLoading}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+                className="flex-1 bg-primary hover:bg-primary/90 text-white"
               >
                 {buyMealLoading ? "Processing..." : `Pay ${formatCurrency(pricePerMeal)}`}
               </Button>
             ) : (
               <Button
                 onClick={() => { setBuyMealDialogOpen(false); navigate("/wallet"); }}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+                className="flex-1 bg-primary hover:bg-primary/90 text-white"
               >
                 Top Up Wallet
               </Button>
@@ -1545,7 +1545,7 @@ const MealDetail = () => {
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              <AlertTriangle className="w-5 h-5 text-warning" />
               Insufficient Balance
             </DialogTitle>
             <DialogDescription>
@@ -1589,7 +1589,7 @@ const MealDetail = () => {
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center mb-6"
+              className="w-24 h-24 rounded-full bg-primary flex items-center justify-center mb-6"
             >
               <Check className="w-12 h-12 text-white" />
             </motion.div>

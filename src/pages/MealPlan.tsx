@@ -13,9 +13,9 @@ export default function MealPlan() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-muted pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-200 pt-safe">
+      <header className="sticky top-0 z-50 bg-background border-b border-border pt-safe">
         <div className="flex items-center px-4 h-14 rtl:flex-row-reverse">
           <Button
             variant="ghost"
