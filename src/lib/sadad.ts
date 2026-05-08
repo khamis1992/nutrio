@@ -1,25 +1,8 @@
-// Sadad Payment Gateway Integration for Qatar
+// Sadad Payment Gateway client — proxies to the `sadad-payment` Supabase edge function.
+// All secrets (SADAD_MERCHANT_ID, SADAD_SECRET_KEY, SADAD_API_URL) live server-side now.
 // Documentation: https://developer.sadad.qa/
 
-import { createHmac } from 'crypto';
-
-const SADAD_API_URL = import.meta.env.VITE_SADAD_API_URL || 'https://api.sadad.qa';
-const SADAD_MERCHANT_ID = import.meta.env.VITE_SADAD_MERCHANT_ID;
-const SADAD_SECRET_KEY = import.meta.env.VITE_SADAD_SECRET_KEY;
-
-export interface SadadPaymentRequest {
-  merchant_id: string;
-  amount: number;
-  currency: string;
-  order_id: string;
-  customer_id: string;
-  customer_email?: string;
-  customer_phone?: string;
-  callback_url: string;
-  success_url: string;
-  failure_url: string;
-  description?: string;
-}
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SadadPaymentResponse {
   payment_id: string;
@@ -31,7 +14,7 @@ export interface SadadPaymentResponse {
 export interface SadadCallbackData {
   payment_id: string;
   order_id: string;
-  status: 'success' | 'failed' | 'cancelled';
+  status: "success" | "failed" | "cancelled";
   amount: number;
   currency: string;
   transaction_id?: string;
@@ -39,18 +22,10 @@ export interface SadadCallbackData {
 }
 
 class SadadService {
-  private apiUrl: string;
-  private merchantId: string | undefined;
-  private secretKey: string | undefined;
-
-  constructor() {
-    this.apiUrl = SADAD_API_URL;
-    this.merchantId = SADAD_MERCHANT_ID;
-    this.secretKey = SADAD_SECRET_KEY;
-  }
-
+  // Configuration is server-side only; the client cannot determine "is configured".
+  // We assume the function is deployed when this code runs in production.
   isConfigured(): boolean {
-    return !!(this.merchantId && this.secretKey);
+    return true;
   }
 
   async createPayment(data: {
@@ -63,71 +38,27 @@ class SadadService {
     successUrl: string;
     failureUrl: string;
   }): Promise<SadadPaymentResponse> {
-    if (!this.isConfigured()) {
-      throw new Error('Sadad payment gateway is not configured');
-    }
-
-    const request: SadadPaymentRequest = {
-      merchant_id: this.merchantId!,
-      amount: data.amount,
-      currency: 'QAR',
-      order_id: data.orderId,
-      customer_id: data.customerId,
-      customer_email: data.customerEmail,
-      customer_phone: data.customerPhone,
-      callback_url: `${window.location.origin}/api/payment/callback`,
-      success_url: data.successUrl,
-      failure_url: data.failureUrl,
-      description: data.description || 'Wallet Top-up',
-    };
-
-    try {
-      const response = await fetch(`${this.apiUrl}/v1/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.secretKey}`,
+    const { data: result, error } = await supabase.functions.invoke("sadad-payment", {
+      body: {
+        op: "create",
+        payload: {
+          amount: data.amount,
+          orderId: data.orderId,
+          customerEmail: data.customerEmail,
+          customerPhone: data.customerPhone,
+          description: data.description ?? "Wallet Top-up",
+          successUrl: data.successUrl,
+          failureUrl: data.failureUrl,
+          callbackUrl: `${window.location.origin}/api/payment/callback`,
         },
-        body: JSON.stringify(request),
-      });
+      },
+    });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Sadad API error: ${error}`);
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Sadad payment creation failed:', error);
-      throw error;
-    }
-  }
-
-  verifyCallback(callbackData: SadadCallbackData): boolean {
-    if (!this.secretKey) {
-      console.error('Sadad secret key not configured');
-      return false;
+    if (error || !result || result.error) {
+      throw new Error(error?.message ?? result?.error ?? "Sadad create failed");
     }
 
-    // Verify signature if provided
-    if (callbackData.signature) {
-      // Implementation depends on Sadad's signature verification method
-      // This is a placeholder - implement according to Sadad documentation
-      const expectedSignature = this.generateSignature(callbackData);
-      return callbackData.signature === expectedSignature;
-    }
-
-    return callbackData.status === 'success';
-  }
-
-  private generateSignature(data: SadadCallbackData): string {
-    // Implement signature generation according to Sadad documentation
-    // This is a placeholder implementation
-    const payload = `${data.payment_id}|${data.order_id}|${data.status}|${data.amount}`;
-    return createHmac('sha256', this.secretKey!)
-      .update(payload)
-      .digest('hex');
+    return result as SadadPaymentResponse;
   }
 
   async getPaymentStatus(paymentId: string): Promise<{
@@ -135,62 +66,31 @@ class SadadService {
     amount: number;
     transactionId?: string;
   }> {
-    if (!this.isConfigured()) {
-      throw new Error('Sadad payment gateway is not configured');
+    const { data, error } = await supabase.functions.invoke("sadad-payment", {
+      body: { op: "status", payload: { paymentId } },
+    });
+    if (error || !data || data.error) {
+      throw new Error(error?.message ?? data?.error ?? "Status lookup failed");
     }
-
-    try {
-      const response = await fetch(`${this.apiUrl}/v1/payments/${paymentId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.secretKey}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get payment status');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Failed to get payment status:', error);
-      throw error;
-    }
+    return data;
   }
 
   async refundPayment(paymentId: string, amount?: number): Promise<{
     refundId: string;
     status: string;
   }> {
-    if (!this.isConfigured()) {
-      throw new Error('Sadad payment gateway is not configured');
+    const { data, error } = await supabase.functions.invoke("sadad-payment", {
+      body: { op: "refund", payload: { paymentId, amount } },
+    });
+    if (error || !data || data.error) {
+      throw new Error(error?.message ?? data?.error ?? "Refund failed");
     }
-
-    try {
-      const response = await fetch(`${this.apiUrl}/v1/payments/${paymentId}/refund`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.secretKey}`,
-        },
-        body: JSON.stringify({ amount }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Refund failed');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Refund failed:', error);
-      throw error;
-    }
+    return data;
   }
 }
 
 export const sadadService = new SadadService();
 
-// Helper function for frontend to initiate payment
 export async function initiateSadadPayment(params: {
   amount: number;
   bonusAmount?: number;
@@ -200,14 +100,14 @@ export async function initiateSadadPayment(params: {
   userPhone?: string;
 }): Promise<{ paymentId: string; paymentUrl: string }> {
   const orderId = `WAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const response = await sadadService.createPayment({
     amount: params.amount,
     orderId,
     customerId: params.userId,
     customerEmail: params.userEmail,
     customerPhone: params.userPhone,
-    description: `Wallet Top-up - ${params.amount} QAR${params.bonusAmount ? ` + ${params.bonusAmount} QAR bonus` : ''}`,
+    description: `Wallet Top-up - ${params.amount} QAR${params.bonusAmount ? ` + ${params.bonusAmount} QAR bonus` : ""}`,
     successUrl: `${window.location.origin}/wallet?payment=success&order=${orderId}`,
     failureUrl: `${window.location.origin}/wallet?payment=failed&order=${orderId}`,
   });

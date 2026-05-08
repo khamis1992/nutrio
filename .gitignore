@@ -44,3 +44,13 @@ coverage/
 # Build artifacts
 *.lock
 *.lockb
+
+# iOS signing artifacts — NEVER commit
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
+ios/Certificates*
+ios/*.mobileprovision
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/

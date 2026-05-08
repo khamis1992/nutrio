@@ -107,43 +107,16 @@ export function useGoogleFitWorkouts() {
       return false;
     }
     
-    const clientId = import.meta.env.VITE_GOOGLE_FIT_CLIENT_ID;
-    const clientSecret = import.meta.env.VITE_GOOGLE_FIT_CLIENT_SECRET;
-    
-    if (!clientId || !clientSecret) {
-      console.error("Google Fit credentials not configured");
-      return false;
-    }
-    
     try {
-      const response = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: tokenData.refresh_token,
-          client_id: clientId,
-          client_secret: clientSecret,
-        }),
+      const { data, error } = await supabase.functions.invoke("google-fit-token-refresh", {
+        body: {},
       });
-      
-      if (!response.ok) {
-        console.error("Token refresh failed:", await response.text());
+
+      if (error || !data?.success) {
+        console.error("Token refresh failed:", error?.message ?? data?.error);
         return false;
       }
-      
-      const data = await response.json();
-      
-      // Update stored token
-      await supabase
-        .from("user_integrations")
-        .update({
-          access_token: data.access_token,
-          expires_at: Math.floor((Date.now() + data.expires_in * 1000) / 1000),
-        })
-        .eq("user_id", user.id)
-        .eq("provider", "google_fit");
-      
+
       console.log("Token refreshed successfully");
       return true;
     } catch (error) {

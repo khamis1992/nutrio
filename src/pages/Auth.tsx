@@ -108,15 +108,13 @@ const Auth = () => {
       };
 
       try {
-        // Admin role (with email-based fallback for when table is missing)
         const adminRole = await raceWithTimeout(() =>
           supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
         );
-        if (adminRole?.data || user.email === "khamis-1992@hotmail.com") {
+        if (adminRole?.data) {
           navigate("/admin", { replace: true }); setCheckingRole(false); return;
         }
 
-        // Staff role
         const staffRole = await raceWithTimeout(() =>
           supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "staff").maybeSingle()
         );
@@ -124,11 +122,10 @@ const Auth = () => {
           navigate("/admin", { replace: true }); setCheckingRole(false); return;
         }
 
-        // Fleet manager (with email-based fallback)
         const fleetManager = await raceWithTimeout(() =>
           supabase.from("fleet_managers").select("id, role").eq("auth_user_id", user.id).eq("is_active", true).maybeSingle()
         );
-        if (fleetManager?.data || user.email === "admin@nutrio.com") {
+        if (fleetManager?.data) {
           navigate("/fleet", { replace: true }); setCheckingRole(false); return;
         }
 

@@ -62,7 +62,10 @@ export default defineConfig(({ mode }) => ({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: mode === 'production',
+        // Strip dev-noise consoles in prod, but keep warn/error for Sentry breadcrumbs
+        pure_funcs: mode === 'production'
+          ? ['console.log', 'console.debug', 'console.info', 'console.trace']
+          : [],
       },
     },
     // Split chunks for better caching

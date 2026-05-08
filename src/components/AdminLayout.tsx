@@ -34,10 +34,9 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
       return;
     }
 
-    // Timeout-protected admin check — prevents blank screen if table doesn't exist
     const checkTimeout = setTimeout(() => {
-      console.warn("[AdminLayout] Admin check timed out — allowing access");
-      setIsAdmin(true);
+      console.warn("[AdminLayout] Admin check timed out — denying access");
+      setIsAdmin(false);
       setLoading(false);
     }, 5000);
 
@@ -50,7 +49,6 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
     if (!user) return;
 
     try {
-      // Try user_roles first
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
@@ -60,29 +58,13 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
 
       if (roleError) {
         console.warn("[AdminLayout] user_roles query failed:", roleError);
-        // Fallback: infer admin from email when DB check fails
-        const isAdminEmail =
-          user.email?.toLowerCase().includes("admin") ||
-          user.email?.toLowerCase().includes("khamis-1992") ||
-          user.email === "khamis-1992@hotmail.com";
-        setIsAdmin(isAdminEmail);
+        setIsAdmin(false);
         return;
       }
 
-      if (!roleData) {
-        // Fallback: check if user's email matches known admin emails
-        const isAdminEmail =
-          user.email?.toLowerCase().includes("admin") ||
-          user.email?.toLowerCase().includes("khamis-1992") ||
-          user.email === "khamis-1992@hotmail.com";
-        setIsAdmin(isAdminEmail);
-        return;
-      }
-
-      setIsAdmin(true);
+      setIsAdmin(!!roleData);
     } catch (error) {
       console.error("Error checking admin:", error);
-      // isAdmin stays false; <Navigate> in render will redirect
     } finally {
       setLoading(false);
     }
