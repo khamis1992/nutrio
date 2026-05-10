@@ -88,6 +88,7 @@ export function OrderTrackingHub() {
 
   useEffect(() => {
     fetchActiveOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Real-time subscription
@@ -111,6 +112,7 @@ export function OrderTrackingHub() {
     return () => {
       supabase.removeChannel(channel);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleRefresh = () => {

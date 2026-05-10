@@ -5,6 +5,23 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type DriversRow = Database["public"]["Tables"]["drivers"]["Row"];
+type DriverProfilesRow = Database["public"]["Tables"]["driver_profiles"]["Row"];
+
+interface DriverLocationPayload {
+  driver_id: string;
+  location: string;
+  recorded_at?: string | null;
+}
+
+interface DriverUpdatePayload {
+  id: string;
+  full_name?: string | null;
+  is_online?: boolean | null;
+  current_order_id?: string | null;
+}
 
 export interface FleetDriverLocation {
   id: string;
@@ -45,8 +62,8 @@ export function useFleetRealtimeDrivers() {
     if (!locations?.length) return;
 
     // Get unique driver IDs
-    const driverIds = [...new Set(locations.map((l: any) => l.driver_id))];
-    const latestByDriver = new Map<string, any>();
+    const driverIds = [...new Set(locations.map((l: { driver_id: string }) => l.driver_id))];
+    const latestByDriver = new Map<string, { driver_id: string; location: string; accuracy?: number; recorded_at: string }>();
     for (const loc of locations) {
       if (!latestByDriver.has(loc.driver_id)) latestByDriver.set(loc.driver_id, loc);
     }
@@ -62,14 +79,14 @@ export function useFleetRealtimeDrivers() {
       .select("id, full_name, vehicle_type, rating, is_online, current_order_id")
       .in("id", driverIds);
 
-    const driverMap: Record<string, any> = {};
-    driversData?.forEach((d: any) => { driverMap[d.id] = d; });
+    const driverMap: Record<string, DriversRow> = {};
+    driversData?.forEach((d: DriversRow) => { driverMap[d.id] = d; });
 
     const now = Date.now();
     const result: FleetDriverLocation[] = [];
 
     // Use driver_profiles.current_location as primary source
-    profiles?.forEach((p: any) => {
+    profiles?.forEach((p: DriverProfilesRow) => {
       const d = driverMap[p.driver_id];
       if (!d) return;
 
@@ -105,7 +122,7 @@ export function useFleetRealtimeDrivers() {
     const channel = supabase
       .channel("fleet-driver-locations")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "driver_locations" }, (payload) => {
-        const loc = payload.new as any;
+        const loc = payload.new as { driver_id: string; location: string; recorded_at?: string };
         const point = parsePoint(loc.location);
         if (!point) return;
 
@@ -136,7 +153,7 @@ export function useFleetRealtimeDrivers() {
         });
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "drivers" }, (payload) => {
-        const d = payload.new as any;
+        const d = payload.new as DriverUpdatePayload;
         setDrivers((prev) =>
           prev.map((driver) =>
             driver.driver_id === d.id

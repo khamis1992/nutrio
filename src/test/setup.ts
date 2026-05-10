@@ -55,7 +55,7 @@ window.scrollTo = vi.fn();
 
 // Suppress console errors during tests
 const originalConsoleError = console.error;
-console.error = (...args: any[]) => {
+console.error = (...args: unknown[]) => {
   // Filter out React warnings and other expected errors
   const message = args[0]?.toString() || "";
   if (

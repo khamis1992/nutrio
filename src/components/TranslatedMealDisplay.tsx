@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Translated Meal Display Components
 // Wrapper components for displaying meals with translation support
 

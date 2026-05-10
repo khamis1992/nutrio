@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -155,43 +155,7 @@ const AdminRestaurants = () => {
   const [addLoadingStreets, setAddLoadingStreets] = useState(false);
   const [addLoadingBuildings, setAddLoadingBuildings] = useState(false);
 
-  useEffect(() => {
-    fetchRestaurants();
-  }, []);
-
-  // Load zones when dialog opens
-  useEffect(() => {
-    if (!addDialogOpen || addZones.length > 0) return;
-    setAddLoadingZones(true);
-    qnasFetch<QnasZone[]>("/get_zones").then((data) => {
-      if (data) setAddZones(data);
-      setAddLoadingZones(false);
-    });
-  }, [addDialogOpen]);
-
-  // Load streets when zone selected
-  useEffect(() => {
-    if (!addZone) { setAddStreets([]); setAddBuildings([]); return; }
-    setAddLoadingStreets(true);
-    setAddStreet(null);
-    setAddBuildings([]);
-    qnasFetch<QnasStreet[]>(`/get_streets/${addZone}`).then((data) => {
-      if (data) setAddStreets(data);
-      setAddLoadingStreets(false);
-    });
-  }, [addZone]);
-
-  // Load buildings when street selected
-  useEffect(() => {
-    if (!addZone || !addStreet) { setAddBuildings([]); return; }
-    setAddLoadingBuildings(true);
-    qnasFetch<QnasBuilding[]>(`/get_buildings/${addZone}/${addStreet}`).then((data) => {
-      if (data) setAddBuildings(data);
-      setAddLoadingBuildings(false);
-    });
-  }, [addZone, addStreet]);
-
-  const fetchRestaurants = async () => {
+  const fetchRestaurants = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -201,7 +165,6 @@ const AdminRestaurants = () => {
 
       if (error) throw error;
 
-      // Fetch owner profiles
       const ownerIds = [...new Set((data || []).map((r) => r.owner_id).filter(Boolean))];
       let ownersMap: Record<string, { full_name: string | null; email: string | null }> = {};
 
@@ -235,7 +198,43 @@ const AdminRestaurants = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchRestaurants();
+  }, [fetchRestaurants]);
+
+  // Load zones when dialog opens
+  useEffect(() => {
+    if (!addDialogOpen || addZones.length > 0) return;
+    setAddLoadingZones(true);
+    qnasFetch<QnasZone[]>("/get_zones").then((data) => {
+      if (data) setAddZones(data);
+      setAddLoadingZones(false);
+    });
+  }, [addDialogOpen, addZones.length]);
+
+  // Load streets when zone selected
+  useEffect(() => {
+    if (!addZone) { setAddStreets([]); setAddBuildings([]); return; }
+    setAddLoadingStreets(true);
+    setAddStreet(null);
+    setAddBuildings([]);
+    qnasFetch<QnasStreet[]>(`/get_streets/${addZone}`).then((data) => {
+      if (data) setAddStreets(data);
+      setAddLoadingStreets(false);
+    });
+  }, [addZone]);
+
+  // Load buildings when street selected
+  useEffect(() => {
+    if (!addZone || !addStreet) { setAddBuildings([]); return; }
+    setAddLoadingBuildings(true);
+    qnasFetch<QnasBuilding[]>(`/get_buildings/${addZone}/${addStreet}`).then((data) => {
+      if (data) setAddBuildings(data);
+      setAddLoadingBuildings(false);
+    });
+  }, [addZone, addStreet]);
 
   const resetAddDialog = () => {
     setNewRestaurant({ name: "", email: "", phone: "", cuisine_type: "", description: "", commission_rate: "18" });
@@ -616,7 +615,7 @@ const AdminRestaurants = () => {
           ].map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setActiveTab(tab.value as any)}
+              onClick={() => setActiveTab(tab.value as "all" | "pending" | "approved" | "rejected")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.value
                   ? "bg-primary text-primary-foreground"

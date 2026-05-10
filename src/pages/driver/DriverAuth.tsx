@@ -175,11 +175,11 @@ export default function DriverAuth() {
         });
         navigate("/driver/onboarding");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Auth error:", error);
       toast({
         title: "Error",
-        description: error.message || "Something went wrong",
+        description: error instanceof Error ? error.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {

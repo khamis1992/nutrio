@@ -262,11 +262,11 @@ export default function PartnerAuth() {
         });
         navigate("/partner");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Auth error:", error);
       toast({
         title: "Error",
-        description: error.message || "Something went wrong",
+        description: error instanceof Error ? error.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {

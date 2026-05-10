@@ -1,9 +1,7 @@
-// Resend Email Service
+// Resend Email Service (proxied through Supabase Edge Function)
 // https://resend.com
 
-const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
-const RESEND_API_URL = 'https://api.resend.com/v1';
-const FROM_EMAIL = 'Nutrio <invoices@nutrio.app>';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface EmailAttachment {
   filename: string;
@@ -19,50 +17,16 @@ export interface EmailParams {
 }
 
 class ResendService {
-  private apiKey: string | undefined;
-  private apiUrl: string;
-
-  constructor() {
-    this.apiKey = RESEND_API_KEY;
-    this.apiUrl = RESEND_API_URL;
-  }
-
-  isConfigured(): boolean {
-    return !!this.apiKey;
-  }
-
   async sendEmail(params: EmailParams): Promise<{ id: string }> {
-    if (!this.isConfigured()) {
-      throw new Error('Resend API key not configured');
-    }
+    const to = Array.isArray(params.to) ? params.to.join(",") : params.to;
+    const { data, error } = await supabase.functions.invoke("send-email", {
+      body: { to, subject: params.subject, html: params.html },
+    });
 
-    try {
-      const response = await fetch(`${this.apiUrl}/emails`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: Array.isArray(params.to) ? params.to : [params.to],
-          subject: params.subject,
-          html: params.html,
-          text: params.text,
-          attachments: params.attachments,
-        }),
-      });
+    if (error) throw new Error(error.message || "Failed to send email");
+    if (!data?.success) throw new Error(data?.error || "Email service error");
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Resend API error: ${error}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Failed to send email:', error);
-      throw error;
-    }
+    return { id: data.messageId };
   }
 
   async sendInvoiceEmail(params: {

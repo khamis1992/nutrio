@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Trophy, 
   Plus, 
@@ -92,11 +92,7 @@ export default function AdminMilestones() {
   const [formData, setFormData] = useState(defaultFormData);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchMilestones();
-  }, []);
-
-  const fetchMilestones = async () => {
+  const fetchMilestones = useCallback(async () => {
     try {
       const { data: milestonesData, error: milestonesError } = await supabase
         .from("referral_milestones")
@@ -128,7 +124,11 @@ export default function AdminMilestones() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchMilestones();
+  }, [fetchMilestones]);
 
   const handleOpenDialog = (milestone?: Milestone) => {
     if (milestone) {
@@ -192,9 +192,10 @@ export default function AdminMilestones() {
 
       setDialogOpen(false);
       fetchMilestones();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving milestone:", error);
-      toast({ title: "Error saving milestone", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : "Error saving milestone";
+      toast({ title: "Error saving milestone", description: message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -215,9 +216,10 @@ export default function AdminMilestones() {
       setDeleteDialogOpen(false);
       setSelectedMilestone(null);
       fetchMilestones();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting milestone:", error);
-      toast({ title: "Error deleting milestone", description: error.message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : "Error deleting milestone";
+      toast({ title: "Error deleting milestone", description: message, variant: "destructive" });
     }
   };
 
@@ -232,7 +234,7 @@ export default function AdminMilestones() {
 
       toast({ title: `Milestone ${milestone.is_active ? "disabled" : "enabled"}` });
       fetchMilestones();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error updating milestone", variant: "destructive" });
     }
   };

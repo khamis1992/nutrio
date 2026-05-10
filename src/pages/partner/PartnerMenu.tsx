@@ -198,6 +198,7 @@ export default function PartnerMenu() {
       fetchMeals();
       fetchDietTags();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Real-time subscription: sync approval_status changes made by admin
@@ -237,8 +238,9 @@ export default function PartnerMenu() {
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+        channel.unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   const fetchDietTags = async () => {

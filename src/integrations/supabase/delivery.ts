@@ -467,7 +467,7 @@ export async function getDriverJobHistory(driverId: string, limit = 20) {
   const profilesMap: Record<string, string> = {};
   profiles?.forEach(p => profilesMap[p.user_id] = p.full_name || "Customer");
 
-  const schedulesMap: Record<string, any> = {};
+  const schedulesMap: Record<string, { meal_name: string; customer_name: string }> = {};
   schedules?.forEach(s => {
     schedulesMap[s.id] = {
       meal_name: mealsMap[s.meal_id] || "Meal",
@@ -694,7 +694,7 @@ export async function getDriverLocation(driverId: string) {
  */
 export function subscribeToDeliveryUpdates(
   scheduleId: string,
-  callback: (payload: any) => void
+  callback: (payload: Record<string, unknown>) => void
 ) {
   return supabase
     .channel(`delivery-${scheduleId}`)
@@ -716,7 +716,7 @@ export function subscribeToDeliveryUpdates(
  */
 export function subscribeToDriverLocation(
   driverId: string,
-  callback: (payload: any) => void
+  callback: (payload: Record<string, unknown>) => void
 ) {
   return supabase
     .channel(`driver-location-${driverId}`)

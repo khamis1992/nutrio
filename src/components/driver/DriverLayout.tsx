@@ -17,14 +17,14 @@ import { toast } from "@/hooks/use-toast";
 import { driverGoOnline, driverGoOffline, updateDriverLocation } from "@/integrations/supabase/delivery";
 
 interface DriverLayoutContext {
-  driver: any;
+  driver: Record<string, unknown> | null;
   isOnline: boolean;
 }
 
 export function DriverLayout() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [driver, setDriver] = useState<any>(null);
+  const [driver, setDriver] = useState<Record<string, unknown> | null>(null);
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
@@ -32,6 +32,7 @@ export function DriverLayout() {
 
   useEffect(() => {
     fetchDriverProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Cleanup location tracking on unmount
@@ -92,6 +93,7 @@ export function DriverLayout() {
     locationInterval.current = setInterval(() => {
       updateCurrentLocation(driverId);
     }, 10000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stopLocationTracking = useCallback(() => {

@@ -144,9 +144,9 @@ export default function PartnerBoost() {
 
       setActiveListing(data);
       toast.success(`🎉 ${pkg.name} activated! Your restaurant is now featured.`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error purchasing boost:", err);
-      toast.error(err.message || "Failed to purchase boost");
+      toast.error(err instanceof Error ? err.message : "Failed to purchase boost");
     } finally {
       setPurchasing(null);
     }

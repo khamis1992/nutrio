@@ -65,8 +65,8 @@ const ResetPassword = () => {
       toast({ title: "Password updated!", description: "Your password has been successfully reset." });
       await supabase.auth.signOut();
       setTimeout(() => navigate("/auth"), 3000);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to update password", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to update password", variant: "destructive" });
     } finally {
       setLoading(false);
     }

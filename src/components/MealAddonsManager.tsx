@@ -127,6 +127,7 @@ export function MealAddonsManager({ mealId, mealName, restaurantId, open, onOpen
     if (open && restaurantId) {
       fetchData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, restaurantId, mealId]);
 
   const fetchData = async () => {

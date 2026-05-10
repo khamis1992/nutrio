@@ -34,7 +34,7 @@ export function useMealQuality(userId: string | undefined) {
 
       // Fetch today's meal quality logs
       const today = format(new Date(), "yyyy-MM-dd");
-      const { data: todayData, error: todayError } = await (supabase as any)
+      const { data: todayData, error: todayError } = await supabase
         .from("meal_quality_logs")
         .select("id, log_date, meal_quality_score, protein_present, vegetables_count, whole_grains, added_sugars, overall_grade, notes")
         .eq("user_id", userId)
@@ -47,7 +47,7 @@ export function useMealQuality(userId: string | undefined) {
 
       // Fetch last 7 days of meal quality
       const sevenDaysAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
-      const { data: weeklyData, error: weeklyError } = await (supabase as any)
+      const { data: weeklyData, error: weeklyError } = await supabase
         .from("meal_quality_logs")
         .select("meal_quality_score, log_date")
         .eq("user_id", userId)
@@ -102,7 +102,7 @@ export function useMealQuality(userId: string | undefined) {
 
     try {
       // Calculate quality score using the database function
-      const { data: scoreData, error: scoreError } = await (supabase as any)
+      const { data: scoreData, error: scoreError } = await supabase
         .rpc("calculate_meal_quality_score", {
           p_protein_present: mealData.protein_present,
           p_vegetables_count: mealData.vegetables_count,
@@ -115,7 +115,7 @@ export function useMealQuality(userId: string | undefined) {
       const score = scoreData || 70;
 
       // Get grade
-      const { data: gradeData, error: gradeError } = await (supabase as any)
+      const { data: gradeData, error: gradeError } = await supabase
         .rpc("get_meal_quality_grade", {
           p_score: score,
         });
@@ -126,7 +126,7 @@ export function useMealQuality(userId: string | undefined) {
 
       // Log the meal quality
       const today = format(new Date(), "yyyy-MM-dd");
-      const { error: insertError } = await (supabase as any)
+      const { error: insertError } = await supabase
         .from("meal_quality_logs")
         .insert({
           user_id: userId,

@@ -165,23 +165,23 @@ export function useSmartAdjustments(
       const totalDays = allRows.length;
       if (totalDays < 4) { setSuggestions([]); return; }
       // For calculations use rows that actually have calorie data; fall back to all rows if needed
-      const rows = allRows.filter((l: any) => (l.calories_consumed || 0) > 0).length >= 4
-        ? allRows.filter((l: any) => (l.calories_consumed || 0) > 0)
+      const rows = allRows.filter((l: Record<string, unknown>) => ((l.calories_consumed as number) || 0) > 0).length >= 4
+        ? allRows.filter((l: Record<string, unknown>) => ((l.calories_consumed as number) || 0) > 0)
         : allRows;
 
       const goalType = activeGoal.goal_type || "general_health";
 
       // Split: recent 7 days vs older
       const cutoff7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      const recent  = rows.filter((l: any) => l.log_date >= cutoff7);
+      const recent  = rows.filter((l: Record<string, unknown>) => (l.log_date as string) >= cutoff7);
       const extended = rows;
 
-      const cals  = extended.map((l: any) => l.calories_consumed || 0);
-      const prots = extended.map((l: any) => l.protein_consumed_g || 0);
-      const carbs = extended.map((l: any) => l.carbs_consumed_g || 0);
-      const fats  = extended.map((l: any) => l.fat_consumed_g || 0);
+      const cals  = extended.map((l: Record<string, unknown>) => (l.calories_consumed as number) || 0);
+      const prots = extended.map((l: Record<string, unknown>) => (l.protein_consumed_g as number) || 0);
+      const carbs = extended.map((l: Record<string, unknown>) => (l.carbs_consumed_g as number) || 0);
+      const fats  = extended.map((l: Record<string, unknown>) => (l.fat_consumed_g as number) || 0);
 
-      const recentCals  = recent.map((l: any) => l.calories_consumed || 0);
+      const recentCals  = recent.map((l: Record<string, unknown>) => (l.calories_consumed as number) || 0);
 
       const avgCal  = avg(cals);
       const avgProt = avg(prots);
@@ -412,7 +412,7 @@ export function useSmartAdjustments(
     } finally {
       setLoading(false);
     }
-  }, [userId, activeGoal, enabled, language, t]);
+  }, [userId, activeGoal, enabled, t]);
 
   useEffect(() => { analyze(); }, [analyze]);
   useEffect(() => { reloadLocal(); }, [reloadLocal]);

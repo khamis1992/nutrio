@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +62,7 @@ export default function SmartMealRecommendations() {
   const categoryOptions = ["High Protein", "Low Carb", "Balanced", "Vegetarian", "Keto-Friendly"];
 
   // Calculate AI match score for a meal
-  const calculateMatchScore = (meal: any, targets: NutritionTargets) => {
+  const calculateMatchScore = (meal: { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; cuisine_type: string | null; category: string | null; restaurant?: { name: string } }, targets: NutritionTargets) => {
     let score = 0;
     const reasons: string[] = [];
 
@@ -95,7 +95,7 @@ export default function SmartMealRecommendations() {
   };
 
   // Fetch and score meals
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -132,7 +132,7 @@ export default function SmartMealRecommendations() {
       if (error) throw error;
 
       // Calculate match scores and sort
-      const scoredMeals = (mealsData || []).map((meal: any) => {
+      const scoredMeals = (mealsData || []).map((meal: { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number; cuisine_type: string | null; category: string | null; restaurant?: { name: string } }) => {
         const { score, reasons } = calculateMatchScore(meal, targets);
         return {
           ...meal,
@@ -149,7 +149,7 @@ export default function SmartMealRecommendations() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   // Filter meals
   const filteredMeals = meals.filter(meal => {
@@ -167,7 +167,7 @@ export default function SmartMealRecommendations() {
 
   useEffect(() => {
     fetchRecommendations();
-  }, []);
+  }, [fetchRecommendations]);
 
   if (isLoading) {
     return (

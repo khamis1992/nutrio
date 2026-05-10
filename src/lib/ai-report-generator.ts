@@ -1,4 +1,5 @@
 import type { WeeklyReportData } from "./professional-weekly-report-pdf";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AIReportContent {
   summary: string;
@@ -11,70 +12,16 @@ interface AIReportContent {
   proteinAssessment: string;
 }
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-// Free models to try in order of preference
-const FREE_MODELS = [
-  "arcee-ai/trinity-large-preview:free",
-  "google/gemini-2.5-flash-lite:free",
-  "openai/gpt-oss-120b:free",
-  "deepseek/deepseek-v3-0324:free",
-  "x-ai/grok-4.1-fast:free",
-];
-
 class AIReportGenerator {
-  private apiKey: string;
-
-  constructor() {
-    this.apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || "";
-  }
-
   private async callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
-    if (!this.apiKey) {
-      console.warn("OpenRouter API key not configured, using fallback content");
+    const { data, error } = await supabase.functions.invoke("proxy-openrouter", {
+      body: { systemPrompt, userPrompt },
+    });
+    if (error || !data?.content) {
+      console.warn("OpenRouter API not available, using fallback content");
       return "";
     }
-
-    // Try each model in order until one works
-    for (const model of FREE_MODELS) {
-      try {
-        const response = await fetch(OPENROUTER_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${this.apiKey}`,
-            "HTTP-Referer": window.location.origin,
-            "X-Title": "Nutrio Weekly Report",
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 1000,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content) {
-            console.log(`Successfully used model: ${model}`);
-            return content;
-          }
-        } else {
-          const error = await response.text();
-          console.warn(`Model ${model} failed:`, error.substring(0, 100));
-        }
-      } catch (error) {
-        console.warn(`Error with model ${model}:`, error);
-      }
-    }
-
-    console.warn("All OpenRouter models failed, using fallback content");
-    return "";
+    return data.content;
   }
 
   private cleanText(text: string): string {
@@ -667,7 +614,7 @@ Discuss from lifestyle and meal planning perspective. No medical terminology.`;
 
       const parsed = JSON.parse(cleanedString);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((item: any) => ({
+        return parsed.map((item: { type?: string; text?: string }) => ({
           type: ["success", "warning", "info"].includes(item.type) ? item.type : "info",
           text: String(item.text || ""),
         }));
@@ -692,7 +639,7 @@ Discuss from lifestyle and meal planning perspective. No medical terminology.`;
 
       const parsed = JSON.parse(cleanedString);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((item: any) => ({
+        return parsed.map((item: { title?: string; description?: string }) => ({
           title: String(item.title || ""),
           description: String(item.description || ""),
         }));

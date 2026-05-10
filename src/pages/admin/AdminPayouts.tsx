@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -163,17 +163,10 @@ export default function AdminPayouts() {
   const [partnerActionType, setPartnerActionType] = useState<"approve" | "reject" | null>(null);
   const [referenceNumber, setReferenceNumber] = useState("");
 
-  useEffect(() => {
-    if (user) {
-      fetchPayouts();
-      fetchRestaurants();
-    }
-  }, [user]);
-
-  const fetchPayouts = async () => {
+  const fetchPayouts = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const { data: payoutsData, error: payoutsError } = await supabase
         .from("payouts")
         .select(`
@@ -184,22 +177,22 @@ export default function AdminPayouts() {
 
       if (payoutsError) throw payoutsError;
 
-      const partnerIds = [...new Set((payoutsData || []).map((p: any) => p.partner_id))];
-      
+      const partnerIds = [...new Set((payoutsData || []).map((p: { partner_id: string }) => p.partner_id))];
+
       let profilesMap: Record<string, string> = {};
       if (partnerIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("user_id, full_name")
           .in("user_id", partnerIds);
-        
-        profilesMap = (profilesData || []).reduce((acc: Record<string, string>, p: any) => {
+
+        profilesMap = (profilesData || []).reduce((acc: Record<string, string>, p: { user_id: string; full_name: string | null }) => {
           acc[p.user_id] = p.full_name || "Unknown";
           return acc;
         }, {} as Record<string, string>);
       }
 
-      const formattedPayouts: Payout[] = (payoutsData || []).map((payout: any) => ({
+      const formattedPayouts: Payout[] = (payoutsData || []).map((payout: { id: string; partner_id: string; restaurant_id: string; amount: number; status: Payout["status"]; period_start: string; period_end: string; order_count: number; commission_rate: number | null; total_order_value: number | null; commission_deducted: number | null; payout_method: string | null; processed_at: string | null; created_at: string; restaurant: { name: string } | null }) => ({
         id: payout.id,
         partner_id: payout.partner_id,
         restaurant_id: payout.restaurant_id,
@@ -239,59 +232,9 @@ export default function AdminPayouts() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchPartnerRequests = async () => {
-    setPartnerRequestsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("partner_payouts")
-        .select("*, restaurant:restaurants(name, owner_id)")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const ownerIds = [...new Set(
-        (data || []).map((r: any) => r.restaurant?.owner_id).filter(Boolean)
-      )];
-
-      let profilesMap: Record<string, string> = {};
-      if (ownerIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", ownerIds);
-        profilesMap = (profiles || []).reduce((acc: Record<string, string>, p: any) => {
-          acc[p.user_id] = p.full_name || "Unknown";
-          return acc;
-        }, {});
-      }
-
-      setPartnerRequests((data || []).map((r: any) => ({
-        ...r,
-        partner_name: r.restaurant?.owner_id ? (profilesMap[r.restaurant.owner_id] || "Unknown") : "Unknown",
-      })));
-    } catch (error) {
-      console.error("Error fetching partner requests:", error);
-      toast.error("Failed to load partner requests");
-    } finally {
-      setPartnerRequestsLoading(false);
-    }
-  };
-
-  const openPartnerDetail = async (request: PartnerRequest) => {
-    setSelectedPartnerRequest(request);
-    setPartnerBankDetails(null);
-    setPartnerDetailOpen(true);
-    const { data } = await supabase
-      .from("restaurant_details")
-      .select("bank_name, bank_account_name, bank_account_number, bank_iban, swift_code")
-      .eq("restaurant_id", request.restaurant_id)
-      .maybeSingle();
-    setPartnerBankDetails(data as PartnerBankDetails | null);
-  };
-
-  const fetchRestaurants = async () => {
+  const fetchRestaurants = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("restaurants")
@@ -304,7 +247,14 @@ export default function AdminPayouts() {
     } catch (error) {
       console.error("Error fetching restaurants:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchPayouts();
+      fetchRestaurants();
+    }
+  }, [user, fetchPayouts, fetchRestaurants]);
 
   const handleAction = async () => {
     if (!selectedPayout || !actionType) return;
@@ -391,9 +341,10 @@ export default function AdminPayouts() {
       setPeriodStart("");
       setPeriodEnd("");
       fetchPayouts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error generating payout:", error);
-      toast.error(error.message || "Failed to generate payout");
+      const message = error instanceof Error ? error.message : "Failed to generate payout";
+      toast.error(message);
     } finally {
       setGeneratingPayout(false);
     }

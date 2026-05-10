@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +66,7 @@ export default function AdminSubscriptionDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d">("30d");
 
-  const fetchSubscriptionData = async () => {
+  const fetchSubscriptionData = useCallback(async () => {
     setIsLoading(true);
     try {
       // Calculate date range
@@ -163,11 +163,11 @@ export default function AdminSubscriptionDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dateRange]);
 
   useEffect(() => {
     fetchSubscriptionData();
-  }, [dateRange]);
+  }, [fetchSubscriptionData, dateRange]);
 
   if (isLoading) {
     return (

@@ -100,7 +100,7 @@ export default function AdminPremiumAnalytics() {
       if (error) throw error;
 
       setRequests(
-        (data || []).map((row: any) => ({
+        (data || []).map((row: { id: string; restaurant_id: string; partner_id: string; package_type: string; price_paid: number; ends_at: string; payment_reference: string | null; status: string; created_at: string; restaurants?: { name: string } | null }) => ({
           ...row,
           restaurant_name: row.restaurants?.name || "Unknown",
         }))
@@ -131,7 +131,7 @@ export default function AdminPremiumAnalytics() {
         // Mark the purchase as active — the hook checks this directly
         const { error: purchaseError } = await supabase
           .from("premium_analytics_purchases")
-          .update({ status: "active" } as never)
+          .update({ status: "active" })
           .eq("id", actionTarget.id);
 
         if (purchaseError) {
@@ -142,14 +142,14 @@ export default function AdminPremiumAnalytics() {
         // works once the column migration has been applied to the remote DB)
         await supabase
           .from("restaurants")
-          .update({ premium_analytics_until: actionTarget.ends_at } as never)
+          .update({ premium_analytics_until: actionTarget.ends_at })
           .eq("id", actionTarget.restaurant_id);
 
         toast({ title: "Approved", description: "Premium access has been activated." });
       } else {
         const { error: purchaseError } = await supabase
           .from("premium_analytics_purchases")
-          .update({ status: "rejected" } as never)
+          .update({ status: "rejected" })
           .eq("id", actionTarget.id);
 
         if (purchaseError) {
@@ -194,7 +194,7 @@ export default function AdminPremiumAnalytics() {
       // Best-effort: update premium_analytics_until if the column exists
       await supabase
         .from("restaurants")
-        .update({ premium_analytics_until: endsAt.toISOString() } as never)
+        .update({ premium_analytics_until: endsAt.toISOString() })
         .eq("id", grantRestaurantId);
 
       const { error: insertError } = await supabase.from("premium_analytics_purchases").insert({
@@ -205,7 +205,7 @@ export default function AdminPremiumAnalytics() {
         ends_at: endsAt.toISOString(),
         payment_reference: "manual-grant",
         status: "active",
-      } as never);
+      });
 
       if (insertError) throw new Error(`Failed to create grant record: ${insertError.message}`);
 

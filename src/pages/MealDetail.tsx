@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -393,14 +393,14 @@ const ScheduleSheet = ({
       .then(({ data }) => {
         if (data && data.length > 0) {
           setAddresses(data);
-          if (!selectedAddressId) {
+          if (selectedAddressId === null) {
             const def = data.find(a => a.is_default) || data[0];
             setSelectedAddressId(def.id);
             setSelectedAddressLabel(`${def.label} – ${def.address_line1}, ${def.city}`);
           }
         }
       });
-  }, [isOpen, userId]);
+  }, [isOpen, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dateOptions = generateDateOptions();
   const selectedType = MEAL_TYPES.find(t => t.id === selectedMealType);
@@ -811,11 +811,12 @@ const MealDetail = () => {
   const springConfig = { stiffness: 100, damping: 30, restDelta: 0.001 };
   const headerOpacitySpring = useSpring(headerOpacity, springConfig);
 
+  const fetchMealCb = useCallback(fetchMeal, [id, toast, t]);
   useEffect(() => {
     if (id) {
-      fetchMeal();
+      fetchMealCb();
     }
-  }, [id]);
+  }, [id, fetchMealCb]);
 
   const fetchMeal = async () => {
     try {
@@ -904,7 +905,7 @@ const MealDetail = () => {
           // Determine which of their saved tags are allergen tags
           const allergenKeywords = ["nut", "dairy", "shellfish", "egg", "wheat", "soy", "fish", "gluten", "lactose"];
           const userAllergyNames = userPrefs
-            .map((p: any) => p.diet_tags?.name as string | undefined)
+            .map((p: { diet_tags?: { name: string } | null }) => p.diet_tags?.name as string | undefined)
             .filter((name): name is string =>
               !!name && allergenKeywords.some(k => name.toLowerCase().includes(k))
             );
@@ -917,7 +918,7 @@ const MealDetail = () => {
               .eq("meal_id", meal.id);
 
             const mealTagNames = (mealTagRows || [])
-              .map((r: any) => r.diet_tags?.name as string | undefined)
+              .map((r: { diet_tags?: { name: string } | null }) => r.diet_tags?.name as string | undefined)
               .filter((n): n is string => !!n);
 
             const conflicts = mealTagNames.filter(tagName =>
@@ -970,7 +971,7 @@ const MealDetail = () => {
     setBuyMealLoading(true);
     try {
       // Debit wallet
-      const { error: debitErr } = await (supabase.rpc as any)("debit_wallet", {
+      const { error: debitErr } = await supabase.rpc("debit_wallet", {
         p_user_id: user.id,
         p_amount: pricePerMeal,
         p_reference_type: "order",
@@ -995,8 +996,8 @@ const MealDetail = () => {
         description: `1 meal added to your plan — ${formatCurrency(pricePerMeal)} deducted.`,
       });
       setSheetOpen(true);
-    } catch (err: any) {
-      toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Purchase failed", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
       setBuyMealLoading(false);
     }
@@ -1077,7 +1078,7 @@ const MealDetail = () => {
         const addonNames = getSelectedAddonsList().map(({ addon, quantity }) =>
           quantity > 1 ? `${addon.name} x${quantity}` : addon.name
         ).join(", ");
-        await (supabase.rpc as any)("debit_wallet", {
+        await supabase.rpc("debit_wallet", {
           p_user_id: user!.id,
           p_amount: addonsTotal,
           p_reference_type: "order",

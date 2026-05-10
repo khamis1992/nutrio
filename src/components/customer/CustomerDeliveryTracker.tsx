@@ -147,6 +147,7 @@ export function CustomerDeliveryTracker({
         locationChannelRef.current.unsubscribe();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleId]);
 
   // Subscribe to driver location updates when driver is assigned
@@ -198,7 +199,7 @@ export function CustomerDeliveryTracker({
             filter: `driver_id=eq.${deliveryJob.driver_id}`,
           },
           (payload) => {
-            const loc = payload.new as any;
+            const loc = payload.new as Record<string, unknown>;
             if (loc.location) {
               // Parse PostGIS point: "SRID=4326;POINT(lng lat)"
               const match = loc.location.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);

@@ -57,7 +57,7 @@ const ProgressNative = () => {
   };
   const [generatingReport, setGeneratingReport] = useState(false);
   const [showWeightView, setShowWeightView] = useState(false);
-  const [weightEntries, setWeightEntries] = useState<any[]>([]);
+  const [weightEntries, setWeightEntries] = useState<{ id: string; weight_kg: number; log_date: string }[]>([]);
   const [currentWeight, setCurrentWeight] = useState("");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,7 +114,7 @@ const ProgressNative = () => {
         .lte('log_date', weekEnd.toISOString().split('T')[0])
         .order('log_date');
 
-      const { data: waterLogs } = await (supabase as any)
+      const { data: waterLogs } = await supabase
         .from('water_intake')
         .select('log_date, glasses')
         .eq('user_id', user.id)
@@ -125,8 +125,8 @@ const ProgressNative = () => {
       for (let i = 0; i < 7; i++) {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
-        const log = dailyLogs?.find((l: any) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        const log = dailyLogs?.find((l: { log_date: string }) => l.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: { log_date: string }) => w.log_date === dateStr);
         
         data.unshift({
           date: dateStr,
@@ -178,7 +178,7 @@ const ProgressNative = () => {
         .lte('log_date', weekEnd.toISOString().split('T')[0])
         .order('log_date');
 
-      const { data: waterLogs } = await (supabase as any)
+      const { data: waterLogs } = await supabase
         .from('water_intake')
         .select('log_date, glasses')
         .eq('user_id', user.id)
@@ -201,8 +201,8 @@ const ProgressNative = () => {
       for (let i = 0; i < 7; i++) {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
-        const log = dailyLogs?.find((l: any) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        const log = dailyLogs?.find((l: { log_date: string }) => l.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: { log_date: string }) => w.log_date === dateStr);
         
         dailyData.unshift({
           date: dateStr,

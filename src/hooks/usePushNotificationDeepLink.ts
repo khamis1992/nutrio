@@ -70,6 +70,7 @@ export function usePushNotificationDeepLink() {
     return () => {
       navigator.serviceWorker?.removeEventListener('message', handlePushNotification);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const handleDeepLink = (data: PushNotificationData) => {

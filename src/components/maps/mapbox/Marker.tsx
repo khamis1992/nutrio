@@ -70,6 +70,7 @@ export function Marker({
     return () => {
       marker.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, draggable, onClick]);
 
   // Update position when it changes

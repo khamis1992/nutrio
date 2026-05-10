@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, ReactNode } from "react";
 import {
   initPostHog,
@@ -11,9 +12,9 @@ import {
 } from "@/lib/analytics";
 
 interface AnalyticsContextType {
-  trackEvent: (eventName: string, properties?: Record<string, any>) => void;
-  trackPageView: (pageName: string, properties?: Record<string, any>) => void;
-  identifyUser: (userId: string, traits?: Record<string, any>) => void;
+  trackEvent: (eventName: string, properties?: Record<string, unknown>) => void;
+  trackPageView: (pageName: string, properties?: Record<string, unknown>) => void;
+  identifyUser: (userId: string, traits?: Record<string, unknown>) => void;
   resetUser: () => void;
 }
 
@@ -47,7 +48,7 @@ export function useAnalytics() {
 }
 
 // Hook for tracking page views
-export function usePageTracking(pageName: string, properties?: Record<string, any>) {
+export function usePageTracking(pageName: string, properties?: Record<string, unknown>) {
   useEffect(() => {
     trackPageView(pageName, properties);
   }, [pageName, properties]);

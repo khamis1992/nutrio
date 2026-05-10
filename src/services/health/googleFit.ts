@@ -237,8 +237,9 @@ export async function getWorkouts(
       for (const bucket of data.bucket) {
         if (!bucket.dataset) continue;
         
+        type Dataset = { point?: { value?: { intVal?: number; fpVal?: number }[] }[]; dataSourceId?: string };
         const activityDataset = bucket.dataset.find(
-          (d: any) => d.point && d.point.length > 0
+          (d: Dataset) => d.point && d.point.length > 0
         );
         
         if (!activityDataset?.point?.[0]) continue;
@@ -248,13 +249,13 @@ export async function getWorkouts(
         
         // Get duration
         const durationDataset = bucket.dataset.find(
-          (d: any) => d.dataSourceId?.includes("duration")
+          (d: Dataset) => d.dataSourceId?.includes("duration")
         );
         const duration = durationDataset?.point?.[0]?.value?.[0]?.intVal || 0;
         
         // Get calories
         const caloriesDataset = bucket.dataset.find(
-          (d: any) => d.dataSourceId?.includes("calories")
+          (d: Dataset) => d.dataSourceId?.includes("calories")
         );
         const calories = caloriesDataset?.point?.[0]?.value?.[0]?.fpVal || 0;
         

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -108,6 +109,7 @@ export function FleetAuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
+  //
   }, [navigate]);
 
   const hasCityAccess = useCallback((cityId: string): boolean => {

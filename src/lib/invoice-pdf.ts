@@ -182,7 +182,7 @@ export class InvoicePDFGenerator {
       formatCurrency(item.totalPrice, true)
     ]);
     
-    (this.doc as any).autoTable({
+    (this.doc as unknown as { autoTable: (options: Record<string, unknown>) => void }).autoTable({
       startY: startY,
       head: [['Description', 'Qty', 'Unit Price', 'Total']],
       body: tableData,
@@ -203,7 +203,7 @@ export class InvoicePDFGenerator {
   }
 
   private addTotals(data: InvoiceData): void {
-    const startY = (this.doc as any).lastAutoTable.finalY + 15;
+    const startY = (this.doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
     const rightX = this.pageWidth - this.margin;
     
     this.doc.setFontSize(10);

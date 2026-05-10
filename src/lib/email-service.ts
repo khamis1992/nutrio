@@ -4,7 +4,7 @@ import { captureError } from "./sentry";
 interface SendEmailOptions {
   to: string;
   template: keyof typeof import("./email-templates").emailTemplates;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   from?: string;
   replyTo?: string;
 }

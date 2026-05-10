@@ -152,7 +152,7 @@ const PartnerOnboarding = () => {
     terms_accepted: false,
   });
 
-  const updateData = (field: keyof RestaurantData, value: any) => {
+  const updateData = (field: keyof RestaurantData, value: string | boolean | string[] | Record<string, unknown>) => {
     setData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -174,7 +174,7 @@ const PartnerOnboarding = () => {
     }));
   };
 
-  const updateOperatingHours = (day: string, field: keyof OperatingHours, value: any) => {
+  const updateOperatingHours = (day: string, field: keyof OperatingHours, value: string | boolean) => {
     setData((prev) => ({
       ...prev,
       operating_hours: {

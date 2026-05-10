@@ -21,7 +21,7 @@ export default function TasteProfilePage() {
         if (!orders || orders.length === 0) return;
 
         const byMonth = new Map<string, { orders: number; meals: Set<string> }>();
-        (orders as any[]).forEach(o => {
+        (orders as { created_at: string; meal_id: string | null }[]).forEach(o => {
           const month = o.created_at.substring(0, 7); // YYYY-MM
           const entry = byMonth.get(month) || { orders: 0, meals: new Set() };
           entry.orders++;

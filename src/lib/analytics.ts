@@ -35,7 +35,7 @@ export function initPostHog() {
 }
 
 // User identification
-export function identifyUser(userId: string, traits?: Record<string, any>) {
+export function identifyUser(userId: string, traits?: Record<string, unknown>) {
   if (import.meta.env.DEV || !posthog.__loaded) return;
 
   posthog.identify(userId, {
@@ -55,7 +55,7 @@ export function resetUser() {
 // Event tracking
 export function trackEvent(
   eventName: string,
-  properties?: Record<string, any>
+  properties?: Record<string, unknown>
 ) {
   if (import.meta.env.DEV) {
     console.log("[Analytics]", eventName, properties);
@@ -68,7 +68,7 @@ export function trackEvent(
 }
 
 // Page views
-export function trackPageView(pageName: string, properties?: Record<string, any>) {
+export function trackPageView(pageName: string, properties?: Record<string, unknown>) {
   trackEvent("$pageview", {
     page_name: pageName,
     ...properties,
@@ -144,7 +144,7 @@ export function trackError(error: Error, context?: string) {
 }
 
 // Sanitize properties to remove PII
-export function sanitizeProperties(props?: Record<string, any>): Record<string, any> {
+export function sanitizeProperties(props?: Record<string, unknown>): Record<string, unknown> {
   if (!props) return {};
 
   const sensitiveKeys = ["email", "phone", "password", "token", "secret", "credit_card"];

@@ -24,7 +24,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const STEP_GOAL = 6000;
 
-function getBmiStatus(bmi: number, t: any): { label: string; color: string } {
+function getBmiStatus(bmi: number, t: (key: string) => string): { label: string; color: string } {
   if (bmi < 18.5) return { label: t("underweight"), color: "bg-slate-700" };
   if (bmi < 25) return { label: t("normal"), color: "bg-primary" };
   if (bmi < 30) return { label: t("overweight"), color: "bg-warning" };
@@ -104,7 +104,7 @@ export default function Tracker() {
     if (!user || isNaN(kg) || kg <= 0) return;
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("body_measurements")
         .upsert(
           { user_id: user.id, log_date: today, weight_kg: kg },

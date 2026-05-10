@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -120,12 +120,7 @@ export default function AdminPromotions() {
   });
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchPromotions();
-    fetchStats();
-  }, []);
-
-  const fetchPromotions = async () => {
+  const fetchPromotions = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("promotions")
@@ -144,9 +139,9 @@ export default function AdminPromotions() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const { data: promotionsData } = await supabase
         .from("promotions")
@@ -170,7 +165,12 @@ export default function AdminPromotions() {
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPromotions();
+    fetchStats();
+  }, [fetchPromotions, fetchStats]);
 
   const generateCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -231,11 +231,11 @@ export default function AdminPromotions() {
       setFormData(initialFormData);
       fetchPromotions();
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving promotion:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save promotion",
+        description: error instanceof Error ? error.message : "Failed to save promotion",
         variant: "destructive",
       });
     }

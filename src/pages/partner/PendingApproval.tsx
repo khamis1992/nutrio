@@ -31,6 +31,7 @@ export default function PendingApproval() {
     if (user) {
       fetchRestaurantStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchRestaurantStatus = async () => {

@@ -104,7 +104,7 @@ export const usePartnerBranches = () => {
  * Only shows orders assigned to that branch
  */
 export const useBranchOrders = (branchId: string | undefined) => {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -151,7 +151,7 @@ export const useFleetBranchOrders = () => {
   const [branchOrders, setBranchOrders] = useState<{
     branch: RestaurantBranch;
     restaurant: { name: string };
-    orders: any[];
+    orders: Record<string, unknown>[];
     totalDistance: number;
   }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +182,7 @@ export const useFleetBranchOrders = () => {
         if (orderError) throw orderError;
 
         // Group orders by branch
-        const ordersByBranch = new Map<string, any[]>();
+        const ordersByBranch = new Map<string, Record<string, unknown>[]>();
         for (const order of orders || []) {
           const branchId = order.restaurant_branch_id;
           if (!ordersByBranch.has(branchId)) {
@@ -192,9 +192,9 @@ export const useFleetBranchOrders = () => {
         }
 
         // Combine branch data with orders
-        const combined = (branches || []).map(branch => ({
+        const combined = (branches || []).map((branch: RestaurantBranch & { restaurant: { name: string } }) => ({
           branch,
-          restaurant: (branch as any).restaurant,
+          restaurant: branch.restaurant,
           orders: ordersByBranch.get(branch.id) || [],
           totalDistance: 0, // Will be calculated when driver location is set
         })).filter(item => item.orders.length > 0);
@@ -216,6 +216,7 @@ export const useFleetBranchOrders = () => {
     if (!driverLocation) return;
 
     const updated = branchOrders.map(item => {
+     
       const distance = calculateDistance(
         driverLocation.lat,
         driverLocation.lng,
@@ -228,6 +229,7 @@ export const useFleetBranchOrders = () => {
     // Sort by distance (nearest first)
     updated.sort((a, b) => a.totalDistance - b.totalDistance);
     setBranchOrders(updated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverLocation]);
 
   const updateDriverLocation = (lat: number, lng: number) => {

@@ -90,6 +90,7 @@ export function ManageRolesDialog({
     if (isOpen && userId) {
       fetchCurrentRoles();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, userId]);
 
   const fetchCurrentRoles = async () => {

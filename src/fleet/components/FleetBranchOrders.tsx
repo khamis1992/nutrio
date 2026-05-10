@@ -109,7 +109,7 @@ export function FleetBranchOrders({ driverLat, driverLng }: FleetBranchOrdersPro
       // Enrich branch data
       const enrichedBranches: RestaurantBranch[] = (branchesData || []).map(b => ({
         ...b,
-        restaurant_name: (b as any).restaurant?.name,
+        restaurant_name: (b as { restaurant?: { name?: string } }).restaurant?.name,
       }));
 
       setBranches(enrichedBranches);
@@ -240,7 +240,7 @@ export function FleetBranchOrders({ driverLat, driverLng }: FleetBranchOrdersPro
           <Filter className="h-4 w-4 text-muted-foreground" />
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
+            onChange={(e) => setFilter(e.target.value as "all" | "pending" | "preparing" | "ready")}
             className="h-8 text-sm border rounded px-2"
           >
             <option value="all">All</option>

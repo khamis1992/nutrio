@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,11 +110,7 @@ const AdminUsers = () => {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isRolesDialogOpen, setIsRolesDialogOpen] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       await fetchUsersFallback();
@@ -128,7 +124,11 @@ const AdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const fetchUsersFallback = async () => {
     try {
@@ -145,43 +145,46 @@ const AdminUsers = () => {
       const { data: blockedIPsData } = await supabase.from("blocked_ips").select("*").eq("is_active", true);
 
       const blockedIPsMap = new Map<string, BlockedIP>(
-        (blockedIPsData || []).map((ip: any) => [ip.ip_address as string, ip as BlockedIP])
+        (blockedIPsData || []).map((ip: Record<string, unknown>) => [ip.ip_address as string, ip as BlockedIP])
       );
       setBlockedIPs(blockedIPsMap);
 
       const rolesMap: Record<string, UserRole[]> = {};
-      roles?.forEach((r: any) => {
-        if (r.user_id) {
-          if (!rolesMap[r.user_id]) rolesMap[r.user_id] = [];
-          rolesMap[r.user_id].push(r.role as UserRole);
+      roles?.forEach((r: Record<string, unknown>) => {
+        const userId = r.user_id as string;
+        if (userId) {
+          if (!rolesMap[userId]) rolesMap[userId] = [];
+          rolesMap[userId].push(r.role as UserRole);
         }
       });
 
       // Add fleet_manager role for users in fleet_managers table
-      fleetManagers?.forEach((fm: any) => {
-        if (fm.auth_user_id) {
-          if (!rolesMap[fm.auth_user_id]) rolesMap[fm.auth_user_id] = [];
-          if (!rolesMap[fm.auth_user_id].includes("fleet_manager")) {
-            rolesMap[fm.auth_user_id].push("fleet_manager");
+      fleetManagers?.forEach((fm: Record<string, unknown>) => {
+        const authUserId = fm.auth_user_id as string;
+        if (authUserId) {
+          if (!rolesMap[authUserId]) rolesMap[authUserId] = [];
+          if (!rolesMap[authUserId].includes("fleet_manager")) {
+            rolesMap[authUserId].push("fleet_manager");
           }
         }
       });
 
       const ipLogsMap: Record<string, UserIPLog[]> = {};
-      ipLogs?.forEach((log: any) => {
-        if (log.user_id) {
-          if (!ipLogsMap[log.user_id]) ipLogsMap[log.user_id] = [];
-          ipLogsMap[log.user_id].push({
-            ip_address: log.ip_address,
-            created_at: log.created_at,
-            country_code: log.country_code,
-            country_name: log.country_name,
-            city: log.city,
+      ipLogs?.forEach((log: Record<string, unknown>) => {
+        const userId = log.user_id as string;
+        if (userId) {
+          if (!ipLogsMap[userId]) ipLogsMap[userId] = [];
+          ipLogsMap[userId].push({
+            ip_address: log.ip_address as string,
+            created_at: log.created_at as string,
+            country_code: log.country_code as string | null,
+            country_name: log.country_name as string | null,
+            city: log.city as string | null,
           });
         }
       });
 
-      const mergedUsers: UserData[] = (profiles || []).map((profile: any) => {
+      const mergedUsers: UserData[] = (profiles || []).map((profile: Record<string, unknown>) => {
         const userIPLogs = ipLogsMap[profile.user_id] || [];
         const latestIP = userIPLogs.find(log => log.ip_address && log.ip_address !== "0.0.0.0")?.ip_address || null;
         
@@ -853,7 +856,7 @@ const OverviewContent = ({
   setActiveTab: (tab: "overview" | "orders") => void;
   setIsPasswordDialogOpen: (open: boolean) => void;
   setIsRolesDialogOpen: (open: boolean) => void;
-  toast: any;
+  toast: ReturnType<typeof useToast>["toast"];
 }) => {
   const getRoleBadge = (role: UserRole) => {
     switch (role) {

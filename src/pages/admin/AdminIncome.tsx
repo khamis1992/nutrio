@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -55,15 +55,7 @@ const AdminIncome = () => {
   });
   const [dailyData, setDailyData] = useState<DailyIncome[]>([]);
 
-  useEffect(() => {
-    fetchGlobalCommissionRate();
-  }, []);
-
-  useEffect(() => {
-    fetchIncomeData();
-  }, [period, globalCommissionRate]);
-
-  const fetchGlobalCommissionRate = async () => {
+  const fetchGlobalCommissionRate = useCallback(async () => {
     const { data } = await supabase
       .from("platform_settings")
       .select("value")
@@ -73,9 +65,13 @@ const AdminIncome = () => {
       const rates = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
       setGlobalCommissionRate(rates?.restaurant ?? 18);
     }
-  };
+  }, []);
 
-  const fetchIncomeData = async () => {
+  useEffect(() => {
+    fetchGlobalCommissionRate();
+  }, [fetchGlobalCommissionRate]);
+
+  const fetchIncomeData = useCallback(async () => {
     setLoading(true);
     try {
       const daysAgo = parseInt(period);
@@ -83,7 +79,7 @@ const AdminIncome = () => {
       startDate.setDate(startDate.getDate() - daysAgo);
       const startDateStr = startDate.toISOString().split("T")[0];
 
-      // Fetch subscription revenue (use 'price' column, not 'amount')
+      // Fetch subscription revenue
       const { data: subscriptions } = await supabase
         .from("subscriptions")
         .select("plan_type, price, created_at")
@@ -91,7 +87,7 @@ const AdminIncome = () => {
         .eq("status", "active");
 
       const subscriptionRevenue = (subscriptions || []).reduce(
-        (sum, s: any) => sum + (s.price || 0),
+        (sum: number, s: { price?: number }) => sum + (s.price || 0),
         0
       );
       const activeSubscribers = (subscriptions || []).length;
@@ -123,8 +119,8 @@ const AdminIncome = () => {
         .select("tier, meals_per_month")
         .eq("is_active", true);
 
-      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: any) => {
-        const plan = plans?.find((p: any) => p.tier === sub.plan_type);
+      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: { plan_type?: string; price?: number; created_at?: string }) => {
+        const plan = plans?.find((p: { tier: string; meals_per_month?: number }) => p.tier === sub.plan_type);
         return sum + (plan?.meals_per_month || 0);
       }, 0);
 
@@ -153,7 +149,7 @@ const AdminIncome = () => {
       }
 
       // Add subscription revenue by day
-      (subscriptions || []).forEach((s: any) => {
+      (subscriptions || []).forEach((s: { created_at?: string; price?: number }) => {
         const dateStr = s.created_at?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
           dailyMap[dateStr].subscription += s.price || 0;
@@ -161,7 +157,7 @@ const AdminIncome = () => {
       });
 
       // Add orders by day
-      (orders || []).forEach((o: any) => {
+      (orders || []).forEach((o: { scheduled_date?: string; id: string; order_status?: string; meal_id?: string; meals?: unknown; restaurant_branch_id?: string }) => {
         const dateStr = o.scheduled_date;
         if (dateStr && dailyMap[dateStr]) {
           dailyMap[dateStr].orders += 1;
@@ -180,7 +176,11 @@ const AdminIncome = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period, globalCommissionRate]);
+
+  useEffect(() => {
+    fetchIncomeData();
+  }, [fetchIncomeData, period, globalCommissionRate]);
 
   const statCards = [
     {

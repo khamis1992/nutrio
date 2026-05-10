@@ -85,7 +85,7 @@ export default function PartnerEarningsDashboard() {
 
       const restaurantId = restaurant.id;
       setPayoutRate(restaurant.payout_rate || 0);
-      setCommissionRate((restaurant as any).commission_rate ?? 18);
+      setCommissionRate(restaurant.commission_rate ?? 18);
 
       // Calculate date range
       const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
@@ -176,6 +176,7 @@ export default function PartnerEarningsDashboard() {
 
   useEffect(() => {
     fetchEarningsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange]);
 
   if (isLoading) {

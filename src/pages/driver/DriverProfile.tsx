@@ -76,11 +76,11 @@ export default function DriverProfile() {
         title: "Profile updated!",
         description: "Your information has been saved.",
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save",
+        description: error instanceof Error ? error.message : "Failed to save",
         variant: "destructive",
       });
     } finally {

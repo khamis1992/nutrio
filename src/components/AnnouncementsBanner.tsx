@@ -68,7 +68,7 @@ export function AnnouncementsBanner({ audience = "customers" }: AnnouncementsBan
     }
 
     fetchAnnouncements();
-  }, []);
+  }, [audience]);
 
   const handleDismiss = (id: string) => {
     const newDismissed = new Set(dismissedIds);

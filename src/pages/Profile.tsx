@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { motion, AnimatePresence } from "framer-motion";
@@ -297,7 +297,7 @@ const Profile = () => {
     // Try the original name first (handles "High-Protein", "Low-Carb", etc.)
     if (dietTagTranslationKeys[tagName]) {
       const key = dietTagTranslationKeys[tagName];
-      const translated = t(key as any);
+        const translated = t(key);
       return translated !== key ? translated : tagName;
     }
     // Try normalized (spaces → Title-Case-Hyphenated) for names like "High Protein"
@@ -305,13 +305,13 @@ const Profile = () => {
       const normalized = tagName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('-');
       if (dietTagTranslationKeys[normalized]) {
         const key = dietTagTranslationKeys[normalized];
-        const translated = t(key as any);
+      const translated = t(key);
         return translated !== key ? translated : tagName;
       }
     }
     // Fallback: try category_* key
     const categoryKey = `category_${tagName.toLowerCase()}`;
-    const categoryTranslated = t(categoryKey as any);
+    const categoryTranslated = t(categoryKey);
     return categoryTranslated !== categoryKey ? categoryTranslated : tagName;
   };
 
@@ -389,9 +389,10 @@ const Profile = () => {
     }
   }, [profile]);
 
+  const fetchDietaryDataCb = useCallback(fetchDietaryData, [user, toast, t]);
   useEffect(() => {
-    fetchDietaryData();
-  }, [user]);
+    fetchDietaryDataCb();
+  }, [fetchDietaryDataCb]);
 
   // Calculate password strength
   useEffect(() => {
@@ -703,7 +704,7 @@ const Profile = () => {
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("gender" as any)}</Label>
+                           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("gender")}</Label>
                           <div className="grid grid-cols-2 gap-2">
                             {(["male", "female"] as Gender[]).map((g) => (
                               <GenderCard key={g} gender={g} selected={gender === g} onClick={() => setGender(g)} t={t} />

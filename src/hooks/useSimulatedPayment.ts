@@ -124,10 +124,10 @@ export function useSimulatedPayment({
           onFailure?.(result.failureReason || 'Payment failed');
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
       setStep('failed');
-      onFailure?.(err.message || 'An error occurred');
+      onFailure?.(err instanceof Error ? err.message : 'An error occurred');
     }
   }, [selectedMethod, amount, orderId, onFailure]);
 
@@ -151,8 +151,8 @@ export function useSimulatedPayment({
       } else {
         setError('Invalid OTP. Please try again.');
       }
-    } catch (err: any) {
-      setError(err.message || 'Verification failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
     }
   }, [paymentId]);
 

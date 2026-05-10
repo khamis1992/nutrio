@@ -164,6 +164,7 @@ export default function RouteOptimization() {
 
   useEffect(() => {
     fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAll = async () => {
@@ -180,7 +181,7 @@ export default function RouteOptimization() {
 
     if (error) { console.error(error); return; }
 
-    const list: Driver[] = (data || []).map((d: any) => ({
+    const list: Driver[] = (data || []).map((d: { id: string; user_id?: string; phone_number?: string; full_name?: string; current_lat?: number; current_lng?: number; last_location_update?: string; total_deliveries?: number; rating?: number; wallet_balance?: number; total_earnings?: number; assigned_vehicle_id?: string; approval_status?: string; is_active?: boolean; is_online?: boolean; created_at?: string }) => ({
       id: d.id,
       authUserId: d.user_id || "",
       email: "",
@@ -213,7 +214,7 @@ export default function RouteOptimization() {
         .in("status", ["assigned", "accepted", "picked_up", "in_transit"]);
 
       const counts = new Map<string, number>();
-      (jobs || []).forEach((j: any) => {
+      (jobs || []).forEach((j: { driver_id?: string | null }) => {
         if (j.driver_id) counts.set(j.driver_id, (counts.get(j.driver_id) || 0) + 1);
       });
       setActiveJobCount(counts);
@@ -234,8 +235,8 @@ export default function RouteOptimization() {
 
     if (error) { console.error(error); return; }
 
-    const list: Delivery[] = (jobs || []).map((j: any) => {
-      const restaurant = j.restaurants as { name?: string; latitude?: number; longitude?: number } | null;
+    const list: Delivery[] = (jobs || []).map((j: { id: string; status: string; pickup_address?: string; delivery_address?: string; delivery_lat?: number; delivery_lng?: number; restaurant_id?: string; restaurants?: { name?: string; latitude?: number; longitude?: number } | null }) => {
+      const restaurant = j.restaurants ?? null;
       return {
         id: j.id,
         pickupAddress: j.pickup_address || restaurant?.name || "Restaurant",

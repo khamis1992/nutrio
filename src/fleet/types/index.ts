@@ -127,7 +127,7 @@ export interface DriverActivity {
   id: string;
   driverId: string;
   activityType: 'login' | 'logout' | 'status_change' | 'order_assigned' | 'order_accepted' | 'order_completed' | 'location_update' | 'document_uploaded' | 'verification_status_change';
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   createdAt: string;

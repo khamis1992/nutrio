@@ -302,7 +302,7 @@ function generateRecommendations(
     weightChange: number | null;
     avgCalories: number;
     daysLogged: number;
-    profile: any;
+    profile: Record<string, unknown>;
     isRTL: boolean;
   }
 ) {

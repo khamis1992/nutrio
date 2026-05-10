@@ -62,7 +62,7 @@ export function DeliveryDashboardWidgets() {
       let onTime = 0;
       let total = 0;
 
-      (deliveryTimes || []).forEach((d: any) => {
+      (deliveryTimes || []).forEach((d: { delivered_at?: string; created_at?: string; estimated_delivery_time?: string }) => {
         if (d.delivered_at && d.created_at) {
           const mins = (new Date(d.delivered_at).getTime() - new Date(d.created_at).getTime()) / 60000;
           avgTime += mins;

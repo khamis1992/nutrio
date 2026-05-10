@@ -180,6 +180,7 @@ export function PremiumAnalyticsDashboard({
 
   useEffect(() => {
     fetchPremiumAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   const fetchPremiumAnalytics = async () => {
@@ -1016,14 +1017,14 @@ export function PremiumAnalyticsDashboard({
                           tickFormatter={(v) => `${v}`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }}
-                          formatter={(value: number, _: string, props: any) => [
+                          formatter={(value: number, _: string, props: { payload?: { projected?: boolean } }) => [
                             formatCurrency(value),
                             props?.payload?.projected ? "Projected" : "Net Revenue",
                           ]}
                         />
                         <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fill="url(#colorRevenue)"
                           strokeWidth={2} dot={false}
-                          strokeDasharray={(d: any) => d?.projected ? "4 4" : "0"}
+                          strokeDasharray={(d: { projected?: boolean }) => d?.projected ? "4 4" : "0"}
                         />
                       </AreaChart>
                     </ResponsiveContainer>

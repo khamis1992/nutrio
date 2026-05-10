@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useCallback } from "react";
 import { Navigate, useLocation, Link } from "react-router-dom";
 import { Home } from "lucide-react";
 import {
@@ -27,25 +27,7 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      // ProtectedRoute already guards this, but guard here too to avoid hanging
-      setLoading(false);
-      return;
-    }
-
-    const checkTimeout = setTimeout(() => {
-      console.warn("[AdminLayout] Admin check timed out — denying access");
-      setIsAdmin(false);
-      setLoading(false);
-    }, 5000);
-
-    checkAdmin().finally(() => {
-      clearTimeout(checkTimeout);
-    });
-  }, [user]);
-
-  const checkAdmin = async () => {
+  const checkAdmin = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -68,7 +50,25 @@ export function AdminLayout({ children, title = "Admin", subtitle }: AdminLayout
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      // ProtectedRoute already guards this, but guard here too to avoid hanging
+      setLoading(false);
+      return;
+    }
+
+    const checkTimeout = setTimeout(() => {
+      console.warn("[AdminLayout] Admin check timed out — denying access");
+      setIsAdmin(false);
+      setLoading(false);
+    }, 5000);
+
+    checkAdmin().finally(() => {
+      clearTimeout(checkTimeout);
+    });
+  }, [checkAdmin, user]);
 
   if (loading) {
     return (

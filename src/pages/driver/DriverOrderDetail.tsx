@@ -108,6 +108,7 @@ export default function DriverOrderDetail() {
     if (id && driverId) {
       fetchDelivery();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, driverId]);
 
   const fetchDelivery = async () => {
@@ -194,7 +195,7 @@ export default function DriverOrderDetail() {
     setUpdating(true);
 
     try {
-      const updateData: Record<string, any> = { status: newStatus };
+      const updateData: Record<string, string | null> = { status: newStatus };
 
       if (newStatus === "picked_up") {
         updateData.picked_up_at = new Date().toISOString();
@@ -220,11 +221,11 @@ export default function DriverOrderDetail() {
       } else {
         fetchDelivery();
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating status:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update status",
+        description: error instanceof Error ? error.message : "Failed to update status",
         variant: "destructive",
       });
     } finally {
@@ -280,11 +281,11 @@ export default function DriverOrderDetail() {
           message: result.data?.error || "Invalid code. Please try again." 
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error verifying code:", error);
       setScanResult({ 
         success: false, 
-        message: error.message || "Failed to verify code" 
+        message: error instanceof Error ? error.message : "Failed to verify code" 
       });
     } finally {
       setUpdating(false);
@@ -531,11 +532,11 @@ export default function DriverOrderDetail() {
 
                   // Navigate back to driver dashboard
                   navigate("/driver");
-                } catch (error: any) {
+                } catch (error) {
                   console.error("Error completing delivery:", error);
                   toast({
                     title: "Error",
-                    description: error.message || "Failed to complete delivery",
+                    description: error instanceof Error ? error.message : "Failed to complete delivery",
                     variant: "destructive",
                   });
                 } finally {

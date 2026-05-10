@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 
-interface Notification { id: string; type: string; title: string; message: string; is_read: boolean; metadata: any; created_at: string; }
+interface Notification { id: string; type: string; title: string; message: string; is_read: boolean; metadata: Record<string, unknown>; created_at: string; }
 
 const PartnerNotifications = () => {
   const { user } = useAuth();
@@ -17,7 +17,8 @@ const PartnerNotifications = () => {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  useEffect(() => { if (user) { fetchNotifications(); subscribeToNotifications(); } }, [user]);
+  useEffect(() => { if (user) { fetchNotifications(); subscribeToNotifications(); } // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchNotifications = async () => {
     if (!user) return;

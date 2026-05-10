@@ -65,6 +65,7 @@ const PartnerSettings = () => {
     if (user) {
       fetchRestaurant();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchRestaurant = async () => {
@@ -101,7 +102,7 @@ const PartnerSettings = () => {
           Object.fromEntries(
             DAYS.map((d) => [
               d.key,
-              (data.operating_hours as any)?.[d.key] ?? { ...DEFAULT_HOURS },
+              (data.operating_hours as Record<string, { open: string; close: string }>)?.[d.key] ?? { ...DEFAULT_HOURS },
             ])
           )
         );

@@ -23,7 +23,7 @@ export interface WalletTransaction {
   reference_type: string | null;
   reference_id: string | null;
   description: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -48,7 +48,7 @@ export interface PaymentRecord {
   payment_method: 'sadad' | 'wallet' | 'card' | null;
   gateway: string;
   gateway_reference: string | null;
-  gateway_response: Record<string, any> | null;
+  gateway_response: Record<string, unknown> | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -69,7 +69,7 @@ export function useWallet() {
       setLoading(true);
       setError(null);
 
-      const { data, error: walletError } = await (supabase as any)
+      const { data, error: walletError } = await supabase
         .from('customer_wallets')
         .select('*')
         .eq('user_id', user.id)
@@ -78,7 +78,7 @@ export function useWallet() {
       if (walletError) throw walletError;
 
       if (!data) {
-        const { data: newWallet, error: createError } = await (supabase as any)
+        const { data: newWallet, error: createError } = await supabase
           .from('customer_wallets')
           .insert({ user_id: user.id })
           .select()
@@ -89,9 +89,9 @@ export function useWallet() {
       } else {
         setWallet(data);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching wallet:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export function useWallet() {
     try {
       setTransactionsLoading(true);
 
-      const { data, error: txError } = await (supabase as any)
+      const { data, error: txError } = await supabase
         .from('wallet_transactions')
         .select('*')
         .eq('user_id', user.id)
@@ -112,7 +112,7 @@ export function useWallet() {
 
       if (txError) throw txError;
       setTransactions(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching transactions:', err);
     } finally {
       setTransactionsLoading(false);
@@ -121,7 +121,7 @@ export function useWallet() {
 
   const fetchTopUpPackages = useCallback(async () => {
     try {
-      const { data, error: pkgError } = await (supabase as any)
+      const { data, error: pkgError } = await supabase
         .from('wallet_topup_packages')
         .select('*')
         .eq('is_active', true)
@@ -129,7 +129,7 @@ export function useWallet() {
 
       if (pkgError) throw pkgError;
       setTopUpPackages(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching top-up packages:', err);
     }
   }, []);
@@ -160,7 +160,7 @@ export function useWallet() {
       if (error) throw error;
 
       return data;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error initiating top-up:', err);
       throw err;
     }
@@ -172,12 +172,12 @@ export function useWallet() {
     referenceType?: string,
     referenceId?: string,
     description?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) => {
     if (!user) return null;
 
     try {
-      const { data, error } = await (supabase as any).rpc('credit_wallet', {
+      const { data, error } = await supabase.rpc('credit_wallet', {
         p_user_id: user.id,
         p_amount: amount,
         p_type: type,
@@ -193,7 +193,7 @@ export function useWallet() {
       await fetchTransactions();
       
       return data;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error crediting wallet:', err);
       throw err;
     }

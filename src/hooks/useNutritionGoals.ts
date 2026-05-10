@@ -37,7 +37,7 @@ export function useNutritionGoals(userId: string | undefined) {
       setLoading(true);
 
       // Fetch nutrition goals
-      const { data: goalsData, error: goalsError } = await (supabase as any)
+      const { data: goalsData, error: goalsError } = await supabase
         .from("nutrition_goals")
         .select("id, goal_type, target_weight_kg, target_date, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g, is_active")
         .eq("user_id", userId)
@@ -50,7 +50,7 @@ export function useNutritionGoals(userId: string | undefined) {
       setActiveGoal(goalsList.find((g: NutritionGoal) => g.is_active) || goalsList[0] || null);
 
       // Fetch milestones
-      const { data: milestonesData, error: milestonesError } = await (supabase as any)
+      const { data: milestonesData, error: milestonesError } = await supabase
         .from("user_milestones")
         .select("id, milestone_type, milestone_value, description, achieved_at, is_celebrated, icon_emoji")
         .eq("user_id", userId)
@@ -71,7 +71,7 @@ export function useNutritionGoals(userId: string | undefined) {
 
     // Deactivate current goal
     if (activeGoal) {
-      await (supabase as any)
+      await supabase
         .from("nutrition_goals")
         .update({ is_active: false })
         .eq("user_id", userId)
@@ -79,7 +79,7 @@ export function useNutritionGoals(userId: string | undefined) {
     }
 
     // Insert new goal — let any error propagate to the caller
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("nutrition_goals")
       .insert({
         user_id: userId,
@@ -108,7 +108,7 @@ export function useNutritionGoals(userId: string | undefined) {
   ) => {
     if (!userId || !activeGoal) return false;
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("nutrition_goals")
         .update(updates)
         .eq("id", activeGoal.id);

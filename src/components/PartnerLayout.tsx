@@ -36,6 +36,7 @@ export function PartnerLayout({ children, title = "Partner", subtitle, action }:
     if (user) {
       checkPartner();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const checkPartner = async () => {

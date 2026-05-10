@@ -27,13 +27,13 @@ interface UsePaginationReturn<T> {
  * Hook for offset-based pagination
  * Usage: const { data, loading, hasMore, loadMore } = usePagination('orders', { pageSize: 20, filters: { user_id: userId } })
  */
-export function usePagination<T = any>(
+export function usePagination<T = Record<string, unknown>>(
   table: TableName,
   options: {
     pageSize?: number;
     orderBy?: string;
     orderDirection?: "asc" | "desc";
-    filters?: Partial<Record<string, any>>;
+    filters?: Partial<Record<string, string | number | boolean | null>>;
     select?: string;
   } = {}
 ): UsePaginationReturn<T> {
@@ -132,7 +132,7 @@ export function usePagination<T = any>(
 /**
  * Simple pagination for one-time queries
  */
-export async function fetchPaginatedData<T = any>(
+export async function fetchPaginatedData<T = Record<string, unknown>>(
   table: TableName,
   page: number = 0,
   pageSize: number = 20,
@@ -140,7 +140,7 @@ export async function fetchPaginatedData<T = any>(
     select?: string;
     orderBy?: string;
     orderDirection?: "asc" | "desc";
-    filters?: Record<string, any>;
+    filters?: Record<string, string | number | boolean | null>;
   } = {}
 ): Promise<{ data: T[]; hasMore: boolean; totalCount?: number; error?: string }> {
   const {

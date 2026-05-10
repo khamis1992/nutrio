@@ -36,7 +36,7 @@ export function initSentry() {
   });
 }
 
-export function captureError(error: Error, context?: Record<string, any>) {
+export function captureError(error: Error, context?: Record<string, unknown>) {
   if (import.meta.env.DEV) {
     console.error("Error captured:", error, context);
     return;

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Home, Package, Wallet, User, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,13 +23,7 @@ export function DriverLayout({ children, title, subtitle }: DriverLayoutProps) {
   const [isOnline, setIsOnline] = useState(false);
   const [driverId, setDriverId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      checkDriver();
-    }
-  }, [user]);
-
-  const checkDriver = async () => {
+  const checkDriver = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -70,7 +64,13 @@ export function DriverLayout({ children, title, subtitle }: DriverLayoutProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      checkDriver();
+    }
+  }, [checkDriver, user]);
 
   const toggleOnlineStatus = async () => {
     if (!driverId) return;

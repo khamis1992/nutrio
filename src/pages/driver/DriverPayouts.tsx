@@ -42,12 +42,14 @@ export default function DriverPayouts() {
     if (user) {
       fetchDriverData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
     if (driverId) {
       fetchPayouts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   const fetchDriverData = async () => {
@@ -151,11 +153,11 @@ export default function DriverPayouts() {
         title: "Payout requested!",
         description: "Your payout request has been submitted for processing.",
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error requesting payout:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to request payout",
+        description: error instanceof Error ? error.message : "Failed to request payout",
         variant: "destructive",
       });
     } finally {

@@ -93,11 +93,11 @@ export const ModifyOrderModal = ({
         return;
       }
 
-      const { data, error } = await supabase.rpc("reschedule_meal" as any, {
+      const { data, error } = await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("reschedule_meal", {
         p_schedule_id: schedule.id,
         p_new_date: newDate || null,
         p_new_meal_type: newMealType || null,
-      } as any);
+      });
 
       if (error) throw error;
 

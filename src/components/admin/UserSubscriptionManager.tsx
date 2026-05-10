@@ -73,6 +73,7 @@ export function UserSubscriptionManager({ userId, userName }: UserSubscriptionMa
 
   useEffect(() => {
     fetchSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchSubscription = async () => {

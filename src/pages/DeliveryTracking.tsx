@@ -172,7 +172,7 @@ export default function DeliveryTracking() {
         created_at: o.created_at,
         estimated_delivery_time: o.estimated_delivery_time || undefined,
         status: o.status || "pending",
-        total_amount: (o as any).total_amount || 0,
+        total_amount: (o as { total_amount?: number }).total_amount || 0,
         meal_id: o.meal_id,
         notes: o.notes,
         restaurant_id: o.restaurant_id,
@@ -260,7 +260,7 @@ export default function DeliveryTracking() {
     const channel = supabase
       .channel("customer-meal-schedules-tracking")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "meal_schedules", filter: `user_id=eq.${user.id}` },
-        (payload) => {
+        (payload: { new: Record<string, unknown> }) => {
           const newStatus = (payload.new as { order_status: string }).order_status;
           const msgs: Record<string, string> = {
             confirmed: "Order confirmed!", preparing: "Your meal is being prepared!",
@@ -301,7 +301,7 @@ export default function DeliveryTracking() {
       if (type === "scheduled") {
         const { data, error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id });
         if (error) throw error;
-        if (!(data as any)?.success) throw new Error("Cancellation failed.");
+        if (!(data as { success?: boolean })?.success) throw new Error("Cancellation failed.");
         setScheduledMeals(prev => prev.map(m => m.id === id ? { ...m, order_status: "cancelled" } : m));
       } else {
         const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id });
@@ -312,8 +312,8 @@ export default function DeliveryTracking() {
         setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
       }
       toast({ title: "Order cancelled", description: "Your order has been cancelled." });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to cancel.", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to cancel.", variant: "destructive" });
     } finally {
       setCancelling(null);
     }

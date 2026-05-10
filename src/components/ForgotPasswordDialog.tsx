@@ -57,10 +57,10 @@ export function ForgotPasswordDialog({ trigger, redirectTo }: ForgotPasswordDial
         title: "Reset email sent",
         description: "Check your inbox for the password reset link.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
-        description: err.message || "Failed to send reset email",
+        description: err instanceof Error ? err.message : "Failed to send reset email",
         variant: "destructive",
       });
     } finally {

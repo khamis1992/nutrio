@@ -178,6 +178,7 @@ export const useMultiRestaurantRoute = (
     if (restaurantIds.length > 0 && userLat && userLon) {
       fetchAllBranches();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantIds.join(','), userLat, userLon]);
 
   // Group branches by restaurant and find nearest for each

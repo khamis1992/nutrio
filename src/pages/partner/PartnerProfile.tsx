@@ -13,6 +13,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { PartnerLayout } from "@/components/PartnerLayout";
 import { LogoUpload } from "@/components/LogoUpload";
 
+interface RestaurantProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  logo_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 const PartnerProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -20,9 +32,10 @@ const PartnerProfile = () => {
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null }>({ full_name: null, avatar_url: null });
-  const [restaurant, setRestaurant] = useState<any>(null);
+  const [restaurant, setRestaurant] = useState<RestaurantProfile | null>(null);
 
-  useEffect(() => { if (user) fetchData(); }, [user]);
+  useEffect(() => { if (user) fetchData(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -54,7 +67,7 @@ const PartnerProfile = () => {
   };
 
   const handleLogoChange = (url: string | null) => {
-    setRestaurant((prev: any) => prev ? { ...prev, logo_url: url } : prev);
+    setRestaurant((prev: RestaurantProfile | null) => prev ? { ...prev, logo_url: url } : prev);
   };
 
   const handleDetectLocation = () => {
@@ -65,7 +78,7 @@ const PartnerProfile = () => {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setRestaurant((prev: any) => prev ? { ...prev, latitude: pos.coords.latitude, longitude: pos.coords.longitude } : prev);
+        setRestaurant((prev: RestaurantProfile | null) => prev ? { ...prev, latitude: pos.coords.latitude, longitude: pos.coords.longitude } : prev);
         setLocating(false);
         toast({ title: "Location detected", description: "Coordinates have been filled in. Save to confirm." });
       },

@@ -113,6 +113,7 @@ const PartnerAddons = () => {
     if (user) {
       fetchRestaurantAndAddons();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchRestaurantAndAddons = async () => {
@@ -279,11 +280,11 @@ const PartnerAddons = () => {
 
       setEditDialogOpen(false);
       fetchAddons(restaurantId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving addon:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save add-on",
+        description: error instanceof Error ? error.message : "Failed to save add-on",
         variant: "destructive",
       });
     } finally {
@@ -318,11 +319,11 @@ const PartnerAddons = () => {
       setDeleteDialogOpen(false);
       setAddonToDelete(null);
       fetchAddons(restaurantId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting addon:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete add-on",
+        description: error instanceof Error ? error.message : "Failed to delete add-on",
         variant: "destructive",
       });
     }

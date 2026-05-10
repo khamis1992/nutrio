@@ -73,7 +73,7 @@ export function useReorder(): UseReorderReturn {
 
         if (cart) {
           // Merge with existing cart items
-          const existingItems = (cart.items || []) as any[];
+          const existingItems = (cart.items || []) as Array<Record<string, unknown>>;
           const mergedItems = [...existingItems];
 
           for (const newItem of cartItems) {
@@ -165,7 +165,13 @@ export function useReorder(): UseReorderReturn {
 
         // Transform order items
         const items: OrderItem[] = (order.order_items || [])
-          .map((item: any) => ({
+          .map((item: {
+            meal_id: string;
+            quantity: number;
+            price: number;
+            meals?: { name?: string; image_url?: string; restaurant_id?: string };
+            restaurants?: { name?: string };
+          }) => ({
             meal_id: item.meal_id,
             meal_name: item.meals?.name || "Unknown Meal",
             quantity: item.quantity,
@@ -243,7 +249,7 @@ export function useReorder(): UseReorderReturn {
 // Helper function to check if an order is eligible for reorder
 export function isOrderEligibleForReorder(order: {
   status: string;
-  order_items?: any[];
+  order_items?: Array<Record<string, unknown>>;
 }): boolean {
   // Only completed or delivered orders can be reordered
   if (!["completed", "delivered"].includes(order.status)) {

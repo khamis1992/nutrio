@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +90,7 @@ export default function AIWeeklyPlanner() {
   };
 
   // Fetch weekly plan
-  const fetchWeeklyPlan = async () => {
+  const fetchWeeklyPlan = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -134,7 +134,7 @@ export default function AIWeeklyPlanner() {
         // Transform data to match our interface
         const transformedPlan: WeeklyPlan = {
           ...plan,
-          items: plan.items?.map((item: any) => ({
+          items: plan.items?.map((item: Record<string, unknown>) => ({
             ...item,
             meal: {
               ...item.meal,
@@ -167,7 +167,7 @@ export default function AIWeeklyPlanner() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentWeek]);
 
   // Generate new plan
   const generatePlan = async () => {
@@ -195,8 +195,8 @@ export default function AIWeeklyPlanner() {
 
       toast.success(data.message || "Weekly plan generated!");
       await fetchWeeklyPlan();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to generate plan");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate plan");
     } finally {
       setIsGenerating(false);
     }
@@ -250,7 +250,7 @@ export default function AIWeeklyPlanner() {
 
   useEffect(() => {
     fetchWeeklyPlan();
-  }, [currentWeek]);
+  }, [fetchWeeklyPlan]);
 
   const itemsByDay = getItemsByDay();
   const complianceScore = getCompliancePercentage();

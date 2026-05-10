@@ -80,12 +80,12 @@ export default function DriverDetail() {
       .eq("status", "available")
       .then(({ data }) => {
         setAvailableVehicles(
-          (data || []).map((v: any) => ({
+          (data || []).map((v: { id: string; plate_number: string; type: string; make?: string; model?: string }) => ({
             id: v.id,
             plateNumber: v.plate_number,
             type: v.type,
-            make: v.make,
-            model: v.model,
+            make: v.make ?? null,
+            model: v.model ?? null,
           }))
         );
       });

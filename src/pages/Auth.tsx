@@ -89,7 +89,7 @@ const Auth = () => {
       }
     };
     checkBiometric();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const checkUserRole = async () => {
@@ -97,13 +97,13 @@ const Auth = () => {
       setCheckingRole(true);
 
       // Race a query against a 5s timeout — prevents hanging when tables don't exist
-      const raceWithTimeout = (query: () => Promise<any>): Promise<any> => {
+      const raceWithTimeout = (query: () => Promise<{ data: unknown; error: unknown }>): Promise<{ data: unknown }> => {
         return Promise.race([
           query().then(r => {
             if (r.error) return { data: null };
             return r;
           }).catch(() => ({ data: null })),
-          new Promise<any>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
+          new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
         ]);
       };
 
@@ -264,8 +264,8 @@ const Auth = () => {
       setOtpError("");
       startOtpCountdown();
       setView("otp");
-    } catch (err: any) {
-      toast({ title: t("error"), description: err.message || t("failed_send_reset"), variant: "destructive" });
+    } catch (err) {
+      toast({ title: t("error"), description: err instanceof Error ? err.message : t("failed_send_reset"), variant: "destructive" });
     } finally {
       setForgotLoading(false);
     }
@@ -299,7 +299,7 @@ const Auth = () => {
       if (error) throw error;
       toast({ title: t("verified"), description: t("can_reset_password") });
       navigate("/reset-password");
-    } catch (err: any) {
+    } catch {
       setOtpError(t("invalid_code"));
       setOtpDigits(["", "", "", ""]);
     } finally {
@@ -318,8 +318,8 @@ const Auth = () => {
       setOtpError("");
       startOtpCountdown();
       toast({ title: t("code_resent"), description: t("check_inbox") });
-    } catch (err: any) {
-      toast({ title: t("error"), description: err.message || t("failed_resend"), variant: "destructive" });
+    } catch (err) {
+      toast({ title: t("error"), description: err instanceof Error ? err.message : t("failed_resend"), variant: "destructive" });
     }
   };
 

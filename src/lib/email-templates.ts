@@ -1,8 +1,8 @@
 // Email templates for Nutrio
 
 interface EmailTemplate {
-  subject: string | ((data: Record<string, any>) => string);
-  html: (data: Record<string, any>) => string;
+  subject: string | ((data: Record<string, unknown>) => string);
+  html: (data: Record<string, unknown>) => string;
 }
 
 const baseTemplate = (content: string, title: string) => `
@@ -190,7 +190,7 @@ export const emailTemplates: Record<string, EmailTemplate> = {
 // Helper function to get template
 export function getEmailTemplate(
   templateName: keyof typeof emailTemplates,
-  data: Record<string, any>
+  data: Record<string, unknown>
 ): { subject: string; html: string } {
   const template = emailTemplates[templateName];
   if (!template) {

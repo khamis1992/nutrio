@@ -216,7 +216,7 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
   const profilesMap = new Map((profilesData || []).map((item) => [item.user_id, item]));
   const mealsMap = new Map((mealsData || []).map((item) => [item.id, item]));
   const branchesMap = new Map((branchesData || []).map((item) => [item.id, item]));
-  const addressesMap = new Map((addressesData || []).map((item: any) => [item.user_id, item]));
+  const addressesMap = new Map((addressesData || []).map((item: { user_id: string; phone?: string }) => [item.user_id, item]));
   // A single job can reference either an order or a schedule — keyed by schedule_id either way
   const jobsMap = new Map((jobsData || []).map((item) => [item.schedule_id, item]));
   const driversMap = new Map((driversData || []).map((item) => [item.id, item]));
@@ -288,7 +288,7 @@ export async function getDispatchOrders(): Promise<DispatchOrderRecord[]> {
       branchName: null,
       branchAddress: null,
       customerName: profile?.full_name || "Subscriber",
-      customerPhone: (address as any)?.phone || null,
+      customerPhone: (address as { phone?: string } | undefined)?.phone || null,
       mealName: meal?.name || "Meal",
       deliveryAddress,
       deliveryLat: null,
@@ -352,7 +352,7 @@ export async function getDispatchDrivers(): Promise<DispatchDriverRecord[]> {
   });
 
   const plateByDriver = new Map<string, string>();
-  (vehiclesData || []).forEach((v: any) => {
+  (vehiclesData || []).forEach((v: { assigned_driver_id?: string | null; plate_number?: string | null }) => {
     if (v.assigned_driver_id && v.plate_number) plateByDriver.set(v.assigned_driver_id, v.plate_number);
   });
 

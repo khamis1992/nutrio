@@ -154,7 +154,7 @@ export default function MyBookings() {
       ) : (
         <div className="space-y-3">
           {displayBookings.map((booking) => {
-            const statusConfig: Record<string, { color: string; icon: any }> = {
+            const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ className?: string }> }> = {
               booked: { color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300", icon: Clock },
               completed: { color: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300", icon: CheckCircle },
               cancelled: { color: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300", icon: XCircle },

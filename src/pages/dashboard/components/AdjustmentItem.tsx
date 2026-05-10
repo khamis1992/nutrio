@@ -12,8 +12,8 @@ interface AdjustmentItemProps {
     confidence_score: number;
     was_accepted: boolean;
     created_at: string;
-    previous_values: any;
-    new_values: any;
+    previous_values: Record<string, unknown> | null;
+    new_values: Record<string, unknown> | null;
   };
 }
 

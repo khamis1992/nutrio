@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, ArrowDown, ArrowUp, Trash2,
@@ -68,7 +68,9 @@ export default function WeightTracking() {
     if (data) setEntries(data as WeightEntry[]);
   };
 
-  useEffect(() => { fetchEntries(); }, [user]);
+  const fetchEntriesCb = useCallback(fetchEntries, [user]);
+  useEffect(() => { fetchEntriesCb();  
+  }, [fetchEntriesCb]);
 
   const openSheet = () => {
     const today = new Date();

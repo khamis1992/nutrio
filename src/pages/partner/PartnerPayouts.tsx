@@ -273,6 +273,7 @@ const PartnerPayouts = () => {
 
   useEffect(() => {
     if (user) fetchPayoutData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // ── Recompute derived state ────────────────────────────────────────────────
@@ -319,7 +320,7 @@ const PartnerPayouts = () => {
 
       if (!restaurant) return;
       setRestaurantId(restaurant.id);
-      const commissionRate = (restaurant as any).commission_rate ?? 18;
+      const commissionRate = restaurant.commission_rate ?? 18;
       setPlatformRate(commissionRate / 100);
 
       const [earningsRes, payoutsRes, bankRes] = await Promise.all([

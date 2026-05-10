@@ -347,6 +347,7 @@ const AdminOrders = () => {
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -362,6 +363,7 @@ const AdminOrders = () => {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchOrders = async () => {
@@ -462,7 +464,7 @@ const AdminOrders = () => {
 
         if (profiles) {
           profilesMap = profiles.reduce(
-            (acc, p: any) => {
+            (acc, p: { user_id: string; full_name: string | null }) => {
               acc[p.user_id] = { full_name: p.full_name };
               return acc;
             },
@@ -472,7 +474,7 @@ const AdminOrders = () => {
       }
 
       const ordersWithDetails: OrderData[] = (schedulesData || []).map(
-        (o: any) => {
+        (o: { id: string; scheduled_date: string; meal_type: string; is_completed: boolean; order_status: string; created_at: string; user_id: string; meal_id: string | null }) => {
           const meal = mealsMap[o.meal_id] || {
             name: "Unknown",
             price: 0,
@@ -597,7 +599,8 @@ const AdminOrders = () => {
       });
 
       if (error) throw error;
-      if (!(data as any)?.success) throw new Error((data as any)?.error || "Cancellation failed.");
+      const result = data as { success?: boolean; error?: string } | null;
+      if (!result?.success) throw new Error(result?.error || "Cancellation failed.");
 
       setOrders((prev) =>
         prev.map((o) =>
@@ -617,11 +620,12 @@ const AdminOrders = () => {
         title: "Order Cancelled",
         description: "The order has been cancelled. meal credit and add-ons refunded.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error cancelling order:", error);
+      const message = error instanceof Error ? error.message : "Failed to cancel order";
       toast({
         title: "Error",
-        description: error.message || "Failed to cancel order",
+        description: message,
         variant: "destructive",
       });
     }
@@ -636,13 +640,16 @@ const AdminOrders = () => {
           p_schedule_id: id,
           p_reason: null,
         });
-        if (!error && (data as any)?.success) {
+        const result = data as { success?: boolean } | null;
+        if (!error && result?.success) {
           successCount++;
           setOrders((prev) =>
             prev.map((o) => o.id === id ? { ...o, order_status: "cancelled" as OrderStatus } : o)
           );
         }
-      } catch {}
+      } catch {
+        // Silently skip
+      }
     }
     setSelectedOrders(new Set());
     toast({
@@ -666,7 +673,9 @@ const AdminOrders = () => {
             prev.map((o) => o.id === id ? { ...o, is_completed: true, order_status: "completed" as OrderStatus } : o)
           );
         }
-      } catch {}
+      } catch {
+        // Silently skip
+      }
     }
     setSelectedOrders(new Set());
     toast({
@@ -864,7 +873,7 @@ const AdminOrders = () => {
           ].map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setActiveTab(tab.value as any)}
+              onClick={() => setActiveTab(tab.value as "all" | "today" | "upcoming" | "completed" | "overdue")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.value
                   ? "bg-primary text-primary-foreground"

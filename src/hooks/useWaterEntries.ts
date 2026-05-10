@@ -36,7 +36,7 @@ export function useWaterEntries(userId: string | undefined) {
 
     try {
       setLoading(true);
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("water_entries")
         .select("id, log_date, amount_ml, created_at")
         .eq("user_id", userId)
@@ -60,7 +60,7 @@ export function useWaterEntries(userId: string | undefined) {
       const end = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("water_entries")
           .select("log_date, amount_ml")
           .eq("user_id", userId)
@@ -89,7 +89,7 @@ export function useWaterEntries(userId: string | undefined) {
       throw new Error("Amount must be greater than 0");
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("water_entries")
       .insert({
         user_id: userId,
@@ -111,7 +111,7 @@ export function useWaterEntries(userId: string | undefined) {
     if (!userId) return;
 
     try {
-      await (supabase as any)
+      await supabase
         .from("water_entries")
         .delete()
         .eq("id", id)

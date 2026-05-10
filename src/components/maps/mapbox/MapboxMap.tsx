@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState, ReactNode, useImperativeHandle, forwardRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -140,13 +141,14 @@ export const MapContainer = forwardRef<MapRef, MapContainerProps>(function MapCo
     });
 
     // Expose map instance globally for child components
-    (mapContainerRef.current as any).__map__ = map;
+    (mapContainerRef.current as HTMLDivElement).__map__ = map;
     mapRef.current = map;
 
     return () => {
       map.remove();
       mapRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update center when it changes

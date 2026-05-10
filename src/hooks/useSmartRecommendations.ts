@@ -38,7 +38,7 @@ export function useSmartRecommendations(userId: string | undefined) {
           .eq("user_id", userId)
           .gte("log_date", weekAgo)
           .order("log_date", { ascending: false }),
-        (supabase as any)
+        supabase
           .from("water_intake")
           .select("glasses, log_date")
           .eq("user_id", userId)
@@ -49,7 +49,7 @@ export function useSmartRecommendations(userId: string | undefined) {
           .eq("user_id", userId)
           .eq("is_active", true)
           .maybeSingle(),
-        (supabase as any)
+        supabase
           .from("user_streaks")
           .select("streak_type, current_streak, best_streak")
           .eq("user_id", userId),
@@ -69,25 +69,25 @@ export function useSmartRecommendations(userId: string | undefined) {
 
       // --- Derived stats ---
       const avgCalories = daysLogged > 0
-        ? logs.reduce((s: number, l: any) => s + (l.calories_consumed || 0), 0) / daysLogged
+        ? logs.reduce((s: number, l: Record<string, unknown>) => s + ((l.calories_consumed as number) || 0), 0) / daysLogged
         : 0;
       const avgProtein = daysLogged > 0
-        ? logs.reduce((s: number, l: any) => s + (l.protein_consumed_g || 0), 0) / daysLogged
+        ? logs.reduce((s: number, l: Record<string, unknown>) => s + ((l.protein_consumed_g as number) || 0), 0) / daysLogged
         : 0;
       const avgCarbs = daysLogged > 0
-        ? logs.reduce((s: number, l: any) => s + (l.carbs_consumed_g || 0), 0) / daysLogged
+        ? logs.reduce((s: number, l: Record<string, unknown>) => s + ((l.carbs_consumed_g as number) || 0), 0) / daysLogged
         : 0;
       const avgFat = daysLogged > 0
-        ? logs.reduce((s: number, l: any) => s + (l.fat_consumed_g || 0), 0) / daysLogged
+        ? logs.reduce((s: number, l: Record<string, unknown>) => s + ((l.fat_consumed_g as number) || 0), 0) / daysLogged
         : 0;
       const consistencyPct = Math.round((daysLogged / 7) * 100);
       const calorieDiff = avgCalories - calorieTarget;
       const proteinRatio = proteinTarget > 0 ? avgProtein / proteinTarget : 0;
 
-      const totalWater = waterLogs.reduce((s: number, w: any) => s + (w.glasses || 0), 0);
+      const totalWater = waterLogs.reduce((s: number, w: Record<string, unknown>) => s + ((w.glasses as number) || 0), 0);
       const avgWater = waterLogs.length > 0 ? totalWater / waterLogs.length : 0;
 
-      const loggingStreak = streaks.find((s: any) => s.streak_type === "logging");
+      const loggingStreak = streaks.find((s: Record<string, unknown>) => s.streak_type === "logging");
       const currentStreak = loggingStreak?.current_streak || 0;
       const bestStreak = loggingStreak?.best_streak || 0;
 
@@ -282,7 +282,7 @@ export function useSmartRecommendations(userId: string | undefined) {
     } finally {
       setLoading(false);
     }
-  }, [userId, language, t]);
+  }, [userId, t]);
 
   useEffect(() => {
     generateRecommendations();

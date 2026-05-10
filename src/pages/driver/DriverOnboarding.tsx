@@ -49,6 +49,7 @@ export default function DriverOnboarding() {
 
   useEffect(() => {
     checkDriverStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkDriverStatus = async () => {
@@ -109,7 +110,7 @@ export default function DriverOnboarding() {
     try {
       const selectedVehicle = vehicleOptions.find(v => v.value === formData.vehicle_type);
       
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, string | null> = {
         vehicle_type: formData.vehicle_type,
         vehicle_make: formData.vehicle_make || null,
         vehicle_model: formData.vehicle_model || null,
@@ -133,11 +134,11 @@ export default function DriverOnboarding() {
       });
 
       setApprovalStatus("pending");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving vehicle info:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save information",
+        description: error instanceof Error ? error.message : "Failed to save information",
         variant: "destructive",
       });
     } finally {

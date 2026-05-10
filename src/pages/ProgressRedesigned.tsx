@@ -252,7 +252,7 @@ const ProgressDashboard = () => {
         .lte('log_date', weekEnd.toISOString().split('T')[0])
         .order('log_date');
 
-      const { data: waterLogs } = await (supabase as any)
+      const { data: waterLogs } = await supabase
         .from('water_intake')
         .select('log_date, glasses')
         .eq('user_id', user.id)
@@ -263,8 +263,8 @@ const ProgressDashboard = () => {
       for (let i = 0; i < 7; i++) {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
-        const log = dailyLogs?.find((l: any) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        const log = dailyLogs?.find((l: Record<string, unknown>) => l.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: Record<string, unknown>) => w.log_date === dateStr);
         
         data.unshift({
           date: dateStr,
@@ -326,7 +326,7 @@ const ProgressDashboard = () => {
         .lte('log_date', weekEnd.toISOString().split('T')[0])
         .order('log_date');
 
-      const { data: waterLogs } = await (supabase as any)
+      const { data: waterLogs } = await supabase
         .from('water_intake')
         .select('log_date, glasses')
         .eq('user_id', user.id)
@@ -342,7 +342,7 @@ const ProgressDashboard = () => {
         .lt('log_date', weekStart.toISOString().split('T')[0]);
 
       const lastWeekAvg = lastWeekLogs && lastWeekLogs.length > 0
-        ? lastWeekLogs.reduce((sum: number, log: any) => sum + (log.calories_consumed || 0), 0) / lastWeekLogs.length
+        ? lastWeekLogs.reduce((sum: number, log: Record<string, unknown>) => sum + ((log.calories_consumed as number) || 0), 0) / lastWeekLogs.length
         : 0;
 
       // Generate AI meal plan for next week
@@ -368,8 +368,8 @@ const ProgressDashboard = () => {
       for (let i = 0; i < 7; i++) {
         const date = subDays(weekEnd, i);
         const dateStr = date.toISOString().split('T')[0];
-        const log = dailyLogs?.find((l: any) => l.log_date === dateStr);
-        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        const log = dailyLogs?.find((l: Record<string, unknown>) => l.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: Record<string, unknown>) => w.log_date === dateStr);
         
         reportDailyData.unshift({
           date: dateStr,
@@ -411,7 +411,7 @@ const ProgressDashboard = () => {
         bestStreak: streaks?.logging?.bestStreak || 0,
         activeGoal: activeGoal?.goal_type || null,
         goalProgress: 0,
-        milestonesAchieved: milestones?.filter((m: any) => m.achieved_at).length || 0,
+        milestonesAchieved: milestones?.filter((m: Record<string, unknown>) => m.achieved_at).length || 0,
         totalMilestones: milestones?.length || 0,
         insights: recommendations.slice(0, 3).map(r => r.description),
         recommendations: recommendations.slice(0, 3).map(r => `${r.title}: ${r.description}`),
@@ -425,7 +425,7 @@ const ProgressDashboard = () => {
       };
 
       // ── Fetch Tracker Insights ──
-      const { data: weightHistory } = await (supabase as any)
+      const { data: weightHistory } = await supabase
         .from('body_measurements')
         .select('log_date, weight_kg')
         .eq('user_id', user.id)
@@ -445,7 +445,7 @@ const ProgressDashboard = () => {
       const dailyWater = Array.from({ length: 7 }, (_, i) => {
         const d = subDays(weekEnd, 6 - i);
         const dateStr = d.toISOString().split('T')[0];
-        const waterLog = waterLogs?.find((w: any) => w.log_date === dateStr);
+        const waterLog = waterLogs?.find((w: Record<string, unknown>) => w.log_date === dateStr);
         return { date: dateStr, waterMl: (waterLog?.glasses || 0) * 250 };
       });
 
@@ -465,7 +465,7 @@ const ProgressDashboard = () => {
       reportData.trackerInsights = {
         dailySteps,
         dailyWater,
-        weightHistory: (weightHistory || []).map((w: any) => ({ date: w.log_date, weight_kg: w.weight_kg })),
+        weightHistory: (weightHistory || []).map((w: Record<string, unknown>) => ({ date: w.log_date as string, weight_kg: w.weight_kg as number })),
         bmi,
         bmiLabel,
         heightCm,
@@ -1444,7 +1444,7 @@ const GoalsTab = ({ activeGoal, userId, updateGoalTargets, onGoalUpdated, setGoa
                         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center mb-2", config.color.replace("text-", "bg-").replace("600", "100"))}>
                           <div className={config.color}>{config.icon}</div>
                         </div>
-                        <p className="font-medium text-sm">{t(config.label as any)}</p>
+                        <p className="font-medium text-sm">{t(config.label)}</p>
                       </button>
                     ))}
                   </div>

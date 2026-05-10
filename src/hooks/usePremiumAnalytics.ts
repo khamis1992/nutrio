@@ -25,6 +25,7 @@ export function usePremiumAnalytics(restaurantId: string | null) {
       setLoading(true);
       checkPremiumStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   const checkPremiumStatus = async () => {

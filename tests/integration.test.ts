@@ -17,6 +17,12 @@
 
 import { chromium, Browser, Page } from 'playwright';
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const TEST_URL = 'http://localhost:5173';
 const DASHBOARD_URL = `${TEST_URL}/nutrio/dashboard`;
@@ -504,8 +510,6 @@ function generateSummary() {
   }
   
   // Save results
-  const fs = require('fs');
-  const path = require('path');
   const outputPath = path.join(__dirname, 'integration-results.json');
   fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
   console.log(`\n📝 Results saved to: ${outputPath}`);

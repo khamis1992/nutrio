@@ -187,11 +187,11 @@ export function PartnerDeliveryHandoff({
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error refreshing code:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to refresh code",
+        description: error instanceof Error ? error.message : "Failed to refresh code",
         variant: "destructive",
       });
     } finally {
@@ -252,11 +252,11 @@ export function PartnerDeliveryHandoff({
           variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error confirming handover:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to confirm handover",
+        description: error instanceof Error ? error.message : "Failed to confirm handover",
         variant: "destructive",
       });
     } finally {
@@ -297,6 +297,7 @@ export function PartnerDeliveryHandoff({
       return;
     }
     setQrCode(deliveryJob.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryJob?.id, deliveryJob?.status]);
 
   const handlePrintQR = () => {

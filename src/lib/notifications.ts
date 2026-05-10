@@ -12,7 +12,7 @@ interface NotificationData {
   type: NotificationType;
   title: string;
   message: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export const createNotification = async (data: NotificationData) => {

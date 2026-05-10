@@ -91,6 +91,7 @@ const PartnerDashboard = () => {
     if (user) {
       fetchPartnerData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Subscribe to real-time updates for meal schedules (scoped to partner's meals)
@@ -107,7 +108,7 @@ const PartnerDashboard = () => {
           table: "meal_schedules",
         },
         (payload) => {
-          const newStatus = (payload.new as Record<string, any>)?.order_status;
+          const newStatus = (payload.new as Record<string, unknown>)?.order_status;
           if (payload.eventType === "INSERT" || newStatus !== "cancelled") {
             fetchPartnerData();
           }
@@ -118,6 +119,7 @@ const PartnerDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant]);
 
   const fetchPartnerData = async () => {
@@ -194,7 +196,7 @@ const PartnerDashboard = () => {
 
       if (schedulesError) throw schedulesError;
 
-      const transformedSchedules: ScheduledMeal[] = (schedulesData || []).map((s: any) => ({
+      const transformedSchedules: ScheduledMeal[] = (schedulesData || []).map((s: { id: string; scheduled_date: string; delivery_time_slot: string | null; meal_type: string; is_completed: boolean; order_status: string; created_at: string; meals: { id: string; name: string | null; calories: number | null; image_url: string | null } | null; user_id: string; profiles: { full_name: string | null } | null }) => ({
         id: s.id,
         scheduled_date: s.scheduled_date,
         delivery_time_slot: s.delivery_time_slot || null,

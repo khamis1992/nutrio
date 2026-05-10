@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen, Utensils, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,13 +62,7 @@ const Settings = () => {
   const [pausingSubscription, setPausingSubscription] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchSettings();
-    }
-  }, [user]);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -116,7 +110,14 @@ const Settings = () => {
     } finally {
       setLoading(false);
     }
-  };
+     
+  }, [user, toast, t]);
+
+  useEffect(() => {
+    if (user) {
+      fetchSettings();
+    }
+  }, [user, fetchSettings]);
 
   const updateNotificationPref = async (key: keyof NotificationPreferences, value: boolean | string) => {
     if (!user || !notificationPrefs) return;

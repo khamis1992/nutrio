@@ -79,11 +79,11 @@ export const MealImageUpload = ({ currentImageUrl, onImageChange, mealId, onImag
       } else {
         console.log("No onImageUploaded callback provided");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload image",
+        description: error instanceof Error ? error.message : "Failed to upload image",
         variant: "destructive",
       });
     } finally {

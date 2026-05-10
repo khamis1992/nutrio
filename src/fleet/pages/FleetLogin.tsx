@@ -134,11 +134,12 @@ export default function FleetLogin() {
       setTimeout(() => {
         navigate("/fleet", { replace: true });
       }, 100);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Fleet login error:", error);
+      const message = error instanceof Error ? error.message : "Invalid email or password";
       toast({
         title: "Error",
-        description: error.message || "Invalid email or password",
+        description: message,
         variant: "destructive",
       });
     } finally {

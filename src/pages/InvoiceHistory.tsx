@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,19 +55,13 @@ export default function InvoiceHistory() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchInvoices();
-    }
-  }, [user]);
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     if (!user) return;
 
     try {
       setLoading(true);
       
-      const { data, error } = await (supabase as any)
+      const { data, error } = await (supabase as unknown as { from: (table: string) => { select: (columns: string) => { eq: (col: string, val: string) => { order: (col: string, opts: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: Invoice[] | null; error: unknown }> } } } } })
         .from('invoices')
         .select('*')
         .eq('user_id', user.id)
@@ -77,7 +71,7 @@ export default function InvoiceHistory() {
       if (error) throw error;
       
       setInvoices(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching invoices:', error);
       toast({
         title: "Error",
@@ -87,17 +81,23 @@ export default function InvoiceHistory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchInvoices();
+    }
+  }, [user, fetchInvoices]);
 
   const handleDownload = async (invoiceId: string) => {
     try {
       setDownloading(invoiceId);
       await downloadInvoice(invoiceId);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Download failed:', error);
       toast({
         title: "Download Failed",
-        description: error.message || "Could not download invoice",
+        description: error instanceof Error ? error.message : "Could not download invoice",
         variant: "destructive",
       });
     } finally {

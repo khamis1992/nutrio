@@ -33,7 +33,8 @@ const PartnerReviews = () => {
   const [responseText, setResponseText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { if (user) fetchReviews(); }, [user]);
+  useEffect(() => { if (user) fetchReviews(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchReviews = async () => {
     if (!user) return;
@@ -47,7 +48,7 @@ const PartnerReviews = () => {
         const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
         if (profiles) profilesMap = profiles.reduce((acc, p) => { acc[p.user_id] = { full_name: p.full_name }; return acc; }, {} as Record<string, { full_name: string | null }>);
       }
-      setReviews((data || []).map((r: any) => ({ ...r, meal: r.meals, profile: profilesMap[r.user_id] || null })));
+      setReviews((data || []).map((r: { id: string; meal_id?: string; meals?: { id: string; name: string | null }; rating: number; review_text: string | null; user_id: string; created_at: string } & Record<string, unknown>) => ({ ...r, meal: r.meals, profile: profilesMap[r.user_id] || null })));
     } finally { setLoading(false); }
   };
 

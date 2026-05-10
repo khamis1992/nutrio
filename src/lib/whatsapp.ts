@@ -1,57 +1,21 @@
-// WhatsApp Notification Service using Ultramsg API
-// https://ultramsg.com
+// WhatsApp Notification Service (proxied through Supabase Edge Function)
 
-const ULTRAMSG_INSTANCE_ID = import.meta.env.VITE_ULTRAMSG_INSTANCE_ID;
-const ULTRAMSG_TOKEN = import.meta.env.VITE_ULTRAMSG_TOKEN;
-const ULTRAMSG_API_URL = "https://api.ultramsg.com";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WhatsAppMessage {
-  to: string; // Phone number with country code (e.g., +97412345678)
-  body: string;
-}
-
-interface WhatsAppTemplate {
   to: string;
-  template: string;
-  language: string;
-  components?: Array<{
-    type: string;
-    parameters: Array<{
-      type: string;
-      text?: string;
-    }>;
-  }>;
+  body: string;
 }
 
 export const sendWhatsAppMessage = async (message: WhatsAppMessage): Promise<boolean> => {
   try {
-    if (!ULTRAMSG_INSTANCE_ID || !ULTRAMSG_TOKEN) {
-      console.error("Ultramsg credentials not configured");
-      return false;
-    }
-
-    const url = `${ULTRAMSG_API_URL}/instance${ULTRAMSG_INSTANCE_ID}/messages/chat`;
-    
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        token: ULTRAMSG_TOKEN,
-        to: message.to,
-        body: message.body,
-      }),
+    const { data, error } = await supabase.functions.invoke("send-whatsapp-proxy", {
+      body: { to: message.to, body: message.body },
     });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("WhatsApp API error:", error);
+    if (error || !data?.success) {
+      console.error("WhatsApp API error:", error || data?.error);
       return false;
     }
-
-    const data = await response.json();
-    console.log("WhatsApp message sent:", data);
     return true;
   } catch (error) {
     console.error("Failed to send WhatsApp message:", error);

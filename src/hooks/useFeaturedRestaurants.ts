@@ -90,7 +90,7 @@ export function useFeaturedRestaurants() {
         });
 
         // Map restaurants with featured listing info
-        const featured: FeaturedRestaurant[] = (restaurants || []).map((r: any) => {
+        const featured: FeaturedRestaurant[] = (restaurants || []).map((r: { id: string; name: string; description: string | null; logo_url: string | null; }) => {
           const listing = listings.find((l) => l.restaurant_id === r.id);
           return {
             id: r.id,

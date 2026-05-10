@@ -24,7 +24,7 @@ export function useStreak(userId: string | undefined) {
       setLoading(true);
 
       // Fetch all streak types
-      const { data: streakData, error } = await (supabase as any)
+      const { data: streakData, error } = await supabase
         .from("user_streaks")
         .select("streak_type, current_streak, best_streak, last_log_date")
         .eq("user_id", userId);
@@ -38,7 +38,7 @@ export function useStreak(userId: string | undefined) {
         water: null as StreakData | null,
       };
 
-      (streakData || []).forEach((streak: any) => {
+      (streakData || []).forEach((streak: Record<string, unknown>) => {
         const data: StreakData = {
           currentStreak: streak.current_streak || 0,
           bestStreak: streak.best_streak || 0,

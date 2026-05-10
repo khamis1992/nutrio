@@ -26,7 +26,7 @@ export default function AddDriver() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
-  const [zones, setZones] = useState<any[]>([]);
+  const [zones, setZones] = useState<{ id: string; name: string; city_id: string; is_active: boolean }[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>("");
   
@@ -69,7 +69,7 @@ export default function AddDriver() {
 
       if (error) throw error;
 
-      const transformedCities: City[] = (data || []).map((c: any) => ({
+      const transformedCities: City[] = (data || []).map((c: { id: string; name: string; name_ar?: string; country: string; latitude: number; longitude: number; timezone: string; is_active: boolean }) => ({
         id: c.id,
         name: c.name,
         nameAr: c.name_ar,
@@ -112,7 +112,7 @@ export default function AddDriver() {
 
       if (error) throw error;
 
-      const transformedVehicles: Vehicle[] = (data || []).map((v: any) => ({
+      const transformedVehicles: Vehicle[] = (data || []).map((v: { id: string; city_id?: string; type: Vehicle['type']; make?: string; model?: string; year?: number; color?: string; plate_number: string; status: string; created_at: string }) => ({
         id: v.id,
         cityId: v.city_id || '',
         type: v.type,
@@ -121,7 +121,7 @@ export default function AddDriver() {
         year: v.year,
         color: v.color,
         plateNumber: v.plate_number,
-        status: v.status,
+        status: v.status as Vehicle['status'],
         createdAt: v.created_at,
       }));
 

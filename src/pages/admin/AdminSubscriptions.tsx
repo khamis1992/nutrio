@@ -90,7 +90,7 @@ const AdminSubscriptions = () => {
           tier: p.tier,
           billing_interval: p.billing_interval,
           price_qar: p.price_qar,
-          meals_per_week: (p as any).meals_per_week ?? null,
+          meals_per_week: "meals_per_week" in p ? (p as Record<string, unknown>).meals_per_week ?? null : null,
           meals_per_month: p.meals_per_month,
           discount_percent: p.discount_percent,
           features: p.features as string[] | null,
@@ -186,8 +186,8 @@ const AdminSubscriptions = () => {
       fetchPlans();
       setIsPlanEditOpen(false);
       resetPlanForm();
-    } catch (error: any) {
-      const isDuplicate = error?.message?.includes("unique") || error?.code === "23505";
+    } catch (error: unknown) {
+      const isDuplicate = error instanceof Error && (error.message?.includes("unique") || (error as Record<string, unknown>).code === "23505");
       toast({
         title: "Error",
         description: isDuplicate
@@ -287,10 +287,10 @@ const AdminSubscriptions = () => {
       });
 
       fetchPlans();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete plan",
+        description: error instanceof Error ? error.message : "Failed to delete plan",
         variant: "destructive",
       });
     }

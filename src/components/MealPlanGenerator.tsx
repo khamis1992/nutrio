@@ -81,6 +81,7 @@ export function MealPlanGenerator() {
   useEffect(() => {
     fetchMealsAndRestaurants();
     initializeWeek();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchMealsAndRestaurants = async () => {

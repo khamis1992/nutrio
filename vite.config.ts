@@ -27,6 +27,26 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [
+    // Custom middleware: redirect /nutrio → /nutrio/ and /favicon.ico → /nutrio/favicon.svg
+    // to prevent Vite's "did you mean" hint page and browser favicon 404
+    {
+      name: 'nutrio-middleware',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url === '/nutrio') {
+            res.writeHead(301, { Location: '/nutrio/' });
+            res.end();
+            return;
+          }
+          if (req.url === '/favicon.ico') {
+            res.writeHead(301, { Location: '/nutrio/favicon.svg' });
+            res.end();
+            return;
+          }
+          next();
+        });
+      },
+    },
     react({
       // Improve HMR to prevent hook errors
       devTarget: 'es2020',

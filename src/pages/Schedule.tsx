@@ -192,8 +192,8 @@ const Schedule = () => {
         title: "Meal credit added!",
         description: `1 meal added to your plan — QAR ${pricePerMeal} deducted.`,
       });
-    } catch (err: any) {
-      toast({ title: "Purchase failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Purchase failed", description: err instanceof Error ? err.message : "Failed", variant: "destructive" });
     } finally {
       setBuyLoading(false);
     }
@@ -215,7 +215,7 @@ const Schedule = () => {
 
   const [showInlinePreview, setShowInlinePreview] = useState(false);
   const [inlinePreviewLoading, setInlinePreviewLoading] = useState(false);
-  const [inlinePreviewMeals, setInlinePreviewMeals] = useState<any[]>([]);
+  const [inlinePreviewMeals, setInlinePreviewMeals] = useState<ScheduledMeal[]>([]);
 
   const [selectedMeal, setSelectedMeal] = useState<ScheduledMeal | null>(null);
   const [showMealSheet, setShowMealSheet] = useState(false);
@@ -262,8 +262,8 @@ const Schedule = () => {
       return;
     }
 
-    const mealIds = (schedulesData || []).map((s: any) => s.meal_id).filter(Boolean);
-    let mealsMap: Record<string, any> = {};
+    const mealIds = (schedulesData || []).map((s: { meal_id: string | null }) => s.meal_id).filter(Boolean);
+    let mealsMap: Record<string, { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null }> = {};
 
     if (mealIds.length > 0) {
       const { data: mealsData } = await supabase
@@ -271,13 +271,13 @@ const Schedule = () => {
         .select("id, name, calories, protein_g, carbs_g, fat_g, image_url")
         .in("id", mealIds);
 
-      mealsMap = (mealsData || []).reduce((acc: Record<string, any>, meal: any) => {
+      mealsMap = (mealsData || []).reduce((acc: Record<string, { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null }>, meal) => {
         acc[meal.id] = meal;
         return acc;
       }, {});
     }
 
-    const mergedSchedules: ScheduledMeal[] = (schedulesData || []).map((schedule: any) => ({
+    const mergedSchedules: ScheduledMeal[] = (schedulesData || []).map((schedule) => ({
       id: schedule.id,
       scheduled_date: schedule.scheduled_date,
       meal_type: schedule.meal_type,
@@ -356,7 +356,7 @@ const Schedule = () => {
       if (!isCompleted && !result.was_already_completed) {
         if (navigator.vibrate) navigator.vibrate(10);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error toggling meal completion:', err);
       toast({
         title: t("error"),
@@ -412,7 +412,7 @@ const Schedule = () => {
         title: t("meal_removed"),
         description: t("meal_removed_desc") || "Meal removed and credit refunded."
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Delete meal error:", err);
       toast({
         title: t("error"),
@@ -854,7 +854,7 @@ const Schedule = () => {
               const MealIcon = config.icon;
               const typeMeals = displayMeals.filter(m => m.meal_type === mealType);
               const timeLabel = MEAL_TYPE_TIMES[mealType];
-              const mealTypeName = t(mealType as any);
+               const mealTypeName = t(mealType);
               const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
               if (typeMeals.length > 0) {
@@ -961,7 +961,7 @@ const Schedule = () => {
                 const [swipeX, setSwipeX] = useState(0);
                 const hasTriggered = useRef(false);
 
-                const handleDrag = (_: any, info: PanInfo) => {
+                const handleDrag = (_: DragEvent, info: PanInfo) => {
                   if (!info.offset) return;
                   if (info.offset.x < 0) {
                     setSwipeX(Math.max(info.offset.x, -80));
@@ -970,7 +970,7 @@ const Schedule = () => {
                   }
                 };
 
-                const handleDragEnd = (_: any, info: PanInfo) => {
+                const handleDragEnd = (_: DragEvent, info: PanInfo) => {
                   if (!info.offset) {
                     setSwipeX(0);
                     return;
@@ -1177,7 +1177,7 @@ const Schedule = () => {
                       return (
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold mb-3 ${cfg.bgGradient} ${cfg.textColor}`}>
                           <Icon className="h-3.5 w-3.5" />
-                          {t(cfg.label as any)}
+                          {t(cfg.label)}
                         </span>
                       );
                     })()}

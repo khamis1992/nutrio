@@ -128,7 +128,7 @@ export function SkipReasonModal({
       }
 
       // Record skip reason for analytics (after successful cancellation)
-      await (supabase.rpc as any)("submit_skip_reason", {
+      await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("submit_skip_reason", {
         p_user_id: user.id,
         p_meal_id: mealId,
         p_schedule_id: scheduleId,
@@ -137,7 +137,7 @@ export function SkipReasonModal({
         p_scheduled_date: scheduledDate || null,
         p_meal_type: mealType || null,
         p_ai_confidence_score: null,
-      }).catch((err: any) => {
+      }).catch((err: unknown) => {
         // Don't fail the operation if reason submission fails
         console.warn("Could not submit skip reason:", err);
       });

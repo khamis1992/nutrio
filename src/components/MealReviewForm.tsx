@@ -134,7 +134,7 @@ export function MealReviewForm({ mealId, mealName, onSubmitted, onCancel }: Meal
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await (supabase.rpc as any)("submit_meal_review", {
+      const { data, error } = await (supabase.rpc as unknown as (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>)("submit_meal_review", {
         p_meal_id: mealId,
         p_user_id: user.id,
         p_rating: rating,

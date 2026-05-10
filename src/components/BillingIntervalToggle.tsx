@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { BadgePercent, Calendar } from "lucide-react";

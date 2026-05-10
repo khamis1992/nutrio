@@ -205,6 +205,7 @@ const MealWizard = ({
 
   useEffect(() => {
     fetchRestaurants();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -219,7 +220,7 @@ const MealWizard = ({
       [currentMealType]: meal,
     }));
 
-    const currentIndex = MEAL_TYPES.indexOf(currentMealType as any);
+    const currentIndex = MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]);
     if (currentIndex < MEAL_TYPES.length - 1) {
       setCurrentMealType(MEAL_TYPES[currentIndex + 1]);
     } else {
@@ -623,7 +624,7 @@ const MealWizard = ({
 
                     <motion.button
                       onClick={() => {
-                        const currentIndex = MEAL_TYPES.indexOf(currentMealType as any);
+                        const currentIndex = MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]);
                         const nextType = MEAL_TYPES[currentIndex + 1];
                         if (nextType) {
                           setCurrentMealType(nextType);
@@ -634,9 +635,9 @@ const MealWizard = ({
                       whileTap={{ scale: 0.98 }}
                       className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-bold text-base shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2"
                     >
-                      {MEAL_TYPES.indexOf(currentMealType as any) < MEAL_TYPES.length - 1 ? (
+                      {MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]) < MEAL_TYPES.length - 1 ? (
                         <>
-                          Next: {MEAL_TYPE_CONFIG[MEAL_TYPES[MEAL_TYPES.indexOf(currentMealType as any) + 1] as keyof typeof MEAL_TYPE_CONFIG].label}
+                          Next: {MEAL_TYPE_CONFIG[MEAL_TYPES[MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]) + 1] as keyof typeof MEAL_TYPE_CONFIG].label}
                           <ChevronRight className="h-5 w-5" />
                         </>
                       ) : (

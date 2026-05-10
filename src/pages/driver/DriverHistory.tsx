@@ -17,13 +17,14 @@ import type { DriverLayoutContext } from "@/components/driver/DriverLayout";
 export default function DriverHistory() {
   const context = useOutletContext<DriverLayoutContext>();
   const driver = context?.driver;
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (driver?.id) {
       fetchHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driver?.id]);
 
   const fetchHistory = async () => {
@@ -50,7 +51,7 @@ export default function DriverHistory() {
   }
 
   // Group jobs by date
-  const groupedJobs = jobs.reduce((groups: any, job) => {
+  const groupedJobs = jobs.reduce((groups: Record<string, unknown[]>, job) => {
     const date = format(new Date(job.created_at), "yyyy-MM-dd");
     if (!groups[date]) groups[date] = [];
     groups[date].push(job);
@@ -85,14 +86,14 @@ export default function DriverHistory() {
 
       {/* Job History */}
       <div className="space-y-4">
-        {Object.entries(groupedJobs).map(([date, dayJobs]: [string, any]) => (
+        {Object.entries(groupedJobs).map(([date, dayJobs]) => (
           <div key={date}>
             <h3 className="font-semibold text-sm text-muted-foreground mb-2 flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               {format(new Date(date), "EEEE, MMMM d")}
             </h3>
             <div className="space-y-2">
-              {dayJobs.map((job: any) => (
+              {(dayJobs as Record<string, unknown>[]).map((job) => (
                 <HistoryCard key={job.id} job={job} />
               ))}
             </div>
@@ -115,7 +116,7 @@ export default function DriverHistory() {
   );
 }
 
-function HistoryCard({ job }: { job: any }) {
+function HistoryCard({ job }: { job: Record<string, unknown> }) {
   const mealName = job.meal_name || "Order";
   const restaurantName = job.customer_name || "Restaurant";
   const isDelivered = job.status === "completed" || job.status === "delivered";

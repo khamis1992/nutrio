@@ -143,8 +143,8 @@ export default function BloodWorkUpload() {
 
       toast({ title: isRTL ? "تم الحفظ بنجاح" : "Saved successfully!" });
       navigate("/health/blood-work/results");
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }

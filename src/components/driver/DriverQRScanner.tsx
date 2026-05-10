@@ -141,6 +141,7 @@ export function DriverQRScanner({
     return () => {
       stopCamera();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle manual code entry

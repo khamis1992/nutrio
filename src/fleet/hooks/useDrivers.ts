@@ -52,21 +52,21 @@ export function useDrivers(options: UseDriversOptions = {}) {
       if (error) throw error;
 
       // Fetch vehicle plates for these drivers
-      const driverIds = (data || []).map((d: any) => d.id);
+      const driverIds = (data || []).map((d: { id: string }) => d.id);
       const plateMap: Record<string, string> = {};
       if (driverIds.length > 0) {
         const { data: vehicles } = await supabase
           .from("vehicles")
           .select("assigned_driver_id, plate_number")
           .in("assigned_driver_id", driverIds);
-        (vehicles || []).forEach((v: any) => {
+        (vehicles || []).forEach((v: { assigned_driver_id?: string | null; plate_number?: string | null }) => {
           if (v.assigned_driver_id && v.plate_number) {
             plateMap[v.assigned_driver_id] = v.plate_number;
           }
         });
       }
 
-      const transformedDrivers: Driver[] = (data || []).map((d: any) => ({
+      const transformedDrivers: Driver[] = (data || []).map((d: { id: string; user_id?: string; phone_number?: string; approval_status?: string; is_active?: boolean; is_online?: boolean; current_lat?: number; current_lng?: number; last_location_update?: string; total_deliveries?: number; rating?: number; wallet_balance?: number; total_earnings?: number; created_at?: string }) => ({
         id: d.id,
         authUserId: d.user_id,
         email: "",
@@ -105,7 +105,7 @@ export function useDrivers(options: UseDriversOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [cityIdsKey, options.status, options.zoneId, options.isOnline, options.search, options.page, options.limit]);
+    }, [options.status, options.isOnline, options.search, options.page, options.limit]);
 
   useEffect(() => {
     fetchDrivers();
@@ -184,7 +184,7 @@ export function useFleetStats(cityIds?: string[]) {
     } finally {
       setIsLoading(false);
     }
-  }, [cityIdsKey]);
+    }, []);
 
   useEffect(() => {
     fetchStats();
@@ -230,7 +230,7 @@ export function useDriverDetail(driverId: string) {
         return;
       }
 
-      const assignedVehicleId: string | undefined = (data as any).assigned_vehicle_id || undefined;
+      const assignedVehicleId: string | undefined = (data as { assigned_vehicle_id?: string }).assigned_vehicle_id || undefined;
 
       setDriver({
         id: data.id,
@@ -372,7 +372,7 @@ export function usePayouts(options: UsePayoutsOptions = {}) {
 
       if (error) throw error;
 
-      const transformedPayouts: Payout[] = (data || []).map((p: any) => ({
+      const transformedPayouts: Payout[] = (data || []).map((p: { id: string; driver_id: string; drivers?: { full_name?: string }; amount?: number; period_start: string; period_end: string; status?: string; processed_at?: string | null; payout_method?: string; created_at: string }) => ({
         id: p.id,
         driverId: p.driver_id,
         driverName: p.drivers?.full_name || 'Unknown Driver',

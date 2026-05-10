@@ -41,7 +41,7 @@ export default function RecoveryPartners() {
     if (filter !== "all") {
       result = result.filter((p) => {
         const services = p.services || [];
-        return services.some((s: any) => {
+        return services.some((s: { name?: string }) => {
           const name = (s.name || "").toLowerCase();
           if (filter === "massage") return name.includes("massage");
           if (filter === "cryotherapy") return name.includes("cryo");
@@ -158,7 +158,7 @@ export default function RecoveryPartners() {
 
                 {/* Services preview */}
                 <div className="flex gap-1.5 mt-3 flex-wrap">
-                  {(partner.services || []).slice(0, 3).map((s: any) => (
+                  {(partner.services || []).slice(0, 3).map((s: { name?: string; credits_required?: number }) => (
                     <Badge key={s.name} variant="outline" className="text-xs">
                       <Zap className="w-2.5 h-2.5 mr-0.5 text-violet-500" />
                       {s.credits_required}

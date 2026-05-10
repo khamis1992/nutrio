@@ -70,7 +70,8 @@ export default function Wallet() {
       });
       navigate('/wallet', { replace: true });
     }
-  }, [searchParams, toast, refresh, navigate]);
+     
+  }, [searchParams, toast, refresh, navigate, t]);
 
   const handleSelectPackage = (pkg: TopUpPackage) => {
     setSelectedPackage(pkg);

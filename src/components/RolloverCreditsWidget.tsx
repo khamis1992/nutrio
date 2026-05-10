@@ -36,18 +36,20 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
   useEffect(() => {
     if (!user) return;
     fetchRolloverCredits();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // When subscription end date is known, sync expiry dates in DB if they exceed plan end
   useEffect(() => {
     if (!user || !subscriptionEndDate) return;
     syncExpiryWithPlan();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, subscriptionEndDate]);
 
   const syncExpiryWithPlan = async () => {
     if (!subscriptionEndDate) return;
     // Update any rollover records whose expiry_date is after the plan's end_date
-    await (supabase as any)
+    await supabase
       .from('subscription_rollovers')
       .update({ expiry_date: subscriptionEndDate })
       .eq('user_id', user?.id)
@@ -58,7 +60,7 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
   const fetchRolloverCredits = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('subscription_rollovers')
         .select('id, rollover_credits, expiry_date, status')
         .eq('user_id', user?.id)

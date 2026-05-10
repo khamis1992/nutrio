@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -162,7 +162,7 @@ const LoadingAdvancer = ({
     }
     const id = setTimeout(() => setProgress((p) => Math.min(100, p + 1.5)), 30);
     return () => clearTimeout(id);
-  }, [progress]);
+  }, [progress, onComplete, setProgress]);
   return null;
 };
 
@@ -224,7 +224,7 @@ const Onboarding = () => {
         console.error('Failed to parse saved onboarding progress:', e);
       }
     }
-  }, []);
+  }, [toast]);
 
   // Save progress to localStorage whenever data or step changes
   useEffect(() => {
@@ -244,8 +244,8 @@ const Onboarding = () => {
   };
 
   // Auto-save draft with debounce
-  const saveDraft = useCallback(
-    debounce((currentData: OnboardingData, currentStep: number) => {
+  const saveDraft = useMemo(
+    () => debounce((currentData: OnboardingData, currentStep: number) => {
       localStorage.setItem(
         AUTOSAVE_KEY,
         JSON.stringify({

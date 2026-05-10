@@ -271,7 +271,7 @@ const AdminDashboard = () => {
       });
     });
 
-    (recentSchedules || []).forEach((s: any) => {
+    (recentSchedules || []).forEach((s: { id: string; meals?: { name: string } | null; order_status: string; created_at: string }) => {
       activities.push({
         id: s.id,
         type: "order",

@@ -152,6 +152,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
       const storedToken = localStorage.getItem("google_fit_access_token");
       setGoogleFitConnected(!!storedToken);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Pick activity → go to detail

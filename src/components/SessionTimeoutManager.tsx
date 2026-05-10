@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -70,6 +71,7 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     return () => {
       broadcastChannelRef.current?.close();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const broadcastActivity = useCallback(() => {

@@ -17,7 +17,7 @@ export function useDashboardRolloverCredits(userId: string | undefined) {
       try {
         const today = getQatarDay();
         const { data } = await withRetry(async () => {
-          const result = await (supabase as any)
+          const result = await supabase
             .from("subscription_rollovers")
             .select("rollover_credits")
             .eq("user_id", userId)

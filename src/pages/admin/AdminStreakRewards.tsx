@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Flame, 
   Plus, 
@@ -111,11 +111,7 @@ export default function AdminStreakRewards() {
   const [formData, setFormData] = useState(defaultFormData);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchRewards();
-  }, []);
-
-  const fetchRewards = async () => {
+  const fetchRewards = useCallback(async () => {
     try {
       // Fetch streak rewards
       const { data: rewardsData, error: rewardsError } = await supabase
@@ -171,7 +167,11 @@ export default function AdminStreakRewards() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchRewards();
+  }, [fetchRewards]);
 
   const handleOpenDialog = (reward?: StreakReward) => {
     if (reward) {
@@ -237,9 +237,9 @@ export default function AdminStreakRewards() {
 
       setDialogOpen(false);
       fetchRewards();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving streak reward:", error);
-      toast({ title: "Error saving streak reward", description: error.message, variant: "destructive" });
+      toast({ title: "Error saving streak reward", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -260,9 +260,9 @@ export default function AdminStreakRewards() {
       setDeleteDialogOpen(false);
       setSelectedReward(null);
       fetchRewards();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting streak reward:", error);
-      toast({ title: "Error deleting streak reward", description: error.message, variant: "destructive" });
+      toast({ title: "Error deleting streak reward", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
     }
   };
 
@@ -277,7 +277,7 @@ export default function AdminStreakRewards() {
 
       toast({ title: `Streak reward ${reward.is_active ? "disabled" : "enabled"}` });
       fetchRewards();
-    } catch (error: any) {
+    } catch {
       toast({ title: "Error updating streak reward", variant: "destructive" });
     }
   };

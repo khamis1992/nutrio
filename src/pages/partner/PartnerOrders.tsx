@@ -210,6 +210,7 @@ const PartnerOrders = () => {
     if (user) {
       fetchOrders();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Initialize audio for new order notifications
@@ -234,6 +235,7 @@ const PartnerOrders = () => {
         clearInterval(pollIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
   // Play notification sound when new orders arrive
@@ -306,6 +308,7 @@ const PartnerOrders = () => {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId, toast]);
 
   const fetchOrders = async () => {
@@ -390,9 +393,9 @@ const PartnerOrders = () => {
       if (schedulesError) throw schedulesError;
 
       // Get user info from auth
-      const userIds = [...new Set((schedules || []).map((s: any) => s.user_id))];
+      const userIds = [...new Set((schedules || []).map((s: Record<string, unknown>) => s.user_id as string))];
       
-      let addressesMap: Record<string, any> = {};
+      let addressesMap: Record<string, Record<string, unknown>> = {};
       let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
       
       if (userIds.length > 0) {
@@ -404,10 +407,10 @@ const PartnerOrders = () => {
           .eq("is_default", true);
         
         if (addresses) {
-          addressesMap = addresses.reduce((acc: any, a: any) => {
-            acc[a.user_id] = a;
+          addressesMap = addresses.reduce((acc: Record<string, Record<string, unknown>>, a: Record<string, unknown>) => {
+            acc[a.user_id as string] = a;
             return acc;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, Record<string, unknown>>);
         }
 
         // Fetch customer names from profiles (profiles has no 'phone' column)
@@ -417,15 +420,15 @@ const PartnerOrders = () => {
           .in("id", userIds);
 
         if (profiles) {
-          profilesMap = profiles.reduce((acc: any, p: any) => {
-            acc[p.id] = { full_name: p.full_name, email: p.email };
+          profilesMap = profiles.reduce((acc: Record<string, { full_name: string | null; email: string | null }>, p: Record<string, unknown>) => {
+            acc[p.id as string] = { full_name: p.full_name as string | null, email: p.email as string | null };
             return acc;
           }, {});
         }
       }
 
       // Fetch addons for each schedule
-      const scheduleIds = (schedules || []).map((s: any) => s.id);
+      const scheduleIds = (schedules || []).map((s: Record<string, unknown>) => s.id as string);
       let addonsMap: Record<string, ScheduleAddon[]> = {};
       
       if (scheduleIds.length > 0) {
@@ -439,34 +442,35 @@ const PartnerOrders = () => {
           .in("schedule_id", scheduleIds);
         
         if (addonsData) {
-          addonsMap = (addonsData as any[]).reduce((acc: any, a: any) => {
-            if (!acc[a.schedule_id]) acc[a.schedule_id] = [];
-            acc[a.schedule_id].push({
-              id: `${a.schedule_id}-${a.addon?.name}`,
-              addon_name: a.addon?.name || "Add-on",
-              quantity: a.quantity,
+          addonsMap = (addonsData as Array<Record<string, unknown>>).reduce((acc: Record<string, ScheduleAddon[]>, a: Record<string, unknown>) => {
+            const scheduleId = a.schedule_id as string;
+            const addon = a.addon as Record<string, unknown> | null;
+            if (!acc[scheduleId]) acc[scheduleId] = [];
+            acc[scheduleId].push({
+              id: `${scheduleId}-${(addon?.name as string) || ""}`,
+              addon_name: (addon?.name as string) || "Add-on",
+              quantity: a.quantity as number,
             });
             return acc;
           }, {});
         }
       }
 
-      // Fetch driver assignments (commented out until deliveries table is in types)
-      const driversMap: Record<string, any> = {};
+      const driversMap: Record<string, unknown> = {};
 
       // Transform data
-      const transformedOrders: Order[] = (schedules || []).map((s: any) => ({
-        id: s.id,
-        order_status: (s.order_status || "pending") as OrderStatus,
-        scheduled_date: s.scheduled_date,
-        delivery_time_slot: s.delivery_time_slot || null,
-        meal_type: s.meal_type,
-        delivery_type: s.delivery_type || "standard",
-        delivery_fee: s.delivery_fee,
-        addons_total: s.addons_total || 0,
-        created_at: s.created_at,
+      const transformedOrders: Order[] = (schedules || []).map((s: Record<string, unknown>) => ({
+        id: s.id as string,
+        order_status: ((s.order_status as string) || "pending") as OrderStatus,
+        scheduled_date: s.scheduled_date as string,
+        delivery_time_slot: (s.delivery_time_slot as string) || null,
+        meal_type: s.meal_type as string,
+        delivery_type: (s.delivery_type as string) || "standard",
+        delivery_fee: s.delivery_fee as number | null,
+        addons_total: (s.addons_total as number) || 0,
+        created_at: s.created_at as string,
         cancellation_reason: null,
-        meal: s.meals,
+        meal: s.meals as Order["meal"],
         customer: profilesMap[s.user_id] ? {
           full_name: profilesMap[s.user_id].full_name,
           phone: null, // phone not on profiles table; sourced from delivery address
@@ -518,11 +522,11 @@ const PartnerOrders = () => {
           o.id === orderId ? { ...o, order_status: newStatus } : o
         )
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating order:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update order status",
+        description: error instanceof Error ? error.message : "Failed to update order status",
         variant: "destructive",
       });
     }

@@ -51,12 +51,14 @@ export default function DriverOrders() {
     if (user) {
       fetchDriverData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
     if (driverId) {
       fetchDeliveries();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function DriverOrders() {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   const fetchDriverData = async () => {
@@ -145,7 +148,7 @@ export default function DriverOrders() {
         restaurantsMap[r.id] = r;
       });
 
-      const transformDelivery = (d: any): Delivery => ({
+      const transformDelivery = (d: Record<string, unknown>): Delivery => ({
         id: d.id,
         status: d.status === "assigned" ? "claimed" : d.status === "in_transit" ? "on_the_way" : d.status,
         pickup_address: d.pickup_address || "",

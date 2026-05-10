@@ -65,11 +65,11 @@ export const LogoUpload = ({ currentLogoUrl, onLogoChange, restaurantId }: LogoU
       onLogoChange(publicUrl);
 
       toast({ title: "Logo uploaded successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload logo",
+        description: error instanceof Error ? error.message : "Failed to upload logo",
         variant: "destructive",
       });
     } finally {

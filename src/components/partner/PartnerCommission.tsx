@@ -52,6 +52,7 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
     if (user && restaurantId) {
       fetchCommissionData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, restaurantId, dateRange]);
 
   const fetchCommissionData = async () => {
@@ -95,7 +96,7 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
 
       // Transform data - commission fields may exist from trigger but aren't in generated types
       const transformedOrders: OrderCommission[] = (ordersData || []).map(order => {
-        const raw = order as any;
+        const raw = order as Record<string, unknown>;
         return {
           id: order.id,
           total_amount: Number(order.total_amount) || 0,
@@ -104,7 +105,7 @@ export function PartnerCommission({ restaurantId, dateRange = "month" }: Partner
           restaurant_payout: Number(raw.restaurant_payout) || 0,
           status: order.status,
           created_at: order.created_at,
-          restaurant_name: (order as any).restaurant?.name,
+          restaurant_name: ((order as Record<string, unknown>).restaurant as { name?: string } | undefined)?.name,
         };
       });
 

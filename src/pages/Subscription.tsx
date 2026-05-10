@@ -47,7 +47,7 @@ const TIER_NAMES: Record<string, string> = {
   vip: "VIP",
 };
 
-function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval, t: any, isRTL: boolean): PlanCardData {
+function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval, t: (key: string) => string, isRTL: boolean): PlanCardData {
   const meta = TIER_META[p.tier] ?? TIER_META.basic;
   const monthlyPrice = p.price_qar ?? 0;
   const price = billingInterval === "annual" ? monthlyPrice * 10 : monthlyPrice;
@@ -108,7 +108,7 @@ export default function SubscriptionPage() {
     const loadRollovers = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from('subscription_rollovers')
           .select('rollover_credits')
           .eq('user_id', user.id)
@@ -153,15 +153,16 @@ export default function SubscriptionPage() {
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   useEffect(() => {
-    if (subscription && (subscription as any).auto_renew !== undefined) {
-      setAutoRenew((subscription as any).auto_renew);
+    if (subscription) {
+      setAutoRenew((subscription as { auto_renew?: boolean }).auto_renew ?? true);
     }
-  }, [subscription]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscription?.id, (subscription as { auto_renew?: boolean })?.auto_renew]);
 
   const handleToggleAutoRenew = async (value: boolean) => {
     if (!subscription?.id) return;
     setAutoRenewLoading(true);
-    const { error } = await (supabase.rpc as any)("toggle_subscription_auto_renew", {
+    const { error } = await supabase.rpc("toggle_subscription_auto_renew", {
       p_subscription_id: subscription.id,
       p_auto_renew: value,
     });
@@ -259,7 +260,7 @@ export default function SubscriptionPage() {
         if (walletBalance < selectedPlan.price) {
           throw new Error(`Insufficient wallet balance. You have QAR ${walletBalance.toFixed(2)} but need QAR ${selectedPlan.price}. Please top up your wallet or use a card.`);
         }
-        const { error: walletError } = await (supabase.rpc as any)("credit_wallet", {
+        const { error: walletError } = await supabase.rpc("credit_wallet", {
           p_user_id: user.id,
           p_amount: -selectedPlan.price,
           p_type: "debit",
@@ -271,7 +272,7 @@ export default function SubscriptionPage() {
         if (walletError) throw walletError;
       }
 
-      const { data: result, error } = await (supabase.rpc as any)("upgrade_subscription", {
+      const { data: result, error } = await supabase.rpc("upgrade_subscription", {
         p_subscription_id: subscription.id,
         p_new_tier: selectedPlan.tier,
         p_new_billing_interval: selectedBillingInterval,
@@ -330,17 +331,17 @@ export default function SubscriptionPage() {
     setIsProcessing(true);
     if (subscription?.id) {
       try {
-        const { data, error } = await (supabase.rpc as any)("reactivate_subscription", {
+        const { data, error } = await supabase.rpc("reactivate_subscription", {
           p_subscription_id: subscription.id,
         });
         if (error) throw error;
-        const result = data as any;
+        const result = data as { success?: boolean; error?: string } | null;
         if (!result?.success) throw new Error(result?.error || "Reactivation failed");
 
         toast({ title: t("subscription_reactivated_toast"), description: "Your subscription has been successfully reactivated!" });
         await refetch();
-      } catch (err: any) {
-        toast({ title: "Error", description: `Failed to reactivate subscription: ${err.message}`, variant: "destructive" });
+      } catch (err) {
+        toast({ title: "Error", description: `Failed to reactivate subscription: ${err instanceof Error ? err.message : "Unknown error"}`, variant: "destructive" });
       }
     }
     setIsProcessing(false);

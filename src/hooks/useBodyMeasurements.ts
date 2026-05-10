@@ -25,7 +25,7 @@ export function useBodyMeasurements(userId: string | undefined) {
     try {
       setLoading(true);
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("body_measurements")
         .select("id, log_date, weight_kg, waist_cm, hip_cm, chest_cm, body_fat_percent, muscle_mass_percent, notes")
         .eq("user_id", userId)
@@ -57,7 +57,7 @@ export function useBodyMeasurements(userId: string | undefined) {
     if (!userId) return;
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("body_measurements")
         .insert({
           user_id: userId,
@@ -83,7 +83,7 @@ export function useBodyMeasurements(userId: string | undefined) {
     if (!userId) return;
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("body_measurements")
         .delete()
         .eq("id", id)

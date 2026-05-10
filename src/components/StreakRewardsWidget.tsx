@@ -26,6 +26,7 @@ export function StreakRewardsWidget() {
   useEffect(() => {
     if (!user) return;
     fetchStreakData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchStreakData = async () => {

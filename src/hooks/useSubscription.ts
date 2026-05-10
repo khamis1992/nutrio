@@ -99,7 +99,15 @@ export const useSubscription = (): UseSubscriptionReturn => {
       }
 
       if (data) {
-        const row = data as any;
+        type SubscriptionRow = {
+          id: string; plan: string; meals_per_month: number; meals_per_week: number;
+          billing_interval: string; price_qar: number; status: string;
+          current_period_start: string | null; current_period_end: string | null;
+          cancel_at_period_end: boolean; daily_meal_quota: number; snacks_per_month: number;
+          snacks_used_this_month: number; stripe_subscription_id: string | null;
+          created_at: string; updated_at: string; plan_id: string | null;
+        };
+        const row = data as unknown as SubscriptionRow;
         const snacksPerMonth = row.snacks_per_month ?? 0;
         const snacksUsedThisMonth = row.snacks_used_this_month ?? 0;
 
@@ -327,14 +335,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     }
   };
 
-  const stableSubscription = useMemo(() => subscription, [
-    subscription?.id,
-    subscription?.status,
-    subscription?.meals_used_this_month,
-    subscription?.meals_used_this_week,
-    subscription?.snacks_used_this_month,
-    subscription?.active,
-  ]);
+  const stableSubscription = useMemo(() => subscription, [subscription]);
 
   return {
     subscription: stableSubscription,

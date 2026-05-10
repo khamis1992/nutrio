@@ -132,7 +132,7 @@ export default function RecoveryDetail() {
                 {isRTL ? t("recovery_opening_hours_ar") : t("recovery_opening_hours")}
               </h3>
               <div className="grid grid-cols-2 gap-1.5 text-xs">
-                {Object.entries(partner.opening_hours).map(([day, hours]: [string, any]) => (
+                {Object.entries(partner.opening_hours).map(([day, hours]: [string, { open: string; close: string }]) => (
                   <div key={day} className="flex justify-between">
                     <span className="text-muted-foreground">{day.slice(0, 3)}</span>
                     <span className="font-medium">

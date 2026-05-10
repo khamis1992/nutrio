@@ -123,7 +123,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
 
     setIsProcessing(true);
     try {
-      const { data, error } = await (supabase.rpc as any)('create_subscription', {
+      const { data, error } = await supabase.rpc('create_subscription', {
         p_user_id: user.id,
         p_tier: tier,
         p_billing_interval: interval,
@@ -180,7 +180,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
         return { success: false, error: 'No active subscription found' };
       }
 
-      const { data, error } = await (supabase.rpc as any)('upgrade_subscription', {
+      const { data, error } = await supabase.rpc('upgrade_subscription', {
         p_subscription_id: subscription.id,
         p_new_tier: tier,
         p_new_billing_interval: interval,
@@ -233,7 +233,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
 
       if (!subscription) return [];
 
-      const { data, error } = await (supabase.rpc as any)('get_win_back_offers', {
+      const { data, error } = await supabase.rpc('get_win_back_offers', {
         p_user_id: user.id,
         p_subscription_id: subscription.id,
         p_step: step,
@@ -270,7 +270,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
         return { success: false, error: 'No active subscription found' };
       }
 
-      const { data, error } = await (supabase.rpc as any)('process_cancellation', {
+      const { data, error } = await supabase.rpc('process_cancellation', {
         p_subscription_id: subscription.id,
         p_step: step,
         p_reason: reason,
@@ -346,7 +346,7 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
         return { success: false, error: 'No paused subscription found' };
       }
 
-      const { data, error } = await (supabase.rpc as any)('resume_subscription', {
+      const { data, error } = await supabase.rpc('resume_subscription', {
         p_subscription_id: subscription.id,
       });
 

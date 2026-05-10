@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,11 +39,7 @@ export default function AdminIPManagement() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     
     try {
@@ -81,17 +77,22 @@ export default function AdminIPManagement() {
       } else {
         setUserIPLogs(logData || []);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching data:", error);
+      const message = error instanceof Error ? error.message : "Failed to fetch IP data";
       toast({
         title: "Error",
-        description: "Failed to fetch IP data: " + error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleBlockIP = async () => {
     if (!newIP) {
@@ -121,11 +122,12 @@ export default function AdminIPManagement() {
       setNewIP("");
       setReason("");
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error blocking IP:", error);
+      const message = error instanceof Error ? error.message : "Failed to block IP address";
       toast({
         title: "Error",
-        description: "Failed to block IP address: " + error.message,
+        description: message,
         variant: "destructive",
       });
     }
@@ -146,11 +148,12 @@ export default function AdminIPManagement() {
       });
 
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error unblocking IP:", error);
+      const message = error instanceof Error ? error.message : "Failed to unblock IP address";
       toast({
         title: "Error",
-        description: "Failed to unblock IP address: " + error.message,
+        description: message,
         variant: "destructive",
       });
     }

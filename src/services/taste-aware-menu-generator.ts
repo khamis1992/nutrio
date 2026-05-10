@@ -2,14 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { TasteProfile } from "./taste-profile-calculator";
 import type { MealPlanDay } from "@/lib/meal-plan-generator";
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const FREE_MODELS = [
-  "arcee-ai/trinity-large-preview:free",
-  "google/gemini-2.5-flash-lite:free",
-  "openai/gpt-oss-120b:free",
-  "deepseek/deepseek-v3-0324:free",
-  "x-ai/grok-4.1-fast:free",
-];
+async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("proxy-openrouter", {
+    body: { systemPrompt, userPrompt },
+  });
+  if (error || !data?.content) return "";
+  return data.content;
+}
 
 interface TasteAwareMeal {
   meal_id: string;
@@ -30,42 +29,6 @@ interface MealOption {
   fat_g: number | null;
   price: number | null;
   ingredients: string | null;
-}
-
-async function callOpenRouter(systemPrompt: string, userPrompt: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || "";
-  if (!apiKey) return "";
-
-  for (const model of FREE_MODELS) {
-    try {
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": window.location.origin,
-          "X-Title": "Nutrio Taste-Aware Menu",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.6,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || "";
-      }
-    } catch {
-      continue;
-    }
-  }
-  return "";
 }
 
 /**
@@ -132,7 +95,8 @@ Generate a 7-day plan (28 meals total). Include ~6 discovery meals. Match taste 
   if (aiResponse) {
     try {
       const parsed = JSON.parse(aiResponse.replace(/```json\n?|\n?```/g, ""));
-      const recommendations = (parsed.meals || []).map((m: any) => ({
+      type ParsedMeal = { meal_id: string; meal_type?: string; day_index?: number; confidence?: number; reason?: string };
+      const recommendations = (parsed.meals || []).map((m: ParsedMeal) => ({
         meal_id: m.meal_id,
         meal_type: m.meal_type || "lunch",
         day_index: m.day_index || 0,
@@ -190,7 +154,13 @@ Generate a 7-day plan (28 meals total). Include ~6 discovery meals. Match taste 
   };
 }
 
-function buildMeal(rec: any, mealMap: Map<string, MealOption>): any {
+type BuildMealResult = {
+  id: string; name: string; description: null; calories: number | null; protein_g: number | null;
+  carbs_g: number | null; fat_g: number | null; price: number | null; restaurant_name: null;
+  meal_type: string | null; rating: null; image_url: null; tags: null;
+  is_vegetarian: null; is_vegan: null; is_gluten_free: null;
+} | null;
+function buildMeal(rec: { meal_id: string } | undefined, mealMap: Map<string, MealOption>): BuildMealResult {
   if (!rec) return null;
   const m = mealMap.get(rec.meal_id);
   if (!m) return null;

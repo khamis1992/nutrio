@@ -1,13 +1,5 @@
 import type { BloodMarker } from "@/lib/blood-markers";
-
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-const FREE_MODELS = [
-  "google/gemini-2.5-flash-lite:free",
-  "deepseek/deepseek-v3-0324:free",
-  "arcee-ai/trinity-large-preview:free",
-  "openai/gpt-oss-120b:free",
-];
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
   age?: number;
@@ -21,11 +13,6 @@ export async function analyzeBloodWork(
   markers: BloodMarker[],
   profile: UserProfile
 ): Promise<string> {
-  const apiKey = import.meta?.env?.VITE_OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return getFallbackAnalysis(markers);
-  }
-
   const systemPrompt = `You are a clinical nutritionist and health analyst. Analyze blood test results and provide:
 1. Summary of findings (which markers are abnormal)
 2. Potential health implications
@@ -50,37 +37,14 @@ ${markerList}
 
 Please provide a comprehensive analysis with actionable diet and lifestyle recommendations.`;
 
-  for (const model of FREE_MODELS) {
-    try {
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": window.location.origin,
-          "X-Title": "Nutrio Blood Analysis",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.5,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || getFallbackAnalysis(markers);
-      }
-    } catch {
-      continue;
-    }
+  const { data, error } = await supabase.functions.invoke("proxy-openrouter", {
+    body: { systemPrompt, userPrompt },
+  });
+  if (error || !data?.content) {
+    return getFallbackAnalysis(markers);
   }
 
-  return getFallbackAnalysis(markers);
+  return data.content;
 }
 
 function getFallbackAnalysis(markers: BloodMarker[]): string {

@@ -71,6 +71,7 @@ const PartnerAnalytics = () => {
     if (user) {
       fetchAnalytics();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchAnalytics = async () => {
@@ -94,7 +95,7 @@ const PartnerAnalytics = () => {
       setRestaurantId(restaurant.id);
       // Net payout per meal = gross × (1 - commission%)
       const grossRate = restaurant.payout_rate || 0;
-      const commissionRate = (restaurant as any).commission_rate ?? 18;
+      const commissionRate = restaurant.commission_rate ?? 18;
       const payoutRate = grossRate * (1 - commissionRate / 100);
 
       // Get meals for this restaurant

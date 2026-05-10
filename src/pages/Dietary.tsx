@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -114,9 +114,10 @@ const Dietary = () => {
     }
   };
 
+  const fetchDietaryDataCb = useCallback(fetchDietaryData, [user, toast, t]);
   useEffect(() => {
-    fetchDietaryData();
-  }, [user]);
+    fetchDietaryDataCb();
+  }, [fetchDietaryDataCb]);
 
   const isLoading = dietaryLoading || dietTagsLoading;
 

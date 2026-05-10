@@ -111,7 +111,8 @@ export async function fetchMarkerHistory(
     .eq("blood_work_records.user_id", userId)
     .order("blood_work_records(test_date)", { ascending: true });
   if (error) throw error;
-  return (data as any[]).map((d) => ({
+  type MarkerWithJoin = { value: number; blood_work_records: { test_date: string } };
+  return (data as MarkerWithJoin[]).map((d) => ({
     test_date: d.blood_work_records.test_date,
     value: Number(d.value),
   }));

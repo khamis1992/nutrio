@@ -223,7 +223,7 @@ export async function calculateTasteProfile(userId: string): Promise<TasteProfil
     // Save to profiles table
     await supabase
       .from("profiles")
-      .update({ taste_profile: profile as any })
+      .update({ taste_profile: profile })
       .eq("user_id", userId);
 
     return profile;
@@ -242,7 +242,7 @@ export async function getTasteProfile(userId: string): Promise<TasteProfile> {
       .single();
 
     if (error) return DEFAULT_PROFILE;
-    return (data?.taste_profile as TasteProfile) || DEFAULT_PROFILE;
+    return (data?.taste_profile as unknown as TasteProfile) || DEFAULT_PROFILE;
   } catch {
     return DEFAULT_PROFILE;
   }

@@ -37,7 +37,7 @@ export default function Checkout() {
       if (type === 'wallet' && packageId) {
         const paymentId = crypto.randomUUID();
         
-        const { data, error } = await (supabase.rpc as any)('process_payment_atomic', {
+        const { data, error } = await supabase.rpc('process_payment_atomic', {
           p_payment_id: paymentId,
           p_user_id: user.id,
           p_amount: amount,
@@ -65,15 +65,16 @@ export default function Checkout() {
         replace: true,
         state: { paymentSuccess: true }
       });
-    } catch (err: any) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Payment processing failed';
       console.error('Payment processing error:', err);
       toast({
         title: t('payment_processing_error'),
-        description: err.message || 'Failed to process payment. Please try again or contact support.',
+        description: errorMessage,
         variant: 'destructive',
       });
       // Navigate to failure state
-      handlePaymentFailure(err.message || 'Payment processing failed');
+      handlePaymentFailure(errorMessage);
     }
   };
 

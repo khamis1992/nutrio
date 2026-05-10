@@ -477,6 +477,7 @@ const OrderHistory = () => {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, fetchScheduledMeals, toast]);
 
   // Check if user completed onboarding
@@ -565,7 +566,7 @@ const OrderHistory = () => {
 
   const getStatusInfo = (status: string) => {
     const config = statusConfig[status] || statusConfig.pending;
-    return { ...config, label: t(config.labelKey as any) };
+    return { ...config, label: t(config.labelKey) };
   };
 
   const getTotalCalories = (items: OrderItem[]) => {

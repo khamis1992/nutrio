@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -42,13 +42,7 @@ export function NotificationPreferences() {
   const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFERENCES);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchPreferences();
-    }
-  }, [user]);
-
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     const { data, error } = await supabase
       .from("profiles")
       .select("notification_preferences")
@@ -63,7 +57,22 @@ export function NotificationPreferences() {
       setPreferences({ ...DEFAULT_PREFERENCES, ...(data.notification_preferences as NotificationPreferences) });
     }
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPreferences();
+    }
+  }, [fetchPreferences, user]);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("notification_preferences")
+      .eq("id", user?.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching preferences:", error);
+    }
 
   const updatePreference = async (key: keyof NotificationPreferences, value: boolean) => {
     const newPreferences = { ...preferences, [key]: value };

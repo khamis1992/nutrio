@@ -131,6 +131,7 @@ export function useHealthIntegration() {
   }, [platform]);
 
   // Sync health data
+   
   const syncHealthData = useCallback(async (dateRange: { start: Date; end: Date }) => {
     if (!user) return null;
     
@@ -187,6 +188,7 @@ export function useHealthIntegration() {
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, user]);
 
   // Write meal data to health platform

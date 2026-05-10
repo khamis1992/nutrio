@@ -238,7 +238,7 @@ export const keyboard = {
   setResizeMode: async (mode: 'none' | 'native' | 'body') => {
     if (isNative) {
       // Cast to any to bypass strict type checking - these are valid values
-      await Keyboard.setResizeMode({ mode: mode as any });
+      await Keyboard.setResizeMode({ mode: mode as unknown as Parameters<typeof Keyboard.setResizeMode>[0]['mode'] });
     }
   },
 
@@ -361,7 +361,7 @@ export const pushNotifications = {
   /**
    * Remove delivered notifications
    */
-  removeDeliveredNotifications: async (notifications: any[]) => {
+  removeDeliveredNotifications: async (notifications: { id: string }[]) => {
     if (isNative) {
       await PushNotifications.removeDeliveredNotifications({ notifications });
     }
@@ -379,7 +379,7 @@ export const pushNotifications = {
   /**
    * Listen for push notification received
    */
-  onPushNotificationReceived: (callback: (notification: any) => void) => {
+  onPushNotificationReceived: (callback: (notification: { title?: string; body?: string; data?: Record<string, unknown> }) => void) => {
     if (isNative) {
       PushNotifications.addListener('pushNotificationReceived', callback);
     }
@@ -388,7 +388,7 @@ export const pushNotifications = {
   /**
    * Listen for push notification token
    */
-  onPushNotificationToken: (callback: (token: any) => void) => {
+  onPushNotificationToken: (callback: (token: { value: string }) => void) => {
     if (isNative) {
       PushNotifications.addListener('registration', callback);
     }
@@ -397,7 +397,7 @@ export const pushNotifications = {
   /**
    * Listen for push notification action performed
    */
-  onPushNotificationActionPerformed: (callback: (action: any) => void) => {
+  onPushNotificationActionPerformed: (callback: (action: { notification: { title?: string; body?: string; data?: Record<string, unknown> } }) => void) => {
     if (isNative) {
       PushNotifications.addListener('pushNotificationActionPerformed', callback);
     }
@@ -412,7 +412,7 @@ export const localNotifications = {
   /**
    * Schedule a local notification
    */
-  schedule: async (notifications: any[]) => {
+  schedule: async (notifications: { title?: string; body?: string; id?: number; scheduleAt?: Date }[]) => {
     if (isNative) {
       return await LocalNotifications.schedule({ notifications });
     }
@@ -426,7 +426,7 @@ export const localNotifications = {
     if (isNative) {
       // Handle undefined case
       const cancelOptions = options ?? { notifications: [] };
-      await LocalNotifications.cancel(cancelOptions as any);
+      await LocalNotifications.cancel(cancelOptions);
     }
   },
 
@@ -443,7 +443,7 @@ export const localNotifications = {
   /**
    * Register for action types
    */
-  registerActionTypes: async (actionTypes: any[]) => {
+  registerActionTypes: async (actionTypes: { id: string; actions: { id: string; title: string; destructive?: boolean; authenticationRequired?: boolean; foreground?: boolean }[] }[]) => {
     if (isNative) {
       await LocalNotifications.registerActionTypes({ types: actionTypes });
     }
@@ -452,7 +452,7 @@ export const localNotifications = {
   /**
    * Listen for notification action performed
    */
-  onActionPerformed: (callback: (notification: any) => void) => {
+  onActionPerformed: (callback: (notification: { title?: string; body?: string; data?: Record<string, unknown> }) => void) => {
     if (isNative) {
       LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
         callback(action.notification);

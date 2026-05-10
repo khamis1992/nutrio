@@ -72,9 +72,9 @@ export function useAffiliateApplication() {
 
       setApplication(data);
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error applying for affiliate:", err);
-      return { success: false, error: err.message };
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   };
 

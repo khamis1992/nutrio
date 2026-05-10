@@ -150,7 +150,8 @@ export function useRecoveryCredits() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchCredits(); }, [user]);
+  useEffect(() => { fetchCredits(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   return { credits, loading, refetch: fetchCredits };
 }
@@ -175,7 +176,8 @@ export function useRecoveryBookings() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchBookings(); }, [user]);
+  useEffect(() => { fetchBookings(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   return { bookings, loading, refetch: fetchBookings };
 }

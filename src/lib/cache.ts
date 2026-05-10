@@ -6,7 +6,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // In-memory cache fallback when Redis is not available
-const memoryCache = new Map<string, { value: any; expiry: number }>();
+const memoryCache = new Map<string, { value: unknown; expiry: number }>();
 
 interface CacheConfig {
   ttl: number; // Time to live in seconds
@@ -14,7 +14,7 @@ interface CacheConfig {
 }
 
 class CacheManager {
-  private redis: any = null;
+  private redis: { get(key: string): Promise<string | null>; setex(key: string, ttl: number, value: string): Promise<void>; del(...keys: string[]): Promise<void>; keys(pattern: string): Promise<string[]> } | null = null;
   private isRedisAvailable = false;
 
   constructor() {
@@ -56,7 +56,7 @@ class CacheManager {
     }
   }
 
-  async set(key: string, value: any, ttlSeconds: number = 300): Promise<void> {
+  async set(key: string, value: unknown, ttlSeconds: number = 300): Promise<void> {
     try {
       // Try Redis first
       if (this.isRedisAvailable && this.redis) {
@@ -166,7 +166,7 @@ export async function getCachedChallenges() {
   let data = await cache.get(key);
   
   if (!data) {
-    const { data: challenges } = await (supabase.rpc as any)("get_active_challenges");
+    const { data: challenges } = await supabase.rpc("get_active_challenges");
     data = challenges;
     if (data) {
       await cache.set(key, data, 300); // 5 minutes

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -104,19 +104,7 @@ export default function AdminSupport() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchTickets();
-    fetchStats();
-  }, []);
-
-  useEffect(() => {
-    if (selectedTicket) {
-      fetchMessages(selectedTicket.id);
-      fetchAttachments(selectedTicket.id);
-    }
-  }, [selectedTicket]);
-
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     try {
       const { data: ticketsData, error } = await supabase
         .from("support_tickets")
@@ -148,30 +136,42 @@ export default function AdminSupport() {
       console.error("Error fetching tickets:", error);
       toast({
         title: "Error",
-        description: "Failed to load support tickets",
+        description: "Failed to fetch support tickets",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("support_tickets")
         .select("status");
 
+      if (error) throw error;
+
       const total = data?.length || 0;
-      const open = data?.filter(t => t.status === 'open').length || 0;
-      const inProgress = data?.filter(t => t.status === 'in_progress').length || 0;
-      const resolved = data?.filter(t => t.status === 'resolved' || t.status === 'closed').length || 0;
+      const open = data?.filter(t => t.status === "open").length || 0;
+      const inProgress = data?.filter(t => t.status === "in_progress").length || 0;
+      const resolved = data?.filter(t => t.status === "resolved" || t.status === "closed").length || 0;
 
       setStats({ total, open, inProgress, resolved });
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTickets();
+    fetchStats();
+  }, [fetchTickets, fetchStats]);
+
+  useEffect(() => {
+    if (selectedTicket) {
+      fetchMessages(selectedTicket.id);
+      fetchAttachments(selectedTicket.id);
+    }
+  }, [selectedTicket]);
 
   const fetchMessages = async (ticketId: string) => {
     try {
@@ -212,7 +212,7 @@ export default function AdminSupport() {
 
   const handleStatusChange = async (ticketId: string, newStatus: string) => {
     try {
-      const updateData: any = { status: newStatus };
+      const updateData: Partial<Pick<Ticket, 'status' | 'assigned_to' | 'resolved_at'>> = { status: newStatus as Ticket['status'] };
       if (newStatus === 'resolved') {
         updateData.resolved_at = new Date().toISOString();
       }
@@ -232,7 +232,7 @@ export default function AdminSupport() {
       fetchStats();
       
       if (selectedTicket?.id === ticketId) {
-        setSelectedTicket(prev => prev ? { ...prev, status: newStatus as any } : null);
+        setSelectedTicket(prev => prev ? { ...prev, status: newStatus as Ticket['status'] } : null);
       }
     } catch (error) {
       console.error("Error updating status:", error);

@@ -24,18 +24,20 @@ export default function DriverEarnings() {
     month: { deliveries: 0, earnings: 0 },
     tips: 0,
   });
-  const [recentEarnings, setRecentEarnings] = useState<any[]>([]);
+  const [recentEarnings, setRecentEarnings] = useState<{ id: string; amount: number; type: string; description: string; created_at: string }[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchDriverData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
     if (driverId) {
       fetchEarnings();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   const fetchDriverData = async () => {
@@ -86,10 +88,10 @@ export default function DriverEarnings() {
       );
       const monthDeliveries = deliveries || [];
 
-      const calcEarnings = (list: any[]) =>
-        list.reduce((sum, d) => sum + (d.driver_earnings || 0), 0);
-      const calcTips = (list: any[]) =>
-        list.reduce((sum, d) => sum + ((d.driver_earnings || 0) * 0.2), 0); // Estimate 20% as tips
+      const calcEarnings = (list: Record<string, unknown>[]) =>
+        list.reduce((sum, d) => sum + ((d.driver_earnings as number) || 0), 0);
+      const calcTips = (list: Record<string, unknown>[]) =>
+        list.reduce((sum, d) => sum + (((d.driver_earnings as number) || 0) * 0.2), 0); // Estimate 20% as tips
 
       setStats({
         today: {

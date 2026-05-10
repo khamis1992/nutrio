@@ -169,7 +169,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
       }
     };
     load();
-  }, [user, todayStr]);
+  }, [user, todayStr, burnedCaloriesProp]);
 
   const calLeft = Math.max(0, focusCalories - totalCalories + totalBurned);
   const dateLabel = format(selectedDate, "EEE, MMM d");

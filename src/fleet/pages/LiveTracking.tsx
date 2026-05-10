@@ -93,7 +93,7 @@ export default function LiveTracking() {
 
       if (error) throw error;
 
-      const transformedDrivers: Driver[] = (data || []).map((d: any) => ({
+      const transformedDrivers: Driver[] = (data || []).map((d: { id: string; user_id?: string; email?: string; phone_number?: string; full_name?: string; city_id?: string; assigned_zone_ids?: string[]; approval_status?: string; is_active?: boolean; is_online?: boolean; current_lat?: number; current_lng?: number; last_location_update?: string; total_deliveries?: number; rating?: number; cancellation_rate?: number; wallet_balance?: number; total_earnings?: number; created_at?: string }) => ({
         id: d.id,
         authUserId: d.user_id,
         email: d.email || "",

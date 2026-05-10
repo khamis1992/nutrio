@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Trophy, Medal, Users, TrendingUp, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,11 +24,7 @@ export function AffiliateLeaderboard() {
   const [loading, setLoading] = useState(true);
   const [userRank, setUserRank] = useState<{ earnings: number; referrals: number } | null>(null);
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [user]);
-
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       const { data: earningsData, error: earningsError } = await supabase
         .rpc('get_affiliate_leaderboard_earnings', { limit_count: 10 });
@@ -58,7 +54,11 @@ export function AffiliateLeaderboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard, user]);
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Trophy className="w-4 h-4 text-yellow-500" />;

@@ -169,6 +169,7 @@ const OrderDetail = () => {
     if (user && id) {
       fetchOrderDetail();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, id]);
 
   useEffect(() => {
@@ -217,6 +218,7 @@ const OrderDetail = () => {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, toast]);
 
   // Fetch driver info when the order is out for delivery
@@ -235,7 +237,7 @@ const OrderDetail = () => {
           .limit(1)
           .maybeSingle();
 
-        const driver = (data as any)?.drivers;
+        const driver = (data as { drivers?: { full_name: string; phone_number: string } | null })?.drivers;
         // Always set driver name; phone may be null (shown as disabled button)
         if (driver) {
           setDriverName(driver.full_name || null);
@@ -332,7 +334,7 @@ const OrderDetail = () => {
         })),
         meal: mealData ? {
           ...mealData,
-          diet_tags: mealData.meal_diet_tags?.map((mdt: any) => mdt.diet_tags).filter(Boolean) || [],
+          diet_tags: mealData.meal_diet_tags?.map((mdt: { diet_tags: { name: string } | null }) => mdt.diet_tags).filter(Boolean) || [],
         } : null,
       };
 
@@ -357,9 +359,9 @@ const OrderDetail = () => {
 
       if (error) throw error;
       setOrder((prev) => prev ? { ...prev, order_status: newStatus } : null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating order:", error);
-      alert(error.message || "Failed to update order");
+      alert(error instanceof Error ? error.message : "Failed to update order");
     } finally {
       setUpdating(false);
     }
@@ -391,8 +393,8 @@ const OrderDetail = () => {
       
       if (!data?.success) throw new Error(t("order_cancel_fail"));
       setOrder(prev => prev ? { ...prev, order_status: "cancelled" } : null);
-    } catch (err: any) {
-      const errorMessage = err.message || "";
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "";
       if (errorMessage.includes('preparing')) {
         toast({
           title: t("order_cannot_cancel"),
@@ -400,7 +402,7 @@ const OrderDetail = () => {
           variant: "destructive",
         });
       } else {
-        alert(err.message || t("order_cancel_fail"));
+        alert(err instanceof Error ? err.message : t("order_cancel_fail"));
       }
     } finally {
       setUpdating(false);

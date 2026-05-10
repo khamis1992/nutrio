@@ -92,6 +92,7 @@ export function useAffiliateProgram() {
     if (user && settings.enabled) {
       fetchAffiliateData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, settings.enabled]);
 
   const fetchSettings = async () => {
@@ -225,8 +226,8 @@ export function useAffiliateProgram() {
 
       await fetchAffiliateData();
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
     }
   };
 

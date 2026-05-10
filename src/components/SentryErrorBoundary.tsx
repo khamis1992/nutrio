@@ -64,7 +64,7 @@ export class SentryErrorBoundary extends Component<Props, State> {
 
 // Hook to use in functional components
 export function useErrorHandler() {
-  return (error: Error, context?: Record<string, any>) => {
+  return (error: Error, context?: Record<string, unknown>) => {
     console.error("Handled error:", error);
     
     if (!import.meta.env.DEV) {

@@ -54,6 +54,7 @@ export function RecoveryBookingDialog({ partner, open, onClose, onBookingComplet
       d.setDate(d.getDate() + 1);
     }
     return days;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleConfirm = async () => {
@@ -77,10 +78,10 @@ export function RecoveryBookingDialog({ partner, open, onClose, onBookingComplet
       toast({
         title: isRTL ? t("recovery_booking_confirmed_ar") : t("recovery_booking_confirmed"),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Booking failed",
-        description: err.message,
+        description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",
       });
     }

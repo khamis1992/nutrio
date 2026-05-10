@@ -91,11 +91,11 @@ export const ChangePasswordDialog = ({
         setSuccess(false);
         onClose();
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error changing password:", err);
       toast({
         title: "Error",
-        description: err.message || "Failed to change password. Please try again.",
+        description: err instanceof Error ? err.message : "Failed to change password. Please try again.",
         variant: "destructive",
       });
     } finally {

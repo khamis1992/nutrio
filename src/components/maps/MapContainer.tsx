@@ -22,13 +22,19 @@ L.Marker.prototype.options.icon = DefaultIcon;
 // so it tries to initialize a new Leaflet map every time the ref fires — even
 // on the same DOM node — causing "Map container is already initialized" crashes.
 // We also patch remove() to tolerate the "being reused" mismatch that follows.
-const proto = L.Map.prototype as any;
+interface LeafletProto {
+  _reactStrictModePatched?: boolean;
+  _initContainer: (id: HTMLElement | string) => void;
+  remove: () => void;
+  _container?: HTMLElement;
+}
+const proto = L.Map.prototype as unknown as LeafletProto;
 if (!proto._reactStrictModePatched) {
   const origInit = proto._initContainer;
   proto._initContainer = function (id: HTMLElement | string) {
     const el = typeof id === "string" ? document.getElementById(id) : id;
-    if (el && (el as any)._leaflet_id) {
-      delete (el as any)._leaflet_id;
+    if (el && (el as HTMLElement & { _leaflet_id?: number })._leaflet_id) {
+      delete (el as HTMLElement & { _leaflet_id?: number })._leaflet_id;
     }
     return origInit.call(this, id);
   };

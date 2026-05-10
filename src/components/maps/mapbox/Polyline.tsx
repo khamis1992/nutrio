@@ -87,7 +87,7 @@ export function Polyline({
     
     if (source) {
       const coordinates = positions.map(parseLatLng);
-      (source as any).setData({
+      (source as mapboxgl.GeoJSONSource).setData({
         type: 'Feature',
         properties: {},
         geometry: {

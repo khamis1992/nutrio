@@ -60,6 +60,7 @@ const Favorites = () => {
 
   useEffect(() => {
     fetchRestaurants();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchRestaurants = async () => {
@@ -76,7 +77,7 @@ const Favorites = () => {
 
       if (favError) throw favError;
 
-      const restaurantIds = (favData || []).map((f: any) => f.restaurant_id);
+      const restaurantIds = (favData || []).map((f: { restaurant_id: string }) => f.restaurant_id);
       
       if (restaurantIds.length > 0) {
         // Fetch restaurant details separately
@@ -94,12 +95,12 @@ const Favorites = () => {
           .in("restaurant_id", restaurantIds);
 
         const mealCounts: Record<string, number> = {};
-        (mealsCountData || []).forEach((meal: any) => {
+        (mealsCountData || []).forEach((meal: { restaurant_id: string }) => {
           mealCounts[meal.restaurant_id] = (mealCounts[meal.restaurant_id] || 0) + 1;
         });
 
         const transformedRestaurants: FavoriteRestaurant[] = (restaurantsData || [])
-          .map((r: any) => ({
+          .map((r: { id: string; name: string; description: string | null; logo_url: string | null; rating: number | string; total_orders: number }) => ({
             id: r.id,
             name: r.name,
             description: r.description,

@@ -62,10 +62,10 @@ export const AvatarUpload = ({
 
       onAvatarUpdate(publicUrl);
       toast({ title: "Avatar updated", description: "Your profile picture has been updated." });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Avatar upload error:", err);
       setPreviewUrl(null);
-      const msg = err?.message || "";
+      const msg = err instanceof Error ? err.message : "";
       const description = msg.includes("Bucket not found") || msg.includes("bucket")
         ? "Storage not set up. Please contact support."
         : msg.includes("row-level security") || msg.includes("policy")

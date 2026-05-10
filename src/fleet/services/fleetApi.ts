@@ -142,8 +142,8 @@ export async function getDashboardStats(cityId?: string): Promise<DashboardStats
   ).length || 0;
 
   const deliveryTimes = orders
-    ?.filter((o: any) => o.delivery_time_minutes)
-    .map((o: any) => o.delivery_time_minutes as number) || [];
+    ?.filter((o: { delivery_time_minutes?: number }) => o.delivery_time_minutes)
+    .map((o: { delivery_time_minutes?: number }) => o.delivery_time_minutes as number) || [];
   const averageDeliveryTime = deliveryTimes.length > 0
     ? Math.round(deliveryTimes.reduce((a: number, b: number) => a + b, 0) / deliveryTimes.length)
     : 0;

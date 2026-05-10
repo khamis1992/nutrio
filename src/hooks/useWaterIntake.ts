@@ -27,7 +27,7 @@ export function useWaterIntake(userId: string | undefined) {
       const today = format(new Date(), "yyyy-MM-dd");
 
       // Fetch today's water intake logs
-      const { data: logs, error } = await (supabase as any)
+      const { data: logs, error } = await supabase
         .from("water_intake")
         .select("id, log_date, glasses")
         .eq("user_id", userId)
@@ -62,7 +62,7 @@ export function useWaterIntake(userId: string | undefined) {
       const today = format(new Date(), "yyyy-MM-dd");
       
       // Check if entry exists for today
-      const { data: existing } = await (supabase as any)
+      const { data: existing } = await supabase
         .from("water_intake")
         .select("id, glasses")
         .eq("user_id", userId)
@@ -71,13 +71,13 @@ export function useWaterIntake(userId: string | undefined) {
 
       if (existing) {
         // Update existing
-        await (supabase as any)
+        await supabase
           .from("water_intake")
           .update({ glasses: existing.glasses + glasses })
           .eq("id", existing.id);
       } else {
         // Insert new
-        await (supabase as any)
+        await supabase
           .from("water_intake")
           .insert({
             user_id: userId,
@@ -96,7 +96,7 @@ export function useWaterIntake(userId: string | undefined) {
     if (!userId) return;
 
     try {
-      await (supabase as any)
+      await supabase
         .from("water_intake")
         .delete()
         .eq("id", id)
@@ -113,7 +113,7 @@ export function useWaterIntake(userId: string | undefined) {
 
     try {
       const today = format(new Date(), "yyyy-MM-dd");
-      const { data: existing } = await (supabase as any)
+      const { data: existing } = await supabase
         .from("water_intake")
         .select("id, glasses")
         .eq("user_id", userId)
@@ -121,7 +121,7 @@ export function useWaterIntake(userId: string | undefined) {
         .maybeSingle();
 
       if (existing && existing.glasses > 0) {
-        await (supabase as any)
+        await supabase
           .from("water_intake")
           .update({ glasses: Math.max(0, existing.glasses - 1) })
           .eq("id", existing.id);

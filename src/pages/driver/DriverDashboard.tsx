@@ -75,6 +75,7 @@ export default function DriverDashboard() {
     if (user) {
       fetchDriverData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -83,6 +84,7 @@ export default function DriverDashboard() {
       fetchActiveDelivery();
       fetchStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   useEffect(() => {
@@ -114,6 +116,7 @@ export default function DriverDashboard() {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverId]);
 
   const fetchDriverData = async () => {
@@ -193,7 +196,7 @@ export default function DriverDashboard() {
 
       // Create schedule info map from RPC result
       const scheduleMap: Record<string, { meal_name: string; customer_name: string; customer_phone: string | null }> = {};
-      (mealInfo as any[])?.forEach((info: any) => {
+      (mealInfo as { schedule_id: string; meal_name: string; customer_name: string; customer_phone: string | null }[])?.forEach((info) => {
         scheduleMap[info.schedule_id] = {
           meal_name: info.meal_name || "Meal",
           customer_name: info.customer_name || "Customer",
@@ -374,11 +377,11 @@ export default function DriverDashboard() {
       });
 
       navigate(`/driver/orders/${deliveryId}`);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error claiming delivery:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to claim delivery",
+        description: error instanceof Error ? error.message : "Failed to claim delivery",
         variant: "destructive",
       });
     } finally {

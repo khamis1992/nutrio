@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,9 +81,9 @@ export function BehaviorPredictionWidget() {
     return () => {
       if (channel) supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [fetchPrediction, user]);
 
-  const fetchPrediction = async () => {
+  const fetchPrediction = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('behavior_predictions')
@@ -110,7 +110,7 @@ export function BehaviorPredictionWidget() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const handleDismiss = () => {
     setDismissed(true);

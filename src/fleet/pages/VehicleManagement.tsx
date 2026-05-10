@@ -51,7 +51,7 @@ export default function VehicleManagement() {
 
       if (error) throw error;
 
-      const transformedVehicles: Vehicle[] = (data || []).map((v: any) => ({
+      const transformedVehicles: Vehicle[] = (data || []).map((v: { id: string; city_id?: string; type: string; make?: string; model?: string; year?: number; color?: string; plate_number: string; registration_number?: string; insurance_provider?: string; insurance_expiry?: string; insurance_document_url?: string; status: string; assigned_driver_id?: string; assigned_driver_name?: string; vehicle_photo_url?: string; registration_document_url?: string; created_at: string; updated_at?: string }) => ({
         id: v.id,
         cityId: v.city_id || '',
         type: v.type,
@@ -108,7 +108,7 @@ export default function VehicleManagement() {
 
       if (error) throw error;
 
-      const transformedDrivers: Driver[] = (data || []).map((d: any) => ({
+      const transformedDrivers: Driver[] = (data || []).map((d: { id: string; user_id?: string; email?: string; phone_number?: string; full_name?: string; city_id?: string; assigned_zone_ids?: string[]; approval_status?: string; is_active?: boolean; is_online?: boolean; total_deliveries?: number; rating?: number; cancellation_rate?: number; wallet_balance?: number; total_earnings?: number; assigned_vehicle_id?: string; created_at: string; updated_at?: string }) => ({
         id: d.id,
         authUserId: d.user_id,
         email: d.email || '',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -141,7 +141,7 @@ interface RestaurantDetails {
   alternate_phone: string | null;
   avg_prep_time_minutes: number | null;
   max_meals_per_day: number | null;
-  operating_hours: any;
+  operating_hours: Record<string, unknown> | null;
   website_url: string | null;
 }
 
@@ -399,10 +399,9 @@ const AdminRestaurantDetail = () => {
 
   // Fetch restaurant data
   useEffect(() => {
-    if (id) {
-      fetchRestaurant();
-    }
-  }, [id]);
+    if (!id) return;
+    fetchRestaurant();
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // QNAS: load zones once on mount
   useEffect(() => {
@@ -514,10 +513,10 @@ const AdminRestaurantDetail = () => {
       setHasChanges(false);
 
       // Restore saved QNAS location values
-      const rd = restaurantData as any;
-      if (rd.zone_number) setQnasZone(rd.zone_number);
-      if (rd.street_number) setQnasStreet(rd.street_number);
-      if (rd.building_number) setQnasBuilding(rd.building_number);
+      const rd = restaurantData as Record<string, unknown>;
+      if (rd.zone_number) setQnasZone(rd.zone_number as number);
+      if (rd.street_number) setQnasStreet(rd.street_number as number);
+      if (rd.building_number) setQnasBuilding(rd.building_number as string);
       if (rd.latitude) setQnasLat(Number(rd.latitude));
       if (rd.longitude) setQnasLng(Number(rd.longitude));
 
@@ -735,14 +734,14 @@ const AdminRestaurantDetail = () => {
           .in("user_id", userIds);
 
         if (profiles) {
-          profilesMap = profiles.reduce((acc, p: any) => {
-            acc[p.user_id] = { full_name: p.full_name };
+          profilesMap = profiles.reduce((acc, p: Record<string, unknown>) => {
+            acc[p.user_id as string] = { full_name: p.full_name as string | null };
             return acc;
           }, {} as Record<string, { full_name: string | null }>);
         }
       }
 
-      const ordersWithDetails: Order[] = (schedulesData || []).map((o: any) => {
+      const ordersWithDetails: Order[] = (schedulesData || []).map((o: Record<string, unknown>) => {
         const meal = mealsMap[o.meal_id] || { name: "Unknown", price: 0 };
         
         return {
@@ -810,7 +809,7 @@ const AdminRestaurantDetail = () => {
     }
   };
 
-  const handleInputChange = (field: keyof RestaurantFormData, value: any) => {
+  const handleInputChange = (field: keyof RestaurantFormData, value: string | number | boolean | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     
     // Check if value differs from initial
@@ -869,8 +868,8 @@ const AdminRestaurantDetail = () => {
       setOwnerCreated({ email: ownerForm.email.trim(), password: ownerForm.password });
       setOwnerForm({ full_name: "", email: "", password: "" });
       toast({ title: "Owner Account Created", description: `${ownerForm.email} can now log in at /partner/auth` });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
     } finally {
       setOwnerCreating(false);
     }
@@ -917,7 +916,7 @@ const AdminRestaurantDetail = () => {
           latitude: qnasLat,
           longitude: qnasLng,
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq("id", id);
 
       if (error) throw error;
@@ -1064,11 +1063,11 @@ const AdminRestaurantDetail = () => {
       toast({
         title: `${type === "logo" ? "Logo" : "Cover image"} uploaded successfully`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error.message || `Failed to upload ${type}`,
+        description: error instanceof Error ? error.message : `Failed to upload ${type}`,
         variant: "destructive",
       });
     } finally {
@@ -1813,7 +1812,7 @@ const AdminRestaurantDetail = () => {
                         <Label htmlFor="approval_status">Approval Status</Label>
                         <Select
                           value={formData.approval_status}
-                          onValueChange={(value: any) => handleInputChange("approval_status", value)}
+                          onValueChange={(value: string) => handleInputChange("approval_status", value as "pending" | "approved" | "rejected")}
                         >
                           <SelectTrigger>
                             <SelectValue />

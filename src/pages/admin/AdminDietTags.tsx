@@ -175,9 +175,10 @@ export default function AdminDietTags() {
 
       setEditDialogOpen(false);
       fetchTags();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving diet tag:", error);
-      toast.error(error.message || "Failed to save diet tag");
+      const message = error instanceof Error ? error.message : "Failed to save diet tag";
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -205,9 +206,10 @@ export default function AdminDietTags() {
       setDeleteDialogOpen(false);
       setSelectedTag(null);
       fetchTags();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting diet tag:", error);
-      toast.error(error.message || "Failed to delete diet tag");
+      const message = error instanceof Error ? error.message : "Failed to delete diet tag";
+      toast.error(message);
     }
   };
 

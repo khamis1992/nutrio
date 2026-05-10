@@ -199,9 +199,9 @@ export async function startBroadcasting(driverProfileId: string): Promise<boolea
     }, 10000);
 
     return true;
-  } catch (err: any) {
+  } catch (err: unknown) {
     state.status = "error";
-    state.errorMessage = err.message || "Failed to start GPS broadcasting";
+    state.errorMessage = err instanceof Error ? err.message : "Failed to start GPS broadcasting";
     notify();
     return false;
   }

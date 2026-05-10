@@ -110,7 +110,7 @@ export async function processWalletTopup(
         
         // Log email sent
         if (invoice) {
-          await (supabase as any).from('email_logs').insert({
+          await supabase.from('email_logs').insert({
             invoice_id: invoice.id,
             recipient_email: userEmail,
             recipient_name: userName,
@@ -130,15 +130,15 @@ export async function processWalletTopup(
       paymentId: walletTxId,
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Wallet top-up processing failed:', error);
-    return { success: false, error: error.message || 'Unknown error' };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
 
 export async function downloadInvoice(invoiceId: string): Promise<void> {
   try {
-    const { data: invoice, error } = await (supabase as any)
+    const { data: invoice, error } = await supabase
       .from('invoices')
       .select('*')
       .eq('id', invoiceId)

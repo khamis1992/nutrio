@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,11 +81,7 @@ const AdminMealApprovals = () => {
   const [selectedMeal, setSelectedMeal] = useState<MealApproval | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  useEffect(() => {
-    fetchMeals();
-  }, []);
-
-  const fetchMeals = async () => {
+  const fetchMeals = useCallback(async () => {
     setLoading(true);
     try {
       const { data: mealsData, error } = await supabase
@@ -141,7 +137,11 @@ const AdminMealApprovals = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchMeals();
+  }, [fetchMeals]);
 
   const handleApprove = async (meal: MealApproval) => {
     setProcessingId(meal.id);
@@ -167,9 +167,10 @@ const AdminMealApprovals = () => {
       }
 
       toast({ title: "Meal Approved", description: `"${meal.name}" is now live for customers.` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error approving meal:", err);
-      toast({ title: "Error", description: err.message || "Failed to approve meal", variant: "destructive" });
+      const message = err instanceof Error ? err.message : "Failed to approve meal";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setProcessingId(null);
     }
@@ -198,9 +199,10 @@ const AdminMealApprovals = () => {
       }
 
       toast({ title: "Meal Rejected", description: `"${meal.name}" has been rejected.` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error rejecting meal:", err);
-      toast({ title: "Error", description: err.message || "Failed to reject meal", variant: "destructive" });
+      const message = err instanceof Error ? err.message : "Failed to reject meal";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setProcessingId(null);
     }

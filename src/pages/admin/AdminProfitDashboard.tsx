@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -87,15 +87,7 @@ export default function AdminProfitDashboard() {
   const [restaurantData, setRestaurantData] = useState<RestaurantProfit[]>([]);
   const [globalCommissionRate, setGlobalCommissionRate] = useState<number>(18);
 
-  useEffect(() => {
-    const init = async () => {
-      const rate = await fetchGlobalCommissionRate();
-      fetchProfitData(rate);
-    };
-    init();
-  }, [period]);
-
-  const fetchGlobalCommissionRate = async (): Promise<number> => {
+  const fetchGlobalCommissionRate = useCallback(async (): Promise<number> => {
     const { data } = await supabase
       .from("platform_settings")
       .select("value")
@@ -108,9 +100,9 @@ export default function AdminProfitDashboard() {
       return rate;
     }
     return 18;
-  };
+  }, []);
 
-  const fetchProfitData = async (commissionRate: number = globalCommissionRate) => {
+  const fetchProfitData = useCallback(async (commissionRate: number = globalCommissionRate) => {
     setLoading(true);
     try {
       const daysAgo = parseInt(period);
@@ -125,7 +117,7 @@ export default function AdminProfitDashboard() {
         .eq("status", "active");
 
       const subscriptionRevenue = (subscriptions || []).reduce(
-        (sum: number, s: any) => sum + (s.price || 0),
+        (sum: number, s: { price?: number; plan_type?: string; created_at?: string }) => sum + (s.price || 0),
         0
       );
 
@@ -136,16 +128,16 @@ export default function AdminProfitDashboard() {
         .gte("created_at", startDate.toISOString());
 
       // 2b. Fetch restaurant names separately (no FK relationship on orders)
-      const restaurantIds = [...new Set((orders || []).map((o: any) => o.restaurant_id).filter(Boolean))];
+      const restaurantIds = [...new Set((orders || []).map((o: { restaurant_id?: string }) => o.restaurant_id).filter(Boolean))];
       const { data: restaurantsList } = restaurantIds.length > 0
         ? await supabase.from("restaurants").select("id, name").in("id", restaurantIds)
         : { data: [] };
       const restaurantNameMap: Record<string, string> = {};
-      (restaurantsList || []).forEach((r: any) => { restaurantNameMap[r.id] = r.name; });
+      (restaurantsList || []).forEach((r: { id: string; name: string }) => { restaurantNameMap[r.id] = r.name; });
 
       // 3. Calculate commission from total_amount using platform commission rate
       const commissionRevenue = (orders || []).reduce(
-        (sum: number, o: any) => sum + (Number(o.total_amount) || 0) * (commissionRate / 100),
+        (sum: number, o: { total_amount?: unknown; created_at?: string; restaurant_id?: string; id?: string }) => sum + (Number(o.total_amount) || 0) * (commissionRate / 100),
         0
       );
 
@@ -160,8 +152,8 @@ export default function AdminProfitDashboard() {
         .eq("is_active", true);
 
       // Calculate expected meals vs ordered
-      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: any) => {
-        const plan = subscriptionPlans?.find((p: any) => p.tier === sub.plan_type);
+      const expectedMeals = (subscriptions || []).reduce((sum: number, sub: { plan_type?: string; price?: number; created_at?: string }) => {
+        const plan = subscriptionPlans?.find((p: { tier: string; meals_per_month?: number }) => p.tier === sub.plan_type);
         return sum + (plan?.meals_per_month || 0);
       }, 0);
 
@@ -176,7 +168,7 @@ export default function AdminProfitDashboard() {
         .gte("created_at", startDate.toISOString());
 
       const featuredListingsRevenue = (featuredListings || []).reduce(
-        (sum: number, f: any) => sum + (Number(f.price_paid) || 0),
+        (sum: number, f: { price_paid?: unknown; created_at?: string }) => sum + (Number(f.price_paid) || 0),
         0
       );
 
@@ -187,7 +179,7 @@ export default function AdminProfitDashboard() {
         .gte("created_at", startDate.toISOString());
 
       const premiumAnalyticsRevenue = (analyticsPurchases || []).reduce(
-        (sum: number, p: any) => sum + (Number(p.price_paid) || 0),
+        (sum: number, p: { price_paid?: unknown; created_at?: string }) => sum + (Number(p.price_paid) || 0),
         0
       );
 
@@ -199,7 +191,7 @@ export default function AdminProfitDashboard() {
         .select("delivery_fee, tip_amount, created_at");
       
       const driverCosts = (deliveries || []).reduce(
-        (sum: number, d: any) => sum + (Number(d.delivery_fee) || 0) + (Number(d.tip_amount) || 0),
+        (sum: number, d: Record<string, unknown>) => sum + (Number(d.delivery_fee) || 0) + (Number(d.tip_amount) || 0),
         0
       );
 
@@ -209,7 +201,7 @@ export default function AdminProfitDashboard() {
         .select("refund_amount, created_at");
       
       const refundCosts = (cancellations || []).reduce(
-        (sum: number, c: any) => sum + (Number(c.refund_amount) || 0),
+        (sum: number, c: Record<string, unknown>) => sum + (Number(c.refund_amount) || 0),
         0
       );
 
@@ -221,7 +213,7 @@ export default function AdminProfitDashboard() {
         .eq("status", "paid");
       
       const affiliateCosts = (affiliateCommissions || []).reduce(
-        (sum: number, c: any) => sum + (Number(c.commission_amount) || 0),
+        (sum: number, c: Record<string, unknown>) => sum + (Number(c.commission_amount) || 0),
         0
       );
 
@@ -247,7 +239,7 @@ export default function AdminProfitDashboard() {
         refundCosts,
         affiliateCosts,
         totalOrders: totalOrderedMeals,
-        totalRestaurants: new Set((orders || []).map((o: any) => o.restaurant_id)).size,
+        totalRestaurants: new Set((orders || []).map((o: Record<string, unknown>) => o.restaurant_id)).size,
         totalSubscribers: (subscriptions || []).length,
       });
 
@@ -266,17 +258,16 @@ export default function AdminProfitDashboard() {
       }
 
       // Add subscription revenue by day
-      (subscriptions || []).forEach((s: any) => {
-        const dateStr = s.created_at?.split("T")[0];
+      (subscriptions || []).forEach((s: Record<string, unknown>) => {
+        const dateStr = (s.created_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
-          dailyMap[dateStr].revenue += s.price || 0;
-          dailyMap[dateStr].profit += s.price || 0;
+          dailyMap[dateStr].revenue += (s.price as number) || 0;
+          dailyMap[dateStr].profit += (s.price as number) || 0;
         }
       });
 
-      // Add commission by day
-      (orders || []).forEach((o: any) => {
-        const dateStr = o.created_at?.split("T")[0];
+      (orders || []).forEach((o: Record<string, unknown>) => {
+        const dateStr = (o.created_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
           const comm = (Number(o.total_amount) || 0) * (commissionRate / 100);
           dailyMap[dateStr].revenue += comm;
@@ -284,9 +275,8 @@ export default function AdminProfitDashboard() {
         }
       });
 
-      // Add featured listings revenue by day
-      (featuredListings || []).forEach((f: any) => {
-        const dateStr = f.created_at?.split("T")[0];
+      (featuredListings || []).forEach((f: Record<string, unknown>) => {
+        const dateStr = (f.created_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
           const amount = Number(f.price_paid) || 0;
           dailyMap[dateStr].revenue += amount;
@@ -294,9 +284,8 @@ export default function AdminProfitDashboard() {
         }
       });
 
-      // Add premium analytics revenue by day
-      (analyticsPurchases || []).forEach((p: any) => {
-        const dateStr = p.created_at?.split("T")[0];
+      (analyticsPurchases || []).forEach((p: Record<string, unknown>) => {
+        const dateStr = (p.created_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
           const amount = Number(p.price_paid) || 0;
           dailyMap[dateStr].revenue += amount;
@@ -304,9 +293,8 @@ export default function AdminProfitDashboard() {
         }
       });
 
-      // Add driver costs as expenses
-      (deliveries || []).forEach((d: any) => {
-        const dateStr = d.created_at?.split("T")[0];
+      (deliveries || []).forEach((d: Record<string, unknown>) => {
+        const dateStr = (d.created_at as string)?.split("T")[0];
         if (dateStr && dailyMap[dateStr]) {
           const cost = (Number(d.delivery_fee) || 0) + (Number(d.tip_amount) || 0);
           dailyMap[dateStr].expenses += cost;
@@ -318,8 +306,8 @@ export default function AdminProfitDashboard() {
 
       // 6. Restaurant breakdown
       const restaurantMap: Record<string, RestaurantProfit> = {};
-      (orders || []).forEach((o: any) => {
-        const rid = o.restaurant_id;
+      (orders || []).forEach((o: Record<string, unknown>) => {
+        const rid = o.restaurant_id as string;
         const rname = restaurantNameMap[rid] || "Unknown";
         if (!restaurantMap[rid]) {
           restaurantMap[rid] = {
@@ -345,7 +333,15 @@ export default function AdminProfitDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [globalCommissionRate, period]);
+
+  useEffect(() => {
+    const init = async () => {
+      const rate = await fetchGlobalCommissionRate();
+      fetchProfitData(rate);
+    };
+    init();
+  }, [period, fetchGlobalCommissionRate, fetchProfitData]);
 
   const periodLabel = period === "7" ? "Last 7 Days" : period === "30" ? "Last 30 Days" : "Last 90 Days";
 

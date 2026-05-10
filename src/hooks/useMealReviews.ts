@@ -71,7 +71,7 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
 
         const newOffset = reset ? 0 : offset;
 
-        const { data: reviewsData, error: reviewsError } = await (supabase.rpc as any)(
+        const { data: reviewsData, error: reviewsError } = await supabase.rpc(
           "get_meal_reviews",
           {
             p_meal_id: mealId,
@@ -83,7 +83,7 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
 
         if (reviewsError) throw reviewsError;
 
-        const { data: statsData, error: statsError } = await (supabase.rpc as any)(
+        const { data: statsData, error: statsError } = await supabase.rpc(
           "calculate_meal_rating",
           { p_meal_id: mealId }
         );
@@ -123,7 +123,7 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
       }
 
       try {
-        const { data, error } = await (supabase.rpc as any)("submit_meal_review", {
+        const { data, error } = await supabase.rpc("submit_meal_review", {
           p_meal_id: params.mealId,
           p_user_id: user.id,
           p_rating: params.rating,
@@ -169,7 +169,7 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
       }
 
       try {
-        const { data, error } = await (supabase.rpc as any)("delete_meal_review", {
+        const { data, error } = await supabase.rpc("delete_meal_review", {
           p_review_id: reviewId,
           p_user_id: user.id,
         });
@@ -233,6 +233,7 @@ export function useMealReviews(mealId: string): UseMealReviewsReturn {
   // Initial fetch
   useEffect(() => {
     fetchReviews(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mealId]);
 
   return {

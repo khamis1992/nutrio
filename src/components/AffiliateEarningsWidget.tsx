@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,11 +26,7 @@ export function AffiliateEarningsWidget() {
   const [recentCommissions, setRecentCommissions] = useState<Commission[]>([]);
   const [referralCount, setReferralCount] = useState(0);
 
-  useEffect(() => {
-    if (user) fetchAffiliateData();
-  }, [user]);
-
-  const fetchAffiliateData = async () => {
+  const fetchAffiliateData = useCallback(async () => {
     try {
       const { data: profile } = await supabase
         .from("profiles")
@@ -63,7 +59,11 @@ export function AffiliateEarningsWidget() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) fetchAffiliateData();
+  }, [fetchAffiliateData, user]);
 
   if (loading) return <Skeleton className="h-32 w-full rounded-2xl" />;
 
@@ -118,7 +118,7 @@ export function AffiliateEarningsWidget() {
                     <TrendingUp className="w-4 h-4 text-violet-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{t(`affiliate_tier${commission.tier}_label` as any)}</p>
+                    <p className="text-sm font-medium">{t(`affiliate_tier${commission.tier}_label` as string)}</p>
                     <p className="text-xs text-muted-foreground">{new Date(commission.created_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-sm font-semibold text-green-600">+{formatCurrency(commission.commission_amount)}</span>

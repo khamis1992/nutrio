@@ -52,7 +52,7 @@ export function useMealCompletion(): UseMealCompletionReturn {
       const today = new Date().toISOString().split('T')[0];
 
       // Use type assertion for new RPC function
-      const { data, error } = await (supabase.rpc as any)('complete_meal_atomic', {
+      const { data, error } = await supabase.rpc('complete_meal_atomic' as unknown as Parameters<typeof supabase.rpc>[0], {
         p_schedule_id: scheduleId,
         p_user_id: userData.user.id,
         p_log_date: today,
@@ -113,7 +113,7 @@ export function useMealCompletion(): UseMealCompletionReturn {
       const today = new Date().toISOString().split('T')[0];
 
       // Use type assertion for new RPC function
-      const { data, error } = await (supabase.rpc as any)('uncomplete_meal_atomic', {
+      const { data, error } = await supabase.rpc('uncomplete_meal_atomic' as unknown as Parameters<typeof supabase.rpc>[0], {
         p_schedule_id: scheduleId,
         p_user_id: userData.user.id,
         p_log_date: today,

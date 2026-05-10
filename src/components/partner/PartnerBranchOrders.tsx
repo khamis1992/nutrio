@@ -66,6 +66,7 @@ export function PartnerBranchOrders() {
     if (user) {
       fetchPartnerBranches();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {

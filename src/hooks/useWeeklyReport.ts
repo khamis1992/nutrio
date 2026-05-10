@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfWeek } from "date-fns";
+import type { Json } from "@/integrations/supabase/types";
 
 interface WeeklyReport {
   id: string;
@@ -13,7 +14,7 @@ interface WeeklyReport {
   weight_change_kg: number | null;
   consistency_score: number;
   days_logged: number;
-  report_data: any;
+  report_data: Json | null;
 }
 
 export function useWeeklyReport(userId: string | undefined) {
@@ -32,7 +33,7 @@ export function useWeeklyReport(userId: string | undefined) {
       const weekStart = startOfWeek(today, { weekStartsOn: 1 });
 
       // Check if report exists for current week
-      const { data: existingReport, error: reportError } = await (supabase as any)
+      const { data: existingReport, error: reportError } = await supabase
         .from("weekly_nutrition_reports")
         .select("*")
         .eq("user_id", userId)
@@ -46,7 +47,7 @@ export function useWeeklyReport(userId: string | undefined) {
       }
 
       // Fetch historical reports
-      const { data: reports, error: historyError } = await (supabase as any)
+      const { data: reports, error: historyError } = await supabase
         .from("weekly_nutrition_reports")
         .select("*")
         .eq("user_id", userId)
@@ -59,7 +60,7 @@ export function useWeeklyReport(userId: string | undefined) {
 
       // If no current report exists, try to generate one
       if (!existingReport) {
-        const { data: newReport, error: genError } = await (supabase as any)
+        const { data: newReport, error: genError } = await supabase
           .rpc("generate_weekly_report", {
             p_user_id: userId,
             p_week_start: format(weekStart, "yyyy-MM-dd"),

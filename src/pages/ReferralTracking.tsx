@@ -63,6 +63,7 @@ export default function ReferralTracking() {
     if (user) {
       fetchReferralDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchReferralDetails = async () => {

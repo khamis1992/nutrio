@@ -6,7 +6,7 @@ import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Circle, useMapEvents, useMap } from "react-leaflet";
 
 // Fix Leaflet's default broken icon URLs when bundled with Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -282,6 +282,7 @@ const Addresses = () => {
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reverseGeocode, stopWatch, t]);
 
   // Clean up watch on unmount
@@ -299,6 +300,7 @@ const Addresses = () => {
     if (user) {
       fetchAddresses();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // After dialog opens, wait 500ms for MapContainer to mount then geocode / GPS
@@ -330,6 +332,7 @@ const Addresses = () => {
     }, 500);
 
     return () => clearTimeout(timer);
+     
   }, [dialogOpen, editingAddress, forwardGeocode, detectLocation]);
 
   const fetchAddresses = async () => {

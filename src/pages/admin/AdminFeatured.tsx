@@ -135,7 +135,7 @@ export default function AdminFeatured() {
 
       if (listingsError) throw listingsError;
 
-      const formattedListings: FeaturedListing[] = (listingsData || []).map((l: any) => ({
+      const formattedListings: FeaturedListing[] = (listingsData || []).map((l: { id: string; restaurant_id: string; package_type: string; price_paid: number; starts_at: string; ends_at: string; status: string; created_at: string; restaurants?: { name: string } | null }) => ({
         id: l.id,
         restaurant_id: l.restaurant_id,
         restaurant_name: l.restaurants?.name || "Unknown",

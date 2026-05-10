@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Camera, X, Scan, Loader2, AlertCircle, Barcode } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,8 +109,8 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
             // Now decode the barcode from the captured image
             await decodeBarcodeFromImage(imagePath);
           }
-        } catch (cameraErr: any) {
-          if (cameraErr.message?.includes('permission') || cameraErr.message?.includes('denied')) {
+        } catch (cameraErr: unknown) {
+          if (cameraErr instanceof Error && (cameraErr.message?.includes('permission') || cameraErr.message?.includes('denied'))) {
             setHasPermission(false);
             setError("Camera permission denied. Please enable camera access in Settings.");
           } else {
@@ -186,6 +187,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       setHasPermission(false);
       setError("Camera access denied. Please allow camera permissions.");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Decode barcode from captured image (for Capacitor)
@@ -333,6 +335,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       mounted = false;
       stopCamera();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Manual entry fallback

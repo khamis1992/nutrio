@@ -26,8 +26,8 @@ import type { DriverLayoutContext } from "@/components/driver/DriverLayout";
 
 export default function DriverHome() {
   const { driver, isOnline } = useOutletContext<DriverLayoutContext>();
-  const [currentJob, setCurrentJob] = useState<any>(null);
-  const [recentJobs, setRecentJobs] = useState<any[]>([]);
+  const [currentJob, setCurrentJob] = useState<Record<string, unknown> | null>(null);
+  const [recentJobs, setRecentJobs] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
 
@@ -186,7 +186,7 @@ export default function DriverHome() {
 }
 
 // Active Job Card Component
-function ActiveJobCard({ job, onUpdate }: { job: any; onUpdate: () => void }) {
+function ActiveJobCard({ job, onUpdate }: { job: Record<string, unknown>; onUpdate: () => void }) {
   const [loading, setLoading] = useState(false);
 
   const handleAccept = async () => {
@@ -390,7 +390,7 @@ function ActiveJobCard({ job, onUpdate }: { job: any; onUpdate: () => void }) {
 }
 
 // Job History Card Component
-function JobHistoryCard({ job }: { job: any }) {
+function JobHistoryCard({ job }: { job: Record<string, unknown> }) {
   const mealName = job.schedule?.meal?.name || "Order";
   const customerName = job.schedule?.user?.raw_user_meta_data?.name || "Customer";
   
@@ -432,7 +432,7 @@ function NewJobModal({
   onClose, 
   onAccept 
 }: { 
-  job: any; 
+  job: Record<string, unknown>; 
   driverId: string; 
   onClose: () => void;
   onAccept: () => void;
@@ -447,6 +447,7 @@ function NewJobModal({
     } else {
       handleReject();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown]);
 
   const handleAccept = async () => {

@@ -195,6 +195,7 @@ export function useGoogleFitWorkouts() {
   }, [user]);
 
   // Fetch workouts from Google Fit
+    
   const fetchWorkouts = useCallback(async (startDate: Date, endDate: Date): Promise<WorkoutData[]> => {
     if (!user) return [];
     
@@ -279,7 +280,7 @@ export function useGoogleFitWorkouts() {
           if (!bucket.dataset) continue;
           
           const activityDataset = bucket.dataset.find(
-            (d: any) => d.point && d.point.length > 0 && d.dataSourceId?.includes("activity")
+            (d: Record<string, unknown>) => d.point && (d.point as unknown[]).length > 0 && (d.dataSourceId as string)?.includes("activity")
           );
           
           if (!activityDataset?.point?.[0]) continue;
@@ -292,13 +293,13 @@ export function useGoogleFitWorkouts() {
           
           // Get duration
           const durationDataset = bucket.dataset.find(
-            (d: any) => d.dataSourceId?.includes("duration")
+            (d: Record<string, unknown>) => (d.dataSourceId as string)?.includes("duration")
           );
           const duration = durationDataset?.point?.[0]?.value?.[0]?.intVal || 0;
           
           // Get calories
           const caloriesDataset = bucket.dataset.find(
-            (d: any) => d.dataSourceId?.includes("calories")
+            (d: Record<string, unknown>) => (d.dataSourceId as string)?.includes("calories")
           );
           const calories = caloriesDataset?.point?.[0]?.value?.[0]?.fpVal || 0;
           
@@ -343,6 +344,7 @@ export function useGoogleFitWorkouts() {
     } finally {
       setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Disconnect Google Fit
