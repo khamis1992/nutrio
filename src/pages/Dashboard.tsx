@@ -11,8 +11,6 @@ import {
   ChevronRight,
   ConciergeBell,
   Crown,
-  Droplet,
-  Dumbbell,
   Flame,
   Leaf,
   Plus,
@@ -22,7 +20,6 @@ import {
   Truck,
   Utensils,
   Wallet,
-  Wheat,
 } from "lucide-react";
 
 import { LogMealDialog } from "@/components/LogMealDialog";
@@ -171,31 +168,25 @@ const Dashboard = () => {
       label: "Carbs",
       value: Math.round(todayProgress.carbs),
       target: profile?.carbs_target_g || 181,
-      Icon: Wheat,
-      cardClass: "border-[#D8F5E0] bg-gradient-to-br from-[#F2FFF6] to-[#EAF8EC]",
-      iconClass: "bg-gradient-to-br from-[#21C66F] to-[#069A54] text-white shadow-[0_10px_18px_rgba(16,185,129,0.25)]",
-      pillClass: "bg-[#D8F5E0] text-[#0E9F59]",
-      lineClass: "bg-[#D9EEE0]",
+      cardClass: "bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200",
+      pillClass: "bg-emerald-100 text-emerald-700",
+      lineClass: "bg-emerald-300",
     },
     {
       label: "Protein",
       value: Math.round(todayProgress.protein),
       target: profile?.protein_target_g || 181,
-      Icon: Dumbbell,
-      cardClass: "border-[#F8DEC9] bg-gradient-to-br from-[#FFF7F1] to-[#FCEFE4]",
-      iconClass: "bg-gradient-to-br from-[#FF8A2A] to-[#F36A12] text-white shadow-[0_10px_18px_rgba(249,115,22,0.25)]",
-      pillClass: "bg-[#FFE0C7] text-[#DE6B12]",
-      lineClass: "bg-[#F6D8C6]",
+      cardClass: "bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200",
+      pillClass: "bg-orange-100 text-orange-700",
+      lineClass: "bg-orange-300",
     },
     {
       label: "Fat",
       value: Math.round(todayProgress.fat),
       target: profile?.fat_target_g || 69,
-      Icon: Droplet,
-      cardClass: "border-[#DCE8F6] bg-gradient-to-br from-[#F3F8FF] to-[#EAF1F9]",
-      iconClass: "bg-gradient-to-br from-[#5D759A] to-[#354F73] text-white shadow-[0_10px_18px_rgba(53,79,115,0.2)]",
-      pillClass: "bg-[#DFE9F6] text-[#455E82]",
-      lineClass: "bg-[#DDE6F0]",
+      cardClass: "bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200",
+      pillClass: "bg-indigo-100 text-indigo-700",
+      lineClass: "bg-indigo-300",
     },
   ];
 
@@ -227,13 +218,31 @@ const Dashboard = () => {
     <motion.div
       initial={prefersReducedMotion ? undefined : { opacity: 0 }}
       animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-      className="min-h-screen overflow-x-hidden text-slate-900"
-      style={{
-        background:
-          "radial-gradient(circle at 0% 6%, rgba(206, 247, 226, 0.68) 0, rgba(206, 247, 226, 0) 38%), radial-gradient(circle at 100% 96%, rgba(219, 247, 229, 0.56) 0, rgba(219, 247, 229, 0) 34%), linear-gradient(180deg, #FBFFFD 0%, #FFFFFF 48%, #F7FCF9 100%)",
-      }}
+      className="min-h-screen overflow-x-hidden text-slate-900 relative"
     >
-      <main className="mx-auto max-w-[430px] px-6 pb-28 pt-6">
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: [
+            "linear-gradient(135deg, #FEFFFE 0%, #F8FDF9 50%, #F5FAF7 100%)",
+            "radial-gradient(ellipse 120% 80% at -20% -10%, rgba(16, 185, 129, 0.06) 0%, rgba(16, 185, 129, 0) 60%)",
+            "radial-gradient(ellipse 100% 120% at 110% 105%, rgba(52, 211, 153, 0.04) 0%, rgba(52, 211, 153, 0) 50%)",
+            "radial-gradient(ellipse 80% 100% at 105% -5%, rgba(251, 191, 36, 0.03) 0%, rgba(251, 191, 36, 0) 50%)",
+            "radial-gradient(ellipse 140% 60% at 50% 95%, rgba(16, 185, 129, 0.02) 0%, rgba(16, 185, 129, 0) 40%)",
+            "radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 30%)",
+          ].join(", "),
+        }}
+      />
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.3]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundSize: "128px 128px",
+          backgroundRepeat: "repeat",
+          mixBlendMode: "overlay",
+        }}
+      />
+      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-safe-offset-20 pt-safe-offset-4 pb-28 pt-6">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)]">
@@ -411,28 +420,57 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2.5">
-            {macroCards.map(({ label, value, target, Icon, cardClass, iconClass, pillClass, lineClass }) => {
-              const percent = Math.round((value / (target || 1)) * 100);
-              return (
-                <div key={label} className={`rounded-[18px] border px-2.5 pb-2.5 pt-3 ${cardClass}`}>
-                  <div className="flex items-start gap-1.5">
-                    <div className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full ${iconClass}`}>
-                      <Icon className="h-[14px] w-[14px]" />
+          {/* Macro Cards - Mobile Native Design */}
+          <div className="mt-5">
+            <div className="grid grid-cols-3 gap-2">
+              {macroCards.map(({ label, value, target }) => {
+                const percent = Math.round((value / (target || 1)) * 100);
+                const colors = {
+                  Carbs: { ring: '#059669', bg: '#D1FAE5', card: '#A7F3D0', text: '#047857' },
+                  Protein: { ring: '#EA580C', bg: '#FFEDD5', card: '#FED7AA', text: '#C2410C' },
+                  Fat: { ring: '#7C3AED', bg: '#EDE9FE', card: '#DDD6FE', text: '#6D28D9' },
+                };
+                const color = colors[label as keyof typeof colors] || colors.Carbs;
+                
+                return (
+                  <div 
+                    key={label} 
+                    className="relative flex flex-col items-center justify-center rounded-2xl py-3 px-2 active:scale-[0.98] transition-transform"
+                    style={{ background: color.card }}
+                  >
+                    {/* Circular Progress */}
+                    <div className="relative flex items-center justify-center">
+                      <svg className="h-[52px] w-[52px] -rotate-90" viewBox="0 0 52 52">
+                        <circle 
+                          cx="26" cy="26" r="22" 
+                          fill="none" 
+                          stroke={color.bg} 
+                          strokeWidth="4" 
+                        />
+                        <circle 
+                          cx="26" cy="26" r="22" 
+                          fill="none" 
+                          stroke={color.ring} 
+                          strokeWidth="4" 
+                          strokeDasharray={`${(percent / 100) * 138.23} 138.23`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-[15px] font-bold" style={{ color: color.text }}>{value}</span>
+                        <span className="text-[9px] font-medium text-slate-500 -mt-0.5">grams</span>
+                      </div>
                     </div>
-                    <div className="min-w-0 pt-0.5">
-                      <p className="text-[12px] font-semibold leading-none text-slate-800">{label}</p>
-                      <p className="mt-1.5 text-[16px] font-extrabold leading-none tracking-[-0.04em] text-slate-950">{value}g</p>
-                    </div>
+
+                    {/* Label */}
+                    <span className="mt-1.5 text-[11px] font-semibold text-slate-800">{label}</span>
+
+                    {/* Target */}
+                    <span className="text-[10px] font-medium" style={{ color: color.text }}>{percent}% of {target}g</span>
                   </div>
-                  <div className="mt-4 flex items-center justify-end gap-1.5">
-                    <span className="text-[10px] font-semibold text-slate-700">/{target}g</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${pillClass}`}>{percent}%</span>
-                  </div>
-                  <div className={`mt-2 h-[3px] rounded-full ${lineClass}`} />
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           <div className="mt-5">
