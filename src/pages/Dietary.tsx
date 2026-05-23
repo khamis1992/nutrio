@@ -89,6 +89,12 @@ const Dietary = () => {
   const toggleDietPreference = async (tagId: string) => {
     if (!user) return;
     const isSelected = userDietPreferences.includes(tagId);
+    const previous = [...userDietPreferences];
+    
+    setUserDietPreferences(prev =>
+      isSelected ? prev.filter(id => id !== tagId) : [...prev, tagId]
+    );
+
     try {
       if (isSelected) {
         const { error } = await supabase
@@ -97,19 +103,14 @@ const Dietary = () => {
           .eq("user_id", user.id)
           .eq("diet_tag_id", tagId);
         if (error) throw error;
-        setUserDietPreferences(prev => prev.filter(id => id !== tagId));
       } else {
         const { error } = await supabase
           .from("user_dietary_preferences")
           .insert({ user_id: user.id, diet_tag_id: tagId });
         if (error) throw error;
-        setUserDietPreferences(prev => [...prev, tagId]);
       }
-      toast({
-        title: isSelected ? t("removed") : t("added"),
-        description: isSelected ? t("dietary_preference_removed") : t("dietary_preference_added"),
-      });
     } catch {
+      setUserDietPreferences(previous);
       toast({ title: t("error"), description: t("failed_update_dietary_preference"), variant: "destructive" });
     }
   };

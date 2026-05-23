@@ -1,49 +1,34 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
+  ArrowLeft,
+  ChevronRight,
+  Clock3,
+  Coffee,
+  Dumbbell,
+  Flame,
   Heart,
   Search,
-  X,
   SlidersHorizontal,
-  Flame,
-  ArrowLeft,
-  Utensils,
-  Coffee,
+  Sparkles,
+  Star,
+  Store,
   Soup,
+  Utensils,
   UtensilsCrossed,
-  Cake,
-  Droplet,
-  Sandwich,
-  Pizza,
+  type LucideIcon,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+
+import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
-import { motion, AnimatePresence, Variants } from "framer-motion";
-import { getRestaurantImage } from "@/lib/meal-images";
+import { supabase } from "@/integrations/supabase/client";
 import { Haptics } from "@/lib/haptics";
-import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-const spring = { type: "spring" as const, stiffness: 300, damping: 25, mass: 0.8 };
-
-const fadeInUp: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: spring }
-};
-
-const staggerContainer: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.04 } }
-};
-
+type MealCategory = "all" | "breakfast" | "lunch" | "dinner" | "snacks";
 type CalorieRange = "all" | "under300" | "300-500" | "500-700" | "700plus";
-
-type MealCategory = "all" | "breakfast" | "lunch" | "dinner" | "snacks" | "desserts" | "beverages";
+type ActiveSort = "rating" | "fastest" | "popular";
 
 interface Restaurant {
   id: string;
@@ -53,7 +38,6 @@ interface Restaurant {
   rating: number;
   total_orders: number;
   meal_count: number;
-  delivery_time?: string;
   cuisine_types?: string[];
 }
 
@@ -75,461 +59,367 @@ interface MealResult {
   meal_type: string | null;
 }
 
-const categoryConfig: Record<MealCategory, { labelKey: string; icon: React.ElementType; gradient: string }> = {
-  all: { labelKey: "all_cuisine", icon: Utensils, gradient: "from-slate-500 to-slate-600" },
-  breakfast: { labelKey: "cuisine_breakfast", icon: Coffee, gradient: "from-amber-500 to-orange-500" },
-  lunch: { labelKey: "lunch", icon: Sandwich, gradient: "from-emerald-500 to-teal-500" },
-  dinner: { labelKey: "dinner", icon: Pizza, gradient: "from-rose-500 to-pink-500" },
-  snacks: { labelKey: "snacks", icon: UtensilsCrossed, gradient: "from-purple-500 to-violet-500" },
-  desserts: { labelKey: "desserts", icon: Cake, gradient: "from-pink-500 to-rose-500" },
-  beverages: { labelKey: "beverages", icon: Droplet, gradient: "from-cyan-500 to-blue-500" },
+interface ShowcaseMealTemplate {
+  name: string;
+  restaurant: string;
+  calories: number;
+  protein: number;
+  note: string;
+  image: string;
+  category: Exclude<MealCategory, "all">;
+  badge?: string;
+  proteinBadge?: string;
+}
+
+interface ShowcaseMeal extends ShowcaseMealTemplate {
+  liveMealId?: string;
+  restaurantId?: string;
+}
+
+interface RestaurantTemplate {
+  name: string;
+  description: string;
+  meals: number;
+  image: string;
+}
+
+interface ShowcaseRestaurant extends RestaurantTemplate {
+  liveRestaurantId?: string;
+}
+
+const green = "#009F63";
+
+const categoryTabs: Array<{ id: MealCategory; label: string; icon: LucideIcon }> = [
+  { id: "all", label: "All Cuisine", icon: Utensils },
+  { id: "breakfast", label: "Breakfast", icon: Coffee },
+  { id: "lunch", label: "Lunch", icon: Soup },
+  { id: "dinner", label: "Dinner", icon: Soup },
+  { id: "snacks", label: "Snacks", icon: UtensilsCrossed },
+];
+
+const topPicks: ShowcaseMealTemplate[] = [
+  {
+    name: "Lean Beef Stir-Fry",
+    restaurant: "Mediterranean Delights",
+    calories: 580,
+    protein: 35,
+    note: "High in protein",
+    badge: "Top",
+    category: "lunch",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=90",
+  },
+  {
+    name: "Chicken Tawook Plate",
+    restaurant: "Lebanese Kitchen",
+    calories: 520,
+    protein: 38,
+    note: "Rich in protein & flavor",
+    category: "dinner",
+    image: "https://images.unsplash.com/photo-1604908176997-431c8c7527a2?auto=format&fit=crop&w=900&q=90",
+  },
+  {
+    name: "Organic Acai Bowl",
+    restaurant: "Organic Harvest",
+    calories: 380,
+    protein: 32,
+    note: "Antioxidant rich",
+    category: "breakfast",
+    image: "https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?auto=format&fit=crop&w=900&q=90",
+  },
+];
+
+const quickLight: ShowcaseMealTemplate[] = [
+  {
+    name: "Turkey Wrap",
+    restaurant: "Mediterranean Delights",
+    calories: 450,
+    protein: 28,
+    note: "Quick & filling",
+    category: "lunch",
+    image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=900&q=90",
+  },
+  {
+    name: "Tabbouleh Salad",
+    restaurant: "Lebanese Kitchen",
+    calories: 180,
+    protein: 4,
+    note: "Quick & light",
+    category: "lunch",
+    image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=90",
+  },
+  {
+    name: "Egg White Scramble",
+    restaurant: "Mediterranean Delights",
+    calories: 280,
+    protein: 18,
+    note: "Quick & light",
+    category: "breakfast",
+    image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=900&q=90",
+  },
+];
+
+const highProtein: ShowcaseMealTemplate[] = [
+  {
+    name: "Grilled Chicken Salad",
+    restaurant: "Mediterranean Delights",
+    calories: 420,
+    protein: 38,
+    note: "High in protein",
+    proteinBadge: "38g Protein",
+    category: "lunch",
+    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=90",
+  },
+  {
+    name: "High-Protein Breakfast",
+    restaurant: "Fitness Fuel Station",
+    calories: 380,
+    protein: 42,
+    note: "High in protein",
+    proteinBadge: "42g Protein",
+    category: "breakfast",
+    image: "https://images.unsplash.com/photo-1495214783159-3503fd1b572d?auto=format&fit=crop&w=900&q=90",
+  },
+  {
+    name: "Lean Turkey Meat",
+    restaurant: "Fitness Fuel Station",
+    calories: 380,
+    protein: 36,
+    note: "High in protein",
+    proteinBadge: "36g Protein",
+    category: "dinner",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=90",
+  },
+];
+
+const restaurantTemplates: RestaurantTemplate[] = [
+  {
+    name: "Lebanese Kitchen",
+    description: "Traditional Lebanese...",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Mediterranean Delights",
+    description: "Authentic Mediterranean...",
+    meals: 16,
+    image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Fitness Fuel Station",
+    description: "High-protein meals...",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Green Garden Vegan",
+    description: "Plant-based restaurant...",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Organic Harvest",
+    description: "Farm-to-table...",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Healthy Bites Cafe",
+    description: "Casual dining with...",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Protein Hub",
+    description: "High protein, great taste",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=700&q=90",
+  },
+  {
+    name: "Wellness Kitchen",
+    description: "Balanced meals for...",
+    meals: 4,
+    image: "https://images.unsplash.com/photo-1550966871-3ed3c47e2ce2?auto=format&fit=crop&w=700&q=90",
+  },
+];
+
+const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+
+const inCalorieRange = (calories: number, calorieRange: CalorieRange) => {
+  if (calorieRange === "under300") return calories < 300;
+  if (calorieRange === "300-500") return calories >= 300 && calories <= 500;
+  if (calorieRange === "500-700") return calories > 500 && calories <= 700;
+  if (calorieRange === "700plus") return calories > 700;
+  return true;
 };
 
-const formatPrice = (price: number | null): string => {
-  if (price === null || price === undefined) return "";
-  return `${price.toFixed(2)} QAR`;
+const sortMeals = (items: ShowcaseMeal[], activeSort: ActiveSort) => {
+  const sorted = [...items];
+  if (activeSort === "fastest") sorted.sort((a, b) => a.calories - b.calories);
+  if (activeSort === "popular") sorted.sort((a, b) => b.protein - a.protein);
+  return sorted;
 };
 
-const MealCard = ({
-  meal,
-  isFavoriteRestaurant,
-  onToggleFavorite,
-  index,
-}: {
-  meal: MealResult;
-  isFavoriteRestaurant: boolean;
-  onToggleFavorite: (id: string, name: string) => void;
-  index: number;
-}) => {
-  const { t } = useLanguage();
-
-  const handleFav = (e: React.MouseEvent) => {
-    if (!meal.restaurant_id) return;
-    e.preventDefault();
-    e.stopPropagation();
-    Haptics.impact({ style: "medium" });
-    onToggleFavorite(meal.restaurant_id, meal.restaurant_name);
-  };
-
-  return (
-    <motion.div
-      variants={fadeInUp}
-      initial="hidden"
-      animate="visible"
-      transition={{ delay: index * 0.03 }}
-      whileTap={{ scale: 0.97 }}
-    >
-      <Link to={`/meals/${meal.id}`} className="block">
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#E1F2ED]/50 hover:shadow-md transition-all">
-          {/* Image */}
-          <div className="relative h-36 bg-gradient-to-br from-primary/5 to-accent/10 overflow-hidden">
-            <img
-              src={meal.image_url || getRestaurantImage(meal.restaurant_logo_url, meal.restaurant_id || meal.id)}
-              alt={meal.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            {/* Favorite */}
-            {meal.restaurant_id && (
-              <motion.button
-                onClick={handleFav}
-                whileTap={{ scale: 0.85 }}
-                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm"
-              >
-                <Heart
-                  className={`w-4 h-4 transition-colors ${
-                    isFavoriteRestaurant ? "fill-primary text-primary" : "text-muted-foreground"
-                  }`}
-                />
-              </motion.button>
-            )}
-            {/* Availability Badge */}
-            {meal.is_available === false && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <span className="text-xs font-semibold text-white bg-foreground/80 px-3 py-1 rounded-full">
-                  {t("currently_unavailable")}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="p-3">
-            <h3 className="font-semibold text-sm text-[#0F172A] line-clamp-1 leading-tight">
-              {meal.name}
-            </h3>
-            <p className="text-xs text-[#64748B] line-clamp-1 mt-0.5">
-              {meal.restaurant_name}
-            </p>
-
-            {/* Bottom Row: Calories + Price */}
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                <Flame className="w-3 h-3 text-primary" />
-                <span className="text-xs font-semibold">{meal.calories ?? 0}</span>
-              </div>
-              {meal.price !== null && meal.price !== undefined && (
-                <span className="text-sm font-bold text-[#EA580C]">
-                  {formatPrice(meal.price)}
-                </span>
-              )}
-            </div>
-
-            {/* Macro Dots Row */}
-            {(meal.protein_g !== null || meal.carbs_g !== null || meal.fat_g !== null) && (
-              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100">
-                {meal.protein_g !== null && (
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-primary" />
-                    <span className="text-[10px] text-muted-foreground">P {meal.protein_g}g</span>
-                  </div>
-                )}
-                {meal.carbs_g !== null && (
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-warning" />
-                    <span className="text-[10px] text-muted-foreground">C {meal.carbs_g}g</span>
-                  </div>
-                )}
-                {meal.fat_g !== null && (
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-warning" />
-                    <span className="text-[10px] text-muted-foreground">F {meal.fat_g}g</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
+const truncateDescription = (value: string | null | undefined, fallback: string) => {
+  const text = value?.trim() || fallback;
+  if (text.length <= 26) return text;
+  return `${text.slice(0, 23).trim()}...`;
 };
-
-const RestaurantCard = ({
-  restaurant,
-  isFavorite,
-  onToggleFavorite,
-  index,
-}: {
-  restaurant: Restaurant;
-  isFavorite: boolean;
-  onToggleFavorite: (id: string, name: string) => void;
-  index: number;
-}) => {
-  const { t } = useLanguage();
-
-  const handleFav = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    Haptics.impact({ style: "medium" });
-    onToggleFavorite(restaurant.id, restaurant.name);
-  };
-
-  return (
-    <motion.div
-      variants={fadeInUp}
-      initial="hidden"
-      animate="visible"
-      transition={{ delay: index * 0.03 }}
-      whileTap={{ scale: 0.97 }}
-    >
-      <Link to={`/restaurant/${restaurant.id}`} className="block">
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#E1F2ED]/50 hover:shadow-md transition-all">
-          {/* Image */}
-          <div className="relative h-36 bg-gradient-to-br from-primary/5 to-accent/10 overflow-hidden">
-            <img
-              src={getRestaurantImage(restaurant.logo_url, restaurant.id)}
-              alt={restaurant.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            <motion.button
-              onClick={handleFav}
-              whileTap={{ scale: 0.85 }}
-              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm"
-            >
-              <Heart
-                className={`w-4 h-4 transition-colors ${
-                  isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
-                }`}
-              />
-            </motion.button>
-          </div>
-
-          {/* Content */}
-          <div className="p-3">
-            <h3 className="font-semibold text-sm text-[#0F172A] line-clamp-1 leading-tight">
-              {restaurant.name}
-            </h3>
-            {restaurant.cuisine_types && restaurant.cuisine_types.length > 0 && (
-              <p className="text-xs text-primary font-medium mt-0.5 line-clamp-1">
-                {restaurant.cuisine_types[0]}
-              </p>
-            )}
-            <p className="text-xs text-[#64748B] line-clamp-1 mt-0.5">
-              {restaurant.description || t("healthy_and_delicious")}
-            </p>
-
-            {/* Stats Row */}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-[#64748B]">
-                {restaurant.meal_count} {t("meals")}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Link>
-    </motion.div>
-  );
-};
-
-const GridSkeleton = () => (
-  <div className="grid grid-cols-2 gap-3">
-    {Array.from({ length: 6 }).map((_, i) => (
-      <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#E1F2ED]/50">
-        <div className="h-36 bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden">
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent"
-            animate={{ x: ["-100%", "100%"] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: "linear", delay: i * 0.1 }}
-          />
-        </div>
-        <div className="p-3 space-y-2">
-          <div className="h-4 bg-muted rounded-full w-3/4" />
-          <div className="h-3 bg-muted-foreground/20 rounded-full w-1/2" />
-          <div className="flex gap-2 mt-3">
-            <div className="h-6 w-16 bg-muted rounded-full" />
-            <div className="h-6 w-12 bg-muted-foreground/20 rounded-full ml-auto" />
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
 
 const FilterSheet = ({
   isOpen,
   onClose,
   showFavoritesOnly,
   onToggleFavorites,
-  resultCount,
   activeSort,
   onChangeSort,
   calorieRange,
   onChangeCalorieRange,
-  t,
 }: {
   isOpen: boolean;
   onClose: () => void;
   showFavoritesOnly: boolean;
   onToggleFavorites: () => void;
-  resultCount: number;
-  activeSort: "rating" | "fastest" | "popular";
-  onChangeSort: (sort: "rating" | "fastest" | "popular") => void;
+  activeSort: ActiveSort;
+  onChangeSort: (sort: ActiveSort) => void;
   calorieRange: CalorieRange;
   onChangeCalorieRange: (range: CalorieRange) => void;
-  t: ReturnType<typeof useLanguage>["t"];
 }) => {
-  const sortOptions = [
-    { id: "rating", icon: "⭐", label: t("top_rated_filter") },
-    { id: "fastest", icon: "⚡", label: t("fastest_filter") },
-    { id: "popular", icon: "🔥", label: t("popular") },
-  ];
-
-  const calorieOptions = [
-    { id: "all", label: t("all_cuisine") },
-    { id: "under300", label: t("under_300") },
-    { id: "300-500", label: t("range_300_500") },
-    { id: "500-700", label: t("range_500_700") },
-    { id: "700plus", label: t("over_700") },
-  ];
+  if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/40 z-40"
-            aria-hidden="true"
-          />
-           <motion.div
-             initial={{ y: "100%" }}
-             animate={{ y: 0 }}
-             exit={{ y: "100%" }}
-             transition={{ type: "spring", damping: 25, stiffness: 300, mass: 0.8 }}
-             className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-b-[24px] shadow-[0_-20px_40px_rgba(0,0,0,0.15)]"
-             style={{ 
-               maxHeight: "80vh", 
-               overflow: "hidden",
-               paddingBottom: "max(80px, env(safe-area-inset-bottom, 80px))"
-             }}
-             aria-modal="true"
-             role="dialog"
-           >
-            <div 
-              className="w-[40px] h-[4px] bg-muted rounded-[2px] mx-auto mb-5 cursor-pointer hover:bg-muted-foreground transition-colors"
-              onClick={onClose}
-              role="presentation"
-            />
+    <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/35" onClick={onClose}>
+      <div
+        className="mx-auto w-full max-w-[560px] rounded-t-[34px] bg-white px-7 pb-9 pt-4 shadow-[0_-24px_60px_rgba(15,23,42,0.2)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button className="mx-auto mb-7 block h-1.5 w-12 rounded-full bg-slate-200" onClick={onClose} aria-label="Close filters" />
+        <div className="mb-7 flex items-center justify-between">
+          <h2 className="text-[24px] font-extrabold text-[#151D2B]">Filters</h2>
+          <button className="rounded-full bg-[#E8F7EE] px-4 py-2 text-[14px] font-bold text-[#009F63]" onClick={onClose}>
+            Apply
+          </button>
+        </div>
 
-            <div className="px-6 pb-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-[20px] font-bold text-[#1F2937]">{t("filters")}</h2>
-                <span className="px-3 py-1 bg-muted text-muted-foreground text-xs font-semibold rounded-full">
-                  {resultCount} {resultCount === 1 ? t("meal") : t("meals")}
-                </span>
-              </div>
+        <FilterGroup title="Sort by">
+          {[
+            ["rating", "Recommended"],
+            ["fastest", "Lightest"],
+            ["popular", "Protein"],
+          ].map(([id, label]) => (
+            <FilterPill key={id} active={activeSort === id} onClick={() => onChangeSort(id as ActiveSort)}>
+              {label}
+            </FilterPill>
+          ))}
+        </FilterGroup>
 
-              <div className="mb-8">
-                <p className="text-[14px] font-semibold text-[#1F2937] mb-3">{t("sort_by")}</p>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("sort_by")}>
-                  {sortOptions.map((option) => (
-                    <motion.button
-                      key={option.id}
-                      onClick={() => {
-                        Haptics.impact({ style: "light" });
-                        onChangeSort(option.id as typeof activeSort);
-                      }}
-                      whileTap={{ scale: 1.02 }}
-                      role="radio"
-                      aria-checked={activeSort === option.id}
-                      className={`filter-chip px-4 py-2 rounded-[20px] text-[14px] font-medium transition-all border-none shadow-sm ${
-                        activeSort === option.id
-                          ? "bg-primary text-white"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                      style={{
-                        boxShadow: activeSort === option.id ? "0 4px 6px rgba(16, 185, 129, 0.3)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
-                      }}
-                    >
-                      <span className="mr-1">{option.icon}</span>
-                      {option.label}
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
+        <FilterGroup title="Calories">
+          {[
+            ["all", "All"],
+            ["under300", "Under 300"],
+            ["300-500", "300-500"],
+            ["500-700", "500-700"],
+          ].map(([id, label]) => (
+            <FilterPill key={id} active={calorieRange === id} onClick={() => onChangeCalorieRange(id as CalorieRange)}>
+              {label}
+            </FilterPill>
+          ))}
+        </FilterGroup>
 
-              <div className="mb-8">
-                <p className="text-[14px] font-semibold text-[#1F2937] mb-3">{t("filter_by_calories")}</p>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("filter_by_calories")}>
-                  {calorieOptions.map((option) => (
-                    <motion.button
-                      key={option.id}
-                      onClick={() => {
-                        Haptics.impact({ style: "light" });
-                        onChangeCalorieRange(option.id as CalorieRange);
-                      }}
-                      whileTap={{ scale: 1.02 }}
-                      role="radio"
-                      aria-checked={calorieRange === option.id}
-                      className={`px-4 py-2 rounded-[20px] text-[14px] font-medium transition-all border-none shadow-sm flex flex-col items-center justify-center gap-1 ${
-                        calorieRange === option.id
-                          ? "bg-warning text-white shadow-[0_4px_6px_rgba(245,158,11,0.3)]"
-                          : "bg-muted text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {option.id === "all" && <span>{option.label}</span>}
-                      {option.id !== "all" && (
-                        <>
-                          <span className="text-[12px] font-medium">
-                            {option.id === "under300" ? t("under") : option.id === "700plus" ? t("above") : ""}
-                          </span>
-                          <span className="text-[16px] font-bold">
-                            {option.id === "under300" 
-                              ? "300" 
-                              : option.id === "700plus" 
-                                ? "700+" 
-                                : option.label}
-                          </span>
-                        </>
-                      )}
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <p className="text-[14px] font-semibold text-[#1F2937] mb-4">{t("favorites_only")}</p>
-                <motion.button
-                  onClick={() => {
-                    Haptics.impact({ style: "medium" });
-                    onToggleFavorites();
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex items-center w-full"
-                  role="switch"
-                  aria-checked={showFavoritesOnly}
-                >
-                  <div
-                    className={`w-[52px] h-[32px] rounded-[16px] relative transition-colors ${
-                      showFavoritesOnly ? "bg-primary" : "bg-muted"
-                    }`}
-                  >
-                    <motion.div
-                      className="absolute top-[4px] left-[4px] w-[24px] h-[24px] bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
-                      animate={{ x: showFavoritesOnly ? 20 : 0 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
-                    />
-                  </div>
-                  <span 
-                    className={`ml-3 text-[14px] transition-colors ${
-                      showFavoritesOnly ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    {showFavoritesOnly ? t("on") : t("off")}
-                  </span>
-                </motion.button>
-              </div>
-
-              <motion.button
-                onClick={onClose}
-                whileTap={{ scale: 0.98 }}
-                className="w-full h-[56px] bg-primary rounded-[14px] text-white font-semibold text-[16px] shadow-[0_4px_6px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                {t("apply_filters")}
-              </motion.button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        <button className="mt-2 flex w-full items-center justify-between rounded-2xl bg-slate-50 px-5 py-4" onClick={onToggleFavorites}>
+          <span className="text-[15px] font-bold text-[#151D2B]">Favorites only</span>
+          <span className={cn("relative h-8 w-14 rounded-full transition", showFavoritesOnly ? "bg-[#009F63]" : "bg-slate-200")}>
+            <span className={cn("absolute top-1 h-6 w-6 rounded-full bg-white shadow transition", showFavoritesOnly ? "left-7" : "left-1")} />
+          </span>
+        </button>
+      </div>
+    </div>
   );
 };
 
+const FilterGroup = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className="mb-7">
+    <p className="mb-3 text-[15px] font-extrabold text-[#151D2B]">{title}</p>
+    <div className="flex flex-wrap gap-2.5">{children}</div>
+  </div>
+);
+
+const FilterPill = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) => (
+  <button
+    className={cn(
+      "rounded-full px-5 py-2.5 text-[14px] font-bold transition",
+      active ? "bg-[#009F63] text-white shadow-[0_10px_20px_rgba(0,159,99,0.22)]" : "bg-slate-100 text-slate-500",
+    )}
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
+
+const SectionHeading = ({
+  icon: Icon,
+  iconClassName,
+  title,
+  subtitle,
+  showViewAll = true,
+}: {
+  icon: LucideIcon;
+  iconClassName: string;
+  title: string;
+  subtitle?: string;
+  showViewAll?: boolean;
+}) => (
+  <div className="mb-4 mt-7 flex items-end justify-between">
+    <div className="flex items-start gap-3">
+      <span className={cn("mt-0.5 flex h-8 w-8 items-center justify-center rounded-full", iconClassName)}>
+        <Icon className="h-5 w-5" strokeWidth={2.5} />
+      </span>
+      <div>
+        <h2 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-[#151D2B]">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-[15px] font-medium leading-tight text-[#748096]">{subtitle}</p>}
+      </div>
+    </div>
+    {showViewAll && (
+      <button className="mb-0.5 flex items-center gap-2 text-[15px] font-extrabold text-[#009F63]">
+        View all
+        <ChevronRight className="h-5 w-5" strokeWidth={3} />
+      </button>
+    )}
+  </div>
+);
+
 const Meals = () => {
-  const { t } = useLanguage();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [meals, setMeals] = useState<MealResult[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const [activeSort, setActiveSort] = useState<"rating" | "fastest" | "popular">("rating");
+  const [activeSort, setActiveSort] = useState<ActiveSort>("rating");
   const [selectedCategory, setSelectedCategory] = useState<MealCategory>("all");
   const [calorieRange, setCalorieRange] = useState<CalorieRange>("all");
-  const { isFavorite, toggleFavorite, favoriteIds } = useFavoriteRestaurants();
+  const [showMealsView, setShowMealsView] = useState(false);
+  const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
   const { user } = useAuth();
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
 
-  const handleToggleFavorite = useCallback((restaurantId: string, restaurantName: string) => {
-    if (!user) {
-      promptLogin({
-        title: t("save_your_favorites"),
-        description: t("save_favorites_desc"),
-        actionLabel: t("sign_in"),
-        signUpLabel: t("create_free_account"),
-      });
-      return;
-    }
-    toggleFavorite(restaurantId, restaurantName);
-  }, [user, toggleFavorite, promptLogin, t]);
+  const handleToggleFavorite = useCallback(
+    (restaurantId: string | undefined, restaurantName: string) => {
+      if (!restaurantId) return;
+
+      Haptics.impact({ style: "medium" });
+      if (!user) {
+        promptLogin({
+          title: "Save your favorites",
+          description: "Sign in to keep your favorite restaurants and meals synced.",
+          actionLabel: "Sign in",
+          signUpLabel: "Create free account",
+        });
+        return;
+      }
+
+      toggleFavorite(restaurantId, restaurantName);
+    },
+    [promptLogin, toggleFavorite, user],
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -545,361 +435,249 @@ const Meals = () => {
 
         if (restaurantsError) throw restaurantsError;
 
-        const typedData = (restaurantsData || []) as Array<{
-          id: string; name: string; description: string | null;
-          logo_url: string | null; rating: number | string;
-          total_orders: number; cuisine_types: string[] | null;
-        }>;
-
-        const restaurantIds = typedData.map((r) => r.id);
+        const restaurantRows = restaurantsData ?? [];
+        const restaurantIds = restaurantRows.map((restaurant) => restaurant.id);
         let mealCounts: Record<string, number> = {};
         let transformedMeals: MealResult[] = [];
 
         if (restaurantIds.length > 0) {
-          const { data: mealsData } = await supabase
+          const { data: mealsData, error: mealsError } = await supabase
             .from("meals")
             .select("id, name, calories, image_url, restaurant_id, is_available, price, protein_g, carbs_g, fat_g, meal_type")
             .in("restaurant_id", restaurantIds);
 
-          const typedMeals = (mealsData || []) as Array<{
-            id: string; name: string; calories: number | null;
-            image_url: string | null; restaurant_id: string | null;
-            is_available: boolean | null; price: number | null;
-            protein_g: number | null; carbs_g: number | null;
-            fat_g: number | null; meal_type: string | null;
-          }>;
+          if (mealsError) throw mealsError;
 
-          mealCounts = typedMeals.reduce((acc: Record<string, number>, m) => {
-            if (m.restaurant_id) acc[m.restaurant_id] = (acc[m.restaurant_id] || 0) + 1;
+          const mealRows = mealsData ?? [];
+          mealCounts = mealRows.reduce<Record<string, number>>((acc, meal) => {
+            if (meal.restaurant_id) acc[meal.restaurant_id] = (acc[meal.restaurant_id] || 0) + 1;
             return acc;
           }, {});
 
-          const byId = new Map(typedData.map((r) => [r.id, r]));
-          transformedMeals = typedMeals.map((m) => {
-            const r = m.restaurant_id ? byId.get(m.restaurant_id) : null;
+          const restaurantsById = new Map(restaurantRows.map((restaurant) => [restaurant.id, restaurant]));
+          transformedMeals = mealRows.map((meal) => {
+            const restaurant = meal.restaurant_id ? restaurantsById.get(meal.restaurant_id) : undefined;
             return {
-              id: m.id,
-              name: m.name,
-              calories: m.calories,
-              image_url: m.image_url,
-              restaurant_id: m.restaurant_id,
-              is_available: m.is_available,
-              restaurant_name: r?.name || "Restaurant",
-              restaurant_logo_url: r?.logo_url || null,
-              restaurant_rating: parseFloat(String(r?.rating || 0)) || 0,
-              restaurant_total_orders: r?.total_orders || 0,
-              price: m.price,
-              protein_g: m.protein_g,
-              carbs_g: m.carbs_g,
-              fat_g: m.fat_g,
-              meal_type: m.meal_type,
+              id: meal.id,
+              name: meal.name,
+              calories: meal.calories,
+              image_url: meal.image_url,
+              restaurant_id: meal.restaurant_id,
+              is_available: meal.is_available,
+              restaurant_name: restaurant?.name || "Restaurant",
+              restaurant_logo_url: restaurant?.logo_url || null,
+              restaurant_rating: Number(restaurant?.rating || 0),
+              restaurant_total_orders: restaurant?.total_orders || 0,
+              price: meal.price,
+              protein_g: meal.protein_g,
+              carbs_g: meal.carbs_g,
+              fat_g: meal.fat_g,
+              meal_type: meal.meal_type,
             };
           });
         }
 
         setRestaurants(
-          typedData.map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            logo_url: r.logo_url,
-            rating: parseFloat(String(r.rating)) || 0,
-            total_orders: r.total_orders || 0,
-            meal_count: mealCounts[r.id] || 0,
-            cuisine_types: r.cuisine_types || [],
-            delivery_time: `${20 + Math.floor(Math.random() * 25)}-${45 + Math.floor(Math.random() * 15)} min`,
-          }))
+          restaurantRows.map((restaurant) => ({
+            id: restaurant.id,
+            name: restaurant.name,
+            description: restaurant.description,
+            logo_url: restaurant.logo_url,
+            rating: Number(restaurant.rating || 0),
+            total_orders: restaurant.total_orders || 0,
+            meal_count: mealCounts[restaurant.id] || 0,
+            cuisine_types: restaurant.cuisine_types || [],
+          })),
         );
         setMeals(transformedMeals);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching meals page data:", error);
       }
     };
+
     fetchData();
   }, []);
 
-  const filteredMeals = useMemo(() => {
-    let result = [...meals];
-    
-    if (showFavoritesOnly) {
-      result = result.filter((m) => m.restaurant_id ? favoriteIds.has(m.restaurant_id) : false);
-    }
-    
-    if (selectedCategory !== "all") {
-      const categoryLower = selectedCategory.toLowerCase();
-      result = result.filter((m) => {
-        if (!m.meal_type) return false;
-        return m.meal_type.toLowerCase() === categoryLower;
+  const hydrateMeal = useCallback(
+    (template: ShowcaseMealTemplate): ShowcaseMeal => {
+      const mealMatch = meals.find((meal) => normalize(meal.name) === normalize(template.name));
+      const restaurantMatch = restaurants.find((restaurant) => normalize(restaurant.name) === normalize(template.restaurant));
+
+      return {
+        ...template,
+        liveMealId: mealMatch?.id,
+        restaurantId: mealMatch?.restaurant_id || restaurantMatch?.id,
+      };
+    },
+    [meals, restaurants],
+  );
+
+  const hydrateRestaurant = useCallback(
+    (template: RestaurantTemplate): ShowcaseRestaurant => {
+      const restaurantMatch = restaurants.find((restaurant) => normalize(restaurant.name) === normalize(template.name));
+
+      return {
+        ...template,
+        description: truncateDescription(restaurantMatch?.description, template.description),
+        meals: restaurantMatch?.meal_count || template.meals,
+        liveRestaurantId: restaurantMatch?.id,
+      };
+    },
+    [restaurants],
+  );
+
+  const search = searchQuery.trim().toLowerCase();
+
+  const filterMeals = useCallback(
+    (items: ShowcaseMealTemplate[]) => {
+      const hydrated = items.map(hydrateMeal).filter((item) => {
+        const matchesSearch = !search || `${item.name} ${item.restaurant} ${item.note}`.toLowerCase().includes(search);
+        const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+        const matchesCalories = inCalorieRange(item.calories, calorieRange);
+        const matchesFavorite = !showFavoritesOnly || Boolean(item.restaurantId && isFavorite(item.restaurantId));
+        return matchesSearch && matchesCategory && matchesCalories && matchesFavorite;
       });
-    }
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((m) => 
-        m.name.toLowerCase().includes(q) || 
-        m.restaurant_name.toLowerCase().includes(q)
-      );
-    }
-    
-    if (calorieRange !== "all") {
-      result = result.filter((m) => {
-        const cal = m.calories ?? 0;
-        if (calorieRange === "under300") return cal < 300;
-        if (calorieRange === "300-500") return cal >= 300 && cal <= 500;
-        if (calorieRange === "500-700") return cal > 500 && cal <= 700;
-        if (calorieRange === "700plus") return cal > 700;
-        return true;
-      });
-    }
-    
-    switch (activeSort) {
-      case "rating":
-        result.sort((a, b) => b.restaurant_rating - a.restaurant_rating);
-        break;
-      case "popular":
-        result.sort((a, b) => b.restaurant_total_orders - a.restaurant_total_orders);
-        break;
-      case "fastest":
-        result.sort((a, b) => (a.calories ?? 0) - (b.calories ?? 0));
-        break;
-    }
-    
-    return result;
-  }, [meals, showFavoritesOnly, favoriteIds, selectedCategory, searchQuery, calorieRange, activeSort]);
 
-  const filteredRestaurants = useMemo(() => {
-    let result = [...restaurants];
-    
-    if (showFavoritesOnly) {
-      result = result.filter((r) => favoriteIds.has(r.id));
-    }
-    
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((r) => 
-        r.name.toLowerCase().includes(q) || 
-        r.description?.toLowerCase().includes(q) || 
-        r.cuisine_types?.some((c) => c.toLowerCase().includes(q))
-      );
-    }
-    
-    switch (activeSort) {
-      case "rating":
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-      case "fastest":
-        result.sort((a, b) => parseInt(a.delivery_time || "30") - parseInt(b.delivery_time || "30"));
-        break;
-      case "popular":
-        result.sort((a, b) => b.total_orders - a.total_orders);
-        break;
-    }
-    
-    return result;
-  }, [restaurants, searchQuery, showFavoritesOnly, favoriteIds, activeSort]);
+      return sortMeals(hydrated, activeSort);
+    },
+    [activeSort, calorieRange, hydrateMeal, isFavorite, search, selectedCategory, showFavoritesOnly],
+  );
 
-  const clearFilters = useCallback(() => {
-    setSearchQuery("");
-    setShowFavoritesOnly(false);
-    setSelectedCategory("all");
-    setActiveSort("rating");
-    setCalorieRange("all");
-  }, []);
+  const visibleTopPicks = useMemo(() => filterMeals(topPicks), [filterMeals]);
+  const visibleQuickLight = useMemo(() => filterMeals(quickLight), [filterMeals]);
+  const visibleHighProtein = useMemo(() => filterMeals(highProtein), [filterMeals]);
+  const visibleRestaurants = useMemo(
+    () =>
+      restaurantTemplates.map(hydrateRestaurant).filter((restaurant) => {
+        const matchesSearch = !search || `${restaurant.name} ${restaurant.description}`.toLowerCase().includes(search);
+        const matchesFavorite = !showFavoritesOnly || Boolean(restaurant.liveRestaurantId && isFavorite(restaurant.liveRestaurantId));
+        return matchesSearch && matchesFavorite;
+      }),
+    [hydrateRestaurant, isFavorite, search, showFavoritesOnly],
+  );
 
-  const hasActiveFilters = !!(searchQuery || showFavoritesOnly || selectedCategory !== "all" || activeSort !== "rating" || calorieRange !== "all");
-  const displayedCount = filteredMeals.length + filteredRestaurants.length;
+  const allVisibleMeals = [...visibleTopPicks, ...visibleQuickLight, ...visibleHighProtein];
+  const hasResults = allVisibleMeals.length > 0 || visibleRestaurants.length > 0;
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E1F2ED]/50 pt-safe">
-        <div className="max-w-[480px] md:max-w-lg mx-auto px-4 py-3">
-          {/* Back button */}
-          <div className="flex items-center gap-3 mb-3">
-            <Link to="/dashboard">
-              <motion.div
-                whileTap={{ scale: 0.88 }}
-                className="w-9 h-9 rounded-full bg-muted hover:bg-muted-foreground flex items-center justify-center transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-700" />
-              </motion.div>
+    <div
+      className="min-h-screen bg-[#FBFCFC] pb-[164px] text-[#151D2B]"
+      style={{ background: "radial-gradient(circle at 14% 0%, rgba(0,159,99,0.08), transparent 31%), #FBFCFC" }}
+    >
+      <div className="mx-auto w-full max-w-[1008px] px-5 pt-8 sm:px-8 md:px-12">
+        <header className="flex items-start justify-between">
+          <div className="flex items-start gap-7">
+            <Link
+              to="/dashboard"
+              className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full bg-white text-[#151D2B] shadow-[0_12px_28px_rgba(15,23,42,0.09)] ring-1 ring-slate-100"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="h-[25px] w-[25px]" strokeWidth={2.5} />
             </Link>
-            <h1 className="font-bold text-lg text-[#0F172A]">{t("meals")}</h1>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder={t("search_meals_placeholder") || "Search meals, cuisines..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-11 pr-12 h-11 rounded-2xl bg-white border border-[#E1F2ED]/50 text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/30"
-            />
-            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              <AnimatePresence>
-                {searchQuery && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0 }}
-                    onClick={() => setSearchQuery("")}
-                    className="w-7 h-7 rounded-full bg-muted hover:bg-muted flex items-center justify-center"
-                  >
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => { Haptics.impact({ style: "light" }); setFilterSheetOpen(true); }}
-                className="w-9 h-9 rounded-xl bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors"
-              >
-                <SlidersHorizontal className="w-4 h-4 text-primary" />
-              </motion.button>
+            <div className="pt-1">
+              <h1 className="text-[34px] font-extrabold leading-none tracking-[-0.04em]">Meals</h1>
+              <p className="mt-3 text-[17px] font-medium leading-none text-[#748096]">Discover healthy meals and great restaurants</p>
             </div>
           </div>
+        </header>
+
+        <div className="relative mt-8">
+          <Search className="pointer-events-none absolute left-7 top-1/2 h-[28px] w-[28px] -translate-y-1/2 text-[#5E6A80]" strokeWidth={2.4} />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search meals, restaurants..."
+            className="h-[70px] w-full rounded-full border border-[#DCE3EA] bg-white pl-[76px] pr-[86px] text-[18px] font-semibold text-[#151D2B] shadow-[0_16px_40px_rgba(15,23,42,0.06)] outline-none placeholder:text-[#7C879A]"
+          />
+          <button
+            className="absolute right-2 top-1/2 flex h-[58px] w-[58px] -translate-y-1/2 items-center justify-center rounded-full bg-[#DDF8E5] text-[#009F63]"
+            onClick={() => setFilterSheetOpen(true)}
+            aria-label="Open filters"
+          >
+            <SlidersHorizontal className="h-[24px] w-[24px]" strokeWidth={2.7} />
+          </button>
         </div>
 
-        {/* Category Chips - iOS Native Style */}
-        <div className="max-w-[480px] md:max-w-lg mx-auto -mx-4 px-4">
-          <div className="flex gap-1.5 overflow-x-auto pb-3 scrollbar-hide">
-            {(Object.keys(categoryConfig) as MealCategory[]).map((cat) => {
-              const isActive = selectedCategory === cat;
-              const config = categoryConfig[cat];
-              const Icon = config.icon;
-              return (
-                <motion.button
-                  key={cat}
-                  onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat); }}
-                  whileTap={{ scale: 0.95 }}
-                  whileHover={{ scale: 1.02 }}
-                  className={`
-                    relative flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full
-                    text-sm font-medium whitespace-nowrap transition-all duration-200
-                    focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50
-                    ${isActive
-                      ? "text-white shadow-md"
-                      : "bg-white/80 backdrop-blur text-[#475569] border border-gray-200/60 hover:border-gray-300"
-                    }
-                  `}
-                >
-                  {isActive && (
-                    <motion.div
-                      className={`absolute inset-0 rounded-full bg-gradient-to-br ${config.gradient} shadow-sm`}
-                      layoutId="activeCategory"
-                      transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
-                    />
-                  )}
-                  <Icon className={`w-4 h-4 relative z-10 ${isActive ? "text-white" : ""}`} />
-                  <span className="relative z-10">{t(config.labelKey)}</span>
-                </motion.button>
-              );
-            })}
-          </div>
+        <div className="mt-8 flex gap-5 overflow-x-auto pb-2 scrollbar-hide">
+          {categoryTabs.map((category) => {
+            const Icon = category.icon;
+            const active = selectedCategory === category.id;
+            return (
+              <button
+                key={category.id}
+                onClick={() => {
+                  Haptics.impact({ style: "light" });
+                  setSelectedCategory(category.id);
+                }}
+                className={cn(
+                  "flex h-[58px] shrink-0 items-center gap-3 rounded-full px-7 text-[16px] font-extrabold shadow-[0_10px_24px_rgba(15,23,42,0.07)] transition",
+                  active ? "bg-[#009F63] text-white" : "bg-white text-[#151D2B] ring-1 ring-slate-100",
+                )}
+              >
+                <Icon className={cn("h-[24px] w-[24px]", active ? "text-white" : "text-[#5E6A80]")} strokeWidth={2.25} />
+                {category.label}
+              </button>
+            );
+          })}
         </div>
-      </header>
 
-      <main className="max-w-[480px] md:max-w-lg mx-auto px-4 pt-4 pb-28">
-        {/* Section Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-bold text-sm text-[#0F172A] tracking-tight">
-              {showFavoritesOnly ? t("your_favorites") : t("all_meals")}
-            </h2>
-            <p className="text-xs text-[#64748B]">
-              {displayedCount} {t("meals")}
-            </p>
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
-            >
-              <X className="w-3 h-3" />
-              {t("clear_all_filters")}
-            </button>
+        <main>
+          <SectionHeading icon={Star} iconClassName="bg-transparent text-[#009F63]" title="Recommended for you" showViewAll={false} />
+          <button className="flex h-[82px] w-full items-center justify-between rounded-[29px] border border-[#F5DCAE] bg-[#FFF9ED] px-5 shadow-[inset_0_0_38px_rgba(255,202,90,0.13)]">
+            <div className="flex items-center gap-5">
+              <span className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-[#FFE497] text-[#C47A00]">
+                <Sparkles className="h-7 w-7" strokeWidth={2.4} />
+              </span>
+              <span className="text-left">
+                <span className="block text-[17px] font-extrabold leading-tight text-[#151D2B]">Suggested for you</span>
+                <span className="mt-1 block text-[15px] font-medium leading-tight text-[#515A6C]">Based on your past orders</span>
+              </span>
+            </div>
+            <ChevronRight className="h-7 w-7 text-[#151D2B]" strokeWidth={3} />
+          </button>
+
+          {hasResults ? (
+            <>
+              {visibleTopPicks.length > 0 && (
+                <MealSection icon={Flame} iconClassName="bg-transparent text-[#FF6B2B]" title="Top Picks" meals={visibleTopPicks} onToggleFavorite={handleToggleFavorite} isFavorite={isFavorite} />
+              )}
+
+              {visibleQuickLight.length > 0 && (
+                <MealSection icon={Clock3} iconClassName="bg-[#FFE7DC] text-[#FF5D2A]" subtitle="Light meals, big satisfaction" title="Quick & Light" meals={visibleQuickLight} onToggleFavorite={handleToggleFavorite} isFavorite={isFavorite} />
+              )}
+
+              {visibleHighProtein.length > 0 && (
+                <MealSection icon={Dumbbell} iconClassName="bg-[#DDF8E5] text-[#009F63]" subtitle="Fuel your body, reach your goals" title="High Protein Goals" meals={visibleHighProtein} onToggleFavorite={handleToggleFavorite} isFavorite={isFavorite} />
+              )}
+
+              <RestaurantSection
+                restaurants={visibleRestaurants}
+                showMealsView={showMealsView}
+                onChangeView={setShowMealsView}
+                isFavorite={isFavorite}
+                onToggleFavorite={handleToggleFavorite}
+                meals={allVisibleMeals}
+              />
+            </>
+          ) : (
+            <div className="mt-10 rounded-[28px] bg-white px-8 py-14 text-center shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+              <Utensils className="mx-auto mb-4 h-12 w-12 text-[#009F63]" />
+              <h2 className="text-[22px] font-extrabold text-[#151D2B]">No matches found</h2>
+              <p className="mx-auto mt-2 max-w-[360px] text-[15px] font-medium text-[#748096]">Try a different search or clear filters to see all meals and restaurants.</p>
+            </div>
           )}
-        </div>
-
-        {/* Results Grid */}
-        {loading ? (
-          <GridSkeleton />
-        ) : displayedCount === 0 ? (
-          <motion.div
-            className="py-16 text-center bg-white rounded-2xl border border-[#E1F2ED]/50"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <motion.div
-              className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4"
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <span className="text-4xl">🍽️</span>
-            </motion.div>
-            <h3 className="font-bold text-lg text-[#0F172A] mb-1">
-              {showFavoritesOnly ? t("no_favorites_yet") : t("no_meals_found")}
-            </h3>
-            <p className="text-sm text-[#64748B] mb-5 px-8">
-              {showFavoritesOnly ? t("favorites_empty_hint") : t("try_adjust_search")}
-            </p>
-            {hasActiveFilters && (
-              <Button onClick={clearFilters} variant="outline" className="rounded-full px-6">
-                {t("clear_all_filters")}
-              </Button>
-            )}
-          </motion.div>
-        ) : selectedCategory !== "all" || calorieRange !== "all" ? (
-          <motion.div
-            className="grid grid-cols-2 gap-3"
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-          >
-            {filteredMeals.map((meal, i) => (
-              <MealCard
-                key={meal.id}
-                meal={meal}
-                isFavoriteRestaurant={meal.restaurant_id ? isFavorite(meal.restaurant_id) : false}
-                onToggleFavorite={handleToggleFavorite}
-                index={i}
-              />
-            ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            className="grid grid-cols-2 gap-3"
-            variants={staggerContainer}
-            initial="hidden"
-            animate="visible"
-          >
-            {filteredRestaurants.map((r, i) => (
-              <RestaurantCard
-                key={r.id}
-                restaurant={r}
-                isFavorite={isFavorite(r.id)}
-                onToggleFavorite={handleToggleFavorite}
-                index={i}
-              />
-            ))}
-          </motion.div>
-        )}
-      </main>
+        </main>
+      </div>
 
       <FilterSheet
         isOpen={filterSheetOpen}
         onClose={() => setFilterSheetOpen(false)}
         showFavoritesOnly={showFavoritesOnly}
-        onToggleFavorites={() => setShowFavoritesOnly(!showFavoritesOnly)}
-        resultCount={displayedCount}
+        onToggleFavorites={() => setShowFavoritesOnly((value) => !value)}
         activeSort={activeSort}
         onChangeSort={setActiveSort}
         calorieRange={calorieRange}
         onChangeCalorieRange={setCalorieRange}
-        t={t}
       />
 
       <GuestLoginPrompt
@@ -912,6 +690,182 @@ const Meals = () => {
       />
     </div>
   );
+};
+
+const MealSection = ({
+  icon,
+  iconClassName,
+  title,
+  subtitle,
+  meals,
+  onToggleFavorite,
+  isFavorite,
+}: {
+  icon: LucideIcon;
+  iconClassName: string;
+  title: string;
+  subtitle?: string;
+  meals: ShowcaseMeal[];
+  onToggleFavorite: (restaurantId: string | undefined, restaurantName: string) => void;
+  isFavorite: (restaurantId: string) => boolean;
+}) => (
+  <section>
+    <SectionHeading icon={icon} iconClassName={iconClassName} title={title} subtitle={subtitle} />
+    <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
+      {meals.map((meal) => (
+        <MealCard key={`${title}-${meal.name}`} meal={meal} onToggleFavorite={onToggleFavorite} isFavorite={isFavorite} />
+      ))}
+    </div>
+  </section>
+);
+
+const MealCard = ({
+  meal,
+  onToggleFavorite,
+  isFavorite,
+}: {
+  meal: ShowcaseMeal;
+  onToggleFavorite: (restaurantId: string | undefined, restaurantName: string) => void;
+  isFavorite: (restaurantId: string) => boolean;
+}) => {
+  const favorite = meal.restaurantId ? isFavorite(meal.restaurantId) : false;
+  const card = (
+    <div className="overflow-hidden rounded-[16px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.09)] ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.12)]">
+      <div className="relative h-[154px] overflow-hidden bg-slate-100">
+        <img src={meal.image} alt={meal.name} className="h-full w-full object-cover" loading="lazy" />
+        <button
+          className="absolute right-3 top-3 flex h-[45px] w-[45px] items-center justify-center rounded-full bg-slate-950/38 text-white backdrop-blur-sm transition hover:bg-slate-950/48"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavorite(meal.restaurantId, meal.restaurant);
+          }}
+          aria-label={`Favorite ${meal.name}`}
+        >
+          <Heart className={cn("h-7 w-7", favorite && "fill-white")} strokeWidth={2.6} />
+        </button>
+
+        {meal.badge && <span className="absolute left-4 top-4 rounded-full bg-[#FF7A1A] px-3.5 py-1.5 text-[14px] font-extrabold leading-none text-white">{meal.badge}</span>}
+        {meal.proteinBadge && <span className="absolute right-[54px] top-3 rounded-full bg-[#009F63] px-3.5 py-1.5 text-[13px] font-extrabold leading-none text-white shadow-[0_8px_16px_rgba(0,159,99,0.25)]">{meal.proteinBadge}</span>}
+      </div>
+
+      <div className="px-4 pb-4 pt-3.5">
+        <h3 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.02em] text-[#151D2B]">{meal.name}</h3>
+        <p className="mt-1 truncate text-[15px] font-semibold leading-tight text-[#748096]">{meal.restaurant}</p>
+        <div className="mt-3 flex items-center justify-between">
+          <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-[#E2F8EA] px-2.5 text-[14px] font-extrabold text-[#009F63]">
+            <Flame className="h-4 w-4" strokeWidth={2.4} />
+            {meal.calories}
+          </span>
+          <span className="text-[15px] font-extrabold text-[#009F63]">P {meal.protein}g</span>
+        </div>
+        <p className="mt-3 flex items-center gap-2 truncate text-[14px] font-semibold text-[#748096]">
+          <span className="text-[#F5B52E]">✹</span>
+          {meal.note}
+        </p>
+      </div>
+    </div>
+  );
+
+  if (meal.liveMealId) return <Link to={`/meals/${meal.liveMealId}`}>{card}</Link>;
+  return card;
+};
+
+const RestaurantSection = ({
+  restaurants,
+  showMealsView,
+  onChangeView,
+  isFavorite,
+  onToggleFavorite,
+  meals,
+}: {
+  restaurants: ShowcaseRestaurant[];
+  showMealsView: boolean;
+  onChangeView: (value: boolean) => void;
+  isFavorite: (restaurantId: string) => boolean;
+  onToggleFavorite: (restaurantId: string | undefined, restaurantName: string) => void;
+  meals: ShowcaseMeal[];
+}) => (
+  <section className="mt-8">
+    <div className="mb-5 flex items-center justify-between">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-[#009F63]">
+          <Store className="h-6 w-6" strokeWidth={2.4} />
+        </span>
+        <div>
+          <h2 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-[#151D2B]">Restaurants</h2>
+          <p className="mt-0.5 text-[15px] font-medium leading-tight text-[#748096]">42 Restaurants</p>
+        </div>
+      </div>
+
+      <div className="flex h-[52px] w-[226px] items-center rounded-full bg-[#F1F3F5] p-1.5 text-[15px] font-extrabold text-[#8A95A6]">
+        <button
+          className={cn("h-full flex-1 rounded-full transition", !showMealsView && "bg-[#DDF8E5] text-[#009F63] shadow-[0_8px_16px_rgba(15,23,42,0.04)]")}
+          onClick={() => onChangeView(false)}
+        >
+          Restaurants
+        </button>
+        <button
+          className={cn("h-full flex-1 rounded-full transition", showMealsView && "bg-[#DDF8E5] text-[#009F63] shadow-[0_8px_16px_rgba(15,23,42,0.04)]")}
+          onClick={() => onChangeView(true)}
+        >
+          Meals
+        </button>
+      </div>
+    </div>
+
+    {showMealsView ? (
+      <div className="grid grid-cols-2 gap-5 md:grid-cols-3">
+        {meals.map((meal) => (
+          <MealCard key={`restaurant-meal-${meal.name}`} meal={meal} onToggleFavorite={onToggleFavorite} isFavorite={isFavorite} />
+        ))}
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+        {restaurants.map((restaurant) => (
+          <RestaurantCard key={restaurant.name} restaurant={restaurant} isFavorite={isFavorite} onToggleFavorite={onToggleFavorite} />
+        ))}
+      </div>
+    )}
+  </section>
+);
+
+const RestaurantCard = ({
+  restaurant,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  restaurant: ShowcaseRestaurant;
+  isFavorite: (restaurantId: string) => boolean;
+  onToggleFavorite: (restaurantId: string | undefined, restaurantName: string) => void;
+}) => {
+  const favorite = restaurant.liveRestaurantId ? isFavorite(restaurant.liveRestaurantId) : false;
+  const card = (
+    <div className="overflow-hidden rounded-[16px] bg-white shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]">
+      <div className="relative h-[126px] overflow-hidden bg-slate-100">
+        <img src={restaurant.image} alt={restaurant.name} className="h-full w-full object-cover" loading="lazy" />
+        <button
+          className="absolute right-3 top-3 flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white text-[#151D2B] shadow-[0_8px_18px_rgba(15,23,42,0.12)] transition hover:scale-105"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavorite(restaurant.liveRestaurantId, restaurant.name);
+          }}
+          aria-label={`Favorite ${restaurant.name}`}
+        >
+          <Heart className={cn("h-6 w-6", favorite && "fill-[#009F63] text-[#009F63]")} strokeWidth={2.4} />
+        </button>
+      </div>
+      <div className="px-3.5 pb-4 pt-3">
+        <h3 className="truncate text-[16px] font-extrabold leading-tight tracking-[-0.02em] text-[#151D2B]">{restaurant.name}</h3>
+        <p className="mt-1 truncate text-[14px] font-semibold leading-tight text-[#748096]">{restaurant.description}</p>
+        <p className="mt-2 text-[14px] font-bold leading-tight text-[#748096]">{restaurant.meals} Meals</p>
+      </div>
+    </div>
+  );
+
+  if (restaurant.liveRestaurantId) return <Link to={`/restaurant/${restaurant.liveRestaurantId}`}>{card}</Link>;
+  return card;
 };
 
 export default Meals;

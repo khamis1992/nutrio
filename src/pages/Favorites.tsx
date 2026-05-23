@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft,
@@ -17,7 +16,11 @@ import {
   Trash2,
   RotateCcw,
   TrendingUp,
-  Calendar
+  Calendar,
+  ShoppingBag,
+  ClipboardList,
+  ForkKnife,
+  ChefHat
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,7 +72,6 @@ const Favorites = () => {
     setLoading(true);
     
     try {
-      // Fetch favorite restaurant IDs
       const { data: favData, error: favError } = await supabase
         .from("user_favorite_restaurants")
         .select("restaurant_id")
@@ -80,7 +82,6 @@ const Favorites = () => {
       const restaurantIds = (favData || []).map((f: { restaurant_id: string }) => f.restaurant_id);
       
       if (restaurantIds.length > 0) {
-        // Fetch restaurant details separately
         const { data: restaurantsData, error: restaurantsError } = await supabase
           .from("restaurants")
           .select("id, name, description, logo_url, rating, total_orders")
@@ -88,7 +89,6 @@ const Favorites = () => {
 
         if (restaurantsError) throw restaurantsError;
 
-        // Get meal counts for each restaurant
         const { data: mealsCountData } = await supabase
           .from("meals")
           .select("restaurant_id")
@@ -105,7 +105,7 @@ const Favorites = () => {
             name: r.name,
             description: r.description,
             logo_url: r.logo_url,
-            rating: parseFloat(r.rating) || 0,
+            rating: parseFloat(String(r.rating)) || 0,
             total_orders: r.total_orders || 0,
             meal_count: mealCounts[r.id] || 0,
           }));
@@ -150,43 +150,53 @@ const Favorites = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-[#F8F9FA] pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-safe">
-        <div className="flex items-center justify-between p-4 rtl:flex-row-reverse">
-          <Button 
-            variant="ghost" 
-            size="icon"
+      <div className="bg-white px-4 pt-safe pb-4">
+        <div className="flex items-center gap-3">
+          <button
             onClick={() => navigate("/dashboard")}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">{t("my_favorites")}</h1>
-          <div className="w-10" />
+            <ArrowLeft className="h-5 w-5 text-gray-700" />
+          </button>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100">
+            <Heart className="h-5 w-5 text-emerald-600 fill-emerald-600" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-gray-900">My Favorites</h1>
+            <p className="text-sm text-gray-500">All your saved favorites</p>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="px-4 pt-4">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full mb-4">
-            <TabsTrigger value="restaurants" className="flex-1">
+          <TabsList className="w-full h-auto p-1 bg-gray-100 rounded-2xl mb-4">
+            <TabsTrigger 
+              value="restaurants" 
+              className="flex-1 rounded-xl py-2.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm text-gray-500 transition-all"
+            >
               <Utensils className="w-4 h-4 mr-2" />
-              {t("favorites_restaurants_tab")} ({restaurants.length})
+              Restaurants ({restaurants.length})
             </TabsTrigger>
-            <TabsTrigger value="meals" className="flex-1">
+            <TabsTrigger 
+              value="meals" 
+              className="flex-1 rounded-xl py-2.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm text-gray-500 transition-all"
+            >
               <TrendingUp className="w-4 h-4 mr-2" />
-              {t("favorites_meals_tab")} ({topMeals.length})
+              Top Meals ({topMeals.length})
             </TabsTrigger>
           </TabsList>
 
           {loading || topMealsLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
             </div>
           ) : (
             <>
-              <TabsContent value="restaurants" className="space-y-4">
+              <TabsContent value="restaurants" className="space-y-4 mt-0">
                 {restaurants.length === 0 ? (
                   <EmptyState
                     icon={<Heart className="w-8 h-8" />}
@@ -197,11 +207,11 @@ const Favorites = () => {
                   />
                 ) : (
                   restaurants.map((restaurant) => (
-                    <Card key={restaurant.id} className="overflow-hidden">
-                      <CardContent className="p-3 sm:p-4">
-                        <div className="flex gap-3 sm:gap-4">
+                    <Card key={restaurant.id} className="overflow-hidden rounded-2xl border-0 shadow-sm bg-white">
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
                           <Link to={`/restaurant/${restaurant.id}`} className="shrink-0">
-                            <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
+                            <div className="w-[72px] h-[72px] rounded-xl bg-violet-100 flex items-center justify-center overflow-hidden">
                               {restaurant.logo_url ? (
                                 <img
                                   src={restaurant.logo_url}
@@ -209,38 +219,69 @@ const Favorites = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                "🍽️"
+                                <div className="flex items-center justify-center">
+                                  <ChefHat className="w-8 h-8 text-violet-300" />
+                                </div>
                               )}
                             </div>
                           </Link>
                           <div className="flex-1 min-w-0">
-                            <Link to={`/restaurant/${restaurant.id}`}>
-                              <h3 className="font-semibold truncate hover:text-primary transition-colors">
-                                {restaurant.name}
-                              </h3>
-                            </Link>
+                            <div className="flex items-start justify-between gap-2">
+                              <Link to={`/restaurant/${restaurant.id}`} className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 truncate hover:text-emerald-600 transition-colors">
+                                  {restaurant.name}
+                                </h3>
+                              </Link>
+                              <button
+                                className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 transition-colors shrink-0"
+                                onClick={() => handleRemoveFavorite(restaurant.id, restaurant.name)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </button>
+                            </div>
                             {restaurant.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                              <p className="text-sm text-gray-500 line-clamp-2 mt-1 leading-relaxed">
                                 {restaurant.description}
                               </p>
                             )}
-                            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Star className="w-4 h-4 fill-warning text-warning" />
-                                {restaurant.rating.toFixed(1)}
-                              </span>
-                              <span>{restaurant.meal_count} {t("meals")}</span>
-                              <span>{restaurant.total_orders} {t("orders_count_label")}</span>
+                            
+                            {/* Stats Row */}
+                            <div className="flex items-center gap-3 mt-3">
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50">
+                                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                                </div>
+                                <div className="flex flex-col leading-none">
+                                  <span className="text-sm font-semibold text-gray-900">{restaurant.rating.toFixed(1)}</span>
+                                  <span className="text-xs text-gray-500">Rating</span>
+                                </div>
+                              </div>
+                              
+                              <div className="w-px h-8 bg-gray-200" />
+                              
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50">
+                                  <ShoppingBag className="w-4 h-4 text-emerald-500" />
+                                </div>
+                                <div className="flex flex-col leading-none">
+                                  <span className="text-sm font-semibold text-gray-900">{restaurant.meal_count}</span>
+                                  <span className="text-xs text-gray-500">Meals</span>
+                                </div>
+                              </div>
+                              
+                              <div className="w-px h-8 bg-gray-200" />
+                              
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50">
+                                  <ClipboardList className="w-4 h-4 text-blue-500" />
+                                </div>
+                                <div className="flex flex-col leading-none">
+                                  <span className="text-sm font-semibold text-gray-900">{restaurant.total_orders}</span>
+                                  <span className="text-xs text-gray-500">Orders</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0 text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveFavorite(restaurant.id, restaurant.name)}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -248,28 +289,26 @@ const Favorites = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="meals" className="space-y-4">
+              <TabsContent value="meals" className="space-y-4 mt-0">
                 {/* Info Card */}
-                <Card className="bg-primary/5 border-primary/20">
+                <Card className="bg-emerald-50/50 border-emerald-100 rounded-2xl border-0">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <TrendingUp className="w-5 h-5 text-primary mt-0.5" />
+                      <TrendingUp className="w-5 h-5 text-emerald-600 mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="font-medium text-sm">{t("how_top_meals_work")}</h3>
-                        <ul className="text-xs text-muted-foreground mt-1 space-y-1">
+                        <h3 className="font-medium text-sm text-gray-900">{t("how_top_meals_work")}</h3>
+                        <ul className="text-xs text-gray-500 mt-1 space-y-1">
                           <li>• {t("top_meals_rule_1")}</li>
                           <li>• {t("top_meals_rule_2")}</li>
                           <li>• {t("top_meals_rule_3")}</li>
                         </ul>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="shrink-0"
+                      <button 
+                        className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-emerald-100 transition-colors shrink-0"
                         onClick={handleRefreshTopMeals}
                       >
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
+                        <RotateCcw className="h-4 w-4 text-gray-500" />
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
@@ -284,11 +323,11 @@ const Favorites = () => {
                   />
                 ) : (
                   topMeals.map((meal) => (
-                    <Card key={meal.id} className="overflow-hidden">
+                    <Card key={meal.id} className="overflow-hidden rounded-2xl border-0 shadow-sm bg-white">
                       <CardContent className="p-4">
                         <div className="flex gap-4">
                           <Link to={`/meals/${meal.meal_id}`} className="shrink-0">
-                            <div className="w-20 h-20 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
+                            <div className="w-[72px] h-[72px] rounded-xl bg-violet-100 flex items-center justify-center overflow-hidden">
                               {meal.image_url ? (
                                 <img 
                                   src={meal.image_url} 
@@ -296,59 +335,55 @@ const Favorites = () => {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                "🍽️"
+                                <div className="flex items-center justify-center">
+                                  <ChefHat className="w-8 h-8 text-violet-300" />
+                                </div>
                               )}
                             </div>
                           </Link>
                           <div className="flex-1 min-w-0">
-                            <Link to={`/meals/${meal.meal_id}`}>
-                              <h3 className="font-semibold truncate hover:text-primary transition-colors">
-                                {meal.name}
-                              </h3>
-                            </Link>
-                            <p className="text-xs text-muted-foreground">{meal.restaurant_name}</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <Link to={`/meals/${meal.meal_id}`} className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 truncate hover:text-emerald-600 transition-colors">
+                                  {meal.name}
+                                </h3>
+                              </Link>
+                              <button
+                                className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 transition-colors shrink-0"
+                                onClick={() => handleRemoveTopMeal(meal.id, meal.name)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-500">{meal.restaurant_name}</p>
                             
-                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                            <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
                               <span className="flex items-center gap-1">
-                                <Flame className="w-3 h-3" />
+                                <Flame className="w-3 h-3 text-orange-500" />
                                 {meal.calories} {t("cal")}
                               </span>
                               <span className="flex items-center gap-1">
-                                <Beef className="w-3 h-3" />
+                                <Beef className="w-3 h-3 text-rose-500" />
                                 {meal.protein_g}g {t("protein")}
                               </span>
                               <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
+                                <Clock className="w-3 h-3 text-blue-500" />
                                 {meal.prep_time_minutes} {t("min_label")}
                               </span>
                             </div>
 
-                            {/* Order Count & Last Ordered */}
                             <div className="flex items-center gap-3 mt-2">
-                              <Badge 
-                                variant={meal.order_count >= 5 ? "default" : "secondary"}
-                                className="text-xs"
-                              >
-                                <TrendingUp className="w-3 h-3 mr-1" />
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">
+                                <TrendingUp className="w-3 h-3" />
                                 {meal.order_count} {t("orders_count_label")}
-                              </Badge>
+                              </span>
                               {meal.last_ordered_at && (
-                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <span className="text-xs text-gray-500 flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
                                   {t("last_ordered")} {formatDistanceToNow(new Date(meal.last_ordered_at), { addSuffix: true })}
                                 </span>
                               )}
                             </div>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="shrink-0 text-destructive hover:text-destructive"
-                              onClick={() => handleRemoveTopMeal(meal.id, meal.name)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </div>
                         </div>
                       </CardContent>
@@ -359,7 +394,8 @@ const Favorites = () => {
             </>
           )}
         </Tabs>
-      </div>    </div>
+      </div>
+    </div>
   );
 };
 
