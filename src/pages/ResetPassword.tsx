@@ -98,7 +98,7 @@ const ResetPassword = () => {
         <p className="text-sm text-gray-400 text-center leading-relaxed mb-8">
           This password reset link is invalid or has expired. Please request a new one.
         </p>
-        <Button asChild variant="gradient" className="w-full rounded-2xl font-bold" style={{ height: 56, fontSize: 16 }}>
+        <Button asChild   variant="gradient" size="xl" className="w-full rounded-2xl font-bold">
           <Link to="/auth">Back to Sign In</Link>
         </Button>
       </div>
