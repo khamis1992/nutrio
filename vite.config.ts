@@ -10,10 +10,9 @@ export default defineConfig(({ mode }) => ({
   // Use relative paths only for Capacitor mobile builds
   base: '/nutrio/',
   server: {
-    host: "::",
+    host: true,
     port: 5173,
     allowedHosts: true,
-    origin: "http://178.18.243.68",
     // Allow access from local network for mobile testing
     strictPort: true,
     // Improve HMR reliability
@@ -22,13 +21,11 @@ export default defineConfig(({ mode }) => ({
       timeout: 5000,
     },
     watch: {
-      // Watch for changes in the src directory
-      ignored: ['!**/node_modules/**', '!**/dist/**'],
+      // Ignore node_modules and dist to reduce load
+      ignored: ['**/node_modules/**', '**/dist/**'],
     },
   },
   plugins: [
-    // Custom middleware: redirect /nutrio → /nutrio/ and /favicon.ico → /nutrio/favicon.svg
-    // to prevent Vite's "did you mean" hint page and browser favicon 404
     {
       name: 'nutrio-middleware',
       configureServer(server) {
@@ -48,9 +45,8 @@ export default defineConfig(({ mode }) => ({
       },
     },
     react({
-      // Improve HMR to prevent hook errors
       devTarget: 'es2020',
-    }), 
+    }),
     mode === "development" && componentTagger(),
     // Sentry plugin for source maps (only in production AND only when auth token is available)
     // Without this guard, the build fails silently when SENTRY_AUTH_TOKEN is not set
@@ -95,6 +91,8 @@ export default defineConfig(({ mode }) => ({
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
           'charts': ['recharts'],
+          'dashboard': ['./src/pages/Dashboard.tsx'],
+          'meals': ['./src/pages/Meals.tsx'],
         },
       },
     },
