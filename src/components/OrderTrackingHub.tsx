@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ORDER_STATUS_CONFIG, type OrderStatus } from "@/lib/constants/order-status";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 
 interface ActiveOrder {
   id: string;
@@ -41,7 +42,7 @@ export function OrderTrackingHub() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchActiveOrders = async () => {
+  const fetchActiveOrders = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -84,36 +85,18 @@ export function OrderTrackingHub() {
     }
     setLoading(false);
     setRefreshing(false);
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchActiveOrders();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [fetchActiveOrders]);
 
-  // Real-time subscription
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel("order-updates")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "meal_schedules",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => fetchActiveOrders()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  useRealtimeTable("meal_schedules", {
+    event: "UPDATE",
+    filter: user ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user,
+    onChange: () => fetchActiveOrders(),
+  });
 
   const handleRefresh = () => {
     setRefreshing(true);

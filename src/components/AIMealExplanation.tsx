@@ -16,7 +16,7 @@ interface MatchFactor {
 interface AIMealExplanationProps {
   mealId: string;
   mealName: string;
-  overallMatch: number; // 0-100
+  overallMatch: number | null; // 0-100 or null if calculating
   factors: MatchFactor[];
   explanation: string;
   language?: string;
@@ -60,6 +60,18 @@ export function AIMealExplanation({
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="w-80 p-0">
+          {overallMatch == null ? (
+            <Card className="border-0 shadow-none">
+              <CardContent className="p-5">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <Brain className="h-8 w-8 text-muted-foreground animate-pulse" />
+                  <p className="text-sm text-muted-foreground">
+                    AI recommendations are being calculated
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
           <Card className="border-0 shadow-none">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -127,6 +139,7 @@ export function AIMealExplanation({
               </div>
             </CardContent>
           </Card>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -158,17 +171,11 @@ export const MEAL_MATCH_FACTORS = {
 };
 
 // Hook for fetching AI explanation
-export function useAIMealExplanation(mealId: string, userId: string) {
-  // This would normally fetch from an API/ML service
-  // For now, return mock data structure
+export function useAIMealExplanation(_mealId: string, _userId: string) {
   return {
-    overallMatch: 85,
-    factors: [
-      { ...MEAL_MATCH_FACTORS.nutrition, score: 90 },
-      { ...MEAL_MATCH_FACTORS.preference, score: 80 },
-      { ...MEAL_MATCH_FACTORS.history, score: 85 },
-      { ...MEAL_MATCH_FACTORS.variety, score: 70 },
-    ],
-    explanation: "This meal is recommended because it perfectly aligns with your protein goals and includes ingredients from cuisines you frequently enjoy.",
+    overallMatch: null as number | null,
+    factors: [] as MatchFactor[],
+    explanation: "",
+    loading: true,
   };
 }

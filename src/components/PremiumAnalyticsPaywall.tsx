@@ -15,8 +15,6 @@ import {
 import {
   Lock,
   Crown,
-  TrendingUp,
-  AlertTriangle,
   Check,
   X,
   Minus,
@@ -54,45 +52,20 @@ const comparisonRows = [
   { feature: "Day-of-week patterns", basic: false, premium: true },
 ];
 
-// ── Blurred preview mock data ─────────────────────────────────────────────────
-
-const MockChurnCard = () => (
-  <div className="rounded-lg border border-red-200 bg-red-50/50 p-4 space-y-3">
-    <div className="flex items-center gap-2 text-red-700">
-      <AlertTriangle className="h-4 w-4" />
-      <span className="text-sm font-semibold">Customer Churn Alert</span>
+const BlurredPreviewCard = () => (
+  <div className="rounded-lg border p-4 space-y-3">
+    <div className="flex items-center gap-2 text-muted-foreground">
+      <Lock className="h-4 w-4" />
+      <span className="text-sm font-semibold">Premium Insights</span>
     </div>
-    <p className="text-xs text-red-600">
-      <span className="font-bold text-lg text-red-700">17</span> customers showing signs of churn
+    <p className="text-sm text-muted-foreground">
+      Unlock to see real-time analytics
     </p>
-    <div className="grid grid-cols-3 gap-2">
-      {[["8", "At Risk"], ["6", "Likely Lost"], ["3", "Lost"]].map(([n, label]) => (
-        <div key={label} className="rounded-md border border-red-200 bg-red-50 p-2 text-center">
-          <p className="text-base font-bold text-red-700">{n}</p>
-          <p className="text-xs text-red-600">{label}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const MockForecastCard = () => (
-  <div className="rounded-lg border p-4 space-y-2">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <TrendingUp className="h-4 w-4 text-primary" />
-        Revenue Forecast
-      </div>
-      <div className="text-right">
-        <p className="text-xs text-muted-foreground">Next month</p>
-        <p className="font-bold text-emerald-600">QAR 4,230</p>
-      </div>
-    </div>
     <div className="h-16 flex items-end gap-0.5">
-      {[30, 45, 40, 60, 55, 70, 65, 80, 75, 90, 85, 70].map((h, i) => (
+      {[20, 25, 30, 35, 28, 32, 38, 42, 36, 40, 45, 30].map((h, i) => (
         <div
           key={i}
-          className={`flex-1 rounded-t ${i >= 9 ? "bg-primary/30 border-dashed border-t-2 border-primary/50" : "bg-primary/70"}`}
+          className="flex-1 rounded-t bg-muted/30"
           style={{ height: `${h}%` }}
         />
       ))}
@@ -243,8 +216,7 @@ export function PremiumAnalyticsPaywall({
       {/* Blurred preview with lock overlay */}
       <div className="relative overflow-hidden rounded-2xl">
         <div className="pointer-events-none select-none blur-sm opacity-70 space-y-3 p-1">
-          <MockChurnCard />
-          <MockForecastCard />
+          <BlurredPreviewCard />
         </div>
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px] rounded-2xl">
           <div className="flex flex-col items-center gap-3 text-center px-6">

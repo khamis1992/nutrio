@@ -13,7 +13,9 @@ export const CustomerLayout = () => {
     location.pathname === path || location.pathname.startsWith(path + "/")
   );
 
-  console.log('[CustomerLayout] Path:', location.pathname, 'Should hide:', shouldHideNav);
+  if (import.meta.env.DEV) {
+    console.log('[CustomerLayout] Path:', location.pathname, 'Should hide:', shouldHideNav);
+  }
 
   return (
     <div className="min-h-screen" data-testid="customer-layout">

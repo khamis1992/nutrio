@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { format, isToday, isTomorrow } from "date-fns";
+import { isToday, isTomorrow } from "date-fns";
+import { formatLocaleDate } from "@/lib/dateUtils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -30,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 
 type OrderStatus =
   | "pending"
@@ -96,7 +98,7 @@ interface ActiveOrderBannerProps {
 }
 
 export function ActiveOrderBanner({ userId, compact = false }: ActiveOrderBannerProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -312,34 +314,14 @@ const handleCancelOrder = async (orderId: string) => {
   };
 
   useEffect(() => {
-    let subscription: ReturnType<typeof supabase.channel>;
+    fetchActiveOrders();
+  }, [fetchActiveOrders]);
 
-    const init = async () => {
-      fetchActiveOrders();
-
-      subscription = supabase
-        .channel(`active-orders-${userId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "meal_schedules",
-            filter: `user_id=eq.${userId}`,
-          },
-          () => {
-            setTimeout(() => fetchActiveOrders(), 300);
-          }
-        )
-        .subscribe();
-    };
-
-    init();
-
-    return () => {
-      if (subscription) subscription.unsubscribe();
-    };
-  }, [userId, fetchActiveOrders]);
+  useRealtimeTable("meal_schedules", {
+    event: "UPDATE",
+    filter: `user_id=eq.${userId}`,
+    onChange: () => setTimeout(() => fetchActiveOrders(), 300),
+  });
 
   if (loading) {
     return (
@@ -358,7 +340,7 @@ const handleCancelOrder = async (orderId: string) => {
     const date = new Date(dateStr);
     if (isToday(date)) return t("date_today");
     if (isTomorrow(date)) return t("date_tomorrow");
-    return format(date, "MMM dd");
+    return formatLocaleDate(date, language, { month: "short", day: "numeric" });
   };
 
   const getCurrentStepIndex = (status: OrderStatus) => {

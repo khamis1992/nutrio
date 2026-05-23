@@ -32,6 +32,35 @@ export function BehaviorPredictionWidget() {
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
 
+  const fetchPrediction = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('behavior_predictions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      // Only show if prediction is from last 7 days
+      if (data) {
+        const predictionDate = new Date(data.created_at);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        if (predictionDate > sevenDaysAgo) {
+          setPrediction(data);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching behavior prediction:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     const stored = localStorage.getItem(`behavior_prediction_dismissed_${user.id}`);
@@ -82,35 +111,6 @@ export function BehaviorPredictionWidget() {
       if (channel) supabase.removeChannel(channel);
     };
   }, [fetchPrediction, user]);
-
-  const fetchPrediction = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('behavior_predictions')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      
-      // Only show if prediction is from last 7 days
-      if (data) {
-        const predictionDate = new Date(data.created_at);
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
-        if (predictionDate > sevenDaysAgo) {
-          setPrediction(data);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching behavior prediction:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
 
   const handleDismiss = () => {
     setDismissed(true);

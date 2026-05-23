@@ -7,11 +7,17 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { captureError } from "@/lib/sentry";
+import { useAuth } from "@/contexts/AuthContext";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
 import { CancellationFlow } from "@/components/CancellationFlow";
+import { CancellationSalvageSheet } from "@/components/subscription/CancellationSalvageSheet";
 import { RolloverCreditsWidget } from "@/components/RolloverCreditsWidget";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { SalvageReason, SalvageOffer } from "@/hooks/useCancellationOffers";
 
 interface SubscriptionManageProps {
   hasActiveSubscription: boolean;
@@ -39,7 +45,62 @@ export function SubscriptionManage({
   onRefetch,
 }: SubscriptionManageProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const [showSalvageSheet, setShowSalvageSheet] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [salvageReason, setSalvageReason] = useState<SalvageReason | null>(null);
+  const [salvageReasonDetails, setSalvageReasonDetails] = useState("");
+
+  const handleCancelClick = () => {
+    setShowSalvageSheet(true);
+  };
+
+  const handleSalvageAccept = async (offer: SalvageOffer, reason: SalvageReason, reasonDetails: string) => {
+    if (!subscriptionId) return;
+    try {
+      const offerCode = `salvage_${offer.type}`;
+      const stepMap: Record<SalvageOffer["type"], number> = {
+        discount: 3,
+        pause: 2,
+        switch_plan: 4,
+        free_meal_credit: 4,
+      };
+
+      const { data, error } = await supabase.rpc("process_cancellation", {
+        p_subscription_id: subscriptionId,
+        p_step: stepMap[offer.type],
+        p_reason: reason,
+        p_reason_details: reasonDetails,
+        p_offer_code: offerCode,
+        p_accept_offer: true,
+      });
+
+      if (error) throw error;
+
+      const result = data as { success: boolean; action?: string; message?: string };
+
+      if (result.success) {
+        toast.success(result.message || t("offer_applied_success"));
+        await onRefetch();
+      } else {
+        throw new Error(result.message || "Failed to apply offer");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to apply offer";
+      captureError(err instanceof Error ? err : new Error(message), {
+        context: "SubscriptionManage.handleSalvageAccept",
+        offerType: offer.type,
+      });
+      toast.error(message);
+    }
+  };
+
+  const handleSalvageProceedToCancel = (reason: SalvageReason, reasonDetails: string) => {
+    setSalvageReason(reason);
+    setSalvageReasonDetails(reasonDetails);
+    setShowSalvageSheet(false);
+    setShowCancelDialog(true);
+  };
 
   return (
     <div className="space-y-3">
@@ -165,13 +226,20 @@ export function SubscriptionManage({
           </div>
           <button
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-destructive/20 text-destructive bg-destructive/5 text-sm font-bold active:scale-[0.98] transition-all hover:bg-destructive/10"
-            onClick={() => setShowCancelDialog(true)}
+            onClick={handleCancelClick}
           >
             <X className="h-4 w-4" />
             {t("cancel_subscription")}
           </button>
         </div>
       )}
+
+      <CancellationSalvageSheet
+        isOpen={showSalvageSheet}
+        onClose={() => setShowSalvageSheet(false)}
+        onAcceptOffer={handleSalvageAccept}
+        onProceedToCancel={handleSalvageProceedToCancel}
+      />
 
       <CancellationFlow
         isOpen={showCancelDialog}

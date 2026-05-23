@@ -93,7 +93,7 @@ async function checkTableExists(tableName: string): Promise<boolean> {
 /**
  * Gets user roles from cache or database
  */
-async function getUserRoles(userId: string): Promise<UserRole[]> {
+export async function getUserRoles(userId: string): Promise<UserRole[]> {
   const cached = roleCache.get(userId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.roles;

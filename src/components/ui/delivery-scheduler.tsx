@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Clock, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatLocaleDate } from "@/lib/dateUtils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DeliverySchedulerProps {
   initialDate?: Date | string | null;
@@ -30,6 +32,8 @@ export const DeliveryScheduler = ({
   onSchedule,
   onCancel,
 }: DeliverySchedulerProps) => {
+  const { language } = useLanguage();
+  const formatDate = (date: Date) => formatLocaleDate(date, language, { weekday: "long", month: "long", day: "numeric" });
   const parseInitial = () => {
     if (!initialDate) return new Date();
     if (initialDate instanceof Date) return initialDate;
@@ -106,7 +110,7 @@ export const DeliveryScheduler = ({
                 )}
               >
                 <span className="text-[10px] uppercase opacity-70">
-                  {day.toLocaleDateString("en-US", { weekday: "short" })}
+                  {formatLocaleDate(day, language, { weekday: "short" })}
                 </span>
                 <span className="text-sm font-semibold">{day.getDate()}</span>
               </button>

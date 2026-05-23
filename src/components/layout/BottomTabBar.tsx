@@ -14,13 +14,13 @@ const tabs = [
   },
   {
     path: "/meals",
-    labelKey: "restaurants",
+    labelKey: "meals",
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/>
-        <line x1="6" y1="1" x2="6" y2="4"/>
-        <line x1="10" y1="1" x2="10" y2="4"/>
-        <line x1="14" y1="1" x2="14" y2="4"/>
+        <path d="M6 2v20" />
+        <path d="M4 2v7a2 2 0 004 0V2" />
+        <path d="M17 2v20" />
+        <path d="M17 2c2.2 1.7 3.3 4.2 3.3 7.5H17" />
       </svg>
     ),
   },
@@ -56,66 +56,60 @@ const tabs = [
 
 export function BottomTabBar() {
   const location = useLocation();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
 
-  const activeIndex = tabs.findIndex((tab) => tab.path === location.pathname);
+  const activeIndex = tabs.findIndex((tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path));
+  const displayTabs = isRTL ? [...tabs].reverse() : tabs;
+  // When RTL, the active tab is at a different index in the reversed array
+  const rtlActiveIndex = isRTL
+    ? displayTabs.findIndex((tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path))
+    : activeIndex;
 
   return (
     <nav
       data-testid="bottom-tab-bar"
-      className="fixed bottom-0 left-0 right-0 z-50"
+      className="pointer-events-none fixed bottom-3 left-0 right-0 z-50 px-[18px]"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      {/* Subtle top border with fade */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-
-      <div className="bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex items-center justify-around h-16 max-w-[480px] px-2">
-          {tabs.map((tab, i) => {
-            const active = i === activeIndex;
+      <div className="pointer-events-auto mx-auto h-[62px] max-w-[396px] rounded-full border border-white/80 bg-white/95 shadow-[0_14px_34px_rgba(15,23,42,0.10)] backdrop-blur-xl">
+        <div className="flex h-full items-center justify-around px-3">
+          {displayTabs.map((tab, i) => {
+            const active = i === rtlActiveIndex;
             return (
               <Link
                 key={tab.path}
                 to={tab.path}
-                className="relative flex flex-col items-center justify-center w-full h-full gap-1"
+                className="relative flex h-full flex-1 items-center justify-center"
                 aria-current={active ? "page" : undefined}
               >
-                {/* Icon container with subtle active background */}
-                <div className="relative">
-                  {active && (
-                    <motion.div
-                      layoutId="tab-pill"
-                      className="absolute -inset-2 bg-primary/10 rounded-2xl"
-                      transition={{
-                        type: "spring" as const,
-                        stiffness: 400,
-                        damping: 30,
-                        mass: 0.8,
-                      }}
-                    />
-                  )}
-                  <span
-                    className={`relative z-10 transition-all duration-300 ${
-                      active ? "text-primary scale-110" : "text-gray-400"
-                    }`}
+                {active ? (
+                  <motion.div
+                    layoutId="tab-pill"
+                    className="absolute -top-[15px] flex h-[54px] w-[54px] flex-col items-center justify-center rounded-full bg-[#D8F8DE] text-[#059669] shadow-[0_8px_20px_rgba(16,185,129,0.16)]"
+                    transition={{
+                      type: "spring" as const,
+                      stiffness: 420,
+                      damping: 32,
+                      mass: 0.85,
+                    }}
                   >
-                    {tab.icon(active)}
-                  </span>
-                </div>
-
-                {/* Label */}
-                <span
-                  className={`text-[10px] font-semibold tracking-wide transition-all duration-300 ${
-                    active ? "text-primary" : "text-gray-400"
-                  }`}
-                >
-                  {t(tab.labelKey)}
-                </span>
+                    <span className="mb-0.5 flex h-[25px] w-[25px] items-center justify-center rounded-[9px] bg-gradient-to-br from-[#25C878] to-[#08995A] text-white shadow-[0_6px_10px_rgba(16,185,129,0.22)]">
+                      {tab.icon(true)}
+                    </span>
+                    <span className="text-[10px] font-bold leading-none">{t(tab.labelKey)}</span>
+                  </motion.div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-slate-500 transition-colors duration-200">
+                    <span className="text-slate-500">{tab.icon(false)}</span>
+                    <span className="text-[10px] font-semibold leading-none text-slate-500">{t(tab.labelKey)}</span>
+                  </div>
+                )}
               </Link>
             );
           })}
         </div>
       </div>
+      <div className="mx-auto mt-2 h-[4px] w-[72px] rounded-full bg-slate-400/50" />
     </nav>
   );
 }

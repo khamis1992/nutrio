@@ -54,7 +54,7 @@ export function CustomerNavigation() {
 
   const navItems = [
     { icon: Salad, label: t("nav_home"), to: "/dashboard" },
-    { icon: Utensils, label: t("nav_restaurants"), to: "/meals" },
+    { icon: Utensils, label: t("nav_meals"), to: "/meals" },
     { icon: Calendar, label: t("nav_schedule"), to: "/schedule" },
     ...(showAffiliateTab ? [{ icon: Users, label: t("nav_affiliate"), to: "/affiliate" }] : []),
     { icon: User, label: t("nav_profile"), to: "/profile" },
