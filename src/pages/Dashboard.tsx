@@ -309,14 +309,19 @@ const Dashboard = () => {
 
             <div className="mx-3 h-[80px] w-px shrink-0 bg-slate-200" />
 
-            <div className="flex shrink-0 flex-col items-center justify-center gap-1.5 text-center">
+            <button
+              type="button"
+              onClick={() => navigate("/subscription")}
+              className="flex shrink-0 flex-col items-center justify-center gap-1.5 text-center rounded-2xl p-1.5 transition active:scale-95 hover:bg-slate-50"
+              aria-label="View subscription"
+            >
               <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_7px_14px_rgba(249,115,22,0.2)]">
                 <Crown className="h-[18px] w-[18px]" />
               </div>
               <span className="text-[11px] font-semibold text-slate-700">Subscription</span>
               <span className="rounded-full bg-[#D8F5E0] px-2 py-0.5 text-[10px] font-extrabold text-[#0E9F59]">{planName}</span>
               <span className="text-[10px] font-medium text-slate-500">{joinedLabel}</span>
-            </div>
+            </button>
           </div>
         </section>
 
