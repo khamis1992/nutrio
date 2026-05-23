@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Flame, Plus, Calendar, Utensils, Activity, Wheat, Dumbbell, Apple, ChevronRight } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { format } from "date-fns";
@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
-import { getQatarNow } from "@/lib/dateUtils";
+import { getQatarNow, formatLocaleDate } from "@/lib/dateUtils";
 
 interface DailyNutritionCardProps {
   totalCalories: number;
@@ -47,6 +47,7 @@ const MacroCard = ({
   textClass: string;
   overGoalLabel: string;
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   const pct = Math.min(Math.round((value / (max || 1)) * 100), 999);
   const isOver = value > max;
   const r = 18;
@@ -56,13 +57,13 @@ const MacroCard = ({
 
   return (
     <motion.div
-      initial={{ y: 12, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.4 }}
+      initial={prefersReducedMotion ? undefined : { y: 12, opacity: 0 }}
+      animate={prefersReducedMotion ? undefined : { y: 0, opacity: 1 }}
+      transition={{ duration: prefersReducedMotion ? 0 : 0.4 }}
       className={`flex-1 min-w-0 rounded-2xl p-2.5 sm:p-3.5 ${bgClass} relative overflow-hidden`}
     >
       {isOver && (
-        <div className="absolute top-1.5 right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-500 flex items-center justify-center">
+        <div className="absolute top-1.5 right-1.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-600 flex items-center justify-center shadow-md animate-pulse" role="alert" aria-label={overGoalLabel}>
           <span className="text-white text-[9px] sm:text-[10px] font-bold">!</span>
         </div>
       )}
@@ -130,7 +131,8 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   weekDays,
 }) => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const prefersReducedMotion = useReducedMotion();
   const [totalBurned, setTotalBurned] = useState(burnedCaloriesProp ?? 0);
   const [workoutCount, setWorkoutCount] = useState(workoutSessionCountProp ?? 0);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -172,7 +174,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   }, [user, todayStr, burnedCaloriesProp]);
 
   const calLeft = Math.max(0, focusCalories - totalCalories + totalBurned);
-  const dateLabel = format(selectedDate, "EEE, MMM d");
+  const dateLabel = formatLocaleDate(selectedDate, language, { weekday: "short", month: "short", day: "numeric" });
   const remainingPct = Math.min((calLeft / (focusCalories || 1)) * 100, 100);
 
   const R = 62;
@@ -187,9 +189,9 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   return (
     <>
       <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
+        initial={prefersReducedMotion ? undefined : { y: 20, opacity: 0 }}
+        animate={prefersReducedMotion ? undefined : { y: 0, opacity: 1 }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.5 }}
       >
         <div className="rounded-3xl overflow-hidden border border-gray-100 bg-white shadow-sm">
 
@@ -254,9 +256,9 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <motion.span
                   className="text-2xl sm:text-3xl font-black text-gray-800 leading-none"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                  transition={{ delay: prefersReducedMotion ? 0 : 0.2 }}
                 >
                   {totalCalories}
                 </motion.span>
@@ -280,9 +282,9 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                     cx="70" cy="70" r={R} fill="none"
                     stroke={ringColor} strokeWidth="10" strokeLinecap="round"
                     strokeDasharray={circ}
-                    initial={{ strokeDashoffset: circ }}
+                    initial={prefersReducedMotion ? { strokeDashoffset: offset } : { strokeDashoffset: circ }}
                     animate={{ strokeDashoffset: offset }}
-                    transition={{ duration: 1, ease: "easeOut" }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 1, ease: "easeOut" }}
                     style={{ filter: "drop-shadow(0 2px 4px rgba(249,115,22,0.3))" }}
                   />
                 </svg>
@@ -312,9 +314,9 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
                 <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                 <motion.span
                   className="text-2xl sm:text-3xl font-black text-gray-800 leading-none"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+                  transition={{ delay: prefersReducedMotion ? 0 : 0.2 }}
                 >
                   {totalBurned}
                 </motion.span>
