@@ -166,4 +166,106 @@ export function isFeatureEnabled(featureKey: string, defaultValue = false): bool
   return posthog.isFeatureEnabled(featureKey) ?? defaultValue;
 }
 
+// PostHog Experiments integration
+export function getFeatureFlagPayload<T = Record<string, unknown>>(
+  featureKey: string,
+  defaultValue?: T
+): T | undefined {
+  if (import.meta.env.DEV || !posthog.__loaded) return defaultValue;
+  return (posthog.getFeatureFlagPayload(featureKey) as T) ?? defaultValue;
+}
+
+export function getExperimentVariant(experimentKey: string): string | null {
+  if (import.meta.env.DEV || !posthog.__loaded) return null;
+  return posthog.getFeatureFlag(experimentKey);
+}
+
+// Scroll depth tracking
+const SCROLL_DEPTH_THRESHOLDS = [0.25, 0.5, 0.75, 1.0] as const;
+
+let scrollDepthFired: Set<number> | null = null;
+let scrollDepthTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function trackScrollDepthStart(container?: HTMLElement) {
+  scrollDepthFired = new Set();
+
+  const target = container || document.documentElement;
+  const handler = () => {
+    if (!scrollDepthFired) return;
+    if (scrollDepthTimer) clearTimeout(scrollDepthTimer);
+    scrollDepthTimer = setTimeout(() => {
+      const scrollHeight = target.scrollHeight - target.clientHeight;
+      if (scrollHeight <= 0) return;
+      const scrollPercent = target.scrollTop / scrollHeight;
+
+      for (const threshold of SCROLL_DEPTH_THRESHOLDS) {
+        if (scrollPercent >= threshold && !scrollDepthFired!.has(threshold)) {
+          scrollDepthFired!.add(threshold);
+          trackEvent("$pageview", { scroll_depth: Math.round(threshold * 100) });
+        }
+      }
+    }, 150);
+  };
+
+  target.addEventListener("scroll", handler, { passive: true });
+  return () => {
+    target.removeEventListener("scroll", handler);
+    scrollDepthFired = null;
+  };
+}
+
+// Widget interaction events
+export function trackWidgetView(widgetName: string, properties?: Record<string, unknown>) {
+  trackEvent("widget_viewed", { widget_name: widgetName, ...properties });
+}
+
+export function trackWidgetInteract(widgetName: string, action: string, properties?: Record<string, unknown>) {
+  trackEvent("widget_interacted", { widget_name: widgetName, action, ...properties });
+}
+
+export function trackWidgetDismiss(widgetName: string, properties?: Record<string, unknown>) {
+  trackEvent("widget_dismissed", { widget_name: widgetName, ...properties });
+}
+
+// Funnel tracking
+export function trackFunnelStep(funnelName: string, step: number, stepName: string, properties?: Record<string, unknown>) {
+  trackEvent("funnel_step", { funnel_name: funnelName, step, step_name: stepName, ...properties });
+}
+
+// Rage-click detection
+let rageClickTracker: { element: string; count: number; timer: ReturnType<typeof setTimeout> | null; lastTime: number } | null = null;
+
+export function installRageClickDetector() {
+  const handler = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const id = target.id || target.className?.toString()?.slice(0, 50) || target.tagName;
+
+    if (rageClickTracker && rageClickTracker.element === id) {
+      const now = Date.now();
+      if (now - rageClickTracker.lastTime < 2000) {
+        rageClickTracker.count++;
+        if (rageClickTracker.timer) clearTimeout(rageClickTracker.timer);
+        rageClickTracker.timer = setTimeout(() => { rageClickTracker = null; }, 2500);
+
+        if (rageClickTracker.count >= 3) {
+          trackEvent("dead_click", {
+            element: id,
+            click_count: rageClickTracker.count,
+            page_url: window.location.pathname,
+          });
+          rageClickTracker = null;
+          return;
+        }
+      } else {
+        rageClickTracker = { element: id, count: 1, timer: null, lastTime: now };
+      }
+    } else {
+      rageClickTracker = { element: id, count: 1, timer: null, lastTime: Date.now() };
+    }
+  };
+
+  document.addEventListener("click", handler, { passive: true });
+  return () => document.removeEventListener("click", handler);
+}
+
 export default posthog;

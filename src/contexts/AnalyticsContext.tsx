@@ -9,6 +9,15 @@ import {
   AnalyticsEvents,
   trackUserSignedUp,
   trackUserLoggedIn,
+  trackScrollDepthStart,
+  installRageClickDetector,
+  trackWidgetView,
+  trackWidgetInteract,
+  trackWidgetDismiss,
+  trackFunnelStep,
+  isFeatureEnabled,
+  getFeatureFlagPayload,
+  getExperimentVariant,
 } from "@/lib/analytics";
 
 interface AnalyticsContextType {
@@ -16,6 +25,13 @@ interface AnalyticsContextType {
   trackPageView: (pageName: string, properties?: Record<string, unknown>) => void;
   identifyUser: (userId: string, traits?: Record<string, unknown>) => void;
   resetUser: () => void;
+  trackWidgetView: (widgetName: string, properties?: Record<string, unknown>) => void;
+  trackWidgetInteract: (widgetName: string, action: string, properties?: Record<string, unknown>) => void;
+  trackWidgetDismiss: (widgetName: string, properties?: Record<string, unknown>) => void;
+  trackFunnelStep: (funnelName: string, step: number, stepName: string, properties?: Record<string, unknown>) => void;
+  isFeatureEnabled: (featureKey: string, defaultValue?: boolean) => boolean;
+  getFeatureFlagPayload: <T = Record<string, unknown>>(featureKey: string, defaultValue?: T) => T | undefined;
+  getExperimentVariant: (experimentKey: string) => string | null;
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefined);
@@ -23,6 +39,8 @@ const AnalyticsContext = createContext<AnalyticsContextType | undefined>(undefin
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     initPostHog();
+    const cleanupRage = installRageClickDetector();
+    return () => cleanupRage();
   }, []);
 
   const value: AnalyticsContextType = {
@@ -30,6 +48,13 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     trackPageView,
     identifyUser,
     resetUser,
+    trackWidgetView,
+    trackWidgetInteract,
+    trackWidgetDismiss,
+    trackFunnelStep,
+    isFeatureEnabled,
+    getFeatureFlagPayload,
+    getExperimentVariant,
   };
 
   return (

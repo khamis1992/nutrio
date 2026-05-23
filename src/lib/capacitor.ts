@@ -599,31 +599,43 @@ export const initializeNativeApp = async () => {
   if (!isNative) return;
 
   try {
-    // Set status bar style — do NOT overlay so content stays below the status bar
     await statusBar.setStyle(Style.Light);
     await statusBar.setOverlaysWebView(false);
 
-    // Give React ~500ms to render the first frame before hiding the native
-    // splash screen. This prevents the blank white flash between the splash
-    // and the first rendered UI.
-    setTimeout(async () => {
+    const hideSplash = async () => {
       try {
         await splashScreen.hideFadeOut(300);
       } catch (e) {
-        console.warn('Could not hide splash screen:', e);
+        console.warn("Could not hide splash screen:", e);
       }
-    }, 500);
+    };
 
-    // Request notification permissions (non-blocking)
+    let attempts = 0;
+    const maxAttempts = 30;
+    const checkHydration = () => {
+      attempts++;
+      const root = document.getElementById("root");
+      if (root && root.children.length > 0 && root.textContent && root.textContent.trim().length > 0) {
+        hideSplash();
+      } else if (attempts < maxAttempts) {
+        requestAnimationFrame(checkHydration);
+      } else {
+        hideSplash();
+      }
+    };
+
+    requestAnimationFrame(checkHydration);
+
     pushNotifications.checkPermissions().catch((err) =>
-      console.warn('Push notification permission check failed:', err)
+      console.warn("Push notification permission check failed:", err)
     );
 
-    console.log('Native app initialized successfully');
+    console.log("Native app initialized successfully");
   } catch (error) {
-    console.error('Error initializing native app:', error);
-    // Ensure splash is hidden even if initialization fails
-    try { await splashScreen.hideFadeOut(300); } catch (e) {
+    console.error("Error initializing native app:", error);
+    try {
+      await splashScreen.hideFadeOut(300);
+    } catch (e) {
       console.warn("[Capacitor] Failed to hide splash:", e);
     }
   }

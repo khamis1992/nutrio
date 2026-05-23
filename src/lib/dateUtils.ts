@@ -25,3 +25,13 @@ export function getWeekStartDay(locale?: string): number {
 
 export const WEEK_DAYS_SATURDAY = [6, 0, 1, 2, 3, 4, 5];
 export const WEEK_DAYS_MONDAY = [1, 2, 3, 4, 5, 6, 0];
+
+/** Format a date using the user's locale — Arabic gets ar-QA, English gets en-US */
+export function formatLocaleDate(
+  date: Date | string | number,
+  language: string,
+  options: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }
+): string {
+  const locale = language === "ar" ? "ar-QA" : "en-US";
+  return new Date(date).toLocaleDateString(locale, options);
+}
