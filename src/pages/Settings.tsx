@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen, Utensils, Tag } from "lucide-react";
+import { ArrowLeft, Bell, Clock, Mail, Smartphone, Check, X, Crown, Pause, Play, AlertTriangle, Loader2, HelpCircle, ChevronRight, BookOpen, Utensils, Tag, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -24,8 +24,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { AdaptiveGoalsSettings } from "@/components/AdaptiveGoalsSettings";
+import { HealthAppsSettings } from "@/components/settings/HealthAppsSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface NotificationPreferences {
   id: string;
@@ -56,11 +58,14 @@ const Settings = () => {
   const { subscription, hasActiveSubscription, isPaused, pauseSubscription, resumeSubscription, refetch: refetchSubscription } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   const { t } = useLanguage();
+  const { theme, toggleTheme, isDark } = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pausingSubscription, setPausingSubscription] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
+  const pendingChangesRef = useRef<Partial<Record<keyof NotificationPreferences, boolean | string>>>({});
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSettings = useCallback(async () => {
     if (!user) return;
@@ -117,38 +122,54 @@ const Settings = () => {
     if (user) {
       fetchSettings();
     }
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
   }, [user, fetchSettings]);
 
-  const updateNotificationPref = async (key: keyof NotificationPreferences, value: boolean | string) => {
-    if (!user || !notificationPrefs) return;
+  const flushPendingChanges = useCallback(async () => {
+    if (!user || !notificationPrefs || Object.keys(pendingChangesRef.current).length === 0) return;
+    const changes = { ...pendingChangesRef.current };
+    pendingChangesRef.current = {};
 
     try {
       setSaving(true);
-      
       const { error } = await supabase
         .from("notification_preferences")
-        .update({ [key]: value })
+        .update(changes)
         .eq("user_id", user.id);
 
       if (error) throw error;
 
-      setNotificationPrefs(prev => prev ? { ...prev, [key]: value } : null);
-      
       toast({
         title: t('settings_saved'),
-        description: t('settings_preferences_updated')
+        description: t('settings_preferences_updated'),
       });
     } catch (error) {
       console.error("Error updating notification pref:", error);
       toast({
         title: t('settings_error_updating'),
         description: t('settings_error_updating_desc'),
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setSaving(false);
+      debounceTimerRef.current = null;
     }
-  };
+  }, [user, notificationPrefs, toast, t]);
+
+  const scheduleFlush = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(flushPendingChanges, 600);
+  }, [flushPendingChanges]);
+
+  const updateNotificationPref = useCallback((key: keyof NotificationPreferences, value: boolean | string) => {
+    if (!user || !notificationPrefs) return;
+
+    setNotificationPrefs(prev => prev ? { ...prev, [key]: value } : null);
+    pendingChangesRef.current[key] = value;
+    scheduleFlush();
+  }, [user, notificationPrefs, scheduleFlush]);
 
   const reminderTimeOptions = [
     { value: "06:00:00", label: t('settings_time_6am') },
@@ -320,6 +341,32 @@ const Settings = () => {
 
         {/* Adaptive Goals Settings */}
         <AdaptiveGoalsSettings />
+
+        {/* Health Apps Integration */}
+        <HealthAppsSettings />
+
+        {/* Theme Toggle */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {isDark ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-warning" />}
+              {t("appearance") || "Appearance"}
+            </CardTitle>
+            <CardDescription>
+              {isDark ? "Dark mode is on" : "Light mode is on"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sun className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{isDark ? "Switch to light" : "Switch to dark"}</span>
+            </div>
+            <Switch
+              checked={isDark}
+              onCheckedChange={toggleTheme}
+            />
+          </CardContent>
+        </Card>
 
         {/* Notification Preferences */}
         <Card>

@@ -2,14 +2,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useProfile } from "@/hooks/useProfile";
 import { format, subDays, isSameDay, isToday, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from "date-fns";
 
-import { ArrowLeft, ChevronDown, ChevronUp, Footprints, AlertTriangle, Clock, Flame, MapPin, Plus, Check, Dumbbell, X, RefreshCw, Link, Link2Off } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Footprints, AlertTriangle, Clock, Flame, MapPin, Plus, Check, Dumbbell, X, RefreshCw, Link, Link2Off, Apple, Smartphone } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useGoogleFitWorkouts } from "@/hooks/useGoogleFitWorkouts";
 import { useAutoWorkoutDetection } from "@/hooks/useAutoWorkoutDetection";
+import { useHealthKitIntegration } from "@/hooks/useHealthKitIntegration";
+import { Badge } from "@/components/ui/badge";
 
 const GOAL_OPTIONS = [3000, 5000, 6000, 8000, 10000, 15000];
 const QUICK_ADD_OPTIONS = [500, 1000, 2000, 5000];
@@ -27,10 +30,17 @@ function getStepsSessionKey(userId: string | undefined, dateStr: string) {
   return `tracker_steps_session_id_${userId}_${dateStr}`;
 }
 
+function calcCaloriesPerStep(weightKg: number | null | undefined, met: number): number {
+  if (weightKg == null) return 0;
+  return (met * 3.5 * weightKg) / (200 * 120);
+}
+
 export default function StepCounter() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { t } = useLanguage();
+  const calPerStep = calcCaloriesPerStep(profile?.current_weight_kg, 3.5);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [steps, setSteps] = useState(0);
   const [goalSteps, setGoalSteps] = useState<number>(() => {
@@ -57,6 +67,16 @@ export default function StepCounter() {
   // Google Fit hook
   const { isConnected, checkConnection, fetchWorkouts } = useGoogleFitWorkouts();
   
+  // HealthKit integration hook
+  const {
+    isConnected: healthKitConnected,
+    enabledTypes,
+    syncedData,
+    platform: healthPlatform,
+    lastSyncTimestamp,
+    formatLastSync,
+  } = useHealthKitIntegration();
+  
   // Auto workout detection hook
   const { 
     detectedWorkouts: autoDetectedWorkouts, 
@@ -76,8 +96,8 @@ export default function StepCounter() {
     return parseInt(localStorage.getItem(key) || "0", 10);
   };
 
-  // Burned calories derived directly from today's steps
-  const burnedCal = Math.round(steps * 0.04);
+  // Burned calories derived from user profile weight and steps
+  const burnedCal = calPerStep > 0 ? Math.round(steps * calPerStep) : null;
 
   // Load goal from localStorage once user is available
   useEffect(() => {
@@ -88,15 +108,18 @@ export default function StepCounter() {
   useEffect(() => {
     const key = getStepsKey(user?.id, selectedDateStr);
     const stored = localStorage.getItem(key);
-    setSteps(stored ? parseInt(stored, 10) : 0);
-  }, [user?.id, selectedDateStr]);
+    const localSteps = stored ? parseInt(stored, 10) : 0;
+    // Priority: health kit data > manual data, but only if health sync has steps and is enabled
+    const healthSteps = syncedData?.steps && enabledTypes.includes("steps") ? syncedData.steps : null;
+    setSteps(healthSteps !== null ? healthSteps : localSteps);
+  }, [user?.id, selectedDateStr, syncedData, enabledTypes]);
 
   // Sync today's steps to workout_sessions as a "Walking (steps)" entry
   const syncStepsToWorkout = useCallback(async (stepsVal: number) => {
     if (!user) return;
     const sessionKey = getStepsSessionKey(user.id, todayStr);
     const existingId = localStorage.getItem(sessionKey);
-    const cal = Math.round(stepsVal * 0.04);
+    const cal = calPerStep > 0 ? Math.round(stepsVal * calPerStep) : 0;
     const mins = Math.max(1, Math.round(stepsVal / 100));
 
     if (existingId) {
@@ -184,14 +207,6 @@ export default function StepCounter() {
         }
       }
       
-      // If still no workouts, show demo data for today only
-      if (allWorkouts.length === 0 && selectedDateStr === todayStr) {
-        allWorkouts = [
-          { id: "demo-1", type: "Walking", startTime: new Date(Date.now() - 3600000 * 2), calories: 120, duration: 20 },
-          { id: "demo-2", type: "Running", startTime: new Date(Date.now() - 3600000 * 5), calories: 250, duration: 30 },
-        ];
-      }
-      
       setDetectedWorkouts(allWorkouts);
     } catch (error) {
       console.error("Failed to fetch workouts:", error);
@@ -273,9 +288,9 @@ export default function StepCounter() {
     const key = getStepsKey(user?.id, format(d, "yyyy-MM-dd"));
     const s = parseInt(localStorage.getItem(key) || "0", 10);
     const km = parseFloat((s * 0.0008).toFixed(1));
-    const cal = Math.round(s * 0.04);
+    const cal = calPerStep > 0 ? Math.round(s * calPerStep) : null;
     const mins = Math.round(s / 100);
-    return { date: d, steps: s, km, cal, mins };
+    return { date: d, steps: s, km, cal: cal ?? 0, mins };
   });
 
   const totals = historyEntries.reduce(
@@ -302,6 +317,28 @@ export default function StepCounter() {
           <h1 className="text-lg font-bold text-gray-900">{t('steps_title')}</h1>
           <div className="w-10 h-10" />
         </div>
+
+        {/* Health connection badge */}
+        {healthKitConnected && enabledTypes.includes("steps") && (
+          <div className="px-4 pb-2">
+            <Badge
+              variant="outline"
+              className="flex items-center gap-1.5 w-fit text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
+            >
+              {healthPlatform === "apple_health" ? (
+                <Apple className="w-3 h-3" />
+              ) : (
+                <Smartphone className="w-3 h-3" />
+              )}
+              Connected to {healthPlatform === "apple_health" ? "Apple Health" : "Google Fit"}
+              {lastSyncTimestamp && (
+                <span className="ml-1 text-emerald-500">
+                  &middot; {formatLastSync()}
+                </span>
+              )}
+            </Badge>
+          </div>
+        )} 
 
         {/* Date selector */}
         <div className="px-4 pb-4">
@@ -505,7 +542,7 @@ export default function StepCounter() {
               <div>
                 <p className="text-xs text-orange-400 font-medium">{t('steps_calories')}</p>
                 <p className="text-lg font-black text-orange-600">
-                  {burnedCal} <span className="text-xs font-semibold">{t('steps_cal_unit')}</span>
+                  {burnedCal != null ? burnedCal : "—"} <span className="text-xs font-semibold">{t('steps_cal_unit')}</span>
                 </p>
               </div>
             </div>

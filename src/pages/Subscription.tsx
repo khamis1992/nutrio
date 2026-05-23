@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Home, LayoutGrid, Settings } from "lucide-react";
+import {
+  ArrowLeft, Loader2, Home, LayoutGrid, Settings,
+  Crown, Zap, Star, Clock, Apple, Utensils,
+  Shield, ClipboardList, CalendarDays, Info, ChevronRight,
+  type LucideIcon
+} from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,18 +16,14 @@ import { useWallet } from "@/hooks/useWallet";
 import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
 import { supabase } from "@/integrations/supabase/client";
 import { type BillingInterval } from "@/components/BillingIntervalToggle";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Crown, Zap, Star, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { SwipeableTabs } from "@/components/subscription/SwipeableTabs";
-import { HeroMealCard } from "@/components/subscription/HeroMealCard";
-import { QuickStatChips } from "@/components/subscription/QuickStatChips";
 import { PlanPickerMode } from "@/components/subscription/PlanPickerMode";
 import { PlanCard, type PlanCardData } from "@/components/subscription/PlanCard";
-import { SubscriptionOverview } from "@/components/subscription/SubscriptionOverview";
-import { SubscriptionPlansTab } from "@/components/subscription/SubscriptionPlansTab";
 import { SubscriptionManage } from "@/components/subscription/SubscriptionManage";
+import { SubscriptionPlansTab } from "@/components/subscription/SubscriptionPlansTab";
 import { UpgradeBottomSheet } from "@/components/subscription/UpgradeBottomSheet";
 
 const TIER_META: Record<string, { icon: LucideIcon; color: string; descriptionKey: string; popular: boolean; isVip: boolean }> = {
@@ -255,40 +256,31 @@ export default function SubscriptionPage() {
     setIsProcessing(true);
 
     try {
-      if (selectedPaymentMethod === "wallet") {
-        const walletBalance = wallet?.balance || 0;
-        if (walletBalance < selectedPlan.price) {
-          throw new Error(`Insufficient wallet balance. You have QAR ${walletBalance.toFixed(2)} but need QAR ${selectedPlan.price}. Please top up your wallet or use a card.`);
-        }
-        const { error: walletError } = await supabase.rpc("credit_wallet", {
-          p_user_id: user.id,
-          p_amount: -selectedPlan.price,
-          p_type: "debit",
-          p_reference_type: "subscription_upgrade",
-          p_reference_id: subscription.id,
-          p_description: `Subscription upgrade to ${selectedPlan.name} plan`,
-          p_metadata: null,
-        });
-        if (walletError) throw walletError;
+      const walletBalance = wallet?.balance || 0;
+      if (selectedPaymentMethod === "wallet" && walletBalance < selectedPlan.price) {
+        throw new Error(`Insufficient wallet balance. You have QAR ${walletBalance.toFixed(2)} but need QAR ${selectedPlan.price}. Please top up your wallet or use a card.`);
       }
 
-      const { data: result, error } = await supabase.rpc("upgrade_subscription", {
-        p_subscription_id: subscription.id,
-        p_new_tier: selectedPlan.tier,
-        p_new_billing_interval: selectedBillingInterval,
+      const { data: upgradeResult, error } = await supabase.functions.invoke("upgrade-subscription", {
+        body: {
+          subscription_id: subscription.id,
+          new_tier: selectedPlan.tier,
+          new_billing_interval: selectedBillingInterval,
+          payment_method: selectedPaymentMethod,
+        },
       });
 
       if (error) throw error;
 
-      const upgradeResult = result as { success: boolean; error?: string; prorated_credit?: number; amount_due?: number };
+      const result = upgradeResult as { success: boolean; error?: string; code?: string; prorated_credit?: number; amount_due?: number };
 
-      if (upgradeResult.success) {
+      if (result.success) {
         const billingText = selectedBillingInterval === "annual" ? " (Annual billing - 17% savings)" : "";
         const paymentText = selectedPaymentMethod === "wallet" ? ` Paid QAR ${selectedPlan.price} from your wallet.` : "";
 
         toast({
           title: t("plan_updated_toast"),
-          description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}.${paymentText} ${upgradeResult.prorated_credit ? `Prorated credit: ${upgradeResult.prorated_credit} QAR` : ""}`,
+          description: `Your subscription has been updated to ${selectedPlan.name} plan${billingText}.${paymentText} ${result.prorated_credit ? `Prorated credit: ${result.prorated_credit} QAR` : ""}`,
         });
 
         if (appliedPromo && user) {
@@ -316,7 +308,7 @@ export default function SubscriptionPage() {
         setAppliedPromo(null);
         setPromoError(null);
       } else {
-        throw new Error(upgradeResult.error || "Failed to update subscription");
+        throw new Error(result.error || "Failed to update subscription");
       }
     } catch (err) {
       console.error("Error in handleUpgrade:", err);
@@ -382,115 +374,255 @@ export default function SubscriptionPage() {
     );
   }
 
-  const statChips = [
-    { icon: "calendar" as const, value: daysRemaining, label: t("days_left") },
-    { icon: "meals" as const, value: isUnlimited ? "∞" : totalMeals, label: t("monthly_meals") },
-  ];
+  const planName = subscription?.plan || "Healthy";
+  const status = subscription?.status || "active";
+  const startDate = subscription?.start_date || "";
+  const endDate = subscription?.end_date || "";
 
-  if (hasSnacks) {
-    statChips.push({
-      icon: "snacks" as const,
-      value: isUnlimited ? "∞" : remainingSnacks,
-      label: "snacks left",
-      variant: remainingSnacks === 0 && !isUnlimited ? "danger" as const : "default" as const,
-    });
-  }
+  const statusLabels: Record<string, { label: string; className: string }> = {
+    active: { label: t("status_active") || "Active", className: "bg-white/20 text-white" },
+    cancelled: { label: t("cancelled_active") || "Cancelled", className: "bg-red-500/20 text-red-100" },
+    pending: { label: t("paused") || "Paused", className: "bg-yellow-500/20 text-yellow-100" },
+  };
+  const statusInfo = statusLabels[status] || statusLabels.active;
 
-  if (rolloverInfo && rolloverInfo.rollover_credits > 0) {
-    statChips.push({
-      icon: "rollover" as const,
-      value: rolloverInfo.rollover_credits,
-      label: t("rollover"),
-      variant: "warning" as const,
-    });
-  }
+  const planIcon = isVip ? Crown : Zap;
+  const PlanIcon = planIcon;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
-        <div className="px-4 pt-[env(safe-area-inset-top)] h-14 flex items-center gap-3 rtl:flex-row-reverse">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full bg-muted/80 flex items-center justify-center hover:bg-muted active:scale-95 transition-all"
-          >
-            <ArrowLeft className="h-4 w-4 text-foreground" />
-          </button>
-          <h1 className="text-base font-bold tracking-tight">{t("my_subscription")}</h1>
-        </div>
-      </header>
-
-      <div className="px-4 pt-4 pb-2 space-y-4">
-        <HeroMealCard
-          planName={subscription?.plan || "Standard"}
-          status={subscription?.status || "active"}
-          statusLabel={subscription?.status === "active" ? t("status_active") : subscription?.status === "paused" ? t("paused") : subscription?.status || "active"}
-          isVip={isVip}
-          isUnlimited={isUnlimited}
-          isPaused={isPaused}
-          effectiveMealsLeft={effectiveMealsLeft}
-          totalMeals={totalMeals}
-          mealsUsed={mealsUsed}
-          daysRemaining={daysRemaining}
-          snacksPerMonth={snacksPerMonth}
-          snacksUsed={snacksUsed}
-          remainingSnacks={remainingSnacks}
-          hasSnacks={hasSnacks}
-          rolloverCredits={rolloverCredits}
-          remainingMeals={remainingMeals}
-          endDate={subscription?.end_date}
-        />
-
-        <QuickStatChips chips={statChips} />
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col">
+      {/* Header */}
+      <div className="px-4 pt-[env(safe-area-inset-top)] pb-2 bg-[#F8F9FA]">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
+        >
+          <ArrowLeft className="h-5 w-5 text-gray-700" />
+        </button>
+        <h1 className="text-xl font-bold mt-3 text-gray-900">{t("my_subscription") || "My Subscription"}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Manage your meal plan and progress</p>
       </div>
 
-      <SwipeableTabs
-        tabs={[
-          { id: "overview", label: "Overview", icon: <Home className="h-5 w-5" /> },
-          { id: "plans", label: "Plans", icon: <LayoutGrid className="h-5 w-5" /> },
-          { id: "settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
-        ]}
-        defaultTab="overview"
-      >
-        {(activeTab) => (
-          <div className="px-4 py-3">
-            {activeTab === "overview" && (
-              <SubscriptionOverview
-                planName={subscription?.plan || "Standard"}
-                status={subscription?.status || "active"}
-                startDate={subscription?.start_date || ""}
-                endDate={subscription?.end_date || ""}
-              />
+      <div className="flex-1 overflow-y-auto pb-6 space-y-4">
+        {/* Hero Card */}
+        <div className="mx-4 mt-2 rounded-[28px] bg-gradient-to-br from-[#22C55E] to-[#16A34A] p-5 text-white shadow-lg shadow-green-500/15 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-3xl translate-y-1/4 -translate-x-1/4" />
+
+          <div className="relative">
+            {/* Top row */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <PlanIcon className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight">
+                    {planName} Plan
+                  </h2>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusInfo.className}`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                    {statusInfo.label}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-5xl font-extrabold leading-none tabular-nums">
+                  {isUnlimited ? "∞" : isPaused ? "❄" : effectiveMealsLeft}
+                </p>
+                <p className="text-xs text-white/70 mt-1 font-medium">
+                  {isUnlimited ? "unlimited" : isPaused ? "Paused" : "meals left"}
+                </p>
+              </div>
+            </div>
+
+            {/* Meals progress */}
+            {!isUnlimited && !isPaused && (
+              <div className="mt-5 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Utensils className="h-4 w-4 text-white/80 shrink-0" />
+                  <div className="flex gap-[2px] flex-1">
+                    {Array.from({ length: Math.min(totalMeals || 40, 40) }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-1.5 flex-1 rounded-full transition-all duration-500",
+                          i < mealsUsed ? "bg-white" : "bg-white/25"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-white/75 pl-6">
+                  <span className="font-semibold">
+                    {mealsUsed} of {totalMeals} meals used
+                  </span>
+                  <span className="flex items-center gap-1 font-semibold">
+                    <Clock className="h-3 w-3" />
+                    {daysRemaining}d until reset
+                  </span>
+                </div>
+              </div>
             )}
-            {activeTab === "plans" && (
-              <SubscriptionPlansTab
-                plans={plans}
-                billingInterval={selectedBillingInterval}
-                onBillingIntervalChange={setSelectedBillingInterval}
-                vipAnnualSavings={vipAnnualSavings}
-                currentTier={subscription?.tier}
-                autoRenew={autoRenew}
-                autoRenewLoading={autoRenewLoading}
-                onToggleAutoRenew={handleToggleAutoRenew}
-                onSelectPlan={(plan) => { setSelectedPlan(plan); setShowUpgradeDialog(true); }}
-                endDate={subscription?.end_date}
-                status={subscription?.status}
-              />
+
+            {/* Snacks progress */}
+            {hasSnacks && snacksPerMonth > 0 && !isUnlimited && !isPaused && (
+              <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Apple className="h-4 w-4 text-white/80 shrink-0" />
+                  <div className="flex gap-[2px] flex-1">
+                    {Array.from({ length: snacksPerMonth }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "h-1.5 flex-1 rounded-full transition-all duration-500",
+                          i < snacksUsed
+                            ? "bg-gradient-to-r from-orange-400 to-yellow-300"
+                            : "bg-white/25"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-white/75 pl-6">
+                  <span className="font-semibold">{snacksUsed} of {snacksPerMonth} snacks used</span>
+                  <span className="font-semibold">{remainingSnacks} left</span>
+                </div>
+              </div>
             )}
-            {activeTab === "settings" && (
-              <SubscriptionManage
-                hasActiveSubscription={hasActiveSubscription}
-                endDate={subscription?.end_date ?? null}
-                subscriptionId={subscription?.id ?? null}
-                subscriptionStatus={subscription?.status}
-                freezeDays={freezeDays ?? null}
-                isProcessing={isProcessing}
-                onReactivate={handleReactivate}
-                onRefetch={refetch}
-              />
+
+            {isPaused && (
+              <div className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-3 mt-4">
+                <Zap className="h-5 w-5 text-white/80 shrink-0" />
+                <p className="text-sm text-white/80 font-medium">
+                  Your subscription is currently frozen. Meal ordering is paused.
+                </p>
+              </div>
             )}
           </div>
-        )}
-      </SwipeableTabs>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-3 mx-4">
+          <div className="bg-white rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 shadow-sm">
+            <CalendarDays className="h-5 w-5 text-[#22C55E] shrink-0" />
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-none tabular-nums">{daysRemaining}</p>
+              <p className="text-[10px] text-gray-500 font-medium mt-0.5">days left</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 shadow-sm">
+            <Utensils className="h-5 w-5 text-[#22C55E] shrink-0" />
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-none tabular-nums">{isUnlimited ? "∞" : totalMeals}</p>
+              <p className="text-[10px] text-gray-500 font-medium mt-0.5">Monthly Meals</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 shadow-sm">
+            <Apple className="h-5 w-5 text-red-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-none tabular-nums">{isUnlimited ? "∞" : remainingSnacks}</p>
+              <p className="text-[10px] text-gray-500 font-medium mt-0.5">snacks left</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Subscription Details */}
+        <div className="mx-4 bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-2.5 px-5 pt-5 pb-3 border-b border-gray-100">
+            <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-[#22C55E]" />
+            </div>
+            <h3 className="font-bold text-gray-900">{t("subscription_details") || "Subscription Details"}</h3>
+          </div>
+
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+                <ClipboardList className="h-4 w-4 text-[#22C55E]" />
+              </div>
+              <span className="text-sm text-gray-500">{t("plan_label") || "Plan"}</span>
+            </div>
+            <span className="font-bold text-gray-900 capitalize">{planName}</span>
+          </div>
+
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+                <Shield className="h-4 w-4 text-[#22C55E]" />
+              </div>
+              <span className="text-sm text-gray-500">{t("status_label") || "Status"}</span>
+            </div>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#22C55E]/10 text-[#22C55E]">
+              {statusInfo.label}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+                <CalendarDays className="h-4 w-4 text-[#22C55E]" />
+              </div>
+              <span className="text-sm text-gray-500">{t("start_date_label") || "Start Date"}</span>
+            </div>
+            <span className="font-semibold text-sm text-gray-900">
+              {startDate ? format(new Date(startDate), "MMM dd, yyyy") : "—"}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+                <CalendarDays className="h-4 w-4 text-[#22C55E]" />
+              </div>
+              <span className="text-sm text-gray-500">{t("end_date_label") || "End Date"}</span>
+            </div>
+            <span className="font-semibold text-sm text-gray-900">
+              {endDate ? format(new Date(endDate), "MMM dd, yyyy") : "—"}
+            </span>
+          </div>
+        </div>
+
+        {/* Info Card */}
+        <div className="mx-4 bg-gray-50 rounded-[20px] px-4 py-3.5 flex items-start gap-3">
+          <Info className="h-4 w-4 text-[#22C55E] shrink-0 mt-0.5" />
+          <p className="text-xs text-gray-500 leading-relaxed flex-1">
+            Your subscription automatically renews each billing cycle. You can manage, freeze, or cancel anytime from the Settings tab.
+          </p>
+          <ChevronRight className="h-4 w-4 text-gray-400 shrink-0 mt-1" />
+        </div>
+
+        {/* Plans Section */}
+        <div className="mx-4">
+          <SubscriptionPlansTab
+            plans={plans}
+            billingInterval={selectedBillingInterval}
+            onBillingIntervalChange={setSelectedBillingInterval}
+            vipAnnualSavings={vipAnnualSavings}
+            currentTier={subscription?.tier}
+            autoRenew={autoRenew}
+            autoRenewLoading={autoRenewLoading}
+            onToggleAutoRenew={handleToggleAutoRenew}
+            onSelectPlan={(plan) => { setSelectedPlan(plan); setShowUpgradeDialog(true); }}
+            endDate={subscription?.end_date}
+            status={subscription?.status}
+          />
+        </div>
+
+        {/* Settings Section */}
+        <div className="mx-4">
+          <SubscriptionManage
+            hasActiveSubscription={hasActiveSubscription}
+            endDate={subscription?.end_date ?? null}
+            subscriptionId={subscription?.id ?? null}
+            subscriptionStatus={subscription?.status}
+            freezeDays={freezeDays ?? null}
+            isProcessing={isProcessing}
+            onReactivate={handleReactivate}
+            onRefetch={refetch}
+          />
+        </div>
+      </div>
 
       <UpgradeBottomSheet
         open={showUpgradeDialog}

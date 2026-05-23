@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EmptyState } from "@/components/EmptyState";
+import { RichNotificationActions } from "@/components/notifications/RichNotificationActions";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -217,6 +218,13 @@ export default function Notifications() {
                     <span className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 block">
                       {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                     </span>
+                    {isUnread && (
+                      <RichNotificationActions
+                        notificationType={n.type}
+                        metadata={n.data as Record<string, unknown>}
+                        compact
+                      />
+                    )}
                   </div>
 
                   {/* Actions */}
