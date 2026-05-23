@@ -147,7 +147,7 @@ const InsightsScreen = () => {
             key={tab}
             style={{
               fontSize: 7.5, fontWeight: 600, padding: "3px 8px", borderRadius: 20,
-              background: tab === "Weekly" ? "#7DC200" : "transparent",
+              background: tab === "Weekly" ? "hsl(var(--primary))" : "transparent",
               color: tab === "Weekly" ? "#fff" : "#9ca3af",
               cursor: "pointer",
             }}
@@ -170,7 +170,7 @@ const InsightsScreen = () => {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <span style={{ fontSize: 7.5, fontWeight: 700, color: "#374151" }}>Calorie (kcal)</span>
           <div style={{ display: "flex", gap: 4 }}>
-            <div style={{ width: 16, height: 16, borderRadius: 4, background: "#7DC200", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: "hsl(var(--primary))", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 8, color: "#fff" }}>▦</span>
             </div>
             <div style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -182,7 +182,7 @@ const InsightsScreen = () => {
         {/* Legend */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#7DC200" }} />
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "hsl(var(--primary))" }} />
             <span style={{ fontSize: 6.5, color: "#6b7280" }}>Selected</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -213,18 +213,18 @@ const InsightsScreen = () => {
               const x = i * (barW + gap);
               const bH = (b.kcal / maxKcal) * chartH;
               const y = chartH - bH;
-              const fill = b.selected ? "#7DC200" : "#c5e68a";
+              const fill = b.selected ? "hsl(var(--primary))" : "#a3d65a";
               return (
                 <g key={b.day}>
                   <rect x={x} y={y} width={barW} height={bH} rx={3} fill={fill} />
                   {b.selected && (
                     <g>
                       {/* Callout bubble */}
-                      <rect x={x - 6} y={y - 18} width={28} height={13} rx={4} fill="#7DC200" />
+                      <rect x={x - 6} y={y - 18} width={28} height={13} rx={4} fill="hsl(var(--primary))" />
                       <text x={x + 2} y={y - 9} fontSize="5.5" fontWeight="700" fill="#fff" textAnchor="middle">2100</text>
                       <text x={x + 2} y={y - 4} fontSize="4" fill="rgba(255,255,255,0.8)" textAnchor="middle">kcal</text>
                       {/* Callout arrow */}
-                      <polygon points={`${x + 2},${y} ${x - 1},${y - 5} ${x + 5},${y - 5}`} fill="#7DC200" />
+                      <polygon points={`${x + 2},${y} ${x - 1},${y - 5} ${x + 5},${y - 5}`} fill="hsl(var(--primary))" />
                     </g>
                   )}
                 </g>
@@ -387,7 +387,7 @@ const WalkthroughScreen = () => {
         className="relative flex items-end justify-center overflow-hidden"
         style={{
           height: "58%",
-          background: "linear-gradient(150deg, #9DD63F 0%, #7DC200 100%)",
+          background: "linear-gradient(150deg, #9DD63F 0%, hsl(var(--primary)) 100%)",
           paddingTop: 'env(safe-area-inset-top)',
         }}
       >
@@ -462,7 +462,7 @@ const WalkthroughScreen = () => {
                 {/* Ring + inner fill */}
                 <div style={{
                   width: 14, height: 14, borderRadius: "50%",
-                  border: `2px solid ${isActive ? "#7DC200" : isPast ? "#7DC200" : "#d1d5db"}`,
+                  border: `2px solid ${isActive ? "hsl(var(--primary))" : isPast ? "hsl(var(--primary))" : "#d1d5db"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "border-color 0.3s ease",
                 }}>
@@ -475,7 +475,7 @@ const WalkthroughScreen = () => {
                     transition={{ duration: 0.25 }}
                     style={{
                       borderRadius: "50%",
-                      background: isActive ? "#7DC200" : "#a3d65a",
+                      background: isActive ? "hsl(var(--primary))" : "#a3d65a",
                     }}
                   />
                 </div>
@@ -485,7 +485,7 @@ const WalkthroughScreen = () => {
                     <motion.div
                       animate={{ width: isPast ? "100%" : "0%" }}
                       transition={{ duration: 0.3 }}
-                      style={{ height: "100%", background: "#7DC200", borderRadius: 1 }}
+                      style={{ height: "100%", background: "hsl(var(--primary))", borderRadius: 1 }}
                     />
                   </div>
                 )}

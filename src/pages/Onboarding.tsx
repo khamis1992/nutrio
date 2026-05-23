@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -28,6 +26,8 @@ import { useDietTags } from "@/hooks/useDietTags";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/Logo";
 import { OnboardingRecoveryDialog } from "@/components/OnboardingRecoveryDialog";
+import { AccessibleStepper } from "@/components/onboarding/AccessibleStepper";
+import { PlanRevealAnimation } from "@/components/onboarding/PlanRevealAnimation";
 import { debounce } from "@/lib/debounce";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -177,9 +177,7 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [metricsSubStep, setMetricsSubStep] = useState<MetricsSubStep>("age");
   const [weightUnit, setWeightUnit] = useState<"kg" | "lb">("kg");
-  const rulerRef = useRef<HTMLDivElement>(null);
-  const dragStartX = useRef<number | null>(null);
-  const dragStartWeight = useRef<number>(80);
+  const [heightUnit, setHeightUnit] = useState<"cm" | "ft">("cm");
   const [saving, setSaving] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [computedPlan, setComputedPlan] = useState<{
@@ -297,166 +295,45 @@ const Onboarding = () => {
   };
 
   const handleSkip = async () => {
-    // Save minimal profile data
-    const { error } = await updateProfile({
-      onboarding_completed: true,
-      full_name: user?.user_metadata?.full_name || null,
+    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    navigate("/dashboard");
+  };
+
+  const handleQuickStart = () => {
+    setData({
+      goal: "maintain",
+      gender: "male",
+      age: "30",
+      height: "170",
+      weight: "75",
+      targetWeight: "75",
+      activityLevel: "moderate",
+      trainingDaysPerWeek: "3",
+      foodPreferences: [],
+      allergies: [],
     });
-
-    if (!error) {
-      clearSavedProgress();
-      toast({
-        title: "Onboarding skipped",
-        description: "You can complete your profile anytime in Settings",
-      });
-      navigate("/dashboard");
-    } else {
-      toast({
-        title: "Error skipping onboarding",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Redirect if not authenticated or if user is a partner
-  useEffect(() => {
-    const checkUserType = async () => {
-      if (authLoading) return;
-      
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-
-      // Check if user has a restaurant (is a partner)
-      const { data: restaurant } = await supabase
-        .from("restaurants")
-        .select("id")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      
-      if (restaurant) {
-        // Partners don't need customer onboarding
-        navigate("/partner");
-        return;
-      }
-    };
-
-    checkUserType();
-  }, [user, authLoading, navigate]);
-
-  // Redirect if onboarding already completed
-  useEffect(() => {
-    if (profile?.onboarding_completed) {
-      navigate("/dashboard");
-    }
-  }, [profile, navigate]);
-
-  const handleNext = async () => {
-    if (step < totalSteps) {
-      setStep(step + 1);
-    } else {
-      // Compute plan for the summary screen, then show loading → plan-ready screens
-      if (data.goal && data.gender && data.activityLevel) {
-        const age = parseInt(data.age) || 25;
-        const height = parseFloat(data.height) || 170;
-        const weight = parseFloat(data.weight) || 70;
-        const bmr = calculateBMR(data.gender, weight, height, age);
-        const tdee = calculateTDEE(bmr, data.activityLevel);
-        const calories = calculateTargetCalories(tdee, data.goal);
-        const macros = calculateMacros(calories, data.goal, data.foodPreferences);
-        const totalCal = macros.carbs * 4 + macros.protein * 4 + macros.fat * 9;
-        setComputedPlan({
-          calories,
-          protein: macros.protein,
-          carbs: macros.carbs,
-          fat: macros.fat,
-          carbsPct: Math.round((macros.carbs * 4 / totalCal) * 100),
-          proteinPct: Math.round((macros.protein * 4 / totalCal) * 100),
-          fatPct: Math.round((macros.fat * 9 / totalCal) * 100),
-        });
-      }
-      setLoadingProgress(0);
-      setStep(6); // loading screen
-    }
-  };
-
-  const completeOnboarding = async () => {
-    if (!data.goal || !data.gender || !data.activityLevel) return;
-
-    setSaving(true);
-    try {
-      const age = parseInt(data.age);
-      const height = parseFloat(data.height);
-      const weight = parseFloat(data.weight);
-      const targetWeight = parseFloat(data.targetWeight) || weight;
-
-      // Calculate nutrition targets (food preferences influence macro ratios)
-      const bmr = calculateBMR(data.gender, weight, height, age);
-      const tdee = calculateTDEE(bmr, data.activityLevel);
-      const dailyCalories = calculateTargetCalories(tdee, data.goal);
-      const macros = calculateMacros(dailyCalories, data.goal, data.foodPreferences);
-
-      const { error } = await updateProfile({
-        gender: data.gender,
-        age,
-        height_cm: height,
-        current_weight_kg: weight,
-        target_weight_kg: targetWeight,
-        health_goal: data.goal,
-        activity_level: data.activityLevel,
-        daily_calorie_target: dailyCalories,
-        protein_target_g: macros.protein,
-        carbs_target_g: macros.carbs,
-        fat_target_g: macros.fat,
-        onboarding_completed: true,
-      });
-
-      if (error) throw error;
-
-      // Save dietary preferences + allergies to user_dietary_preferences table
-      if (user) {
-        const allTags = [...dietTags, ...allergyTags];
-        const selectedNames = [...data.foodPreferences, ...data.allergies];
-        const selectedTagIds = selectedNames
-          .map((name) => allTags.find((t) => t.name === name)?.id)
-          .filter((id): id is string => Boolean(id));
-
-        // Replace all existing preferences for this user
-        await supabase.from("user_dietary_preferences").delete().eq("user_id", user.id);
-
-        if (selectedTagIds.length > 0) {
-          await supabase.from("user_dietary_preferences").insert(
-            selectedTagIds.map((diet_tag_id) => ({ user_id: user.id, diet_tag_id }))
-          );
-        }
-      }
-
-      // Clear saved progress on successful completion
-      clearSavedProgress();
-
-      toast({
-        title: "Profile saved!",
-        description: `Your daily target is ${dailyCalories} calories.`,
-      });
-      
-      navigate("/dashboard");
-    } catch (err) {
-      toast({
-        title: "Error saving profile",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    }
+    saveDraft({
+      goal: "maintain", gender: "male", age: "30", height: "170", weight: "75",
+      targetWeight: "75", activityLevel: "moderate", trainingDaysPerWeek: "3",
+      foodPreferences: [], allergies: [],
+    }, 1);
+    const age = 30;
+    const height = 170;
+    const weight = 75;
+    const bmr = calculateBMR("male", weight, height, age);
+    const tdee = calculateTDEE(bmr, "moderate");
+    const dailyCalories = calculateTargetCalories(tdee, "maintain");
+    const macros = calculateMacros(dailyCalories, "maintain", []);
+    setComputedPlan({
+      calories: dailyCalories,
+      carbsPct: Math.round((macros.carbs * 4 / dailyCalories) * 100),
+      proteinPct: Math.round((macros.protein * 4 / dailyCalories) * 100),
+      fatPct: Math.round((macros.fat * 9 / dailyCalories) * 100),
+      carbs: macros.carbs,
+      protein: macros.protein,
+      fat: macros.fat,
+    });
+    setStep(7);
   };
 
   const canProceed = () => {
@@ -515,20 +392,20 @@ const Onboarding = () => {
     const offset = CIRC * (1 - loadingProgress / 100);
 
     return (
-      <div className="fixed inset-0 flex flex-col bg-white" style={{ maxWidth: 430, margin: "0 auto" }}>
+      <div className="fixed inset-0 flex flex-col bg-background dark:bg-gray-950" style={{ maxWidth: 430, margin: "0 auto" }}>
         {/* X button */}
         <div className="px-5 pt-12 flex-shrink-0">
           <button type="button" onClick={() => navigate("/dashboard")}
             className="hover:opacity-70 transition-opacity">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6l12 12" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
+              <path d="M18 6L6 18M6 6l12 12" className="stroke-foreground dark:stroke-gray-300" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-8">
           {/* Title */}
-          <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight text-center mb-16">
+          <h1 className="text-[26px] font-extrabold text-foreground dark:text-gray-100 leading-tight text-center mb-16">
             Personalizing your Nutrio experience...
           </h1>
 
@@ -536,7 +413,7 @@ const Onboarding = () => {
           <div className="relative" style={{ width: 240, height: 240 }}>
             <svg width="240" height="240" viewBox="0 0 240 240">
               {/* Background track */}
-              <circle cx="120" cy="120" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="14" />
+              <circle cx="120" cy="120" r={RADIUS} fill="none" className="stroke-muted dark:stroke-gray-700" strokeWidth="14" />
               {/* Progress arc */}
               <circle
                 cx="120" cy="120" r={RADIUS} fill="none"
@@ -556,14 +433,14 @@ const Onboarding = () => {
             </svg>
             {/* Percentage text */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[40px] font-extrabold text-gray-900">{Math.round(loadingProgress)}%</span>
+              <span className="text-[40px] font-extrabold text-foreground dark:text-gray-100">{Math.round(loadingProgress)}%</span>
             </div>
           </div>
         </div>
 
         {/* Footer text */}
         <div className="px-8 pb-12 text-center flex-shrink-0">
-          <p className="text-sm text-gray-400 leading-relaxed">
+          <p className="text-sm text-muted-foreground dark:text-gray-400 leading-relaxed">
             Hang tight! We're crafting a personalized plan just for you.
           </p>
         </div>
@@ -584,130 +461,120 @@ const Onboarding = () => {
   // ── Step 7: Plan ready screen ──────────────────────────────────
   if (step === 7) {
     const plan = computedPlan ?? { calories: 2000, carbsPct: 40, proteinPct: 30, fatPct: 30, carbs: 200, protein: 150, fat: 67 };
-    const DONUT_R = 90;
-    const DONUT_CIRC = 2 * Math.PI * DONUT_R;
-    const carbsDash = DONUT_CIRC * (plan.carbsPct / 100);
-    const proteinDash = DONUT_CIRC * (plan.proteinPct / 100);
-    const fatDash = DONUT_CIRC * (plan.fatPct / 100);
-    // each segment starts where the previous ends
-    const carbsOffset = 0;
-    const proteinOffset = -carbsDash;
-    const fatOffset = -(carbsDash + proteinDash);
-
     return (
-      <div className="fixed inset-0 flex flex-col bg-white" style={{ maxWidth: 430, margin: "0 auto" }}>
-        {/* X button */}
-        <div className="px-5 pt-12 flex-shrink-0">
-          <button type="button" onClick={() => navigate("/dashboard")}
-            className="hover:opacity-70 transition-opacity">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6l12 12" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center px-8">
-          {/* Title */}
-          <h1 className="text-[26px] font-extrabold text-gray-900 leading-tight text-center mb-10">
-            Your personalized calorie plan is ready!
-          </h1>
-
-          {/* Donut chart */}
-          <div className="relative mb-8" style={{ width: 240, height: 240 }}>
-            <svg width="240" height="240" viewBox="0 0 240 240">
-              {/* Carbs — red */}
-              <circle cx="120" cy="120" r={DONUT_R} fill="none" stroke="#EF4444" strokeWidth="22"
-                strokeDasharray={`${carbsDash} ${DONUT_CIRC}`}
-                strokeDashoffset={carbsOffset}
-                transform="rotate(-90 120 120)" strokeLinecap="butt" />
-              {/* Protein — orange */}
-              <circle cx="120" cy="120" r={DONUT_R} fill="none" stroke="#F97316" strokeWidth="22"
-                strokeDasharray={`${proteinDash} ${DONUT_CIRC}`}
-                strokeDashoffset={proteinOffset}
-                transform="rotate(-90 120 120)" strokeLinecap="butt" />
-              {/* Fat — blue */}
-              <circle cx="120" cy="120" r={DONUT_R} fill="none" stroke="#3B82F6" strokeWidth="22"
-                strokeDasharray={`${fatDash} ${DONUT_CIRC}`}
-                strokeDashoffset={fatOffset}
-                transform="rotate(-90 120 120)" strokeLinecap="butt" />
-            </svg>
-            {/* Center label */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[36px] font-extrabold text-gray-900 leading-none">{plan.calories.toLocaleString()}</span>
-              <span className="text-sm font-medium text-gray-400 mt-1">kcal</span>
-            </div>
-
-            {/* Floating percentage labels */}
-            <div className="absolute" style={{ top: "14%", right: "-8%" }}>
-              <div className="bg-white rounded-full shadow-md px-3 py-1 text-sm font-bold text-gray-700">
-                {plan.proteinPct}%
-              </div>
-            </div>
-            <div className="absolute" style={{ top: "38%", left: "-10%" }}>
-              <div className="bg-white rounded-full shadow-md px-3 py-1 text-sm font-bold text-gray-700">
-                {plan.carbsPct}%
-              </div>
-            </div>
-            <div className="absolute" style={{ bottom: "6%", right: "-8%" }}>
-              <div className="bg-white rounded-full shadow-md px-3 py-1 text-sm font-bold text-gray-700">
-                {plan.fatPct}%
-              </div>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-6">
-            {[
-              { color: "#EF4444", label: "Carbs" },
-              { color: "#F97316", label: "Protein" },
-              { color: "#3B82F6", label: "Fat" },
-            ].map(({ color, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
-                <span className="text-sm text-gray-600 font-medium">{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Start button */}
-        <div className="px-6 pb-10 pt-4 flex-shrink-0">
-          <Button variant="gradient" className="w-full rounded-2xl font-bold" style={{ height: 56, fontSize: 16 }}
-            onClick={() => navigate("/dashboard")}>
-            Start Your Plan Now
-          </Button>
-        </div>
-      </div>
+      <PlanRevealAnimation
+        calories={plan.calories}
+        carbsPct={plan.carbsPct}
+        proteinPct={plan.proteinPct}
+        fatPct={plan.fatPct}
+        carbs={plan.carbs}
+        protein={plan.protein}
+        fat={plan.fat}
+        onViewDashboard={() => navigate("/dashboard")}
+      />
     );
   }
 
-  // precompute ruler values used inside the main return for step 3
-  const PX_PER_UNIT = 22;
-  const MIN_KG = 30;
-  const MAX_KG = 250;
-  const currentKg = parseFloat(data.weight) || 80;
-  const displayValue = weightUnit === 'kg'
-    ? currentKg.toFixed(1)
-    : (currentKg * 2.20462).toFixed(1);
-  const tickMin = Math.max(MIN_KG, Math.floor(currentKg) - 20);
-  const tickMax = Math.min(MAX_KG, Math.ceil(currentKg) + 20);
-  const rulerTicks: number[] = [];
-  for (let i = tickMin; i <= tickMax; i++) rulerTicks.push(i);
+  const completeOnboarding = async () => {
+    const age = parseInt(data.age) || 30;
+    const height = parseInt(data.height) || 170;
+    const weight = parseFloat(data.weight) || 75;
+    const bmr = calculateBMR(data.gender || "male", weight, height, age);
+    const tdee = calculateTDEE(bmr, data.activityLevel || "moderate");
+    const dailyCalories = calculateTargetCalories(tdee, data.goal || "maintain");
+    const macros = calculateMacros(dailyCalories, data.goal || "maintain", data.foodPreferences);
+    setComputedPlan({
+      calories: dailyCalories,
+      carbsPct: Math.round((macros.carbs * 4 / dailyCalories) * 100),
+      proteinPct: Math.round((macros.protein * 4 / dailyCalories) * 100),
+      fatPct: Math.round((macros.fat * 9 / dailyCalories) * 100),
+      carbs: macros.carbs,
+      protein: macros.protein,
+      fat: macros.fat,
+    });
+    clearSavedProgress();
+    try {
+      if (!user) return;
+      await updateProfile({
+        goal: data.goal || "maintain",
+        gender: data.gender || "male",
+        age: parseInt(data.age) || 30,
+        height: parseInt(data.height) || 170,
+        weight: parseFloat(data.weight) || 75,
+        target_weight: parseFloat(data.targetWeight) || 75,
+        activity_level: data.activityLevel || "moderate",
+        training_days_per_week: parseInt(data.trainingDaysPerWeek) || 3,
+        food_preferences: data.foodPreferences,
+        allergies: data.allergies,
+        daily_calories: dailyCalories,
+        daily_protein: macros.protein,
+        daily_carbs: macros.carbs,
+        daily_fat: macros.fat,
+      });
+    } catch (err) {
+      console.error("Failed to save onboarding profile:", err);
+    }
+  };
 
-  const handleRulerPointerDown = (e: React.PointerEvent) => {
-    dragStartX.current = e.clientX;
-    dragStartWeight.current = currentKg;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  const handleNext = () => {
+    if (step === 3) {
+      if (metricsSubStep === "age") {
+        setMetricsSubStep("height");
+        return;
+      }
+      if (metricsSubStep === "height") {
+        setMetricsSubStep("weight");
+        return;
+      }
+      if (metricsSubStep === "weight") {
+        setMetricsSubStep("targets");
+        return;
+      }
+      if (metricsSubStep === "targets") {
+        setMetricsSubStep("age");
+        setStep(4);
+        return;
+      }
+      return;
+    }
+    setStep((s) => Math.min(totalSteps, s + 1));
   };
-  const handleRulerPointerMove = (e: React.PointerEvent) => {
-    if (dragStartX.current === null) return;
-    const dx = dragStartX.current - e.clientX;
-    const newKg = Math.min(MAX_KG, Math.max(MIN_KG,
-      Math.round((dragStartWeight.current + dx / PX_PER_UNIT) * 10) / 10
-    ));
-    setData((prev) => ({ ...prev, weight: newKg.toString() }));
+
+  const handleBack = () => {
+    if (step === 3) {
+      if (metricsSubStep === "height") {
+        setMetricsSubStep("age");
+        return;
+      }
+      if (metricsSubStep === "weight") {
+        setMetricsSubStep("height");
+        return;
+      }
+      if (metricsSubStep === "targets") {
+        setMetricsSubStep("weight");
+        return;
+      }
+      if (metricsSubStep === "age") {
+        setStep(2);
+        return;
+      }
+      return;
+    }
+    setStep((s) => Math.max(1, s - 1));
   };
-  const handleRulerPointerUp = () => { dragStartX.current = null; };
+
+  const convertHeightToCm = (ft: number, inches: number) => Math.round((ft * 30.48 + inches * 2.54));
+  const convertCmToFt = (cm: number) => {
+    const totalInches = cm / 2.54;
+    const ft = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    return { ft, inches: inches === 12 ? 0 : inches };
+  };
+  const formatHeightDisplay = (cm: number) => {
+    if (heightUnit === "cm") return cm.toString();
+    const { ft, inches } = convertCmToFt(cm);
+    return `${ft}′${inches}″`;
+  };
 
   if (authLoading) {
     return (
@@ -754,7 +621,7 @@ const Onboarding = () => {
       </div>
 
       {/* Content - Native Mobile Centered Design */}
-      <main className="flex-1 container mx-auto px-4 py-4 flex items-center justify-center overflow-y-auto">
+      <main className="flex-1 container mx-auto px-4 py-4 flex items-center justify-center overflow-y-auto pb-32">
         <div className="w-full max-w-md animate-fade-in" key={step}>
           {/* Step 1: Goal Selection */}
           {step === 1 && (
@@ -839,353 +706,175 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* Step 3: Weight picker */}
+          {/* Step 3: Body Metrics with accessible steppers */}
           {step === 3 && (
             <div className="space-y-8">
-              {/* Age sub-step */}
-              {metricsSubStep === 'age' && (() => {
-                const currentAge = parseInt(data.age) || 25;
-                const AGE_PX = 28;
-                const MIN_AGE = 13, MAX_AGE = 100;
-                const ageTickMin = Math.max(MIN_AGE, currentAge - 15);
-                const ageTickMax = Math.min(MAX_AGE, currentAge + 15);
-                const ageTicks: number[] = [];
-                for (let i = ageTickMin; i <= ageTickMax; i++) ageTicks.push(i);
-                const onAgeDown = (e: React.PointerEvent) => {
-                  dragStartX.current = e.clientX;
-                  dragStartWeight.current = currentAge;
-                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                };
-                const onAgeMove = (e: React.PointerEvent) => {
-                  if (dragStartX.current === null) return;
-                  const newVal = Math.min(MAX_AGE, Math.max(MIN_AGE,
-                    Math.round(dragStartWeight.current + (dragStartX.current - e.clientX) / AGE_PX)
-                  ));
-                  setData((prev) => ({ ...prev, age: newVal.toString() }));
-                };
-                return (
-                  <div className="space-y-6">
-                    <div className="text-center">
-                      <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                        How old are <span className="text-gradient">you?</span>
-                      </h1>
-                      <p className="text-muted-foreground">We use this to personalise your calorie targets</p>
-                    </div>
-
-                    <div className="flex items-baseline justify-center gap-2">
-                      <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
-                        {currentAge}
-                      </span>
-                      <span className="text-2xl font-semibold text-muted-foreground">yrs</span>
-                    </div>
-
-                    <div className="relative w-full select-none cursor-grab active:cursor-grabbing"
-                      style={{ height: 90, touchAction: "none" }}
-                      onPointerDown={onAgeDown} onPointerMove={onAgeMove}
-                      onPointerUp={() => { dragStartX.current = null; }} onPointerCancel={() => { dragStartX.current = null; }}>
-                      {ageTicks.map((tick) => {
-                        const offset = (tick - currentAge) * AGE_PX;
-                        const isTen = tick % 10 === 0;
-                        const isFive = tick % 5 === 0 && !isTen;
-                        return (
-                          <div key={tick} className="absolute top-0"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
-                            <div style={{
-                              width: isTen ? 2 : 1,
-                              height: isTen ? 32 : isFive ? 22 : 14,
-                              background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
-                              borderRadius: 2, margin: "0 auto",
-                            }} />
-                          </div>
-                        );
-                      })}
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
-                        style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
-                      {ageTicks.filter((t) => t % 10 === 0).map((tick) => {
-                        const offset = (tick - currentAge) * AGE_PX;
-                        return (
-                          <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
-                            {tick}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    <Button className="w-full" onClick={() => setMetricsSubStep('height')} disabled={!data.age}>
-                      Continue
-                    </Button>
-                  </div>
-                );
-              })()}
-
-              {/* Height sub-step */}
-              {metricsSubStep === 'height' && (() => {
-                const currentHeight = parseInt(data.height) || 170;
-                const HEIGHT_PX = 14;
-                const MIN_H = 100, MAX_H = 250;
-                const hTickMin = Math.max(MIN_H, currentHeight - 20);
-                const hTickMax = Math.min(MAX_H, currentHeight + 20);
-                const hTicks: number[] = [];
-                for (let i = hTickMin; i <= hTickMax; i++) hTicks.push(i);
-                const onHeightDown = (e: React.PointerEvent) => {
-                  dragStartX.current = e.clientX;
-                  dragStartWeight.current = currentHeight;
-                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                };
-                const onHeightMove = (e: React.PointerEvent) => {
-                  if (dragStartX.current === null) return;
-                  const newVal = Math.min(MAX_H, Math.max(MIN_H,
-                    Math.round(dragStartWeight.current + (dragStartX.current - e.clientX) / HEIGHT_PX)
-                  ));
-                  setData((prev) => ({ ...prev, height: newVal.toString() }));
-                };
-                return (
-                  <div className="space-y-6">
-                    <div className="text-center">
-                      <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                        What's your <span className="text-gradient">height?</span>
-                      </h1>
-                      <p className="text-muted-foreground">Drag the ruler to set your height</p>
-                    </div>
-
-                    <div className="flex items-baseline justify-center gap-2">
-                      <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
-                        {currentHeight}
-                      </span>
-                      <span className="text-2xl font-semibold text-muted-foreground">cm</span>
-                    </div>
-
-                    <div className="relative w-full select-none cursor-grab active:cursor-grabbing"
-                      style={{ height: 90, touchAction: "none" }}
-                      onPointerDown={onHeightDown} onPointerMove={onHeightMove}
-                      onPointerUp={() => { dragStartX.current = null; }} onPointerCancel={() => { dragStartX.current = null; }}>
-                      {hTicks.map((tick) => {
-                        const offset = (tick - currentHeight) * HEIGHT_PX;
-                        const isTen = tick % 10 === 0;
-                        const isFive = tick % 5 === 0 && !isTen;
-                        return (
-                          <div key={tick} className="absolute top-0"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
-                            <div style={{
-                              width: isTen ? 2 : 1,
-                              height: isTen ? 32 : isFive ? 22 : 14,
-                              background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
-                              borderRadius: 2, margin: "0 auto",
-                            }} />
-                          </div>
-                        );
-                      })}
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
-                        style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
-                      {hTicks.filter((t) => t % 10 === 0).map((tick) => {
-                        const offset = (tick - currentHeight) * HEIGHT_PX;
-                        return (
-                          <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
-                            {tick}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setMetricsSubStep('age')} className="w-12 h-12 flex-shrink-0 p-0">
-                        <ArrowLeft className="w-5 h-5" />
-                      </Button>
-                      <Button onClick={() => setMetricsSubStep('weight')} className="flex-1" disabled={!data.height}>
-                        Continue
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Weight sub-step */}
-              {metricsSubStep === 'weight' && (
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                      What's your current <span className="text-gradient">weight?</span>
-                    </h1>
-                    <p className="text-muted-foreground">Drag the ruler to set your weight</p>
-                  </div>
-
-                  {/* Unit toggle */}
-                  <div className="flex justify-center">
-                    <div className="flex gap-1 p-1 bg-muted rounded-full">
-                      {(['kg', 'lb'] as const).map((u) => (
-                        <button key={u} type="button" onClick={() => setWeightUnit(u)}
-                          className="px-6 py-2 rounded-full font-semibold text-sm transition-all"
-                          style={weightUnit === u
-                            ? { background: "linear-gradient(135deg, hsl(90,65%,50%) 0%, hsl(90,65%,42%) 100%)", color: "#fff" }
-                            : { color: "hsl(var(--muted-foreground))" }}>
-                          {u}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Large value */}
-                  <div className="flex items-baseline justify-center gap-2">
-                    <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
-                      {displayValue}
-                    </span>
-                    <span className="text-2xl font-semibold text-muted-foreground">{weightUnit}</span>
-                  </div>
-
-                  {/* Ruler */}
-                  <div ref={rulerRef} className="relative w-full select-none cursor-grab active:cursor-grabbing"
-                    style={{ height: 90, touchAction: "none" }}
-                    onPointerDown={handleRulerPointerDown} onPointerMove={handleRulerPointerMove}
-                    onPointerUp={handleRulerPointerUp} onPointerCancel={handleRulerPointerUp}>
-                    {rulerTicks.map((tick) => {
-                      const offset = (tick - currentKg) * PX_PER_UNIT;
-                      const isTen = tick % 10 === 0;
-                      const isFive = tick % 5 === 0 && !isTen;
-                      return (
-                        <div key={tick} className="absolute top-0"
-                          style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
-                          <div style={{
-                            width: isTen ? 2 : 1,
-                            height: isTen ? 32 : isFive ? 22 : 14,
-                            background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
-                            borderRadius: 2, margin: "0 auto",
-                          }} />
-                        </div>
-                      );
-                    })}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
-                      style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
-                    {rulerTicks.filter((t) => t % 10 === 0).map((tick) => {
-                      const offset = (tick - currentKg) * PX_PER_UNIT;
-                      const label = weightUnit === 'kg' ? tick : Math.round(tick * 2.20462);
-                      return (
-                        <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
-                          style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
-                          {label}
-                        </span>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setMetricsSubStep('height')} className="w-12 h-12 flex-shrink-0 p-0">
-                        <ArrowLeft className="w-5 h-5" />
-                      </Button>
-                    <Button onClick={() => setMetricsSubStep('targets')} className="flex-1" disabled={!data.weight}>
+              {metricsSubStep === 'age' && (
+                <div>
+                  <AccessibleStepper
+                    label={<>How old are <span className="text-gradient">you?</span></>}
+                    subtitle="We use this to personalise your calorie targets"
+                    value={parseInt(data.age) || 25}
+                    onChange={(v) => setData((prev) => ({ ...prev, age: v.toString() }))}
+                    min={13}
+                    max={120}
+                    step={1}
+                    unit="yrs"
+                    displayValue={(parseInt(data.age) || 25).toString()}
+                    warnAtMin={14}
+                    warnAtMax={110}
+                    inputMode="numeric"
+                  />
+                  <div className="mt-6">
+                    <Button
+                      className="w-full"
+                      onClick={() => { handleNext(); }}
+                      disabled={!data.age}
+                    >
                       Continue
                     </Button>
                   </div>
                 </div>
               )}
 
-              {/* Target weight sub-step — same ruler design */}
-              {metricsSubStep === 'targets' && (() => {
-                const targetKg = parseFloat(data.targetWeight) || 70;
-                const targetDisplay = weightUnit === 'kg'
-                  ? targetKg.toFixed(1)
-                  : (targetKg * 2.20462).toFixed(1);
-                const tMin = Math.max(MIN_KG, Math.floor(targetKg) - 20);
-                const tMax = Math.min(MAX_KG, Math.ceil(targetKg) + 20);
-                const targetTicks: number[] = [];
-                for (let i = tMin; i <= tMax; i++) targetTicks.push(i);
-
-                const onTargetDown = (e: React.PointerEvent) => {
-                  dragStartX.current = e.clientX;
-                  dragStartWeight.current = targetKg;
-                  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                };
-                const onTargetMove = (e: React.PointerEvent) => {
-                  if (dragStartX.current === null) return;
-                  const newKg = Math.min(MAX_KG, Math.max(MIN_KG,
-                    Math.round((dragStartWeight.current + (dragStartX.current - e.clientX) / PX_PER_UNIT) * 10) / 10
-                  ));
-                  setData((prev) => ({ ...prev, targetWeight: newKg.toString() }));
-                };
-
-                return (
-                  <div className="space-y-6">
-                    <div className="text-center">
-                      <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                        What's your <span className="text-gradient">target weight?</span>
-                      </h1>
-                      <p className="text-muted-foreground">
-                        {data.goal === 'lose' ? 'We recommend losing 0.5–1 kg per week' :
-                         data.goal === 'gain' ? 'Healthy weight gain takes time and consistency' :
-                         'Maintain your current weight and improve health'}
-                      </p>
-                    </div>
-
-                    {/* Unit toggle */}
-                    <div className="flex justify-center">
-                      <div className="flex gap-1 p-1 bg-muted rounded-full">
-                        {(['kg', 'lb'] as const).map((u) => (
-                          <button key={u} type="button" onClick={() => setWeightUnit(u)}
-                            className="px-6 py-2 rounded-full font-semibold text-sm transition-all"
-                            style={weightUnit === u
-                              ? { background: "linear-gradient(135deg, hsl(90,65%,50%) 0%, hsl(90,65%,42%) 100%)", color: "#fff" }
-                              : { color: "hsl(var(--muted-foreground))" }}>
-                            {u}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Large value */}
-                    <div className="flex items-baseline justify-center gap-2">
-                      <span className="font-black text-foreground" style={{ fontSize: 72, lineHeight: 1, letterSpacing: "-2px" }}>
-                        {targetDisplay}
-                      </span>
-                      <span className="text-2xl font-semibold text-muted-foreground">{weightUnit}</span>
-                    </div>
-
-                    {/* Ruler */}
-                    <div className="relative w-full select-none cursor-grab active:cursor-grabbing"
-                      style={{ height: 90, touchAction: "none" }}
-                      onPointerDown={onTargetDown} onPointerMove={onTargetMove}
-                      onPointerUp={() => { dragStartX.current = null; }} onPointerCancel={() => { dragStartX.current = null; }}>
-                      {targetTicks.map((tick) => {
-                        const offset = (tick - targetKg) * PX_PER_UNIT;
-                        const isTen = tick % 10 === 0;
-                        const isFive = tick % 5 === 0 && !isTen;
-                        return (
-                          <div key={tick} className="absolute top-0"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)" }}>
-                            <div style={{
-                              width: isTen ? 2 : 1,
-                              height: isTen ? 32 : isFive ? 22 : 14,
-                              background: isTen ? "hsl(var(--muted-foreground)/0.4)" : "hsl(var(--muted-foreground)/0.2)",
-                              borderRadius: 2, margin: "0 auto",
-                            }} />
-                          </div>
-                        );
-                      })}
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
-                        style={{ width: 2, height: 48, background: "#7DC200", borderRadius: 2 }} />
-                      {targetTicks.filter((t) => t % 10 === 0).map((tick) => {
-                        const offset = (tick - targetKg) * PX_PER_UNIT;
-                        const label = weightUnit === 'kg' ? tick : Math.round(tick * 2.20462);
-                        return (
-                          <span key={tick} className="absolute text-sm font-medium text-muted-foreground"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: "translateX(-50%)", bottom: 4, userSelect: "none" }}>
-                            {label}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setMetricsSubStep('weight')} className="w-12 h-12 flex-shrink-0 p-0">
-                        <ArrowLeft className="w-5 h-5" />
-                      </Button>
-                      <Button onClick={handleNext} className="flex-1" disabled={!data.targetWeight}>
-                        Continue
-                      </Button>
-                    </div>
+              {metricsSubStep === 'height' && (
+                <div>
+                  <AccessibleStepper
+                    label={<>What's your <span className="text-gradient">height?</span></>}
+                    subtitle="Used to calculate your daily calorie target"
+                    value={heightUnit === "cm" ? (parseInt(data.height) || 170) : convertCmToFt(parseInt(data.height) || 170).ft}
+                    onChange={(v) => {
+                      if (heightUnit === "cm") {
+                        setData((prev) => ({ ...prev, height: v.toString() }));
+                      } else {
+                        const cm = Math.round(v * 30.48);
+                        setData((prev) => ({ ...prev, height: cm.toString() }));
+                      }
+                    }}
+                    min={heightUnit === "cm" ? 100 : 3}
+                    max={heightUnit === "cm" ? 250 : 8}
+                    step={1}
+                    unit={heightUnit}
+                    displayValue={formatHeightDisplay(parseInt(data.height) || 170)}
+                    unitToggle={{
+                      options: ["cm", "ft"] as const,
+                      current: heightUnit,
+                      onToggle: (u: string) => {
+                        const cm = parseInt(data.height) || 170;
+                        setHeightUnit(u as "cm" | "ft");
+                        if (u === "ft") {
+                          setData((prev) => ({ ...prev, height: Math.round(cm).toString() }));
+                        }
+                      },
+                    }}
+                    warnAtMin={heightUnit === "cm" ? 110 : 4}
+                    warnAtMax={heightUnit === "cm" ? 230 : 7}
+                    inputMode="numeric"
+                  />
+                  <div className="flex gap-2 mt-6">
+                    <Button variant="outline" onClick={handleBack} className="w-12 h-12 flex-shrink-0 p-0">
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <Button onClick={handleNext} className="flex-1" disabled={!data.height}>
+                      Continue
+                    </Button>
                   </div>
-                );
-              })()}
+                </div>
+              )}
+
+              {metricsSubStep === 'weight' && (
+                <div>
+                  <AccessibleStepper
+                    label={<>What's your current <span className="text-gradient">weight?</span></>}
+                    subtitle="Used to calculate your daily calorie target"
+                    value={(() => {
+                      const v = parseFloat(data.weight) || 80;
+                      return weightUnit === "kg" ? v : Math.round(v * 2.20462 * 10) / 10;
+                    })()}
+                    onChange={(v) => {
+                      const kg = weightUnit === "kg" ? v : Math.round(v / 2.20462 * 10) / 10;
+                      setData((prev) => ({ ...prev, weight: kg.toString() }));
+                    }}
+                    min={weightUnit === "kg" ? 30 : 66}
+                    max={weightUnit === "kg" ? 250 : 551}
+                    step={0.1}
+                    unit={weightUnit}
+                    displayValue={(() => {
+                      const v = parseFloat(data.weight) || 80;
+                      return weightUnit === "kg"
+                        ? v.toFixed(1)
+                        : (v * 2.20462).toFixed(1);
+                    })()}
+                    unitToggle={{
+                      options: ["kg", "lb"] as const,
+                      current: weightUnit,
+                      onToggle: (u: string) => {
+                        setWeightUnit(u as "kg" | "lb");
+                      },
+                    }}
+                    warnAtMin={weightUnit === "kg" ? 40 : 88}
+                    warnAtMax={weightUnit === "kg" ? 220 : 485}
+                    inputMode="decimal"
+                  />
+                  <div className="flex gap-2 mt-6">
+                    <Button variant="outline" onClick={handleBack} className="w-12 h-12 flex-shrink-0 p-0">
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <Button onClick={handleNext} className="flex-1" disabled={!data.weight}>
+                      Continue
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {metricsSubStep === 'targets' && (
+                <div>
+                  <AccessibleStepper
+                    label={<>What's your <span className="text-gradient">target weight?</span></>}
+                    subtitle={
+                      data.goal === 'lose' ? 'We recommend losing 0.5–1 kg per week' :
+                      data.goal === 'gain' ? 'Healthy weight gain takes time and consistency' :
+                      'Maintain your current weight and improve health'
+                    }
+                    value={(() => {
+                      const v = parseFloat(data.targetWeight) || 70;
+                      return weightUnit === "kg" ? v : Math.round(v * 2.20462 * 10) / 10;
+                    })()}
+                    onChange={(v) => {
+                      const kg = weightUnit === "kg" ? v : Math.round(v / 2.20462 * 10) / 10;
+                      setData((prev) => ({ ...prev, targetWeight: kg.toString() }));
+                    }}
+                    min={weightUnit === "kg" ? 30 : 66}
+                    max={weightUnit === "kg" ? 250 : 551}
+                    step={0.1}
+                    unit={weightUnit}
+                    displayValue={(() => {
+                      const v = parseFloat(data.targetWeight) || 70;
+                      return weightUnit === "kg"
+                        ? v.toFixed(1)
+                        : (v * 2.20462).toFixed(1);
+                    })()}
+                    unitToggle={{
+                      options: ["kg", "lb"] as const,
+                      current: weightUnit,
+                      onToggle: (u: string) => {
+                        setWeightUnit(u as "kg" | "lb");
+                      },
+                    }}
+                    warnAtMin={weightUnit === "kg" ? 40 : 88}
+                    warnAtMax={weightUnit === "kg" ? 220 : 485}
+                    inputMode="decimal"
+                  />
+                  <div className="flex gap-2 mt-6">
+                    <Button variant="outline" onClick={handleBack} className="w-12 h-12 flex-shrink-0 p-0">
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <Button onClick={handleNext} className="flex-1" disabled={!data.targetWeight}>
+                      Continue
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1435,6 +1124,14 @@ const Onboarding = () => {
         </div>
         {/* Skip for now button */}
         <div className="container mx-auto max-w-md mt-4 text-center">
+          <Button
+            variant="ghost"
+            onClick={handleQuickStart}
+            className="text-primary hover:text-primary/80 font-medium"
+          >
+            Quick Start — apply recommended defaults for me
+          </Button>
+          <br />
           <Button
             variant="ghost"
             onClick={handleSkip}

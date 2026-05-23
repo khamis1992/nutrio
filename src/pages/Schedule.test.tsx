@@ -67,6 +67,23 @@ vi.mock("@/components/ModifyOrderModal", () => ({
   ModifyOrderModal: () => null,
 }));
 
+vi.mock("@/hooks/useSmartSubstitutions", () => ({
+  useSmartSubstitutions: () => ({
+    unavailableMeals: [],
+    dismissMeal: vi.fn(),
+    performSubstitution: vi.fn(),
+    hasUnavailable: false,
+  }),
+}));
+
+vi.mock("@/components/meal/SmartSubstitutionBanner", () => ({
+  SmartSubstitutionBanner: () => null,
+}));
+
+vi.mock("@/components/meal/MealPlanGenerator", () => ({
+  MealPlanGenerator: () => null,
+}));
+
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
@@ -106,7 +123,7 @@ describe("Schedule", () => {
 
   it("renders week progress stats", () => {
     render(<Schedule />, { wrapper: createWrapper() });
-    expect(document.body.textContent).toContain("This Week Progress");
+    expect(document.body.textContent).toContain("Weekly Progress");
   });
 
   it("renders meal credits badge", () => {
@@ -136,7 +153,7 @@ describe("Schedule", () => {
 
   it("renders week progress and navigation elements", () => {
     render(<Schedule />, { wrapper: createWrapper() });
-    expect(document.body.textContent).toContain("This Week Progress");
+    expect(document.body.textContent).toContain("Weekly Progress");
   });
 
   it("renders empty state slots", () => {

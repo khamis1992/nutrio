@@ -92,6 +92,9 @@ const RestaurantDetail = () => {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [activeDietTags, setActiveDietTags] = useState<string[]>([]);
+  const [activeCalorieRange, setActiveCalorieRange] = useState<string | null>(null);
+  const [activeProteinRange, setActiveProteinRange] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll({ container: scrollRef });
@@ -179,8 +182,8 @@ const RestaurantDetail = () => {
         total_orders: restaurantData.total_orders || 0,
         cuisine_type: restaurantData.cuisine_type || t("healthy_cuisine"),
         opening_hours: (restaurantData as Record<string, unknown>).opening_hours as string || t("open_now"),
-        delivery_time: "25-40 min",
-        delivery_fee: 0,
+        delivery_time: (restaurantData as Record<string, unknown>).delivery_time as string || undefined,
+        delivery_fee: (restaurantData as Record<string, unknown>).delivery_fee as number || 0,
       });
 
       // Then fetch meals - don't fail if meals query has issues
@@ -284,9 +287,25 @@ const RestaurantDetail = () => {
       if (activeCategory !== "all" && meal.meal_type !== activeCategory) {
         return false;
       }
+      if (activeDietTags.length > 0 && !activeDietTags.some(tag => meal.diet_tags.includes(tag))) {
+        return false;
+      }
+      if (activeCalorieRange) {
+        const cal = meal.calories;
+        if (activeCalorieRange === t("calories_under_300") && cal >= 300) return false;
+        if (activeCalorieRange === t("calories_300_500") && (cal < 300 || cal > 500)) return false;
+        if (activeCalorieRange === t("calories_500_700") && (cal < 500 || cal > 700)) return false;
+        if (activeCalorieRange === t("calories_700_plus") && cal <= 700) return false;
+      }
+      if (activeProteinRange) {
+        const p = meal.protein_g;
+        if (activeProteinRange === t("protein_high") && p < 30) return false;
+        if (activeProteinRange === t("protein_medium") && (p < 15 || p > 30)) return false;
+        if (activeProteinRange === t("protein_low") && p > 15) return false;
+      }
       return true;
     });
-  }, [meals, searchQuery, activeCategory]);
+  }, [meals, searchQuery, activeCategory, activeDietTags, activeCalorieRange, activeProteinRange, t]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: meals.length };
@@ -507,7 +526,7 @@ const RestaurantDetail = () => {
             </div>
             <div className="flex items-center gap-1.5 text-[hsl(150,10%,45%)] text-sm">
               <Clock className="w-4 h-4" />
-              <span>{restaurant.delivery_time}</span>
+              <span>{restaurant.delivery_time || "Check restaurant for delivery times"}</span>
             </div>
             <div className="flex items-center gap-1.5 text-emerald-600 text-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -831,7 +850,12 @@ const RestaurantDetail = () => {
                   <motion.button
                     key={tag}
                     whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2.5 rounded-full bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] text-sm border border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)] transition-colors"
+                    onClick={() => setActiveDietTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                    className={`px-4 py-2.5 rounded-full text-sm border transition-colors ${
+                      activeDietTags.includes(tag)
+                        ? "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,45%)]"
+                        : "bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)]"
+                    }`}
                   >
                     {tag}
                   </motion.button>
@@ -849,7 +873,12 @@ const RestaurantDetail = () => {
                   <motion.button
                     key={range}
                     whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2.5 rounded-full bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] text-sm border border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)] transition-colors"
+                    onClick={() => setActiveCalorieRange(prev => prev === range ? null : range)}
+                    className={`px-4 py-2.5 rounded-full text-sm border transition-colors ${
+                      activeCalorieRange === range
+                        ? "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,45%)]"
+                        : "bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)]"
+                    }`}
                   >
                     {range}
                   </motion.button>
@@ -867,7 +896,12 @@ const RestaurantDetail = () => {
                   <motion.button
                     key={range}
                     whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2.5 rounded-full bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] text-sm border border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)] transition-colors"
+                    onClick={() => setActiveProteinRange(prev => prev === range ? null : range)}
+                    className={`px-4 py-2.5 rounded-full text-sm border transition-colors ${
+                      activeProteinRange === range
+                        ? "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,45%)]"
+                        : "bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)]"
+                    }`}
                   >
                     {range}
                   </motion.button>

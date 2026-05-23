@@ -24,36 +24,32 @@ import {
 import { DeliveryScheduler } from "@/components/ui/delivery-scheduler";
 import { trackEvent } from "@/lib/analytics";
 import {
-  Flame,
-  Beef,
-  Trash2,
   AlertTriangle,
-  CheckCircle2,
   Circle,
   Coffee,
   Sun,
   Moon,
   Apple,
-  Plus,
   Loader2,
-  X,
   Check,
-  Utensils,
-  UtensilsCrossed,
-  Calendar as CalendarIcon,
   Clock,
   Wallet,
   Sparkles,
   ChevronLeft,
-  ChevronRight,
-  Leaf,
-  Zap,
 } from "lucide-react";
-import { format, startOfWeek, addDays, isSameDay, addWeeks, subWeeks, parseISO, isToday } from "date-fns";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 import MealWizard from "@/components/MealWizard";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { useLanguage } from "@/contexts/LanguageContext";
+import EmptyMealSlot from "@/components/schedule/EmptyMealSlot";
+import ScheduleHeader from "@/components/schedule/ScheduleHeader";
+import DateHeroCard from "@/components/schedule/DateHeroCard";
+import WeeklyProgressBar from "@/components/schedule/WeeklyProgressBar";
+import MealDetailSheet from "@/components/schedule/MealDetailSheet";
+import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
+import { SmartSubstitutionBanner } from "@/components/meal/SmartSubstitutionBanner";
+import { useSmartSubstitutions } from "@/hooks/useSmartSubstitutions";
 
 interface ScheduledMeal {
   id: string;
@@ -161,6 +157,7 @@ const Schedule = () => {
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
 
+  const [showMealPlanGenerator, setShowMealPlanGenerator] = useState(false);
   const [showBuyCredit, setShowBuyCredit] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
 
@@ -208,6 +205,12 @@ const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [schedules, setSchedules] = useState<ScheduledMeal[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { unavailableMeals, dismissMeal, performSubstitution, hasUnavailable } = useSmartSubstitutions({
+    userId: user?.id,
+    schedules,
+    enabled: settings.features.meal_scheduling && !settingsLoading,
+  });
   const [showWizard, setShowWizard] = useState(false);
   const [wizardInitialStep, setWizardInitialStep] = useState(0);
   const [wizardAutoFill, setWizardAutoFill] = useState(false);
@@ -555,246 +558,51 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-black dark:to-gray-900">
+    <div className="min-h-screen bg-[#FCFCFB]">
       {/* ── Native iOS/Android Header ───────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl border-b border-gray-100/80 dark:border-gray-800/80 safe-top">
-        <div className="max-w-lg mx-auto px-4 pt-2 pb-3">
-          {/* Header Row */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-            >
-              <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-            </button>
-
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{t("my_schedule")}</h1>
-              <p className="text-xs text-gray-400 font-medium">
-                {format(currentWeekStart, "MMM d")} — {format(addDays(currentWeekStart, 6), "MMM d, yyyy")}
-              </p>
-            </div>
-
-            {/* Meal Credits Badge */}
-            {hasActiveSubscription && (
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold ${
-                  isUnlimited
-                    ? "bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
-                    : remainingMeals <= 0
-                    ? "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-lg shadow-red-500/30"
-                    : remainingMeals <= 3
-                    ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30"
-                    : "bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
-                }`}
-              >
-                {isUnlimited ? (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Unlimited</span>
-                  </>
-                ) : (
-                  <>
-                    <Utensils className="h-3.5 w-3.5" />
-                    <span>{remainingMeals}</span>
-                  </>
-                )}
-              </motion.div>
-            )}
-          </div>
-
-          {/* Week Navigator - iOS Style */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
-              className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-            >
-              <ChevronLeft className="h-4 w-4 text-gray-500" />
-            </button>
-
-            <div className="flex-1 flex justify-between px-1">
-              {weekDays.map((day, index) => {
-                const isSelected = isSameDay(day, selectedDate);
-                const isTodayDate = isToday(day);
-                const dayStatus = getDayStatus(day);
-                return (
-                  <motion.button
-                    key={day.toISOString()}
-                    onClick={() => setSelectedDate(day)}
-                    whileTap={{ scale: 0.85 }}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                    className={`flex flex-col items-center justify-center w-10 h-[68px] rounded-2xl transition-all cursor-pointer relative overflow-hidden ${
-                      isSelected
-                        ? "bg-gradient-to-b from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/30"
-                        : isTodayDate
-                        ? "bg-gray-100 dark:bg-gray-800 ring-2 ring-emerald-400/50"
-                        : "bg-transparent active:bg-gray-50 dark:active:bg-gray-800/50"
-                    }`}
-                  >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="selectedDayBg"
-                        className="absolute inset-0 bg-gradient-to-b from-emerald-400 to-teal-500"
-                        transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                      />
-                    )}
-                    <span className={`text-[10px] font-semibold mb-1 relative z-10 ${
-                      isSelected ? "text-white/80" : "text-gray-400"
-                    }`}>
-                      {DAYS[day.getDay()]}
-                    </span>
-                    <span className={`text-base font-bold relative z-10 ${
-                      isSelected ? "text-white" : isTodayDate ? "text-emerald-500" : "text-gray-700 dark:text-gray-200"
-                    }`}>
-                      {format(day, "d")}
-                    </span>
-                    {dayStatus === "completed" && !isSelected && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="flex items-center gap-0.5 mt-1 relative z-10"
-                      >
-                        <Check className="w-2 h-2 text-emerald-500" />
-                      </motion.div>
-                    )}
-                    {dayStatus === "partial" && !isSelected && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="flex items-center gap-0.5 mt-1 relative z-10"
-                      >
-                        <span className="w-2 h-0.5 rounded-full bg-amber-400" />
-                      </motion.div>
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={() => setCurrentWeekStart(prev => addWeeks(prev, 1))}
-              className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-            >
-              <ChevronRight className="h-4 w-4 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Jump to Today */}
-          {!isToday(selectedDate) && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              onClick={() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                setSelectedDate(today);
-                setCurrentWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
-              }}
-              className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold active:scale-95 transition-all cursor-pointer border border-emerald-200 dark:border-emerald-800"
-            >
-              <CalendarIcon className="h-3.5 w-3.5" />
-              Jump to Today
-            </motion.button>
-          )}
-        </div>
-      </div>
+      <ScheduleHeader
+        currentWeekStart={currentWeekStart}
+        selectedDate={selectedDate}
+        weekDays={weekDays}
+        isUnlimited={isUnlimited}
+        remainingMeals={remainingMeals}
+        hasActiveSubscription={hasActiveSubscription}
+        DAYS={DAYS}
+        t={t}
+        getDayStatus={getDayStatus}
+        onWeekChange={setCurrentWeekStart}
+        onDateSelect={setSelectedDate}
+        onJumpToToday={() => {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          setSelectedDate(today);
+          setCurrentWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
+        }}
+        onBack={() => navigate("/dashboard")}
+      />
 
       {/* ── Content Area ─────────────────────────────── */}
-      <div className="max-w-lg mx-auto px-4 pb-32">
+      <div className="mx-auto max-w-[432px] px-[18px] pb-[154px]">
 
         {/* ── Date Hero Card ─────────────────────────────── */}
-        <motion.div
-          key={selectedDate.toISOString()}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 mb-5"
-        >
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-800 dark:via-gray-900 dark:to-black rounded-3xl p-5 shadow-xl">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                  {isToday(selectedDate) ? "Today" : format(selectedDate, "EEEE")}
-                </p>
-                <h2 className="text-2xl font-black text-white">
-                  {isToday(selectedDate) ? t("today_meals") : format(selectedDate, "EEEE, MMMM d")}
-                </h2>
-              </div>
-              {dailyNutrition.total > 0 && (
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-3 py-2">
-                  <p className="text-white text-xs font-medium opacity-70">Total</p>
-                  <p className="text-white text-lg font-black">{dailyNutrition.calories.toLocaleString()}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Nutrition Pills */}
-            {dailyNutrition.total > 0 ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                  <span className="text-white text-sm font-semibold">{dailyNutrition.completed}/{dailyNutrition.total} meals</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2">
-                  <Flame className="h-4 w-4 text-amber-400" />
-                  <span className="text-white text-sm font-semibold">{dailyNutrition.calories.toLocaleString()} kcal</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2">
-                  <Beef className="h-4 w-4 text-rose-400" />
-                  <span className="text-white text-sm font-semibold">{dailyNutrition.protein.toFixed(0)}g protein</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-white/60 text-sm font-medium">No meals scheduled</p>
-            )}
-          </div>
-        </motion.div>
+        <DateHeroCard
+          selectedDate={selectedDate}
+          dailyNutrition={dailyNutrition}
+          t={t}
+        />
 
         {/* ── Weekly Stats ─────────────────────────────── */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Weekly Progress</span>
-            <span className="text-lg font-black text-gradient bg-gradient-to-r from-emerald-400 to-teal-500">{weekProgressPct}%</span>
-          </div>
+        <WeeklyProgressBar
+          weekProgressPct={weekProgressPct}
+          weekProgress={weekProgress}
+        />
 
-          <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${weekProgressPct}%` }}
-              transition={{ duration: 0.8, type: "spring", bounce: 0.3 }}
-              className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400 rounded-full relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-            </motion.div>
-          </div>
-
-          <div className="flex items-center justify-between mt-3 px-1">
-            <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              </div>
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{weekProgress.completed}</p>
-              <p className="text-xs text-gray-400">completed</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
-                <Flame className="h-3.5 w-3.5 text-amber-500" />
-              </div>
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{weekProgress.calories.toLocaleString()}</p>
-              <p className="text-xs text-gray-400">kcal</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                <Utensils className="h-3.5 w-3.5 text-blue-500" />
-              </div>
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{weekProgress.total}</p>
-              <p className="text-xs text-gray-400">meals</p>
-            </div>
-          </div>
-        </div>
+        {/* ── Smart Substitution Banner ─────────────────── */}
+        <SmartSubstitutionBanner
+          unavailableMeals={unavailableMeals}
+          onDismiss={dismissMeal}
+          onSubstitute={performSubstitution}
+        />
 
         {/* ── Quick Add Banner ─────────────────────────── */}
         {displayMeals.length === 0 && hasActiveSubscription && !isUnlimited && remainingMeals <= 0 && (
@@ -821,7 +629,7 @@ const Schedule = () => {
 
         {/* ── Meals List ──────────────────────────────── */}
         {loading ? (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-[9px] pt-[11px]">
             {/* Skeleton cards for each meal type */}
             {[0, 1, 2, 3].map((i) => (
               <div
@@ -848,7 +656,8 @@ const Schedule = () => {
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="relative mt-[11px] space-y-[9px] pl-[14px]">
+            <div className="pointer-events-none absolute left-[3px] top-[37px] bottom-[37px] border-l-2 border-dashed border-[#D9DFE8]" />
             {MEAL_TYPES.map((mealType, typeIndex) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
@@ -865,10 +674,11 @@ const Schedule = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: typeIndex * 0.05 + mealIndex * 0.05 }}
                     onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
-                    className={`group relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all cursor-pointer ${
+                    className={`group relative bg-white dark:bg-gray-900 rounded-[24px] overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all cursor-pointer ${
                       schedule.is_completed ? "ring-2 ring-emerald-400/30" : ""
                     }`}
                   >
+                    <span className={`absolute left-[-15px] top-[36px] z-10 h-[7px] w-[7px] rounded-full ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
                     {/* Colored accent bar */}
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${config.gradient}`} />
 
@@ -957,171 +767,49 @@ const Schedule = () => {
               }
 
               /* ── Empty Slot Card ─── */
-              const EmptySlotCard = () => {
-                const [swipeX, setSwipeX] = useState(0);
-                const hasTriggered = useRef(false);
-
-                const handleDrag = (_: DragEvent, info: PanInfo) => {
-                  if (!info.offset) return;
-                  if (info.offset.x < 0) {
-                    setSwipeX(Math.max(info.offset.x, -80));
-                  } else {
-                    setSwipeX(Math.min(Math.max(info.offset.x, 0), 80));
-                  }
-                };
-
-                const handleDragEnd = (_: DragEvent, info: PanInfo) => {
-                  if (!info.offset) {
-                    setSwipeX(0);
-                    return;
-                  }
-                  if (info.offset.x > 60 && !hasTriggered.current) {
-                    hasTriggered.current = true;
-                    setSwipeX(0);
-                    if (!user) {
-                      promptLogin({
-                        title: t("sign_in_to_schedule"),
-                        description: t("sign_in_to_schedule_desc"),
-                        actionLabel: t("sign_in"),
-                        signUpLabel: t("create_free_account"),
-                      });
-                    } else if (!noMealsLeft) {
-                      openWizard(mealType);
-                    }
-                  } else if (info.offset.x < -60 && !hasTriggered.current) {
-                    hasTriggered.current = true;
-                    setSwipeX(0);
-                    if (!user) {
-                      promptLogin({
-                        title: t("sign_in_to_schedule"),
-                        description: t("sign_in_to_schedule_desc"),
-                        actionLabel: t("sign_in"),
-                        signUpLabel: t("create_free_account"),
-                      });
-                    } else if (!noMealsLeft) {
-                      setWizardAutoFill(true);
-                      setShowWizard(true);
-                    }
-                  } else {
-                    setSwipeX(0);
-                  }
-                  setTimeout(() => { hasTriggered.current = false; }, 300);
-                };
-
-                return (
-                  <div className="relative overflow-hidden rounded-2xl">
-                    {/* Swipe hint - only visible when idle, hidden after first full swipe */}
-                    {!hasTriggered.current && swipeX === 0 && typeIndex === 0 && (
-                      <div className="absolute inset-0 flex items-center justify-end pr-4 pointer-events-none">
-                        <motion.div
-                          initial={{ opacity: 0.3 }}
-                          animate={{ opacity: [0.3, 0.6, 0.3] }}
-                          transition={{ repeat: Infinity, duration: 2 }}
-                          className="flex items-center gap-0.5"
-                        >
-                          <ChevronRight className="h-4 w-4 text-gray-300" />
-                          <ChevronRight className="h-4 w-4 text-gray-200 -ml-2" />
-                        </motion.div>
-                      </div>
-                    )}
-                    {/* Left swipe hint (AI Fill) */}
-                    {!hasTriggered.current && swipeX === 0 && typeIndex === 0 && (
-                      <div className="absolute inset-0 flex items-center justify-start pl-4 pointer-events-none">
-                        <motion.div
-                          initial={{ opacity: 0.3 }}
-                          animate={{ opacity: [0.3, 0.6, 0.3] }}
-                          transition={{ repeat: Infinity, duration: 2, delay: 1 }}
-                          className="flex items-center gap-0.5"
-                        >
-                          <ChevronLeft className="h-4 w-4 text-gray-300 -mr-2" />
-                          <ChevronLeft className="h-4 w-4 text-gray-200" />
-                        </motion.div>
-                      </div>
-                    )}
-
-                    {/* Swipe Actions Background */}
-                    <div className="absolute inset-0 flex items-center justify-between px-4">
-                      <motion.div
-                        animate={{ x: swipeX > 20 ? 0 : -80 }}
-                        className="w-16 h-full flex items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500"
-                      >
-                        <div className="flex flex-col items-center">
-                          <Plus className="h-5 w-5 text-white" />
-                          <span className="text-[10px] text-white font-bold mt-0.5">Add</span>
-                        </div>
-                      </motion.div>
-
-                      <motion.div
-                        animate={{ x: swipeX < -20 ? 0 : 80 }}
-                        className="w-16 h-full flex items-center justify-center rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500"
-                      >
-                        <div className="flex flex-col items-center">
-                          <Zap className="h-5 w-5 text-white" />
-                          <span className="text-[10px] text-white font-bold mt-0.5">AI Fill</span>
-                        </div>
-                      </motion.div>
-                    </div>
-
-                    {/* Main Card */}
-                    <motion.div
-                      drag="x"
-                      dragConstraints={{ left: -100, right: 100 }}
-                      dragElastic={0.15}
-                      onDrag={handleDrag}
-                      onDragEnd={handleDragEnd}
-                      animate={{ x: swipeX }}
-                      transition={{ type: "spring", stiffness: 400, damping: 35 }}
-                      className={`relative bg-white dark:bg-gray-900 border-2 ${
-                        noMealsLeft
-                          ? "border-amber-200 dark:border-amber-800"
-                          : "border-dashed border-gray-200 dark:border-gray-700"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 p-4">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${config.bgGradient}`}>
-                          <MealIcon className={`h-6 w-6 ${config.textColor}`} />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-[11px] font-bold uppercase tracking-wider ${config.textColor} opacity-70`}>
-                            {mealTypeName}
-                          </span>
-                          <p className="text-sm text-gray-400 font-medium flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            {timeLabel}
-                          </p>
-                        </div>
-
-                        {noMealsLeft ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowBuyCredit(true);
-                            }}
-                            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded-2xl active:scale-95 transition-all shadow-lg shadow-amber-500/25 cursor-pointer"
-                          >
-                            <Wallet className="h-4 w-4" />
-                            Buy Credits
-                          </button>
-                        ) : (
-                          <div className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-                            <UtensilsCrossed className="h-4 w-4 text-gray-300" />
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  </div>
-                );
-              };
-
+              const isFirstSlot = typeIndex === 0;
               return (
                 <motion.div
                   key={`empty-${mealType}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: typeIndex * 0.05 }}
+                  className="relative"
                 >
-                  <EmptySlotCard />
+                  <span className={`absolute left-[-15px] top-[34px] z-10 h-[7px] w-[7px] rounded-full ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
+                  <EmptyMealSlot
+                    config={config}
+                    mealTypeName={mealTypeName}
+                    timeLabel={timeLabel}
+                    noMealsLeft={noMealsLeft}
+                    isFirstSlot={isFirstSlot}
+                    onSwipeRight={() => {
+                      if (!user) {
+                        promptLogin({
+                          title: t("sign_in_to_schedule"),
+                          description: t("sign_in_to_schedule_desc"),
+                          actionLabel: t("sign_in"),
+                          signUpLabel: t("create_free_account"),
+                        });
+                      } else if (!noMealsLeft) {
+                        openWizard(mealType);
+                      }
+                    }}
+                    onSwipeLeft={() => {
+                      if (!user) {
+                        promptLogin({
+                          title: t("sign_in_to_schedule"),
+                          description: t("sign_in_to_schedule_desc"),
+                          actionLabel: t("sign_in"),
+                          signUpLabel: t("create_free_account"),
+                        });
+                      } else if (!noMealsLeft) {
+                        setWizardAutoFill(true);
+                        setShowWizard(true);
+                      }
+                    }}
+                    onBuyCredits={() => setShowBuyCredit(true)}
+                  />
                 </motion.div>
               );
             })}
@@ -1144,200 +832,24 @@ const Schedule = () => {
       </AnimatePresence>
 
       {/* ── Meal Detail Bottom Sheet ──────────────────── */}
-      <AnimatePresence>
-        {showMealSheet && selectedMeal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowMealSheet(false)}
-              className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-50 max-h-[90vh] overflow-y-auto safe-bottom"
-              style={{ bottom: "max(24px, env(safe-area-inset-bottom))" }}
-            >
-              {/* Drag Handle */}
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
-              </div>
-
-              <div className="p-6" style={{ paddingBottom: "max(112px, calc(env(safe-area-inset-bottom) + 24px))" }}>
-                {/* Header */}
-                <div className="flex items-start justify-between mb-5">
-                  <div className="flex-1 min-w-0">
-                    {(() => {
-                      const cfg = MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG];
-                      const Icon = cfg.icon;
-                      return (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold mb-3 ${cfg.bgGradient} ${cfg.textColor}`}>
-                          <Icon className="h-3.5 w-3.5" />
-                          {t(cfg.label)}
-                        </span>
-                      );
-                    })()}
-                    <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedMeal.meal.name}</h2>
-                  </div>
-                  <button
-                    onClick={() => setShowMealSheet(false)}
-                    className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 ml-3 cursor-pointer active:scale-95 transition-all"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Hero Image */}
-                {selectedMeal.meal.image_url ? (
-                  <motion.img
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    src={selectedMeal.meal.image_url}
-                    alt={selectedMeal.meal.name}
-                    className="w-full h-52 object-cover rounded-3xl mb-6 shadow-xl"
-                  />
-                ) : (
-                  <div className="w-full h-52 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-3xl flex items-center justify-center mb-6">
-                    {(() => {
-                      const cfg = MEAL_TYPE_CONFIG[selectedMeal.meal_type as keyof typeof MEAL_TYPE_CONFIG];
-                      const Icon = cfg.icon;
-                      return <Icon className="h-16 w-16 text-gray-400" />;
-                    })()}
-                  </div>
-                )}
-
-                {/* Nutrition Grid */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-2xl p-4 text-center border border-amber-100 dark:border-amber-800/50"
-                  >
-                    <Flame className="h-5 w-5 text-amber-500 mx-auto mb-1" />
-                    <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.calories}</p>
-                    <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wide">Calories</p>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/30 dark:to-pink-900/30 rounded-2xl p-4 text-center border border-rose-100 dark:border-rose-800/50"
-                  >
-                    <Beef className="h-5 w-5 text-rose-500 mx-auto mb-1" />
-                    <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.protein_g}g</p>
-                    <p className="text-[10px] text-rose-500 font-semibold uppercase tracking-wide">Protein</p>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-2xl p-4 text-center border border-blue-100 dark:border-blue-800/50"
-                  >
-                    <Leaf className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-                    <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.carbs_g}g</p>
-                    <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">Carbs</p>
-                  </motion.div>
-                </div>
-
-                {/* Delivery Time */}
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                        <Clock className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Delivery Time</p>
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">
-                          {selectedMeal.delivery_time_slot || "Not scheduled"}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleOpenTimeSlotSelector(selectedMeal.id)}
-                      className="px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 text-emerald-600 text-xs font-bold active:scale-95 transition-all shadow-sm cursor-pointer border border-emerald-100 dark:border-emerald-800"
-                    >
-                      Change
-                    </button>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-3">
-                  {/* Primary: Mark Complete */}
-                  <motion.button
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
-                    disabled={togglingMealId === selectedMeal.id}
-                    onClick={() => { toggleMealCompletion(selectedMeal.id, selectedMeal.is_completed); setShowMealSheet(false); }}
-                    className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60 ${
-                      selectedMeal.is_completed
-                        ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                        : "bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-xl shadow-emerald-500/25"
-                    }`}
-                  >
-                    {togglingMealId === selectedMeal.id ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : selectedMeal.is_completed ? (
-                      <>
-                        <Circle className="h-5 w-5" />
-                        Mark as Incomplete
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-5 w-5" />
-                        Mark as Completed
-                      </>
-                    )}
-                  </motion.button>
-
-                  {/* Secondary: View Details + Reschedule */}
-                  <div className="flex gap-3">
-                    <motion.button
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      onClick={() => navigate(`/meals/${selectedMeal.meal.id}`)}
-                      className="flex-1 py-4 rounded-2xl font-bold text-sm bg-gradient-to-r from-gray-900 to-gray-800 dark:from-gray-800 dark:to-gray-700 text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-xl"
-                    >
-                      <Utensils className="h-4 w-4" />
-                      Details
-                    </motion.button>
-                    <motion.button
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35 }}
-                      onClick={() => { setShowMealSheet(false); setShowModifyModal(true); }}
-                      className="flex-1 py-4 rounded-2xl font-bold text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                    >
-                      <CalendarIcon className="h-4 w-4" />
-                      Reschedule
-                    </motion.button>
-                  </div>
-
-                  {/* Tertiary: Remove */}
-                  <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    onClick={() => { setDeleteTargetId(selectedMeal.id); setDeleteConfirmOpen(true); }}
-                    className="w-full py-3 rounded-2xl text-sm font-semibold text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Remove from Schedule
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <MealDetailSheet
+        showMealSheet={showMealSheet}
+        onClose={() => setShowMealSheet(false)}
+        selectedMeal={selectedMeal}
+        togglingMealId={togglingMealId}
+        mealTypeConfig={MEAL_TYPE_CONFIG}
+        t={t}
+        onTimeSlotOpen={handleOpenTimeSlotSelector}
+        onToggleCompletion={(id, isCompleted) => {
+          toggleMealCompletion(id, isCompleted);
+          setShowMealSheet(false);
+        }}
+        onReschedule={() => setShowModifyModal(true)}
+        onDelete={(id) => {
+          setDeleteTargetId(id);
+          setDeleteConfirmOpen(true);
+        }}
+      />
 
       {/* ── Delivery Scheduler Dialog ─────────────────── */}
       <Dialog open={showTimeSlotDialog} onOpenChange={setShowTimeSlotDialog}>
@@ -1462,6 +974,63 @@ const Schedule = () => {
         schedule={selectedMeal}
         onModified={() => { fetchSchedules(); setShowModifyModal(false); }}
       />
+
+      {/* ── Meal Plan Generator ──────────────────────── */}
+      <AnimatePresence>
+        {showMealPlanGenerator && user && (
+          <MealPlanGenerator
+            isOpen={showMealPlanGenerator}
+            onClose={() => setShowMealPlanGenerator(false)}
+            onScheduled={() => {
+              setShowMealPlanGenerator(false);
+              fetchSchedules();
+            }}
+            isScheduleEmpty={thisWeekSchedules.length === 0}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Fill My Week FAB ─────────────────────────── */}
+      {!loading && hasActiveSubscription && (
+        <AnimatePresence>
+          {(() => {
+            const totalSlots = 7 * 4;
+            const hasUnusedSlots = thisWeekSchedules.length < totalSlots;
+            const isWeekEmpty = thisWeekSchedules.length === 0;
+
+            if (!isWeekEmpty && !hasUnusedSlots) return null;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                className="fixed right-4 z-40"
+                style={{ bottom: "max(100px, calc(env(safe-area-inset-bottom) + 80px))" }}
+              >
+                <motion.button
+                  onClick={() => setShowMealPlanGenerator(true)}
+                  whileTap={{ scale: 0.93 }}
+                  whileHover={{ scale: 1.05 }}
+                  className="relative flex h-[44px] items-center gap-[10px] rounded-full bg-gradient-to-r from-[#11C884] to-[#03A96E] px-[18px] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(0,174,120,0.30)] transition-all active:shadow-lg cursor-pointer"
+                >
+                  <Sparkles className="h-[17px] w-[17px]" />
+                  <span>Fill My Week</span>
+                  {(isWeekEmpty || hasUnusedSlots) && (
+                    <motion.span
+                      animate={{ scale: [1, 1.3, 1] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                      className="absolute -right-[3px] -top-[5px] flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#FF3E65] text-[11px] font-black shadow-lg"
+                    >
+                      1
+                    </motion.span>
+                  )}
+                </motion.button>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
+      )}
 
       {/* ── Styles ─────────────────────────────────── */}
       <style>{`
