@@ -10,10 +10,17 @@ import { SentryErrorBoundary } from "./components/SentryErrorBoundary";
 import DevelopmentErrorBoundary from "./components/DevelopmentErrorBoundary";
 import { SplashVideo } from "./components/SplashVideo";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 
-// Initialize monitoring and analytics
-initSentry();
-initPostHog();
+// Initialize monitoring and analytics after first paint
+// Deferred from module level to avoid blocking TTFB/TTI
+let monitoringInitialized = false;
+function initMonitoring() {
+  if (monitoringInitialized) return;
+  monitoringInitialized = true;
+  initSentry();
+  initPostHog();
+}
 
 // NOTE: initializeNativeApp() is now called inside the Root component
 // via useEffect to ensure it runs AFTER React has rendered, not before.
@@ -31,19 +38,23 @@ const Root = () => {
   // preventing the blank white screen on app launch.
   useEffect(() => {
     initializeNativeApp();
+    // Defer monitoring init until after first paint for faster TTFB
+    requestAnimationFrame(() => initMonitoring());
   }, []);
 
   const AppWrapper = (
     <LanguageProvider>
-      <SentryErrorBoundary>
-        {isDevelopment ? (
-          <DevelopmentErrorBoundary>
+      <ThemeProvider>
+        <SentryErrorBoundary>
+          {isDevelopment ? (
+            <DevelopmentErrorBoundary>
+              <App />
+            </DevelopmentErrorBoundary>
+          ) : (
             <App />
-          </DevelopmentErrorBoundary>
-        ) : (
-          <App />
-        )}
-      </SentryErrorBoundary>
+          )}
+        </SentryErrorBoundary>
+      </ThemeProvider>
     </LanguageProvider>
   );
 

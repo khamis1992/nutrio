@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -11,6 +10,7 @@ import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { Loader2 } from "lucide-react";
 import { fleetRoutes } from "@/fleet/routes";
+import { customerRoutes } from "@/customer/routes";
 import CustomerLayout from "@/components/CustomerLayout";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -23,46 +23,10 @@ const Terms = lazy(() => import("./pages/Terms"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
-// Customer pages
+// Customer pages (used outside CustomerLayout)
 const WalkthroughScreen = lazy(() => import("./pages/WalkthroughScreen"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Meals = lazy(() => import("./pages/Meals"));
-const RestaurantDetail = lazy(() => import("./pages/RestaurantDetail"));
-const MealDetail = lazy(() => import("./pages/MealDetail"));
-const Schedule = lazy(() => import("./pages/Schedule"));
-const Progress = lazy(() => import("./pages/ProgressRedesigned"));
-const Tracker = lazy(() => import("./pages/Tracker"));
-const WaterTracker = lazy(() => import("./pages/WaterTracker"));
-const StepCounter = lazy(() => import("./pages/StepCounter"));
-const WeightTracking = lazy(() => import("./pages/WeightTracking"));
-const BloodWorkUpload = lazy(() => import("./pages/health/BloodWorkUpload"));
-const BloodWorkResults = lazy(() => import("./pages/health/BloodWorkResults"));
-const HealthDashboard = lazy(() => import("./pages/health/HealthDashboard"));
-
-const Profile = lazy(() => import("./pages/Profile"));
-const Dietary = lazy(() => import("./pages/Dietary"));
-const Policies = lazy(() => import("./pages/Policies"));
-const PersonalInfo = lazy(() => import("./pages/PersonalInfo"));
 const LiveMap = lazy(() => import("./pages/LiveMap"));
-const Subscription = lazy(() => import("./pages/Subscription"));
-const SubscriptionPlans = lazy(() => import("./pages/subscription/SubscriptionPlans"));
-const Notifications = lazy(() => import("./pages/Notifications"));
-const Favorites = lazy(() => import("./pages/Favorites"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Affiliate = lazy(() => import("./pages/Affiliate"));
-const ReferralTracking = lazy(() => import("./pages/ReferralTracking"));
-const Addresses = lazy(() => import("./pages/Addresses"));
-const Support = lazy(() => import("./pages/Support"));
-const Wallet = lazy(() => import("./pages/Wallet"));
-const InvoiceHistory = lazy(() => import("./pages/InvoiceHistory"));
-const Checkout = lazy(() => import("./pages/Checkout"));
-const OrderHistory = lazy(() => import("./pages/OrderHistory"));
-
-// Recovery pages
-const RecoveryPartners = lazy(() => import("./pages/recovery/RecoveryPartners"));
-const RecoveryDetail = lazy(() => import("./pages/recovery/RecoveryDetail"));
-const MyBookings = lazy(() => import("./pages/recovery/MyBookings"));
 
 // Partner pages
 const PartnerAuth = lazy(() => import("./pages/partner/PartnerAuth"));
@@ -123,10 +87,15 @@ const DriverSupport = lazy(() => import("./pages/driver/DriverSupport"));
 const DriverNotifications = lazy(() => import("./pages/driver/DriverNotifications"));
 const DriverLayout = lazy(() => import("./components/driver/DriverLayout").then(m => ({ default: m.DriverLayout })));
 
-// Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
+
+const AppContentLoader = () => (
+  <div className="flex items-center justify-center py-20">
+    <Loader2 className="h-6 w-6 animate-spin text-primary" />
   </div>
 );
 
@@ -141,13 +110,21 @@ const ScrollToTop = () => {
   return null;
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster position="top-right" />
-      <RadixToaster />
       <BrowserRouter basename="/nutrio">
         <AuthProvider>
           <AnalyticsProvider>
@@ -175,254 +152,9 @@ const App = () => (
             {/* Live map — no nav bar, full screen */}
             <Route path="/live/:id" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
 
-            {/* Customer App Routes - Wrapped with CustomerLayout for background */}
+            {/* Customer App Routes */}
             <Route element={<CustomerLayout />}>
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            {/* Customer browsing routes - auth required */}
-            <Route path="/meals" element={<ProtectedRoute><Meals /></ProtectedRoute>} />
-            <Route path="/restaurant/:id" element={<ProtectedRoute><RestaurantDetail /></ProtectedRoute>} />
-            <Route path="/meals/:id" element={<ProtectedRoute><MealDetail /></ProtectedRoute>} />
-            <Route 
-              path="/schedule" 
-              element={
-                <ProtectedRoute>
-                  <Schedule />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/progress" 
-              element={
-                <ProtectedRoute>
-                  <Progress />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/tracker" 
-              element={
-                <ProtectedRoute>
-                  <Tracker />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/water-tracker" 
-              element={
-                <ProtectedRoute>
-                  <WaterTracker />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/step-counter" 
-              element={
-                <ProtectedRoute>
-                  <StepCounter />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/weight-tracking" 
-              element={
-                <ProtectedRoute>
-                  <WeightTracking />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/health/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <HealthDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/health/blood-work" 
-              element={
-                <ProtectedRoute>
-                  <BloodWorkUpload />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/health/blood-work/results" 
-              element={
-                <ProtectedRoute>
-                  <BloodWorkResults />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/goals" 
-              element={<Navigate to="/progress?tab=goals" replace />} 
-            />
-            <Route
-              path="/dietary"
-              element={
-                <ProtectedRoute>
-                  <Dietary />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/policies"
-              element={
-                <ProtectedRoute>
-                  <Policies />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/personal-info"
-              element={
-                <ProtectedRoute>
-                  <PersonalInfo />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
-            <Route path="/order/:id" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/tracking" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/plans" element={<Navigate to="/subscription/plans" replace />} />
-            <Route path="/subscribe" element={<Navigate to="/subscription" replace />} />
-            <Route path="/cart" element={<Navigate to="/checkout" replace />} />
-            <Route 
-              path="/subscription" 
-              element={
-                <ProtectedRoute>
-                  <Subscription />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/subscription/plans" 
-              element={
-                <ProtectedRoute>
-                  <SubscriptionPlans />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/wallet" 
-              element={
-                <ProtectedRoute>
-                  <Wallet />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/recovery" 
-              element={
-                <ProtectedRoute>
-                  <RecoveryPartners />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/recovery/:id" 
-              element={
-                <ProtectedRoute>
-                  <RecoveryDetail />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/recovery/bookings" 
-              element={
-                <ProtectedRoute>
-                  <MyBookings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/checkout" 
-              element={
-                <ProtectedRoute>
-                  <Checkout />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/invoices" 
-              element={
-                <ProtectedRoute>
-                  <InvoiceHistory />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/notifications"
-              element={
-                <ProtectedRoute>
-                  <Notifications />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/favorites" 
-              element={
-                <ProtectedRoute>
-                  <Favorites />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/settings" 
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/affiliate" 
-              element={
-                <ProtectedRoute>
-                  <Affiliate />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/affiliate/tracking" 
-              element={
-                <ProtectedRoute>
-                  <ReferralTracking />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/addresses" 
-              element={
-                <ProtectedRoute>
-                  <Addresses />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/support" 
-              element={
-                <ProtectedRoute>
-                  <Support />
-                </ProtectedRoute>
-              } 
-            />
+              {customerRoutes}
             </Route>
             {/* Partner Portal Routes */}
             <Route path="/partner/auth" element={<PartnerAuth />} />
@@ -771,7 +503,9 @@ const App = () => (
             />
             <Route path="/driver" element={
               <ProtectedRoute requiredRole="driver">
-                <DriverLayout />
+                <Suspense fallback={<AppContentLoader />}>
+                  <DriverLayout />
+                </Suspense>
               </ProtectedRoute>
             }>
               <Route index element={<DriverDashboard />} />

@@ -9,6 +9,35 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior-y: contain;
+  }
+  
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  
+  .pt-safe-offset-4 {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .pb-safe-offset-20 {
+    padding-bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
+  }
+  
+  @supports (height: 100dvh) {
+    .min-h-screen {
+      min-height: 100dvh;
+    }
+  }
+}
+
+@layer base {
   :root {
     /* Core palette - Premium Wellness */
     --background: 210 20% 98%;
@@ -214,7 +243,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: hsl(var(--background) / 0 / 90%);
+    background-color: hsl(var(--background) / 0.9);
     z-index: 2;
   }
   
