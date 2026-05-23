@@ -7,7 +7,8 @@ import {
   ResponsiveContainer
 } from "recharts";
 import { Target } from "lucide-react";
-import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { CHART_COLORS } from "../constants";
 
 interface MacroDistributionProps {
   nutritionData: {
@@ -20,17 +21,17 @@ interface MacroDistributionProps {
   } | null;
 }
 
-const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444"];
-
 export function MacroDistribution({ nutritionData }: MacroDistributionProps) {
+  const { t } = useLanguage();
+
   if (!nutritionData) {
     return null;
   }
 
   const macroData = [
-    { name: "Protein", value: nutritionData.target_protein, color: COLORS[0] },
-    { name: "Carbs", value: nutritionData.target_carbs, color: COLORS[1] },
-    { name: "Fats", value: nutritionData.target_fats, color: COLORS[2] },
+    { name: t("macro_protein") || "Protein", value: nutritionData.target_protein, color: CHART_COLORS[0] },
+    { name: t("macro_carbs") || "Carbs", value: nutritionData.target_carbs, color: CHART_COLORS[1] },
+    { name: t("macro_fats") || "Fats", value: nutritionData.target_fats, color: CHART_COLORS[2] },
   ];
 
   return (
@@ -38,7 +39,7 @@ export function MacroDistribution({ nutritionData }: MacroDistributionProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="w-5 h-5 text-primary" />
-          Macro Distribution
+          {t("macro_distribution") || "Macro Distribution"}
         </CardTitle>
       </CardHeader>
       <CardContent>

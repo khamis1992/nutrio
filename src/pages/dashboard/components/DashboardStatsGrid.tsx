@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DashboardStatsGridProps {
   weightLogs: Array<{ id: string; weight_kg: number; logged_at: string }>;
@@ -56,6 +57,7 @@ export function DashboardStatsGrid({
   averageAdherence,
   onRefresh
 }: DashboardStatsGridProps) {
+  const { t } = useLanguage();
   const weightChange = calculateWeightChange();
   const avgAdherence = averageAdherence();
 
@@ -64,7 +66,9 @@ export function DashboardStatsGrid({
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Weight Change</span>
+            <span className="text-sm text-muted-foreground">
+              {t("weight_change") || "Weight Change"}
+            </span>
             {weightChange < 0 ? (
               <TrendingDown className="w-4 h-4 text-primary" />
             ) : (
@@ -80,14 +84,18 @@ export function DashboardStatsGrid({
             </span>
             <span className="text-sm text-muted-foreground">kg</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("last_30_days") || "Last 30 days"}
+          </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Plan Adherence</span>
+            <span className="text-sm text-muted-foreground">
+              {t("plan_adherence") || "Plan Adherence"}
+            </span>
             <Calendar className="w-4 h-4 text-primary" />
           </div>
           <div className="flex items-baseline gap-1 mt-2">
@@ -96,33 +104,45 @@ export function DashboardStatsGrid({
             </span>
             <span className="text-sm text-muted-foreground">%</span>
           </div>
-          <Progress value={avgAdherence} className="mt-2 h-2" />
+          <Progress
+            value={avgAdherence}
+            className="mt-2 h-2"
+            aria-label={`${t("plan_adherence") || "Plan Adherence"}: ${avgAdherence}%`}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Daily Calories</span>
+            <span className="text-sm text-muted-foreground">
+              {t("daily_calories") || "Daily Calories"}
+            </span>
             <Flame className="w-4 h-4 text-warning" />
           </div>
           <div className="text-2xl font-bold text-warning mt-2">
             {nutritionData?.target_calories || 2000}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">Target</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("target") || "Target"}
+          </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">AI Adjustments</span>
+            <span className="text-sm text-muted-foreground">
+              {t("ai_adjustments") || "AI Adjustments"}
+            </span>
             <AlertCircle className="w-4 h-4 text-warning" />
           </div>
           <div className="text-2xl font-bold text-warning mt-2">
             {adjustments.length}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">Total made</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("total_made") || "Total made"}
+          </p>
         </CardContent>
       </Card>
     </div>

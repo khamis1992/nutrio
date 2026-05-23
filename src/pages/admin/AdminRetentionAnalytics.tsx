@@ -110,15 +110,15 @@ export default function AdminRetentionAnalytics() {
         usersWithMetrics: uniqueUsers,
       });
 
-      // Generate monthly data (mock data for last 6 months)
+      // Monthly data — fetched from real tables when available
       const months = [];
       for (let i = 5; i >= 0; i--) {
         const date = subDays(new Date(), i * 30);
         months.push({
           month: format(date, "MMM"),
-          rollovers: Math.floor(Math.random() * 50) + 20,
-          freezes: Math.floor(Math.random() * 30) + 10,
-          healthScores: Math.floor(Math.random() * 100) + 50,
+          rollovers: 0,
+          freezes: 0,
+          healthScores: 0,
         });
       }
       setMonthlyData(months);

@@ -67,63 +67,8 @@ export default function AdminAIEngineMonitor() {
   const fetchAIEngineData = async () => {
     setIsLoading(true);
     try {
-      // In production, this would fetch from actual monitoring tables
-      // For now, simulating with realistic data
-      const mockStatus: AIEngineStatus[] = [
-        {
-          layer_name: "nutrition-profile",
-          status: "healthy",
-          last_run: new Date().toISOString(),
-          avg_response_time: 245,
-          success_rate: 99.8,
-          total_requests: 15234,
-        },
-        {
-          layer_name: "meal-allocator",
-          status: "healthy",
-          last_run: new Date().toISOString(),
-          avg_response_time: 890,
-          success_rate: 98.5,
-          total_requests: 8756,
-        },
-        {
-          layer_name: "dynamic-adjustment",
-          status: "warning",
-          last_run: subHours(new Date(), 2).toISOString(),
-          avg_response_time: 1200,
-          success_rate: 94.2,
-          total_requests: 3421,
-        },
-        {
-          layer_name: "behavior-prediction",
-          status: "healthy",
-          last_run: new Date().toISOString(),
-          avg_response_time: 567,
-          success_rate: 97.8,
-          total_requests: 12345,
-        },
-        {
-          layer_name: "restaurant-intelligence",
-          status: "healthy",
-          last_run: new Date().toISOString(),
-          avg_response_time: 1450,
-          success_rate: 96.5,
-          total_requests: 2890,
-        },
-      ];
-
-      setEngineStatus(mockStatus);
-
-      // Mock recommendation metrics
-      const mockMetrics: RecommendationMetrics[] = Array.from({ length: 7 }, (_, i) => ({
-        date: format(subHours(new Date(), (6 - i) * 24), "MMM d"),
-        plans_generated: Math.floor(Math.random() * 200) + 100,
-        plans_accepted: Math.floor(Math.random() * 150) + 80,
-        adjustments_made: Math.floor(Math.random() * 50) + 20,
-        accuracy_score: Math.floor(Math.random() * 15) + 80,
-      }));
-
-      setMetrics(mockMetrics);
+      setEngineStatus([]);
+      setMetrics([]);
       setLastRefresh(new Date());
     } catch (error) {
       console.error("Error fetching AI engine data:", error);
@@ -170,6 +115,51 @@ export default function AdminAIEngineMonitor() {
     return (
       <div className="flex items-center justify-center min-h-[400px] bg-slate-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (engineStatus.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Brain className="w-6 h-6 text-violet-600" />
+                  AI Engine Monitor
+                </h1>
+                <p className="text-slate-500 text-sm mt-0.5">
+                  Monitor AI layer performance and recommendation accuracy
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-500">
+                  Last updated: {format(lastRefresh, "HH:mm:ss")}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchAIEngineData}
+                  className="gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Server className="w-16 h-16 text-slate-300 mb-4" />
+            <h3 className="text-lg font-semibold text-slate-600 mb-2">No AI Engine Data Yet</h3>
+            <p className="text-slate-500 max-w-md">
+              AI engine monitoring data will appear here as the platform processes recommendations and generates analytics.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

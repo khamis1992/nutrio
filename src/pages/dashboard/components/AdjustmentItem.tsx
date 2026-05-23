@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Award, TrendingUp, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface AdjustmentItemProps {
   adjustment: {
@@ -76,7 +77,10 @@ export function AdjustmentItem({ adjustment }: AdjustmentItemProps) {
           </div>
 
           {!adjustment.was_accepted && (
-            <button className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors">
+            <button
+              onClick={() => toast.info("Review AI recommendations in the Adjustments tab")}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
               Review
             </button>
           )}

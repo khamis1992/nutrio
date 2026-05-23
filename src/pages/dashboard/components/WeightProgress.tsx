@@ -42,7 +42,7 @@ export function WeightProgress({ weightLogs }: WeightProgressProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={weightChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

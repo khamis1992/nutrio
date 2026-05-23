@@ -31,6 +31,7 @@ import { QuickActions } from "./components/QuickActions";
 import { StatsGridSkeleton, EmptyStateSkeleton } from "./components/DashboardSkeletons";
 import { WeightChartSkeleton, MacroChartSkeleton, EmptyMacroState } from "./components/ChartSkeletons";
 import { AdjustmentListSkeleton, EmptyAdjustmentsSkeleton } from "./components/AdjustmentSkeletons";
+import { CHART_COLORS } from "./constants";
 
 interface WeightLog {
   id: string;
@@ -71,8 +72,6 @@ interface NutritionData {
   bmr: number;
   tdee: number;
 }
-
-const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444"];
 
 export default function NutritionDashboard() {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
@@ -256,9 +255,9 @@ export default function NutritionDashboard() {
   }
 
   const macroData = nutritionData ? [
-    { name: "Protein", value: nutritionData.target_protein, color: COLORS[0] },
-    { name: "Carbs", value: nutritionData.target_carbs, color: COLORS[1] },
-    { name: "Fats", value: nutritionData.target_fats, color: COLORS[2] },
+    { name: "Protein", value: nutritionData.target_protein, color: CHART_COLORS[0] },
+    { name: "Carbs", value: nutritionData.target_carbs, color: CHART_COLORS[1] },
+    { name: "Fats", value: nutritionData.target_fats, color: CHART_COLORS[2] },
   ] : [];
 
   const weightChartData = weightLogs.map(log => ({

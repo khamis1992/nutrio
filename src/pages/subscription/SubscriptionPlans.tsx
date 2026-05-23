@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Zap, Crown, Loader2, ArrowLeft, Utensils, Apple, ShieldCheck, Sparkles, CalendarCheck, ChefHat } from "lucide-react";
+import { Check, Zap, Crown, Loader2, ArrowLeft, Utensils, Apple, ShieldCheck, Sparkles, CalendarCheck, LayoutGrid, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSubscriptionPlans, type DbSubscriptionPlan } from "@/hooks/useSubscriptionPlans";
+import { PlanComparisonTable } from "@/components/subscription/PlanComparisonTable";
 
 const TIER_DISPLAY: Record<string, { en: string; ar: string; icon: typeof Zap; badge: string; badgeClass: string }> = {
   elite:   { en: "Nutrio Elite",   ar: "نخبة نوتريو",   icon: Crown, badge: "Most Popular", badgeClass: "bg-amber-500" },
@@ -19,6 +20,8 @@ export default function SubscriptionPlans() {
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"cards" | "compare">("cards");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">("monthly");
   const { plans: dbPlans, loading, error } = useSubscriptionPlans();
 
   const getPlanDisplay = (plan: DbSubscriptionPlan) => {
@@ -104,7 +107,42 @@ export default function SubscriptionPlans() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8 -mt-6">
-        <div className="space-y-4">
+        <div className="flex items-center justify-center gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
+          <button
+            onClick={() => setViewMode("cards")}
+            className={cn(
+              "flex-1 py-2 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all",
+              viewMode === "cards"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Cards
+          </button>
+          <button
+            onClick={() => setViewMode("compare")}
+            className={cn(
+              "flex-1 py-2 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all",
+              viewMode === "compare"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Table2 className="h-4 w-4" />
+            Compare
+          </button>
+        </div>
+
+        {viewMode === "compare" ? (
+          <PlanComparisonTable
+            plans={dbPlans}
+            billingInterval={billingInterval}
+            onBillingIntervalChange={setBillingInterval}
+          />
+        ) : (
+          <>
+          <div className="space-y-4">
           {dbPlans.map((plan) => {
             const display = getPlanDisplay(plan);
             const Icon = display.icon;
@@ -228,39 +266,41 @@ export default function SubscriptionPlans() {
           })}
         </div>
 
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-muted-foreground">
-          {[
-            { icon: ShieldCheck, text: "No hidden fees" },
-            { icon: ShieldCheck, text: "Secure payment" },
-            { icon: CalendarCheck, text: "Instant activation" },
-          ].map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-2">
-              <Icon className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold">{text}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-12 mb-8">
-          <h2 className="text-lg font-extrabold text-center mb-8 text-foreground">
-            How Your Subscription Works
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-muted-foreground">
             {[
-              { step: "01", title: "Subscribe", desc: "Choose your plan and get instant access to meal credits" },
-              { step: "02", title: "AI Planning", desc: "Our AI creates personalized weekly meal plans" },
-              { step: "03", title: "Order & Enjoy", desc: "Use credits to order meals from any restaurant" },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-base font-extrabold">
-                  {item.step}
-                </div>
-                <h3 className="text-sm font-bold text-foreground mb-1">{item.title}</h3>
-                <p className="text-[11px] text-muted-foreground leading-snug">{item.desc}</p>
+              { icon: ShieldCheck, text: "No hidden fees" },
+              { icon: ShieldCheck, text: "Secure payment" },
+              { icon: CalendarCheck, text: "Instant activation" },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-2">
+                <Icon className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold">{text}</span>
               </div>
             ))}
           </div>
-        </div>
+
+          <div className="mt-12 mb-8">
+            <h2 className="text-lg font-extrabold text-center mb-8 text-foreground">
+              How Your Subscription Works
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { step: "01", title: "Subscribe", desc: "Choose your plan and get instant access to meal credits" },
+                { step: "02", title: "AI Planning", desc: "Our AI creates personalized weekly meal plans" },
+                { step: "03", title: "Order & Enjoy", desc: "Use credits to order meals from any restaurant" },
+              ].map((item) => (
+                <div key={item.step} className="text-center">
+                  <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-base font-extrabold">
+                    {item.step}
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground mb-1">{item.title}</h3>
+                  <p className="text-[11px] text-muted-foreground leading-snug">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          </>
+        )}
       </div>
     </div>
   );
