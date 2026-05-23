@@ -1,112 +1,58 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import flamAvatar from "@/assets/flam.png";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-  Utensils,
+  Activity,
+  ArrowRightLeft,
+  BarChart2,
   Bell,
-  Plus,
-  Crown,
-  Flame,
+  Calendar,
+  ChevronLeft,
   ChevronRight,
-  Target,
-  Footprints,
-  Heart,
-  Apple,
-  Smartphone,
+  ConciergeBell,
+  Crown,
+  Droplet,
   Dumbbell,
+  Flame,
+  Leaf,
+  Plus,
+  Heart,
+  ShoppingBag,
+  Target,
+  Truck,
+  Utensils,
+  Wallet,
+  Wheat,
 } from "lucide-react";
+
+import { LogMealDialog } from "@/components/LogMealDialog";
+import { LogActivitySheet } from "@/components/LogActivitySheet";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useAdaptiveGoals } from "@/hooks/useAdaptiveGoals";
-import { LogMealDialog } from "@/components/LogMealDialog";
-import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
-import { useFeaturedRestaurants } from "@/hooks/useFeaturedRestaurants";
-import { AdaptiveGoalCard } from "@/components/AdaptiveGoalCard";
-import { DailyNutritionCard } from "@/components/DailyNutritionCard";
-import { ActiveOrderBanner } from "@/components/ActiveOrderBanner";
-import { BehaviorPredictionWidget } from "@/components/BehaviorPredictionWidget";
-import { RolloverExpiryNudge } from "@/components/dashboard/RolloverExpiryNudge";
-import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
-import { OrderAgainRow } from "@/components/OrderAgainRow";
-import { QuickReorder } from "@/components/QuickReorder";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { getQatarNow, getWeekStartDay, WEEK_DAYS_SATURDAY, WEEK_DAYS_MONDAY } from "@/lib/dateUtils";
-import { spring, springBouncy, fadeInUp, staggerContainer, pageVariants } from "@/lib/animations";
-import { useNotifications } from "@/hooks/useNotifications";
 import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits";
 import { useTodayProgress } from "@/hooks/useTodayProgress";
-import { useHasRestaurant } from "@/hooks/useHasRestaurant";
-import { useHealthKitIntegration } from "@/hooks/useHealthKitIntegration";
-import { CommunityChallengeCard } from "@/components/community/CommunityChallengeCard";
-import { RecipeShareCard } from "@/components/community/RecipeShareCard";
-import { ReferralMilestonesWidget } from "@/components/dashboard/ReferralMilestonesWidget";
-import { CoachChatBubble } from "@/components/coach/CoachChatBubble";
-import { CreditDashboard } from "@/components/CreditDashboard";
-import { useAnalytics } from "@/contexts/AnalyticsContext";
-import { trackScrollDepthStart } from "@/lib/analytics";
-import { useWidgetOrderingVariant, useReorderPlacementVariant } from "@/hooks/useExperiments";
+import { getQatarNow, formatLocaleDate } from "@/lib/dateUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
   const { user } = useAuth();
   const { profile, loading: profileLoading, error: profileError } = useProfile();
-  const { hasActiveSubscription, remainingMeals, isUnlimited, isVip, subscription, tier } = useSubscription();
+  const { subscription, remainingMeals, totalMeals, isUnlimited } = useSubscription();
   const { rolloverCredits } = useDashboardRolloverCredits(user?.id);
-  const { trackWidgetView, trackWidgetInteract } = useAnalytics();
-  const { 
-    recommendation, 
-    hasUnviewedAdjustment, 
-    loading: adaptiveLoading, 
-    applyAdjustment, 
-    dismissAdjustment,
-    edgeFunctionAvailable,
-    adjustmentHistory
-  } = useAdaptiveGoals();
   const { t, language } = useLanguage();
-
-  const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
-  const { featuredRestaurants, loading: restaurantsLoading } = useFeaturedRestaurants();
+  const { unreadCount } = useNotifications(user?.id);
   const [logMealOpen, setLogMealOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [progressKey, setProgressKey] = useState(0);
+  const [totalBurned, setTotalBurned] = useState(0);
+  const [workoutCount, setWorkoutCount] = useState(0);
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
-  const { hasRestaurant } = useHasRestaurant(user?.id);
-  const { unreadCount } = useNotifications(user?.id);
-  const {
-    isConnected: healthKitConnected,
-    syncedData,
-    enabledTypes: healthSyncedTypes,
-    platform: healthPlatform,
-  } = useHealthKitIntegration();
-
-  const widgetOrder = useWidgetOrderingVariant();
-  const reorderVariant = useReorderPlacementVariant();
-
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedToggleFavorite = useCallback((restaurantId: string, restaurantName: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      toggleFavorite(restaurantId, restaurantName);
-    }, 300);
-  }, [toggleFavorite]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handler = () => setProgressKey((k) => k + 1);
-    window.addEventListener("nutrio:meal-progress-changed", handler);
-    return () => window.removeEventListener("nutrio:meal-progress-changed", handler);
-  }, []);
 
   useEffect(() => {
     if (!profileLoading && profile && profile.onboarding_completed === false) {
@@ -114,54 +60,46 @@ const Dashboard = () => {
     }
   }, [profile, profileLoading, navigate]);
 
-  const onboardingSkipped = !profileLoading && profile?.onboarding_completed && !profile?.gender;
-
-  const userStats = {
-    dailyCalories: profile?.daily_calorie_target || 2000,
-    consumedCalories: todayProgress.calories,
-    protein: { target: profile?.protein_target_g || 150, consumed: todayProgress.protein },
-    carbs: { target: profile?.carbs_target_g || 200, consumed: todayProgress.carbs },
-    fat: { target: profile?.fat_target_g || 65, consumed: todayProgress.fat },
-  };
-
-  const userName = profile?.full_name?.split(" ")[0] || t("guest_greeting") || "there";
-
-  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
-  const canOrder = hasActiveSubscription && (isUnlimited || (Number.isFinite(effectiveMealsLeft) && effectiveMealsLeft > 0));
-  const weekTarget = canOrder ? 7 : 5;
-  const streakDays = profile?.streak_days || 0;
-  const isMultiWeekStreak = streakDays >= weekTarget * 2;
-  const completedThisWeek = isMultiWeekStreak ? weekTarget : streakDays % weekTarget;
-  const weekStartDay = getWeekStartDay(language);
-  const dayOrder = weekStartDay === 6 ? WEEK_DAYS_SATURDAY : WEEK_DAYS_MONDAY;
-  const dayKeys = ["day_sun", "day_mon", "day_tue", "day_wed", "day_thu", "day_fri", "day_sat"] as const;
-  const weekDays = dayOrder.map(d => ({ label: t(dayKeys[d]) }));
-
-  const containerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    if (containerRef.current) {
-      return trackScrollDepthStart(containerRef.current);
-    }
+    const handler = () => setProgressKey((key) => key + 1);
+    window.addEventListener("nutrio:meal-progress-changed", handler);
+    return () => window.removeEventListener("nutrio:meal-progress-changed", handler);
   }, []);
 
+  const todayStr = selectedDate.toISOString().split("T")[0];
+  const todayStart = getQatarNow();
+  todayStart.setHours(0, 0, 0, 0);
+  const isToday = selectedDate.toDateString() === todayStart.toDateString();
+
   useEffect(() => {
-    trackWidgetView("daily_nutrition_card");
-    trackWidgetView("active_order_banner");
-    trackWidgetView("order_again_row");
-    if (subscription?.tier && subscription.tier !== "basic") {
-      trackWidgetView("rollover_expiry_nudge");
-    }
-  }, [trackWidgetView, subscription?.tier]);
+    if (!user) return;
+
+    const loadWorkoutSummary = async () => {
+      const { data, error } = await supabase
+        .from("workout_sessions")
+        .select("calories_burned")
+        .eq("user_id", user.id)
+        .eq("session_date", todayStr);
+
+      if (error) {
+        console.error("Failed to load workout summary", error);
+        return;
+      }
+
+      setTotalBurned(data.reduce((sum, session) => sum + (session.calories_burned ?? 0), 0));
+      setWorkoutCount(data.length);
+    };
+
+    loadWorkoutSummary();
+  }, [user, todayStr]);
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-primary/5 gap-4 px-5">
-        <div className="w-full max-w-[480px] space-y-4">
-          <div className="h-14 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
-          <div className="h-32 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
-          <div className="h-24 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
-          <div className="h-12 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
+      <div className="min-h-screen bg-[#F8FFFB] px-6 py-9">
+        <div className="mx-auto max-w-[430px] space-y-6">
+          <div className="h-16 rounded-full bg-emerald-100/60 animate-pulse" />
+          <div className="h-36 rounded-[28px] bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)] animate-pulse" />
+          <div className="h-[520px] rounded-[28px] bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)] animate-pulse" />
         </div>
       </div>
     );
@@ -169,18 +107,18 @@ const Dashboard = () => {
 
   if (profileError && !profile) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background dark:bg-gray-950 gap-4 px-5">
-        <div className="w-full max-w-[400px] text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center">
-            <svg className="w-8 h-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FFFB] gap-4 px-6">
+        <div className="w-full max-w-[360px] text-center space-y-4 rounded-[28px] bg-white p-7 shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
-          <p className="text-sm text-muted-foreground">We couldn&#39;t load your profile. Please try again.</p>
+          <h2 className="text-lg font-semibold text-slate-900">Something went wrong</h2>
+          <p className="text-sm text-slate-500">We couldn&#39;t load your profile. Please try again.</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm transition-colors"
+            className="rounded-full bg-[#10B981] px-7 py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(16,185,129,0.3)]"
           >
             Retry
           </button>
@@ -189,510 +127,478 @@ const Dashboard = () => {
     );
   }
 
-  const getGreeting = () => {
-    const hour = getQatarNow().getHours();
-    if (hour < 12) return t("good_morning");
-    if (hour < 18) return t("good_afternoon");
-    return t("good_evening");
+  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
+  const balanceDisplay = isUnlimited ? "∞" : Number.isFinite(effectiveMealsLeft) ? Number(effectiveMealsLeft) : 40;
+  const totalMealsDisplay = isUnlimited ? "∞" : Number.isFinite(totalMeals) ? Number(totalMeals) : 40;
+  const rawUserName = profile?.full_name?.split(" ")[0] || t("guest_greeting") || "Khamis";
+  const userName = rawUserName.charAt(0).toUpperCase() + rawUserName.slice(1).toLowerCase();
+  const dateLabel = formatLocaleDate(selectedDate, language, { weekday: "short", month: "short", day: "numeric" });
+  const dailyCalories = profile?.daily_calorie_target || 2066;
+  const calLeft = Math.max(0, dailyCalories - todayProgress.calories + totalBurned);
+  const remainingPct = Math.min((calLeft / (dailyCalories || 1)) * 100, 100);
+  const ringRadius = 62;
+  const remainingPctColor = remainingPct > 60 ? "#10B981" : remainingPct > 50 ? "#F97316" : "#EF4444";
+  const ringCirc = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCirc - (remainingPct / 100) * ringCirc;
+  const balanceRadius = 40;
+  const balanceCirc = 2 * Math.PI * balanceRadius;
+  const balancePct = isUnlimited ? 100 : Math.min((Number(balanceDisplay) / (Number(totalMealsDisplay) || 1)) * 100, 100);
+  const balanceOffset = balanceCirc - (balancePct / 100) * balanceCirc;
+  const completedThisWeek = 7;
+  const displayedUnreadCount = unreadCount > 99 ? 99 : unreadCount;
+
+  const planName = subscription?.plan || "Free Plan";
+  const joinedDate = subscription?.start_date ? new Date(subscription.start_date) : null;
+  const joinedLabel = joinedDate
+    ? `Joined ${joinedDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+    : "Joined recently";
+
+  const goToPrevDay = () => {
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 1);
+    setSelectedDate(prev);
   };
 
-  return (
-    <motion.div 
-      ref={containerRef}
-      variants={pageVariants}
-      initial="hidden"
-      animate="visible"
-      className="min-h-screen bg-background"
-      style={{ overscrollBehaviorY: "contain" }}
-    >
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-2 focus:bg-white focus:text-primary focus:text-sm focus:rounded">
-        {t("skip_to_main") || "Skip to main content"}
-      </a>
-      {/* Profile sync warning — stale data with error */}
-      {profileError && profile && (
-        <div className="bg-warning/10 border-b border-warning/20 px-5 py-1.5 text-center" role="alert">
-          <p className="text-[10px] font-medium text-warning">{t("profile_sync_warning") || "Some data may be outdated. Refresh to update."}</p>
-        </div>
-      )}
+  const goToNextDay = () => {
+    if (isToday) return;
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    setSelectedDate(next);
+  };
 
-      {/* Header - Clean, iOS-style */}
-      <motion.header 
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={spring}
-        className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 pt-2"
-        style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-      >
-        <div className="max-w-[480px] mx-auto px-5 h-14 flex items-center justify-between">
-          <motion.div whileTap={prefersReducedMotion ? undefined : { scale: 0.97, transition: springBouncy }}>
-            <Link to="/profile" className="flex items-center gap-3 transition-transform" data-testid="header-avatar-link">
-              <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 ${
-                isVip ? "border-warning/80" : "border-border"
-              }`}>
-                <img
-                  src={profile?.avatar_url || flamAvatar}
-                  alt={userName}
-                  loading="eager"
-                  className="w-full h-full object-cover"
-                  data-testid="user-avatar-image"
-                />
-                {isVip && (
-                  <motion.div 
-                    className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-br from-warning to-warning/80 rounded-full p-0.5 shadow-sm"
-                  >
-                    <Crown className="w-3 h-3 text-warning-foreground" />
-                  </motion.div>
-                )}
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {getGreeting()}
-                </p>
-                <p className="font-semibold text-sm text-foreground leading-tight">{userName}</p>
-              </div>
-            </Link>
-          </motion.div>
-          <div className="flex items-center gap-2">
-            {/* Subscription pill - compact */}
-            {hasActiveSubscription && subscription && (
-              <Link to="/subscription" aria-label={t("subscription")}>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary">
-                  <Flame className="w-3 h-3" />
-                  {isUnlimited ? "∞" : effectiveMealsLeft}
+  const macroCards = [
+    {
+      label: "Carbs",
+      value: Math.round(todayProgress.carbs),
+      target: profile?.carbs_target_g || 181,
+      Icon: Wheat,
+      cardClass: "border-[#D8F5E0] bg-gradient-to-br from-[#F2FFF6] to-[#EAF8EC]",
+      iconClass: "bg-gradient-to-br from-[#21C66F] to-[#069A54] text-white shadow-[0_10px_18px_rgba(16,185,129,0.25)]",
+      pillClass: "bg-[#D8F5E0] text-[#0E9F59]",
+      lineClass: "bg-[#D9EEE0]",
+    },
+    {
+      label: "Protein",
+      value: Math.round(todayProgress.protein),
+      target: profile?.protein_target_g || 181,
+      Icon: Dumbbell,
+      cardClass: "border-[#F8DEC9] bg-gradient-to-br from-[#FFF7F1] to-[#FCEFE4]",
+      iconClass: "bg-gradient-to-br from-[#FF8A2A] to-[#F36A12] text-white shadow-[0_10px_18px_rgba(249,115,22,0.25)]",
+      pillClass: "bg-[#FFE0C7] text-[#DE6B12]",
+      lineClass: "bg-[#F6D8C6]",
+    },
+    {
+      label: "Fat",
+      value: Math.round(todayProgress.fat),
+      target: profile?.fat_target_g || 69,
+      Icon: Droplet,
+      cardClass: "border-[#DCE8F6] bg-gradient-to-br from-[#F3F8FF] to-[#EAF1F9]",
+      iconClass: "bg-gradient-to-br from-[#5D759A] to-[#354F73] text-white shadow-[0_10px_18px_rgba(53,79,115,0.2)]",
+      pillClass: "bg-[#DFE9F6] text-[#455E82]",
+      lineClass: "bg-[#DDE6F0]",
+    },
+  ];
+
+  const orderRows = [
+    {
+      title: "Restaurant",
+      detail: "Meal, Meal  •  Mar 13",
+      status: "On The Way",
+      Icon: Truck,
+      badgeClass: "bg-[#CDEEDB] text-[#098A4F]",
+    },
+    {
+      title: "Fitness Fuel Station",
+      detail: "High-Protein Breakfast, High-Protein Bre...  •  Apr 25",
+      status: "Pending",
+      Icon: Flame,
+      badgeClass: "bg-[#FFE8BF] text-[#D98105]",
+    },
+    {
+      title: "Organic Harvest",
+      detail: "Organic Acai Bowl  •  Apr 25",
+      status: "Pending",
+      Icon: Leaf,
+      badgeClass: "bg-[#FFE8BF] text-[#D98105]",
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+      animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+      className="min-h-screen overflow-x-hidden text-slate-900"
+      style={{
+        background:
+          "radial-gradient(circle at 0% 6%, rgba(206, 247, 226, 0.68) 0, rgba(206, 247, 226, 0) 38%), radial-gradient(circle at 100% 96%, rgba(219, 247, 229, 0.56) 0, rgba(219, 247, 229, 0) 34%), linear-gradient(180deg, #FBFFFD 0%, #FFFFFF 48%, #F7FCF9 100%)",
+      }}
+    >
+      <main className="mx-auto max-w-[430px] px-6 pb-28 pt-6">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)]">
+              <img src="/nutrio/logo.png" alt="Nutrio" className="h-[34px] w-[34px] object-contain" />
+            </div>
+            <div>
+              <p className="text-[12px] font-medium leading-tight text-slate-700">Good afternoon 🌥️</p>
+              <h1 className="mt-0.5 text-[15px] font-extrabold leading-none tracking-[-0.03em] text-slate-950">{userName}</h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link to="/notifications" className="relative block text-slate-950" aria-label="Notifications">
+              <Bell className="h-[24px] w-[24px]" strokeWidth={2.1} />
+              {displayedUnreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF4444] px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+                  {displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}
                 </span>
-              </Link>
-            )}
-            {!hasActiveSubscription && (
-              <Link to="/subscription/plans" aria-label={t("subscribe_cta_title") || "Subscribe"}>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20 text-[10px] font-bold text-warning">
-                  <Crown className="w-3 h-3" />
-                  {t("subscribe") || "Subscribe"}
-                </span>
-              </Link>
-            )}
-            <Link to="/notifications" className="relative" aria-live="polite">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.9, transition: springBouncy }}
-              >
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="w-11 h-11 rounded-full hover:bg-primary/10 transition-transform"
-                  aria-label={unreadCount > 0 ? t("notifications_unread") || `Notifications (${unreadCount})` : t("notifications") || "Notifications"}
-                >
-                  <Bell className="w-5 h-5 text-muted-foreground" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </Button>
-              </motion.div>
+              )}
             </Link>
           </div>
-        </div>
-      </motion.header>
+        </header>
 
-      <motion.main
-        id="main-content"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-        className="max-w-[480px] md:max-w-lg mx-auto px-5 py-4 space-y-5 pb-24"
-      >
-        {/* Quick Reorder Strip - Show 5 previously ordered meals */}
-        {user && (
-          <DashboardErrorBoundary name="quick reorder">
-            <QuickReorder />
-          </DashboardErrorBoundary>
-        )}
-
-        {/* Skip-and-remind banner for users who skipped onboarding */}
-        {onboardingSkipped && (
-          <motion.div variants={fadeInUp}>
-            <Link to="/onboarding">
-              <div className="rounded-2xl bg-primary/5 border border-primary/20 px-4 py-2.5 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Target className="w-4 h-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-primary">{t("complete_your_profile")}</p>
-                  <p className="text-[10px] text-muted-foreground">{t("set_up_targets_for_better_results")}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-              </div>
-            </Link>
-          </motion.div>
-        )}
-
-        {/* All used warning — compact, appears when meals exhausted */}
-        {hasActiveSubscription && subscription && !isUnlimited && effectiveMealsLeft === 0 && (
-          <motion.div variants={fadeInUp}>
-            <Link to="/subscription">
-              <div className="rounded-2xl bg-warning/10 border border-warning/20 px-4 py-2.5 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-warning/20 flex items-center justify-center shrink-0">
-                  <Utensils className="w-4 h-4 text-warning" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-warning">{t("plan_card_all_used_title")}</p>
-                  <p className="text-[10px] text-warning/70">
-                    {subscription?.end_date
-                      ? t("plan_card_all_used_reset").replace("{date}", new Date(subscription.end_date).toLocaleDateString())
-                      : t("plan_card_all_used_next_renewal")}
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-warning shrink-0" />
-              </div>
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Rollover expiry nudge — premium+ only */}
-        {user?.id && (tier === 'premium' || tier === 'vip') && <RolloverExpiryNudge userId={user.id} />}
-
-        <DashboardErrorBoundary name="credit dashboard">
-          <motion.div variants={fadeInUp}>
-            <CreditDashboard />
-          </motion.div>
-        </DashboardErrorBoundary>
-
-        {/* PRIORITY 1: Nutrition Progress (with streak inline) */}
-        {widgetOrder === "adaptive_first" && (
-          <DashboardErrorBoundary name="adaptive goals">
-            {edgeFunctionAvailable !== false && hasUnviewedAdjustment && recommendation && (
-              <motion.div variants={fadeInUp}>
-                <AdaptiveGoalCard
-                  recommendation={recommendation}
-                  currentCalories={profile?.daily_calorie_target || 2000}
-                  currentProtein={profile?.protein_target_g || 150}
-                  currentCarbs={profile?.carbs_target_g || 200}
-                  currentFat={profile?.fat_target_g || 65}
-                  adjustmentId={adjustmentHistory.length > 0 ? adjustmentHistory.find(h => !h.applied)?.id : undefined}
-                  onApply={applyAdjustment}
-                  onDismiss={dismissAdjustment}
-                  loading={adaptiveLoading}
+        <section className="mt-6 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+          <div className="flex items-center">
+            <div className="relative flex h-[96px] w-[96px] shrink-0 items-center justify-center">
+              <svg className="h-full w-full -rotate-90" viewBox="0 0 108 108" aria-hidden="true">
+                <circle cx="54" cy="54" r={balanceRadius} fill="none" stroke="#CBEFD9" strokeWidth="9" />
+                <circle
+                  cx="54"
+                  cy="54"
+                  r={balanceRadius}
+                  fill="none"
+                  stroke="#10A95F"
+                  strokeLinecap="round"
+                  strokeWidth="9"
+                  strokeDasharray={balanceCirc}
+                  strokeDashoffset={balanceOffset}
                 />
-              </motion.div>
-            )}
-          </DashboardErrorBoundary>
-        )}
-        <DashboardErrorBoundary name="nutrition card">
-          <motion.div variants={fadeInUp}>
-            <DailyNutritionCard
-              totalCalories={Math.round(userStats.consumedCalories)}
-              totalProtein={userStats.protein.consumed}
-              totalCarbs={userStats.carbs.consumed}
-              totalFat={userStats.fat.consumed}
-              focusCalories={userStats.dailyCalories}
-              targetProtein={userStats.protein.target}
-              targetCarbs={userStats.carbs.target}
-              targetFat={userStats.fat.target}
-              dayLabel={t("todays_progress")}
-              onDateChange={setSelectedDate}
-              streakDays={streakDays}
-              weekTarget={weekTarget}
-              completedThisWeek={completedThisWeek}
-              weekDays={weekDays}
-            />
-          </motion.div>
-        </DashboardErrorBoundary>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-[20px] font-extrabold leading-none tracking-[-0.04em] text-[#10A95F]">{balanceDisplay}</span>
+                <span className="mt-1.5 text-[9px] font-medium leading-[1.28] text-slate-500">Avail.<br />Balance</span>
+              </div>
+            </div>
 
-        {/* Health Sync Widget — shows when connected to Apple Health / Google Fit */}
-        {healthKitConnected && syncedData && (
-          <motion.div variants={fadeInUp}>
-            <Card className="rounded-2xl border-emerald-200 bg-emerald-50/50 shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  {healthPlatform === "apple_health" ? (
-                    <Apple className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                  )}
-                  <span className="text-xs font-semibold text-emerald-700">
-                    Synced from {healthPlatform === "apple_health" ? "Apple Health" : "Google Fit"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4">
-                  {healthSyncedTypes.includes("steps") && syncedData.steps !== null && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                        <Footprints className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-emerald-600/70 font-medium">Steps</p>
-                        <p className="text-lg font-bold text-emerald-700">{syncedData.steps.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  )}
-                  {healthSyncedTypes.includes("heart_rate") && syncedData.heartRate !== null && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
-                        <Heart className="w-5 h-5 text-rose-500" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-rose-500/70 font-medium">Heart Rate</p>
-                        <p className="text-lg font-bold text-rose-600">{syncedData.heartRate} <span className="text-xs font-medium">BPM</span></p>
-                      </div>
-                    </div>
-                  )}
-                  {healthSyncedTypes.includes("workouts") && syncedData.workoutCount !== null && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                        <Dumbbell className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-600/70 font-medium">Workouts</p>
-                        <p className="text-lg font-bold text-blue-700">{syncedData.workoutCount}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-2 text-right">
-                  <span className="text-[10px] text-emerald-500/70">
-                    {t("synced")}: {new Date(syncedData.syncedAt).toLocaleTimeString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+            <div className="mx-3 h-[80px] w-px shrink-0 bg-slate-200" />
 
-        {/* PRIORITY 2: Order Meal Button - Primary CTA */}
-        <motion.div variants={fadeInUp}>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
+                  <Calendar className="h-[13px] w-[13px]" />
+                </div>
+                <span className="flex-1 text-[11px] font-medium text-slate-500">Mo. Balance</span>
+                <span className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay} / {totalMealsDisplay}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
+                  <ArrowRightLeft className="h-[13px] w-[13px]" />
+                </div>
+                <span className="flex-1 text-[11px] font-medium text-slate-500">Transfer Bal.</span>
+                <span className="text-[14px] font-extrabold tracking-[-0.02em] text-[#10A95F]">+0</span>
+              </div>
+              <div className="h-px bg-slate-200" />
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
+                  <Wallet className="h-[13px] w-[13px]" />
+                </div>
+                <span className="flex-1 text-[11px] font-medium text-slate-500">Total Avail.</span>
+                <span className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay}</span>
+              </div>
+            </div>
+
+            <div className="mx-3 h-[80px] w-px shrink-0 bg-slate-200" />
+
+            <div className="flex shrink-0 flex-col items-center justify-center gap-1.5 text-center">
+              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_7px_14px_rgba(249,115,22,0.2)]">
+                <Crown className="h-[18px] w-[18px]" />
+              </div>
+              <span className="text-[11px] font-semibold text-slate-700">Subscription</span>
+              <span className="rounded-full bg-[#D8F5E0] px-2 py-0.5 text-[10px] font-extrabold text-[#0E9F59]">{planName}</span>
+              <span className="text-[10px] font-medium text-slate-500">{joinedLabel}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Calendar className="h-5 w-5 text-slate-500" strokeWidth={2} />
+              <span className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{dateLabel}</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={goToPrevDay}
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_3px_8px_rgba(15,23,42,0.03)]"
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={goToNextDay}
+                disabled={isToday}
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_3px_8px_rgba(15,23,42,0.03)] disabled:opacity-50"
+                aria-label="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex h-[32px] items-center rounded-full border border-[#F8DDB5] bg-[#FFF9F1] px-3">
+            <div className="flex items-center gap-2 text-[#7A4A18]">
+              <Flame className="h-[15px] w-[15px] text-[#E98A05]" />
+              <span className="whitespace-nowrap text-[12px] font-semibold">Daily Streak</span>
+            </div>
+            <div className="mx-3 flex flex-1 items-center justify-between gap-2">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-[4px] flex-1 rounded-full bg-[#F59E0B]" />
+              ))}
+            </div>
+            <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
+          </div>
+
+          <div className="mt-3 rounded-[20px] border border-slate-100 bg-white px-4 py-3 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]">
+            <div className="flex min-h-[100px] items-center justify-between">
+              <div className="w-[62px] text-left">
+                <p className="text-[12px] font-medium text-slate-600">Consumed</p>
+                <div className="mt-0.5 flex items-end gap-1.5">
+                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{Math.round(todayProgress.calories)}</span>
+                  <Utensils className="mb-0.5 h-[18px] w-[18px] text-[#10A95F]" strokeWidth={2} />
+                </div>
+                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Cal</p>
+              </div>
+
+              <div className="relative flex h-[140px] w-[140px] shrink-0 items-center justify-center">
+                <div className="absolute inset-[-4px] rounded-full bg-[#FFF7ED] blur-[0.5px]" />
+                <svg className="relative h-full w-full -rotate-90" viewBox="0 0 140 140" aria-hidden="true">
+                  <circle cx="70" cy="70" r={ringRadius} fill="none" stroke="#FFE8CC" strokeWidth="9" />
+                  <circle
+                    cx="70"
+                    cy="70"
+                    r={ringRadius}
+                    fill="none"
+                    stroke="#F97316"
+                    strokeLinecap="round"
+                    strokeWidth="9"
+                    strokeDasharray={ringCirc}
+                    strokeDashoffset={ringOffset}
+                    style={{ filter: "drop-shadow(0 6px 10px rgba(249,115,22,0.2))" }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-[20px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{calLeft}</span>
+              <span className="mt-1.5 text-[11px] font-extrabold uppercase leading-none text-[#F97316]">CAL LEFT</span>
+              <span className="mt-1.5 text-[10px] font-bold" style={{ color: remainingPctColor }}>{Math.round(remainingPct)}% Remaining</span>
+                </div>
+              </div>
+
+              <div className="w-[62px] text-right">
+                <p className="text-[12px] font-medium text-slate-600">Burned</p>
+                <div className="mt-0.5 flex items-end justify-end gap-1.5">
+                  <Flame className="mb-0.5 h-[22px] w-[22px] text-[#F97316]" strokeWidth={2} />
+                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{totalBurned}</span>
+                </div>
+                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Cal</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            {macroCards.map(({ label, value, target, Icon, cardClass, iconClass, pillClass, lineClass }) => {
+              const percent = Math.round((value / (target || 1)) * 100);
+              return (
+                <div key={label} className={`rounded-[18px] border px-2.5 pb-2.5 pt-3 ${cardClass}`}>
+                  <div className="flex items-start gap-1.5">
+                    <div className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full ${iconClass}`}>
+                      <Icon className="h-[14px] w-[14px]" />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-[12px] font-semibold leading-none text-slate-800">{label}</p>
+                      <p className="mt-1.5 text-[16px] font-extrabold leading-none tracking-[-0.04em] text-slate-950">{value}g</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-end gap-1.5">
+                    <span className="text-[10px] font-semibold text-slate-700">/{target}g</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${pillClass}`}>{percent}%</span>
+                  </div>
+                  <div className={`mt-2 h-[3px] rounded-full ${lineClass}`} />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5">
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-5 w-5 text-[#10A95F]" strokeWidth={2.1} />
+              <h2 className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Activity Details</h2>
+            </div>
+            <div className="mt-2.5 flex items-center gap-2.5">
+              <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 shadow-[0_6px_14px_rgba(15,23,42,0.03)]">
+                <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_7px_14px_rgba(249,115,22,0.2)]">
+                  <Flame className="h-[18px] w-[18px]" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium leading-tight text-slate-500">Total Burned</p>
+                  <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{totalBurned} Cal</p>
+                </div>
+              </div>
+              <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 shadow-[0_6px_14px_rgba(15,23,42,0.03)]">
+                <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#19C878] to-[#079A59] text-white shadow-[0_7px_14px_rgba(16,185,129,0.18)]">
+                  <Activity className="h-[18px] w-[18px]" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium leading-tight text-slate-500">Sessions</p>
+                  <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{workoutCount}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_10px_20px_rgba(5,150,90,0.28)] active:scale-95"
+                aria-label="Add activity"
+              >
+                <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <h3 className="mb-2.5 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => navigate("/tracker")}
+                className="flex items-center gap-1 rounded-full border border-[#CFEFE0] bg-[#F2FFF6] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)] active:scale-95"
+                aria-label="Open Tracker"
+              >
+                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_6px_12px_rgba(16,185,129,0.18)]">
+                  <Target className="h-[12px] w-[12px]" />
+                </span>
+                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Tracker</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/favorites")}
+                className="flex items-center gap-1 rounded-full border border-[#FFC7D3] bg-[#FFF1F4] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)] active:scale-95"
+                aria-label="Favorites"
+              >
+                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FF5C7A] to-[#E0364F] text-white shadow-[0_6px_12px_rgba(224,54,79,0.2)]">
+                  <Heart className="h-[12px] w-[12px]" />
+                </span>
+                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Favorite</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/progress")}
+                className="flex items-center gap-1 rounded-full border border-[#D6E6FF] bg-[#F3F8FF] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)] active:scale-95"
+                aria-label="Progress"
+              >
+                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5D759A] to-[#354F73] text-white shadow-[0_6px_12px_rgba(53,79,115,0.2)]">
+                  <BarChart2 className="h-[12px] w-[12px]" />
+                </span>
+                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Progress</span>
+              </button>
+            </div>
+          </div>
+
           <motion.button
             data-testid="log-meal-button"
+            type="button"
             onClick={() => setLogMealOpen(true)}
-            aria-label={t("order_meal")}
-            whileTap={prefersReducedMotion ? undefined : { scale: 0.97, transition: springBouncy }}
-            whileHover={prefersReducedMotion ? undefined : { boxShadow: "0 4px 12px hsl(var(--primary) / 0.3)" }}
-            className="w-full rounded-2xl h-12 font-semibold text-sm text-primary-foreground shadow-sm transition-shadow bg-primary hover:bg-primary/90"
+            whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+            className="mt-6 flex h-[52px] w-full items-center justify-center gap-3 rounded-[20px] bg-gradient-to-r from-[#12B969] to-[#079B5A] text-[15px] font-extrabold tracking-[-0.02em] text-white shadow-[0_12px_24px_rgba(6,150,88,0.24)]"
           >
-            <Plus className="w-5 h-5 mr-2 inline-block" />
-            {t("order_meal")}
+            <ConciergeBell className="h-[24px] w-[24px]" strokeWidth={2.1} />
+            Log Meal
           </motion.button>
-        </motion.div>
 
-        {/* PRIORITY 3: Active Orders (compact) + Order Again */}
-        {user && (
-          <>
-            <DashboardErrorBoundary name="active orders">
-              <motion.div variants={fadeInUp}>
-                <ActiveOrderBanner userId={user.id} compact />
-              </motion.div>
-            </DashboardErrorBoundary>
-
-            {!(subscription && !isUnlimited && effectiveMealsLeft === 0 && !canOrder) && (
-              <DashboardErrorBoundary name="order again">
-                <motion.div variants={fadeInUp}>
-                  <OrderAgainRow />
-                </motion.div>
-              </DashboardErrorBoundary>
-            )}
-          </>
-        )}
-
-        {/* Reorder prompt — banner variant experiment */}
-        {reorderVariant === "dashboard_and_banner" && hasActiveSubscription && (
-          <motion.div variants={fadeInUp}>
-            <Card className="rounded-2xl border-primary/20 bg-primary/5 shadow-sm cursor-pointer" onClick={() => navigate("/meals")}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Utensils className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">{t("order_again_prompt_title")}</p>
-                  <p className="text-xs text-muted-foreground">{t("order_again_prompt_desc")}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Referral Milestones — premium+ retention widget */}
-        {(tier === 'premium' || tier === 'vip') && (
-          <DashboardErrorBoundary name="referral milestones">
-            <ReferralMilestonesWidget />
-          </DashboardErrorBoundary>
-        )}
-
-        {/* PRIORITY 4: Restaurants */}
-        <motion.div variants={fadeInUp} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-foreground">{t("top_rated")} {t("restaurants")}</h2>
-            <Link to="/meals">
-              <span className="text-xs font-medium text-primary">{t("view_all") || "View all"}</span>
+          <div className="mt-6 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <ShoppingBag className="h-5 w-5 text-[#10A95F]" strokeWidth={2} />
+              <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders (3)</h2>
+            </div>
+            <Link to="/orders" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#08A75F]">
+              View All
+              <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
 
-          <div className="relative -mx-5 px-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory" role="region" aria-label={t("top_rated") + " " + t("restaurants")} style={{ scrollPaddingRight: "1rem" }}>
-            <div className="flex gap-4 pb-2 snap-x snap-mandatory">
-              {restaurantsLoading ? (
-                <>
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex-shrink-0 w-[240px]">
-                      <div className="h-[148px] rounded-2xl bg-muted animate-pulse" />
-                    </div>
-                  ))}
-                </>
-              ) : featuredRestaurants.length === 0 ? (
-                <Card className="w-full min-w-[240px] rounded-2xl shadow-sm border border-border bg-card">
-                  <CardContent className="p-6 text-center">
-                    <h3 className="font-semibold mb-2 text-foreground">{t("no_featured_restaurants")}</h3>
-                    <p className="text-sm text-foreground/60">
-                      {t("check_back_restaurants")}
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                featuredRestaurants.map((restaurant) => (
-                  <motion.div
-                    key={restaurant.id}
-                    variants={fadeInUp}
-                    className="flex-shrink-0 w-[240px] snap-start"
-                    whileTap={prefersReducedMotion ? undefined : { scale: 0.98, transition: springBouncy }}
-                  >
-                    <Link to={`/restaurant/${restaurant.id}`} className="block group">
-                      <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200 border border-border bg-card rounded-2xl shadow-sm">
-                        <div className="relative h-24 bg-primary/5">
-                          {restaurant.logo_url ? (
-                            <img 
-                              src={restaurant.logo_url} 
-                              alt={`${restaurant.name} logo`}
-                              loading="lazy"
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
-                              <Utensils className="w-8 h-8 text-primary/30" />
-                            </div>
-                          )}
-                          <motion.div whileTap={prefersReducedMotion ? undefined : { scale: 0.9, transition: springBouncy }}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="absolute top-2 right-2 w-8 h-8 bg-background/90 hover:bg-background rounded-full shadow-sm"
-                              aria-label={isFavorite(restaurant.id) ? t("remove_from_favorites") : t("add_to_favorites")}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                debouncedToggleFavorite(restaurant.id, restaurant.name);
-                              }}
-                            >
-                              <svg 
-                                className={`w-4 h-4 ${isFavorite(restaurant.id) ? 'fill-destructive text-destructive' : 'text-muted-foreground'}`}
-                                viewBox="0 0 24 24" 
-                                fill={isFavorite(restaurant.id) ? 'currentColor' : 'none'} 
-                                stroke="currentColor" 
-                                strokeWidth="2"
-                              >
-                                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                              </svg>
-                            </Button>
-                          </motion.div>
-                          <Badge className="absolute top-2 left-2 bg-warning/95 text-warning-foreground border-0 text-[10px] font-semibold px-2 py-0.5 shadow-sm">
-                            {t("featured_badge")}
-                          </Badge>
-                        </div>
-                        
-                        <CardContent className="p-3">
-                          <h3 className="font-bold text-sm text-foreground mb-0.5 group-hover:text-primary transition-colors line-clamp-1">
-                            {restaurant.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                            {restaurant.description || t("delicious_healthy_meals") || "Delicious healthy meals"}
-                          </p>
-                          
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1">
-                              {restaurant.rating > 0 ? (
-                                <>
-                                  <svg className="w-3.5 h-3.5 text-warning fill-warning" viewBox="0 0 24 24">
-                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                  </svg>
-                                  <span className="text-xs font-medium text-foreground">{restaurant.rating.toFixed(1)}</span>
-                                </>
-                              ) : (
-                                <span className="text-xs font-medium text-muted-foreground italic">{t("new_restaurant") || "New"}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{restaurant.meal_count} {t("meals_label")}</span>
-                              <span className="text-border">•</span>
-                              <span>{restaurant.total_orders} {t("orders_count_label")}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  </motion.div>
-                ))
-              )}
-            </div>
-            <div className="pointer-events-none absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent" aria-hidden="true" />
+          <div className="mt-2.5 space-y-1.5">
+            {orderRows.map(({ title, detail, status, Icon, badgeClass }) => (
+              <Link
+                key={title}
+                to="/orders"
+                className="flex h-[58px] items-center rounded-[15px] border border-[#D6F0DD] bg-white px-3.5 shadow-[0_6px_14px_rgba(16,185,129,0.03)]"
+              >
+                <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#23C878] to-[#07894F] text-white shadow-[0_8px_16px_rgba(5,150,90,0.2)]">
+                  <Icon className="h-[18px] w-[18px]" />
+                </div>
+                <div className="ml-3 min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <p className="truncate text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">{title}</p>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${badgeClass}`}>{status}</span>
+                  </div>
+                  <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{detail}</p>
+                </div>
+                <ChevronRight className="ml-2.5 h-5 w-5 shrink-0 text-slate-500" />
+              </Link>
+            ))}
           </div>
-        </motion.div>
 
-        {/* PRIORITY 5: Community - Challenges & Sharing */}
-        <DashboardErrorBoundary name="community section">
-          <details className="group">
-            <summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
-              <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
-              {t("community") || "Community"}
-            </summary>
-            <motion.div className="mt-3 space-y-4" variants={staggerContainer} initial="hidden" animate="visible">
-              <CommunityChallengeCard />
-              <RecipeShareCard />
-            </motion.div>
-          </details>
-        </DashboardErrorBoundary>
+          <div className="mt-5 flex items-center justify-between">
+            <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Top Rated</h2>
+            <Link to="/meals" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#08A75F]">
+              View All
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
 
-        {/* PRIORITY 6: AI Widgets - Collapsible insights section */}
-        <details className="group">
-          <summary className="cursor-pointer flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
-            <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
-            {t("ai_insights") || "AI Insights"}
-          </summary>
-          <motion.div className="mt-3 space-y-4" variants={staggerContainer} initial="hidden" animate="visible">
-            {edgeFunctionAvailable === false ? (
-              <p className="text-xs text-muted-foreground text-center py-2">{t("ai_suggestions_unavailable") || "AI suggestions temporarily unavailable"}</p>
-            ) : edgeFunctionAvailable === null && adaptiveLoading ? (
-              <div className="h-16 rounded-2xl bg-gradient-to-r from-muted via-muted/50 to-muted animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
-            ) : (
-              <DashboardErrorBoundary name="AI insight">
-                <BehaviorPredictionWidget />
-              </DashboardErrorBoundary>
-            )}
+          <div className="mt-3 flex min-h-[100px] items-center rounded-[17px] border border-[#BFEBCB] bg-[#F9FFFA] px-4 py-3">
+            <div className="relative h-[78px] w-[100px] shrink-0">
+              <span className="absolute left-4 top-0.5 text-[15px] text-[#56C17C]">★</span>
+              <span className="absolute right-3.5 top-5 text-[10px] text-[#56C17C]">★</span>
+              <div className="absolute bottom-0.5 left-2.5 h-[3px] w-[72px] rounded-full bg-[#8AD7A0]" />
+              <div className="absolute bottom-2 left-7 h-[48px] w-[48px] rounded-t-[10px] bg-gradient-to-br from-[#A4E7B8] to-[#57BE7A] shadow-[inset_0_-6px_10px_rgba(7,137,79,0.1)]" />
+              <div className="absolute bottom-[41px] left-[22px] h-[17px] w-[56px] rounded-t-[6px] bg-[#A8EABD]" />
+              <div className="absolute bottom-[32px] left-[18px] flex h-3 w-[64px] overflow-hidden rounded-b-[6px] border border-[#67C98B] bg-white">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <span key={index} className={`h-full flex-1 ${index % 2 === 0 ? "bg-[#36B76A]" : "bg-[#E6F8EB]"}`} />
+                ))}
+              </div>
+              <div className="absolute bottom-[7px] left-[36px] h-[14px] w-[20px] rounded bg-[#DFF6E7]" />
+              <div className="absolute bottom-[10px] left-[56px] h-[26px] w-[14px] rounded-t bg-[#2FAE62]/70" />
+            </div>
 
-            {edgeFunctionAvailable !== false && hasUnviewedAdjustment && recommendation && (
-              <DashboardErrorBoundary name="adaptive goals">
-                <AdaptiveGoalCard
-                  recommendation={recommendation}
-                  currentCalories={profile?.daily_calorie_target || 2000}
-                  currentProtein={profile?.protein_target_g || 150}
-                  currentCarbs={profile?.carbs_target_g || 200}
-                  currentFat={profile?.fat_target_g || 65}
-                  adjustmentId={adjustmentHistory.length > 0 ? adjustmentHistory.find(h => !h.applied)?.id : undefined}
-                  onApply={applyAdjustment}
-                  onDismiss={dismissAdjustment}
-                  loading={adaptiveLoading}
-                />
-              </DashboardErrorBoundary>
-            )}
-          </motion.div>
-        </details>
-      </motion.main>
+            <div className="ml-2.5 min-w-0 flex-1">
+              <h3 className="text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">No featured restaurants yet</h3>
+              <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-slate-600 line-clamp-2">Check back soon for our highlighted partner restaurants!</p>
+              <Link
+                to="/meals"
+                className="mt-2.5 inline-flex h-[34px] items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-900 shadow-[0_4px_10px_rgba(15,23,42,0.06)]"
+              >
+                Explore Restaurants
+                <ChevronRight className="h-[14px] w-[14px]" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
 
       {user && (
         <LogMealDialog
           open={logMealOpen}
           onOpenChange={setLogMealOpen}
           userId={user.id}
-          onMealLogged={() => setProgressKey((k) => k + 1)}
+          onMealLogged={() => setProgressKey((key) => key + 1)}
         />
       )}
 
-      <CoachChatBubble />
+      <LogActivitySheet open={sheetOpen} onOpenChange={setSheetOpen} onBurnedUpdate={setTotalBurned} />
     </motion.div>
   );
 };
