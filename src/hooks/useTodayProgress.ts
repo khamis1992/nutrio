@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { withRetry } from "@/lib/retry";
 
 interface TodayProgress {
   calories: number;
@@ -10,65 +9,36 @@ interface TodayProgress {
   fat: number;
 }
 
-export function useTodayProgress(userId: string | undefined, selectedDate: Date, progressKey: number) {
-  const [todayProgress, setTodayProgress] = useState<TodayProgress>({
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    fat: 0,
+async function fetchTodayProgress(userId: string, selectedDate: Date): Promise<TodayProgress> {
+  const dateStr = format(selectedDate, "yyyy-MM-dd");
+  const { data, error } = await supabase
+    .from("progress_logs")
+    .select("calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
+    .eq("user_id", userId)
+    .eq("log_date", dateStr)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  const values = {
+    calories: data?.calories_consumed || 0,
+    protein: data?.protein_consumed_g || 0,
+    carbs: data?.carbs_consumed_g || 0,
+    fat: data?.fat_consumed_g || 0,
+  };
+
+  return values;
+}
+
+export function useTodayProgress(userId: string | undefined, selectedDate: Date, _progressKey: number) {
+  const enabled = !!userId;
+  
+  const { data: todayProgress = { calories: 0, protein: 0, carbs: 0, fat: 0 }, error, isLoading: loading } = useQuery({
+    queryKey: ["todayProgress", userId, format(selectedDate, "yyyy-MM-dd")],
+    queryFn: () => fetchTodayProgress(userId!, selectedDate),
+    enabled,
+    staleTime: 60 * 1000,
   });
-  const [error, setError] = useState<Error | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    const fetchTodayProgress = async () => {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      setLoading(true);
-      setError(null);
-
-      try {
-        const { data, error: fetchError } = await withRetry(async () => {
-          const result = await supabase
-            .from("progress_logs")
-            .select("calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
-            .eq("user_id", userId)
-            .eq("log_date", dateStr)
-            .maybeSingle();
-          if (result.error) throw result.error;
-          return result;
-        }, { maxAttempts: 2, delayMs: 500 });
-
-        if (cancelled) return;
-
-        if (fetchError) {
-          throw fetchError;
-        }
-
-        if (!data) {
-          setTodayProgress({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-          return;
-        }
-
-        setTodayProgress({
-          calories: data.calories_consumed || 0,
-          protein: data.protein_consumed_g || 0,
-          carbs: data.carbs_consumed_g || 0,
-          fat: data.fat_consumed_g || 0,
-        });
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Error fetching progress:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchTodayProgress();
-    return () => { cancelled = true; };
-  }, [userId, progressKey, selectedDate]);
-
-  return { todayProgress, setTodayProgress, error, loading };
+  return { todayProgress, error, loading };
 }

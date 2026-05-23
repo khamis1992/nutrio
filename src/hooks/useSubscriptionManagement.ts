@@ -33,7 +33,7 @@ interface UseSubscriptionManagementReturn {
   billingInterval: 'monthly' | 'annual';
   setBillingInterval: (interval: 'monthly' | 'annual') => void;
   createSubscription: (tier: string, billingInterval: string) => Promise<{ success: boolean; error?: string }>;
-  upgradeSubscription: (tier: string, billingInterval?: string) => Promise<{ success: boolean; error?: string }>;
+  upgradeSubscription: (tier: string, billingInterval?: string, paymentMethod?: 'wallet' | 'card') => Promise<{ success: boolean; error?: string }>;
   getWinBackOffers: (step: number) => Promise<WinBackOffer[]>;
   processCancellation: (step: number, reason?: string, reasonDetails?: string, offerCode?: string, acceptOffer?: boolean) => Promise<{ success: boolean; action?: string; error?: string }>;
   resumeSubscription: () => Promise<{ success: boolean; error?: string }>;
@@ -162,13 +162,13 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
 
   const upgradeSubscription = useCallback(async (
     tier: string,
-    interval?: string
+    interval?: string,
+    paymentMethod: 'wallet' | 'card' = 'card'
   ): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: 'Not authenticated' };
 
     setIsProcessing(true);
     try {
-      // First get current subscription ID
       const { data: subscription } = await supabase
         .from('subscriptions')
         .select('id')
@@ -180,20 +180,23 @@ export function useSubscriptionManagement(): UseSubscriptionManagementReturn {
         return { success: false, error: 'No active subscription found' };
       }
 
-      const { data, error } = await supabase.rpc('upgrade_subscription', {
-        p_subscription_id: subscription.id,
-        p_new_tier: tier,
-        p_new_billing_interval: interval,
+      const { data, error } = await supabase.functions.invoke('upgrade-subscription', {
+        body: {
+          subscription_id: subscription.id,
+          new_tier: tier,
+          new_billing_interval: interval,
+          payment_method: paymentMethod,
+        },
       });
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; amount_due?: number };
+      const result = data as { success: boolean; error?: string; code?: string; amount_due?: number };
 
       if (result.success) {
         toast({
           title: 'Subscription Updated!',
-          description: interval 
+          description: interval
             ? `Upgraded to ${tier} (${interval})`
             : `Upgraded to ${tier}`,
         });

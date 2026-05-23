@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 export interface WalletData {
   id: string;
@@ -38,117 +40,118 @@ export interface TopUpPackage {
   display_order: number;
 }
 
-export interface PaymentRecord {
-  id: string;
-  user_id: string | null;
-  payment_type: 'wallet_topup' | 'subscription' | 'order';
-  amount: number;
-  currency: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
-  payment_method: 'sadad' | 'wallet' | 'card' | null;
-  gateway: string;
-  gateway_reference: string | null;
-  gateway_response: Record<string, unknown> | null;
-  created_at: string;
-  completed_at: string | null;
+const WALLET_KEY = "wallet";
+const TX_KEY = "wallet-transactions";
+const PACKAGES_KEY = "wallet-packages";
+
+async function fetchWallet(userId: string): Promise<WalletData | null> {
+  const { data, error } = await supabase
+    .from('customer_wallets')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) {
+    const { data: newWallet, error: createError } = await supabase
+      .from('customer_wallets')
+      .insert({ user_id: userId })
+      .select()
+      .single();
+
+    if (createError) throw createError;
+    return newWallet;
+  }
+
+  return data;
+}
+
+async function fetchTransactions(userId: string, signal?: AbortSignal): Promise<WalletTransaction[]> {
+  const { data, error } = await supabase
+    .from('wallet_transactions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+    .abortSignal(signal ?? null);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function fetchPackages(signal?: AbortSignal): Promise<TopUpPackage[]> {
+  const { data, error } = await supabase
+    .from('wallet_topup_packages')
+    .select('*')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
+    .abortSignal(signal ?? null);
+
+  if (error) throw error;
+  return data || [];
 }
 
 export function useWallet() {
   const { user } = useAuth();
-  const [wallet, setWallet] = useState<WalletData | null>(null);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [topUpPackages, setTopUpPackages] = useState<TopUpPackage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const userId = user?.id;
 
-  const fetchWallet = useCallback(async () => {
-    if (!user) return;
+  const { data: wallet, isLoading: loading } = useQuery({
+    queryKey: [WALLET_KEY, userId],
+    queryFn: () => fetchWallet(userId!),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+    queryKey: [TX_KEY, userId],
+    queryFn: ({ signal }) => fetchTransactions(userId!, signal),
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
 
-      const { data, error: walletError } = await supabase
-        .from('customer_wallets')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+  const { data: topUpPackages = [] } = useQuery({
+    queryKey: [PACKAGES_KEY],
+    queryFn: ({ signal }) => fetchPackages(signal),
+    staleTime: 10 * 60 * 1000,
+  });
 
-      if (walletError) throw walletError;
+  useRealtimeTable("customer_wallets", {
+    event: "*",
+    filter: userId ? `user_id=eq.${userId}` : undefined,
+    enabled: !!userId,
+    onChange: () => queryClient.invalidateQueries({ queryKey: [WALLET_KEY, userId] }),
+  });
 
-      if (!data) {
-        const { data: newWallet, error: createError } = await supabase
-          .from('customer_wallets')
-          .insert({ user_id: user.id })
-          .select()
-          .single();
+  useRealtimeTable("wallet_transactions", {
+    event: "INSERT",
+    filter: userId ? `user_id=eq.${userId}` : undefined,
+    enabled: !!userId,
+    onChange: () => queryClient.invalidateQueries({ queryKey: [TX_KEY, userId] }),
+  });
 
-        if (createError) throw createError;
-        setWallet(newWallet);
-      } else {
-        setWallet(data);
-      }
-    } catch (err: unknown) {
-      console.error('Error fetching wallet:', err);
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  const refetchWallet = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [WALLET_KEY, userId] });
+  }, [queryClient, userId]);
 
-  const fetchTransactions = useCallback(async (limit = 20, offset = 0) => {
-    if (!user) return;
-
-    try {
-      setTransactionsLoading(true);
-
-      const { data, error: txError } = await supabase
-        .from('wallet_transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (txError) throw txError;
-      setTransactions(data || []);
-    } catch (err: unknown) {
-      console.error('Error fetching transactions:', err);
-    } finally {
-      setTransactionsLoading(false);
-    }
-  }, [user]);
-
-  const fetchTopUpPackages = useCallback(async () => {
-    try {
-      const { data, error: pkgError } = await supabase
-        .from('wallet_topup_packages')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      if (pkgError) throw pkgError;
-      setTopUpPackages(data || []);
-    } catch (err: unknown) {
-      console.error('Error fetching top-up packages:', err);
-    }
-  }, []);
+  const refetchTransactions = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [TX_KEY, userId] });
+  }, [queryClient, userId]);
 
   const initiateTopUp = useCallback(async (
     packageId: string,
     paymentMethod: 'sadad' | 'card' = 'sadad'
   ): Promise<{ paymentId: string; paymentUrl: string } | null> => {
-    if (!user || !wallet) return null;
+    if (!userId || !wallet) return null;
 
     try {
       const pkg = topUpPackages.find(p => p.id === packageId);
       if (!pkg) throw new Error('Package not found');
 
-      const totalAmount = pkg.amount + pkg.bonus_amount;
-
       const { data, error } = await supabase.functions.invoke('initiate-payment', {
         body: {
-          user_id: user.id,
+          user_id: userId,
           amount: pkg.amount,
           bonus_amount: pkg.bonus_amount,
           package_id: packageId,
@@ -158,13 +161,12 @@ export function useWallet() {
       });
 
       if (error) throw error;
-
       return data;
     } catch (err: unknown) {
       console.error('Error initiating top-up:', err);
       throw err;
     }
-  }, [user, wallet, topUpPackages]);
+  }, [userId, wallet, topUpPackages]);
 
   const creditWallet = useCallback(async (
     amount: number,
@@ -174,11 +176,11 @@ export function useWallet() {
     description?: string,
     metadata?: Record<string, unknown>
   ) => {
-    if (!user) return null;
+    if (!userId) return null;
 
     try {
       const { data, error } = await supabase.rpc('credit_wallet', {
-        p_user_id: user.id,
+        p_user_id: userId,
         p_amount: amount,
         p_type: type,
         p_reference_type: referenceType || null,
@@ -188,73 +190,16 @@ export function useWallet() {
       });
 
       if (error) throw error;
-      
-      await fetchWallet();
-      await fetchTransactions();
-      
+
+      queryClient.invalidateQueries({ queryKey: [WALLET_KEY, userId] });
+      queryClient.invalidateQueries({ queryKey: [TX_KEY, userId] });
+
       return data;
     } catch (err: unknown) {
       console.error('Error crediting wallet:', err);
       throw err;
     }
-  }, [user, fetchWallet, fetchTransactions]);
-
-  useEffect(() => {
-    if (user) {
-      fetchWallet();
-      fetchTopUpPackages();
-      fetchTransactions();
-    }
-  }, [user, fetchWallet, fetchTopUpPackages, fetchTransactions]);
-
-  // Refetch when app returns to foreground (web tab or Capacitor APK)
-  useEffect(() => {
-    if (!user) return;
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        fetchWallet();
-        fetchTransactions();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [user, fetchWallet, fetchTransactions]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('wallet-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'customer_wallets',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchWallet();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'wallet_transactions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchTransactions();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchWallet, fetchTransactions]);
+  }, [userId, queryClient]);
 
   return {
     wallet,
@@ -262,14 +207,14 @@ export function useWallet() {
     topUpPackages,
     loading,
     transactionsLoading,
-    error,
-    fetchWallet,
-    fetchTransactions,
+    error: null,
+    fetchWallet: refetchWallet,
+    fetchTransactions: refetchTransactions,
     initiateTopUp,
     creditWallet,
     refresh: () => {
-      fetchWallet();
-      fetchTransactions();
+      refetchWallet();
+      refetchTransactions();
     },
   };
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeTable } from "@/hooks/useRealtimeTable";
 
 interface DeliveredMealNotification {
   id: string;
@@ -132,28 +133,13 @@ export function useDeliveredMealNotifications() {
 
   useEffect(() => {
     fetchPendingNotifications();
-
-    // Set up realtime subscription for new notifications
-    const subscription = supabase
-      .channel("delivered-meals")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: "type=eq.order_delivered",
-        },
-        () => {
-          fetchPendingNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [fetchPendingNotifications]);
+
+  useRealtimeTable("notifications", {
+    event: "INSERT",
+    filter: "type=eq.order_delivered",
+    onChange: () => fetchPendingNotifications(),
+  });
 
   return {
     pendingMeals,
