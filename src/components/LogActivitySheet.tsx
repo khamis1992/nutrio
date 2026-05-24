@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { Search, ArrowLeft, Activity, Flame, Heart, Clock, Loader2, CheckCircle2, Dumbbell, Link, RefreshCw, Trophy, X, Plus } from "lucide-react";
-import { Basketball, SoccerBall, TennisBall, HandFist, PersonSimpleRun, PersonSimpleWalk, PersonSimpleBike, Rowing, Lightning, Stairs, MusicNotes, Barbell, Yoga, Crosshair } from "@phosphor-icons/react";
+import { Basketball, SoccerBall, TennisBall, HandFist, PersonSimpleRun, PersonSimpleWalk, PersonSimpleBike, Lightning, Stairs, MusicNotes, Barbell, Yoga, Crosshair } from "@phosphor-icons/react";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ const ACTIVITIES: Activity[] = [
   { id: "swimming",         name: "Swimming",             nameAr: "السباحة",             category: "Cardio",       met: 6.0,  emoji: "🏊", icon: Activity },
   { id: "jump_rope",        name: "Jump Rope",            nameAr: "تخطي الحبل",          category: "Cardio",       met: 10.0, emoji: "⚡", icon: Lightning },
   { id: "elliptical",       name: "Elliptical",           nameAr: "جهاز الإليبتيكال",    category: "Cardio",       met: 5.0,  emoji: "🔄", icon: Crosshair },
-  { id: "rowing",           name: "Rowing",               nameAr: "التجديف",             category: "Cardio",       met: 7.0,  emoji: "🚣", icon: Rowing },
+  { id: "rowing",           name: "Rowing",               nameAr: "التجديف",             category: "Cardio",       met: 7.0,  emoji: "🚣", icon: Activity },
   { id: "stair_climbing",   name: "Stair Climbing",       nameAr: "تسلق الدرج",          category: "Cardio",       met: 8.0,  emoji: "🪜", icon: Stairs },
   { id: "hiit",             name: "HIIT",                 nameAr: "تدريب متقطع عالي",    category: "Cardio",       met: 8.0,  emoji: "🔥" },
   { id: "weight_training",  name: "Weight Training",      nameAr: "تدريب بالأوزان",      category: "Strength",     met: 3.5,  emoji: "🏋️" },
