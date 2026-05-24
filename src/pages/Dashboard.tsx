@@ -3,23 +3,26 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Activity,
+  AlertCircle,
   ArrowRightLeft,
   BarChart2,
   Bell,
   Calendar,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ConciergeBell,
   Crown,
   Droplet,
   Drumstick,
   Flame,
-  Leaf,
+  Package,
   Plus,
+  Bike,
   Heart,
   ShoppingBag,
   Target,
-  Truck,
   Utensils,
   Wallet,
   Wheat,
@@ -207,9 +210,7 @@ const Dashboard = () => {
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FFFB] gap-4 px-6">
         <div className="w-full max-w-[360px] text-center space-y-4 rounded-[28px] bg-white p-7 shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
-            <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <AlertCircle className="h-8 w-8" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900">Something went wrong</h2>
           <p className="text-sm text-slate-500">We couldn&#39;t load your profile. Please try again.</p>
@@ -686,11 +687,11 @@ const Dashboard = () => {
               >
                 {activeOrders.map((order) => {
                   const statusConfig: Record<string, { label: string; Icon: React.ElementType; badgeClass: string }> = {
-                    pending: { label: "Pending", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
-                    confirmed: { label: "Confirmed", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
+                    pending: { label: "Pending", Icon: Clock, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
+                    confirmed: { label: "Confirmed", Icon: CheckCircle2, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
                     preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
-                    ready: { label: "Ready", Icon: Flame, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
-                    out_for_delivery: { label: "On The Way", Icon: Truck, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
+                    ready: { label: "Ready", Icon: Package, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
+                    out_for_delivery: { label: "On The Way", Icon: Bike, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
                   };
                   const config = statusConfig[order.order_status] || statusConfig.pending;
                   const IconComponent = config.Icon;

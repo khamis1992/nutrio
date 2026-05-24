@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Utensils, Loader2, Scale, Ruler, Activity, TrendingUp } from "lucide-react";
+import { Target, Plus, Check, Flame, Droplet, Wheat as WheatIcon, Leaf, Loader2, Activity, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -538,63 +538,7 @@ export const GoalsManagement = () => {
         </Card>
       )}
 
-      {/* Body Metrics */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <Scale className="w-5 h-5 text-blue-500" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{t("body_metrics_title")}</CardTitle>
-              <CardDescription>{t("body_metrics_description")}</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t("body_metrics_current_weight")}</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  value={currentWeight}
-                  onChange={(e) => setCurrentWeight(e.target.value)}
-                  placeholder={t("body_metrics_current_weight_placeholder")}
-                  className="h-12 rounded-xl"
-                />
-                <Scale className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t("body_metrics_target_weight")}</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  value={targetWeight}
-                  onChange={(e) => setTargetWeight(e.target.value)}
-                  placeholder={t("body_metrics_target_weight_placeholder")}
-                  className="h-12 rounded-xl"
-                />
-                <Target className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              </div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">{t("body_metrics_height")}</Label>
-            <div className="relative">
-              <Input
-                type="number"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-                placeholder={t("body_metrics_height_placeholder")}
-                className="h-12 rounded-xl"
-              />
-              <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* Health Goal */}
       <Card>
@@ -902,50 +846,7 @@ export const GoalsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dietary Preferences Section */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
-              <Utensils className="w-5 h-5 text-teal-500" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{t("dietary_preferences_title")}</CardTitle>
-              <CardDescription>
-                {t("dietary_preferences_description")}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {tagsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : dietTags.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <Utensils className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground">
-                {t("no_dietary_preferences")}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {dietTags.map((tag, index) => (
-                <DietTagCard
-                  key={tag.id}
-                  tag={tag}
-                  selected={selectedTags.includes(tag.id)}
-                  onClick={() => toggleDietPreference(tag.id)}
-                  color={getTagColor(index)}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
 
     </div>
   );

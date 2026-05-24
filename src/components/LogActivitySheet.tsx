@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { Search, ArrowLeft, Activity, Flame, Heart, Clock, Loader2, CheckCircle2, Dumbbell, Link, RefreshCw, Trophy, X, Plus } from "lucide-react";
-import { Basketball, SoccerBall, TennisBall, HandFist, PersonSimpleRun, PersonSimpleWalk, PersonSimpleBike, Lightning, Stairs, MusicNotes, Barbell, Yoga, Crosshair } from "@phosphor-icons/react";
+import { Basketball, SoccerBall, TennisBall, HandFist, PersonSimpleRun, PersonSimpleWalk, PersonSimpleBike, Lightning, Stairs, MusicNotes, Barbell, PersonSimpleTaiChi, Crosshair } from "@phosphor-icons/react";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,7 @@ const ACTIVITIES: Activity[] = [
   { id: "weight_training",  name: "Weight Training",      nameAr: "تدريب بالأوزان",      category: "Strength",     met: 3.5,  emoji: "🏋️" },
   { id: "bodyweight",       name: "Bodyweight Training",  nameAr: "تدريب بوزن الجسم",    category: "Strength",     met: 3.8,  emoji: "💪" },
   { id: "crossfit",         name: "CrossFit",             nameAr: "كروس فت",             category: "Strength",     met: 5.0,  emoji: "🏋️‍♂️", icon: HandFist },
-  { id: "yoga",             name: "Yoga",                 nameAr: "يوغا",                category: "Flexibility",  met: 2.5,  emoji: "🧘", icon: Yoga },
+  { id: "yoga",             name: "Yoga",                 nameAr: "يوغا",                category: "Flexibility",  met: 2.5,  emoji: "🧘", icon: PersonSimpleTaiChi },
   { id: "pilates",          name: "Pilates",              nameAr: "بيلاتيس",             category: "Flexibility",  met: 3.0,  emoji: "🧘‍♀️" },
   { id: "stretching",       name: "Stretching",           nameAr: "تمارين الإطالة",      category: "Flexibility",  met: 2.3,  emoji: "🤸" },
   { id: "basketball",       name: "Basketball",           nameAr: "كرة السلة",           category: "Sports",       met: 6.5,  emoji: "🏀", icon: Basketball },

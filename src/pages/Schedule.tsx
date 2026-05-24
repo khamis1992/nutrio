@@ -824,6 +824,8 @@ const Schedule = () => {
             userId={user.id}
             selectedDate={selectedDate}
             initialStep={wizardInitialStep}
+            initialPhase="meal-selection"
+            showMealTypeTabs={false}
             autoFill={wizardAutoFill}
             onComplete={() => { setShowWizard(false); setWizardAutoFill(false); fetchSchedules(); }}
             onCancel={() => { setShowWizard(false); setWizardAutoFill(false); }}

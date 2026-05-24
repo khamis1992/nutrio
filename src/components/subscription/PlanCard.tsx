@@ -1,5 +1,4 @@
-import { Check, type LucideIcon, Utensils, Apple, Sparkles, TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { type LucideIcon, Utensils, Apple, Sparkles, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 
@@ -51,15 +50,6 @@ export function PlanCard({
   const Icon = plan.icon;
   const cardVariant = getCardVariant(plan, billingInterval);
 
-  const buttonText = isCurrentPlan
-    ? "Current Plan"
-    : plan.price > 0
-    ? variant === "picker" ? "Get Started" : "Upgrade"
-    : "Get Started";
-
-  const isUpgrade = variant === "upgrade" && !isCurrentPlan;
-  const hasBadge = cardVariant !== "default" && !(billingInterval === "annual" && cardVariant === "default");
-
   const badge = {
     elite: {
       text: "MOST POPULAR",
@@ -80,17 +70,17 @@ export function PlanCard({
   }[cardVariant];
 
   const borderClass = {
-    elite: isCurrentPlan ? "border-primary ring-1 ring-primary/20" : "border-primary shadow-md shadow-primary/10",
-    healthy: isCurrentPlan ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-emerald-300 shadow-md shadow-emerald-500/10",
-    vip: isCurrentPlan ? "border-amber-500 ring-1 ring-amber-500/20" : "border-amber-300 shadow-md shadow-amber-500/10",
-    default: isCurrentPlan ? "border-primary ring-1 ring-primary/20" : "border-border/60",
+    elite: isCurrentPlan ? "border-emerald-500" : "border-slate-100",
+    healthy: isCurrentPlan ? "border-emerald-500" : "border-slate-100",
+    vip: isCurrentPlan ? "border-emerald-500" : "border-slate-100",
+    default: isCurrentPlan ? "border-emerald-500" : "border-slate-100",
   }[cardVariant];
 
   const iconBgClass = {
     elite: "bg-amber-100",
     healthy: "bg-emerald-100",
     vip: "bg-amber-100",
-    default: "bg-primary/10",
+    default: plan.tier === "fresh" ? "bg-emerald-50" : "bg-emerald-100",
   }[cardVariant];
 
   const iconColorClass = {
@@ -100,137 +90,67 @@ export function PlanCard({
     default: "text-primary",
   }[cardVariant];
 
-  const statBadgeClass = {
-    elite: "bg-amber-50",
-    healthy: "bg-emerald-50",
-    vip: "bg-amber-50",
-    default: "bg-muted/60",
-  }[cardVariant];
-
-  const checkBgClass = {
-    elite: "bg-primary/10",
-    healthy: "bg-emerald-100",
-    vip: "bg-amber-100",
-    default: "bg-primary/10",
-  }[cardVariant];
-
-  const checkIconClass = {
-    elite: "text-primary",
-    healthy: "text-emerald-600",
-    vip: "text-amber-600",
-    default: "text-primary",
-  }[cardVariant];
-
-  const buttonClass = isCurrentPlan
-    ? ""
-    : {
-        elite: "shadow-md shadow-primary/20",
-        healthy: "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md shadow-emerald-500/20",
-        vip: "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md shadow-amber-500/20",
-        default: "",
-      }[cardVariant];
+  const canSelect = Boolean(onSelect && !isCurrentPlan);
+  const handleSelect = () => {
+    if (canSelect) onSelect?.();
+  };
 
   return (
     <div
       className={cn(
-        "relative bg-card rounded-[24px] border-2 shadow-sm overflow-hidden transition-all duration-200",
+        "relative overflow-hidden rounded-[22px] border bg-white shadow-[0_10px_26px_rgba(15,23,42,0.055)] transition-all duration-200",
         borderClass,
-        cardVariant === "healthy" && !isCurrentPlan && "bg-gradient-to-b from-white to-emerald-50/30",
-        onSelect && "cursor-pointer active:scale-[0.98] hover:shadow-lg",
+        isCurrentPlan && "shadow-emerald-500/10",
+        canSelect && "cursor-pointer active:scale-[0.985] hover:shadow-[0_14px_32px_rgba(15,23,42,0.08)]",
         className
       )}
-      onClick={onSelect}
+      onClick={handleSelect}
     >
-      {cardVariant === "healthy" && !isCurrentPlan && (
-        <div className="absolute -top-[1px] -right-[1px] w-20 h-20 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-28 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[9px] font-bold text-center py-1 rotate-45 translate-x-[14px] translate-y-[10px] tracking-widest">
-            BEST VALUE
-          </div>
-        </div>
-      )}
-
-      <div className={cn("p-5", cardVariant === "elite" && "pt-10")}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm", iconBgClass, cardVariant === "healthy" && "ring-2 ring-emerald-200")}>
+      <div className="p-4 pb-3">
+        <div className="flex items-center gap-3">
+          <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", iconBgClass)}>
             <Icon className={cn("h-6 w-6", iconColorClass)} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <h3 className="font-bold text-foreground truncate">{plan.name}</h3>
-              {cardVariant === "healthy" && (
-                <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              {badge.text && cardVariant === "healthy" && (
+                <span className={cn("shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full", badge.className)}>
                   <Sparkles className="h-2.5 w-2.5" />
-                  BEST VALUE
+                  {badge.text}
                 </span>
               )}
             </div>
             {plan.description && (
-              <p className="text-xs text-muted-foreground line-clamp-1">{plan.description}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs font-medium text-slate-500">{plan.description}</p>
             )}
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xl font-bold text-foreground">{formatCurrency(plan.price)}</p>
-            <p className="text-xs text-muted-foreground">/{plan.period}</p>
+            <p className="text-lg font-extrabold leading-tight text-slate-950">{formatCurrency(plan.price)}</p>
+            <p className="text-xs font-medium text-slate-500">/{plan.period}</p>
           </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-slate-700" />
         </div>
+      </div>
 
-        {cardVariant === "healthy" && !isCurrentPlan && (
-          <div className="bg-emerald-500/5 border border-emerald-200 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
-            <TrendingUp className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-            <p className="text-[11px] text-emerald-700 font-semibold">
-              Best balance of price and features — most popular among our members
-            </p>
+      <div className={cn(
+        "mx-4 mb-4 flex min-h-10 items-center justify-between gap-3 rounded-2xl px-4 py-2.5",
+        isCurrentPlan ? "bg-emerald-50" : "bg-slate-50"
+      )}>
+        <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-600">
+          <Utensils className="h-4 w-4 shrink-0 text-emerald-500" />
+          <span className="truncate">{plan.mealsPerMonth === 0 ? "Unlimited meals" : `${plan.mealsPerMonth} meals/month`}</span>
+        </div>
+        {plan.snacksPerMonth > 0 && (
+          <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-600">
+            <Apple className="h-4 w-4 shrink-0 text-orange-500" />
+            <span className="truncate">+{plan.snacksPerMonth} snacks/month</span>
           </div>
         )}
-
-        <div className={cn("rounded-2xl px-3 py-2.5 mb-3", statBadgeClass)}>
-          <div className="flex items-center gap-2">
-            <Utensils className={cn("h-4 w-4 shrink-0", cardVariant === "healthy" ? "text-emerald-600" : "text-primary")} />
-            <p className="text-sm font-semibold text-foreground">
-              {plan.mealsPerMonth === 0 ? "Unlimited meals" : `${plan.mealsPerMonth} meals/month`}
-            </p>
-          </div>
-          {plan.snacksPerMonth > 0 && (
-            <div className="flex items-center gap-2 mt-1">
-              <Apple className={cn("h-4 w-4 shrink-0", cardVariant === "healthy" ? "text-emerald-500" : "text-amber-500")} />
-              <p className="text-sm font-medium text-muted-foreground">
-                +{plan.snacksPerMonth} snacks/month
-              </p>
-            </div>
-          )}
-        </div>
-
-        <ul className="space-y-2 mb-4">
-          {plan.features.slice(0, 3).map((feature, idx) => (
-            <li key={idx} className="flex items-center gap-2.5">
-              <div className={cn("w-4 h-4 rounded-full flex items-center justify-center shrink-0", checkBgClass)}>
-                <Check className={cn("h-2.5 w-2.5", checkIconClass)} />
-              </div>
-              <span className="text-xs text-foreground line-clamp-1">{feature}</span>
-            </li>
-          ))}
-          {plan.features.length > 3 && (
-            <li className="text-[11px] text-muted-foreground pl-7 font-medium">
-              +{plan.features.length - 3} more benefits
-            </li>
-          )}
-        </ul>
-
-        {onSelect && (
-          <Button
-            variant={isUpgrade ? "default" : isCurrentPlan ? "outline" : "default"}
-            className={cn(
-              "w-full rounded-2xl h-11 text-sm font-bold",
-              !isCurrentPlan && buttonClass
-            )}
-            disabled={isCurrentPlan}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          >
-            {buttonText}
-          </Button>
+        {isCurrentPlan && (
+          <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-600">
+            Current Plan
+          </span>
         )}
       </div>
     </div>

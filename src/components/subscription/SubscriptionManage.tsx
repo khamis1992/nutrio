@@ -5,8 +5,13 @@ import {
   X,
   RefreshCcw,
   Loader2,
+  BellRing,
+  RefreshCw,
+  CheckCircle2,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { captureError } from "@/lib/sentry";
@@ -14,7 +19,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FreezeSubscriptionModal } from "@/components/subscription/FreezeSubscriptionModal";
 import { CancellationFlow } from "@/components/CancellationFlow";
 import { CancellationSalvageSheet } from "@/components/subscription/CancellationSalvageSheet";
-import { RolloverCreditsWidget } from "@/components/RolloverCreditsWidget";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { SalvageReason, SalvageOffer } from "@/hooks/useCancellationOffers";
@@ -32,6 +36,10 @@ interface SubscriptionManageProps {
   isProcessing: boolean;
   onReactivate: () => Promise<void>;
   onRefetch: () => Promise<void>;
+  autoRenew: boolean;
+  autoRenewLoading: boolean;
+  onToggleAutoRenew: (value: boolean) => void;
+  rolloverCredits: number;
 }
 
 export function SubscriptionManage({
@@ -43,6 +51,10 @@ export function SubscriptionManage({
   isProcessing,
   onReactivate,
   onRefetch,
+  autoRenew,
+  autoRenewLoading,
+  onToggleAutoRenew,
+  rolloverCredits,
 }: SubscriptionManageProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -102,136 +114,126 @@ export function SubscriptionManage({
     setShowCancelDialog(true);
   };
 
-  return (
-    <div className="space-y-3">
-      <RolloverCreditsWidget
-        hasActiveSubscription={hasActiveSubscription}
-        subscriptionEndDate={endDate}
-      />
+  const isCancelled = subscriptionStatus === "cancelled";
 
-      {/* Freeze card */}
-      <div
-        className={`bg-card rounded-[24px] border shadow-sm p-4 space-y-3 ${
-          freezeDays?.remaining === 0 ? "border-muted" : "border-border/60"
-        }`}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                freezeDays?.remaining === 0 ? "bg-muted" : "bg-primary/10"
-              }`}
-            >
-              <Snowflake
-                className={`h-4 w-4 ${freezeDays?.remaining === 0 ? "text-muted-foreground" : "text-primary"}`}
-              />
-            </div>
-            <div>
-              <p className="font-bold text-foreground text-sm">{t("freeze_subscription")}</p>
-              <p className="text-xs text-muted-foreground">{t("freeze_desc")}</p>
-            </div>
+  return (
+    <div className="space-y-0 rounded-[22px] border border-slate-100 bg-white shadow-sm overflow-hidden">
+      {/* Auto-Renewal */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+            <BellRing className="h-5 w-5 text-emerald-600" />
           </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-900 truncate">{t("auto_renewal_title")}</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">
+              {autoRenew ? t("auto_renewal_on_desc") : t("auto_renewal_off_desc")}
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={autoRenew}
+          onCheckedChange={onToggleAutoRenew}
+          disabled={autoRenewLoading || isCancelled}
+          className="shrink-0"
+        />
+      </div>
+
+      {/* Rollover Credits */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+            <RefreshCw className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-900 truncate">{t("rollover_credits_title")}</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">{t("rollover_carry_forward_desc")}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm font-extrabold text-emerald-600">
+            {rolloverCredits > 0 ? `${rolloverCredits} credits` : "All used"}
+          </span>
+          {rolloverCredits > 0 && (
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-600">
+              Active
+            </span>
+          )}
+          <ChevronRight className="h-4 w-4 text-slate-300" />
+        </div>
+      </div>
+
+      {/* Freeze */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-50">
+            <Snowflake className="h-5 w-5 text-sky-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-900 truncate">{t("freeze_subscription")}</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">{t("freeze_desc")}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           {freezeDays && (
-            <span
-              className={`text-sm font-bold px-2.5 py-1 rounded-full border ${
-                freezeDays.remaining === 0
-                  ? "text-muted-foreground bg-muted border-border/40"
-                  : "text-primary bg-primary/5 border-primary/15"
-              }`}
-            >
+            <span className="text-sm font-extrabold text-slate-700">
               {freezeDays.remaining}/{freezeDays.total}d
             </span>
           )}
-        </div>
-
-        {freezeDays && (
-          <div className="space-y-1">
-            <div
-              className={`h-2 rounded-full overflow-hidden ${
-                freezeDays.remaining === 0 ? "bg-muted" : "bg-primary/10"
-              }`}
-            >
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  freezeDays.remaining === 0 ? "bg-muted-foreground/20" : "bg-primary"
-                }`}
-                style={{ width: `${((freezeDays.total - freezeDays.remaining) / freezeDays.total) * 100}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground font-medium">
-              {freezeDays.remaining === 0
-                ? t("all_freeze_days_used")
-                : `${freezeDays.remaining} ${t("freeze_days_remaining")}`}
-            </p>
-          </div>
-        )}
-
-        {freezeDays?.remaining === 0 ? (
-          <div className="flex items-start gap-3 bg-muted/40 rounded-2xl px-4 py-3">
-            <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">{t("no_freeze_days")}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("all_freeze_days_used")}</p>
-            </div>
-          </div>
-        ) : (
-          subscriptionId && (
+          {subscriptionId && (
             <FreezeSubscriptionModal
               subscriptionId={subscriptionId}
               trigger={
-                <Button className="w-full rounded-2xl h-11 font-bold">
-                  <Snowflake className="h-4 w-4 mr-2" />
-                  {t("schedule_freeze_btn")}
-                </Button>
+                <button className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-sky-50 text-sky-600 active:scale-95 transition-transform">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               }
             />
-          )
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Cancel / Reactivate card */}
-      {subscriptionStatus === "cancelled" ? (
-        <div className="bg-card rounded-[24px] border border-border/60 shadow-sm p-4 space-y-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-              <RefreshCcw className="h-4 w-4 text-primary" />
+      {/* Cancel / Reactivate */}
+      {isCancelled ? (
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
+              <RefreshCcw className="h-5 w-5 text-emerald-600" />
             </div>
-            <div>
-              <p className="font-bold text-foreground text-sm">{t("reactivate_plan")}</p>
-              <p className="text-xs text-muted-foreground">{t("reactivate_desc")}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900 truncate">{t("reactivate_plan")}</p>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">{t("reactivate_desc")}</p>
             </div>
           </div>
           <Button
-            className="w-full rounded-2xl h-11 font-bold shadow-sm shadow-primary/15"
+            size="sm"
+            className="rounded-full h-9 px-4 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 shrink-0"
             onClick={onReactivate}
             disabled={isProcessing}
           >
             {isProcessing ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t("reactivating")}</>
+              <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Reactivating</>
             ) : (
-              <><RefreshCcw className="h-4 w-4 mr-2" />{t("reactivate_subscription")}</>
+              <><RefreshCcw className="h-3.5 w-3.5 mr-1.5" />Reactivate</>
             )}
           </Button>
         </div>
       ) : (
-        <div className="bg-card rounded-[24px] border border-border/60 shadow-sm p-4 space-y-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-destructive/10 flex items-center justify-center">
-              <AlertCircle className="h-4 w-4 text-destructive" />
+        <button
+          className="flex w-full items-center justify-between px-5 py-4 active:bg-red-50/50 transition-colors"
+          onClick={handleCancelClick}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50">
+              <X className="h-5 w-5 text-red-500" />
             </div>
-            <div>
-              <p className="font-bold text-foreground text-sm">{t("cancel_subscription")}</p>
-              <p className="text-xs text-muted-foreground">{t("cancel_desc")}</p>
+            <div className="min-w-0 text-left">
+              <p className="text-sm font-bold text-red-500 truncate">{t("cancel_subscription")}</p>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">{t("cancel_desc")}</p>
             </div>
           </div>
-          <button
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-destructive/20 text-destructive bg-destructive/5 text-sm font-bold active:scale-[0.98] transition-all hover:bg-destructive/10"
-            onClick={handleCancelClick}
-          >
-            <X className="h-4 w-4" />
-            {t("cancel_subscription")}
-          </button>
-        </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+        </button>
       )}
 
       <CancellationSalvageSheet

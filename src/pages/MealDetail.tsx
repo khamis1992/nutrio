@@ -132,13 +132,6 @@ const MealDetail = () => {
   const springConfig = { stiffness: 100, damping: 30, restDelta: 0.001 };
   const headerOpacitySpring = useSpring(headerOpacity, springConfig);
 
-  const fetchMealCb = useCallback(fetchMeal, [id, toast, t]);
-  useEffect(() => {
-    if (id) {
-      fetchMealCb();
-    }
-  }, [id, fetchMealCb]);
-
   const fetchMeal = async () => {
     try {
       // Fetch meal first
@@ -191,6 +184,13 @@ const MealDetail = () => {
       setLoading(false);
     }
   };
+
+  const fetchMealCb = useCallback(fetchMeal, [id, toast, t]);
+  useEffect(() => {
+    if (id) {
+      fetchMealCb();
+    }
+  }, [id, fetchMealCb]);
 
   const handleAddToSchedule = async () => {
     if (!user) {

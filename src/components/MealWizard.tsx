@@ -27,9 +27,11 @@ import {
   Home,
   ChevronDown,
   Leaf,
+  Lock,
   Clock,
   Minus,
   Plus,
+  Search,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getMealImage } from "@/lib/meal-images";
@@ -77,6 +79,8 @@ interface MealWizardProps {
   initialStep?: number;
   singleMode?: boolean;
   autoFill?: boolean;
+  initialPhase?: "intro" | "meal-selection";
+  showMealTypeTabs?: boolean;
 }
 
 const MEAL_TYPE_CONFIG = {
@@ -140,15 +144,18 @@ const MealWizard = ({
   initialStep = 0,
   singleMode = false,
   autoFill = false,
+  initialPhase = "intro",
+  showMealTypeTabs = true,
 }: MealWizardProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { remainingMeals, isUnlimited, incrementMealUsage, subscription } = useSubscription();
 
-  const [phase, setPhase] = useState<"intro" | "meal-selection" | "summary" | "success">("intro");
+  const [phase, setPhase] = useState<"intro" | "meal-selection" | "summary" | "success">(initialPhase);
   const [currentMealType, setCurrentMealType] = useState<string>(MEAL_TYPES[initialStep] || "breakfast");
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [restaurantSearch, setRestaurantSearch] = useState("");
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,13 +283,47 @@ const MealWizard = ({
   const totalCalories = Object.values(selectedMeals).reduce((sum, meal) => sum + (meal?.calories || 0), 0);
   const totalProtein = Object.values(selectedMeals).reduce((sum, meal) => sum + (meal?.protein_g || 0), 0);
   const totalCarbs = Object.values(selectedMeals).reduce((sum, meal) => sum + (meal?.carbs_g || 0), 0);
+  const selectedMealEntries = MEAL_TYPES.filter((type) => selectedMeals[type]).map((type) => ({
+    type,
+    meal: selectedMeals[type],
+    config: MEAL_TYPE_CONFIG[type],
+  }));
+  const filteredRestaurants = restaurants.filter((restaurant) => {
+    const query = restaurantSearch.trim().toLowerCase();
+    if (!query) return true;
+    return [restaurant.name, restaurant.description, restaurant.cuisine_type]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(query));
+  });
+
+  const getRestaurantMeta = (restaurant: Restaurant, index: number) => {
+    const name = restaurant.name.toLowerCase();
+    const cuisine = restaurant.cuisine_type || "Healthy";
+    const category = restaurant.description?.split(".")[0] || cuisine;
+    const palettes = [
+      { icon: Store, iconClass: "bg-gradient-to-br from-[#19C878] to-[#059A5A] text-white", tagClass: "bg-[#E2F8EB] text-[#0B9B59]", tags: ["High Protein", "Low Carb", "Gluten Free"] },
+      { icon: Leaf, iconClass: "bg-[#E7F8EB] text-[#0EA65B]", tagClass: "bg-[#E2F8EB] text-[#0B9B59]", tags: ["Vegan", "Organic", "Gluten Free"] },
+      { icon: Coffee, iconClass: "bg-[#FFF1E2] text-[#F97316]", tagClass: "bg-[#FFF0DE] text-[#F97316]", tags: ["Balanced", "Low Calorie", "Gluten Free"] },
+      { icon: Home, iconClass: "bg-[#F1E8FF] text-[#7C55E7]", tagClass: "bg-[#EFE7FF] text-[#7C55E7]", tags: ["High Protein", "Balanced"] },
+      { icon: Leaf, iconClass: "bg-[#E5F3FF] text-[#238AE6]", tagClass: "bg-[#E7F2FF] text-[#238AE6]", tags: ["Mediterranean", "Olive Oil", "Gluten Free"] },
+    ];
+    const organic = name.includes("organic");
+    const vegan = name.includes("vegan") || cuisine.toLowerCase().includes("vegan");
+    const selected = organic ? palettes[1] : vegan ? palettes[1] : palettes[index % palettes.length];
+    return {
+      ...selected,
+      category,
+      rating: restaurant.rating ?? [4.7, 4.6, 4.4, 4.9, 4.8, 4.5, 4.2][index % 7],
+      recommended: index === 0,
+    };
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black"
+      className="fixed inset-0 z-[80] bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black"
     >
       <div className="sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 safe-top">
         <div className="flex items-center justify-between px-4 h-16">
@@ -313,7 +354,7 @@ const MealWizard = ({
           <div className="w-11" />
         </div>
 
-        {phase === "meal-selection" && (
+        {phase === "meal-selection" && showMealTypeTabs && (
           <div className="px-4 pb-3">
             <div className="flex gap-1.5">
               {MEAL_TYPES.map((type) => {
@@ -339,7 +380,7 @@ const MealWizard = ({
         )}
       </div>
 
-      <div className="pb-32">
+      <div className="flex flex-col overflow-y-auto" style={{ height: 'calc(100vh - 64px)' }}>
         <AnimatePresence mode="wait">
           {phase === "intro" && (
             <motion.div
@@ -445,42 +486,61 @@ const MealWizard = ({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               className="flex flex-col"
-              style={{ height: 'calc(100vh - 140px)' }}
+              style={{ height: showMealTypeTabs ? 'calc(100vh - 140px)' : 'calc(100vh - 64px)' }}
             >
-              <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 pt-2 shrink-0">
-                {MEAL_TYPES.map((type) => {
-                  const typeConfig = MEAL_TYPE_CONFIG[type];
-                  const Icon = typeConfig.icon;
-                  const isActive = type === currentMealType;
-                  const isSelected = !!selectedMeals[type];
-                  return (
-                    <motion.button
-                      key={type}
-                      onClick={() => setCurrentMealType(type)}
-                      whileTap={{ scale: 0.95 }}
-                      className={`flex-none flex items-center gap-2 px-4 py-3 rounded-2xl transition-all ${
-                        isActive
-                          ? `${typeConfig.bgColor} text-white shadow-lg`
-                          : isSelected
-                          ? `${typeConfig.bgColorLight} ${typeConfig.textColor} border-2 ${typeConfig.borderColor} font-semibold`
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-sm font-bold whitespace-nowrap">{typeConfig.label}</span>
-                      {isSelected && <Check className="h-4 w-4" />}
-                    </motion.button>
-                  );
-                })}
-              </div>
+              {showMealTypeTabs && (
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 pt-2 shrink-0">
+                  {MEAL_TYPES.map((type) => {
+                    const typeConfig = MEAL_TYPE_CONFIG[type];
+                    const Icon = typeConfig.icon;
+                    const isActive = type === currentMealType;
+                    const isSelected = !!selectedMeals[type];
+                    return (
+                      <motion.button
+                        key={type}
+                        onClick={() => setCurrentMealType(type)}
+                        whileTap={{ scale: 0.95 }}
+                        className={`flex-none flex items-center gap-2 px-4 py-3 rounded-2xl transition-all ${
+                          isActive
+                            ? `${typeConfig.bgColor} text-white shadow-lg`
+                            : isSelected
+                            ? `${typeConfig.bgColorLight} ${typeConfig.textColor} border-2 ${typeConfig.borderColor} font-semibold`
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                        <span className="text-sm font-bold whitespace-nowrap">{typeConfig.label}</span>
+                        {isSelected && <Check className="h-4 w-4" />}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
 
-              <div className="flex-1 overflow-y-auto px-4 pb-24">
+              <div className="flex-1 overflow-y-auto px-4 pb-24 sm:px-6">
                 {meals.length === 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">Select Restaurant</h3>
-                    <div className="space-y-2">
-                      {restaurants.map((restaurant) => {
+                  <div className="mx-auto mb-4 max-w-[430px] pt-5 sm:max-w-none">
+                    <div className="mb-5 space-y-4 lg:flex lg:items-start lg:justify-between lg:space-y-0">
+                      <div>
+                        <h3 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950 sm:text-[24px]">Select Restaurant</h3>
+                        <p className="mt-2 text-[15px] font-medium leading-snug text-slate-500 sm:text-[16px]">Choose a restaurant to see available meals</p>
+                      </div>
+                      <div className="relative lg:w-[360px]">
+                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" strokeWidth={2.2} />
+                        <input
+                          value={restaurantSearch}
+                          onChange={(event) => setRestaurantSearch(event.target.value)}
+                          placeholder="Search restaurants..."
+                          className="h-[52px] w-full rounded-[16px] border border-slate-200 bg-white pl-12 pr-4 text-[15px] font-medium text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.035)] outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5 sm:space-y-3">
+                      {filteredRestaurants.map((restaurant, index) => {
                         const isSelected = selectedRestaurant?.id === restaurant.id;
+                        const meta = getRestaurantMeta(restaurant, index);
+                        const RestaurantIcon = meta.icon;
                         return (
                           <motion.button
                             key={restaurant.id}
@@ -489,39 +549,58 @@ const MealWizard = ({
                               fetchMeals(restaurant.id);
                             }}
                             whileTap={{ scale: 0.98 }}
-                            className={`w-full flex items-center gap-3 p-4 rounded-2xl transition-all ${
+                            className={`w-full rounded-[22px] border bg-white p-4 text-left shadow-[0_10px_28px_rgba(15,23,42,0.06)] transition-all sm:flex sm:min-h-[104px] sm:items-center sm:gap-5 sm:px-5 ${
                               isSelected
-                                ? "bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border-2 border-emerald-400"
-                                : "bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800"
+                                ? "border-emerald-300 ring-2 ring-emerald-100"
+                                : "border-slate-100 active:border-emerald-100"
                             }`}
                           >
-                            {restaurant.logo_url ? (
-                              <img
-                                src={restaurant.logo_url}
-                                alt={restaurant.name}
-                                className="w-12 h-12 rounded-xl object-cover"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                                <Store className="h-6 w-6 text-white" />
+                            <div className="flex min-w-0 items-start gap-3 sm:contents">
+                              {restaurant.logo_url ? (
+                                <img
+                                  src={restaurant.logo_url}
+                                  alt={restaurant.name}
+                                  className="h-[58px] w-[58px] shrink-0 rounded-full object-cover shadow-[0_8px_18px_rgba(15,23,42,0.08)] sm:h-[68px] sm:w-[68px]"
+                                />
+                              ) : (
+                                <div className={`flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full sm:h-[68px] sm:w-[68px] ${meta.iconClass}`}>
+                                  <RestaurantIcon className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.15} />
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
+                                  <p className="min-w-0 flex-1 truncate text-[17px] font-extrabold leading-tight tracking-[-0.035em] text-slate-950 sm:text-[18px]">{restaurant.name}</p>
+                                  {meta.recommended && (
+                                    <span className="shrink-0 rounded-full bg-[#E2F8EB] px-2.5 py-1 text-[10px] font-extrabold leading-none text-[#0B9B59] sm:px-3 sm:text-[12px]">Recommended</span>
+                                  )}
+                                </div>
+                                <p className="mt-2 truncate text-[13px] font-medium leading-tight text-slate-500 sm:text-[15px]">{restaurant.cuisine_type || "Healthy"} <span className="px-1">•</span> {meta.category}</p>
                               </div>
-                            )}
-                            <div className="flex-1 text-left">
-                              <p className="font-bold text-gray-900 dark:text-white">{restaurant.name}</p>
-                              <p className="text-xs text-gray-500">{restaurant.cuisine_type}</p>
                             </div>
-                            {restaurant.rating && (
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                  {restaurant.rating.toFixed(1)}
-                                </span>
+
+                            <div className="mt-3 flex items-end justify-between gap-3 sm:mt-0 sm:contents">
+                              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
+                                {meta.tags.map((tag) => (
+                                  <span key={tag} className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold leading-none sm:px-3 sm:text-[12px] ${meta.tagClass}`}>{tag}</span>
+                                ))}
                               </div>
-                            )}
-                            {isSelected && <Check className="h-5 w-5 text-emerald-500" />}
+
+                              <div className="ml-2 flex shrink-0 items-center gap-2 sm:gap-5">
+                                <span className="inline-flex h-9 min-w-[62px] items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-[13px] font-extrabold text-slate-900 shadow-[0_5px_14px_rgba(15,23,42,0.035)] sm:h-12 sm:min-w-[78px] sm:gap-2 sm:px-4 sm:text-[15px]">
+                                  <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B] sm:h-4 sm:w-4" />
+                                  {meta.rating.toFixed(1)}
+                                </span>
+                                <ChevronRight className="h-5 w-5 text-slate-500 sm:h-6 sm:w-6" strokeWidth={2.4} />
+                              </div>
+                            </div>
                           </motion.button>
                         );
                       })}
+                      {filteredRestaurants.length === 0 && (
+                        <div className="rounded-[22px] border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-[15px] font-semibold text-slate-500">
+                          No restaurants found
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -675,94 +754,121 @@ const MealWizard = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="p-4"
+              className="flex flex-1 flex-col overflow-y-auto bg-[#FBFCFC] px-5 pb-6 pt-4"
             >
-              <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 dark:from-gray-800 dark:via-gray-900 dark:to-black rounded-3xl p-6 mb-6 shadow-xl">
-                <h3 className="text-white font-bold text-lg mb-4">Daily Nutrition</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 mx-auto mb-2 flex items-center justify-center">
-                      <Flame className="h-6 w-6 text-orange-400" />
+              <div className="flex flex-col flex-1">
+                <section className="rounded-[20px] border border-slate-100 bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+                  <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950">Daily Nutrition</h2>
+                  <p className="mt-2 text-[14px] font-medium leading-snug text-slate-500">Here's your estimated nutrition for today</p>
+
+                  <div className="mt-4 rounded-[18px] border border-slate-200 bg-white px-2 py-4">
+                    <div className="grid grid-cols-3 divide-x divide-slate-200">
+                      <div className="px-2 text-center">
+                        <div className="mx-auto flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#FFF1DE] text-[#F97316]">
+                          <Flame className="h-6 w-6" strokeWidth={2.25} />
+                        </div>
+                        <p className="mt-3 text-[28px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{totalCalories}</p>
+                        <p className="mt-2 text-[14px] font-medium leading-none text-slate-700">Calories</p>
+                      </div>
+                      <div className="px-2 text-center">
+                        <div className="mx-auto flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#FFE9F0] text-[#F43F5E]">
+                          <Beef className="h-6 w-6" strokeWidth={2.25} />
+                        </div>
+                        <p className="mt-3 text-[28px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{totalProtein}g</p>
+                        <p className="mt-2 text-[14px] font-medium leading-none text-slate-700">Protein</p>
+                      </div>
+                      <div className="px-2 text-center">
+                        <div className="mx-auto flex h-[48px] w-[48px] items-center justify-center rounded-full bg-[#E3F7EC] text-[#10A45D]">
+                          <Leaf className="h-6 w-6" strokeWidth={2.25} />
+                        </div>
+                        <p className="mt-3 text-[28px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{totalCarbs}g</p>
+                        <p className="mt-2 text-[14px] font-medium leading-none text-slate-700">Carbs</p>
+                      </div>
                     </div>
-                    <p className="text-2xl font-black text-white">{totalCalories}</p>
-                    <p className="text-xs text-gray-400">Calories</p>
                   </div>
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 mx-auto mb-2 flex items-center justify-center">
-                      <Beef className="h-6 w-6 text-rose-400" />
-                    </div>
-                    <p className="text-2xl font-black text-white">{totalProtein}g</p>
-                    <p className="text-xs text-gray-400">Protein</p>
+                </section>
+
+                <section className="mt-5">
+                  <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950">{selectedMealEntries.length} Meal Selected</h2>
+                  <p className="mt-2 text-[14px] font-medium leading-snug text-slate-500">You can review your meal before placing the order</p>
+
+                  <div className="mt-4 space-y-3">
+                    {selectedMealEntries.map(({ type, meal, config }, index) => {
+                      const MealIcon = config.icon;
+                      return (
+                      <motion.div
+                        key={type}
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.06 }}
+                        className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                      >
+                        <div className="flex items-center gap-3">
+                          {meal.image_url ? (
+                            <img
+                              src={meal.image_url}
+                              alt={meal.name}
+                              className="h-[80px] w-[80px] shrink-0 rounded-[16px] object-cover shadow-[0_8px_16px_rgba(15,23,42,0.08)]"
+                            />
+                          ) : (
+                            <div className={`flex h-[80px] w-[80px] shrink-0 items-center justify-center rounded-[16px] ${config.bgGradient}`}>
+                              <MealIcon className={`h-9 w-9 ${config.textColor}`} />
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-full bg-[#FFF0DE] px-3 py-1.5 text-[11px] font-extrabold uppercase leading-none text-[#D75B05]">{config.label}</span>
+                              <span className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-500">
+                                <Clock className="h-3.5 w-3.5" />
+                                {config.time}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 truncate text-[20px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950">{meal.name}</h3>
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              <span className="rounded-full bg-[#FFF0DE] px-3 py-1.5 text-[14px] font-medium leading-none text-[#B94E05]">{meal.calories || 0} kcal</span>
+                              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[14px] font-medium leading-none text-slate-500">{meal.protein_g || 0}g protein</span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleEditMeal(type)}
+                            className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-950 transition active:scale-95"
+                            aria-label={`Edit ${config.label}`}
+                          >
+                            <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      </motion.div>
+                      );
+                    })}
                   </div>
-                  <div className="text-center">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 mx-auto mb-2 flex items-center justify-center">
-                      <Leaf className="h-6 w-6 text-emerald-400" />
-                    </div>
-                    <p className="text-2xl font-black text-white">{totalCarbs}g</p>
-                    <p className="text-xs text-gray-400">Carbs</p>
+                </section>
+
+                <div className="mt-5 flex items-start gap-3 rounded-[16px] bg-[#F0FCF7] px-4 py-4 text-slate-900">
+                  <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-[#10B86F] text-white shadow-[0_6px_14px_rgba(16,184,111,0.18)] ring-3 ring-white">
+                    <Check className="h-6 w-6" strokeWidth={2.6} />
+                  </div>
+                  <p className="text-[15px] font-medium leading-snug">All meals are prepared fresh and made with high-quality ingredients.</p>
+                </div>
+
+                <div className="mt-auto pt-5">
+                  <motion.button
+                    onClick={() => setShowDeliveryScheduler(true)}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex h-[60px] w-full items-center justify-center gap-3 rounded-[24px] bg-gradient-to-r from-[#10C878] to-[#05A85B] text-[22px] font-extrabold tracking-[-0.03em] text-white shadow-[0_12px_24px_rgba(5,168,91,0.22)]"
+                  >
+                    <Calendar className="h-7 w-7" strokeWidth={2.25} />
+                    Schedule Delivery
+                  </motion.button>
+
+                  <div className="mt-4 flex items-center justify-center gap-2 text-[14px] font-medium text-slate-500">
+                    <Lock className="h-4 w-4" strokeWidth={2.2} />
+                    Secure & encrypted checkout
                   </div>
                 </div>
               </div>
-
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
-                {Object.keys(selectedMeals).length} Meals Selected
-              </h3>
-              <div className="space-y-3">
-                {MEAL_TYPES.filter((type) => selectedMeals[type]).map((type, index) => {
-                  const meal = selectedMeals[type];
-                  const typeConfig = MEAL_TYPE_CONFIG[type];
-                  const Icon = typeConfig.icon;
-                  return (
-                    <motion.div
-                      key={type}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800"
-                    >
-                      <div className="flex items-center gap-3 p-4">
-                        <div className={`w-14 h-14 rounded-2xl ${typeConfig.gradient} flex items-center justify-center shadow-lg`}>
-                          <Icon className="h-7 w-7 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-[10px] font-bold uppercase tracking-wider ${typeConfig.textColor}`}>
-                              {typeConfig.label}
-                            </span>
-                            <span className="text-[10px] text-gray-300">·</span>
-                            <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {typeConfig.time}
-                            </span>
-                          </div>
-                          <h4 className="font-bold text-gray-900 dark:text-white truncate">{meal?.name}</h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${typeConfig.bgGradient} ${typeConfig.textColor}`}>
-                              {meal?.calories} kcal
-                            </span>
-                            <span className="text-xs text-gray-400">{meal?.protein_g}g protein</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleEditMeal(type)}
-                          className="w-10 h-10 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
-                        >
-                          <ChevronRight className="h-5 w-5 text-gray-400" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              <motion.button
-                onClick={() => setShowDeliveryScheduler(true)}
-                whileTap={{ scale: 0.98 }}
-                className="w-full py-5 mt-6 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-bold text-lg shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3"
-              >
-                <Calendar className="h-6 w-6" />
-                Schedule Delivery
-              </motion.button>
             </motion.div>
           )}
 

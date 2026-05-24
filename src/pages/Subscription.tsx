@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Loader2, Home, LayoutGrid, Settings,
+  ArrowLeft, Loader2,
   Crown, Zap, Star, Clock, Apple, Utensils,
-  Shield, ClipboardList, CalendarDays, Info, ChevronRight,
+  Shield, ClipboardList, CalendarDays,
   type LucideIcon
 } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
@@ -21,7 +21,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
 import { PlanPickerMode } from "@/components/subscription/PlanPickerMode";
-import { PlanCard, type PlanCardData } from "@/components/subscription/PlanCard";
+import { type PlanCardData } from "@/components/subscription/PlanCard";
 import { SubscriptionManage } from "@/components/subscription/SubscriptionManage";
 import { SubscriptionPlansTab } from "@/components/subscription/SubscriptionPlansTab";
 import { UpgradeBottomSheet } from "@/components/subscription/UpgradeBottomSheet";
@@ -389,239 +389,285 @@ export default function SubscriptionPage() {
   const planIcon = isVip ? Crown : Zap;
   const PlanIcon = planIcon;
 
+  const heroMealCount = isUnlimited ? "∞" : isPaused ? "❄" : effectiveMealsLeft;
+  const displayPlanName = planName
+    .split(" ")
+    .map((part) => part ? `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}` : part)
+    .join(" ");
+  const mealRingRadius = 36;
+  const mealRingCircumference = 2 * Math.PI * mealRingRadius;
+  const finiteMealsLeft = Number.isFinite(effectiveMealsLeft) ? Number(effectiveMealsLeft) : totalMeals;
+  const mealRingProgress = totalMeals > 0 ? Math.max(0, Math.min(1, finiteMealsLeft / totalMeals)) : 0;
+  const mealRingOffset = mealRingCircumference * (1 - mealRingProgress);
+  const mealsSegmentCount = 14;
+  const snacksSegmentCount = 8;
+  const filledMealSegments = totalMeals > 0
+    ? Math.max(mealsUsed > 0 ? 1 : 0, Math.round((mealsUsed / totalMeals) * mealsSegmentCount))
+    : 0;
+  const filledSnackSegments = snacksPerMonth > 0
+    ? Math.max(snacksUsed > 0 ? 1 : 0, Math.round((snacksUsed / snacksPerMonth) * snacksSegmentCount))
+    : 0;
+  const heroStatusClass = status === "active"
+    ? "bg-emerald-50 text-emerald-600"
+    : status === "cancelled"
+      ? "bg-red-50 text-red-600"
+      : "bg-amber-50 text-amber-600";
+
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col">
+    <div className="flex min-h-screen flex-col bg-white">
       {/* Header */}
-      <div className="px-4 pt-[env(safe-area-inset-top)] pb-2 bg-[#F8F9FA]">
+      <div className="px-4 pb-1 pt-[max(env(safe-area-inset-top),16px)]">
         <button
           onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
+          className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-slate-100 bg-white shadow-sm active:scale-95 transition-transform"
         >
-          <ArrowLeft className="h-5 w-5 text-gray-700" />
+          <ArrowLeft className="h-5 w-5 text-slate-700" />
         </button>
-        <h1 className="text-xl font-bold mt-3 text-gray-900">{t("my_subscription") || "My Subscription"}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage your meal plan and progress</p>
+        <h1 className="text-[22px] font-extrabold leading-tight text-slate-950">
+          {t("my_subscription") || "My Subscription"}
+        </h1>
+        <p className="mt-0.5 text-sm font-medium text-slate-500">
+          Manage your meal plan and progress
+        </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-6 space-y-4">
+      <div className="flex-1 overflow-y-auto space-y-3 px-4 pb-6">
         {/* Hero Card */}
-        <div className="mx-4 mt-2 rounded-[28px] bg-gradient-to-br from-[#22C55E] to-[#16A34A] p-5 text-white shadow-lg shadow-green-500/15 overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-3xl translate-y-1/4 -translate-x-1/4" />
-
+        <div className="relative mt-2 overflow-hidden rounded-[28px] border border-slate-100 bg-white px-4 py-3.5 shadow-[0_18px_44px_rgba(15,23,42,0.07)]">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-emerald-50/45 via-transparent to-transparent" />
           <div className="relative">
-            {/* Top row */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <PlanIcon className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-extrabold tracking-tight">
-                    {planName} Plan
-                  </h2>
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusInfo.className}`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                    {statusInfo.label}
-                  </span>
-                </div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-700 shadow shadow-emerald-500/20">
+                <PlanIcon className="h-4.5 w-4.5 text-white" />
               </div>
-              <div className="text-right">
-                <p className="text-5xl font-extrabold leading-none tabular-nums">
-                  {isUnlimited ? "∞" : isPaused ? "❄" : effectiveMealsLeft}
-                </p>
-                <p className="text-xs text-white/70 mt-1 font-medium">
-                  {isUnlimited ? "unlimited" : isPaused ? "Paused" : "meals left"}
-                </p>
-              </div>
+              <h2 className="text-base font-extrabold tracking-tight text-slate-950">
+                {displayPlanName} Plan
+              </h2>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${heroStatusClass}`}>
+                <span className="h-1.5 w-1.5 rotate-45 rounded-[2px] bg-current" />
+                {statusInfo.label}
+              </span>
             </div>
 
-            {/* Meals progress */}
-            {!isUnlimited && !isPaused && (
-              <div className="mt-5 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Utensils className="h-4 w-4 text-white/80 shrink-0" />
-                  <div className="flex gap-[2px] flex-1">
-                    {Array.from({ length: Math.min(totalMeals || 40, 40) }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "h-1.5 flex-1 rounded-full transition-all duration-500",
-                          i < mealsUsed ? "bg-white" : "bg-white/25"
-                        )}
-                      />
-                    ))}
+            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_1fr] md:items-center">
+              <div className="flex items-center gap-3">
+                <div className="relative h-[88px] w-[88px] shrink-0">
+                  <svg className="h-[88px] w-[88px] -rotate-90" viewBox="0 0 112 112" aria-hidden="true">
+                    <circle
+                      cx="56"
+                      cy="56"
+                      r={mealRingRadius}
+                      fill="none"
+                      stroke="#E5E7EB"
+                      strokeWidth="8"
+                    />
+                    <circle
+                      cx="56"
+                      cy="56"
+                      r={mealRingRadius}
+                      fill="none"
+                      stroke="#16A34A"
+                      strokeLinecap="round"
+                      strokeWidth="8"
+                      strokeDasharray={mealRingCircumference}
+                      strokeDashoffset={mealRingOffset}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-extrabold leading-none text-slate-950 tabular-nums">
+                      {heroMealCount}
+                    </span>
+                    <span className="mt-0.5 text-xs font-bold text-emerald-700 tabular-nums">
+                      / {isUnlimited ? "∞" : totalMeals}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-white/75 pl-6">
-                  <span className="font-semibold">
-                    {mealsUsed} of {totalMeals} meals used
-                  </span>
-                  <span className="flex items-center gap-1 font-semibold">
-                    <Clock className="h-3 w-3" />
-                    {daysRemaining}d until reset
-                  </span>
+                <div>
+                  <p className="text-sm font-extrabold text-slate-950">Meals left</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">This cycle</p>
                 </div>
               </div>
-            )}
 
-            {/* Snacks progress */}
-            {hasSnacks && snacksPerMonth > 0 && !isUnlimited && !isPaused && (
-              <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Apple className="h-4 w-4 text-white/80 shrink-0" />
-                  <div className="flex gap-[2px] flex-1">
-                    {Array.from({ length: snacksPerMonth }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "h-1.5 flex-1 rounded-full transition-all duration-500",
-                          i < snacksUsed
-                            ? "bg-gradient-to-r from-orange-400 to-yellow-300"
-                            : "bg-white/25"
-                        )}
-                      />
-                    ))}
+              <div className="border-slate-100 md:border-l md:px-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50">
+                    <Utensils className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold text-slate-950">
+                      {mealsUsed} of {isUnlimited ? "∞" : totalMeals}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-slate-500">meals used</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-white/75 pl-6">
-                  <span className="font-semibold">{snacksUsed} of {snacksPerMonth} snacks used</span>
-                  <span className="font-semibold">{remainingSnacks} left</span>
+                <div className="mt-3 flex gap-[3px]">
+                  {Array.from({ length: mealsSegmentCount }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1 flex-1 rounded-full",
+                        i < filledMealSegments ? "bg-emerald-300" : "bg-slate-200"
+                      )}
+                    />
+                  ))}
                 </div>
-              </div>
-            )}
-
-            {isPaused && (
-              <div className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-3 mt-4">
-                <Zap className="h-5 w-5 text-white/80 shrink-0" />
-                <p className="text-sm text-white/80 font-medium">
-                  Your subscription is currently frozen. Meal ordering is paused.
+                <p className="mt-3 flex items-center gap-1 text-xs font-medium text-slate-500">
+                  <Clock className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="font-extrabold text-emerald-600">{Math.max(0, daysRemaining)} days</span>
+                  until reset
                 </p>
               </div>
-            )}
+
+              <div className="border-slate-100 md:border-l md:pl-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50">
+                    <Apple className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold text-slate-950">
+                      {snacksUsed} of {isUnlimited ? "∞" : snacksPerMonth}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-slate-500">snacks used</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-[3px]">
+                  {Array.from({ length: snacksSegmentCount }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1 flex-1 rounded-full",
+                        i < filledSnackSegments ? "bg-orange-400" : "bg-slate-200"
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="mt-3 text-xs font-medium text-slate-500">
+                  <span className="font-extrabold text-orange-500">{isUnlimited ? "∞" : remainingSnacks}</span> snacks left
+                </p>
+              </div>
+
+              {isPaused && (
+                <div className="rounded-2xl bg-sky-50 px-4 py-3 md:col-span-3">
+                  <p className="text-sm font-semibold text-sky-700">
+                    Your subscription is currently frozen. Meal ordering is paused.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-3 mx-4">
-          <div className="bg-white rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <CalendarDays className="h-5 w-5 text-[#22C55E] shrink-0" />
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+            <CalendarDays className="h-5 w-5 shrink-0 text-[#22C55E]" />
             <div className="min-w-0">
-              <p className="text-lg font-bold leading-none tabular-nums">{daysRemaining}</p>
-              <p className="text-[10px] text-gray-500 font-medium mt-0.5">days left</p>
+              <p className="text-lg font-bold leading-none tabular-nums">{Math.max(0, daysRemaining)}</p>
+              <p className="mt-0.5 text-[10px] font-medium text-slate-500">days left</p>
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <Utensils className="h-5 w-5 text-[#22C55E] shrink-0" />
+          <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+            <Utensils className="h-5 w-5 shrink-0 text-[#22C55E]" />
             <div className="min-w-0">
               <p className="text-lg font-bold leading-none tabular-nums">{isUnlimited ? "∞" : totalMeals}</p>
-              <p className="text-[10px] text-gray-500 font-medium mt-0.5">Monthly Meals</p>
+              <p className="mt-0.5 text-[10px] font-medium text-slate-500">Monthly Meals</p>
             </div>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-3 flex items-center gap-2.5 shadow-sm">
-            <Apple className="h-5 w-5 text-red-500 shrink-0" />
+          <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+            <Apple className="h-5 w-5 shrink-0 text-red-500" />
             <div className="min-w-0">
               <p className="text-lg font-bold leading-none tabular-nums">{isUnlimited ? "∞" : remainingSnacks}</p>
-              <p className="text-[10px] text-gray-500 font-medium mt-0.5">snacks left</p>
+              <p className="mt-0.5 text-[10px] font-medium text-slate-500">snacks left</p>
             </div>
           </div>
         </div>
 
         {/* Subscription Details */}
-        <div className="mx-4 bg-white rounded-[24px] border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2.5 px-5 pt-5 pb-3 border-b border-gray-100">
-            <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
-              <Shield className="h-4 w-4 text-[#22C55E]" />
+        <div className="overflow-hidden rounded-[22px] border border-slate-100 bg-white shadow-sm">
+          <div className="flex items-center gap-2.5 border-b border-slate-50 px-5 pb-3 pt-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]/10">
+              <Shield className="h-4.5 w-4.5 text-[#22C55E]" />
             </div>
-            <h3 className="font-bold text-gray-900">{t("subscription_details") || "Subscription Details"}</h3>
+            <h3 className="font-bold text-slate-900">{t("subscription_details") || "Subscription Details"}</h3>
           </div>
 
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-slate-50 px-5 py-3.5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]/10">
                 <ClipboardList className="h-4 w-4 text-[#22C55E]" />
               </div>
-              <span className="text-sm text-gray-500">{t("plan_label") || "Plan"}</span>
+              <span className="text-sm text-slate-500">{t("plan_label") || "Plan"}</span>
             </div>
-            <span className="font-bold text-gray-900 capitalize">{planName}</span>
+            <span className="font-bold capitalize text-slate-900">{displayPlanName}</span>
           </div>
 
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-slate-50 px-5 py-3.5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]/10">
                 <Shield className="h-4 w-4 text-[#22C55E]" />
               </div>
-              <span className="text-sm text-gray-500">{t("status_label") || "Status"}</span>
+              <span className="text-sm text-slate-500">{t("status_label") || "Status"}</span>
             </div>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#22C55E]/10 text-[#22C55E]">
+            <span className="rounded-full bg-[#22C55E]/10 px-2.5 py-1 text-xs font-bold text-[#22C55E]">
               {statusInfo.label}
             </span>
           </div>
 
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between border-b border-slate-50 px-5 py-3.5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]/10">
                 <CalendarDays className="h-4 w-4 text-[#22C55E]" />
               </div>
-              <span className="text-sm text-gray-500">{t("start_date_label") || "Start Date"}</span>
+              <span className="text-sm text-slate-500">{t("start_date_label") || "Start Date"}</span>
             </div>
-            <span className="font-semibold text-sm text-gray-900">
+            <span className="text-sm font-semibold text-slate-900">
               {startDate ? format(new Date(startDate), "MMM dd, yyyy") : "—"}
             </span>
           </div>
 
-          <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center justify-between px-5 py-3.5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#22C55E]/10">
                 <CalendarDays className="h-4 w-4 text-[#22C55E]" />
               </div>
-              <span className="text-sm text-gray-500">{t("end_date_label") || "End Date"}</span>
+              <span className="text-sm text-slate-500">{t("end_date_label") || "End Date"}</span>
             </div>
-            <span className="font-semibold text-sm text-gray-900">
+            <span className="text-sm font-semibold text-slate-900">
               {endDate ? format(new Date(endDate), "MMM dd, yyyy") : "—"}
             </span>
           </div>
         </div>
 
-        {/* Info Card */}
-        <div className="mx-4 bg-gray-50 rounded-[20px] px-4 py-3.5 flex items-start gap-3">
-          <Info className="h-4 w-4 text-[#22C55E] shrink-0 mt-0.5" />
-          <p className="text-xs text-gray-500 leading-relaxed flex-1">
-            Your subscription automatically renews each billing cycle. You can manage, freeze, or cancel anytime from the Settings tab.
-          </p>
-          <ChevronRight className="h-4 w-4 text-gray-400 shrink-0 mt-1" />
-        </div>
-
-        {/* Plans Section */}
-        <div className="mx-4">
+        {/* Available Plans */}
+        <div className="pt-2">
+          <div className="mb-3 text-center">
+            <h3 className="text-base font-extrabold text-slate-950">{t("available_plans")}</h3>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">{t("upgrade_anytime")}</p>
+          </div>
           <SubscriptionPlansTab
             plans={plans}
             billingInterval={selectedBillingInterval}
             onBillingIntervalChange={setSelectedBillingInterval}
-            vipAnnualSavings={vipAnnualSavings}
             currentTier={subscription?.tier}
-            autoRenew={autoRenew}
-            autoRenewLoading={autoRenewLoading}
-            onToggleAutoRenew={handleToggleAutoRenew}
             onSelectPlan={(plan) => { setSelectedPlan(plan); setShowUpgradeDialog(true); }}
-            endDate={subscription?.end_date}
-            status={subscription?.status}
           />
         </div>
 
         {/* Settings Section */}
-        <div className="mx-4">
-          <SubscriptionManage
-            hasActiveSubscription={hasActiveSubscription}
-            endDate={subscription?.end_date ?? null}
-            subscriptionId={subscription?.id ?? null}
-            subscriptionStatus={subscription?.status}
-            freezeDays={freezeDays ?? null}
-            isProcessing={isProcessing}
-            onReactivate={handleReactivate}
-            onRefetch={refetch}
-          />
-        </div>
+        <SubscriptionManage
+          hasActiveSubscription={hasActiveSubscription}
+          endDate={subscription?.end_date ?? null}
+          subscriptionId={subscription?.id ?? null}
+          subscriptionStatus={subscription?.status}
+          freezeDays={freezeDays ?? null}
+          isProcessing={isProcessing}
+          onReactivate={handleReactivate}
+          onRefetch={refetch}
+          autoRenew={autoRenew}
+          autoRenewLoading={autoRenewLoading}
+          onToggleAutoRenew={handleToggleAutoRenew}
+          rolloverCredits={rolloverCredits}
+        />
       </div>
 
       <UpgradeBottomSheet
