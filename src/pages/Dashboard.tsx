@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -11,6 +11,8 @@ import {
   ChevronRight,
   ConciergeBell,
   Crown,
+  Droplet,
+  Drumstick,
   Flame,
   Leaf,
   Plus,
@@ -20,9 +22,10 @@ import {
   Truck,
   Utensils,
   Wallet,
+  Wheat,
 } from "lucide-react";
 
-import { LogMealDialog } from "@/components/LogMealDialog";
+import LogMealModal from "@/components/LogMealModal";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,6 +36,13 @@ import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits
 import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { getQatarNow, formatLocaleDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
+import {
+  progressRingVariants,
+  staggerContainer,
+  staggerItem,
+  ambientGlow,
+} from "@/lib/animations";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -49,7 +59,97 @@ const Dashboard = () => {
   const [progressKey, setProgressKey] = useState(0);
   const [totalBurned, setTotalBurned] = useState(0);
   const [workoutCount, setWorkoutCount] = useState(0);
+  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
+
+  const fetchActiveOrders = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data: schedules, error: schedulesError } = await supabase
+        .from("meal_schedules")
+        .select(`
+          id,
+          scheduled_date,
+          order_status,
+          meal_id,
+          delivery_type
+        `)
+        .eq("user_id", user.id)
+        .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
+        .order("scheduled_date", { ascending: true })
+        .limit(3);
+
+      if (schedulesError) throw schedulesError;
+      if (!schedules || schedules.length === 0) {
+        setActiveOrders([]);
+        setOrdersLoading(false);
+        return;
+      }
+
+      const mealIds = [...new Set(schedules.map(s => s.meal_id).filter(Boolean))];
+
+      let mealsData: any[] = [];
+      if (mealIds.length > 0) {
+        const { data: meals, error: mealsError } = await supabase
+          .from("meals")
+          .select("id, name, restaurant_id")
+          .in("id", mealIds);
+
+        if (!mealsError && meals) {
+          const restaurantIds = [...new Set(meals.map((m: any) => m.restaurant_id).filter(Boolean))] as string[];
+
+          let restaurantsData: any[] = [];
+          if (restaurantIds.length > 0) {
+            const { data: restaurants, error: restaurantsError } = await supabase
+              .from("restaurants")
+              .select("id, name")
+              .in("id", restaurantIds);
+
+            if (!restaurantsError && restaurants) {
+              restaurantsData = restaurants;
+            }
+          }
+
+          mealsData = meals.map((meal: any) => ({
+            ...meal,
+            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: "Restaurant" },
+          }));
+        }
+      }
+
+      const orders = schedules.map((schedule: any) => {
+        const meal = mealsData.find(m => m.id === schedule.meal_id);
+        return {
+          id: schedule.id,
+          order_status: schedule.order_status,
+          scheduled_date: schedule.scheduled_date,
+          meal_name: meal?.name || "Meal",
+          restaurant_name: meal?.restaurant?.name || "Restaurant",
+          delivery_type: schedule.delivery_type || "pickup",
+        };
+      });
+
+      setActiveOrders(orders);
+    } catch (err) {
+      console.error("Error fetching active orders:", err);
+      setActiveOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchActiveOrders();
+  }, [fetchActiveOrders]);
+
+  const animatedCalories = useAnimatedCounter(Math.round(todayProgress.calories), 800);
+  const animatedBurned = useAnimatedCounter(totalBurned, 800);
+  const animatedBalance = useAnimatedCounter(
+    isUnlimited ? 0 : Number.isFinite(remainingMeals + rolloverCredits) ? Number(remainingMeals + rolloverCredits) : 40,
+    600
+  );
 
   useEffect(() => {
     if (!profileLoading && profile && profile.onboarding_completed === false) {
@@ -168,51 +268,32 @@ const Dashboard = () => {
       label: "Carbs",
       value: Math.round(todayProgress.carbs),
       target: profile?.carbs_target_g || 181,
-      cardClass: "bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200",
-      pillClass: "bg-emerald-100 text-emerald-700",
-      lineClass: "bg-emerald-300",
+      Icon: Wheat,
+      iconClass: "from-[#BDF6C6] to-[#79DB88] text-[#13A853]",
+      dotClass: "bg-[#19B965]",
+      pillClass: "bg-[#DDF8E7] text-[#11A85A]",
     },
     {
       label: "Protein",
       value: Math.round(todayProgress.protein),
       target: profile?.protein_target_g || 181,
-      cardClass: "bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200",
-      pillClass: "bg-orange-100 text-orange-700",
-      lineClass: "bg-orange-300",
+      Icon: Drumstick,
+      iconClass: "from-[#FFD6A7] to-[#FF914D] text-white",
+      dotClass: "bg-[#FF820F]",
+      pillClass: "bg-[#FFF0DA] text-[#E06E00]",
     },
     {
       label: "Fat",
       value: Math.round(todayProgress.fat),
       target: profile?.fat_target_g || 69,
-      cardClass: "bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200",
-      pillClass: "bg-indigo-100 text-indigo-700",
-      lineClass: "bg-indigo-300",
+      Icon: Droplet,
+      iconClass: "from-[#B08CFF] to-[#7548F7] text-white",
+      dotClass: "bg-[#7C4DFF]",
+      pillClass: "bg-[#EEE5FF] text-[#744AE8]",
     },
   ];
 
-  const orderRows = [
-    {
-      title: "Restaurant",
-      detail: "Meal, Meal  •  Mar 13",
-      status: "On The Way",
-      Icon: Truck,
-      badgeClass: "bg-[#CDEEDB] text-[#098A4F]",
-    },
-    {
-      title: "Fitness Fuel Station",
-      detail: "High-Protein Breakfast, High-Protein Bre...  •  Apr 25",
-      status: "Pending",
-      Icon: Flame,
-      badgeClass: "bg-[#FFE8BF] text-[#D98105]",
-    },
-    {
-      title: "Organic Harvest",
-      detail: "Organic Acai Bowl  •  Apr 25",
-      status: "Pending",
-      Icon: Leaf,
-      badgeClass: "bg-[#FFE8BF] text-[#D98105]",
-    },
-  ];
+
 
   return (
     <motion.div
@@ -233,6 +314,14 @@ const Dashboard = () => {
           ].join(", "),
         }}
       />
+      <motion.div
+        initial={prefersReducedMotion ? undefined : { opacity: 0.06 }}
+        animate={prefersReducedMotion ? undefined : ambientGlow.animate}
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 100% 100% at 50% 30%, rgba(16, 185, 129, 0.03) 0%, transparent 70%)",
+        }}
+      />
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.3]"
         style={{
@@ -244,21 +333,25 @@ const Dashboard = () => {
       />
       <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-safe-offset-20 pt-safe-offset-4 pb-28 pt-6">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)]">
-              <img src="/nutrio/logo.png" alt="Nutrio" className="h-[34px] w-[34px] object-contain" />
+          <Link to="/profile" className="flex items-center gap-3">
+            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)] overflow-hidden">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt={userName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-[15px] font-bold text-[#10B981]">{userName.charAt(0)}</span>
+              )}
             </div>
             <div>
               <p className="text-[12px] font-medium leading-tight text-slate-700">Good afternoon 🌥️</p>
               <h1 className="mt-0.5 text-[15px] font-extrabold leading-none tracking-[-0.03em] text-slate-950">{userName}</h1>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-3">
-            <Link to="/notifications" className="relative block text-slate-950" aria-label="Notifications">
-              <Bell className="h-[24px] w-[24px]" strokeWidth={2.1} />
+            <Link to="/notifications" className="relative flex h-[36px] w-[36px] items-center justify-center text-slate-950" aria-label="Notifications">
+              <Bell className="h-[27px] w-[27px]" strokeWidth={2.15} />
               {displayedUnreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#EF4444] px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+                <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#FF1D25] px-1 text-[10px] font-extrabold leading-none text-white shadow-[0_4px_10px_rgba(255,29,37,0.22)] ring-2 ring-white">
                   {displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}
                 </span>
               )}
@@ -266,12 +359,17 @@ const Dashboard = () => {
           </div>
         </header>
 
-        <section className="mt-6 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+        <motion.section 
+          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
+          animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut" }}
+          className="mt-6 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80"
+        >
           <div className="flex items-center">
             <div className="relative flex h-[96px] w-[96px] shrink-0 items-center justify-center">
               <svg className="h-full w-full -rotate-90" viewBox="0 0 108 108" aria-hidden="true">
                 <circle cx="54" cy="54" r={balanceRadius} fill="none" stroke="#CBEFD9" strokeWidth="9" />
-                <circle
+                <motion.circle
                   cx="54"
                   cy="54"
                   r={balanceRadius}
@@ -281,10 +379,13 @@ const Dashboard = () => {
                   strokeWidth="9"
                   strokeDasharray={balanceCirc}
                   strokeDashoffset={balanceOffset}
+                  variants={progressRingVariants}
+                  initial="hidden"
+                  animate="visible"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[20px] font-extrabold leading-none tracking-[-0.04em] text-[#10A95F]">{balanceDisplay}</span>
+                <span className="text-[20px] font-extrabold leading-none tracking-[-0.04em] text-[#10A95F]">{isUnlimited ? "∞" : animatedBalance}</span>
                 <span className="mt-1.5 text-[9px] font-medium leading-[1.28] text-slate-500">Avail.<br />Balance</span>
               </div>
             </div>
@@ -332,7 +433,7 @@ const Dashboard = () => {
               <span className="text-[10px] font-medium text-slate-500">{joinedLabel}</span>
             </button>
           </div>
-        </section>
+        </motion.section>
 
         <section className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
           <div className="flex items-center justify-between">
@@ -341,23 +442,25 @@ const Dashboard = () => {
               <span className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{dateLabel}</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <button
+              <motion.button
                 type="button"
                 onClick={goToPrevDay}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_3px_8px_rgba(15,23,42,0.03)]"
                 aria-label="Previous day"
               >
                 <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 onClick={goToNextDay}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
                 disabled={isToday}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_3px_8px_rgba(15,23,42,0.03)] disabled:opacity-50"
                 aria-label="Next day"
               >
                 <ChevronRight className="h-4 w-4" />
-              </button>
+              </motion.button>
             </div>
           </div>
 
@@ -374,12 +477,17 @@ const Dashboard = () => {
             <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
           </div>
 
-          <div className="mt-3 rounded-[20px] border border-slate-100 bg-white px-4 py-3 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]">
+          <motion.div 
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
+            animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut", delay: 0.1 }}
+            className="mt-3 rounded-[20px] border border-slate-100 bg-white px-4 py-3 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]"
+          >
             <div className="flex min-h-[100px] items-center justify-between">
               <div className="w-[62px] text-left">
                 <p className="text-[12px] font-medium text-slate-600">Consumed</p>
                 <div className="mt-0.5 flex items-end gap-1.5">
-                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{Math.round(todayProgress.calories)}</span>
+                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{animatedCalories}</span>
                   <Utensils className="mb-0.5 h-[18px] w-[18px] text-[#10A95F]" strokeWidth={2} />
                 </div>
                 <p className="mt-0.5 text-[12px] font-medium text-slate-500">Cal</p>
@@ -389,7 +497,7 @@ const Dashboard = () => {
                 <div className="absolute inset-[-4px] rounded-full bg-[#FFF7ED] blur-[0.5px]" />
                 <svg className="relative h-full w-full -rotate-90" viewBox="0 0 140 140" aria-hidden="true">
                   <circle cx="70" cy="70" r={ringRadius} fill="none" stroke="#FFE8CC" strokeWidth="9" />
-                  <circle
+                  <motion.circle
                     cx="70"
                     cy="70"
                     r={ringRadius}
@@ -400,6 +508,9 @@ const Dashboard = () => {
                     strokeDasharray={ringCirc}
                     strokeDashoffset={ringOffset}
                     style={{ filter: "drop-shadow(0 6px 10px rgba(249,115,22,0.2))" }}
+                    variants={progressRingVariants}
+                    initial="hidden"
+                    animate="visible"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -413,64 +524,53 @@ const Dashboard = () => {
                 <p className="text-[12px] font-medium text-slate-600">Burned</p>
                 <div className="mt-0.5 flex items-end justify-end gap-1.5">
                   <Flame className="mb-0.5 h-[22px] w-[22px] text-[#F97316]" strokeWidth={2} />
-                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{totalBurned}</span>
+                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{animatedBurned}</span>
                 </div>
                 <p className="mt-0.5 text-[12px] font-medium text-slate-500">Cal</p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Macro Cards - Mobile Native Design */}
           <div className="mt-5">
-            <div className="grid grid-cols-3 gap-2">
-              {macroCards.map(({ label, value, target }) => {
+            <motion.div 
+              initial={prefersReducedMotion ? undefined : "hidden"}
+              animate={prefersReducedMotion ? undefined : "visible"}
+              variants={prefersReducedMotion ? undefined : staggerContainer}
+              className="grid grid-cols-3 gap-2.5"
+            >
+              {macroCards.map(({ label, value, target, Icon, iconClass, dotClass, pillClass }) => {
                 const percent = Math.round((value / (target || 1)) * 100);
-                const colors = {
-                  Carbs: { ring: '#059669', bg: '#D1FAE5', card: '#A7F3D0', text: '#047857' },
-                  Protein: { ring: '#EA580C', bg: '#FFEDD5', card: '#FED7AA', text: '#C2410C' },
-                  Fat: { ring: '#7C3AED', bg: '#EDE9FE', card: '#DDD6FE', text: '#6D28D9' },
-                };
-                const color = colors[label as keyof typeof colors] || colors.Carbs;
                 
                 return (
-                  <div 
-                    key={label} 
-                    className="relative flex flex-col items-center justify-center rounded-2xl py-3 px-2 active:scale-[0.98] transition-transform"
-                    style={{ background: color.card }}
+                  <motion.div 
+                    key={label}
+                    variants={prefersReducedMotion ? undefined : staggerItem}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+                    className="rounded-[18px] border border-slate-100 bg-white px-3 py-3 shadow-[0_9px_22px_rgba(15,23,42,0.055)]"
                   >
-                    {/* Circular Progress */}
-                    <div className="relative flex items-center justify-center">
-                      <svg className="h-[52px] w-[52px] -rotate-90" viewBox="0 0 52 52">
-                        <circle 
-                          cx="26" cy="26" r="22" 
-                          fill="none" 
-                          stroke={color.bg} 
-                          strokeWidth="4" 
-                        />
-                        <circle 
-                          cx="26" cy="26" r="22" 
-                          fill="none" 
-                          stroke={color.ring} 
-                          strokeWidth="4" 
-                          strokeDasharray={`${(percent / 100) * 138.23} 138.23`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-[15px] font-bold" style={{ color: color.text }}>{value}</span>
-                        <span className="text-[9px] font-medium text-slate-500 -mt-0.5">grams</span>
+                    <div className="flex items-start gap-2.5">
+                      <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-[0_8px_16px_rgba(15,23,42,0.08)] ${iconClass}`}>
+                        <Icon className="h-[22px] w-[22px]" strokeWidth={2.25} />
+                      </div>
+                      <div className="min-w-0 pt-1">
+                        <p className="text-[12px] font-bold leading-tight text-slate-500">{label}</p>
+                        <p className="mt-1 text-[20px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{value}g</p>
                       </div>
                     </div>
 
-                    {/* Label */}
-                    <span className="mt-1.5 text-[11px] font-semibold text-slate-800">{label}</span>
+                    <div className="mt-4 flex h-[7px] items-center rounded-full bg-slate-200/80">
+                      <span className={`h-[9px] w-[9px] shrink-0 rounded-full ${dotClass}`} />
+                      <span className={`-ml-[2px] h-[4px] rounded-full ${dotClass}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                    </div>
 
-                    {/* Target */}
-                    <span className="text-[10px] font-medium" style={{ color: color.text }}>{percent}% of {target}g</span>
-                  </div>
+                    <div className="mt-4 flex items-center justify-between gap-1.5">
+                      <span className="text-[12px] font-bold tracking-[-0.03em] text-slate-500">/{target}g</span>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold leading-none ${pillClass}`}>{percent}%</span>
+                    </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           </div>
 
           <div className="mt-5">
@@ -497,55 +597,59 @@ const Dashboard = () => {
                   <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{workoutCount}</p>
                 </div>
               </div>
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setSheetOpen(true)}
-                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_10px_20px_rgba(5,150,90,0.28)] active:scale-95"
-                aria-label="Add activity"
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_10px_20px_rgba(5,150,90,0.28)]"
+                aria-label="Open log activity"
               >
                 <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
-              </button>
+              </motion.button>
             </div>
           </div>
 
           <div className="mt-5">
             <h3 className="mb-2.5 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
             <div className="grid grid-cols-3 gap-2">
-              <button
+              <motion.button
                 type="button"
                 onClick={() => navigate("/tracker")}
-                className="flex items-center gap-1 rounded-full border border-[#CFEFE0] bg-[#F2FFF6] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)] active:scale-95"
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                className="flex items-center gap-1 rounded-full border border-[#CFEFE0] bg-[#F2FFF6] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
                 aria-label="Open Tracker"
               >
                 <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_6px_12px_rgba(16,185,129,0.18)]">
                   <Target className="h-[12px] w-[12px]" />
                 </span>
                 <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Tracker</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
                 onClick={() => navigate("/favorites")}
-                className="flex items-center gap-1 rounded-full border border-[#FFC7D3] bg-[#FFF1F4] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)] active:scale-95"
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                className="flex items-center gap-1 rounded-full border border-[#FFC7D3] bg-[#FFF1F4] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
                 aria-label="Favorites"
               >
                 <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FF5C7A] to-[#E0364F] text-white shadow-[0_6px_12px_rgba(224,54,79,0.2)]">
                   <Heart className="h-[12px] w-[12px]" />
                 </span>
                 <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Favorite</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
                 onClick={() => navigate("/progress")}
-                className="flex items-center gap-1 rounded-full border border-[#D6E6FF] bg-[#F3F8FF] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)] active:scale-95"
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                className="flex items-center gap-1 rounded-full border border-[#D6E6FF] bg-[#F3F8FF] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
                 aria-label="Progress"
               >
                 <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5D759A] to-[#354F73] text-white shadow-[0_6px_12px_rgba(53,79,115,0.2)]">
                   <BarChart2 className="h-[12px] w-[12px]" />
                 </span>
                 <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Progress</span>
-              </button>
+              </motion.button>
             </div>
           </div>
 
@@ -560,38 +664,65 @@ const Dashboard = () => {
             Log Meal
           </motion.button>
 
-          <div className="mt-6 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <ShoppingBag className="h-5 w-5 text-[#10A95F]" strokeWidth={2} />
-              <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders (3)</h2>
-            </div>
-            <Link to="/orders" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#08A75F]">
-              View All
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
+          {/* Active Orders section */}
+          {activeOrders.length > 0 && (
+            <>
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <ShoppingBag className="h-5 w-5 text-[#10A95F]" strokeWidth={2} />
+                  <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders ({activeOrders.length})</h2>
+                </div>
+                <Link to="/orders" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#08A75F]">
+                  View All
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
 
-          <div className="mt-2.5 space-y-1.5">
-            {orderRows.map(({ title, detail, status, Icon, badgeClass }) => (
-              <Link
-                key={title}
-                to="/orders"
-                className="flex h-[58px] items-center rounded-[15px] border border-[#D6F0DD] bg-white px-3.5 shadow-[0_6px_14px_rgba(16,185,129,0.03)]"
+              <motion.div 
+                initial={prefersReducedMotion ? undefined : "hidden"}
+                animate={prefersReducedMotion ? undefined : "visible"}
+                variants={prefersReducedMotion ? undefined : staggerContainer}
+                className="mt-2.5 space-y-1.5"
               >
-                <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#23C878] to-[#07894F] text-white shadow-[0_8px_16px_rgba(5,150,90,0.2)]">
-                  <Icon className="h-[18px] w-[18px]" />
-                </div>
-                <div className="ml-3 min-w-0 flex-1">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <p className="truncate text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">{title}</p>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${badgeClass}`}>{status}</span>
-                  </div>
-                  <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{detail}</p>
-                </div>
-                <ChevronRight className="ml-2.5 h-5 w-5 shrink-0 text-slate-500" />
-              </Link>
-            ))}
-          </div>
+                {activeOrders.map((order) => {
+                  const statusConfig: Record<string, { label: string; Icon: React.ElementType; badgeClass: string }> = {
+                    pending: { label: "Pending", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
+                    confirmed: { label: "Confirmed", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
+                    preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
+                    ready: { label: "Ready", Icon: Flame, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
+                    out_for_delivery: { label: "On The Way", Icon: Truck, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
+                  };
+                  const config = statusConfig[order.order_status] || statusConfig.pending;
+                  const IconComponent = config.Icon;
+                  
+                  return (
+                    <motion.div
+                      key={order.id}
+                      variants={prefersReducedMotion ? undefined : staggerItem}
+                      whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+                    >
+                      <Link
+                        to={`/live/${order.id}`}
+                        className="flex h-[58px] items-center rounded-[15px] border border-[#D6F0DD] bg-white px-3.5 shadow-[0_6px_14px_rgba(16,185,129,0.03)]"
+                      >
+                        <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#23C878] to-[#07894F] text-white shadow-[0_8px_16px_rgba(5,150,90,0.2)]">
+                          <IconComponent className="h-[18px] w-[18px]" />
+                        </div>
+                        <div className="ml-3 min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <p className="truncate text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">{order.restaurant_name}</p>
+                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${config.badgeClass}`}>{config.label}</span>
+                          </div>
+                          <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{order.meal_name}</p>
+                        </div>
+                        <ChevronRight className="ml-2.5 h-5 w-5 shrink-0 text-slate-500" />
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </>
+          )}
 
           <div className="mt-5 flex items-center justify-between">
             <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Top Rated</h2>
@@ -633,10 +764,9 @@ const Dashboard = () => {
       </main>
 
       {user && (
-        <LogMealDialog
+        <LogMealModal
           open={logMealOpen}
           onOpenChange={setLogMealOpen}
-          userId={user.id}
           onMealLogged={() => setProgressKey((key) => key + 1)}
         />
       )}

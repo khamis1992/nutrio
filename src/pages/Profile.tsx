@@ -20,16 +20,13 @@ import {
   Trash2,
   Calendar,
   ShieldAlert,
-  Camera,
   Flame,
   Target,
   Activity,
-  Dumbbell,
   CreditCard,
   Tag,
   MessageCircle,
   Lock,
-  Power,
   Leaf,
   ChevronRight,
   AlertTriangle,
@@ -48,6 +45,7 @@ import { FamilyPlansCard } from "@/components/family/FamilyPlansCard";
 import { AddFamilyMemberSheet } from "@/components/family/AddFamilyMemberSheet";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 /* ─── Leaf decoration SVG ─── */
 const LeafDecoration = () => (
@@ -92,9 +90,21 @@ const MenuRow = ({
   labelColor?: string;
 }) => (
   <>
-    <motion.button
-      whileTap={{ scale: 0.985 }}
+    <motion.div
+      role="button"
+      tabIndex={onClick ? 0 : undefined}
+      whileTap={onClick ? { scale: 0.985 } : undefined}
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-slate-50 transition-colors text-start"
     >
       <div
@@ -116,7 +126,7 @@ const MenuRow = ({
       {right ?? (
         <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
       )}
-    </motion.button>
+    </motion.div>
     {showDivider && <div className="h-px bg-slate-100 ml-16" />}
   </>
 );
@@ -188,12 +198,6 @@ const Profile = () => {
     });
   };
 
-  const handleDeactivate = () => {
-    toast({
-      title: t("coming_soon"),
-      description: t("deactivate_coming_soon"),
-    });
-  };
 
   const formatMemberDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -251,27 +255,11 @@ const Profile = () => {
           <LeafDecoration />
           <div className="relative flex items-center gap-4">
             {/* Avatar */}
-            <div className="relative shrink-0">
-              <div className="w-[72px] h-[72px] rounded-full overflow-hidden bg-white border-[3px] border-white/30 shadow-lg">
-                {avatarUrl || profile?.avatar_url ? (
-                  <img
-                    src={avatarUrl || profile?.avatar_url || undefined}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-emerald-100">
-                    <User className="w-8 h-8 text-emerald-600" />
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => navigate("/personal-info")}
-                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center border border-emerald-100"
-              >
-                <Camera className="w-3.5 h-3.5 text-emerald-600" />
-              </button>
-            </div>
+            <AvatarUpload
+              currentAvatarUrl={profile?.avatar_url || null}
+              onAvatarUpdate={(url) => setAvatarUrl(url)}
+              size="lg"
+            />
 
             {/* Info */}
             <div className="flex-1 min-w-0">
@@ -375,14 +363,7 @@ const Profile = () => {
               subtitle={t("dietary_preferences_subtitle")}
               onClick={() => navigate("/dietary")}
             />
-            <MenuRow
-              icon={<Dumbbell className="w-full h-full" />}
-              iconBg="bg-indigo-500"
-              label={t("activity_lifestyle")}
-              subtitle={t("activity_lifestyle_subtitle")}
-              onClick={() => navigate("/tracker")}
-              showDivider={false}
-            />
+
           </CardSection>
 
           {/* ─── Finance ─── */}
@@ -444,10 +425,11 @@ const Profile = () => {
           <CardSection>
             <MenuRow
               icon={<Trash2 className="w-full h-full" />}
-              iconBg="bg-slate-100"
-              iconColor="text-slate-500"
+              iconBg="bg-red-50"
+              iconColor="text-red-500"
               label={t("delete_account")}
               subtitle={t("delete_account_subtitle")}
+              labelColor="text-red-500"
               onClick={() => {}}
               right={
                 <AlertDialog>
@@ -483,16 +465,7 @@ const Profile = () => {
                 </AlertDialog>
               }
             />
-            <MenuRow
-              icon={<Power className="w-full h-full" />}
-              iconBg="bg-red-50"
-              iconColor="text-red-500"
-              label={t("deactivate_account")}
-              subtitle={t("deactivate_account_subtitle")}
-              labelColor="text-red-500"
-              onClick={handleDeactivate}
-              showDivider={false}
-            />
+
           </CardSection>
 
           <div className="h-6" />

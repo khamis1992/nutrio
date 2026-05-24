@@ -39,9 +39,15 @@ export const AvatarUpload = ({
     if (!user) return;
     setUploading(true);
     try {
-      // Convert base64 data URL to Blob for upload
-      const res = await fetch(base64Data);
-      const blob = await res.blob();
+      // Convert base64 data URL to Blob without using fetch (CSP compliance)
+      const byteString = atob(base64Data.split(',')[1]);
+      const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
       const filePath = `avatars/${user.id}/avatar.${ext}`;
 
       const { error: uploadError } = await supabase.storage
