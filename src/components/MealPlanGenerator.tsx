@@ -5,20 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  Flame, 
-  Plus, 
-  ShoppingCart,
-  Utensils,
-  Clock,
-  Star,
-  RefreshCw,
-  Sparkles,
-  Target
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, addDays, startOfWeek } from "date-fns";
 
@@ -250,7 +237,7 @@ export function MealPlanGenerator() {
           {isGenerating ? (
             <RefreshCw className="w-4 h-4 animate-spin" />
           ) : (
-            <Sparkles className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" />
           )}
           {isGenerating ? "Generating..." : "Generate Smart Plan"}
         </Button>

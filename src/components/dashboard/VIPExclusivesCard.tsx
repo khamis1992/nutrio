@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Crown, Sparkles, ChevronRight, ChefHat, Calendar, BadgeCheck } from "lucide-react";
+import { Crown, ChevronRight, ChefHat, Calendar, BadgeCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { fadeInUp } from "@/lib/animations";
@@ -142,7 +142,7 @@ export function VIPExclusivesCard() {
           >
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <Crown className="w-3.5 h-3.5 text-amber-500" />
               </div>
               <span className="text-xs font-semibold text-slate-700">
                 {t("vip_view_all_exclusives") || "View All VIP Meals"}

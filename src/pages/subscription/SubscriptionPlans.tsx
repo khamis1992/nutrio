@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Zap, Crown, Loader2, ArrowLeft, Utensils, Apple, ShieldCheck, Sparkles, CalendarCheck, LayoutGrid, Table2 } from "lucide-react";
+import { Check, Zap, Crown, Loader2, ArrowLeft, Utensils, Apple, ShieldCheck, CalendarCheck, LayoutGrid, Table2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -94,7 +94,6 @@ export default function SubscriptionPlans() {
 
         <div className="relative max-w-lg mx-auto text-center">
           <Badge className="mb-3 bg-white/15 text-white border-white/20 backdrop-blur-sm px-3 py-1">
-            <Sparkles className="h-3 w-3 mr-1.5" />
             AI-Powered Nutrition
           </Badge>
           <h1 className="text-[26px] font-extrabold mb-3 tracking-tight leading-tight">

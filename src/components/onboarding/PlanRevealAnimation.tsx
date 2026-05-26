@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Sparkles, Star } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { spring, springBouncy } from "@/lib/animations";
 
@@ -203,7 +203,6 @@ export function PlanRevealAnimation({
               </div>
 
               <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mt-1">
-                <Star className="w-3.5 h-3.5 text-amber-500" />
                 <span>{carbsPct}% carbs</span>
                 <span className="text-border">·</span>
                 <span>{proteinPct}% protein</span>
@@ -229,7 +228,6 @@ export function PlanRevealAnimation({
               className="w-full rounded-2xl font-bold shadow-lg shadow-primary/20"
               onClick={onViewDashboard}
             >
-              <Sparkles className="w-5 h-5 mr-2" />
               View Dashboard
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>

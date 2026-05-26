@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Send, X, MessageCircle, Sparkles } from "lucide-react";
+import { Crown, Send, X, MessageCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useCoachChat } from "@/hooks/useCoachChat";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -111,7 +111,7 @@ export function CoachChatBubble() {
           animate={{ scale: [1, 1.15, 1] }}
           transition={{ repeat: Infinity, duration: 2 }}
         >
-          <Sparkles className="w-3 h-3 text-amber-500" />
+          <Crown className="w-3 h-3 text-amber-500" />
         </motion.span>
       </motion.button>
 

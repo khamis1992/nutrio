@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Sparkles, ShoppingBag, Info, Clock, Lock, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, ShoppingBag, Info, Clock, Lock, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -146,7 +146,6 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
           </Button>
 
           <p className="text-emerald-500 text-xs flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
             New credits are granted automatically at renewal
           </p>
         </CardContent>
@@ -168,8 +167,8 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
     <div className="relative rounded-2xl overflow-hidden" style={{
       background: 'linear-gradient(135deg, #059669 0%, #0d9488 40%, #10b981 70%, #34d399 100%)',
     }}>
-      {/* Decorative sparkle */}
-      <Sparkles className="absolute bottom-3 right-3 w-8 h-8 text-white/10" />
+      {/* Decorative background circle */}
+      <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-white/10" />
 
       <div className="relative p-5 space-y-4">
         {/* Header row */}

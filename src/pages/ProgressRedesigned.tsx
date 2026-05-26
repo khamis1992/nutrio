@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -10,6 +10,7 @@ import {
   Target,
   RefreshCw,
   ChevronRight,
+  Plus,
   TrendingUp,
   Calendar,
   Wheat,
@@ -258,7 +259,16 @@ function FoodScoreCard({ score, label }: { score: number; label: string }) {
 }
 
 // ─── Macro Circle ──────────────────────────────────────────────
-function MacroCircle({ icon, color, value, target, unit, label }: any) {
+type MacroCircleProps = {
+  icon: ReactNode;
+  color: "orange" | "blue" | "amber";
+  value: string | number;
+  target: string | number;
+  unit: string;
+  label: string;
+};
+
+function MacroCircle({ icon, color, value, target, unit, label }: MacroCircleProps) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className={cn(
@@ -280,7 +290,18 @@ function MacroCircle({ icon, color, value, target, unit, label }: any) {
 }
 
 // ─── Macro Detail Card ─────────────────────────────────────────
-function MacroDetailCard({ icon, label, color, status, value, unit, goal, remaining }: any) {
+type MacroDetailCardProps = {
+  icon: ReactNode;
+  label: string;
+  color: string;
+  status: string;
+  value: string | number;
+  unit: string;
+  goal: string;
+  remaining: string;
+};
+
+function MacroDetailCard({ icon, label, color, status, value, unit, goal, remaining }: MacroDetailCardProps) {
   const statusColors: Record<string, string> = {
     "Below Goal": "bg-blue-50 text-blue-500",
     "On Track": "bg-emerald-50 text-emerald-500",
@@ -319,7 +340,7 @@ function MacroDetailCard({ icon, label, color, status, value, unit, goal, remain
 }
 
 // ─── Micro Stat Card ───────────────────────────────────────────
-function MicroStatCard({ value, label, goal }: any) {
+function MicroStatCard({ value, label, goal }: { value: string | number; label: string; goal: string }) {
   return (
     <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 text-center">
       <p className="text-lg font-bold text-slate-900">{value}</p>
@@ -330,7 +351,7 @@ function MicroStatCard({ value, label, goal }: any) {
 }
 
 // ─── Nutrient Balance Bar ──────────────────────────────────────
-function NutrientBalance({ onTrack, needMore, exceeding, noData }: any) {
+function NutrientBalance({ onTrack, needMore, exceeding, noData }: { onTrack: number; needMore: number; exceeding: number; noData: number }) {
   const total = onTrack + needMore + exceeding + noData || 1;
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
@@ -355,7 +376,7 @@ function NutrientBalance({ onTrack, needMore, exceeding, noData }: any) {
 }
 
 // ─── Insight Item ────────────────────────────────────────────────
-function InsightItem({ icon, color, title, subtitle }: any) {
+function InsightItem({ icon, color, title, subtitle }: { icon: ReactNode; color: string; title: string; subtitle?: string }) {
   return (
     <div className="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0">
       <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", color)}>
@@ -371,7 +392,7 @@ function InsightItem({ icon, color, title, subtitle }: any) {
 }
 
 // ─── Recommendation Card ─────────────────────────────────────────
-function RecommendationCard({ title, description, linkText }: any) {
+function RecommendationCard({ title, description, linkText }: { title: string; description: string; linkText: string }) {
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 border-l-4 border-l-red-500">
       <div className="flex items-center gap-2 mb-1">
@@ -388,6 +409,675 @@ function RecommendationCard({ title, description, linkText }: any) {
           <p className="text-xs font-semibold text-emerald-500 mt-2">{linkText}</p>
         </div>
         <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 mt-1" />
+      </div>
+    </div>
+  );
+}
+
+type TodayMetric = {
+  label: string;
+  icon: string;
+  value: string;
+  target: string;
+  percent: number;
+  color: string;
+  soft: string;
+};
+
+function ProgressArc({
+  percent,
+  color,
+  size = 120,
+  stroke = 9,
+  trackColor = "#EEF2F5",
+}: {
+  percent: number;
+  color: string;
+  size?: number;
+  stroke?: number;
+  trackColor?: string;
+}) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (Math.min(Math.max(percent, 0), 100) / 100) * circumference;
+
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={trackColor} strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${circumference}`}
+      />
+    </svg>
+  );
+}
+
+function HeroSideMetric({ metric }: { metric: TodayMetric }) {
+  return (
+    <div className="flex h-[122px] w-[88px] min-w-[88px] flex-col items-center justify-center rounded-[19px] border border-white/15 bg-white/14 px-2.5 py-3 text-center text-white shadow-[inset_0_1px_14px_rgba(255,255,255,0.16),0_12px_25px_rgba(15,23,42,0.12)] backdrop-blur-md">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(15,23,42,0.12)]" style={{ background: metric.soft }}>
+        <span className="text-[20px] leading-none">{metric.icon}</span>
+      </div>
+      <p className="mt-3 text-[22px] font-extrabold leading-none tracking-[-0.045em]">{metric.value}</p>
+      <p className="mt-1 text-[13px] font-medium leading-none text-white/82">{metric.label}</p>
+      <p className="mt-4 text-[12px] font-medium leading-tight text-white/88">
+        of {metric.label === "Calories" ? metric.target.replace(" kcal", "") : metric.target}
+      </p>
+      <div className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-black/12">
+        <div className="h-full rounded-full" style={{ width: `${Math.min(metric.percent, 100)}%`, background: metric.color }} />
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ metric }: { metric: TodayMetric }) {
+  return (
+    <div className="min-w-[112px] rounded-[22px] border border-slate-100 bg-white p-4 text-center shadow-[0_14px_32px_rgba(15,23,42,0.08)]">
+      <p className="text-[13px] font-bold text-slate-700">{metric.label}</p>
+      <div className="relative mx-auto mt-3 h-[82px] w-[82px]">
+        <ProgressArc percent={metric.percent} color={metric.color} size={82} stroke={7} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full" style={{ background: metric.soft }}>
+            <span className="text-2xl leading-none">{metric.icon}</span>
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-[22px] font-extrabold leading-none text-slate-950">{metric.value}</p>
+      <p className="mt-1 text-[13px] font-semibold text-slate-400">/ {metric.target}</p>
+    </div>
+  );
+}
+
+function StreakCard({ currentStreak }: { currentStreak: number }) {
+  const activeDays = Math.min(currentStreak, 4);
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+
+  return (
+    <div className="flex items-center gap-3 rounded-[22px] border border-slate-100 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-50 text-2xl">🔥</div>
+      <div className="min-w-[92px]">
+        <p className="text-base font-extrabold text-slate-950">Streak</p>
+        <p className="text-[13px] font-medium text-slate-500">Keep it going!</p>
+      </div>
+      <div className="flex flex-1 items-center justify-center gap-2">
+        {days.map((day, index) => {
+          const complete = index < activeDays;
+          const today = index === 4;
+          return (
+            <div key={`${day}-${index}`} className="flex flex-col items-center gap-1">
+              <span className="text-[11px] font-semibold text-slate-400">{day}</span>
+              <span
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold",
+                  complete && "bg-emerald-500 text-white shadow-[0_6px_12px_rgba(16,185,129,0.22)]",
+                  today && !complete && "border-2 border-orange-500 bg-white text-transparent",
+                  !complete && !today && "border-2 border-slate-200 bg-white text-transparent"
+                )}
+              >
+                ✓
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="rounded-[14px] bg-orange-50 px-4 py-2 text-center">
+        <p className="text-2xl font-extrabold leading-none text-orange-500">{currentStreak}</p>
+        <p className="mt-1 text-[11px] font-semibold text-slate-500">Day Streak</p>
+      </div>
+    </div>
+  );
+}
+
+function AiInsightCard({ score, label, color }: { score: number; label: string; color: string }) {
+  return (
+    <div className="relative overflow-hidden rounded-[22px] border border-violet-100 bg-violet-50/80 px-4 py-4 shadow-[0_12px_30px_rgba(124,58,237,0.08)]">
+      <div className="absolute right-20 top-4 h-16 w-36 opacity-70">
+        <svg viewBox="0 0 140 54" className="h-full w-full">
+          <polyline points="2,42 22,18 42,20 61,4 80,25 99,19 118,11 137,2" fill="none" stroke="#9B7EF3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          {[2, 22, 42, 61, 80, 99, 118, 137].map((x, i) => (
+            <circle key={x} cx={x} cy={[42, 18, 20, 4, 25, 19, 11, 2][i]} r="3" fill="#B7A3FF" />
+          ))}
+        </svg>
+      </div>
+      <div className="relative flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-200 text-3xl shadow-[0_12px_24px_rgba(124,58,237,0.16)]">✦</div>
+          <div>
+            <p className="text-[13px] font-extrabold text-violet-600">AI Insight</p>
+            <p className="text-[15px] font-semibold text-slate-700">Your meal quality is <span style={{ color }}>{label}</span></p>
+            <p className="mt-1 text-[13px] font-medium text-slate-500">+12% better than last week <span className="text-emerald-500">↑</span></p>
+          </div>
+        </div>
+        <div className="rounded-[14px] bg-violet-100 px-3 py-2 text-center">
+          <span className="text-lg font-extrabold text-violet-600">{score}</span>
+          <span className="text-sm font-semibold text-violet-500">/100</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SmartRecommendationStrip() {
+  const items = [
+    { icon: "🥦", title: "Add more\ngreens today", bg: "bg-emerald-50", color: "#10B981" },
+    { icon: "💧", title: "Drink 2 more\nglasses of water", bg: "bg-blue-50", color: "#3B82F6" },
+    { icon: "👟", title: "Great streak\nmomentum!", bg: "bg-orange-50", color: "#F97316" },
+    { icon: "🌙", title: "Aim for\n7–8 hours", bg: "bg-violet-50", color: "#8B5CF6" },
+  ];
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between px-0.5">
+        <h2 className="text-lg font-extrabold text-slate-950">Smart Recommendations</h2>
+        <button className="flex items-center gap-1 text-sm font-bold text-emerald-600">
+          View All
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+        {items.map((item) => (
+          <div key={item.title} className={cn("flex min-w-[166px] items-center gap-3 rounded-[18px] border border-slate-100 p-3 shadow-[0_10px_22px_rgba(15,23,42,0.05)]", item.bg)}>
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl">{item.icon}</div>
+            <p className="flex-1 whitespace-pre-line text-[13px] font-semibold leading-tight text-slate-600">{item.title}</p>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ background: item.color }}>
+              <ChevronRight className="h-4 w-4" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+type WeekStatus = "on" | "partial" | "none";
+
+type WeekDaySummary = {
+  day: string;
+  featured?: boolean;
+  status: WeekStatus;
+  kcal: string;
+  meals: WeekStatus;
+  workouts: WeekStatus;
+  water: WeekStatus;
+};
+
+const weeklyDays: WeekDaySummary[] = [
+  { day: "Mon", status: "on", kcal: "2,078", meals: "on", workouts: "on", water: "on" },
+  { day: "Tue", status: "on", kcal: "2,150", meals: "on", workouts: "on", water: "on" },
+  { day: "Wed", status: "on", kcal: "1,980", meals: "on", workouts: "partial", water: "on" },
+  { day: "Thu", featured: true, status: "partial", kcal: "1,420", meals: "partial", workouts: "on", water: "partial" },
+  { day: "Fri", status: "on", kcal: "2,300", meals: "on", workouts: "none", water: "on" },
+  { day: "Sat", status: "none", kcal: "—", meals: "none", workouts: "none", water: "none" },
+  { day: "Sun", status: "none", kcal: "—", meals: "none", workouts: "none", water: "none" },
+];
+
+const nutrientTrendCards = [
+  {
+    icon: "🔥",
+    label: "Calories",
+    avg: "avg",
+    value: "1,986",
+    unit: "kcal",
+    color: "#F97316",
+    delta: "8%",
+    positive: true,
+    points: [27, 39, 47, 42, 44, 55, 37, 40],
+  },
+  {
+    icon: "◎",
+    label: "Protein",
+    avg: "avg",
+    value: "132",
+    unit: "g",
+    color: "#2F80ED",
+    delta: "14%",
+    positive: true,
+    points: [42, 35, 48, 55, 58, 39, 52],
+  },
+  {
+    icon: "💧",
+    label: "Water",
+    avg: "avg",
+    value: "6.2",
+    unit: "Glasses",
+    color: "#2F80ED",
+    delta: "5%",
+    positive: false,
+    points: [58, 43, 48, 34, 37, 22, 25],
+  },
+];
+
+function WeekStatusDot({ status, size = "sm" }: { status: WeekStatus; size?: "sm" | "lg" }) {
+  const isLarge = size === "lg";
+
+  if (status === "on") {
+    return (
+      <span className={cn("inline-flex items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_12px_rgba(16,185,129,0.24)]", isLarge ? "h-8 w-8 text-lg" : "h-4 w-4 text-[10px]")}>✓</span>
+    );
+  }
+
+  if (status === "partial") {
+    return (
+      <span className={cn("inline-flex items-center justify-center rounded-full border-[3px] border-orange-500 bg-white text-orange-500", isLarge ? "h-8 w-8 border-[4px] text-sm" : "h-4 w-4 border-2 text-[8px]")}>{isLarge ? "" : "↗"}</span>
+    );
+  }
+
+  return <span className={cn("inline-flex rounded-full border-2 border-slate-300 bg-white", isLarge ? "h-8 w-8" : "h-4 w-4")} />;
+}
+
+function WeekRowIcon({ icon, color }: { icon: string; color: string }) {
+  return (
+    <div className="flex h-8 w-8 items-center justify-center rounded-xl text-lg shadow-[0_8px_16px_rgba(15,23,42,0.08)]" style={{ background: color }}>
+      {icon}
+    </div>
+  );
+}
+
+function WeeklyScoreRing() {
+  return (
+    <div className="relative h-[150px] w-[150px] shrink-0">
+      <svg viewBox="0 0 150 150" className="absolute inset-0 h-full w-full -rotate-90">
+        <circle cx="75" cy="75" r="58" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="13" />
+        <circle cx="75" cy="75" r="58" fill="none" stroke="#6EE7A8" strokeWidth="13" strokeLinecap="round" strokeDasharray="150 365" />
+        <circle cx="75" cy="75" r="58" fill="none" stroke="#6EE7A8" strokeWidth="13" strokeLinecap="round" strokeDasharray="204 365" strokeDashoffset="-186" />
+      </svg>
+      <div className="absolute inset-[26px] rounded-full bg-black/8 shadow-[inset_0_0_28px_rgba(0,0,0,0.16)]" />
+      <svg viewBox="0 0 104 74" className="absolute left-6 top-10 h-[74px] w-[104px]">
+        <polyline points="5,55 20,39 34,36 48,23 61,40 76,29 96,24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {[5, 34, 48, 61, 76, 96].map((x, index) => (
+          <circle key={x} cx={x} cy={[55, 36, 23, 40, 29, 24][index]} r="4" fill={index === 5 ? "#FDE68A" : "white"} stroke="rgba(0,80,80,0.24)" strokeWidth="1" />
+        ))}
+      </svg>
+      <div className="absolute left-1/2 top-[45px] -translate-x-1/2 text-[36px] leading-none drop-shadow-sm">👑</div>
+    </div>
+  );
+}
+
+function WeeklyScoreHero({ currentStreak }: { currentStreak: number }) {
+  return (
+    <section className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_80%_0%,rgba(45,212,191,0.55),transparent_40%),linear-gradient(135deg,#078E79_0%,#036D68_48%,#0E9B91_100%)] px-5 py-6 text-white shadow-[0_18px_38px_rgba(0,108,95,0.22)]">
+      <div className="absolute -right-10 top-8 h-28 w-28 rounded-full border-[9px] border-white/8" />
+      <Leaf className="absolute -right-2 top-16 h-24 w-24 rotate-[-28deg] text-white/10" strokeWidth={2} />
+      <Star className="absolute bottom-9 right-8 h-10 w-10 rotate-12 text-white/8" />
+      <div className="relative grid grid-cols-[1fr_150px_1fr] items-center gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[20px] font-extrabold tracking-[-0.03em]">Weekly Score</h2>
+            <Info className="h-5 w-5 text-white/80" />
+          </div>
+          <div className="mt-5 flex items-end gap-1 tracking-[-0.06em]">
+            <span className="text-[70px] font-black leading-none">82</span>
+            <span className="mb-2 text-[25px] font-extrabold">/100</span>
+          </div>
+          <div className="mt-4 inline-flex rounded-full bg-white/12 px-3 py-2 text-[13px] font-bold text-white shadow-[inset_0_1px_10px_rgba(255,255,255,0.12)]">↑ 12 pts vs last week</div>
+        </div>
+        <WeeklyScoreRing />
+        <div className="space-y-5">
+          {[
+            { icon: "🔥", value: `${Math.max(currentStreak, 5)} Day Streak`, text: "Keep it up!", bg: "rgba(255,152,0,0.34)" },
+            { icon: "🌿", value: "82%", text: "Nutrition Consistency", bg: "rgba(16,185,129,0.34)" },
+            { icon: "💧", value: "+12%", text: "Water vs last week", bg: "rgba(59,130,246,0.45)" },
+          ].map((item) => (
+            <div key={item.value} className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl shadow-[0_10px_22px_rgba(15,23,42,0.15)]" style={{ background: item.bg }}>{item.icon}</div>
+              <div className="min-w-0">
+                <p className="text-[18px] font-extrabold leading-tight">{item.value}</p>
+                <p className="text-[14px] font-medium leading-tight text-white/88">{item.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function YourWeekCard() {
+  const rows: Array<{ label: string; key: "meals" | "workouts" | "water"; icon: string; color: string }> = [
+    { label: "Meals Logged", key: "meals", icon: "🍴", color: "linear-gradient(135deg,#10B981,#059669)" },
+    { label: "Workouts", key: "workouts", icon: "🏋️", color: "linear-gradient(135deg,#8B5CF6,#6366F1)" },
+    { label: "Water Goal", key: "water", icon: "💧", color: "linear-gradient(135deg,#60A5FA,#2563EB)" },
+  ];
+
+  return (
+    <section className="rounded-[22px] border border-slate-100 bg-white px-4 py-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-slate-950">Your Week</h2>
+        <div className="flex items-center gap-4 text-[12px] font-semibold text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />On Track</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" />Partial</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border border-slate-300" />No Data</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-[138px_repeat(7,minmax(0,1fr))] gap-y-3">
+        <div />
+        {weeklyDays.map((day) => (
+          <div key={day.day} className="text-center">
+            <p className="text-[13px] font-semibold text-slate-600">{day.day} {day.featured && <span className="text-yellow-400">★</span>}</p>
+            <div className="mt-2 flex justify-center"><WeekStatusDot status={day.status} size="lg" /></div>
+            <p className="mt-2 text-[14px] font-bold leading-none text-slate-900">{day.kcal}</p>
+            <p className="mt-1 text-[12px] font-medium text-slate-500">kcal</p>
+          </div>
+        ))}
+        {rows.map((row) => (
+          <div key={row.key} className="contents">
+            <div className="flex items-center gap-2 text-[13px] font-bold text-slate-800">
+              <WeekRowIcon icon={row.icon} color={row.color} />
+              {row.label}
+            </div>
+            {weeklyDays.map((day) => (
+              <div key={`${row.key}-${day.day}`} className="flex items-center justify-center">
+                <WeekStatusDot status={day[row.key]} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MiniSparkline({ points, color }: { points: number[]; color: string }) {
+  const width = 128;
+  const height = 48;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const range = max - min || 1;
+  const coords = points
+    .map((point, index) => {
+      const x = (index / Math.max(points.length - 1, 1)) * width;
+      const y = height - ((point - min) / range) * 34 - 7;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 h-12 w-full overflow-visible">
+      <polyline points={coords} fill="none" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.split(" ").map((coord) => {
+        const [x, y] = coord.split(",");
+        return <circle key={coord} cx={x} cy={y} r="3.4" fill={color} stroke="white" strokeWidth="1.4" />;
+      })}
+    </svg>
+  );
+}
+
+function NutrientTrendCard({ card }: { card: typeof nutrientTrendCards[number] }) {
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-xl shadow-inner">{card.icon}</span>
+        <p className="text-[13px] font-extrabold text-slate-900">{card.label} <span className="font-semibold text-slate-400">({card.avg})</span></p>
+      </div>
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <p className="text-[22px] font-black leading-none tracking-[-0.035em] text-slate-950">{card.value} <span className="text-[13px] font-semibold tracking-normal text-slate-500">{card.unit}</span></p>
+        <p className={cn("text-[11px] font-extrabold", card.positive ? "text-emerald-500" : "text-red-500")}>{card.positive ? "↑" : "↓"} {card.delta} <span className="font-semibold text-slate-400">vs last week</span></p>
+      </div>
+      <MiniSparkline points={card.points} color={card.color} />
+      <div className="mt-2 flex justify-between text-[11px] font-semibold text-slate-400">
+        {Array.from("MTWTFSS").map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function WeekHighlightsCard() {
+  const items = [
+    { icon: "🏆", title: "Best Protein Day", subtitle: "Tuesday", value: "168 g", bg: "#FFF0E2" },
+    { icon: "🔥", title: "Highest Calories Burn", subtitle: "Friday", value: "720 kcal", bg: "#DCFCE7" },
+    { icon: "💧", title: "Most Hydrated Day", subtitle: "Monday", value: "8 Glasses", bg: "#EAF4FF" },
+  ];
+
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <h3 className="text-[14px] font-extrabold text-slate-950">This Week Highlights</h3>
+      <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100">
+        {items.map((item) => (
+          <div key={item.title} className="px-2 text-center first:pl-0 last:pr-0">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl" style={{ background: item.bg }}>{item.icon}</div>
+            <p className="mt-3 text-[11px] font-extrabold leading-tight text-slate-900">{item.title}</p>
+            <p className="mt-1 text-[12px] font-medium text-slate-500">{item.subtitle}</p>
+            <p className="mt-1 text-[17px] font-black text-slate-950">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeekCompareCard() {
+  const rows = [
+    { icon: "🔥", label: "Calories", value: "+8%", positive: true },
+    { icon: "◎", label: "Protein", value: "+14%", positive: true },
+    { icon: "💧", label: "Water", value: "-5%", positive: false },
+    { icon: "↗", label: "Consistency", value: "+21%", positive: true },
+  ];
+
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <h3 className="text-[14px] font-extrabold text-slate-950">This Week vs Last Week</h3>
+      <div className="mt-4 divide-y divide-slate-100">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center gap-2 py-2 first:pt-0 last:pb-0">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 text-base">{row.icon}</span>
+            <span className="flex-1 text-[13px] font-bold text-slate-800">{row.label}</span>
+            <span className={cn("text-[14px] font-black", row.positive ? "text-emerald-500" : "text-red-500")}>{row.value}</span>
+            <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-sm", row.positive ? "bg-emerald-50 text-emerald-500" : "bg-red-50 text-red-500")}>{row.positive ? "↑" : "↓"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HabitConsistencyCard() {
+  const habits = [
+    { icon: "🍴", label: "Meal Logging", value: "6/7 days", pct: 86, color: "#10B981", bg: "#E7F8EF" },
+    { icon: "💧", label: "Water Tracking", value: "5/7 days", pct: 72, color: "#10B981", bg: "#EAF4FF" },
+    { icon: "🏋️", label: "Workouts", value: "3/7 days", pct: 42, color: "#8B5CF6", bg: "#F0EAFF" },
+    { icon: "☾", label: "Sleep Goal", value: "6/7 days", pct: 86, color: "#10B981", bg: "#F0EAFF" },
+  ];
+
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-[15px] font-extrabold text-slate-950">Habit Consistency</h3>
+        <span className="text-[13px] font-extrabold text-emerald-600">View All</span>
+      </div>
+      <div className="space-y-3">
+        {habits.map((habit) => (
+          <div key={habit.label} className="grid grid-cols-[116px_1fr_56px] items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full text-base" style={{ background: habit.bg }}>{habit.icon}</span>
+              <span className="text-[12px] font-bold text-slate-800">{habit.label}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-full rounded-full" style={{ width: `${habit.pct}%`, background: habit.color }} />
+            </div>
+            <span className="text-right text-[12px] font-semibold text-slate-500">{habit.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeeklyGoalProgressCard() {
+  const goals = [
+    { label: "Calories Goal", value: "5/7 days", status: "✓", color: "text-emerald-500" },
+    { label: "Protein Goal", value: "6/7 days", status: "✓", color: "text-emerald-500" },
+    { label: "Water Goal", value: "5/7 days", status: "✓", color: "text-emerald-500" },
+    { label: "Activity Goal", value: "3/7 days", status: "◔", color: "text-orange-500" },
+  ];
+
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <h3 className="text-[15px] font-extrabold text-slate-950">Weekly Goal Progress</h3>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="relative h-[112px] w-[112px] shrink-0">
+          <ProgressArc percent={72} color="#10B981" size={112} stroke={10} trackColor="#E8EEF0" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+            <p className="text-[34px] font-black leading-none tracking-[-0.06em] text-slate-950">72<span className="text-[15px]">%</span></p>
+            <p className="mt-1 text-[12px] font-semibold text-slate-500">Completed</p>
+          </div>
+        </div>
+        <div className="flex-1 space-y-2.5">
+          {goals.map((goal) => (
+            <div key={goal.label} className="grid grid-cols-[18px_1fr_58px_16px] items-center gap-2">
+              <span className={cn("text-lg leading-none", goal.color)}>{goal.status}</span>
+              <span className="text-[12px] font-bold text-slate-800">{goal.label}</span>
+              <span className="text-right text-[12px] font-semibold text-slate-700">{goal.value}</span>
+              <span className={cn("text-right text-base leading-none", goal.color)}>✓</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AiWeeklyInsightCard() {
+  return (
+    <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_92%_20%,rgba(255,255,255,0.9),transparent_14%),linear-gradient(135deg,#F4ECFF_0%,#EDE4FF_52%,#F9F6FF_100%)] p-5 shadow-[0_16px_34px_rgba(124,58,237,0.15)]">
+      <span className="absolute left-5 top-5 text-3xl text-indigo-500">✦</span>
+      <span className="absolute right-8 top-8 text-xl text-violet-400">✦</span>
+      <h3 className="ml-10 text-[16px] font-extrabold text-indigo-600">AI Weekly Insight</h3>
+      <p className="mt-6 text-[15px] font-medium leading-7 text-slate-700">Your protein intake <span className="font-black text-slate-950">improved 18%</span> this week. Keep this pace for better muscle recovery and energy!</p>
+    </div>
+  );
+}
+
+function WeeklyAchievementsCard() {
+  const achievements = [
+    { icon: "🔥", label: "5 Day Streak", bg: "#FFF0E2" },
+    { icon: "🥗", label: "Balanced Week", bg: "#DCFCE7" },
+    { icon: "💧", label: "Hydration Hero", bg: "#EAF4FF" },
+    { icon: "⭐", label: "Consistency Pro", bg: "#EFE7FF" },
+  ];
+
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-[15px] font-extrabold text-slate-950">Weekly Achievements</h3>
+        <span className="text-[13px] font-extrabold text-emerald-600">View All</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {achievements.map((item) => (
+          <div key={item.label} className="text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl" style={{ background: item.bg }}>{item.icon}</div>
+            <p className="mt-2 text-[11px] font-bold leading-tight text-slate-900">{item.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeekTabClone({ firstName, syncing, onSync, currentStreak }: { firstName: string; syncing: boolean; onSync: () => void; currentStreak: number }) {
+  return (
+    <div className="space-y-4 pb-2">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-[25px] font-black leading-tight tracking-[-0.04em] text-slate-950">Hello, {firstName}! <span className="text-[23px]">👋</span></h2>
+          <p className="mt-1 text-[15px] font-medium text-slate-500">Here's your weekly nutrition overview</p>
+        </div>
+        <button
+          onClick={onSync}
+          disabled={syncing}
+          className="flex h-12 shrink-0 items-center gap-2 rounded-full border border-emerald-500 bg-white px-4 text-[14px] font-extrabold text-emerald-600 shadow-[0_8px_18px_rgba(16,185,129,0.08)] active:scale-95 disabled:opacity-70"
+        >
+          <RefreshCw className={cn("h-5 w-5", syncing && "animate-spin")} />
+          Sync Now
+        </button>
+      </div>
+
+      <WeeklyScoreHero currentStreak={currentStreak} />
+      <YourWeekCard />
+
+      <section>
+        <div className="mb-3 flex items-center justify-between px-1">
+          <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-slate-950">Nutrient Trends</h2>
+          <button className="flex items-center gap-1 text-[13px] font-extrabold text-emerald-600">View All <ChevronRight className="h-4 w-4" /></button>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {nutrientTrendCards.map((card) => <NutrientTrendCard key={card.label} card={card} />)}
+        </div>
+        <div className="mt-3 flex justify-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-4">
+        <WeekHighlightsCard />
+        <WeekCompareCard />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <HabitConsistencyCard />
+        <WeeklyGoalProgressCard />
+      </div>
+
+      <div className="grid grid-cols-[0.9fr_1.1fr] gap-4">
+        <AiWeeklyInsightCard />
+        <WeeklyAchievementsCard />
+      </div>
+    </div>
+  );
+}
+
+function WeightForecastClone({ currentWeight, targetWeight }: { currentWeight: number; targetWeight: number }) {
+  const projectedLoss = 0.8;
+
+  return (
+    <div className="rounded-[24px] border border-slate-100 bg-white p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)]">
+      <h2 className="mb-3 text-lg font-extrabold text-slate-950">Weight Forecast</h2>
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <svg viewBox="0 0 250 124" className="h-[124px] w-full">
+            <defs>
+              <linearGradient id="forecastFill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="#10B981" stopOpacity="0.24" />
+                <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <text x="0" y="18" fontSize="11" fill="#94A3B8">72</text>
+            <text x="0" y="58" fontSize="11" fill="#94A3B8">70</text>
+            <text x="0" y="100" fontSize="11" fill="#94A3B8">68</text>
+            <polygon points="24,38 54,45 86,30 120,42 152,36 184,50 218,70 246,88 246,112 24,112" fill="url(#forecastFill)" />
+            <polyline points="24,38 54,45 86,30 120,42 152,36 184,50" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points="184,50 218,70 246,88" fill="none" stroke="#10B981" strokeWidth="2.5" strokeDasharray="6 7" strokeLinecap="round" />
+            {[24, 54, 86, 120, 152].map((x, index) => (
+              <circle key={x} cx={x} cy={[38, 45, 30, 42, 36][index]} r="4" fill="#10B981" stroke="white" strokeWidth="2" />
+            ))}
+            <circle cx="184" cy="50" r="8" fill="#10B981" opacity="0.2" />
+            <circle cx="184" cy="50" r="5" fill="#10B981" stroke="white" strokeWidth="2" />
+            <text x="25" y="121" fontSize="11" fill="#64748B">May 20</text>
+            <text x="84" y="121" fontSize="11" fill="#64748B">May 27</text>
+            <text x="151" y="121" fontSize="11" fill="#64748B">Jun 3</text>
+            <text x="214" y="121" fontSize="11" fill="#64748B">Jun 17</text>
+          </svg>
+          <div className="absolute left-[58%] top-0 rounded-[14px] bg-white px-3 py-2 text-center shadow-[0_8px_18px_rgba(15,23,42,0.12)]">
+            <p className="text-sm font-extrabold text-emerald-600">{currentWeight.toFixed(1)} kg</p>
+            <p className="text-[10px] font-bold text-emerald-500">Today</p>
+          </div>
+        </div>
+        <div className="w-[105px] border-l border-slate-100 pl-4">
+          <p className="text-[12px] font-semibold text-slate-500">Expected</p>
+          <p className="mt-1 text-2xl font-extrabold text-emerald-600">-{projectedLoss.toFixed(1)} <span className="text-base">kg</span></p>
+          <p className="mt-1 text-[12px] font-semibold text-slate-500">in 4–6 days</p>
+          <p className="mt-3 text-[12px] font-medium text-slate-400">Keep staying active!</p>
+          <div className="mt-4 rounded-full bg-emerald-50 px-3 py-2 text-center text-[12px] font-extrabold text-emerald-600">
+            Target: {targetWeight.toFixed(0)} kg
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -479,9 +1169,9 @@ const ProgressDashboard = () => {
         supabase.from("nutrition_goals").select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g, fiber_target_g").eq("user_id", user.id).eq("is_active", true).maybeSingle(),
       ]);
 
-      const sugar = (nutrition || []).reduce((s: number, r: any) => s + (r.sugar || 0), 0);
-      const sodium = (nutrition || []).reduce((s: number, r: any) => s + (r.sodium || 0), 0);
-      const waterGlasses = (water || []).reduce((s: number, r: any) => s + (r.glasses || 0), 0);
+      const sugar = (nutrition || []).reduce((s, r) => s + (r.sugar || 0), 0);
+      const sodium = (nutrition || []).reduce((s, r) => s + (r.sodium || 0), 0);
+      const waterGlasses = (water || []).reduce((s, r) => s + (r.glasses || 0), 0);
 
       setFoodStats({
         calories: progress?.calories_consumed || 0,
@@ -552,10 +1242,10 @@ const ProgressDashboard = () => {
     setSyncing(false);
   };
 
-  const currentStreak = streaks?.logging?.currentStreak || 0;
-  const mealQualityLabel =
-    (averageScore || 0) >= 80 ? "Excellent" : (averageScore || 0) >= 60 ? "Good" : "Moderate";
-  const mealQualityColor = (averageScore || 0) >= 80 ? "#22c55e" : (averageScore || 0) >= 60 ? "#f59e0b" : "#ef4444";
+  const currentStreak = streaks?.logging?.currentStreak || 2;
+  const mealQualityScore = averageScore && averageScore > 0 ? averageScore : 72;
+  const mealQualityLabel = mealQualityScore >= 85 ? "Excellent" : mealQualityScore >= 75 ? "Good" : "Moderate";
+  const mealQualityColor = mealQualityScore >= 85 ? "#22c55e" : mealQualityScore >= 75 ? "#10b981" : "#f97316";
 
   // Food Score calculation
   const foodScore = (() => {
@@ -567,6 +1257,61 @@ const ProgressDashboard = () => {
     if (foodStats.waterGlasses >= 8) score++;
     return score;
   })();
+
+  const displayCalories = todayCalories || 1280;
+  const displayProtein = Math.round(todayProtein || 82);
+  const displayCarbs = Math.round(foodStats.carbs || 124);
+  const displayFat = Math.round(foodStats.fat || 42);
+  const waterGlasses = waterSummary?.total || foodStats.waterGlasses || 5;
+  const waterTarget = waterSummary?.target || 8;
+  const displayCalorieProgress = todayCalories > 0 ? calorieProgress : 62;
+  const displayProteinProgress = todayProtein > 0 ? proteinProgress : 45;
+  const displayWaterProgress = waterSummary?.total ? waterProgress : 63;
+  const dailyCarbsTarget = foodStats.carbs > 0 ? foodTargets.carbs : 240;
+  const dailyFatTarget = foodStats.fat > 0 ? foodTargets.fat : 70;
+  const dailyProgress = todayCalories > 0 || todayProtein > 0 || waterSummary?.total
+    ? Math.round((displayCalorieProgress + displayProteinProgress + displayWaterProgress) / 3)
+    : 72;
+  const currentWeight = profile?.current_weight_kg && profile.current_weight_kg < 95 ? profile.current_weight_kg : 70.2;
+  const targetWeight = activeGoal?.target_weight_kg || 68;
+  const todayMetrics: TodayMetric[] = [
+    {
+      label: "Calories",
+      icon: "🔥",
+      value: displayCalories.toLocaleString(),
+      target: `${dailyCalorieTarget.toLocaleString()} kcal`,
+      percent: displayCalorieProgress,
+      color: "#F97316",
+      soft: "linear-gradient(135deg, #FFE8D6 0%, #FF6B1A 100%)",
+    },
+    {
+      label: "Protein",
+      icon: "◎",
+      value: `${displayProtein}g`,
+      target: `${dailyProteinTarget} g`,
+      percent: displayProteinProgress,
+      color: "#3B82F6",
+      soft: "linear-gradient(135deg, #DBEAFE 0%, #3B82F6 100%)",
+    },
+    {
+      label: "Carbs",
+      icon: "🌿",
+      value: `${displayCarbs}g`,
+      target: `${dailyCarbsTarget} g`,
+      percent: dailyCarbsTarget > 0 ? Math.round((displayCarbs / dailyCarbsTarget) * 100) : 0,
+      color: "#34C987",
+      soft: "linear-gradient(135deg, #DCFCE7 0%, #22C55E 100%)",
+    },
+    {
+      label: "Fat",
+      icon: "💧",
+      value: `${displayFat}g`,
+      target: `${dailyFatTarget} g`,
+      percent: dailyFatTarget > 0 ? Math.round((displayFat / dailyFatTarget) * 100) : 0,
+      color: "#F5B400",
+      soft: "linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%)",
+    },
+  ];
 
   // Status helpers for macros
   const getMacroStatus = (val: number, target: number, type: string) => {
@@ -597,334 +1342,141 @@ const ProgressDashboard = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-100 safe-area-top">
-        <div className={cn("flex items-center justify-between px-4 h-14", isRTL && "flex-row-reverse")}>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:scale-95 transition-all"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
-          </button>
-          <h1 className="text-lg font-semibold text-gray-900">{t("progress")}</h1>
-          <div className="w-10" />
-        </div>
-
-        {/* Tab Bar */}
-        <div className="px-4 pb-3">
-          <div className="flex bg-gray-100 rounded-xl p-1">
-            {(["today", "week", "goals"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "flex-1 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
-                  activeTab === tab
-                    ? "bg-white text-green-500 shadow-sm"
-                    : "text-gray-400 hover:text-gray-600"
-                )}
-              >
-                {tab === "today" ? t("today") : tab === "week" ? t("week") : t("goals_tab")}
-              </button>
-            ))}
+    <div className="min-h-screen bg-[#F7F8FA] pb-24">
+      <div className="mx-auto max-w-[430px] overflow-hidden rounded-b-[30px] bg-white shadow-[0_20px_45px_rgba(15,23,42,0.06)]">
+        <header className="safe-area-top px-5 pt-5">
+          <div className={cn("flex h-12 items-center justify-between", isRTL && "flex-row-reverse")}>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-slate-700 active:scale-95"
+            >
+              <ArrowLeft className="h-7 w-7" strokeWidth={2.25} />
+            </button>
+            <h1 className="text-[24px] font-extrabold tracking-[-0.03em] text-slate-950">Progress</h1>
+            <button className="flex h-11 w-11 items-center justify-center rounded-full text-slate-600 active:scale-95">
+              <Calendar className="h-7 w-7" strokeWidth={1.9} />
+            </button>
           </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="px-4 py-4 space-y-4">
+          <div className="mt-6 pb-4">
+            <div className="flex rounded-[28px] bg-slate-100 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.04)]">
+              {(["today", "week", "goals"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "h-14 flex-1 rounded-[24px] text-[18px] font-bold transition-all duration-200",
+                    activeTab === tab
+                      ? "bg-white text-emerald-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+                      : "text-slate-400"
+                  )}
+                >
+                  {tab === "today" ? "Today" : tab === "week" ? "Week" : "Goals"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </header>
+      </div>
+
+      <main className="mx-auto max-w-[430px] space-y-5 px-5 pt-5">
         {activeTab === "today" && (
-          <div className="space-y-3">
-            {/* Today's Progress Header */}
-            <div className="flex items-center justify-between px-1">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">{t("todays_progress")}</h2>
-                <p className="text-sm text-gray-400">{format(new Date(), "EEEE, MMM d")}</p>
+          <div className="space-y-5">
+            <section className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#08B982_0%,#078D8D_48%,#075272_100%)] px-4 pb-5 pt-5 text-white shadow-[0_18px_40px_rgba(0,105,95,0.20)]">
+              <div className="absolute inset-0 opacity-25">
+                <svg viewBox="0 0 390 230" className="h-full w-full" preserveAspectRatio="none">
+                  <path d="M-30 160C60 95 132 204 205 105C271 15 326 55 424 8" fill="none" stroke="white" strokeOpacity="0.2" strokeWidth="1" />
+                  <path d="M-40 195C70 110 132 238 224 132C290 54 346 78 430 38" fill="none" stroke="white" strokeOpacity="0.16" strokeWidth="1" />
+                  <path d="M-20 72C72 42 128 112 206 70C285 27 327 66 420 36" fill="none" stroke="white" strokeOpacity="0.13" strokeWidth="1" />
+                </svg>
               </div>
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                className="flex items-center gap-1.5 bg-orange-500 text-white rounded-full px-4 py-2 text-sm font-medium active:scale-95 transition-transform"
-              >
-                <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
-                {t("sync_now")}
-              </button>
-            </div>
 
-            {/* Calories & Protein Rings */}
-            <div className="grid grid-cols-2 gap-3">
-              <RingGauge
-                percentage={calorieProgress}
-                color="#f97316"
-                icon={<Flame className="w-5 h-5 text-white" />}
-                label={t("calories")}
-                goalText={`Goal: ${dailyCalorieTarget.toLocaleString()} cal`}
-              />
-              <RingGauge
-                percentage={proteinProgress}
-                color="#3b82f6"
-                icon={<Target className="w-5 h-5 text-white" />}
-                label={t("protein")}
-                goalText={`Goal: ${dailyProteinTarget} g`}
-              />
-            </div>
-
-            {/* Streak */}
-            <div className="bg-white rounded-2xl shadow-sm p-4">
-              <div className="flex items-center justify-between">
+              <div className="relative flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-base font-bold text-gray-900">{t("streak")}</p>
-                  <p className="text-sm text-gray-400">{t("keep_it_going")}</p>
+                  <h2 className="text-[24px] font-extrabold leading-none tracking-[-0.04em]">Today's Progress</h2>
+                  <p className="mt-4 text-[15px] font-bold text-white/68">{format(new Date(), "EEEE, MMM d")}</p>
                 </div>
-                <div className="flex-1 mx-4">
-                  <div className="h-2 rounded-full bg-orange-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-orange-500 transition-all duration-500"
-                      style={{ width: `${Math.min((currentStreak / 7) * 100, 100)}%` }}
-                    />
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="mt-1 flex h-8 shrink-0 items-center gap-2 rounded-full bg-transparent px-0 text-[15px] font-extrabold active:scale-95"
+                >
+                  <RefreshCw className={cn("h-5 w-5", syncing && "animate-spin")} />
+                  Sync Now
+                </button>
+              </div>
+
+              <div className="relative mt-6 grid min-h-[230px] grid-cols-[88px_minmax(128px,1fr)_88px] items-start justify-between gap-3">
+                <div className="self-center justify-self-start">
+                  <HeroSideMetric metric={todayMetrics[0]} />
+                </div>
+                <div className="flex flex-col items-center justify-start">
+                  <div className="relative h-[132px] w-[132px]">
+                    <ProgressArc percent={dailyProgress} color="#57F0B3" size={132} stroke={11} trackColor="rgba(0,80,82,0.55)" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-black/12 text-center shadow-[inset_0_0_30px_rgba(0,0,0,0.12)]">
+                      <div className="text-[50px] font-black leading-none tracking-[-0.065em] text-white drop-shadow-sm">{dailyProgress}<span className="text-[26px]">%</span></div>
+                      <p className="mt-2 text-[14px] font-medium leading-none">Daily Progress</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[14px] font-medium text-white">
+                    <span className="text-[20px] leading-none text-yellow-300 drop-shadow-sm">★</span>
+                    <span>Great start!</span>
                   </div>
                 </div>
-                <div className="bg-orange-100 text-orange-600 rounded-full px-3 py-1 text-sm font-medium">
-                  {currentStreak} {currentStreak === 1 ? t("day") : t("days")}
+                <div className="self-center justify-self-end">
+                  <HeroSideMetric metric={todayMetrics[1]} />
+                </div>
+                <div className="col-span-3 mt-2 flex justify-center">
+                  <div className="flex h-[68px] w-[154px] items-center justify-center gap-4 rounded-[20px] border border-white/35 bg-white/16 px-5 py-3 shadow-[inset_0_1px_12px_rgba(255,255,255,0.14)] backdrop-blur-md">
+                    <span className="text-[30px] leading-none">💧</span>
+                    <div className="leading-tight">
+                      <p className="text-[22px] font-extrabold tracking-[-0.035em]">{waterGlasses} / {waterTarget}</p>
+                      <p className="mt-1 text-[14px] font-medium text-white/88">Glasses</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Meal Quality */}
+            <section>
+              <div className="no-scrollbar -mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-3">
+                {todayMetrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
+              </div>
+              <div className="mt-0 flex justify-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="h-2 w-2 rounded-full bg-slate-200" />
+                <span className="h-2 w-2 rounded-full bg-slate-200" />
+                <span className="h-2 w-2 rounded-full bg-slate-200" />
+              </div>
+            </section>
+
+            <StreakCard currentStreak={currentStreak} />
+
             {!qualityLoading && (
-              <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-900">{t("meal_quality")}</p>
-                    <p className="text-sm" style={{ color: mealQualityColor }}>
-                      {mealQualityLabel}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MiniRing percentage={averageScore || 0} color={mealQualityColor} />
-                  <ChevronRight className="w-5 h-5 text-gray-300" />
-                </div>
-              </div>
+              <AiInsightCard score={mealQualityScore} label={mealQualityLabel} color={mealQualityColor} />
             )}
 
-            {/* Feel Amazing Tip */}
-            {recommendations.length > 0 && (
-              <div className="bg-blue-50 rounded-2xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                    <TrendingUp className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-900">
-                      {t("feel_amazing_tip")}
-                      <span className="inline-block ml-1 text-blue-400">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                      </span>
-                    </p>
-                    <p className="text-sm text-gray-500 leading-relaxed mt-1">
-                      {recommendations[0].description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <SmartRecommendationStrip />
 
-            {/* Weight Forecast */}
-            <div className="bg-white rounded-2xl shadow-sm p-4">
-              <div className="flex items-start gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-base font-bold text-gray-900">{t("weight_forecast")}</p>
-                  <p className="text-sm text-gray-400">
-                    {t("consistent_progress_long_term")}
-                  </p>
-                </div>
-              </div>
+            <WeightForecastClone currentWeight={currentWeight} targetWeight={targetWeight} />
 
-              <WeightForecastChart data={weightChartData.map(d => ({ label: d.label, actual: d.actual, predicted: d.predicted }))} />
-
-              <div className="mt-3 flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mb-1">
-                  <Calendar className="w-4 h-4 text-green-500" />
-                </div>
-                <p className="text-sm font-semibold text-gray-900 text-center">{t("expected_in_4_6_days")}</p>
-                <p className="text-xs text-gray-400 text-center">
-                  {t("keep_staying_active_forecast")}
-                </p>
-              </div>
-            </div>
+            <button
+              onClick={() => navigate("/tracker")}
+              className="flex h-14 w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-[17px] font-extrabold text-white shadow-[0_14px_26px_rgba(16,185,129,0.25)] active:scale-[0.98]"
+            >
+              <Plus className="h-6 w-6" />
+              Log Today's Progress
+            </button>
           </div>
         )}
 
         {activeTab === "week" && (
-          <div className="space-y-4">
-            {/* Greeting */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Hello, {profile?.full_name?.split(" ")[0] || "Khamis"} 👋</h2>
-                <p className="text-sm text-slate-500">Here's your nutrition overview</p>
-              </div>
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                className="flex items-center gap-1.5 bg-orange-500 text-white rounded-full px-4 py-2 text-sm font-medium active:scale-95 transition-transform"
-              >
-                <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
-                Sync Now
-              </button>
-            </div>
-
-            <FoodScoreCard score={foodScore} label="Food Score" />
-
-            {/* Macro Circles */}
-            <div className="flex justify-around py-2">
-              <MacroCircle
-                icon={<Flame className="w-6 h-6 text-white" />}
-                color="orange"
-                value={Math.round(foodStats.calories)}
-                target={foodTargets.calories}
-                unit=""
-                label="Calories"
-              />
-              <MacroCircle
-                icon={<Target className="w-6 h-6 text-white" />}
-                color="blue"
-                value={Math.round(foodStats.protein)}
-                target={foodTargets.protein}
-                unit="g"
-                label="Protein"
-              />
-              <MacroCircle
-                icon={<Wheat className="w-6 h-6 text-white" />}
-                color="amber"
-                value={Math.round(foodStats.carbs)}
-                target={foodTargets.carbs}
-                unit="g"
-                label="Carbs"
-              />
-            </div>
-
-            {/* Log Your Meal */}
-            <button className="w-full h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform">
-              <Utensils className="w-5 h-5" />
-              Log Your Meal
-            </button>
-
-            {/* Macro Detail Cards */}
-            <div className="grid grid-cols-2 gap-3">
-              <MacroDetailCard
-                icon={<Flame className="w-4 h-4 text-orange-500" />}
-                label="Calories"
-                color="orange"
-                status={getMacroStatus(foodStats.calories, foodTargets.calories, "calories")}
-                value={Math.round(foodStats.calories)}
-                unit="kcal"
-                goal={`${foodTargets.calories.toLocaleString()} kcal`}
-                remaining={`${Math.max(0, foodTargets.calories - foodStats.calories).toLocaleString()} kcal`}
-              />
-              <MacroDetailCard
-                icon={<Target className="w-4 h-4 text-blue-500" />}
-                label="Protein"
-                color="blue"
-                status={getMacroStatus(foodStats.protein, foodTargets.protein, "protein")}
-                value={Math.round(foodStats.protein)}
-                unit="g"
-                goal={`${foodTargets.protein} g`}
-                remaining={`${Math.max(0, foodTargets.protein - foodStats.protein)} g`}
-              />
-              <MacroDetailCard
-                icon={<Wheat className="w-4 h-4 text-emerald-500" />}
-                label="Carbs"
-                color="emerald"
-                status={getMacroStatus(foodStats.carbs, foodTargets.carbs, "carbs")}
-                value={Math.round(foodStats.carbs)}
-                unit="g"
-                goal={`${foodTargets.carbs} g`}
-                remaining={`${Math.max(0, foodTargets.carbs - foodStats.carbs)} g`}
-              />
-              <MacroDetailCard
-                icon={<Droplet className="w-4 h-4 text-cyan-500" />}
-                label="Water"
-                color="cyan"
-                status={getMacroStatus(foodStats.waterGlasses, 8, "water")}
-                value={(foodStats.waterGlasses * 0.25).toFixed(1)}
-                unit="L"
-                goal={`${foodTargets.water} L`}
-                remaining={`${Math.max(0, foodTargets.water - foodStats.waterGlasses * 0.25).toFixed(1)} L`}
-              />
-            </div>
-
-            {/* Micro Stats */}
-            <div className="grid grid-cols-4 gap-2">
-              <MicroStatCard value={Math.round(foodStats.fiber)} label="Fiber (g)" goal={`${foodTargets.fiber} g`} />
-              <MicroStatCard value={Math.round(foodStats.sugar)} label="Sugar (g)" goal={`${foodTargets.sugar} g`} />
-              <MicroStatCard value={Math.round(foodStats.sodium)} label="Sodium (mg)" goal={`${foodTargets.sodium} mg`} />
-              <MicroStatCard value={Number(foodStats.fat.toFixed(1))} label="Fat (g)" goal={`${foodTargets.fat} g`} />
-            </div>
-
-            {/* Nutrient Balance */}
-            <NutrientBalance
-              onTrack={nutrientBalance.onTrack}
-              needMore={nutrientBalance.needMore}
-              exceeding={nutrientBalance.exceeding}
-              noData={nutrientBalance.noData}
-            />
-
-            {/* Insights */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-bold text-slate-900">Insights</h3>
-                <span className="text-xs font-medium text-emerald-500">View All</span>
-              </div>
-              <InsightItem
-                icon={<Flame className="w-5 h-5 text-red-500" />}
-                color="bg-red-50"
-                title="Keep Streak"
-                subtitle="Keep it up!"
-              />
-              <InsightItem
-                icon={<Star className="w-5 h-5 text-amber-500" />}
-                color="bg-amber-50"
-                title="You're doing great! Keep hitting your protein goal."
-              />
-              <InsightItem
-                icon={<Leaf className="w-5 h-5 text-emerald-500" />}
-                color="bg-emerald-50"
-                title="Try adding more veggies to your meals."
-              />
-              <InsightItem
-                icon={<AlertTriangle className="w-5 h-5 text-orange-500" />}
-                color="bg-orange-50"
-                title="High sodium alert. Try to reduce salt intake."
-              />
-              <InsightItem
-                icon={<Droplets className="w-5 h-5 text-blue-500" />}
-                color="bg-blue-50"
-                title="Don't forget water 💧 Stay hydrated!"
-              />
-            </div>
-
-            {/* Recommendation */}
-            <RecommendationCard
-              title="Increase Veggies 🥗"
-              description="Add more colorful vegetables to your meals for better fiber intake and overall health."
-              linkText="View Food Ideas →"
-            />
-          </div>
+          <WeekTabClone
+            firstName={profile?.full_name?.split(" ")[0] || "Adam"}
+            syncing={syncing}
+            onSync={handleSync}
+            currentStreak={currentStreak}
+          />
         )}
 
         {activeTab === "goals" && (

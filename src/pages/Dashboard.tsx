@@ -33,7 +33,6 @@ import {
   RefreshCw,
   ShoppingBag,
   Soup,
-  Sparkles,
   Star,
   Store,
   Target,
@@ -932,7 +931,7 @@ const Dashboard = () => {
                             meal_reminder: { icon: Utensils, bg: "bg-[#FFF4E6]", iconColor: "text-[#F97316]" },
                             subscription_alert: { icon: Crown, bg: "bg-[#FFF7ED]", iconColor: "text-[#EA580C]" },
                             general: { icon: TrendingUp, bg: "bg-[#EFF6FF]", iconColor: "text-[#3B82F6]" },
-                            announcement: { icon: Sparkles, bg: "bg-[#FEF3C7]", iconColor: "text-[#F59E0B]" },
+                            announcement: { icon: Bell, bg: "bg-[#FEF3C7]", iconColor: "text-[#F59E0B]" },
                           } as any)[notif.type]) || { icon: Bell, bg: "bg-slate-100", iconColor: "text-slate-500" };
                           const IconComponent = cfg.icon;
                           const isUnread = notif.status === "unread";
@@ -1175,7 +1174,7 @@ const Dashboard = () => {
                 </AnimatePresence>
               </div>
             );
-            })}
+            })})()}
           </div>
 
           {todayMealsError && (
@@ -1465,19 +1464,17 @@ const Dashboard = () => {
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut", delay: 0.1 }}
-            className="mt-3 rounded-[20px] border border-slate-100 bg-white px-4 py-3 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]"
+            className="mt-3 rounded-[20px] border border-slate-100 bg-white px-3 py-4 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]"
           >
-            <div className="flex items-stretch justify-between gap-2 min-h-[120px]">
+            <div className="flex items-center justify-between">
               {/* Consumed */}
-              <div className="flex flex-1 items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] shadow-[0_4px_8px_rgba(16,185,129,0.08)]">
+              <div className="flex flex-col items-center text-center gap-1.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] shadow-[0_4px_8px_rgba(16,185,129,0.08)]">
                   <Utensils className="h-5 w-5 text-[#10B981]" strokeWidth={2} />
                 </div>
-                <div className="flex flex-col leading-none">
-                  <span className="text-[15px] font-medium text-[#64748B]">Consumed</span>
-                  <span className="text-[34px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedCalories}</span>
-                  <span className="text-[15px] text-[#94A3B8]">Cal</span>
-                </div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.03em] text-slate-400">Consumed</span>
+                <span className="text-[26px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedCalories}</span>
+                <span className="text-[11px] font-medium text-slate-400">Cal</span>
               </div>
 
               {/* Calorie Ring */}
@@ -1508,15 +1505,13 @@ const Dashboard = () => {
               </div>
 
               {/* Burned */}
-              <div className="flex flex-1 items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] shadow-[0_4px_8px_rgba(249,115,22,0.08)]">
+              <div className="flex flex-col items-center text-center gap-1.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] shadow-[0_4px_8px_rgba(249,115,22,0.08)]">
                   <Flame className="h-5 w-5 text-[#F97316]" strokeWidth={2} />
                 </div>
-                <div className="flex flex-col leading-none">
-                  <span className="text-[15px] font-medium text-[#64748B]">Burned</span>
-                  <span className="text-[34px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedBurned}</span>
-                  <span className="text-[15px] text-[#94A3B8]">Cal</span>
-                </div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.03em] text-slate-400">Burned</span>
+                <span className="text-[26px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedBurned}</span>
+                <span className="text-[11px] font-medium text-slate-400">Cal</span>
               </div>
             </div>
           </motion.div>
@@ -1795,7 +1790,7 @@ const Dashboard = () => {
                   })}
                   {gamification.earnedBadges === 0 && (
                     <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-white ring-2 ring-white">
-                      <Sparkles className="h-[14px] w-[14px] text-violet-400" strokeWidth={1.75} />
+                      <Trophy className="h-[14px] w-[14px] text-violet-400" strokeWidth={1.75} />
                     </div>
                   )}
                 </div>
@@ -1886,59 +1881,48 @@ const Dashboard = () => {
           {user && <ReferralMilestonesWidget />}
 
           <div className="mt-5">
-            <h3 className="mb-2.5 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
-            <div className="grid grid-cols-4 gap-2">
-              <motion.button
-                type="button"
+            <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <QuickActionCard
+                icon={Target}
+                label="Tracker"
+                subtitle="Track your progress"
+                bg="bg-[#F0FDF5]"
+                border="border-[#C6F6D5]"
+                iconGradient="from-emerald-500 to-teal-600"
                 onClick={() => navigate("/tracker")}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                className="flex items-center gap-1 rounded-full border border-[#CFEFE0] bg-[#F2FFF6] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
-                aria-label="Open Tracker"
-              >
-                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_6px_12px_rgba(16,185,129,0.18)]">
-                  <Target className="h-[12px] w-[12px]" />
-                </span>
-                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Tracker</span>
-              </motion.button>
-
-              <motion.button
-                type="button"
+                prefersReducedMotion={prefersReducedMotion}
+              />
+              <QuickActionCard
+                icon={Heart}
+                label="Favorite"
+                subtitle="Saved meals & restaurants"
+                bg="bg-[#FFF1F2]"
+                border="border-[#FECDD3]"
+                iconGradient="from-rose-500 to-pink-600"
                 onClick={() => navigate("/favorites")}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                className="flex items-center gap-1 rounded-full border border-[#FFC7D3] bg-[#FFF1F4] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
-                aria-label="Favorites"
-              >
-                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FF5C7A] to-[#E0364F] text-white shadow-[0_6px_12px_rgba(224,54,79,0.2)]">
-                  <Heart className="h-[12px] w-[12px]" />
-                </span>
-                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Favorite</span>
-              </motion.button>
-
-              <motion.button
-                type="button"
+                prefersReducedMotion={prefersReducedMotion}
+              />
+              <QuickActionCard
+                icon={BarChart2}
+                label="Progress"
+                subtitle="View your analytics"
+                bg="bg-[#F0F7FF]"
+                border="border-[#BFDBFE]"
+                iconGradient="from-blue-500 to-indigo-600"
                 onClick={() => navigate("/progress")}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                className="flex items-center gap-1 rounded-full border border-[#D6E6FF] bg-[#F3F8FF] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
-                aria-label="Progress"
-              >
-                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5D759A] to-[#354F73] text-white shadow-[0_6px_12px_rgba(53,79,115,0.2)]">
-                  <BarChart2 className="h-[12px] w-[12px]" />
-                </span>
-                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Progress</span>
-              </motion.button>
-
-              <motion.button
-                type="button"
+                prefersReducedMotion={prefersReducedMotion}
+              />
+              <QuickActionCard
+                icon={Users}
+                label="Community"
+                subtitle="Connect & challenge"
+                bg="bg-[#FAF5FF]"
+                border="border-[#E9D5FF]"
+                iconGradient="from-violet-500 to-purple-600"
                 onClick={() => navigate("/community")}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                className="flex items-center gap-1 rounded-full border border-[#F3E8FF] bg-[#FAF5FF] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
-                aria-label="Community"
-              >
-                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A855F7] to-[#7C3AED] text-white shadow-[0_6px_12px_rgba(124,58,237,0.2)]">
-                  <Users className="h-[12px] w-[12px]" />
-                </span>
-                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Community</span>
-              </motion.button>
+                prefersReducedMotion={prefersReducedMotion}
+              />
             </div>
           </div>
 
@@ -1976,31 +1960,31 @@ const Dashboard = () => {
             </div>
           )}
           {activeOrders.length > 0 && (
-            <>
-              <div className="mt-6 flex items-center justify-between">
+            <section className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+              <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2.5">
-                  <ShoppingBag className="h-5 w-5 text-[#10A95F]" strokeWidth={2} />
-                  <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders ({activeOrders.length})</h2>
+                  <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_6px_12px_rgba(16,185,129,0.18)]">
+                    <ShoppingBag className="h-[17px] w-[17px]" strokeWidth={2} />
+                  </div>
+                  <div>
+                    <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders</h2>
+                    <p className="text-[11px] font-medium text-slate-500">{activeOrders.length} order{activeOrders.length !== 1 ? "s" : ""} in progress</p>
+                  </div>
                 </div>
-                <Link to="/orders" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#08A75F]">
+                <Link to="/orders" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">
                   View All
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
 
-              <motion.div 
-                initial={prefersReducedMotion ? undefined : "hidden"}
-                animate={prefersReducedMotion ? undefined : "visible"}
-                variants={prefersReducedMotion ? undefined : staggerContainer}
-                className="mt-2.5 space-y-1.5"
-              >
+              <div className="mt-4 space-y-3">
                 {activeOrders.map((order) => {
                   const statusConfig: Record<string, { label: string; Icon: React.ElementType; badgeClass: string; iconBg: string; hint: string }> = {
-                    pending: { label: "Pending", Icon: Clock, badgeClass: "bg-[#FFE8BF] text-[#D98105]", iconBg: "bg-gradient-to-br from-[#FFB039] to-[#E89A1F]", hint: "Awaiting confirmation · ~5 min" },
-                    confirmed: { label: "Confirmed", Icon: CheckCircle2, badgeClass: "bg-[#D6E4FF] text-[#1E5DB8]", iconBg: "bg-gradient-to-br from-[#5A9CFD] to-[#3B7FD8]", hint: "Order accepted · ~10 min" },
-                    preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]", iconBg: "bg-gradient-to-br from-[#FFB039] to-[#E89A1F]", hint: "Cooking your meal · ~20 min" },
-                    ready: { label: "Ready", Icon: Package, badgeClass: "bg-[#CDEEDB] text-[#098A4F]", iconBg: "bg-gradient-to-br from-[#23C878] to-[#07894F]", hint: "Ready for pickup" },
-                    out_for_delivery: { label: "On The Way", Icon: Bike, badgeClass: "bg-[#D6F5FF] text-[#0891B2]", iconBg: "bg-gradient-to-br from-[#38BDF8] to-[#0891B2]", hint: "On the way · ~15 min" },
+                    pending: { label: "Pending", Icon: Clock, badgeClass: "bg-[#FFF3D6] text-[#B45309]", iconBg: "bg-gradient-to-br from-[#F59E0B] to-[#D97706]", hint: "Awaiting confirmation · ~5 min" },
+                    confirmed: { label: "Confirmed", Icon: CheckCircle2, badgeClass: "bg-[#DBEAFE] text-[#1E40AF]", iconBg: "bg-gradient-to-br from-[#3B82F6] to-[#2563EB]", hint: "Order accepted · ~10 min" },
+                    preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFF3D6] text-[#B45309]", iconBg: "bg-gradient-to-br from-[#F59E0B] to-[#D97706]", hint: "Cooking your meal · ~20 min" },
+                    ready: { label: "Ready", Icon: Package, badgeClass: "bg-[#D1FAE5] text-[#065F46]", iconBg: "bg-gradient-to-br from-[#10B981] to-[#059669]", hint: "Ready for pickup" },
+                    out_for_delivery: { label: "On The Way", Icon: Bike, badgeClass: "bg-[#E0F2FE] text-[#0369A1]", iconBg: "bg-gradient-to-br from-[#0EA5E9] to-[#0284C7]", hint: "On the way · ~15 min" },
                   };
 
                   const etaMin = order.order_status === "out_for_delivery" && order.updated_at
@@ -2012,33 +1996,36 @@ const Dashboard = () => {
 
                   const config = statusConfig[order.order_status] || statusConfig.pending;
                   const IconComponent = config.Icon;
-                  
+
                   return (
-                    <div key={order.id}>
-                      <motion.div
-                        variants={prefersReducedMotion ? undefined : staggerItem}
-                        whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-                      >
-                        <Link
-                          to={`/live/${order.id}`}
-                          className="flex h-[58px] items-center rounded-[15px] border border-[#D6F0DD] bg-white px-3.5 shadow-[0_6px_14px_rgba(16,185,129,0.03)]"
-                        >
-                          <div className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_16px_rgba(0,0,0,0.12)] ${config.iconBg}`}>
-                            <IconComponent className="h-[18px] w-[18px]" />
+                    <motion.div
+                      key={order.id}
+                      variants={prefersReducedMotion ? undefined : staggerItem}
+                      whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
+                      className="overflow-hidden rounded-[18px] border border-slate-100 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.04)] transition hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+                    >
+                      <Link to={`/live/${order.id}`} className="block">
+                        <div className="flex items-center gap-4 p-4">
+                          {/* Status icon */}
+                          <div className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_6px_14px_rgba(0,0,0,0.1)] ${config.iconBg}`}>
+                            <IconComponent className="h-[22px] w-[22px]" strokeWidth={1.75} />
                           </div>
-                          <div className="ml-3 min-w-0 flex-1">
-                            <div className="flex min-w-0 items-center gap-2.5">
-                              <p className="truncate text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">{order.restaurant_name}</p>
-                              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${config.badgeClass}`}>{config.label}</span>
+
+                          {/* Order info */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="truncate text-[15px] font-extrabold tracking-[-0.01em] text-slate-950">{order.restaurant_name}</h3>
+                              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${config.badgeClass}`}>{config.label}</span>
                             </div>
-                            <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{order.meal_name}</p>
+                            <p className="mt-1 truncate text-[13px] font-semibold text-slate-600">{order.meal_name}</p>
+
                             {order.order_status === "out_for_delivery" && etaMin !== null ? (
-                              <div className="mt-1">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] font-bold text-sky-600">
+                              <div className="mt-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="shrink-0 text-[13px] font-extrabold text-sky-600">
                                     {etaMin <= 0 ? "Arriving now" : `~${etaMin} min`}
                                   </span>
-                                  <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-sky-100">
+                                  <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-sky-100">
                                     <motion.div
                                       initial={{ width: 0 }}
                                       animate={{ width: `${etaProgress}%` }}
@@ -2049,44 +2036,48 @@ const Dashboard = () => {
                                 </div>
                               </div>
                             ) : (
-                              <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{config.hint}</p>
+                              <div className="mt-1.5 flex items-center gap-1.5">
+                                <div className={`h-[4px] w-[4px] rounded-full ${config.badgeClass.replace("bg-", "").split(" ")[0]}`.replace(/\[([^\]]+)\]/g, "$1")} />
+                                <p className="text-[12px] font-medium text-slate-400">{config.hint}</p>
+                              </div>
                             )}
                           </div>
-                          <ChevronRight className="ml-2.5 h-5 w-5 shrink-0 text-slate-500" />
-                        </Link>
-                      </motion.div>
 
-                      {/* Order Action Buttons */}
+                          <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" strokeWidth={2} />
+                        </div>
+                      </Link>
+
+                      {/* Action buttons */}
                       {(order.order_status === "pending" || order.order_status === "confirmed") && (
-                        <div className="mt-1.5 flex items-center gap-2 px-1">
+                        <div className="flex items-center gap-2 border-t border-slate-50 px-4 pb-3 pt-2">
                           <button
                             type="button"
                             onClick={(e) => { e.preventDefault(); setSelectedSchedule(order); setShowModifyModal(true); }}
-                            className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 py-2 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-200"
                           >
-                            <Pencil className="h-[11px] w-[11px]" strokeWidth={2} />
+                            <Pencil className="h-[13px] w-[13px]" strokeWidth={2} />
                             Reschedule
                           </button>
                           <button
                             type="button"
                             onClick={(e) => { e.preventDefault(); handleCancelOrder(order.id); }}
                             disabled={cancellingId === order.id}
-                            className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-red-50 py-2 text-[12px] font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
                           >
                             {cancellingId === order.id ? (
-                              <Loader2 className="h-[11px] w-[11px] animate-spin" />
+                              <Loader2 className="h-[13px] w-[13px] animate-spin" />
                             ) : (
-                              <XCircle className="h-[11px] w-[11px]" strokeWidth={2} />
+                              <XCircle className="h-[13px] w-[13px]" strokeWidth={2} />
                             )}
                             Cancel
                           </button>
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   );
                 })}
-              </motion.div>
-            </>
+              </div>
+            </section>
           )}
 
           {/* Monthly Order Stats */}
@@ -2272,5 +2263,42 @@ const Dashboard = () => {
     </motion.div>
   );
 };
+
+const QuickActionCard = ({
+  icon: Icon,
+  label,
+  subtitle,
+  bg,
+  border,
+  iconGradient,
+  onClick,
+  prefersReducedMotion,
+}: {
+  icon: LucideIcon;
+  label: string;
+  subtitle: string;
+  bg: string;
+  border: string;
+  iconGradient: string;
+  onClick: () => void;
+  prefersReducedMotion: boolean;
+}) => (
+  <motion.button
+    type="button"
+    onClick={onClick}
+    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+    whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
+    className={`flex flex-col items-center justify-center gap-2.5 rounded-[22px] ${bg} ${border} border p-4 shadow-[0_4px_14px_rgba(15,23,42,0.04)] transition-all duration-250 ease-out hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)] min-h-[100px]`}
+    aria-label={label}
+  >
+    <span className={`flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${iconGradient} text-white shadow-[0_4px_10px_rgba(0,0,0,0.1)]`}>
+      <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+    </span>
+    <div className="text-center">
+      <p className="text-[13px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{label}</p>
+      <p className="mt-0.5 text-[10px] font-medium leading-tight text-slate-500">{subtitle}</p>
+    </div>
+  </motion.button>
+);
 
 export default Dashboard;

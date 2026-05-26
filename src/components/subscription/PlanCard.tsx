@@ -1,4 +1,4 @@
-import { type LucideIcon, Utensils, Apple, Sparkles, ChevronRight } from "lucide-react";
+import { type LucideIcon, Utensils, Apple, Check, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
 
@@ -116,7 +116,7 @@ export function PlanCard({
               <h3 className="font-bold text-foreground truncate">{plan.name}</h3>
               {badge.text && cardVariant === "healthy" && (
                 <span className={cn("shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full", badge.className)}>
-                  <Sparkles className="h-2.5 w-2.5" />
+                  <Check className="h-2.5 w-2.5" />
                   {badge.text}
                 </span>
               )}

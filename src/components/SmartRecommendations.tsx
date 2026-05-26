@@ -2,10 +2,11 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Flame, Clock, Dumbbell, ChevronRight, Sparkles } from "lucide-react";
+import { Flame, Clock, Dumbbell, RefreshCw, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMealRecommendations } from "@/hooks/useMealRecommendations";
 import { ScoredMeal } from "@/lib/recommendation-engine";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const spring = { type: "spring" as const, stiffness: 300, damping: 25, mass: 0.8 };
 
@@ -122,13 +123,14 @@ function SectionHeader({
           <p className="text-[10px] text-muted-foreground">{subtitle}</p>
         </div>
       </div>
+  {/* ── Refresh Button ── */}
       {onRefresh && (
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={onRefresh}
           className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          <Sparkles className="w-3.5 h-3.5" />
+          <RefreshCw className="w-3.5 h-3.5" />
         </motion.button>
       )}
     </div>
@@ -151,6 +153,7 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
 
 export function SmartRecommendations() {
   const { recommendations, loading, refresh } = useMealRecommendations();
+  const { t } = useLanguage();
 
   if (loading) {
     return (
@@ -207,16 +210,16 @@ export function SmartRecommendations() {
       transition={{ duration: 0.3 }}
     >
       <div className="flex items-center gap-2 px-1 mb-1">
-        <Sparkles className="w-4 h-4 text-amber-500" />
+        <Star className="w-4 h-4 text-amber-500" />
         <span className="text-xs font-bold text-foreground">
-          اقتراحات مخصصة
+          {t("smart_rec_section_title")}
         </span>
       </div>
 
       <SectionHeader
-        title="مقترح لك"
-        subtitle="بناءً على طلباتك السابقة"
-        icon={Sparkles}
+        title={t("smart_rec_for_you_title")}
+        subtitle={t("smart_rec_for_you_subtitle")}
+        icon={Star}
         iconColor="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
         onRefresh={refresh}
       />
