@@ -35,12 +35,12 @@ export function PortionSelector({
   const options: { id: PortionSize; label: string; sublabel: string }[] = [
     {
       id: "standard",
-      label: t("customization_standard", "Standard"),
+      label: t("customization_standard"),
       sublabel: `${baseCalories} kcal`,
     },
     {
       id: "large",
-      label: t("customization_large", "Large"),
+      label: t("customization_large"),
       sublabel: `${baseCalories + calDiff} kcal · +${formatCurrency(priceDiff)}`,
     },
   ];

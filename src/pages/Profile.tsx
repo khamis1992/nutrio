@@ -31,10 +31,12 @@ import {
   ChevronRight,
   AlertTriangle,
   HelpCircle,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 import { useAffiliateApplication } from "@/hooks/useAffiliateApplication";
@@ -46,6 +48,15 @@ import { AddFamilyMemberSheet } from "@/components/family/AddFamilyMemberSheet";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 /* ─── Leaf decoration SVG ─── */
 const LeafDecoration = () => (
@@ -168,6 +179,11 @@ const Profile = () => {
   const { toast } = useToast();
   const { isApprovedAffiliate } = useAffiliateApplication();
   const { t } = useLanguage();
+  const [coachDialogOpen, setCoachDialogOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [coachConnecting, setCoachConnecting] = useState(false);
+  const [currentCoach, setCurrentCoach] = useState<{ id: string; full_name: string | null } | null>(null);
+  const [coachLoading, setCoachLoading] = useState(true);
 
   const userId = user?.id;
   const { goals } = useNutritionGoals(userId);
@@ -185,6 +201,58 @@ const Profile = () => {
       setFullName(profile.full_name || "");
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (!userId) { setCoachLoading(false); return; }
+    const fetchCoach = async () => {
+      const { data } = await supabase
+        .from("coach_client_assignments")
+        .select("coach_id, status")
+        .eq("status", "active")
+        .eq("client_id", userId)
+        .maybeSingle();
+
+      if (data?.coach_id) {
+        const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", data.coach_id).single();
+        setCurrentCoach({ id: data.coach_id, full_name: profile?.full_name || null });
+      }
+      setCoachLoading(false);
+    };
+    fetchCoach();
+  }, [userId]);
+
+  const handleConnectCoach = async () => {
+    if (!inviteCode.trim() || !userId) return;
+    setCoachConnecting(true);
+    try {
+      const { data: assignment, error } = await supabase
+        .from("coach_client_assignments")
+        .select("id, coach_id, status")
+        .eq("invite_code", inviteCode.trim().toUpperCase())
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (error || !assignment) {
+        toast.error("Invalid invite code", { description: "Please check the code and try again." });
+        return;
+      }
+
+      await supabase
+        .from("coach_client_assignments")
+        .update({ client_id: userId, status: "active" })
+        .eq("id", assignment.id);
+
+      const { data: coachProfile } = await supabase.from("profiles").select("full_name").eq("user_id", assignment.coach_id).single();
+      setCurrentCoach({ id: assignment.coach_id, full_name: coachProfile?.full_name || null });
+      setInviteCode("");
+      setCoachDialogOpen(false);
+      toast.success("Coach connected!", { description: "Your coach can now view your progress." });
+    } catch (err) {
+      toast.error("Connection failed", { description: "Please try again." });
+    } finally {
+      setCoachConnecting(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -363,6 +431,20 @@ const Profile = () => {
               subtitle={t("dietary_preferences_subtitle")}
               onClick={() => navigate("/dietary")}
             />
+            <MenuRow
+              icon={<Users className="w-full h-full" />}
+              iconBg="bg-violet-500"
+              label={currentCoach ? "Your Coach" : "Connect with Coach"}
+              subtitle={coachLoading ? "Loading..." : currentCoach ? currentCoach.full_name || "Your trainer" : "Enter an invite code from your trainer"}
+              onClick={() => !currentCoach && setCoachDialogOpen(true)}
+              right={
+                currentCoach ? (
+                  <span className="text-[13px] font-semibold text-violet-600">Active</span>
+                ) : coachLoading ? undefined : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )
+              }
+            />
 
           </CardSection>
 
@@ -477,6 +559,35 @@ const Profile = () => {
         onClose={() => setShowAddFamilySheet(false)}
         onAdd={addMember}
       />
+
+      <Dialog open={coachDialogOpen} onOpenChange={setCoachDialogOpen}>
+        <DialogContent className="max-w-sm rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-extrabold">Connect with Coach</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500 text-center mb-4">
+            Enter the invite code your coach shared with you.
+          </p>
+          <Input
+            placeholder="NUTR-XXXXXX"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+            className="h-12 rounded-xl text-center text-lg font-mono font-bold tracking-wider"
+            maxLength={14}
+          />
+          <Button
+            onClick={handleConnectCoach}
+            disabled={coachConnecting || !inviteCode.trim()}
+            className="w-full mt-4 h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold text-sm shadow-lg shadow-violet-600/20"
+          >
+            {coachConnecting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              "Connect"
+            )}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

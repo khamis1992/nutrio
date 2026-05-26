@@ -1,43 +1,72 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Activity,
   AlertCircle,
   ArrowRightLeft,
   BarChart2,
   Bell,
+  Bike,
   Calendar,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Coffee,
   ConciergeBell,
   Crown,
   Droplet,
+  Droplets,
   Drumstick,
   Flame,
-  Package,
-  Plus,
-  Bike,
+  Footprints,
   Heart,
+  Home,
+  Loader2,
+  Lock,
+  Medal,
+  Minus,
+  Package,
+  Pencil,
+  Plus,
+  RefreshCw,
   ShoppingBag,
+  Soup,
+  Sparkles,
+  Star,
+  Store,
   Target,
+  TrendingUp,
+  Trophy,
+  Truck,
   Utensils,
+  UtensilsCrossed,
+  Users,
   Wallet,
   Wheat,
+  XCircle,
+  type LucideIcon,
 } from "lucide-react";
 
 import LogMealModal from "@/components/LogMealModal";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
+import { ModifyOrderModal } from "@/components/ModifyOrderModal";
+import { BodyCorrelationWidget } from "@/components/dashboard/BodyCorrelationWidget";
+import { ReferralMilestonesWidget } from "@/components/dashboard/ReferralMilestonesWidget";
+import { SubscriptionNudge } from "@/components/SubscriptionNudge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useProfile } from "@/hooks/useProfile";
+import { useStreak } from "@/hooks/useStreak";
+import { useNutritionGoals } from "@/hooks/useNutritionGoals";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useWeeklySummary } from "@/hooks/useWeeklySummary";
 import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits";
+import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { useTodayProgress } from "@/hooks/useTodayProgress";
-import { getQatarNow, formatLocaleDate } from "@/lib/dateUtils";
+import { getQatarNow, getQatarDay, formatLocaleDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import {
@@ -52,10 +81,12 @@ const Dashboard = () => {
   const prefersReducedMotion = useReducedMotion();
   const { user } = useAuth();
   const { profile, loading: profileLoading, error: profileError } = useProfile();
+  const { activeGoal } = useNutritionGoals(user?.id);
   const { subscription, remainingMeals, totalMeals, isUnlimited } = useSubscription();
   const { rolloverCredits } = useDashboardRolloverCredits(user?.id);
   const { t, language } = useLanguage();
   const { unreadCount } = useNotifications(user?.id);
+  const { summary: weeklySummary, loading: weeklyLoading } = useWeeklySummary(user?.id);
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -64,7 +95,106 @@ const Dashboard = () => {
   const [workoutCount, setWorkoutCount] = useState(0);
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState(false);
+  const [topRestaurants, setTopRestaurants] = useState<any[]>([]);
+  const [topRestaurantsLoading, setTopRestaurantsLoading] = useState(true);
+  const [topRestaurantsError, setTopRestaurantsError] = useState(false);
+  const [todayMeals, setTodayMeals] = useState<any[]>([]);
+  const [todayMealsLoading, setTodayMealsLoading] = useState(true);
+  const [todayMealsError, setTodayMealsError] = useState(false);
+  const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
+  const [gamification, setGamification] = useState({ xp: 0, level: 1, xpToNextLevel: 100, earnedBadges: 0, totalBadges: 0, badges: [] as any[], earnedIds: new Set<string>() });
+  const [waterToday, setWaterToday] = useState(0);
+  const [waterGoal, setWaterGoal] = useState(2500);
+  const [stepsToday, setStepsToday] = useState(0);
+  const [stepsGoal, setStepsGoal] = useState(6000);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
+  const [notifsLoading, setNotifsLoading] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [showModifyModal, setShowModifyModal] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [monthlyStats, setMonthlyStats] = useState({ total: 0, completed: 0, cancelled: 0 });
+  const [tick, setTick] = useState(0);
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
+  const { streaks } = useStreak(user?.id);
+  const dailyStreak = streaks?.logging?.currentStreak ?? 0;
+  const todayStr = selectedDate.toISOString().split("T")[0];
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("water_entries")
+      .select("amount_ml")
+      .eq("user_id", user.id)
+      .eq("log_date", todayStr)
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setWaterToday(data.reduce((sum, e) => sum + (e.amount_ml || 0), 0));
+        }
+      });
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("water_goal_ml");
+      if (stored) setWaterGoal(parseInt(stored, 10));
+    }
+  }, [user?.id, todayStr]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(`tracker_step_goal_${user.id}`);
+      if (stored) setStepsGoal(parseInt(stored, 10));
+      const stepsRaw = localStorage.getItem(`tracker_steps_${user.id}_${todayStr}`);
+      if (stepsRaw) setStepsToday(parseInt(stepsRaw, 10));
+    }
+  }, [user?.id, todayStr]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
+  const { measurements: weightHistory } = useBodyMeasurements(user?.id);
+
+  // ─── Fetch gamification data ───────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
+    const fetchGamification = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles").select("xp, level").eq("id", user.id).single();
+
+        if (cancelled) return;
+
+        const userXp = profile?.xp || 0;
+        const userLevel = profile?.level || 1;
+
+        const [{ data: allBadges }, { data: earned }] = await Promise.all([
+          supabase.from("badges").select("id, name, description, icon, rarity, xp_reward"),
+          supabase.from("user_badges").select("badge_id, unlocked_at").eq("user_id", user.id),
+        ]);
+
+        if (cancelled) return;
+
+        const earnedIds = new Set((earned || []).map((b: any) => b.badge_id));
+        setGamification({
+          xp: userXp,
+          level: userLevel,
+          xpToNextLevel: userLevel * 100,
+          earnedBadges: earnedIds.size,
+          totalBadges: (allBadges || []).length,
+          badges: (allBadges || []),
+          earnedIds,
+        });
+      } catch { /* silent */ }
+    };
+
+    fetchGamification();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const fetchActiveOrders = useCallback(async () => {
     if (!user?.id) return;
@@ -77,7 +207,8 @@ const Dashboard = () => {
           scheduled_date,
           order_status,
           meal_id,
-          delivery_type
+          delivery_type,
+          updated_at
         `)
         .eq("user_id", user.id)
         .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
@@ -131,6 +262,7 @@ const Dashboard = () => {
           meal_name: meal?.name || "Meal",
           restaurant_name: meal?.restaurant?.name || "Restaurant",
           delivery_type: schedule.delivery_type || "pickup",
+          updated_at: schedule.updated_at,
         };
       });
 
@@ -138,6 +270,7 @@ const Dashboard = () => {
     } catch (err) {
       console.error("Error fetching active orders:", err);
       setActiveOrders([]);
+      setOrdersError(true);
     } finally {
       setOrdersLoading(false);
     }
@@ -146,6 +279,147 @@ const Dashboard = () => {
   useEffect(() => {
     fetchActiveOrders();
   }, [fetchActiveOrders]);
+
+  const fetchMonthlyStats = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { data, error } = await supabase
+        .from("meal_schedules")
+        .select("order_status")
+        .eq("user_id", user.id)
+        .gte("scheduled_date", startOfMonth.split("T")[0])
+        .lte("scheduled_date", now.toISOString().split("T")[0]);
+
+      if (error) throw error;
+      const stats = { total: data?.length || 0, completed: 0, cancelled: 0 };
+      (data || []).forEach((s: any) => {
+        if (s.order_status === "delivered" || s.order_status === "completed") stats.completed++;
+        else if (s.order_status === "cancelled") stats.cancelled++;
+      });
+      setMonthlyStats(stats);
+    } catch { /* silent */ }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchMonthlyStats();
+  }, [fetchMonthlyStats]);
+
+  const handleCancelOrder = async (scheduleId: string) => {
+    if (!window.confirm("Cancel this order? You can reorder anytime.")) return;
+    setCancellingId(scheduleId);
+    try {
+      const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: scheduleId });
+      if (error) throw error;
+      setActiveOrders((prev) => prev.filter((o: any) => o.id !== scheduleId));
+    } catch (err) {
+      console.error("Error cancelling order:", err);
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const fetchTopRestaurants = useCallback(async () => {
+    try {
+      const now = new Date().toISOString();
+      const { data: featured, error: featuredError } = await supabase
+        .from("featured_listings")
+        .select(`
+          restaurant_id,
+          restaurants:restaurant_id (
+            id, name, logo_url, rating, total_orders, description, cuisine_types
+          )
+        `)
+        .eq("status", "active")
+        .lte("starts_at", now)
+        .gte("ends_at", now)
+        .order("price_paid", { ascending: false })
+        .limit(5);
+
+      if (featuredError) throw featuredError;
+
+      const restaurants = (featured || [])
+        .map((f: any) => f.restaurants)
+        .filter(Boolean);
+      setTopRestaurants(restaurants);
+    } catch (err) {
+      console.error("Error fetching featured restaurants:", err);
+      setTopRestaurants([]);
+      setTopRestaurantsError(true);
+    } finally {
+      setTopRestaurantsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTopRestaurants();
+  }, [fetchTopRestaurants]);
+
+  const fetchTodayMeals = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const today = getQatarDay();
+      const { data: schedules, error } = await supabase
+        .from("meal_schedules")
+        .select(`
+          id,
+          meal_type,
+          meal_id,
+          scheduled_date,
+          delivery_time_slot,
+          meals:meal_id (
+            id, name, image_url, calories, protein_g, carbs_g, fat_g
+          ),
+          restaurants:restaurant_id (
+            id, name
+          )
+        `)
+        .eq("user_id", user.id)
+        .eq("scheduled_date", today)
+        .order("meal_type")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Group by meal_type, deduplicate by meal_id
+      const slots: Record<string, any[]> = {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+      };
+
+      (schedules || []).forEach((s: any) => {
+        const type = s.meal_type || "other";
+        const group = ["breakfast", "lunch", "dinner"].includes(type) ? type : "other";
+        if (group === "other") return;
+        // Only keep first occurrence per meal_type (most recent first since sorted desc)
+        if (slots[group].length === 0) {
+          slots[group].push({
+            schedule_id: s.id,
+            meal_type: group,
+            meal: s.meals || null,
+            restaurant: s.restaurants || null,
+            delivery_time_slot: s.delivery_time_slot || null,
+          });
+        }
+      });
+
+      setTodayMeals(Object.entries(slots).map(([type, items]) => ({
+        type,
+        ...(items[0] || {}),
+      })));
+    } catch (err) {
+      console.error("Error fetching today's meals:", err);
+      setTodayMealsError(true);
+    } finally {
+      setTodayMealsLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchTodayMeals();
+  }, [fetchTodayMeals]);
 
   const animatedCalories = useAnimatedCounter(Math.round(todayProgress.calories), 800);
   const animatedBurned = useAnimatedCounter(totalBurned, 800);
@@ -166,7 +440,6 @@ const Dashboard = () => {
     return () => window.removeEventListener("nutrio:meal-progress-changed", handler);
   }, []);
 
-  const todayStr = selectedDate.toISOString().split("T")[0];
   const todayStart = getQatarNow();
   todayStart.setHours(0, 0, 0, 0);
   const isToday = selectedDate.toDateString() === todayStart.toDateString();
@@ -193,21 +466,252 @@ const Dashboard = () => {
     loadWorkoutSummary();
   }, [user, todayStr]);
 
+  const fetchRecentNotifications = useCallback(async () => {
+    if (!user?.id) return;
+    setNotifsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, type, title, message, status, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentNotifications(data || []);
+    } catch (err) {
+      console.error("Error fetching recent notifications:", err);
+    } finally {
+      setNotifsLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (showNotificationsDropdown) {
+      fetchRecentNotifications();
+    }
+  }, [showNotificationsDropdown, fetchRecentNotifications]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setShowNotificationsDropdown(false);
+      }
+    };
+    if (showNotificationsDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotificationsDropdown]);
+
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-[#F8FFFB] px-6 py-9">
-        <div className="mx-auto max-w-[430px] space-y-6">
-          <div className="h-16 rounded-full bg-emerald-100/60 animate-pulse" />
-          <div className="h-36 rounded-[28px] bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)] animate-pulse" />
-          <div className="h-[520px] rounded-[28px] bg-white shadow-[0_20px_45px_rgba(15,23,42,0.08)] animate-pulse" />
-        </div>
+      <div className="overflow-x-hidden text-slate-900 relative">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(135deg, #FEFFFE 0%, #F8FDF9 50%, #F5FAF7 100%)" }} />
+        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-28 pt-6">
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-[44px] w-[44px] rounded-full bg-emerald-100/60 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-2.5 w-24 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-3 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+            </div>
+            <div className="h-[27px] w-[27px] rounded-full bg-emerald-100/60 animate-pulse" />
+          </div>
+
+          {/* Balance card skeleton */}
+          <div className="mt-5 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+            <div className="flex items-center gap-3">
+              <div className="h-[96px] w-[96px] rounded-full bg-emerald-100/60 animate-pulse" />
+              <div className="mx-3 h-[80px] w-px bg-slate-100" />
+              <div className="flex-1 space-y-3">
+                {[1, 2].map(i => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <div className="h-[26px] w-[26px] rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="flex-1 h-2.5 rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="h-2.5 w-12 rounded-full bg-emerald-100/60 animate-pulse" />
+                  </div>
+                ))}
+                <div className="h-px bg-slate-100" />
+                <div className="flex items-center gap-2.5">
+                  <div className="h-[26px] w-[26px] rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="flex-1 h-2.5 rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="h-2.5 w-8 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              </div>
+              <div className="mx-3 h-[80px] w-px bg-slate-100" />
+              <div className="flex flex-col items-center gap-1.5 shrink-0">
+                <div className="h-[34px] w-[34px] rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-2 w-14 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-3 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {/* Today's Meals skeleton */}
+          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="h-3 w-28 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-2 w-36 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+              <div className="h-[30px] w-[84px] rounded-full bg-emerald-100/60 animate-pulse" />
+            </div>
+            <div className="mt-3 space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 h-[54px]">
+                  <div className="h-8 w-8 rounded-xl bg-emerald-100/60 animate-pulse" />
+                  <div className="flex-1">
+                    <div className="h-2.5 w-20 rounded-full bg-emerald-100/60 animate-pulse" />
+                  </div>
+                  <div className="h-3 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Calorie tracking skeleton */}
+          <div className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-3 w-28 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+              <div className="flex gap-2.5">
+                <div className="h-[34px] w-[34px] rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-[34px] w-[34px] rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+            </div>
+            <div className="mt-4 flex h-[32px] items-center rounded-full border border-slate-100 bg-slate-50 px-3">
+              <div className="h-2.5 w-20 rounded-full bg-emerald-100/60 animate-pulse" />
+              <div className="mx-3 flex flex-1 gap-2">
+                {[1,2,3,4,5,6].map(i => <div key={i} className="h-[4px] flex-1 rounded-full bg-emerald-100/60 animate-pulse" />)}
+              </div>
+              <div className="h-2.5 w-8 rounded-full bg-emerald-100/60 animate-pulse" />
+            </div>
+            <div className="mt-3 rounded-[20px] border border-slate-100 bg-white px-4 py-3">
+              <div className="flex items-stretch justify-between gap-2 min-h-[100px]">
+                <div className="flex flex-1 items-center gap-3">
+                  <div className="h-11 w-11 rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="flex flex-col gap-1">
+                    <div className="h-3 w-20 rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="h-6 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="h-3 w-8 rounded-full bg-emerald-100/60 animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-[120px] w-[120px] rounded-full shrink-0 bg-emerald-100/60 animate-pulse" />
+                <div className="flex flex-1 items-center gap-3 justify-end">
+                  <div className="flex flex-col gap-1">
+                    <div className="h-3 w-20 rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="h-6 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="h-3 w-8 rounded-full bg-emerald-100/60 animate-pulse" />
+                  </div>
+                  <div className="h-11 w-11 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-2.5">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-2xl bg-slate-50/60 p-2.5 h-[72px] border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
+                    <div className="h-2.5 w-12 rounded-full bg-emerald-100/60 animate-pulse" />
+                  </div>
+                  <div className="mt-2 h-4 w-full rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Activity section skeleton */}
+          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+            <div className="flex items-center gap-2.5">
+              <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
+              <div className="h-3 w-28 rounded-full bg-emerald-100/60 animate-pulse" />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-slate-50 p-3 h-[60px] flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="space-y-1">
+                  <div className="h-2 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="h-3 w-10 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-3 h-[60px] flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="space-y-1">
+                  <div className="h-2 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="h-3 w-10 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Order meal button skeleton */}
+          <div className="mt-5">
+            <div className="h-[56px] w-full rounded-2xl bg-emerald-100/60 animate-pulse" />
+          </div>
+
+          {/* Active orders skeleton */}
+          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-3 w-24 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+              <div className="h-2.5 w-12 rounded-full bg-emerald-100/60 animate-pulse" />
+            </div>
+            {[1, 2].map(i => (
+              <div key={i} className="mb-2 rounded-2xl border border-slate-100 bg-slate-50 p-3 h-[56px] flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="flex-1 space-y-1">
+                  <div className="h-2.5 w-32 rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="h-2 w-48 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+                <div className="h-2.5 w-12 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+            ))}
+          </div>
+
+          {/* Top restaurants skeleton */}
+          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
+                <div className="h-3 w-32 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+              <div className="h-2.5 w-14 rounded-full bg-emerald-100/60 animate-pulse" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-2xl bg-slate-50 p-3 h-[100px] flex flex-col items-center gap-2">
+                  <div className="h-[40px] w-[40px] rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="h-2 w-16 rounded-full bg-emerald-100/60 animate-pulse" />
+                  <div className="h-1.5 w-10 rounded-full bg-emerald-100/60 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom bar skeleton */}
+          <div className="mt-6 h-16 rounded-t-[28px] bg-white shadow-[0_-8px_24px_rgba(15,23,42,0.04)] flex items-center justify-around px-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="flex flex-col items-center gap-1">
+                <div className="h-6 w-6 rounded-lg bg-emerald-100/60 animate-pulse" />
+                <div className="h-1.5 w-10 rounded-full bg-emerald-100/60 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
 
   if (profileError && !profile) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FFFB] gap-4 px-6">
+      <div className="flex flex-col items-center justify-center bg-[#F8FFFB] gap-4 px-6 py-9">
         <div className="w-full max-w-[360px] text-center space-y-4 rounded-[28px] bg-white p-7 shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
             <AlertCircle className="h-8 w-8" />
@@ -230,19 +734,32 @@ const Dashboard = () => {
   const totalMealsDisplay = isUnlimited ? "∞" : Number.isFinite(totalMeals) ? Number(totalMeals) : 40;
   const rawUserName = profile?.full_name?.split(" ")[0] || t("guest_greeting") || "Khamis";
   const userName = rawUserName.charAt(0).toUpperCase() + rawUserName.slice(1).toLowerCase();
+  const hourNow = new Date().getHours();
+  const timeGreeting = hourNow < 12 ? "Good morning ☀️" : hourNow < 18 ? "Good afternoon ☀️" : "Good evening 🌙";
   const dateLabel = formatLocaleDate(selectedDate, language, { weekday: "short", month: "short", day: "numeric" });
   const dailyCalories = profile?.daily_calorie_target || 2066;
-  const calLeft = Math.max(0, dailyCalories - todayProgress.calories + totalBurned);
-  const remainingPct = Math.min((calLeft / (dailyCalories || 1)) * 100, 100);
+  const calConsumed = Math.round(todayProgress.calories);
+  const calBurned = totalBurned;
+  const netCalories = Math.max(0, calConsumed - calBurned);
+  const calRemaining = Math.max(0, dailyCalories - netCalories);
+  const consumedPct = Math.min((netCalories / (dailyCalories || 1)) * 100, 100);
+  const overBudget = netCalories > dailyCalories;
+  const ringColor = overBudget ? "#EF4444" : "#10B981";
   const ringRadius = 62;
-  const remainingPctColor = remainingPct > 60 ? "#10B981" : remainingPct > 50 ? "#F97316" : "#EF4444";
   const ringCirc = 2 * Math.PI * ringRadius;
-  const ringOffset = ringCirc - (remainingPct / 100) * ringCirc;
+  const ringOffset = ringCirc - (Math.min(consumedPct, 100) / 100) * ringCirc;
   const balanceRadius = 40;
   const balanceCirc = 2 * Math.PI * balanceRadius;
   const balancePct = isUnlimited ? 100 : Math.min((Number(balanceDisplay) / (Number(totalMealsDisplay) || 1)) * 100, 100);
   const balanceOffset = balanceCirc - (balancePct / 100) * balanceCirc;
-  const completedThisWeek = 7;
+  const completedThisWeek = dailyStreak;
+
+  const rarityConfig: Record<string, { bg: string; border: string; gradient: string }> = {
+    common: { bg: "bg-gray-50", border: "border-gray-200", gradient: "from-gray-400 to-gray-500" },
+    rare: { bg: "bg-blue-50", border: "border-blue-200", gradient: "from-blue-400 to-blue-600" },
+    epic: { bg: "bg-purple-50", border: "border-purple-200", gradient: "from-purple-400 to-purple-600" },
+    legendary: { bg: "bg-amber-50", border: "border-amber-200", gradient: "from-amber-400 to-amber-600" },
+  };
   const displayedUnreadCount = unreadCount > 99 ? 99 : unreadCount;
 
   const planName = subscription?.plan || "Free Plan";
@@ -264,11 +781,15 @@ const Dashboard = () => {
     setSelectedDate(next);
   };
 
+  const carbsTarget = activeGoal?.carbs_target_g ?? profile?.carbs_target_g ?? 250;
+  const proteinTarget = activeGoal?.protein_target_g ?? profile?.protein_target_g ?? 150;
+  const fatTarget = activeGoal?.fat_target_g ?? profile?.fat_target_g ?? 65;
+
   const macroCards = [
     {
       label: "Carbs",
       value: Math.round(todayProgress.carbs),
-      target: profile?.carbs_target_g || 181,
+      target: carbsTarget,
       Icon: Wheat,
       iconClass: "from-[#BDF6C6] to-[#79DB88] text-[#13A853]",
       dotClass: "bg-[#19B965]",
@@ -277,7 +798,7 @@ const Dashboard = () => {
     {
       label: "Protein",
       value: Math.round(todayProgress.protein),
-      target: profile?.protein_target_g || 181,
+      target: proteinTarget,
       Icon: Drumstick,
       iconClass: "from-[#FFD6A7] to-[#FF914D] text-white",
       dotClass: "bg-[#FF820F]",
@@ -286,7 +807,7 @@ const Dashboard = () => {
     {
       label: "Fat",
       value: Math.round(todayProgress.fat),
-      target: profile?.fat_target_g || 69,
+      target: fatTarget,
       Icon: Droplet,
       iconClass: "from-[#B08CFF] to-[#7548F7] text-white",
       dotClass: "bg-[#7C4DFF]",
@@ -300,7 +821,7 @@ const Dashboard = () => {
     <motion.div
       initial={prefersReducedMotion ? undefined : { opacity: 0 }}
       animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-      className="min-h-screen overflow-x-hidden text-slate-900 relative"
+      className="overflow-x-hidden text-slate-900 relative"
     >
       <div
         className="absolute inset-0 pointer-events-none"
@@ -343,22 +864,348 @@ const Dashboard = () => {
               )}
             </div>
             <div>
-              <p className="text-[12px] font-medium leading-tight text-slate-700">Good afternoon 🌥️</p>
+              <p className="text-[12px] font-medium leading-tight text-slate-700">{timeGreeting}</p>
               <h1 className="mt-0.5 text-[15px] font-extrabold leading-none tracking-[-0.03em] text-slate-950">{userName}</h1>
             </div>
           </Link>
 
           <div className="flex items-center gap-3">
-            <Link to="/notifications" className="relative flex h-[36px] w-[36px] items-center justify-center text-slate-950" aria-label="Notifications">
-              <Bell className="h-[27px] w-[27px]" strokeWidth={2.15} />
-              {displayedUnreadCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#FF1D25] px-1 text-[10px] font-extrabold leading-none text-white shadow-[0_4px_10px_rgba(255,29,37,0.22)] ring-2 ring-white">
-                  {displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}
-                </span>
-              )}
-            </Link>
+            <div ref={notificationRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
+                className="relative flex h-[36px] w-[36px] items-center justify-center text-slate-950"
+                aria-label="Notifications"
+              >
+                <Bell className="h-[27px] w-[27px]" strokeWidth={2.15} />
+                {displayedUnreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#FF1D25] px-1 text-[10px] font-extrabold leading-none text-white shadow-[0_4px_10px_rgba(255,29,37,0.22)] ring-2 ring-white">
+                    {displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              <AnimatePresence>
+                {showNotificationsDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                    transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                    className="absolute right-0 top-[44px] z-50 w-[340px] max-w-[calc(100vw-40px)] rounded-[22px] bg-white shadow-[0_16px_40px_rgba(0,0,0,0.14)] ring-1 ring-slate-200/80 overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                      <h3 className="text-[14px] font-extrabold tracking-[-0.01em] text-slate-950">Notifications</h3>
+                      {displayedUnreadCount > 0 && (
+                        <span className="rounded-full bg-[#FEF2F2] px-2 py-0.5 text-[10px] font-bold text-[#EF4444]">
+                          {displayedUnreadCount} new
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="divide-y divide-slate-100">
+                      {notifsLoading ? (
+                        <div className="space-y-3 p-4">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="flex items-center gap-3">
+                              <div className="h-[36px] w-[36px] animate-pulse rounded-xl bg-slate-100" />
+                              <div className="flex-1 space-y-1.5">
+                                <div className="h-3 w-3/4 animate-pulse rounded bg-slate-100" />
+                                <div className="h-2.5 w-full animate-pulse rounded bg-slate-50" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : recentNotifications.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center px-4 py-8">
+                          <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-slate-100">
+                            <Bell className="h-[20px] w-[20px] text-slate-400" strokeWidth={1.5} />
+                          </div>
+                          <p className="mt-3 text-[13px] font-semibold text-slate-700">All caught up</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">No new notifications</p>
+                        </div>
+                      ) : (
+                        recentNotifications.map((notif: any) => {
+                          const cfg = (({
+                            order_update: { icon: Truck, bg: "bg-[#E6FFF5]", iconColor: "text-[#10B981]" },
+                            meal_reminder: { icon: Utensils, bg: "bg-[#FFF4E6]", iconColor: "text-[#F97316]" },
+                            subscription_alert: { icon: Crown, bg: "bg-[#FFF7ED]", iconColor: "text-[#EA580C]" },
+                            general: { icon: TrendingUp, bg: "bg-[#EFF6FF]", iconColor: "text-[#3B82F6]" },
+                            announcement: { icon: Sparkles, bg: "bg-[#FEF3C7]", iconColor: "text-[#F59E0B]" },
+                          } as any)[notif.type]) || { icon: Bell, bg: "bg-slate-100", iconColor: "text-slate-500" };
+                          const IconComponent = cfg.icon;
+                          const isUnread = notif.status === "unread";
+                          return (
+                            <button
+                              key={notif.id}
+                              type="button"
+                              onClick={() => { setShowNotificationsDropdown(false); navigate("/notifications"); }}
+                              className={`flex w-full items-start gap-3 p-3.5 text-left transition-colors hover:bg-slate-50 ${isUnread ? "bg-violet-50/30" : ""}`}
+                            >
+                              <div className={`flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-xl ${cfg.bg} ${isUnread ? "ring-2 ring-violet-200" : ""}`}>
+                                <IconComponent className={`h-[18px] w-[18px] ${cfg.iconColor}`} strokeWidth={1.75} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <p className={`truncate text-[13px] font-semibold ${isUnread ? "text-slate-950" : "text-slate-700"}`}>
+                                    {notif.title}
+                                  </p>
+                                  {isUnread && <span className="h-[6px] w-[6px] shrink-0 rounded-full bg-[#10B981]" />}
+                                </div>
+                                <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-slate-500">
+                                  {notif.message}
+                                </p>
+                                <span className="mt-1 inline-block text-[10px] font-medium text-slate-400">
+                                  {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* View All Footer */}
+                    <Link
+                      to="/notifications"
+                      onClick={() => setShowNotificationsDropdown(false)}
+                      className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-4 py-3 text-[13px] font-semibold text-[#10B981] transition hover:bg-[#F0FDF6]"
+                    >
+                      View all notifications
+                      <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                    </Link>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </header>
+
+        {/* Today's Meals Section */}
+        <motion.section
+          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 16 }}
+          animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={prefersReducedMotion ? undefined : { duration: 0.35, ease: "easeOut", delay: 0.05 }}
+          className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Today's Meals</h2>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500">What's on your plate today</p>
+            </div>
+            <Link
+              to="/schedule"
+              className="flex h-[30px] items-center gap-1 rounded-full bg-[#F0FDF6] px-2.5 text-[11px] font-semibold text-[#10B981]"
+            >
+              Schedule
+              <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {(() => {
+              const slots = [
+                { type: "breakfast", label: "Breakfast", icon: Coffee, color: "from-amber-400 to-orange-500", bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-200" },
+                { type: "lunch", label: "Lunch", icon: Soup, color: "from-emerald-400 to-teal-500", bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-200" },
+                { type: "dinner", label: "Dinner", icon: UtensilsCrossed, color: "from-violet-400 to-purple-500", bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-200" },
+              ];
+              const hasAnyMeal = slots.some((s) => {
+                const m = todayMeals.find((tm: any) => tm.type === s.type);
+                return m && m.meal;
+              });
+
+              if (!hasAnyMeal) {
+                return (
+                  <Link
+                    to="/meals"
+                    className="block rounded-2xl bg-gradient-to-br from-[#F0FDF6] via-[#F6FFF9] to-[#F0F7FF] p-5 ring-1 ring-emerald-100/60 transition active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex -space-x-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-[0_6px_14px_rgba(251,146,60,0.3)] ring-2 ring-white">
+                          <Coffee className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-[0_6px_14px_rgba(16,185,129,0.3)] ring-2 ring-white">
+                          <Soup className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-[0_6px_14px_rgba(139,92,246,0.3)] ring-2 ring-white">
+                          <UtensilsCrossed className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[14px] font-extrabold text-slate-900">Plan your meals for today</h3>
+                        <p className="mt-0.5 text-[12px] text-slate-500 leading-relaxed">
+                          Fresh, nutritious meals delivered to your door — curated by local restaurants.
+                        </p>
+                      </div>
+                      <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_14px_rgba(16,185,129,0.3)]">
+                        <Plus className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              }
+
+              return slots.map((slot) => {
+              const meal = todayMeals.find((m: any) => m.type === slot.type);
+              const hasMeal = meal && meal.meal;
+              const IconSlot = slot.icon;
+
+            return (
+              <div key={slot.type}>
+                <motion.div
+                  whileTap={prefersReducedMotion ? undefined : { scale: hasMeal ? 0.98 : 1 }}
+                  onClick={() => hasMeal && setExpandedMeal(expandedMeal === `${slot.type}-${meal.schedule_id}` ? null : `${slot.type}-${meal.schedule_id}`)}
+                  className={`flex items-center gap-3 rounded-[16px] p-3 transition-colors ${
+                    hasMeal ? `${slot.bg} ring-1 ${slot.ring} cursor-pointer` : "bg-slate-50 border border-dashed border-slate-200"
+                  }`}
+                >
+                  {/* Slot Icon */}
+                  <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white shadow-[0_6px_14px_rgba(0,0,0,0.12)]`}>
+                    <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.75} />
+                  </div>
+
+                  {hasMeal ? (
+                    <>
+                      {/* Meal Image */}
+                      {meal.meal?.image_url ? (
+                        <img
+                          src={meal.meal.image_url}
+                          alt={meal.meal.name}
+                          className="h-[48px] w-[48px] shrink-0 rounded-xl object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                          <Utensils className="h-[20px] w-[20px] text-slate-400" strokeWidth={1.5} />
+                        </div>
+                      )}
+
+                      {/* Meal Info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-bold leading-snug text-slate-950">
+                          {meal.meal?.name || slot.label}
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                          {meal.restaurant?.name && (
+                            <span className="truncate">{meal.restaurant.name}</span>
+                          )}
+                          {meal.meal?.calories && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span>{meal.meal.calories} cal</span>
+                            </>
+                          )}
+                          {meal.delivery_time_slot && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span>{meal.delivery_time_slot}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      <div className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition-transform ${expandedMeal === `${slot.type}-${meal.schedule_id}` ? "rotate-90" : ""}`}>
+                        <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Empty Slot */}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[13px] font-semibold ${slot.text}`}>{slot.label}</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-slate-400">No meal planned</p>
+                      </div>
+
+                      {/* Order Now CTA */}
+                      <Link
+                        to="/meals"
+                        className="flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-[#10B981] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FDF6]"
+                      >
+                        <Plus className="h-[13px] w-[13px]" strokeWidth={2.5} />
+                        Order Now
+                      </Link>
+                    </>
+                  )}
+                </motion.div>
+
+                <AnimatePresence>
+                  {expandedMeal === `${slot.type}-${meal?.schedule_id}` && hasMeal && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 28 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mx-3 mb-2 mt-1 rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Nutrition Facts</p>
+                        <div className="mt-3 grid grid-cols-4 gap-2">
+                          <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-2.5 text-center ring-1 ring-amber-100">
+                            <Flame className="mx-auto h-[18px] w-[18px] text-amber-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.calories || 0}</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">Cal</p>
+                          </div>
+                          <div className="rounded-xl bg-gradient-to-br from-rose-50 to-pink-50 p-2.5 text-center ring-1 ring-rose-100">
+                            <Drumstick className="mx-auto h-[18px] w-[18px] text-rose-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.protein_g || 0}g</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-rose-600">Protein</p>
+                          </div>
+                          <div className="rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-2.5 text-center ring-1 ring-blue-100">
+                            <Wheat className="mx-auto h-[18px] w-[18px] text-blue-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.carbs_g || 0}g</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">Carbs</p>
+                          </div>
+                          <div className="rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 p-2.5 text-center ring-1 ring-purple-100">
+                            <Droplet className="mx-auto h-[18px] w-[18px] text-purple-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.fat_g || 0}g</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Fat</p>
+                          </div>
+                        </div>
+                        <Link
+                          to={`/meals/${meal.meal?.id}`}
+                          className="mt-3 flex items-center justify-center gap-1 rounded-full bg-[#F0FDF6] py-2 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]"
+                        >
+                          View Full Details
+                          <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+            })}
+          </div>
+
+          {todayMealsError && (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-[#FFFCF0] p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <AlertCircle className="h-[16px] w-[16px]" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-semibold text-slate-800">Couldn&apos;t load today&apos;s meals</p>
+                  <p className="text-[10px] text-slate-500">Tap to try again</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setTodayMealsError(false); setTodayMealsLoading(true); fetchTodayMeals(); }}
+                  className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+          {todayMealsLoading && (
+            <div className="mt-3 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-[70px] animate-pulse rounded-[16px] bg-slate-100" />
+              ))}
+            </div>
+          )}
+        </motion.section>
 
         <motion.section 
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
@@ -399,14 +1246,14 @@ const Dashboard = () => {
                   <Calendar className="h-[13px] w-[13px]" />
                 </div>
                 <span className="flex-1 text-[11px] font-medium text-slate-500">Mo. Balance</span>
-                <span className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay} / {totalMealsDisplay}</span>
+                <span className="text-[12px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay} / {totalMealsDisplay}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
                   <ArrowRightLeft className="h-[13px] w-[13px]" />
                 </div>
                 <span className="flex-1 text-[11px] font-medium text-slate-500">Transfer Bal.</span>
-                <span className="text-[14px] font-extrabold tracking-[-0.02em] text-[#10A95F]">+0</span>
+                <span className="text-[12px] font-extrabold tracking-[-0.02em] text-[#10A95F]">+0</span>
               </div>
               <div className="h-px bg-slate-200" />
               <div className="flex items-center gap-2.5">
@@ -414,7 +1261,7 @@ const Dashboard = () => {
                   <Wallet className="h-[13px] w-[13px]" />
                 </div>
                 <span className="flex-1 text-[11px] font-medium text-slate-500">Total Avail.</span>
-                <span className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay}</span>
+                <span className="text-[12px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay}</span>
               </div>
             </div>
 
@@ -435,6 +1282,11 @@ const Dashboard = () => {
             </button>
           </div>
         </motion.section>
+
+        {/* ── Subscription Upgrade Nudge (conditional) ── */}
+        <div className="mt-4">
+          <SubscriptionNudge />
+        </div>
 
         <section className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
           <div className="flex items-center justify-between">
@@ -478,56 +1330,193 @@ const Dashboard = () => {
             <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
           </div>
 
+          {!weeklyLoading && weeklySummary && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05, type: "spring", stiffness: 280, damping: 26 }}
+              className="mt-3"
+            >
+              <div className="flex items-center gap-3 rounded-[16px] bg-gradient-to-r from-emerald-50 to-teal-50 p-3 ring-1 ring-emerald-100/60">
+                <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_8px_rgba(16,185,129,0.15)]">
+                  <Calendar className="h-[14px] w-[14px]" strokeWidth={2} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-bold text-slate-800">This Week</p>
+                  <p className="text-[10px] font-medium text-slate-500">
+                    {weeklySummary.calories.thisWeekAvg.toLocaleString()} / {(profile?.daily_calorie_target || 2066) * 7} cal
+                    {weeklySummary.calories.trend === "up" && " · ↑ on track"}
+                    {weeklySummary.calories.trend === "down" && " · ↓ below target"}
+                    {weeklySummary.calories.trend === "stable" && " · holding steady"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-extrabold text-[#10B981] shadow-[0_2px_6px_rgba(16,185,129,0.1)]">
+                  {weeklySummary.consistency.percentage}%
+                </span>
+              </div>
+            </motion.div>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
+            <motion.div
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={prefersReducedMotion ? undefined : { delay: 0.08, type: "spring", stiffness: 280, damping: 26 }}
+              className="flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-gradient-to-br from-blue-50 to-cyan-50 p-3 ring-1 ring-blue-100/60"
+              onClick={() => navigate("/water-tracker")}
+            >
+              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#2563EB] shadow-[0_4px_8px_rgba(59,130,246,0.15)]">
+                <Droplets className="h-[16px] w-[16px] text-white" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-blue-600">Water</p>
+                <p className="text-[13px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
+                  {Math.round(waterToday / 240 * 10) / 10} cups
+                </p>
+                <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-blue-200">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((waterToday / waterGoal) * 100, 100)}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
+                  />
+                </div>
+              </div>
+              <ChevronRight className="h-[14px] w-[14px] shrink-0 text-blue-400" strokeWidth={2} />
+            </motion.div>
+
+            <motion.div
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={prefersReducedMotion ? undefined : { delay: 0.1, type: "spring", stiffness: 280, damping: 26 }}
+              className="flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-gradient-to-br from-orange-50 to-amber-50 p-3 ring-1 ring-orange-100/60"
+              onClick={() => navigate("/step-counter")}
+            >
+              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_4px_8px_rgba(249,115,22,0.15)]">
+                <Footprints className="h-[16px] w-[16px] text-white" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-orange-600">Steps</p>
+                <p className="text-[13px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
+                  {stepsToday.toLocaleString()}
+                </p>
+                <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-orange-200">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((stepsToday / stepsGoal) * 100, 100)}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500"
+                  />
+                </div>
+              </div>
+              <ChevronRight className="h-[14px] w-[14px] shrink-0 text-orange-400" strokeWidth={2} />
+            </motion.div>
+          </div>
+
+          {(() => {
+            const badges: Array<{ emoji: string; label: string; color: string }> = [];
+
+            if (dailyStreak >= 7) {
+              badges.push({ emoji: "🔥", label: `${dailyStreak}-day streak!`, color: "from-amber-400 to-orange-500" });
+            } else if (dailyStreak >= 5) {
+              badges.push({ emoji: "⚡", label: `${dailyStreak}-day streak`, color: "from-amber-300 to-amber-500" });
+            }
+
+            if (weeklySummary && weeklySummary.consistency.percentage >= 85) {
+              badges.push({ emoji: "🎯", label: `${weeklySummary.consistency.percentage}% consistent this week`, color: "from-emerald-400 to-teal-500" });
+            }
+
+            if (streaks?.logging?.bestStreak && streaks.logging.bestStreak >= 14) {
+              badges.push({ emoji: "🏆", label: `Best streak: ${streaks.logging.bestStreak} days`, color: "from-violet-400 to-purple-500" });
+            }
+
+            if (badges.length === 0) return null;
+
+            return (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {badges.map((badge, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{
+                      delay: 0.15 + i * 0.1,
+                      type: "spring",
+                      stiffness: 260,
+                      damping: 18,
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r ${badge.color} px-3 py-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.1)]`}
+                  >
+                    <motion.span
+                      animate={{ scale: [1, 1.3, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.15 }}
+                      className="text-xs"
+                    >
+                      {badge.emoji}
+                    </motion.span>
+                    <span className="text-[11px] font-extrabold text-white">{badge.label}</span>
+                  </motion.div>
+                ))}
+              </div>
+            );
+          })()}
+
           <motion.div 
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut", delay: 0.1 }}
             className="mt-3 rounded-[20px] border border-slate-100 bg-white px-4 py-3 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]"
           >
-            <div className="flex min-h-[100px] items-center justify-between">
-              <div className="w-[62px] text-left">
-                <p className="text-[12px] font-medium text-slate-600">Consumed</p>
-                <div className="mt-0.5 flex items-end gap-1.5">
-                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{animatedCalories}</span>
-                  <Utensils className="mb-0.5 h-[18px] w-[18px] text-[#10A95F]" strokeWidth={2} />
+            <div className="flex items-stretch justify-between gap-2 min-h-[120px]">
+              {/* Consumed */}
+              <div className="flex flex-1 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] shadow-[0_4px_8px_rgba(16,185,129,0.08)]">
+                  <Utensils className="h-5 w-5 text-[#10B981]" strokeWidth={2} />
                 </div>
-                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Cal</p>
+                <div className="flex flex-col leading-none">
+                  <span className="text-[15px] font-medium text-[#64748B]">Consumed</span>
+                  <span className="text-[34px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedCalories}</span>
+                  <span className="text-[15px] text-[#94A3B8]">Cal</span>
+                </div>
               </div>
 
-              <div className="relative flex h-[140px] w-[140px] shrink-0 items-center justify-center">
-                <div className="absolute inset-[-4px] rounded-full bg-[#FFF7ED] blur-[0.5px]" />
+              {/* Calorie Ring */}
+              <div className="relative flex h-[120px] w-[120px] shrink-0 items-center justify-center">
                 <svg className="relative h-full w-full -rotate-90" viewBox="0 0 140 140" aria-hidden="true">
-                  <circle cx="70" cy="70" r={ringRadius} fill="none" stroke="#FFE8CC" strokeWidth="9" />
+                  <circle cx="70" cy="70" r={ringRadius} fill="none" stroke={overBudget ? "#FEE2E2" : "#DCFCE7"} strokeWidth="9" />
                   <motion.circle
                     cx="70"
                     cy="70"
                     r={ringRadius}
                     fill="none"
-                    stroke="#F97316"
+                    stroke={ringColor}
                     strokeLinecap="round"
                     strokeWidth="9"
                     strokeDasharray={ringCirc}
                     strokeDashoffset={ringOffset}
-                    style={{ filter: "drop-shadow(0 6px 10px rgba(249,115,22,0.2))" }}
+                    style={{ filter: overBudget ? "drop-shadow(0 6px 10px rgba(239,68,68,0.25))" : "drop-shadow(0 6px 10px rgba(16,185,129,0.2))" }}
                     variants={progressRingVariants}
                     initial="hidden"
                     animate="visible"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[20px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{calLeft}</span>
-              <span className="mt-1.5 text-[11px] font-extrabold uppercase leading-none text-[#F97316]">CAL LEFT</span>
-              <span className="mt-1.5 text-[10px] font-bold" style={{ color: remainingPctColor }}>{Math.round(remainingPct)}% Remaining</span>
+                  <span className="text-[18px] font-extrabold leading-none tracking-[-0.04em]" style={{ color: ringColor }}>{calRemaining}</span>
+                  <span className="mt-1 text-[10px] font-bold uppercase leading-none" style={{ color: ringColor }}>Remaining</span>
+                  <span className="mt-0.5 text-[9px] font-medium text-slate-400">{Math.round(consumedPct)}%</span>
                 </div>
               </div>
 
-              <div className="w-[62px] text-right">
-                <p className="text-[12px] font-medium text-slate-600">Burned</p>
-                <div className="mt-0.5 flex items-end justify-end gap-1.5">
-                  <Flame className="mb-0.5 h-[22px] w-[22px] text-[#F97316]" strokeWidth={2} />
-                  <span className="text-[22px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{animatedBurned}</span>
+              {/* Burned */}
+              <div className="flex flex-1 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] shadow-[0_4px_8px_rgba(249,115,22,0.08)]">
+                  <Flame className="h-5 w-5 text-[#F97316]" strokeWidth={2} />
                 </div>
-                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Cal</p>
+                <div className="flex flex-col leading-none">
+                  <span className="text-[15px] font-medium text-[#64748B]">Burned</span>
+                  <span className="text-[34px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedBurned}</span>
+                  <span className="text-[15px] text-[#94A3B8]">Cal</span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -574,6 +1563,123 @@ const Dashboard = () => {
             </motion.div>
           </div>
 
+          {(() => {
+            const weights = (weightHistory || [])
+              .filter(m => m.weight_kg != null)
+              .map(m => ({ date: m.log_date, kg: m.weight_kg! }))
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .slice(-7);
+
+            if (weights.length < 2) return null;
+
+            const first = weights[0].kg;
+            const last = weights[weights.length - 1].kg;
+            const delta = last - first;
+            const deltaAbs = Math.abs(delta).toFixed(1);
+            const trend = delta < 0 ? "↓" : delta > 0 ? "↑" : "→";
+            const trendColor = delta < 0 ? "text-emerald-600" : delta > 0 ? "text-red-500" : "text-slate-400";
+
+            const width = 160;
+            const height = 28;
+            const pad = 2;
+            const vals = weights.map(w => w.kg);
+            const vMin = Math.min(...vals);
+            const vMax = Math.max(...vals);
+            const range = vMax - vMin || 1;
+            const toX = (i: number) => pad + (i / Math.max(weights.length - 1, 1)) * (width - pad * 2);
+            const toY = (v: number) => height - pad - ((v - vMin) / range) * (height - pad * 2);
+            const pointsLine = weights.map((w, i) => `${toX(i)},${toY(w.kg)}`).join(" ");
+            const areaPath = `${toX(0)},${height} ${pointsLine} ${toX(weights.length - 1)},${height}`;
+
+            return (
+              <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50/60 px-4 py-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[20px]">{trend}</span>
+                  <div>
+                    <span className={`text-[14px] font-extrabold tracking-[-0.03em] ${trendColor}`}>{deltaAbs} kg</span>
+                    <p className="text-[10px] font-medium text-slate-400">7-day trend</p>
+                  </div>
+                </div>
+                <div className="flex-1" />
+                <svg viewBox={`0 0 ${width} ${height}`} className="h-7 shrink-0" style={{ width }}>
+                  <polygon points={areaPath} fill={trendColor.replace("text-", "").replace("emerald-600", "#059669").replace("red-500", "#EF4444").replace("slate-400", "#94A3B8")} fillOpacity={0.1} />
+                  <polyline
+                    points={pointsLine}
+                    fill="none"
+                    stroke={trendColor.replace("text-", "").replace("emerald-600", "#059669").replace("red-500", "#EF4444").replace("slate-400", "#94A3B8")}
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx={toX(weights.length - 1)} cy={toY(last)} r={3} fill={trendColor.replace("text-", "").replace("emerald-600", "#059669").replace("red-500", "#EF4444").replace("slate-400", "#94A3B8")} />
+                </svg>
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const protRemaining = Math.max(0, proteinTarget - todayProgress.protein);
+            const carbsRemaining = Math.max(0, carbsTarget - todayProgress.carbs);
+            const fatRemaining = Math.max(0, fatTarget - todayProgress.fat);
+
+            const protPct = proteinTarget > 0 ? protRemaining / proteinTarget : 0;
+            const carbsPct = carbsTarget > 0 ? carbsRemaining / carbsTarget : 0;
+            const fatPct = fatTarget > 0 ? fatRemaining / fatTarget : 0;
+
+            const gaps = [
+              { label: "protein", pct: protPct, remaining: protRemaining, unit: "g", color: "text-orange-600", bg: "bg-[#FFF0DA]", icon: Drumstick, ring: "ring-orange-200" },
+              { label: "carbs", pct: carbsPct, remaining: carbsRemaining, unit: "g", color: "text-emerald-600", bg: "bg-[#DDF8E7]", icon: Wheat, ring: "ring-emerald-200" },
+              { label: "fat", pct: fatPct, remaining: fatRemaining, unit: "g", color: "text-violet-600", bg: "bg-[#EEE5FF]", icon: Droplet, ring: "ring-violet-200" },
+            ].filter(g => g.remaining > 0 && g.pct >= 0.2);
+
+            if (gaps.length === 0 || !isUnlimited) return null;
+
+            gaps.sort((a, b) => b.pct - a.pct);
+            const top = gaps[0];
+
+            let suggestion = "";
+            let suggestionIcon = top.icon;
+            if (top.label === "protein" && calRemaining >= 300) {
+              suggestion = `You have ${top.remaining}g protein and ${calRemaining} cal remaining — a Protein Power Bowl would fit your macros perfectly.`;
+            } else if (top.label === "carbs" && calRemaining >= 300) {
+              suggestion = `With ${top.remaining}g carbs left and ${calRemaining} cal, a balanced Grain Bowl would round out your day.`;
+            } else if (top.label === "fat" && calRemaining >= 300) {
+              suggestion = `You have ${top.remaining}g fat to fill — try a Mediterranean meal to satisfy your targets.`;
+            } else if (calRemaining < 300 && calRemaining > 0) {
+              suggestion = `Only ${calRemaining} cal left today — a light salad or wrap would be perfect.`;
+              suggestionIcon = Soup;
+            } else {
+              return null;
+            }
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: 0.15, type: "spring", stiffness: 280, damping: 26 }}
+                className="mt-4"
+              >
+                <Link
+                  to="/meals"
+                  className={`block rounded-2xl border p-3.5 shadow-sm transition-all hover:shadow-md hover:scale-[1.01] ${top.bg} ring-1 ${top.ring}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.06)]`}>
+                      <suggestionIcon className={`h-[18px] w-[18px] ${top.color}`} strokeWidth={2} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-bold text-slate-800">What to Eat</p>
+                      <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">{suggestion}</p>
+                    </div>
+                    <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_2px_5px_rgba(0,0,0,0.05)]">
+                      <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            );
+          })()}
+
           <div className="mt-5">
             <div className="flex items-center gap-1.5">
               <Activity className="h-5 w-5 text-[#10A95F]" strokeWidth={2.1} />
@@ -600,19 +1706,188 @@ const Dashboard = () => {
               </div>
               <motion.button
                 type="button"
+                data-testid="log-activity-button"
                 onClick={() => setSheetOpen(true)}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                 className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_10px_20px_rgba(5,150,90,0.28)]"
-                aria-label="Open log activity"
+                aria-label="Log activity"
               >
                 <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
               </motion.button>
             </div>
+            {workoutCount === 0 && !totalBurned && (
+              <motion.button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
+                animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={prefersReducedMotion ? undefined : { delay: 0.3, type: "spring", stiffness: 300, damping: 28 }}
+                className="mt-2.5 flex w-full items-center gap-2.5 rounded-[14px] bg-[#F0FDF6] px-4 py-2.5 text-left transition-colors hover:bg-[#E0F9EE]"
+              >
+                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_rgba(16,185,129,0.12)]">
+                  <Plus className="h-[14px] w-[14px] text-[#10B981]" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#10B981]">Log your first workout</p>
+                  <p className="text-[11px] font-medium text-slate-500">Track your activity to see progress here</p>
+                </div>
+              </motion.button>
+            )}
           </div>
+
+          {/* Achievement Strip */}
+          <motion.div
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
+            animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.25, type: "spring", stiffness: 280, damping: 26 }}
+            className="mt-4"
+          >
+            <motion.div
+              className="cursor-pointer"
+              onClick={() => setShowAchievements(!showAchievements)}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+            >
+              <div className="flex items-center gap-3 rounded-[20px] bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 p-3.5 ring-1 ring-violet-100/60 shadow-[0_6px_18px_rgba(139,92,246,0.06)]">
+                {/* Level Badge */}
+                <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 shadow-[0_8px_16px_rgba(139,92,246,0.25)]">
+                  <Trophy className="h-[22px] w-[22px] text-white" strokeWidth={1.75} />
+                </div>
+
+                {/* Stats */}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-extrabold tracking-[-0.01em] text-slate-950">
+                    Level {gamification.level}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium text-violet-500 truncate">
+                    {gamification.earnedBadges > 0
+                      ? `${gamification.earnedBadges} of ${gamification.totalBadges} badges earned`
+                      : "Start earning badges today"}
+                  </p>
+                  <div className="mt-2 h-[4px] w-full overflow-hidden rounded-full bg-violet-200">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min((gamification.xp / gamification.xpToNextLevel) * 100, 100)}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Badge Preview */}
+                <div className="flex shrink-0 -space-x-2">
+                  {Array.from(gamification.earnedIds).slice(0, 3).reverse().map((badgeId: string) => {
+                    const badge = gamification.badges.find((b: any) => b.id === badgeId);
+                    const rarityGradient: Record<string, string> = {
+                      common: "from-gray-400 to-gray-500",
+                      rare: "from-blue-400 to-blue-600",
+                      epic: "from-purple-400 to-purple-600",
+                      legendary: "from-amber-400 to-amber-600",
+                    };
+                    const grad = rarityGradient[badge?.rarity || "common"] || rarityGradient.common;
+                    return (
+                      <div
+                        key={badgeId}
+                        className={`flex h-[32px] w-[32px] items-center justify-center rounded-full bg-gradient-to-br ${grad} shadow-[0_4px_8px_rgba(139,92,246,0.2)] ring-2 ring-white`}
+                      >
+                        <Medal className="h-[15px] w-[15px] text-white" strokeWidth={2} />
+                      </div>
+                    );
+                  })}
+                  {gamification.earnedBadges === 0 && (
+                    <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-white ring-2 ring-white">
+                      <Sparkles className="h-[14px] w-[14px] text-violet-400" strokeWidth={1.75} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Expand Chevron */}
+                <ChevronRight className={`h-[16px] w-[16px] text-violet-300 transition-transform ${showAchievements ? "rotate-90" : ""}`} strokeWidth={2} />
+              </div>
+            </motion.div>
+
+            {/* Expanded Badge Wall */}
+            <AnimatePresence>
+              {showAchievements && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 280, damping: 28 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mx-1 mt-2 rounded-2xl bg-white p-4 ring-1 ring-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400 mb-3">
+                      Your Achievements
+                    </p>
+
+                    {/* Earned Badges */}
+                    {gamification.earnedBadges > 0 && (
+                      <div className="mb-3">
+                        <div className="flex flex-wrap gap-2">
+                          {gamification.badges
+                            .filter((b: any) => gamification.earnedIds.has(b.id))
+                            .map((badge: any) => {
+                              const cfg = rarityConfig[badge.rarity] || rarityConfig.common;
+                              return (
+                                <div
+                                  key={badge.id}
+                                  className={`flex items-center gap-2 rounded-xl border p-2 ${cfg.bg} ${cfg.border}`}
+                                  title={badge.description}
+                                >
+                                  <div className={`flex h-[28px] w-[28px] items-center justify-center rounded-lg bg-gradient-to-br ${cfg.gradient} shadow-sm`}>
+                                    <Medal className="h-[14px] w-[14px] text-white" strokeWidth={2} />
+                                  </div>
+                                  <div className="pr-1">
+                                    <p className="text-[10px] font-bold text-slate-800 leading-none">{badge.name}</p>
+                                    <p className="text-[9px] text-slate-500 mt-0.5">+{badge.xp_reward} XP</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Next Unlocks */}
+                    {gamification.earnedBadges < gamification.totalBadges && (
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-500 mb-2">Next to unlock</p>
+                        <div className="space-y-1.5">
+                          {gamification.badges
+                            .filter((b: any) => !gamification.earnedIds.has(b.id))
+                            .slice(0, 3)
+                            .map((badge: any) => {
+                              const cfg = rarityConfig[badge.rarity] || rarityConfig.common;
+                              return (
+                                <div key={badge.id} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2">
+                                  <div className="flex h-[24px] w-[24px] items-center justify-center rounded-lg bg-slate-200">
+                                    <Lock className="h-[12px] w-[12px] text-slate-400" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-semibold text-slate-700 truncate">{badge.name}</p>
+                                    <p className="text-[10px] text-slate-400">+{badge.xp_reward} XP</p>
+                                  </div>
+                                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium capitalize ${cfg.bg} ${cfg.border}`}>
+                                    {badge.rarity}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {user && <BodyCorrelationWidget />}
+          {user && <ReferralMilestonesWidget />}
 
           <div className="mt-5">
             <h3 className="mb-2.5 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <motion.button
                 type="button"
                 onClick={() => navigate("/tracker")}
@@ -651,6 +1926,19 @@ const Dashboard = () => {
                 </span>
                 <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Progress</span>
               </motion.button>
+
+              <motion.button
+                type="button"
+                onClick={() => navigate("/community")}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                className="flex items-center gap-1 rounded-full border border-[#F3E8FF] bg-[#FAF5FF] px-2 py-2 shadow-[0_4px_10px_rgba(15,23,42,0.04)]"
+                aria-label="Community"
+              >
+                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A855F7] to-[#7C3AED] text-white shadow-[0_6px_12px_rgba(124,58,237,0.2)]">
+                  <Users className="h-[12px] w-[12px]" />
+                </span>
+                <span className="whitespace-nowrap text-[11px] font-semibold text-slate-900">Community</span>
+              </motion.button>
             </div>
           </div>
 
@@ -666,6 +1954,27 @@ const Dashboard = () => {
           </motion.button>
 
           {/* Active Orders section */}
+          {ordersError && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-[#FFFCF0] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-slate-800">Couldn&apos;t load orders</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Check your connection and try again</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setOrdersError(false); fetchActiveOrders(); }}
+                  className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-200"
+                >
+                  <RefreshCw className="h-[13px] w-[13px]" strokeWidth={2} />
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
           {activeOrders.length > 0 && (
             <>
               <div className="mt-6 flex items-center justify-between">
@@ -686,81 +1995,259 @@ const Dashboard = () => {
                 className="mt-2.5 space-y-1.5"
               >
                 {activeOrders.map((order) => {
-                  const statusConfig: Record<string, { label: string; Icon: React.ElementType; badgeClass: string }> = {
-                    pending: { label: "Pending", Icon: Clock, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
-                    confirmed: { label: "Confirmed", Icon: CheckCircle2, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
-                    preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]" },
-                    ready: { label: "Ready", Icon: Package, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
-                    out_for_delivery: { label: "On The Way", Icon: Bike, badgeClass: "bg-[#CDEEDB] text-[#098A4F]" },
+                  const statusConfig: Record<string, { label: string; Icon: React.ElementType; badgeClass: string; iconBg: string; hint: string }> = {
+                    pending: { label: "Pending", Icon: Clock, badgeClass: "bg-[#FFE8BF] text-[#D98105]", iconBg: "bg-gradient-to-br from-[#FFB039] to-[#E89A1F]", hint: "Awaiting confirmation · ~5 min" },
+                    confirmed: { label: "Confirmed", Icon: CheckCircle2, badgeClass: "bg-[#D6E4FF] text-[#1E5DB8]", iconBg: "bg-gradient-to-br from-[#5A9CFD] to-[#3B7FD8]", hint: "Order accepted · ~10 min" },
+                    preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFE8BF] text-[#D98105]", iconBg: "bg-gradient-to-br from-[#FFB039] to-[#E89A1F]", hint: "Cooking your meal · ~20 min" },
+                    ready: { label: "Ready", Icon: Package, badgeClass: "bg-[#CDEEDB] text-[#098A4F]", iconBg: "bg-gradient-to-br from-[#23C878] to-[#07894F]", hint: "Ready for pickup" },
+                    out_for_delivery: { label: "On The Way", Icon: Bike, badgeClass: "bg-[#D6F5FF] text-[#0891B2]", iconBg: "bg-gradient-to-br from-[#38BDF8] to-[#0891B2]", hint: "On the way · ~15 min" },
                   };
+
+                  const etaMin = order.order_status === "out_for_delivery" && order.updated_at
+                    ? Math.max(0, 15 - Math.floor((Date.now() - new Date(order.updated_at).getTime()) / 60000))
+                    : null;
+                  const etaProgress = order.order_status === "out_for_delivery" && order.updated_at
+                    ? Math.max(0, Math.min(100, ((15 - (etaMin || 15)) / 15) * 100))
+                    : 0;
+
                   const config = statusConfig[order.order_status] || statusConfig.pending;
                   const IconComponent = config.Icon;
                   
                   return (
-                    <motion.div
-                      key={order.id}
-                      variants={prefersReducedMotion ? undefined : staggerItem}
-                      whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-                    >
-                      <Link
-                        to={`/live/${order.id}`}
-                        className="flex h-[58px] items-center rounded-[15px] border border-[#D6F0DD] bg-white px-3.5 shadow-[0_6px_14px_rgba(16,185,129,0.03)]"
+                    <div key={order.id}>
+                      <motion.div
+                        variants={prefersReducedMotion ? undefined : staggerItem}
+                        whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
                       >
-                        <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#23C878] to-[#07894F] text-white shadow-[0_8px_16px_rgba(5,150,90,0.2)]">
-                          <IconComponent className="h-[18px] w-[18px]" />
-                        </div>
-                        <div className="ml-3 min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <p className="truncate text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">{order.restaurant_name}</p>
-                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${config.badgeClass}`}>{config.label}</span>
+                        <Link
+                          to={`/live/${order.id}`}
+                          className="flex h-[58px] items-center rounded-[15px] border border-[#D6F0DD] bg-white px-3.5 shadow-[0_6px_14px_rgba(16,185,129,0.03)]"
+                        >
+                          <div className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_16px_rgba(0,0,0,0.12)] ${config.iconBg}`}>
+                            <IconComponent className="h-[18px] w-[18px]" />
                           </div>
-                          <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{order.meal_name}</p>
+                          <div className="ml-3 min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <p className="truncate text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">{order.restaurant_name}</p>
+                              <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${config.badgeClass}`}>{config.label}</span>
+                            </div>
+                            <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">{order.meal_name}</p>
+                            {order.order_status === "out_for_delivery" && etaMin !== null ? (
+                              <div className="mt-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] font-bold text-sky-600">
+                                    {etaMin <= 0 ? "Arriving now" : `~${etaMin} min`}
+                                  </span>
+                                  <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-sky-100">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${etaProgress}%` }}
+                                      transition={{ duration: 0.5, ease: "easeOut" }}
+                                      className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400">{config.hint}</p>
+                            )}
+                          </div>
+                          <ChevronRight className="ml-2.5 h-5 w-5 shrink-0 text-slate-500" />
+                        </Link>
+                      </motion.div>
+
+                      {/* Order Action Buttons */}
+                      {(order.order_status === "pending" || order.order_status === "confirmed") && (
+                        <div className="mt-1.5 flex items-center gap-2 px-1">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); setSelectedSchedule(order); setShowModifyModal(true); }}
+                            className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200"
+                          >
+                            <Pencil className="h-[11px] w-[11px]" strokeWidth={2} />
+                            Reschedule
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); handleCancelOrder(order.id); }}
+                            disabled={cancellingId === order.id}
+                            className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {cancellingId === order.id ? (
+                              <Loader2 className="h-[11px] w-[11px] animate-spin" />
+                            ) : (
+                              <XCircle className="h-[11px] w-[11px]" strokeWidth={2} />
+                            )}
+                            Cancel
+                          </button>
                         </div>
-                        <ChevronRight className="ml-2.5 h-5 w-5 shrink-0 text-slate-500" />
-                      </Link>
-                    </motion.div>
+                      )}
+                    </div>
                   );
                 })}
               </motion.div>
             </>
           )}
 
-          <div className="mt-5 flex items-center justify-between">
-            <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Top Rated</h2>
-            <Link to="/meals" className="flex items-center gap-1.5 text-[13px] font-semibold text-[#08A75F]">
-              View All
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="mt-3 flex min-h-[100px] items-center rounded-[17px] border border-[#BFEBCB] bg-[#F9FFFA] px-4 py-3">
-            <div className="relative h-[78px] w-[100px] shrink-0">
-              <span className="absolute left-4 top-0.5 text-[15px] text-[#56C17C]">★</span>
-              <span className="absolute right-3.5 top-5 text-[10px] text-[#56C17C]">★</span>
-              <div className="absolute bottom-0.5 left-2.5 h-[3px] w-[72px] rounded-full bg-[#8AD7A0]" />
-              <div className="absolute bottom-2 left-7 h-[48px] w-[48px] rounded-t-[10px] bg-gradient-to-br from-[#A4E7B8] to-[#57BE7A] shadow-[inset_0_-6px_10px_rgba(7,137,79,0.1)]" />
-              <div className="absolute bottom-[41px] left-[22px] h-[17px] w-[56px] rounded-t-[6px] bg-[#A8EABD]" />
-              <div className="absolute bottom-[32px] left-[18px] flex h-3 w-[64px] overflow-hidden rounded-b-[6px] border border-[#67C98B] bg-white">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <span key={index} className={`h-full flex-1 ${index % 2 === 0 ? "bg-[#36B76A]" : "bg-[#E6F8EB]"}`} />
-                ))}
+          {/* Monthly Order Stats */}
+          {monthlyStats.total > 0 && (
+            <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
+              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_10px_rgba(16,185,129,0.2)]">
+                <ShoppingBag className="h-[16px] w-[16px]" strokeWidth={2} />
               </div>
-              <div className="absolute bottom-[7px] left-[36px] h-[14px] w-[20px] rounded bg-[#DFF6E7]" />
-              <div className="absolute bottom-[10px] left-[56px] h-[26px] w-[14px] rounded-t bg-[#2FAE62]/70" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-bold text-slate-900">This Month</p>
+                <p className="text-[10px] font-medium text-slate-500">
+                  {monthlyStats.total} orders · {monthlyStats.completed} completed
+                  {monthlyStats.cancelled > 0 && ` · ${monthlyStats.cancelled} cancelled`}
+                </p>
+              </div>
+              {monthlyStats.total > 0 && (
+                <span className="rounded-full bg-[#ECFDF5] px-2.5 py-1 text-[11px] font-extrabold text-[#10B981]">
+                  {Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%
+                </span>
+              )}
             </div>
+          )}
 
-            <div className="ml-2.5 min-w-0 flex-1">
-              <h3 className="text-[13px] font-extrabold tracking-[-0.02em] text-slate-950">No featured restaurants yet</h3>
-              <p className="mt-1.5 text-[12px] font-medium leading-relaxed text-slate-600 line-clamp-2">Check back soon for our highlighted partner restaurants!</p>
-              <Link
-                to="/meals"
-                className="mt-2.5 inline-flex h-[34px] items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-900 shadow-[0_4px_10px_rgba(15,23,42,0.06)]"
-              >
-                Explore Restaurants
-                <ChevronRight className="h-[14px] w-[14px]" />
-              </Link>
+          {(topRestaurantsError && !topRestaurantsLoading && topRestaurants.length === 0) && (
+            <div className="mt-5 rounded-3xl border border-amber-200 bg-[#FFFCF0] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-slate-800">Couldn&apos;t load featured restaurants</p>
+                  <p className="text-[10px] text-slate-500">Tap to try again</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setTopRestaurantsError(false); setTopRestaurantsLoading(true); fetchTopRestaurants(); }}
+                  className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-200"
+                >
+                  <RefreshCw className="h-[13px] w-[13px]" strokeWidth={2} />
+                  Retry
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {(topRestaurantsLoading || topRestaurants.length > 0) && (
+            <>
+              {/* Section Wrapper Card */}
+              <section className="mt-5 overflow-hidden rounded-[32px] bg-white p-4 pb-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+                {/* Header */}
+                <div className="flex items-center justify-between px-1">
+                  <div>
+                    <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-slate-950">Top Rated</h2>
+                    <p className="mt-0.5 text-[12px] font-medium text-slate-500">Popular restaurants near you</p>
+                  </div>
+                  <Link
+                    to="/meals"
+                    className="flex h-[32px] items-center gap-1 rounded-full bg-[#F0FDF6] px-3 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]"
+                  >
+                    View All
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                {topRestaurantsLoading ? (
+                  <div className="mt-4 flex gap-[14px] overflow-x-auto scrollbar-none">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="w-[200px] shrink-0">
+                        <div className="h-[130px] w-full animate-pulse rounded-[22px] bg-slate-100" />
+                        <div className="mt-3 h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+                        <div className="mt-1.5 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className="mt-4 flex gap-[14px] overflow-x-auto scrollbar-none scroll-smooth px-1"
+                    style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+                  >
+                    {topRestaurants.map((restaurant, index) => (
+                      <motion.div
+                        key={restaurant.id}
+                        initial={prefersReducedMotion ? undefined : { opacity: 0, y: 16 }}
+                        animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.08, type: "spring", stiffness: 260, damping: 28 }}
+                        className="w-[200px] shrink-0"
+                        style={{ scrollSnapAlign: "start" }}
+                      >
+                        <Link to={`/restaurant/${restaurant.id}`} className="group block">
+                          <div
+                            className="rounded-[26px] bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out group-hover:shadow-[0_16px_40px_rgba(0,0,0,0.10)] group-hover:-translate-y-[2px]"
+                            style={{ transform: "scale(1)" }}
+                          >
+                            {/* Cover Image */}
+                            <div className="relative h-[130px] w-full overflow-hidden rounded-[18px]">
+                              {restaurant.logo_url ? (
+                                <>
+                                  <img
+                                    src={restaurant.logo_url}
+                                    alt={restaurant.name}
+                                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                                  />
+                                  {/* Bottom gradient overlay */}
+                                  <div className="absolute inset-x-0 bottom-0 h-[60px] bg-gradient-to-t from-black/40 to-transparent" />
+                                </>
+                              ) : (
+                                <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-700">
+                                  {/* Decorative circles */}
+                                  <div className="absolute -right-6 -top-6 h-[80px] w-[80px] rounded-full bg-white/10" />
+                                  <div className="absolute -bottom-4 -left-4 h-[60px] w-[60px] rounded-full bg-white/10" />
+                                  <div className="absolute right-8 bottom-6 h-[30px] w-[30px] rounded-full bg-white/5" />
+                                  <div className="relative z-10 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-white/20 shadow-[0_0_30px_rgba(255,255,255,0.08)] backdrop-blur-sm">
+                                    <Store className="h-[28px] w-[28px] text-white" strokeWidth={1.5} />
+                                  </div>
+                                  {/* Bottom gradient overlay */}
+                                  <div className="absolute inset-x-0 bottom-0 h-[60px] bg-gradient-to-t from-black/40 to-transparent" />
+                                </div>
+                              )}
+
+                              {/* Rating Badge */}
+                              <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-[10px] bg-black/55 px-2 py-[3px] shadow-[0_4px_12px_rgba(0,0,0,0.2)] backdrop-blur-md">
+                                <Star className="h-[11px] w-[11px] fill-amber-400 text-amber-400" />
+                                <span className="text-[11px] font-bold leading-none text-white">
+                                  {restaurant.rating?.toFixed(1) || "0.0"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="mt-3 px-1">
+                              <h3 className="truncate text-[14px] font-extrabold leading-snug tracking-[-0.01em] text-slate-950">
+                                {restaurant.name}
+                              </h3>
+                              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                                {restaurant.cuisine_types && restaurant.cuisine_types.length > 0 ? (
+                                  <span className="truncate">
+                                    {restaurant.cuisine_types.slice(0, 2).join(" · ")}
+                                  </span>
+                                ) : null}
+                                {restaurant.total_orders ? (
+                                  <span className={restaurant.cuisine_types?.length ? "" : ""}>
+                                    {restaurant.cuisine_types?.length ? "·" : ""} {restaurant.total_orders}+ orders
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {/* CTA Button */}
+                            <div className="mt-3 flex items-center justify-end pr-1">
+                              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#F0FDF6] shadow-[0_4px_10px_rgba(16,185,129,0.12)] transition-colors group-hover:bg-[#D1FAE5]">
+                                <ChevronRight className="h-[16px] w-[16px] text-[#10B981]" strokeWidth={2.5} />
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
         </section>
       </main>
 
@@ -773,6 +2260,15 @@ const Dashboard = () => {
       )}
 
       <LogActivitySheet open={sheetOpen} onOpenChange={setSheetOpen} onBurnedUpdate={setTotalBurned} />
+
+      {selectedSchedule && (
+        <ModifyOrderModal
+          isOpen={showModifyModal}
+          onClose={() => { setShowModifyModal(false); setSelectedSchedule(null); }}
+          schedule={selectedSchedule}
+          onModified={() => { fetchActiveOrders(); setShowModifyModal(false); setSelectedSchedule(null); }}
+        />
+      )}
     </motion.div>
   );
 };

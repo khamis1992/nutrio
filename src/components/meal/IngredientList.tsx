@@ -117,7 +117,7 @@ export function IngredientList({ mealId, removedIngredients, onToggle }: Ingredi
             {/* Removed badge */}
             {isRemoved && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                {t("customization_removed", "Removed")}
+                {t("customization_removed")}
               </Badge>
             )}
           </motion.div>

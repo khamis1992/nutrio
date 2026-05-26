@@ -14,7 +14,8 @@ export type UserRole =
   | "driver" 
   | "admin" 
   | "staff"
-  | "fleet_manager";
+  | "fleet_manager"
+  | "coach";
 
 // Role hierarchy for permission checking
 const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -25,6 +26,7 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   staff: 3,
   admin: 4,
   fleet_manager: 2,
+  coach: 2,
 };
 
 interface ProtectedRouteProps {

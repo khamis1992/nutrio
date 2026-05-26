@@ -23,7 +23,7 @@ export function HPVariantToggle({ enabled, onChange, baseProtein, basePrice }: H
             HP
           </Badge>
           <div>
-            <p className="text-sm font-semibold">{t("customization_high_protein", "High-Protein")}</p>
+            <p className="text-sm font-semibold">{t("customization_high_protein")}</p>
             <p className="text-[10px] text-muted-foreground">
               +{extraProtein}g {t("protein", "protein")} · +{formatCurrency(extraPrice)}
             </p>

@@ -1,115 +1,115 @@
 import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Home, UtensilsCrossed, Calendar, User } from "lucide-react";
 
 const tabs = [
-  {
-    path: "/dashboard",
-    labelKey: "home",
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/>
-      </svg>
-    ),
-  },
-  {
-    path: "/meals",
-    labelKey: "meals",
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 2v20" />
-        <path d="M4 2v7a2 2 0 004 0V2" />
-        <path d="M17 2v20" />
-        <path d="M17 2c2.2 1.7 3.3 4.2 3.3 7.5H17" />
-      </svg>
-    ),
-  },
-  {
-    path: "/schedule",
-    labelKey: "schedule",
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
-        <line x1="9" y1="2" x2="9" y2="6"/>
-        <line x1="15" y1="2" x2="15" y2="6"/>
-        <line x1="8" y1="14" x2="8" y2="14.01"/>
-        <line x1="12" y1="14" x2="12" y2="14.01"/>
-        <line x1="16" y1="14" x2="16" y2="14.01"/>
-        <line x1="8" y1="18" x2="8" y2="18.01"/>
-        <line x1="12" y1="18" x2="12" y2="18.01"/>
-        <line x1="16" y1="18" x2="16" y2="18.01"/>
-      </svg>
-    ),
-  },
-  {
-    path: "/profile",
-    labelKey: "profile",
-    icon: (active: boolean) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="8" r="4"/>
-        <path d="M20 21a8 8 0 10-16 0"/>
-      </svg>
-    ),
-  },
+  { path: "/dashboard", labelKey: "home", Icon: Home },
+  { path: "/meals", labelKey: "meals", Icon: UtensilsCrossed },
+  { path: "/schedule", labelKey: "schedule", Icon: Calendar },
+  { path: "/profile", labelKey: "profile", Icon: User },
 ];
 
-export function BottomTabBar() {
+interface BottomTabBarProps {
+  keyboardOpen?: boolean;
+}
+
+export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
   const location = useLocation();
   const { t, isRTL } = useLanguage();
 
-  const activeIndex = tabs.findIndex((tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path));
+  const activeIndex = tabs.findIndex(
+    (tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path)
+  );
   const displayTabs = isRTL ? [...tabs].reverse() : tabs;
-  // When RTL, the active tab is at a different index in the reversed array
   const rtlActiveIndex = isRTL
-    ? displayTabs.findIndex((tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path))
+    ? displayTabs.findIndex(
+        (tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path)
+      )
     : activeIndex;
 
   return (
     <nav
       data-testid="bottom-tab-bar"
-      className="pointer-events-none fixed bottom-3 left-0 right-0 z-50 px-[18px]"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="pointer-events-none fixed bottom-0 left-0 right-0 z-[1000] px-4"
+      style={{
+        paddingBottom: "calc(env(safe-area-inset-bottom, 16px) + 8px)",
+        opacity: keyboardOpen ? 0 : 1,
+        transition: "opacity 0.15s ease",
+        pointerEvents: keyboardOpen ? "none" : undefined,
+      }}
     >
-      <div className="pointer-events-auto mx-auto h-[62px] max-w-[396px] rounded-full border border-white/80 bg-white/95 shadow-[0_14px_34px_rgba(15,23,42,0.10)] backdrop-blur-xl">
-        <div className="flex h-full items-center justify-around px-3">
-          {displayTabs.map((tab, i) => {
-            const active = i === rtlActiveIndex;
-            return (
-              <Link
-                key={tab.path}
-                to={tab.path}
-                className="relative flex h-full flex-1 items-center justify-center"
-                aria-current={active ? "page" : undefined}
-              >
-                {active ? (
+      <div className="pointer-events-auto mx-auto max-w-[420px]">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="relative rounded-[28px] border border-white/50 bg-white/80 shadow-[0_-2px_20px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-[24px]"
+          style={{ minHeight: "78px" }}
+        >
+          <div className="flex items-center justify-around px-4 py-3">
+            {displayTabs.map((tab, i) => {
+              const active = i === rtlActiveIndex;
+              const IconComponent = tab.Icon;
+
+              return (
+                <Link
+                  key={tab.path}
+                  to={tab.path}
+                  className="relative flex flex-col items-center justify-center outline-none"
+                  aria-current={active ? "page" : undefined}
+                >
                   <motion.div
-                    layoutId="tab-pill"
-                    className="absolute -top-[15px] flex h-[54px] w-[54px] flex-col items-center justify-center rounded-full bg-[#D8F8DE] text-[#059669] shadow-[0_8px_20px_rgba(16,185,129,0.16)]"
-                    transition={{
-                      type: "spring" as const,
-                      stiffness: 420,
-                      damping: 32,
-                      mass: 0.85,
-                    }}
+                    className="relative flex flex-col items-center justify-center"
+                    whileTap={{ scale: 0.92 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 24 }}
                   >
-                    <span className="mb-0.5 flex h-[25px] w-[25px] items-center justify-center rounded-[9px] bg-gradient-to-br from-[#25C878] to-[#08995A] text-white shadow-[0_6px_10px_rgba(16,185,129,0.22)]">
-                      {tab.icon(true)}
-                    </span>
-                    <span className="text-[10px] font-bold leading-none">{t(tab.labelKey)}</span>
+                    {active ? (
+                      <motion.div
+                        initial={{ scale: 0.85, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 420, damping: 28 }}
+                        className="flex h-[46px] w-[46px] flex-col items-center justify-center"
+                      >
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.05, type: "spring", stiffness: 500, damping: 28 }}
+                          className="mb-1 h-[4px] w-[4px] rounded-full bg-[#10B981]"
+                        />
+                        <motion.div
+                          layoutId="active-tab-circle"
+                          className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-gradient-to-br from-[#25C878] to-[#08995A] shadow-[0_4px_12px_rgba(16,185,129,0.25)]"
+                          style={{ scale: 1.04 }}
+                        >
+                          <IconComponent className="h-[18px] w-[18px] text-white" strokeWidth={2} />
+                        </motion.div>
+                        <span className="mt-1 text-[11px] font-medium leading-none text-[#111827]">
+                          {t(tab.labelKey)}
+                        </span>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 1 }}
+                        className="flex flex-col items-center justify-center gap-1.5 py-1"
+                        style={{ opacity: 0.85 }}
+                        whileHover={{ opacity: 1 }}
+                        whileTap={{ scale: 0.95, opacity: 0.7 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 24 }}
+                      >
+                        <IconComponent className="h-[22px] w-[22px] text-[#64748B]" strokeWidth={1.75} />
+                        <span className="text-[11px] font-normal leading-none text-[#64748B]">
+                          {t(tab.labelKey)}
+                        </span>
+                      </motion.div>
+                    )}
                   </motion.div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-1.5 text-slate-500 transition-colors duration-200">
-                    <span className="text-slate-500">{tab.icon(false)}</span>
-                    <span className="text-[10px] font-semibold leading-none text-slate-500">{t(tab.labelKey)}</span>
-                  </div>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
+        </motion.div>
       </div>
-      <div className="mx-auto mt-2 h-[4px] w-[72px] rounded-full bg-slate-400/50" />
     </nav>
   );
 }

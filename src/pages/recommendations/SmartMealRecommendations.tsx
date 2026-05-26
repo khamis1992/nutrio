@@ -104,15 +104,15 @@ export default function SmartMealRecommendations() {
       // Get user nutrition targets
       const { data: profile } = await supabase
         .from("profiles")
-        .select("target_calories, target_protein, target_carbs, target_fats")
-        .eq("id", user.id)
+        .select("daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+        .eq("user_id", user.id)
         .single();
 
       const targets = profile ? {
-        calories: profile.target_calories || 2000,
-        protein: profile.target_protein || 150,
-        carbs: profile.target_carbs || 200,
-        fats: profile.target_fats || 65,
+        calories: profile.daily_calorie_target || 2000,
+        protein: profile.protein_target_g || 150,
+        carbs: profile.carbs_target_g || 200,
+        fats: profile.fat_target_g || 65,
       } : { calories: 2000, protein: 150, carbs: 200, fats: 65 };
 
       setNutritionTargets(targets);

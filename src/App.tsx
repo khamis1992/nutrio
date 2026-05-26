@@ -86,6 +86,9 @@ const DriverSettings = lazy(() => import("./pages/driver/DriverSettings"));
 const DriverSupport = lazy(() => import("./pages/driver/DriverSupport"));
 const DriverNotifications = lazy(() => import("./pages/driver/DriverNotifications"));
 const DriverLayout = lazy(() => import("./components/driver/DriverLayout").then(m => ({ default: m.DriverLayout })));
+const CoachAuth = lazy(() => import("./pages/coach/CoachAuth"));
+const CoachDashboard = lazy(() => import("./pages/coach/CoachDashboard"));
+const CoachLayout = lazy(() => import("./components/coach/CoachLayout").then(m => ({ default: m.CoachLayout })));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -521,6 +524,17 @@ const App = () => (
             </Route>
             {/* Fleet Management Portal Routes */}
             {fleetRoutes}
+            {/* Coach Portal Routes */}
+            <Route path="/coach/auth" element={<CoachAuth />} />
+            <Route path="/coach" element={
+              <ProtectedRoute requiredRole="coach">
+                <Suspense fallback={<AppContentLoader />}>
+                  <CoachLayout />
+                </Suspense>
+              </ProtectedRoute>
+            }>
+              <Route index element={<CoachDashboard />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
               </RouteErrorBoundary>

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   BellOff,
@@ -9,13 +10,14 @@ import {
   Loader2,
   Trash2,
   Check,
+  CheckCheck,
+  Sparkles,
+  Utensils,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { EmptyState } from "@/components/EmptyState";
-import { RichNotificationActions } from "@/components/notifications/RichNotificationActions";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Notification {
@@ -29,29 +31,95 @@ interface Notification {
   created_at: string;
 }
 
-const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: string; iconColor: string }> = {
-  order_update:       { icon: Truck,        bg: "bg-teal-100 dark:bg-teal-900/40",   iconColor: "text-teal-600 dark:text-teal-400" },
-  meal_reminder:      { icon: Bell,         bg: "bg-amber-100 dark:bg-amber-900/40", iconColor: "text-amber-500 dark:text-amber-400" },
-  subscription_alert: { icon: Crown,        bg: "bg-orange-100 dark:bg-orange-900/40", iconColor: "text-orange-500 dark:text-orange-400" },
-  general:            { icon: TrendingUp,   bg: "bg-blue-100 dark:bg-blue-900/40",   iconColor: "text-blue-500 dark:text-blue-400" },
-  announcement:       { icon: Star,         bg: "bg-yellow-100 dark:bg-yellow-900/40", iconColor: "text-yellow-500 dark:text-yellow-400" },
+const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: string; gradient: string; shadow: string }> = {
+  order_update: {
+    icon: Truck,
+    bg: "bg-[#E6FFF5]",
+    gradient: "from-[#10B981] to-[#059669]",
+    shadow: "shadow-[0_8px_16px_rgba(16,185,129,0.2)]"
+  },
+  meal_reminder: {
+    icon: Utensils,
+    bg: "bg-[#FFF4E6]",
+    gradient: "from-[#FB923C] to-[#EA580C]",
+    shadow: "shadow-[0_8px_16px_rgba(251,146,60,0.2)]"
+  },
+  subscription_alert: {
+    icon: Crown,
+    bg: "bg-[#FFF7ED]",
+    gradient: "from-[#F97316] to-[#EA580C]",
+    shadow: "shadow-[0_8px_16px_rgba(249,115,22,0.25)]"
+  },
+  general: {
+    icon: TrendingUp,
+    bg: "bg-[#EFF6FF]",
+    gradient: "from-[#3B82F6] to-[#2563EB]",
+    shadow: "shadow-[0_8px_16px_rgba(59,130,246,0.2)]"
+  },
+  announcement: {
+    icon: Sparkles,
+    bg: "bg-[#FEF3C7]",
+    gradient: "from-[#F59E0B] to-[#D97706]",
+    shadow: "shadow-[0_8px_16px_rgba(245,158,11,0.2)]"
+  },
 };
 
 const FILTERS = [
-  { key: "all",    label: "All" },
-  { key: "orders", label: "Orders" },
-  { key: "meals",  label: "Meals" },
-  { key: "offers", label: "Offers" },
+  { key: "all", label: "All", icon: Bell },
+  { key: "orders", label: "Orders", icon: Truck },
+  { key: "meals", label: "Meals", icon: Utensils },
+  { key: "offers", label: "Offers", icon: Sparkles },
 ] as const;
 
 type FilterKey = typeof FILTERS[number]["key"];
 
 const TYPE_TO_FILTER: Record<Notification["type"], FilterKey> = {
-  order_update:       "orders",
-  meal_reminder:      "meals",
+  order_update: "orders",
+  meal_reminder: "meals",
   subscription_alert: "offers",
-  general:            "offers",
-  announcement:       "offers",
+  general: "offers",
+  announcement: "offers",
+};
+
+function getTimeGroup(date: Date): string {
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  if (isThisWeek(date)) return "This Week";
+  if (isThisMonth(date)) return "This Month";
+  return "Earlier";
+}
+
+function groupNotificationsByTime(notifications: Notification[]): [string, Notification[]][] {
+  const groups = new Map<string, Notification[]>();
+
+  notifications.forEach((n) => {
+    const date = new Date(n.created_at);
+    const group = getTimeGroup(date);
+    if (!groups.has(group)) {
+      groups.set(group, []);
+    }
+    groups.get(group)!.push(n);
+  });
+
+  return Array.from(groups.entries());
+}
+
+// Animation variants
+const prefersReducedMotion = typeof window !== "undefined"
+  ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  : false;
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: prefersReducedMotion ? 0 : 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, x: prefersReducedMotion ? 0 : -16 },
+  visible: { opacity: 1, x: 0 }
 };
 
 export default function Notifications() {
@@ -62,6 +130,8 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+  const [swipedId, setSwipedId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -118,6 +188,7 @@ export default function Notifications() {
         .eq("status", "unread");
       if (error) throw error;
       setNotifications((prev) => prev.map((n) => ({ ...n, status: "read" as const, read_at: new Date().toISOString() })));
+      toast({ title: "Marked all as read" });
     } catch {
       toast({ title: "Error", description: "Failed to mark all as read.", variant: "destructive" });
     }
@@ -139,118 +210,215 @@ export default function Notifications() {
     ? notifications
     : notifications.filter((n) => TYPE_TO_FILTER[n.type] === activeFilter);
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-950 pb-28">
-      {/* Header */}
-      <div className="px-5 pt-12 pb-4 bg-white dark:bg-gray-950">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t("notifications")}
-          </h1>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllAsRead}
-              className="text-sm font-semibold text-primary"
-            >
-              Mark all read
-            </button>
-          )}
-        </div>
+  const groupedNotifications = groupNotificationsByTime(filtered);
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-none">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setActiveFilter(f.key)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                activeFilter === f.key
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-              }`}
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Floating Header */}
+      <div className="sticky top-0 z-10 bg-white pt-12 px-5 pb-2">
+        <div className="mx-auto max-w-[430px]">
+          <div className="flex items-center justify-between">
+            <motion.div
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              className="flex items-center gap-2"
             >
-              {f.label}
-            </button>
-          ))}
+              <h1 className="text-[28px] font-bold tracking-[-0.02em] text-slate-950">
+                {t("notifications")}
+              </h1>
+              {unreadCount > 0 && (
+                <motion.span
+                  initial={prefersReducedMotion ? undefined : { scale: 0 }}
+                  animate={prefersReducedMotion ? undefined : { scale: 1 }}
+                  className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#10B981] px-1.5 text-[11px] font-bold text-white shadow-[0_4px_12px_rgba(16,185,129,0.3)]"
+                >
+                  {unreadCount}
+                </motion.span>
+              )}
+            </motion.div>
+            <motion.button
+              initial={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.9 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, scale: 1 }}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.92 }}
+              onClick={markAllAsRead}
+              disabled={unreadCount === 0}
+              className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-700 shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition disabled:opacity-50"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all read
+            </motion.button>
+          </div>
+
+          {/* Filter Tabs - Segmented Control Style */}
+          <motion.div
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
+            animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+          >
+            {FILTERS.map((f) => {
+              const Icon = f.icon;
+              const isActive = activeFilter === f.key;
+              return (
+                <motion.button
+                  key={f.key}
+                  whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                  onClick={() => setActiveFilter(f.key)}
+                  className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold whitespace-nowrap transition-all ${
+                    isActive
+                      ? "bg-[#10B981] text-white shadow-[0_6px_16px_rgba(16,185,129,0.25)]"
+                      : "bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Icon className={isActive ? "h-4 w-4" : "h-4 w-4 text-slate-400"} strokeWidth={isActive ? 2.5 : 2} />
+                  {f.label}
+                </motion.button>
+              );
+            })}
+          </motion.div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-5">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={<BellOff className="w-8 h-8" />}
-            title="No notifications"
-            description="You're all caught up!"
-          />
-        ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {filtered.map((n) => {
-              const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.general;
-              const Icon = cfg.icon;
-              const isUnread = n.status === "unread";
+      <div className="px-5 pb-32" ref={listRef}>
+        <div className="mx-auto max-w-[430px]">
+          {loading ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-20"
+            >
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] opacity-20 animate-ping" />
+                <Loader2 className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-spin text-[#10B981]" />
+              </div>
+              <p className="mt-4 text-[13px] font-medium text-slate-500">Loading notifications...</p>
+            </motion.div>
+          ) : filtered.length === 0 ? (
+            <motion.div
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
+              animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-20"
+            >
+              <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner">
+                <BellOff className="h-12 w-12 text-slate-400" strokeWidth={1.5} />
+              </div>
+              <h3 className="mt-6 text-[17px] font-semibold text-slate-900">All caught up!</h3>
+              <p className="mt-1.5 text-[14px] text-slate-500">You have no new notifications</p>
+            </motion.div>
+          ) : (
+            <div className="mt-4 space-y-6">
+              <AnimatePresence mode="popLayout">
+                {groupedNotifications.map(([group, items]) => (
+                  <motion.div
+                    key={group}
+                    initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
+                    animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                    exit={prefersReducedMotion ? undefined : { opacity: 0, y: -20 }}
+                  >
+                    {/* Time Group Header */}
+                    <div className="mb-3 flex items-center gap-2 px-1">
+                      <span className="text-[13px] font-semibold uppercase tracking-[0.04em] text-slate-500">
+                        {group}
+                      </span>
+                      <div className="h-px flex-1 bg-slate-200" />
+                    </div>
 
-              return (
-                <div
-                  key={n.id}
-                  className={`flex items-center gap-3 py-4 transition-colors ${
-                    isUnread ? "bg-primary/5 -mx-5 px-5" : ""
-                  }`}
-                >
-                  {/* Icon */}
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${cfg.bg}`}>
-                    <Icon className={`w-5 h-5 ${cfg.iconColor}`} />
-                  </div>
-
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-snug">
-                      {n.title}
-                      {isUnread && (
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary ml-1.5 mb-0.5 align-middle" />
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{n.message}</p>
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 block">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                    </span>
-                    {isUnread && (
-                      <RichNotificationActions
-                        notificationType={n.type}
-                        metadata={n.data as Record<string, unknown>}
-                        compact
-                      />
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {isUnread && (
-                      <button
-                        onClick={() => markAsRead(n.id)}
-                        className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-primary/10 transition-colors"
-                        aria-label="Mark as read"
-                      >
-                        <Check className="w-4 h-4 text-primary" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteNotification(n.id)}
-                      className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors"
-                      aria-label="Delete"
+                    {/* Notification Cards */}
+                    <motion.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className="space-y-2"
                     >
-                      <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      {items.map((n) => {
+                        const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.general;
+                        const Icon = cfg.icon;
+                        const isUnread = n.status === "unread";
+
+                        return (
+                          <motion.div
+                            key={n.id}
+                            variants={itemVariants}
+                            layout
+                            className="relative"
+                          >
+                            <div
+                              className={`relative overflow-hidden rounded-2xl border transition-all ${
+                                isUnread
+                                  ? "border-[#B6E9D0] bg-white shadow-[0_4px_16px_rgba(16,185,129,0.08)]"
+                                  : "border-slate-100 bg-white/60 shadow-sm"
+                              }`}
+                            >
+                              {/* Unread indicator bar */}
+                              {isUnread && (
+                                <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-[#10B981] to-[#059669]" />
+                              )}
+
+                              <div className="flex items-start gap-3 p-4">
+                                {/* Icon */}
+                                <motion.div
+                                  whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
+                                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cfg.gradient} ${cfg.shadow}`}
+                                >
+                                  <Icon className="h-5 w-5 text-white" strokeWidth={2} />
+                                </motion.div>
+
+                                {/* Content */}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <p className={`text-[14px] font-semibold leading-snug text-slate-900 ${isUnread ? "font-bold" : ""}`}>
+                                        {n.title}
+                                      </p>
+                                      <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">
+                                        {n.message}
+                                      </p>
+                                    </div>
+                                    {isUnread && (
+                                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#10B981] shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                                    )}
+                                  </div>
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <span className="text-[11px] font-medium text-slate-400">
+                                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center gap-1 border-t border-slate-100 bg-slate-50/50 px-4 py-2">
+                                {isUnread && (
+                                  <motion.button
+                                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                                    onClick={() => markAsRead(n.id)}
+                                    className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                  >
+                                    <Check className="h-3 w-3" strokeWidth={2.5} />
+                                    Mark as read
+                                  </motion.button>
+                                )}
+                                <motion.button
+                                  whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                                  onClick={() => deleteNotification(n.id)}
+                                  className="ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" strokeWidth={2.5} />
+                                  Delete
+                                </motion.button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </motion.div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

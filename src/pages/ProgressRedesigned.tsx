@@ -141,30 +141,32 @@ function MiniRing({ percentage, color }: { percentage: number; color: string }) 
 }
 
 // ─── Weight Forecast Chart ───────────────────────────────────────
-function WeightForecastChart() {
-  const data = [20, 22, 25, 28, 30, 32];
+function WeightForecastChart({ data }: { data: Array<{ label: string; actual: number | null; predicted: number | null }> }) {
+  const allValues = data
+    .flatMap(d => [d.actual, d.predicted])
+    .filter((v): v is number => v != null);
+
+  if (allValues.length === 0) {
+    return <p className="text-xs text-gray-400 mt-3">No weight data yet</p>;
+  }
+
   const width = 280;
   const height = 80;
   const padding = 10;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+  const max = Math.max(...allValues);
+  const min = Math.min(...allValues);
   const range = max - min || 1;
 
-  const points = data.map((val, i) => {
-    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-    const y = height - padding - ((val - min) / range) * (height - padding * 2);
-    return `${x},${y}`;
-  });
+  const toY = (val: number) => height - padding - ((val - min) / range) * (height - padding * 2);
+  const toX = (i: number) => padding + (i / Math.max(data.length - 1, 1)) * (width - padding * 2);
 
-  const areaPoints = [
-    `${padding},${height}`,
-    ...data.map((val, i) => {
-      const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-      const y = height - padding - ((val - min) / range) * (height - padding * 2);
-      return `${x},${y}`;
-    }),
-    `${width - padding},${height}`,
-  ].join(" ");
+  const actualPoints = data
+    .map((d, i) => d.actual != null ? { x: toX(i), y: toY(d.actual) } : null)
+    .filter((p): p is { x: number; y: number } => p != null);
+
+  const forecastPoints = data
+    .map((d, i) => d.predicted != null ? { x: toX(i), y: toY(d.predicted) } : null)
+    .filter((p): p is { x: number; y: number } => p != null);
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-20 mt-3">
@@ -174,20 +176,42 @@ function WeightForecastChart() {
           <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={areaPoints} fill="url(#areaGrad)" />
-      <polyline
-        points={points.join(" ")}
-        fill="none"
-        stroke="#22c55e"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+      {/* Area fill */}
+      <polygon
+        points={`${actualPoints.map(p => `${p.x},${p.y}`).join(" ")} ${toX(actualPoints.length - 1)},${height} ${toX(0)},${height}`}
+        fill="url(#areaGrad)"
       />
-      {data.map((val, i) => {
-        const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-        const y = height - padding - ((val - min) / range) * (height - padding * 2);
-        return <circle key={i} cx={x} cy={y} r={3} fill="#22c55e" />;
-      })}
+      {/* Actual line */}
+      {actualPoints.length > 1 && (
+        <polyline
+          points={actualPoints.map(p => `${p.x},${p.y}`).join(" ")}
+          fill="none"
+          stroke="#22c55e"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {/* Actual dots */}
+      {actualPoints.map((p, i) => (
+        <circle key={`a-${i}`} cx={p.x} cy={p.y} r={3} fill="#22c55e" />
+      ))}
+      {/* Forecast dashed line */}
+      {forecastPoints.length > 1 && (
+        <polyline
+          points={forecastPoints.map(p => `${p.x},${p.y}`).join(" ")}
+          fill="none"
+          stroke="#22c55e"
+          strokeWidth={1.5}
+          strokeDasharray="4 4"
+          strokeLinecap="round"
+          opacity={0.5}
+        />
+      )}
+      {/* Forecast dots */}
+      {forecastPoints.map((p, i) => (
+        <circle key={`f-${i}`} cx={p.x} cy={p.y} r={2.5} fill="#22c55e" opacity={0.5} />
+      ))}
     </svg>
   );
 }
@@ -731,7 +755,7 @@ const ProgressDashboard = () => {
                 </div>
               </div>
 
-              <WeightForecastChart />
+              <WeightForecastChart data={weightChartData.map(d => ({ label: d.label, actual: d.actual, predicted: d.predicted }))} />
 
               <div className="mt-3 flex flex-col items-center">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mb-1">

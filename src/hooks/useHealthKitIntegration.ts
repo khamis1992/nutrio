@@ -1,0 +1,343 @@
+/**
+ * useHealthKitIntegration Hook
+ *
+ * Manages fitness wearable integration lifecycle:
+ * - Detect platform (Apple Health / Google Fit)
+ * - Request permissions
+ * - Poll/sync data every 15 minutes
+ * - Cache synced data in localStorage + Supabase
+ * - Track last sync time and connection state
+ */
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  getConfig,
+  saveConfig,
+  shouldSync,
+  markSynced,
+  getCachedHealthData,
+  setCachedHealthData,
+  disconnectAll,
+  HealthPlatform,
+  SyncDataType,
+  SyncedHealthData,
+  PLATFORM_LABELS,
+  detectPlatform,
+} from "@/lib/healthKit";
+
+const POLL_INTERVAL = 15 * 60 * 1000; // 15 minutes
+
+export interface HealthKitState {
+  platform: HealthPlatform;
+  isAvailable: boolean;
+  isConnected: boolean;
+  enabledTypes: SyncDataType[];
+  lastSyncTimestamp: number | null;
+  syncedData: SyncedHealthData | null;
+  isSyncing: boolean;
+}
+
+export function useHealthKitIntegration() {
+  const { user } = useAuth();
+  const [state, setState] = useState<HealthKitState>(() => {
+    const config = getConfig();
+    return {
+      platform: config.platform,
+      isAvailable: false,
+      isConnected: config.enabledDataTypes.length > 0,
+      enabledTypes: config.enabledDataTypes,
+      lastSyncTimestamp: config.lastSyncTimestamp,
+      syncedData: getCachedHealthData(),
+      isSyncing: false,
+    };
+  });
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const checkAvailability = useCallback(async () => {
+    const platform = detectPlatform();
+    if (platform === "none") {
+      setState((prev) => ({ ...prev, isAvailable: false, platform }));
+      return false;
+    }
+
+    try {
+      if (platform === "apple_health") {
+        const { HealthKit } = await import("@/services/health/healthkit");
+        const available = await HealthKit.isAvailable();
+        setState((prev) => ({ ...prev, isAvailable: available, platform }));
+        return available;
+      } else if (platform === "google_fit") {
+        const { isAvailable } = await import("@/services/health/googleFit");
+        const available = await isAvailable();
+        setState((prev) => ({ ...prev, isAvailable: available, platform }));
+        return available;
+      }
+    } catch {
+      setState((prev) => ({ ...prev, isAvailable: false }));
+    }
+
+    return false;
+  }, []);
+
+  const requestPermissions = useCallback(async (types: SyncDataType[]): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      if (state.platform === "apple_health") {
+        const { HealthKit } = await import("@/services/health/healthkit");
+        const requested = {
+          steps: types.includes("steps"),
+          heartRate: types.includes("heart_rate"),
+          workouts: types.includes("workouts"),
+        };
+        const granted = await HealthKit.requestPermissions(requested);
+        return !!granted;
+      } else if (state.platform === "google_fit") {
+        const { requestPermissions: requestGFit } = await import("@/services/health/googleFit");
+        const needsActivity = types.includes("steps") || types.includes("workouts");
+        const needsBody = types.includes("heart_rate");
+        const granted = await requestGFit({
+          activity: needsActivity,
+          body: needsBody,
+          location: false,
+        });
+        if (granted && (granted.activity || granted.body)) {
+          return true;
+        }
+        const hasOAuthToken = await checkExistingGoogleFitToken();
+        return hasOAuthToken;
+      }
+    } catch {
+      toast.error("Failed to request health permissions");
+    }
+
+    return false;
+  }, [user, state.platform]);
+
+  const checkExistingGoogleFitToken = async (): Promise<boolean> => {
+    if (!user) return false;
+    const { data } = await supabase
+      .from("user_integrations")
+      .select("access_token, expires_at")
+      .eq("user_id", user.id)
+      .eq("provider", "google_fit")
+      .maybeSingle();
+
+    if (data?.access_token) {
+      const isValid = data.expires_at * 1000 > Date.now();
+      return isValid;
+    }
+    return false;
+  };
+
+  const syncData = useCallback(async (): Promise<void> => {
+    if (!user) return;
+    const config = getConfig();
+    if (config.enabledDataTypes.length === 0) return;
+
+    setState((prev) => ({ ...prev, isSyncing: true }));
+
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+      const syncedData: SyncedHealthData = {
+        steps: null,
+        heartRate: null,
+        workoutCount: null,
+        source: config.platform,
+        syncedAt: new Date().toISOString(),
+      };
+
+      if (config.platform === "apple_health") {
+        const { HealthKit } = await import("@/services/health/healthkit");
+        const [steps, heartRate, workouts] = await Promise.all([
+          config.enabledDataTypes.includes("steps")
+            ? HealthKit.getStepCount({ start: startOfDay, end: endOfDay })
+            : null,
+          config.enabledDataTypes.includes("heart_rate")
+            ? HealthKit.getHeartRate({ start: startOfDay, end: endOfDay })
+            : null,
+          config.enabledDataTypes.includes("workouts")
+            ? HealthKit.getWorkouts({ start: startOfDay, end: endOfDay })
+            : null,
+        ]);
+        if (steps !== null) syncedData.steps = steps;
+        if (heartRate !== null) syncedData.heartRate = heartRate;
+        if (workouts) syncedData.workoutCount = workouts.length;
+      } else if (config.platform === "google_fit") {
+        const { data: tokens } = await supabase
+          .from("user_integrations")
+          .select("access_token, expires_at")
+          .eq("user_id", user.id)
+          .eq("provider", "google_fit")
+          .maybeSingle();
+
+        if (tokens?.access_token) {
+          if (config.enabledDataTypes.includes("workouts") || config.enabledDataTypes.includes("steps")) {
+            const { getWorkouts } = await import("@/services/health/googleFit");
+            const workouts = await getWorkouts(
+              { accessToken: tokens.access_token, expiresAt: tokens.expires_at * 1000 },
+              startOfDay,
+              endOfDay
+            );
+            if (config.enabledDataTypes.includes("workouts")) {
+              syncedData.workoutCount = workouts.length;
+            }
+            if (config.enabledDataTypes.includes("steps")) {
+              const walkingWorkouts = workouts.filter((w) =>
+                w.type.toLowerCase().includes("walk")
+              );
+              if (walkingWorkouts.length > 0) {
+                syncedData.steps = Math.round(
+                  walkingWorkouts.reduce((sum, w) => sum + w.duration, 0) * 100
+                );
+              }
+            }
+          }
+
+          if (config.enabledDataTypes.includes("heart_rate")) {
+            const { getHealthData } = await import("@/services/health/googleFit");
+            const healthData = await getHealthData({ start: startOfDay, end: endOfDay });
+            if (healthData?.heartRate) {
+              syncedData.heartRate = healthData.heartRate;
+            }
+          }
+        }
+      }
+
+      setCachedHealthData(syncedData);
+
+      await supabase.from("health_sync_data").upsert({
+        user_id: user.id,
+        platform: config.platform,
+        data: syncedData,
+        synced_at: new Date().toISOString(),
+      });
+
+      const updatedConfig = markSynced();
+      setState((prev) => ({
+        ...prev,
+        syncedData,
+        lastSyncTimestamp: updatedConfig.lastSyncTimestamp,
+        isSyncing: false,
+      }));
+    } catch (err) {
+      console.error("Health sync failed:", err);
+      setState((prev) => ({ ...prev, isSyncing: false }));
+    }
+  }, [user]);
+
+  const toggleDataType = useCallback(
+    async (dataType: SyncDataType, enabled: boolean) => {
+      if (!user) return;
+
+      if (enabled) {
+        const success = await requestPermissions([dataType]);
+        if (!success) {
+          toast.error(`Could not enable ${dataType} sync`);
+          return;
+        }
+      }
+
+      const config = getConfig();
+      if (enabled && !config.enabledDataTypes.includes(dataType)) {
+        config.enabledDataTypes.push(dataType);
+      } else if (!enabled) {
+        config.enabledDataTypes = config.enabledDataTypes.filter((d) => d !== dataType);
+      }
+      saveConfig(config);
+
+      const hasAny = config.enabledDataTypes.length > 0;
+      setState((prev) => ({
+        ...prev,
+        enabledTypes: config.enabledDataTypes,
+        isConnected: hasAny,
+      }));
+
+      if (enabled && hasAny) {
+        toast.success(`Connected to ${PLATFORM_LABELS[config.platform]} - ${dataType}`);
+        // Perform initial sync
+        await syncData();
+      } else if (!hasAny) {
+        toast.success(`Disconnected from ${PLATFORM_LABELS[config.platform]}`);
+      }
+    },
+    [user, requestPermissions, syncData]
+  );
+
+  const disconnect = useCallback(() => {
+    disconnectAll();
+    setState((prev) => ({
+      ...prev,
+      enabledTypes: [],
+      isConnected: false,
+      syncedData: null,
+      lastSyncTimestamp: null,
+    }));
+    toast.success(`Disconnected from ${PLATFORM_LABELS[state.platform]}`);
+  }, [state.platform]);
+
+  const formatLastSync = useCallback((): string => {
+    if (!state.lastSyncTimestamp) return "Never";
+    const diff = Date.now() - state.lastSyncTimestamp;
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }, [state.lastSyncTimestamp]);
+
+  // Start polling when connected
+  useEffect(() => {
+    if (state.enabledTypes.length === 0) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    const doSync = async () => {
+      if (shouldSync()) {
+        await syncData();
+      }
+    };
+
+    // Initial sync
+    doSync();
+
+    // Periodic sync
+    intervalRef.current = setInterval(doSync, POLL_INTERVAL);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [state.enabledTypes, syncData]);
+
+  // Check availability on mount
+  useEffect(() => {
+    checkAvailability();
+  }, [checkAvailability]);
+
+  return {
+    ...state,
+    checkAvailability,
+    toggleDataType,
+    disconnect,
+    syncData,
+    requestPermissions,
+    formatLastSync,
+    isSyncing: state.isSyncing,
+  };
+}

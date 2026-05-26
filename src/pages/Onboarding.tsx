@@ -495,22 +495,34 @@ const Onboarding = () => {
     clearSavedProgress();
     try {
       if (!user) return;
-      await updateProfile({
-        goal: data.goal || "maintain",
-        gender: data.gender || "male",
-        age: parseInt(data.age) || 30,
-        height: parseInt(data.height) || 170,
-        weight: parseFloat(data.weight) || 75,
-        target_weight: parseFloat(data.targetWeight) || 75,
-        activity_level: data.activityLevel || "moderate",
-        training_days_per_week: parseInt(data.trainingDaysPerWeek) || 3,
-        food_preferences: data.foodPreferences,
-        allergies: data.allergies,
-        daily_calories: dailyCalories,
-        daily_protein: macros.protein,
-        daily_carbs: macros.carbs,
-        daily_fat: macros.fat,
-      });
+      const goalType = data.goal === "lose" ? "weight_loss" : data.goal === "gain" ? "muscle_gain" : "maintenance";
+      await Promise.all([
+        updateProfile({
+          goal: data.goal || "maintain",
+          gender: data.gender || "male",
+          age: parseInt(data.age) || 30,
+          height: parseInt(data.height) || 170,
+          weight: parseFloat(data.weight) || 75,
+          target_weight: parseFloat(data.targetWeight) || 75,
+          activity_level: data.activityLevel || "moderate",
+          training_days_per_week: parseInt(data.trainingDaysPerWeek) || 3,
+          daily_calorie_target: dailyCalories,
+          protein_target_g: macros.protein,
+          carbs_target_g: macros.carbs,
+          fat_target_g: macros.fat,
+          onboarding_completed: true,
+        }),
+        supabase.from("nutrition_goals").insert({
+          user_id: user.id,
+          goal_type: goalType,
+          target_weight_kg: parseFloat(data.targetWeight) || null,
+          daily_calorie_target: dailyCalories,
+          protein_target_g: macros.protein,
+          carbs_target_g: macros.carbs,
+          fat_target_g: macros.fat,
+          is_active: true,
+        }),
+      ]);
     } catch (err) {
       console.error("Failed to save onboarding profile:", err);
     }

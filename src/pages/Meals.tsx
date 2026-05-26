@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
+import { SmartRecommendations } from "@/components/SmartRecommendations";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
 import { supabase } from "@/integrations/supabase/client";
@@ -361,12 +362,14 @@ const SectionHeading = ({
   title,
   subtitle,
   showViewAll = true,
+  viewAllHref,
 }: {
   icon: LucideIcon;
   iconClassName: string;
   title: string;
   subtitle?: string;
   showViewAll?: boolean;
+  viewAllHref?: string;
 }) => (
   <div className="mb-4 mt-7 flex items-end justify-between">
     <div className="flex items-start gap-3">
@@ -379,10 +382,17 @@ const SectionHeading = ({
       </div>
     </div>
     {showViewAll && (
-      <button className="mb-0.5 flex items-center gap-2 text-[15px] font-extrabold text-[#009F63]">
-        View all
-        <ChevronRight className="h-5 w-5" strokeWidth={3} />
-      </button>
+      viewAllHref ? (
+        <Link to={viewAllHref} className="mb-0.5 flex items-center gap-2 text-[15px] font-extrabold text-[#009F63]">
+          View all
+          <ChevronRight className="h-5 w-5" strokeWidth={3} />
+        </Link>
+      ) : (
+        <button className="mb-0.5 flex items-center gap-2 text-[15px] font-extrabold text-[#009F63]">
+          View all
+          <ChevronRight className="h-5 w-5" strokeWidth={3} />
+        </button>
+      )
     )}
   </div>
 );
@@ -560,10 +570,7 @@ const Meals = () => {
   const hasResults = allVisibleMeals.length > 0 || visibleRestaurants.length > 0;
 
   return (
-    <div
-      className="min-h-screen bg-[#FBFCFC] pb-[164px] text-[#151D2B]"
-      style={{ background: "radial-gradient(circle at 14% 0%, rgba(0,159,99,0.08), transparent 31%), #FBFCFC" }}
-    >
+    <div className="min-h-screen bg-white pb-[164px] text-[#151D2B]">
       <div className="mx-auto w-full max-w-[1008px] px-5 pt-8 sm:px-8 md:px-12">
         <header className="flex items-start justify-between">
           <div className="flex items-start gap-7">
@@ -622,19 +629,8 @@ const Meals = () => {
         </div>
 
         <main>
-          <SectionHeading icon={Star} iconClassName="bg-transparent text-[#009F63]" title="Recommended for you" showViewAll={false} />
-          <button className="flex h-[82px] w-full items-center justify-between rounded-[29px] border border-[#F5DCAE] bg-[#FFF9ED] px-5 shadow-[inset_0_0_38px_rgba(255,202,90,0.13)]">
-            <div className="flex items-center gap-5">
-              <span className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-[#FFE497] text-[#C47A00]">
-                <Sparkles className="h-7 w-7" strokeWidth={2.4} />
-              </span>
-              <span className="text-left">
-                <span className="block text-[17px] font-extrabold leading-tight text-[#151D2B]">Suggested for you</span>
-                <span className="mt-1 block text-[15px] font-medium leading-tight text-[#515A6C]">Based on your past orders</span>
-              </span>
-            </div>
-            <ChevronRight className="h-7 w-7 text-[#151D2B]" strokeWidth={3} />
-          </button>
+          <SectionHeading icon={Star} iconClassName="bg-transparent text-[#009F63]" title="Recommended for you" showViewAll viewAllHref="/recommendations" />
+          <SmartRecommendations />
 
           {hasResults ? (
             <>
