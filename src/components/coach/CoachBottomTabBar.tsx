@@ -1,6 +1,7 @@
 import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Users, BarChart3, MessageSquare, Settings, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const tabs = [
   { path: "/coach", label: "Clients", Icon: Users },

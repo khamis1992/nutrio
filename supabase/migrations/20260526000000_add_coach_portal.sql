@@ -53,6 +53,13 @@ CREATE POLICY "coaches_delete_assignments" ON coach_client_assignments
   TO authenticated
   USING (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
 
+-- Coaches can update their own assignments (accept/reject requests)
+CREATE POLICY "coaches_update_own_assignments" ON coach_client_assignments
+  FOR UPDATE
+  TO authenticated
+  USING (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()))
+  WITH CHECK (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+
 -- Clients can request coaches (client-initiated discovery)
 CREATE POLICY "clients_request_coaches" ON coach_client_assignments
   FOR INSERT
