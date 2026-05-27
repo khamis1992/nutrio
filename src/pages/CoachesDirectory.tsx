@@ -132,7 +132,11 @@ export default function CoachesDirectory() {
         const connectedProfile = sorted.find((c) => c.id === activeId) || null;
         setMyCoachProfile(connectedProfile);
       }
-      setPendingRequests(myPending);
+      setPendingRequests((prev) => {
+        const merged = new Set(myPending);
+        for (const id of prev) merged.add(id);
+        return merged;
+      });
     } catch (err) {
       console.error("Error fetching coaches:", err);
     } finally {
@@ -147,6 +151,12 @@ export default function CoachesDirectory() {
   const handleRequestCoach = async (coachId: string) => {
     if (!user) return;
     setRequesting(coachId);
+    // Optimistically mark as pending so UI updates immediately
+    setPendingRequests((prev) => {
+      const next = new Set(prev);
+      next.add(coachId);
+      return next;
+    });
     try {
       const { data: existing } = await supabase
         .from("coach_client_assignments")
@@ -169,12 +179,17 @@ export default function CoachesDirectory() {
         status: "pending",
       });
 
-      setPendingRequests((prev) => new Set(prev).add(coachId));
       toast({
         title: "Request sent!",
         description: "Your coach will review and accept your request.",
       });
     } catch {
+      // Revert on failure
+      setPendingRequests((prev) => {
+        const next = new Set(prev);
+        next.delete(coachId);
+        return next;
+      });
       toast({ title: "Failed", description: "Could not send request. Try again.", variant: "destructive" });
     } finally {
       setRequesting(null);
