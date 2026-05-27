@@ -112,6 +112,12 @@ export const useAuthPage = () => {
           navigate(restaurant.approval_status === "approved" ? "/partner" : "/partner/pending-approval", { replace: true });
           setCheckingRole(false); return;
         }
+        const coachRole = await raceWithTimeout(() =>
+          supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "coach").maybeSingle()
+        );
+        if (coachRole?.data) {
+          navigate("/coach", { replace: true }); setCheckingRole(false); return;
+        }
         const from = (location.state as { from?: Location })?.from?.pathname || "/dashboard";
         navigate(from, { replace: true });
       } catch {
