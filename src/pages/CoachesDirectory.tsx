@@ -41,6 +41,9 @@ export default function CoachesDirectory() {
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
 
   const fetchCoaches = useCallback(async () => {
+    if (!user?.id) return;
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.user?.id) return;
     try {
       const { data: coachRoles } = await supabase
         .from("user_roles")
