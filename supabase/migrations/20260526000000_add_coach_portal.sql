@@ -23,51 +23,49 @@ CREATE INDEX IF NOT EXISTS idx_coach_assignments_invite_code ON coach_client_ass
 -- Enable RLS
 ALTER TABLE coach_client_assignments ENABLE ROW LEVEL SECURITY;
 
--- Coaches can only see their own client assignments
+-- Note: All policies use auth.uid() directly to avoid circular RLS recursion
+-- with the profiles table (which has a policy querying coach_client_assignments).
+
+-- Coaches can see their own assignments
 CREATE POLICY "coaches_view_own_assignments" ON coach_client_assignments
-  FOR SELECT
-  TO authenticated
-  USING (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+  FOR SELECT TO authenticated USING (coach_id = auth.uid());
 
 -- Clients can see who their coaches are
 CREATE POLICY "clients_view_own_assignments" ON coach_client_assignments
-  FOR SELECT
-  TO authenticated
-  USING (client_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+  FOR SELECT TO authenticated USING (client_id = auth.uid());
 
--- Only clients can accept invites (via invite code)
+-- Clients can accept invites
 CREATE POLICY "clients_accept_invites" ON coach_client_assignments
-  FOR UPDATE
-  TO authenticated
-  USING (client_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+  FOR UPDATE TO authenticated USING (client_id = auth.uid());
 
--- Coaches insert assignment rows (sending invites)
+-- Coaches insert assignment rows
 CREATE POLICY "coaches_insert_assignments" ON coach_client_assignments
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+  FOR INSERT TO authenticated WITH CHECK (coach_id = auth.uid());
 
--- Only coaches can delete their assignments
+-- Coaches can delete their assignments
 CREATE POLICY "coaches_delete_assignments" ON coach_client_assignments
-  FOR DELETE
-  TO authenticated
-  USING (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+  FOR DELETE TO authenticated USING (coach_id = auth.uid());
 
--- Coaches can update their own assignments (accept/reject requests)
+-- Coaches can update their own assignments (accept/reject)
 CREATE POLICY "coaches_update_own_assignments" ON coach_client_assignments
-  FOR UPDATE
-  TO authenticated
-  USING (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()))
-  WITH CHECK (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
-
--- Coaches can read profiles of their clients (active or pending)
-CREATE POLICY "coaches_view_client_profiles" ON profiles
-  FOR SELECT
-  TO authenticated
-  USING (EXISTS (SELECT 1 FROM coach_client_assignments WHERE coach_id = auth.uid() AND client_id = profiles.user_id AND status IN ('active', 'pending')));
+  FOR UPDATE TO authenticated USING (coach_id = auth.uid()) WITH CHECK (coach_id = auth.uid());
 
 -- Clients can request coaches (client-initiated discovery)
 CREATE POLICY "clients_request_coaches" ON coach_client_assignments
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (client_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
+  FOR INSERT TO authenticated
+  WITH CHECK ((client_id = auth.uid()) AND (coach_id IS NOT NULL) AND (status = 'pending'::text));
+
+-- Clients can accept by invite code
+CREATE POLICY "clients_accept_invites_by_code" ON coach_client_assignments
+  FOR UPDATE TO authenticated
+  USING ((invite_code IS NOT NULL) AND (client_id IS NULL) AND (status = 'pending'::text))
+  WITH CHECK ((client_id = auth.uid()) AND (status = 'active'::text));
+
+-- Global read policy for authenticated users (needed for profile lookups)
+CREATE POLICY "Users can view their own assignments" ON coach_client_assignments
+  FOR SELECT TO authenticated USING ((coach_id = auth.uid()) OR (client_id = auth.uid()));
+
+-- Coaches can read profiles of their clients (active or pending)
+CREATE POLICY "coaches_view_client_profiles" ON profiles
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM coach_client_assignments WHERE coach_id = auth.uid() AND client_id = profiles.user_id AND status IN ('active', 'pending')));
