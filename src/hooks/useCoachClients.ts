@@ -234,8 +234,9 @@ export function useCoachClients(coachId: string | undefined) {
   }, [coachId]);
 
   useEffect(() => {
+    if (!coachId) return;
     Promise.all([fetchClients(), fetchPending()]);
-  }, []);
+  }, [coachId]);
 
   return { clients, pending, loading, refresh: () => Promise.all([fetchClients(), fetchPending()]), handleAccept, handleReject };
 }
