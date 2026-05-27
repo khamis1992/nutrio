@@ -166,3 +166,7 @@ DROP TRIGGER IF EXISTS trigger_coach_subscription_earning ON coach_subscriptions
 CREATE TRIGGER trigger_coach_subscription_earning
   AFTER INSERT ON coach_subscriptions
   FOR EACH ROW EXECUTE FUNCTION create_initial_coach_earning();
+
+-- Schedule auto-renewal (runs every hour)
+SELECT cron.schedule('coach-billing', '0 * * * *', 'SELECT process_coach_subscription_renewal()');
+
