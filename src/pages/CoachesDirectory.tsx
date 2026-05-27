@@ -105,6 +105,7 @@ export default function CoachesDirectory() {
       }
 
       const sorted: CoachProfile[] = (profiles || [])
+        .filter((p) => p.user_id !== user?.id)
         .map((p) => {
           const ratings = ratingMap.get(p.user_id);
           const avgRating = ratings && ratings.count > 0
