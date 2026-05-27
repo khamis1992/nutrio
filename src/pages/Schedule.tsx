@@ -231,6 +231,7 @@ const Schedule = () => {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
     if (profile && !profile.onboarding_completed && !profile.goal) {
       navigate("/onboarding");
     }

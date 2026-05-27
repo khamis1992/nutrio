@@ -56,6 +56,7 @@ const Favorites = () => {
   const [activeTab, setActiveTab] = useState("restaurants");
 
   useEffect(() => {
+    if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
     if (profile && !profile.onboarding_completed && !profile.goal) {
       navigate("/onboarding");
     }

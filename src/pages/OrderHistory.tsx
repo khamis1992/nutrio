@@ -482,6 +482,7 @@ const OrderHistory = () => {
 
   // Check if user completed onboarding
   useEffect(() => {
+    if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
     if (profile && !profile.onboarding_completed && !profile.goal) {
       navigate("/onboarding");
     }

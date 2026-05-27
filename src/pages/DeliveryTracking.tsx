@@ -251,6 +251,7 @@ export default function DeliveryTracking() {
 
   // ── Onboarding redirect ─────────────────────────────────────────────────────
   useEffect(() => {
+    if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
     if (profile && !profile.onboarding_completed && !profile.goal) navigate("/onboarding");
   }, [profile, navigate]);
 
