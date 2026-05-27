@@ -90,7 +90,9 @@ const DriverLayout = lazy(() => import("./components/driver/DriverLayout").then(
 const CoachDashboard = lazy(() => import("./pages/coach/CoachDashboard"));
 const CoachInsights = lazy(() => import("./pages/coach/CoachInsights"));
 const CoachSettings = lazy(() => import("./pages/coach/CoachSettings"));
-const CoachLayout = lazy(() => import("./components/coach/CoachLayout").then(m => ({ default: m.CoachLayout })));
+const CoachChatPage = lazy(() => import("./pages/coach/CoachChatPage"));
+const CoachClientDetail = lazy(() => import("./pages/coach/CoachClientDetail"));
+const CoachPortalLayout = lazy(() => import("./components/coach/CoachPortalLayout").then(m => ({ default: m.CoachPortalLayout })));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -538,13 +540,15 @@ const App = () => (
             <Route path="/coach" element={
               <ProtectedRoute requiredRole="coach">
                 <Suspense fallback={<AppContentLoader />}>
-                  <CoachLayout />
+                  <CoachPortalLayout />
                 </Suspense>
               </ProtectedRoute>
             }>
               <Route index element={<CoachDashboard />} />
               <Route path="insights" element={<CoachInsights />} />
+              <Route path="chat" element={<CoachChatPage />} />
               <Route path="settings" element={<CoachSettings />} />
+              <Route path="client/:clientId" element={<CoachClientDetail />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

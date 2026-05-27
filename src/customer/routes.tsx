@@ -42,6 +42,7 @@ const BodyMetrics = lazy(() => import("@/pages/BodyMetrics"));
 const SmartRecommendationsPage = lazy(() => import("@/pages/recommendations/SmartMealRecommendations"));
 const CoachesDirectory = lazy(() => import("@/pages/CoachesDirectory"));
 const ApplyCoach = lazy(() => import("@/pages/coach/ApplyCoach"));
+const CoachMessages = lazy(() => import("@/pages/CoachMessages"));
 
 export const customerRoutes = (
   <>
@@ -343,6 +344,14 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <ApplyCoach />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/coach-messages"
+      element={
+        <ProtectedRoute>
+          <CoachMessages />
         </ProtectedRoute>
       }
     />
