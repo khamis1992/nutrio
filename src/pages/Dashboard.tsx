@@ -502,15 +502,11 @@ const Dashboard = () => {
     600
   );
 
-  const onboardingRedirected = useRef(false);
   useEffect(() => {
-    if (profileLoading || onboardingRedirected.current) return;
-    if (profile && profile.onboarding_completed === false) {
-      const hasOnboardingData = profile.goal && profile.daily_calorie_target;
-      if (!hasOnboardingData) {
-        onboardingRedirected.current = true;
-        navigate("/onboarding");
-      }
+    if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
+    if (profileLoading) return;
+    if (profile && profile.onboarding_completed === false && !profile.goal) {
+      navigate("/onboarding");
     }
   }, [profile, profileLoading, navigate]);
 

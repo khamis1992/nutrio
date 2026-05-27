@@ -333,6 +333,7 @@ const Onboarding = () => {
       protein: macros.protein,
       fat: macros.fat,
     });
+    sessionStorage.setItem("nutrio_onboarding_done", "true");
     await completeOnboarding();
     setStep(7);
   };
@@ -518,8 +519,9 @@ const Onboarding = () => {
         <LoadingAdvancer
           progress={loadingProgress}
           setProgress={setLoadingProgress}
-          onComplete={() => {
-            completeOnboarding();
+          onComplete={async () => {
+            sessionStorage.setItem("nutrio_onboarding_done", "true");
+            await completeOnboarding();
             setStep(7);
           }}
         />
