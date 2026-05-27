@@ -71,6 +71,7 @@ const AdminStreakRewards = lazy(() => import("./pages/admin/AdminStreakRewards")
 const AdminProfitDashboard = lazy(() => import("./pages/admin/AdminProfitDashboard"));
 const AdminMealApprovals = lazy(() => import("./pages/admin/AdminMealApprovals"));
 const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnalytics"));
+const AdminCoachApprovals = lazy(() => import("./pages/admin/AdminCoachApprovals"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -86,8 +87,9 @@ const DriverSettings = lazy(() => import("./pages/driver/DriverSettings"));
 const DriverSupport = lazy(() => import("./pages/driver/DriverSupport"));
 const DriverNotifications = lazy(() => import("./pages/driver/DriverNotifications"));
 const DriverLayout = lazy(() => import("./components/driver/DriverLayout").then(m => ({ default: m.DriverLayout })));
-const CoachAuth = lazy(() => import("./pages/coach/CoachAuth"));
 const CoachDashboard = lazy(() => import("./pages/coach/CoachDashboard"));
+const CoachInsights = lazy(() => import("./pages/coach/CoachInsights"));
+const CoachSettings = lazy(() => import("./pages/coach/CoachSettings"));
 const CoachLayout = lazy(() => import("./components/coach/CoachLayout").then(m => ({ default: m.CoachLayout })));
 
 const PageLoader = () => (
@@ -494,6 +496,14 @@ const App = () => (
     </ProtectedRoute>
   } 
 />
+<Route 
+  path="/admin/coach-applications" 
+  element={
+    <ProtectedRoute requiredRole="admin">
+      <AdminCoachApprovals />
+    </ProtectedRoute>
+  } 
+/>
             {/* Driver Portal Routes */}
             <Route path="/driver/auth" element={<DriverAuth />} />
             <Route 
@@ -525,7 +535,6 @@ const App = () => (
             {/* Fleet Management Portal Routes */}
             {fleetRoutes}
             {/* Coach Portal Routes */}
-            <Route path="/coach/auth" element={<CoachAuth />} />
             <Route path="/coach" element={
               <ProtectedRoute requiredRole="coach">
                 <Suspense fallback={<AppContentLoader />}>
@@ -534,6 +543,8 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<CoachDashboard />} />
+              <Route path="insights" element={<CoachInsights />} />
+              <Route path="settings" element={<CoachSettings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

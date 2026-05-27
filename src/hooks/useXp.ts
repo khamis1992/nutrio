@@ -85,8 +85,8 @@ export function useXp(userId: string | undefined) {
     if (leveledUp) {
       toast.custom(
         (t) => (
-          <div className="rounded-2xl border-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-4 shadow-2xl">
-            <div className="flex items-center gap-3">
+           <div className="rounded-2xl border-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-4 shadow-2xl">
+             <div className="flex items-center gap-3">
               <span className="text-3xl">🎉</span>
               <div>
                 <p className="text-sm font-extrabold text-white">Level Up!</p>

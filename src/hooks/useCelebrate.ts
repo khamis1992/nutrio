@@ -26,11 +26,11 @@ export function useCelebrate(conditions: {
       toast.custom(
         (t) => (
           <motion.div
-            initial={{ x: 50, opacity: 0, scale: 0.9 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ x: -50, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 24 }}
-            className="relative overflow-hidden rounded-2xl p-4 shadow-2xl border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
+             initial={{ x: 50, opacity: 0, scale: 0.9 }}
+             animate={{ x: 0, opacity: 1, scale: 1 }}
+             exit={{ x: -50, opacity: 0 }}
+             transition={{ type: "spring", stiffness: 300, damping: 24 }}
+             className="relative overflow-hidden rounded-2xl p-4 shadow-2xl border-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
           >
             <div className="absolute inset-0 pointer-events-none">
               {[...Array(12)].map((_, i) => (

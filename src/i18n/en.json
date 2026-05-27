@@ -1,5 +1,6 @@
 {
   "nav_home": "Home",
+  "guest_greeting": "Guest",
   "nav_restaurants": "Restaurants",
   "nav_schedule": "Schedule",
   "nav_affiliate": "Affiliate",
@@ -52,6 +53,7 @@
   "delete": "Delete",
   "confirm": "Confirm",
   "loading": "Loading...",
+  "setting_up_account": "Setting up your account...",
   "saving": "Saving...",
   "search": "Search",
   "filter": "Filter",
@@ -2218,5 +2220,16 @@
   "customization_standard": "Standard",
   "customization_large": "Large",
   "customization_high_protein": "High-Protein",
-  "customization_removed": "Removed"
+  "customization_removed": "Removed",
+
+  "referral_milestones_title": "Referral Milestones",
+  "referral_count_singular": "referral",
+  "referral_count_plural": "referrals",
+  "referrals_to": "referrals to",
+  "bonus_label": "bonus",
+  "commission_earned": "Commission earned",
+  "invite_friends": "Invite Friends",
+  "copied": "Copied",
+  "earn_when_friends_join": "Earn {amount} when friends join!",
+  "earn_commission_on_orders": "{rate}% commission on their orders"
 }

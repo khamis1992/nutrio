@@ -1,5 +1,6 @@
 {
   "nav_home": "الرئيسية",
+  "guest_greeting": "زائر",
   "nav_restaurants": "المطاعم",
   "nav_schedule": "الجدول",
   "nav_affiliate": "الشراكة",
@@ -40,6 +41,7 @@
   "delete": "حذف",
   "confirm": "تأكيد",
   "loading": "جاري التحميل...",
+  "setting_up_account": "جاري إعداد حسابك...",
   "saving": "جاري الحفظ...",
   "search": "بحث",
   "filter": "تصفية",
@@ -2191,5 +2193,16 @@
   "customization_standard": "عادي",
   "customization_large": "كبير",
   "customization_high_protein": "عالي البروتين",
-  "customization_removed": "تمت الإزالة"
+  "customization_removed": "تمت الإزالة",
+
+  "referral_milestones_title": "مراحل الإحالة",
+  "referral_count_singular": "إحالة",
+  "referral_count_plural": "إحالات",
+  "referrals_to": "إحالة إلى",
+  "bonus_label": "مكافأة",
+  "commission_earned": "العمولة المكتسبة",
+  "invite_friends": "دعوة الأصدقاء",
+  "copied": "تم النسخ",
+  "earn_when_friends_join": "اربح {amount} عند انضمام أصدقائك!",
+  "earn_commission_on_orders": "عمولة {rate}% على طلباتهم"
 }

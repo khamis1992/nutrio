@@ -16,7 +16,6 @@ import {
   Wheat,
   Droplets,
   Leaf,
-  Star,
   AlertTriangle,
   Zap,
   Info,
@@ -460,16 +459,13 @@ function ProgressArc({
 
 function HeroSideMetric({ metric }: { metric: TodayMetric }) {
   return (
-    <div className="flex h-[122px] w-[88px] min-w-[88px] flex-col items-center justify-center rounded-[19px] border border-white/15 bg-white/14 px-2.5 py-3 text-center text-white shadow-[inset_0_1px_14px_rgba(255,255,255,0.16),0_12px_25px_rgba(15,23,42,0.12)] backdrop-blur-md">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full shadow-[0_10px_18px_rgba(15,23,42,0.12)]" style={{ background: metric.soft }}>
-        <span className="text-[20px] leading-none">{metric.icon}</span>
+    <div className="flex flex-col items-center justify-center gap-2 rounded-[16px] border border-white/15 bg-white/14 px-3 py-2.5 text-center text-white shadow-[inset_0_1px_14px_rgba(255,255,255,0.16),0_8px_20px_rgba(15,23,42,0.12)] backdrop-blur-md">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full shadow-[0_6px_12px_rgba(15,23,42,0.12)]" style={{ background: metric.soft }}>
+        <span className="text-[16px] leading-none">{metric.icon}</span>
       </div>
-      <p className="mt-3 text-[22px] font-extrabold leading-none tracking-[-0.045em]">{metric.value}</p>
-      <p className="mt-1 text-[13px] font-medium leading-none text-white/82">{metric.label}</p>
-      <p className="mt-4 text-[12px] font-medium leading-tight text-white/88">
-        of {metric.label === "Calories" ? metric.target.replace(" kcal", "") : metric.target}
-      </p>
-      <div className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-black/12">
+      <p className="text-[18px] font-extrabold leading-none tracking-[-0.04em]">{metric.value}</p>
+      <p className="text-[11px] font-medium leading-none text-white/82">{metric.label}</p>
+      <div className="h-[4px] w-full overflow-hidden rounded-full bg-black/12">
         <div className="h-full rounded-full" style={{ width: `${Math.min(metric.percent, 100)}%`, background: metric.color }} />
       </div>
     </div>
@@ -499,18 +495,23 @@ function StreakCard({ currentStreak }: { currentStreak: number }) {
   const days = ["M", "T", "W", "T", "F", "S", "S"];
 
   return (
-    <div className="flex items-center gap-3 rounded-[22px] border border-slate-100 bg-white px-4 py-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-50 text-2xl">🔥</div>
-      <div className="min-w-[92px]">
-        <p className="text-base font-extrabold text-slate-950">Streak</p>
-        <p className="text-[13px] font-medium text-slate-500">Keep it going!</p>
+    <div className="rounded-[22px] border border-slate-100 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
+      {/* Top: icon + text */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-50 text-2xl">🔥</div>
+        <div>
+          <p className="text-base font-extrabold text-slate-950">Streak</p>
+          <p className="text-[13px] font-medium text-slate-500">Keep it going!</p>
+        </div>
       </div>
-      <div className="flex flex-1 items-center justify-center gap-2">
+
+      {/* Middle: weekday timeline */}
+      <div className="mt-4 flex items-center justify-between px-1">
         {days.map((day, index) => {
           const complete = index < activeDays;
           const today = index === 4;
           return (
-            <div key={`${day}-${index}`} className="flex flex-col items-center gap-1">
+            <div key={`${day}-${index}`} className="flex flex-col items-center gap-1.5">
               <span className="text-[11px] font-semibold text-slate-400">{day}</span>
               <span
                 className={cn(
@@ -526,9 +527,15 @@ function StreakCard({ currentStreak }: { currentStreak: number }) {
           );
         })}
       </div>
-      <div className="rounded-[14px] bg-orange-50 px-4 py-2 text-center">
-        <p className="text-2xl font-extrabold leading-none text-orange-500">{currentStreak}</p>
-        <p className="mt-1 text-[11px] font-semibold text-slate-500">Day Streak</p>
+
+      {/* Bottom: count badge */}
+      <div className="mt-4 flex justify-center">
+        <div className="inline-flex items-center gap-2 rounded-[14px] bg-orange-50 px-4 py-2">
+          <p className="text-2xl font-extrabold leading-none text-orange-500">{currentStreak}</p>
+          <div className="leading-tight">
+            <p className="text-[11px] font-semibold text-slate-500">Day Streak</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -658,22 +665,22 @@ function WeekStatusDot({ status, size = "sm" }: { status: WeekStatus; size?: "sm
 
   if (status === "on") {
     return (
-      <span className={cn("inline-flex items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_12px_rgba(16,185,129,0.24)]", isLarge ? "h-8 w-8 text-lg" : "h-4 w-4 text-[10px]")}>✓</span>
+      <span className={cn("inline-flex items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_4px_8px_rgba(16,185,129,0.24)]", isLarge ? "h-7 w-7 text-sm" : "h-4 w-4 text-[10px]")}>✓</span>
     );
   }
 
   if (status === "partial") {
     return (
-      <span className={cn("inline-flex items-center justify-center rounded-full border-[3px] border-orange-500 bg-white text-orange-500", isLarge ? "h-8 w-8 border-[4px] text-sm" : "h-4 w-4 border-2 text-[8px]")}>{isLarge ? "" : "↗"}</span>
+      <span className={cn("inline-flex items-center justify-center rounded-full border-[3px] border-orange-500 bg-white text-orange-500", isLarge ? "h-7 w-7 border-[3px] text-xs" : "h-4 w-4 border-2 text-[8px]")}>{isLarge ? "" : "↗"}</span>
     );
   }
 
-  return <span className={cn("inline-flex rounded-full border-2 border-slate-300 bg-white", isLarge ? "h-8 w-8" : "h-4 w-4")} />;
+  return <span className={cn("inline-flex rounded-full border-2 border-slate-300 bg-white", isLarge ? "h-7 w-7" : "h-4 w-4")} />;
 }
 
 function WeekRowIcon({ icon, color }: { icon: string; color: string }) {
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-xl text-lg shadow-[0_8px_16px_rgba(15,23,42,0.08)]" style={{ background: color }}>
+    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-sm shadow-[0_6px_12px_rgba(15,23,42,0.08)]" style={{ background: color }}>
       {icon}
     </div>
   );
@@ -681,54 +688,49 @@ function WeekRowIcon({ icon, color }: { icon: string; color: string }) {
 
 function WeeklyScoreRing() {
   return (
-    <div className="relative h-[150px] w-[150px] shrink-0">
+    <div className="relative h-[130px] w-[130px] shrink-0">
       <svg viewBox="0 0 150 150" className="absolute inset-0 h-full w-full -rotate-90">
         <circle cx="75" cy="75" r="58" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="13" />
         <circle cx="75" cy="75" r="58" fill="none" stroke="#6EE7A8" strokeWidth="13" strokeLinecap="round" strokeDasharray="150 365" />
         <circle cx="75" cy="75" r="58" fill="none" stroke="#6EE7A8" strokeWidth="13" strokeLinecap="round" strokeDasharray="204 365" strokeDashoffset="-186" />
       </svg>
-      <div className="absolute inset-[26px] rounded-full bg-black/8 shadow-[inset_0_0_28px_rgba(0,0,0,0.16)]" />
-      <svg viewBox="0 0 104 74" className="absolute left-6 top-10 h-[74px] w-[104px]">
+      <svg viewBox="0 0 104 74" className="absolute left-5 top-9 h-[64px] w-[90px]">
         <polyline points="5,55 20,39 34,36 48,23 61,40 76,29 96,24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {[5, 34, 48, 61, 76, 96].map((x, index) => (
           <circle key={x} cx={x} cy={[55, 36, 23, 40, 29, 24][index]} r="4" fill={index === 5 ? "#FDE68A" : "white"} stroke="rgba(0,80,80,0.24)" strokeWidth="1" />
         ))}
       </svg>
-      <div className="absolute left-1/2 top-[45px] -translate-x-1/2 text-[36px] leading-none drop-shadow-sm">👑</div>
     </div>
   );
 }
 
 function WeeklyScoreHero({ currentStreak }: { currentStreak: number }) {
   return (
-    <section className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_80%_0%,rgba(45,212,191,0.55),transparent_40%),linear-gradient(135deg,#078E79_0%,#036D68_48%,#0E9B91_100%)] px-5 py-6 text-white shadow-[0_18px_38px_rgba(0,108,95,0.22)]">
-      <div className="absolute -right-10 top-8 h-28 w-28 rounded-full border-[9px] border-white/8" />
-      <Leaf className="absolute -right-2 top-16 h-24 w-24 rotate-[-28deg] text-white/10" strokeWidth={2} />
-      <Star className="absolute bottom-9 right-8 h-10 w-10 rotate-12 text-white/8" />
-      <div className="relative grid grid-cols-[1fr_150px_1fr] items-center gap-3">
+    <section className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_80%_0%,rgba(45,212,191,0.55),transparent_40%),linear-gradient(135deg,#078E79_0%,#036D68_48%,#0E9B91_100%)] px-4 py-5 text-white shadow-[0_18px_38px_rgba(0,108,95,0.22)]">
+      <div className="relative grid grid-cols-[1fr_130px_1fr] items-center gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[20px] font-extrabold tracking-[-0.03em]">Weekly Score</h2>
-            <Info className="h-5 w-5 text-white/80" />
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-[17px] font-extrabold tracking-[-0.03em]">Weekly Score</h2>
+            <Info className="h-4 w-4 text-white/80" />
           </div>
-          <div className="mt-5 flex items-end gap-1 tracking-[-0.06em]">
-            <span className="text-[70px] font-black leading-none">82</span>
-            <span className="mb-2 text-[25px] font-extrabold">/100</span>
+          <div className="mt-3 flex items-end gap-1 tracking-[-0.06em]">
+            <span className="text-[48px] font-black leading-none">82</span>
+            <span className="mb-1 text-[18px] font-extrabold">/100</span>
           </div>
-          <div className="mt-4 inline-flex rounded-full bg-white/12 px-3 py-2 text-[13px] font-bold text-white shadow-[inset_0_1px_10px_rgba(255,255,255,0.12)]">↑ 12 pts vs last week</div>
+          <div className="mt-3 inline-flex rounded-full bg-white/12 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-[inset_0_1px_10px_rgba(255,255,255,0.12)]">↑ 12 pts vs last week</div>
         </div>
         <WeeklyScoreRing />
-        <div className="space-y-5">
+        <div className="space-y-3">
           {[
             { icon: "🔥", value: `${Math.max(currentStreak, 5)} Day Streak`, text: "Keep it up!", bg: "rgba(255,152,0,0.34)" },
             { icon: "🌿", value: "82%", text: "Nutrition Consistency", bg: "rgba(16,185,129,0.34)" },
             { icon: "💧", value: "+12%", text: "Water vs last week", bg: "rgba(59,130,246,0.45)" },
           ].map((item) => (
-            <div key={item.value} className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl shadow-[0_10px_22px_rgba(15,23,42,0.15)]" style={{ background: item.bg }}>{item.icon}</div>
+            <div key={item.value} className="flex items-center gap-2">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg shadow-[0_8px_18px_rgba(15,23,42,0.15)]" style={{ background: item.bg }}>{item.icon}</div>
               <div className="min-w-0">
-                <p className="text-[18px] font-extrabold leading-tight">{item.value}</p>
-                <p className="text-[14px] font-medium leading-tight text-white/88">{item.text}</p>
+                <p className="text-[14px] font-extrabold leading-tight">{item.value}</p>
+                <p className="text-[11px] font-medium leading-tight text-white/88">{item.text}</p>
               </div>
             </div>
           ))}
@@ -746,30 +748,30 @@ function YourWeekCard() {
   ];
 
   return (
-    <section className="rounded-[22px] border border-slate-100 bg-white px-4 py-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-slate-950">Your Week</h2>
-        <div className="flex items-center gap-4 text-[12px] font-semibold text-slate-500">
-          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />On Track</span>
-          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" />Partial</span>
-          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border border-slate-300" />No Data</span>
+    <section className="rounded-[22px] border border-slate-100 bg-white px-3 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Your Week</h2>
+        <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-500">
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />On Track</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" />Partial</span>
+          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full border border-slate-300" />None</span>
         </div>
       </div>
-      <div className="grid grid-cols-[138px_repeat(7,minmax(0,1fr))] gap-y-3">
+      <div className="grid grid-cols-[100px_repeat(7,minmax(0,1fr))] gap-y-3">
         <div />
         {weeklyDays.map((day) => (
           <div key={day.day} className="text-center">
-            <p className="text-[13px] font-semibold text-slate-600">{day.day} {day.featured && <span className="text-yellow-400">★</span>}</p>
-            <div className="mt-2 flex justify-center"><WeekStatusDot status={day.status} size="lg" /></div>
-            <p className="mt-2 text-[14px] font-bold leading-none text-slate-900">{day.kcal}</p>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">kcal</p>
+            <p className="text-[11px] font-semibold text-slate-600">{day.day} {day.featured && <span className="text-yellow-400">★</span>}</p>
+            <div className="mt-1.5 flex justify-center"><WeekStatusDot status={day.status} size="lg" /></div>
+            <p className="mt-1.5 text-[12px] font-bold leading-none text-slate-900">{day.kcal}</p>
+            <p className="mt-0.5 text-[10px] font-medium text-slate-500">kcal</p>
           </div>
         ))}
         {rows.map((row) => (
           <div key={row.key} className="contents">
-            <div className="flex items-center gap-2 text-[13px] font-bold text-slate-800">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-800">
               <WeekRowIcon icon={row.icon} color={row.color} />
-              {row.label}
+              <span className="truncate leading-tight">{row.label}</span>
             </div>
             {weeklyDays.map((day) => (
               <div key={`${row.key}-${day.day}`} className="flex items-center justify-center">
@@ -810,17 +812,17 @@ function MiniSparkline({ points, color }: { points: number[]; color: string }) {
 
 function NutrientTrendCard({ card }: { card: typeof nutrientTrendCards[number] }) {
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-      <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-xl shadow-inner">{card.icon}</span>
-        <p className="text-[13px] font-extrabold text-slate-900">{card.label} <span className="font-semibold text-slate-400">({card.avg})</span></p>
+    <div className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <div className="flex items-center gap-1.5">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 text-base shadow-inner">{card.icon}</span>
+        <p className="text-[12px] font-extrabold text-slate-900">{card.label} <span className="font-semibold text-slate-400">({card.avg})</span></p>
       </div>
-      <div className="mt-3 flex items-end justify-between gap-2">
-        <p className="text-[22px] font-black leading-none tracking-[-0.035em] text-slate-950">{card.value} <span className="text-[13px] font-semibold tracking-normal text-slate-500">{card.unit}</span></p>
-        <p className={cn("text-[11px] font-extrabold", card.positive ? "text-emerald-500" : "text-red-500")}>{card.positive ? "↑" : "↓"} {card.delta} <span className="font-semibold text-slate-400">vs last week</span></p>
+      <div className="mt-2 flex items-end justify-between gap-1">
+        <p className="text-[18px] font-black leading-none tracking-[-0.035em] text-slate-950">{card.value} <span className="text-[11px] font-semibold tracking-normal text-slate-500">{card.unit}</span></p>
+        <p className={cn("text-[10px] font-extrabold", card.positive ? "text-emerald-500" : "text-red-500")}>{card.positive ? "↑" : "↓"} {card.delta} <span className="font-semibold text-slate-400">vs last</span></p>
       </div>
       <MiniSparkline points={card.points} color={card.color} />
-      <div className="mt-2 flex justify-between text-[11px] font-semibold text-slate-400">
+      <div className="mt-1.5 flex justify-between text-[10px] font-semibold text-slate-400">
         {Array.from("MTWTFSS").map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
       </div>
     </div>
@@ -830,20 +832,20 @@ function NutrientTrendCard({ card }: { card: typeof nutrientTrendCards[number] }
 function WeekHighlightsCard() {
   const items = [
     { icon: "🏆", title: "Best Protein Day", subtitle: "Tuesday", value: "168 g", bg: "#FFF0E2" },
-    { icon: "🔥", title: "Highest Calories Burn", subtitle: "Friday", value: "720 kcal", bg: "#DCFCE7" },
-    { icon: "💧", title: "Most Hydrated Day", subtitle: "Monday", value: "8 Glasses", bg: "#EAF4FF" },
+    { icon: "🔥", title: "Highest Burn", subtitle: "Friday", value: "720 kcal", bg: "#DCFCE7" },
+    { icon: "💧", title: "Most Hydrated", subtitle: "Monday", value: "8 Gl.", bg: "#EAF4FF" },
   ];
 
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-      <h3 className="text-[14px] font-extrabold text-slate-950">This Week Highlights</h3>
-      <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100">
+    <div className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <h3 className="text-[13px] font-extrabold text-slate-950">This Week Highlights</h3>
+      <div className="mt-3 grid grid-cols-3 divide-x divide-slate-100">
         {items.map((item) => (
-          <div key={item.title} className="px-2 text-center first:pl-0 last:pr-0">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl" style={{ background: item.bg }}>{item.icon}</div>
-            <p className="mt-3 text-[11px] font-extrabold leading-tight text-slate-900">{item.title}</p>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">{item.subtitle}</p>
-            <p className="mt-1 text-[17px] font-black text-slate-950">{item.value}</p>
+          <div key={item.title} className="px-1.5 text-center first:pl-0 last:pr-0">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full text-2xl" style={{ background: item.bg }}>{item.icon}</div>
+            <p className="mt-2 text-[10px] font-extrabold leading-tight text-slate-900">{item.title}</p>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-500">{item.subtitle}</p>
+            <p className="mt-0.5 text-[15px] font-black text-slate-950">{item.value}</p>
           </div>
         ))}
       </div>
@@ -860,15 +862,15 @@ function WeekCompareCard() {
   ];
 
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-      <h3 className="text-[14px] font-extrabold text-slate-950">This Week vs Last Week</h3>
-      <div className="mt-4 divide-y divide-slate-100">
+    <div className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <h3 className="text-[13px] font-extrabold text-slate-950">This Week vs Last Week</h3>
+      <div className="mt-3 divide-y divide-slate-100">
         {rows.map((row) => (
-          <div key={row.label} className="flex items-center gap-2 py-2 first:pt-0 last:pb-0">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 text-base">{row.icon}</span>
-            <span className="flex-1 text-[13px] font-bold text-slate-800">{row.label}</span>
-            <span className={cn("text-[14px] font-black", row.positive ? "text-emerald-500" : "text-red-500")}>{row.value}</span>
-            <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-sm", row.positive ? "bg-emerald-50 text-emerald-500" : "bg-red-50 text-red-500")}>{row.positive ? "↑" : "↓"}</span>
+          <div key={row.label} className="flex items-center gap-1.5 py-1.5 first:pt-0 last:pb-0">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-sm">{row.icon}</span>
+            <span className="flex-1 text-[12px] font-bold text-slate-800">{row.label}</span>
+            <span className={cn("text-[13px] font-black", row.positive ? "text-emerald-500" : "text-red-500")}>{row.value}</span>
+            <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-xs", row.positive ? "bg-emerald-50 text-emerald-500" : "bg-red-50 text-red-500")}>{row.positive ? "↑" : "↓"}</span>
           </div>
         ))}
       </div>
@@ -879,28 +881,28 @@ function WeekCompareCard() {
 function HabitConsistencyCard() {
   const habits = [
     { icon: "🍴", label: "Meal Logging", value: "6/7 days", pct: 86, color: "#10B981", bg: "#E7F8EF" },
-    { icon: "💧", label: "Water Tracking", value: "5/7 days", pct: 72, color: "#10B981", bg: "#EAF4FF" },
+    { icon: "💧", label: "Water", value: "5/7 days", pct: 72, color: "#10B981", bg: "#EAF4FF" },
     { icon: "🏋️", label: "Workouts", value: "3/7 days", pct: 42, color: "#8B5CF6", bg: "#F0EAFF" },
     { icon: "☾", label: "Sleep Goal", value: "6/7 days", pct: 86, color: "#10B981", bg: "#F0EAFF" },
   ];
 
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[15px] font-extrabold text-slate-950">Habit Consistency</h3>
-        <span className="text-[13px] font-extrabold text-emerald-600">View All</span>
+    <div className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-[13px] font-extrabold text-slate-950">Habit Consistency</h3>
+        <span className="text-[11px] font-extrabold text-emerald-600">View All</span>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {habits.map((habit) => (
-          <div key={habit.label} className="grid grid-cols-[116px_1fr_56px] items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-base" style={{ background: habit.bg }}>{habit.icon}</span>
-              <span className="text-[12px] font-bold text-slate-800">{habit.label}</span>
+          <div key={habit.label} className="grid grid-cols-[90px_1fr_48px] items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs" style={{ background: habit.bg }}>{habit.icon}</span>
+              <span className="text-[11px] font-bold text-slate-800 truncate">{habit.label}</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+            <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
               <div className="h-full rounded-full" style={{ width: `${habit.pct}%`, background: habit.color }} />
             </div>
-            <span className="text-right text-[12px] font-semibold text-slate-500">{habit.value}</span>
+            <span className="text-right text-[11px] font-semibold text-slate-500">{habit.value}</span>
           </div>
         ))}
       </div>
@@ -917,23 +919,23 @@ function WeeklyGoalProgressCard() {
   ];
 
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-      <h3 className="text-[15px] font-extrabold text-slate-950">Weekly Goal Progress</h3>
-      <div className="mt-3 flex items-center gap-4">
-        <div className="relative h-[112px] w-[112px] shrink-0">
-          <ProgressArc percent={72} color="#10B981" size={112} stroke={10} trackColor="#E8EEF0" />
+    <div className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <h3 className="text-[13px] font-extrabold text-slate-950">Weekly Goal Progress</h3>
+      <div className="mt-2 flex items-center gap-3">
+        <div className="relative h-[90px] w-[90px] shrink-0">
+          <ProgressArc percent={72} color="#10B981" size={90} stroke={8} trackColor="#E8EEF0" />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <p className="text-[34px] font-black leading-none tracking-[-0.06em] text-slate-950">72<span className="text-[15px]">%</span></p>
-            <p className="mt-1 text-[12px] font-semibold text-slate-500">Completed</p>
+            <p className="text-[26px] font-black leading-none tracking-[-0.06em] text-slate-950">72<span className="text-[12px]">%</span></p>
+            <p className="mt-0.5 text-[10px] font-semibold text-slate-500">Completed</p>
           </div>
         </div>
-        <div className="flex-1 space-y-2.5">
+        <div className="flex-1 space-y-2">
           {goals.map((goal) => (
-            <div key={goal.label} className="grid grid-cols-[18px_1fr_58px_16px] items-center gap-2">
-              <span className={cn("text-lg leading-none", goal.color)}>{goal.status}</span>
-              <span className="text-[12px] font-bold text-slate-800">{goal.label}</span>
-              <span className="text-right text-[12px] font-semibold text-slate-700">{goal.value}</span>
-              <span className={cn("text-right text-base leading-none", goal.color)}>✓</span>
+            <div key={goal.label} className="grid grid-cols-[16px_1fr_48px_14px] items-center gap-1.5">
+              <span className={cn("text-sm leading-none", goal.color)}>{goal.status}</span>
+              <span className="text-[11px] font-bold text-slate-800 truncate">{goal.label}</span>
+              <span className="text-right text-[11px] font-semibold text-slate-700">{goal.value}</span>
+              <span className={cn("text-right text-sm leading-none", goal.color)}>✓</span>
             </div>
           ))}
         </div>
@@ -944,11 +946,11 @@ function WeeklyGoalProgressCard() {
 
 function AiWeeklyInsightCard() {
   return (
-    <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_92%_20%,rgba(255,255,255,0.9),transparent_14%),linear-gradient(135deg,#F4ECFF_0%,#EDE4FF_52%,#F9F6FF_100%)] p-5 shadow-[0_16px_34px_rgba(124,58,237,0.15)]">
-      <span className="absolute left-5 top-5 text-3xl text-indigo-500">✦</span>
-      <span className="absolute right-8 top-8 text-xl text-violet-400">✦</span>
-      <h3 className="ml-10 text-[16px] font-extrabold text-indigo-600">AI Weekly Insight</h3>
-      <p className="mt-6 text-[15px] font-medium leading-7 text-slate-700">Your protein intake <span className="font-black text-slate-950">improved 18%</span> this week. Keep this pace for better muscle recovery and energy!</p>
+    <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_92%_20%,rgba(255,255,255,0.9),transparent_14%),linear-gradient(135deg,#F4ECFF_0%,#EDE4FF_52%,#F9F6FF_100%)] p-4 shadow-[0_16px_34px_rgba(124,58,237,0.15)]">
+      <span className="absolute left-4 top-4 text-2xl text-indigo-500">✦</span>
+      <span className="absolute right-6 top-6 text-base text-violet-400">✦</span>
+      <h3 className="ml-8 text-[14px] font-extrabold text-indigo-600">AI Weekly Insight</h3>
+      <p className="mt-4 text-[13px] font-medium leading-6 text-slate-700">Your protein intake <span className="font-black text-slate-950">improved 18%</span> this week. Keep this pace for better muscle recovery and energy!</p>
     </div>
   );
 }
@@ -958,20 +960,20 @@ function WeeklyAchievementsCard() {
     { icon: "🔥", label: "5 Day Streak", bg: "#FFF0E2" },
     { icon: "🥗", label: "Balanced Week", bg: "#DCFCE7" },
     { icon: "💧", label: "Hydration Hero", bg: "#EAF4FF" },
-    { icon: "⭐", label: "Consistency Pro", bg: "#EFE7FF" },
+    { icon: "⭐", label: "Consistency", bg: "#EFE7FF" },
   ];
 
   return (
-    <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[15px] font-extrabold text-slate-950">Weekly Achievements</h3>
-        <span className="text-[13px] font-extrabold text-emerald-600">View All</span>
+    <div className="rounded-[20px] border border-slate-100 bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-[13px] font-extrabold text-slate-950">Weekly Achievements</h3>
+        <span className="text-[11px] font-extrabold text-emerald-600">View All</span>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5">
         {achievements.map((item) => (
           <div key={item.label} className="text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl" style={{ background: item.bg }}>{item.icon}</div>
-            <p className="mt-2 text-[11px] font-bold leading-tight text-slate-900">{item.label}</p>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full text-2xl" style={{ background: item.bg }}>{item.icon}</div>
+            <p className="mt-1.5 text-[10px] font-bold leading-tight text-slate-900">{item.label}</p>
           </div>
         ))}
       </div>
@@ -982,18 +984,18 @@ function WeeklyAchievementsCard() {
 function WeekTabClone({ firstName, syncing, onSync, currentStreak }: { firstName: string; syncing: boolean; onSync: () => void; currentStreak: number }) {
   return (
     <div className="space-y-4 pb-2">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-[25px] font-black leading-tight tracking-[-0.04em] text-slate-950">Hello, {firstName}! <span className="text-[23px]">👋</span></h2>
-          <p className="mt-1 text-[15px] font-medium text-slate-500">Here's your weekly nutrition overview</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[20px] font-black leading-tight tracking-[-0.04em] text-slate-950">Hello, {firstName}! <span className="text-[18px]">👋</span></h2>
+          <p className="mt-0.5 text-[13px] font-medium text-slate-500">Here's your weekly nutrition overview</p>
         </div>
         <button
           onClick={onSync}
           disabled={syncing}
-          className="flex h-12 shrink-0 items-center gap-2 rounded-full border border-emerald-500 bg-white px-4 text-[14px] font-extrabold text-emerald-600 shadow-[0_8px_18px_rgba(16,185,129,0.08)] active:scale-95 disabled:opacity-70"
+          className="flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500 bg-white px-3 text-[12px] font-extrabold text-emerald-600 shadow-[0_6px_14px_rgba(16,185,129,0.08)] active:scale-95 disabled:opacity-70"
         >
-          <RefreshCw className={cn("h-5 w-5", syncing && "animate-spin")} />
-          Sync Now
+          <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+          Sync
         </button>
       </div>
 
@@ -1001,12 +1003,15 @@ function WeekTabClone({ firstName, syncing, onSync, currentStreak }: { firstName
       <YourWeekCard />
 
       <section>
-        <div className="mb-3 flex items-center justify-between px-1">
-          <h2 className="text-[18px] font-extrabold tracking-[-0.02em] text-slate-950">Nutrient Trends</h2>
-          <button className="flex items-center gap-1 text-[13px] font-extrabold text-emerald-600">View All <ChevronRight className="h-4 w-4" /></button>
+        <div className="mb-2 flex items-center justify-between px-0.5">
+          <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Nutrient Trends</h2>
+          <button className="flex items-center gap-1 text-[12px] font-extrabold text-emerald-600">
+            View All
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          {nutrientTrendCards.map((card) => <NutrientTrendCard key={card.label} card={card} />)}
+        <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+          {nutrientTrendCards.map((card) => <div key={card.label} className="min-w-[160px] shrink-0"><NutrientTrendCard card={card} /></div>)}
         </div>
         <div className="mt-3 flex justify-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -1015,17 +1020,17 @@ function WeekTabClone({ firstName, syncing, onSync, currentStreak }: { firstName
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <WeekHighlightsCard />
         <WeekCompareCard />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <HabitConsistencyCard />
         <WeeklyGoalProgressCard />
       </div>
 
-      <div className="grid grid-cols-[0.9fr_1.1fr] gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <AiWeeklyInsightCard />
         <WeeklyAchievementsCard />
       </div>
@@ -1342,8 +1347,8 @@ const ProgressDashboard = () => {
   })();
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] pb-24">
-      <div className="mx-auto max-w-[430px] overflow-hidden rounded-b-[30px] bg-white shadow-[0_20px_45px_rgba(15,23,42,0.06)]">
+    <div className="min-h-[100dvh] bg-[#F7F8FA]">
+      <div className="mx-auto w-full max-w-[430px] overflow-hidden bg-white shadow-[0_20px_45px_rgba(15,23,42,0.06)]">
         <header className="safe-area-top px-5 pt-5">
           <div className={cn("flex h-12 items-center justify-between", isRTL && "flex-row-reverse")}>
             <button
@@ -1352,22 +1357,24 @@ const ProgressDashboard = () => {
             >
               <ArrowLeft className="h-7 w-7" strokeWidth={2.25} />
             </button>
-            <h1 className="text-[24px] font-extrabold tracking-[-0.03em] text-slate-950">Progress</h1>
+            <h1 className="text-[24px] font-extrabold tracking-[-0.03em] text-slate-950">
+              {activeTab === "today" ? "Progress" : activeTab === "week" ? "Week" : "Goals"}
+            </h1>
             <button className="flex h-11 w-11 items-center justify-center rounded-full text-slate-600 active:scale-95">
               <Calendar className="h-7 w-7" strokeWidth={1.9} />
             </button>
           </div>
 
-          <div className="mt-6 pb-4">
-            <div className="flex rounded-[28px] bg-slate-100 p-1 shadow-[inset_0_1px_3px_rgba(15,23,42,0.04)]">
+          <div className="mt-4 pb-3">
+            <div className="flex rounded-[24px] bg-slate-100 p-1">
               {(["today", "week", "goals"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    "h-14 flex-1 rounded-[24px] text-[18px] font-bold transition-all duration-200",
+                    "h-11 flex-1 rounded-[20px] text-[15px] font-bold transition-all duration-200 active:scale-[0.97]",
                     activeTab === tab
-                      ? "bg-white text-emerald-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+                      ? "bg-white text-emerald-500 shadow-[0_4px_12px_rgba(15,23,42,0.08)]"
                       : "text-slate-400"
                   )}
                 >
@@ -1377,12 +1384,11 @@ const ProgressDashboard = () => {
             </div>
           </div>
         </header>
-      </div>
 
-      <main className="mx-auto max-w-[430px] space-y-5 px-5 pt-5">
+        <main className="space-y-5 px-5 pb-28">
         {activeTab === "today" && (
           <div className="space-y-5">
-            <section className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#08B982_0%,#078D8D_48%,#075272_100%)] px-4 pb-5 pt-5 text-white shadow-[0_18px_40px_rgba(0,105,95,0.20)]">
+            <section className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#08B982_0%,#078D8D_48%,#075272_100%)] px-4 py-5 text-white shadow-[0_18px_40px_rgba(0,105,95,0.20)]">
               <div className="absolute inset-0 opacity-25">
                 <svg viewBox="0 0 390 230" className="h-full w-full" preserveAspectRatio="none">
                   <path d="M-30 160C60 95 132 204 205 105C271 15 326 55 424 8" fill="none" stroke="white" strokeOpacity="0.2" strokeWidth="1" />
@@ -1392,61 +1398,79 @@ const ProgressDashboard = () => {
               </div>
 
               <div className="relative flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-[24px] font-extrabold leading-none tracking-[-0.04em]">Today's Progress</h2>
-                  <p className="mt-4 text-[15px] font-bold text-white/68">{format(new Date(), "EEEE, MMM d")}</p>
+                <div className="min-w-0">
+                  <h2 className="text-[20px] font-extrabold leading-none tracking-[-0.03em]">Today's Progress</h2>
+                  <p className="mt-3 text-[13px] font-bold text-white/68">{format(new Date(), "EEEE, MMM d")}</p>
                 </div>
                 <button
                   onClick={handleSync}
                   disabled={syncing}
-                  className="mt-1 flex h-8 shrink-0 items-center gap-2 rounded-full bg-transparent px-0 text-[15px] font-extrabold active:scale-95"
+                  className="mt-0.5 flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-transparent px-0 text-[13px] font-extrabold active:scale-95"
                 >
-                  <RefreshCw className={cn("h-5 w-5", syncing && "animate-spin")} />
+                  <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
                   Sync Now
                 </button>
               </div>
 
-              <div className="relative mt-6 grid min-h-[230px] grid-cols-[88px_minmax(128px,1fr)_88px] items-start justify-between gap-3">
-                <div className="self-center justify-self-start">
-                  <HeroSideMetric metric={todayMetrics[0]} />
+              <div className="relative mt-5 grid grid-cols-[1fr_100px_1fr] items-center gap-2">
+                {/* Left side metrics */}
+                <div className="space-y-2.5">
+                  {[todayMetrics[0], { label: "Carbs", icon: "🌿", value: `${displayCarbs}g`, target: `${dailyCarbsTarget}g`, percent: dailyCarbsTarget > 0 ? Math.round((displayCarbs / dailyCarbsTarget) * 100) : 0, color: "#34C987", soft: "linear-gradient(135deg, #DCFCE7 0%, #22C55E 100%)", }].map((m) => (
+                    <div key={m.label} className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base shadow-[0_6px_12px_rgba(15,23,42,0.12)]" style={{ background: m.soft }}>
+                        {m.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-extrabold leading-tight">{m.value}</p>
+                        <p className="text-[10px] font-medium leading-tight text-white/82">{m.label} · {m.percent}%</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex flex-col items-center justify-start">
-                  <div className="relative h-[132px] w-[132px]">
-                    <ProgressArc percent={dailyProgress} color="#57F0B3" size={132} stroke={11} trackColor="rgba(0,80,82,0.55)" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-black/12 text-center shadow-[inset_0_0_30px_rgba(0,0,0,0.12)]">
-                      <div className="text-[50px] font-black leading-none tracking-[-0.065em] text-white drop-shadow-sm">{dailyProgress}<span className="text-[26px]">%</span></div>
-                      <p className="mt-2 text-[14px] font-medium leading-none">Daily Progress</p>
+
+                {/* Center ring */}
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative h-[100px] w-[100px]">
+                    <ProgressArc percent={dailyProgress} color="#57F0B3" size={100} stroke={9} trackColor="rgba(0,80,82,0.55)" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-black/12 text-center shadow-[inset_0_0_24px_rgba(0,0,0,0.12)]">
+                      <div className="text-[36px] font-black leading-none tracking-[-0.06em] text-white drop-shadow-sm">{dailyProgress}<span className="text-[18px]">%</span></div>
+                      <p className="mt-1 text-[11px] font-medium leading-none">Daily</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-center gap-2 text-[14px] font-medium text-white">
-                    <span className="text-[20px] leading-none text-yellow-300 drop-shadow-sm">★</span>
-                    <span>Great start!</span>
-                  </div>
                 </div>
-                <div className="self-center justify-self-end">
-                  <HeroSideMetric metric={todayMetrics[1]} />
-                </div>
-                <div className="col-span-3 mt-2 flex justify-center">
-                  <div className="flex h-[68px] w-[154px] items-center justify-center gap-4 rounded-[20px] border border-white/35 bg-white/16 px-5 py-3 shadow-[inset_0_1px_12px_rgba(255,255,255,0.14)] backdrop-blur-md">
-                    <span className="text-[30px] leading-none">💧</span>
-                    <div className="leading-tight">
-                      <p className="text-[22px] font-extrabold tracking-[-0.035em]">{waterGlasses} / {waterTarget}</p>
-                      <p className="mt-1 text-[14px] font-medium text-white/88">Glasses</p>
+
+                {/* Right side metrics */}
+                <div className="space-y-2.5">
+                  {[todayMetrics[1], { label: "Fat", icon: "💧", value: `${displayFat}g`, target: `${dailyFatTarget}g`, percent: dailyFatTarget > 0 ? Math.round((displayFat / dailyFatTarget) * 100) : 0, color: "#F5B400", soft: "linear-gradient(135deg, #FEF3C7 0%, #F59E0B 100%)", }].map((m) => (
+                    <div key={m.label} className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base shadow-[0_6px_12px_rgba(15,23,42,0.12)]" style={{ background: m.soft }}>
+                        {m.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-extrabold leading-tight">{m.value}</p>
+                        <p className="text-[10px] font-medium leading-tight text-white/82">{m.label} · {m.percent}%</p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative mt-4 flex justify-center">
+                <div className="inline-flex items-center justify-center gap-3 rounded-[16px] border border-white/35 bg-white/16 px-4 py-2.5 shadow-[inset_0_1px_12px_rgba(255,255,255,0.14)] backdrop-blur-md">
+                  <span className="text-[26px] leading-none">💧</span>
+                  <div className="leading-tight">
+                    <p className="text-[18px] font-extrabold tracking-[-0.035em]">{waterGlasses} / {waterTarget}</p>
+                    <p className="mt-0.5 text-[12px] font-medium text-white/88">Glasses</p>
                   </div>
                 </div>
               </div>
             </section>
 
             <section>
-              <div className="no-scrollbar -mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-3">
-                {todayMetrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
-              </div>
-              <div className="mt-0 flex justify-center gap-3">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="h-2 w-2 rounded-full bg-slate-200" />
-                <span className="h-2 w-2 rounded-full bg-slate-200" />
-                <span className="h-2 w-2 rounded-full bg-slate-200" />
+              <div className="grid grid-cols-2 gap-3">
+                {todayMetrics.map((metric) => (
+                  <MetricCard key={metric.label} metric={metric} />
+                ))}
               </div>
             </section>
 
@@ -1460,13 +1484,15 @@ const ProgressDashboard = () => {
 
             <WeightForecastClone currentWeight={currentWeight} targetWeight={targetWeight} />
 
-            <button
-              onClick={() => navigate("/tracker")}
-              className="flex h-14 w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-[17px] font-extrabold text-white shadow-[0_14px_26px_rgba(16,185,129,0.25)] active:scale-[0.98]"
-            >
-              <Plus className="h-6 w-6" />
-              Log Today's Progress
-            </button>
+            <div className="pb-4">
+              <button
+                onClick={() => navigate("/tracker")}
+                className="flex h-14 w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-[17px] font-extrabold text-white shadow-[0_14px_26px_rgba(16,185,129,0.25)] active:scale-[0.98]"
+              >
+                <Plus className="h-6 w-6" />
+                Log Today's Progress
+              </button>
+            </div>
           </div>
         )}
 
@@ -1484,11 +1510,12 @@ const ProgressDashboard = () => {
             userId={user?.id}
             activeGoal={activeGoal}
             updateGoalTargets={updateGoalTargets}
-            onGoalUpdated={refreshGoals}
+              onGoalUpdated={refreshGoals}
             setGoal={setGoal}
           />
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

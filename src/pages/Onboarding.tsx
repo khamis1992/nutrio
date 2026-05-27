@@ -299,7 +299,7 @@ const Onboarding = () => {
     navigate("/dashboard");
   };
 
-  const handleQuickStart = () => {
+  const handleQuickStart = async () => {
     setData({
       goal: "maintain",
       gender: "male",
@@ -333,7 +333,76 @@ const Onboarding = () => {
       protein: macros.protein,
       fat: macros.fat,
     });
+    await completeOnboarding();
     setStep(7);
+  };
+
+  const completeOnboarding = async () => {
+    const age = parseInt(data.age) || 30;
+    const height = parseInt(data.height) || 170;
+    const weight = parseFloat(data.weight) || 75;
+    const bmr = calculateBMR(data.gender || "male", weight, height, age);
+    const tdee = calculateTDEE(bmr, data.activityLevel || "moderate");
+    const dailyCalories = calculateTargetCalories(tdee, data.goal || "maintain");
+    const macros = calculateMacros(dailyCalories, data.goal || "maintain", data.foodPreferences);
+    setComputedPlan({
+      calories: dailyCalories,
+      carbsPct: Math.round((macros.carbs * 4 / dailyCalories) * 100),
+      proteinPct: Math.round((macros.protein * 4 / dailyCalories) * 100),
+      fatPct: Math.round((macros.fat * 9 / dailyCalories) * 100),
+      carbs: macros.carbs,
+      protein: macros.protein,
+      fat: macros.fat,
+    });
+    clearSavedProgress();
+    try {
+      if (!user) return;
+      const goalType = data.goal === "lose" ? "weight_loss" : data.goal === "gain" ? "muscle_gain" : "maintenance";
+      const profileResult = await updateProfile({
+        goal: data.goal || "maintain",
+        gender: data.gender || "male",
+        age: parseInt(data.age) || 30,
+        height: parseInt(data.height) || 170,
+        weight: parseFloat(data.weight) || 75,
+        target_weight: parseFloat(data.targetWeight) || 75,
+        activity_level: data.activityLevel || "moderate",
+        training_days_per_week: parseInt(data.trainingDaysPerWeek) || 3,
+        daily_calorie_target: dailyCalories,
+        protein_target_g: macros.protein,
+        carbs_target_g: macros.carbs,
+        fat_target_g: macros.fat,
+        onboarding_completed: true,
+      });
+      if (profileResult.error) {
+        console.error("updateProfile failed:", profileResult.error);
+        const { error: upsertError } = await supabase
+          .from("profiles")
+          .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: "user_id" });
+        if (upsertError) {
+          console.error("Fallback upsert also failed:", upsertError);
+        }
+      }
+      const { error: goalsError } = await supabase.from("nutrition_goals").insert({
+        user_id: user.id,
+        goal_type: goalType,
+        target_weight_kg: parseFloat(data.targetWeight) || null,
+        daily_calorie_target: dailyCalories,
+        protein_target_g: macros.protein,
+        carbs_target_g: macros.carbs,
+        fat_target_g: macros.fat,
+        is_active: true,
+      });
+      if (goalsError) {
+        console.error("nutrition_goals insert failed:", goalsError);
+      }
+    } catch (err) {
+      console.error("Failed to save onboarding profile:", err);
+      try {
+        await supabase
+          .from("profiles")
+          .upsert({ user_id: user?.id, onboarding_completed: true }, { onConflict: "user_id" });
+      } catch { /* last resort */ }
+    }
   };
 
   const canProceed = () => {
@@ -449,8 +518,8 @@ const Onboarding = () => {
         <LoadingAdvancer
           progress={loadingProgress}
           setProgress={setLoadingProgress}
-          onComplete={async () => {
-            await completeOnboarding();
+          onComplete={() => {
+            completeOnboarding();
             setStep(7);
           }}
         />
@@ -475,59 +544,6 @@ const Onboarding = () => {
     );
   }
 
-  const completeOnboarding = async () => {
-    const age = parseInt(data.age) || 30;
-    const height = parseInt(data.height) || 170;
-    const weight = parseFloat(data.weight) || 75;
-    const bmr = calculateBMR(data.gender || "male", weight, height, age);
-    const tdee = calculateTDEE(bmr, data.activityLevel || "moderate");
-    const dailyCalories = calculateTargetCalories(tdee, data.goal || "maintain");
-    const macros = calculateMacros(dailyCalories, data.goal || "maintain", data.foodPreferences);
-    setComputedPlan({
-      calories: dailyCalories,
-      carbsPct: Math.round((macros.carbs * 4 / dailyCalories) * 100),
-      proteinPct: Math.round((macros.protein * 4 / dailyCalories) * 100),
-      fatPct: Math.round((macros.fat * 9 / dailyCalories) * 100),
-      carbs: macros.carbs,
-      protein: macros.protein,
-      fat: macros.fat,
-    });
-    clearSavedProgress();
-    try {
-      if (!user) return;
-      const goalType = data.goal === "lose" ? "weight_loss" : data.goal === "gain" ? "muscle_gain" : "maintenance";
-      await Promise.all([
-        updateProfile({
-          goal: data.goal || "maintain",
-          gender: data.gender || "male",
-          age: parseInt(data.age) || 30,
-          height: parseInt(data.height) || 170,
-          weight: parseFloat(data.weight) || 75,
-          target_weight: parseFloat(data.targetWeight) || 75,
-          activity_level: data.activityLevel || "moderate",
-          training_days_per_week: parseInt(data.trainingDaysPerWeek) || 3,
-          daily_calorie_target: dailyCalories,
-          protein_target_g: macros.protein,
-          carbs_target_g: macros.carbs,
-          fat_target_g: macros.fat,
-          onboarding_completed: true,
-        }),
-        supabase.from("nutrition_goals").insert({
-          user_id: user.id,
-          goal_type: goalType,
-          target_weight_kg: parseFloat(data.targetWeight) || null,
-          daily_calorie_target: dailyCalories,
-          protein_target_g: macros.protein,
-          carbs_target_g: macros.carbs,
-          fat_target_g: macros.fat,
-          is_active: true,
-        }),
-      ]);
-    } catch (err) {
-      console.error("Failed to save onboarding profile:", err);
-    }
-  };
-
   const handleNext = () => {
     if (step === 3) {
       if (metricsSubStep === "age") {
@@ -547,6 +563,11 @@ const Onboarding = () => {
         setStep(4);
         return;
       }
+      return;
+    }
+    // Step 5 → step 6 (loading screen): must bypass Math.min cap
+    if (step === totalSteps) {
+      setStep(totalSteps + 1);
       return;
     }
     setStep((s) => Math.min(totalSteps, s + 1));

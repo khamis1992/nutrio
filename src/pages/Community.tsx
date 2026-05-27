@@ -7,6 +7,7 @@ import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
 import { pageVariants } from "@/lib/animations";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PopularCombos } from "@/components/community/PopularCombos";
+import { ReferralMilestonesWidget } from "@/components/dashboard/ReferralMilestonesWidget";
 
 export default function Community() {
   const { t } = useLanguage();
@@ -91,6 +92,10 @@ export default function Community() {
 
         <DashboardErrorBoundary name="community gamification">
           <GamificationWidget />
+        </DashboardErrorBoundary>
+
+        <DashboardErrorBoundary name="referral milestones">
+          <ReferralMilestonesWidget />
         </DashboardErrorBoundary>
         </div>
       </div>

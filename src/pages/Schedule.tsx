@@ -231,7 +231,7 @@ const Schedule = () => {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
+    if (profile && !profile.onboarding_completed && !profile.goal) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);

@@ -22,11 +22,9 @@ import {
   Flame,
   Footprints,
   Heart,
-  Home,
   Loader2,
   Lock,
   Medal,
-  Minus,
   Package,
   Pencil,
   Plus,
@@ -52,7 +50,6 @@ import LogMealModal from "@/components/LogMealModal";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { BodyCorrelationWidget } from "@/components/dashboard/BodyCorrelationWidget";
-import { ReferralMilestonesWidget } from "@/components/dashboard/ReferralMilestonesWidget";
 import { SubscriptionNudge } from "@/components/SubscriptionNudge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -66,6 +63,7 @@ import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits
 import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { getQatarNow, getQatarDay, formatLocaleDate } from "@/lib/dateUtils";
+import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import {
@@ -74,6 +72,72 @@ import {
   staggerItem,
   ambientGlow,
 } from "@/lib/animations";
+
+interface ActiveOrder {
+  id: string;
+  scheduled_date: string;
+  order_status: "pending" | "confirmed" | "preparing" | "ready" | "out_for_delivery";
+  meal_id: string;
+  delivery_type: string | null;
+  updated_at: string;
+  meal_name?: string;
+  restaurant_name?: string;
+  meal_count?: number;
+}
+
+interface TodayMeal {
+  meal_id: string;
+  meal_name: string;
+  restaurant_name: string;
+  restaurant_id: string;
+  delivery_type: string;
+  order_status: string;
+  scheduled_date: string;
+  meal_count: number;
+}
+
+interface TopRestaurant {
+  restaurant_id: string;
+  restaurant_name: string;
+  restaurant_image: string;
+  meal_count: number;
+}
+
+interface MonthlyStats {
+  total: number;
+  completed: number;
+  cancelled: number;
+}
+
+interface GamificationBadge {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  rarity: string;
+  xp_reward: number;
+}
+
+interface RecentNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  status: string;
+  created_at: string;
+}
+
+interface MealSchedule {
+  id: string;
+  scheduled_date: string;
+  order_status: string;
+  meal_id: string;
+  delivery_type: string | null;
+  updated_at: string;
+  meal_name?: string;
+  restaurant_name?: string;
+  meal_count?: number;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -92,30 +156,31 @@ const Dashboard = () => {
   const [progressKey, setProgressKey] = useState(0);
   const [totalBurned, setTotalBurned] = useState(0);
   const [workoutCount, setWorkoutCount] = useState(0);
-  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
+  const [totalActiveOrders, setTotalActiveOrders] = useState(0);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState(false);
-  const [topRestaurants, setTopRestaurants] = useState<any[]>([]);
+  const [topRestaurants, setTopRestaurants] = useState<TopRestaurant[]>([]);
   const [topRestaurantsLoading, setTopRestaurantsLoading] = useState(true);
   const [topRestaurantsError, setTopRestaurantsError] = useState(false);
-  const [todayMeals, setTodayMeals] = useState<any[]>([]);
+  const [todayMeals, setTodayMeals] = useState<TodayMeal[]>([]);
   const [todayMealsLoading, setTodayMealsLoading] = useState(true);
   const [todayMealsError, setTodayMealsError] = useState(false);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
-  const [gamification, setGamification] = useState({ xp: 0, level: 1, xpToNextLevel: 100, earnedBadges: 0, totalBadges: 0, badges: [] as any[], earnedIds: new Set<string>() });
+  const [gamification, setGamification] = useState({ xp: 0, level: 1, xpToNextLevel: 100, earnedBadges: 0, totalBadges: 0, badges: [] as GamificationBadge[], earnedIds: new Set<string>() });
   const [waterToday, setWaterToday] = useState(0);
   const [waterGoal, setWaterGoal] = useState(2500);
   const [stepsToday, setStepsToday] = useState(0);
   const [stepsGoal, setStepsGoal] = useState(6000);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
-  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
+  const [recentNotifications, setRecentNotifications] = useState<RecentNotification[]>([]);
   const [notifsLoading, setNotifsLoading] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<MealSchedule | null>(null);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [monthlyStats, setMonthlyStats] = useState({ total: 0, completed: 0, cancelled: 0 });
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ total: 0, completed: 0, cancelled: 0 });
   const [tick, setTick] = useState(0);
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
   const { streaks } = useStreak(user?.id);
@@ -178,7 +243,7 @@ const Dashboard = () => {
 
         if (cancelled) return;
 
-        const earnedIds = new Set((earned || []).map((b: any) => b.badge_id));
+        const earnedIds = new Set((earned as { badge_id: string }[] || []).map((b) => b.badge_id));
         setGamification({
           xp: userXp,
           level: userLevel,
@@ -199,22 +264,32 @@ const Dashboard = () => {
     if (!user?.id) return;
     
     try {
-      const { data: schedules, error: schedulesError } = await supabase
-        .from("meal_schedules")
-        .select(`
-          id,
-          scheduled_date,
-          order_status,
-          meal_id,
-          delivery_type,
-          updated_at
-        `)
-        .eq("user_id", user.id)
-        .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
-        .order("scheduled_date", { ascending: true })
-        .limit(3);
+      const [{ data: schedules, error: schedulesError }, { count: totalCount, error: countError }] = await Promise.all([
+        supabase
+          .from("meal_schedules")
+          .select(`
+            id,
+            scheduled_date,
+            order_status,
+            meal_id,
+            delivery_type,
+            updated_at
+          `)
+          .eq("user_id", user.id)
+          .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
+          .order("scheduled_date", { ascending: true })
+          .limit(3),
+        supabase
+          .from("meal_schedules")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"]),
+      ] as const);
 
       if (schedulesError) throw schedulesError;
+      if (!countError) {
+        setTotalActiveOrders(totalCount ?? 0);
+      }
       if (!schedules || schedules.length === 0) {
         setActiveOrders([]);
         setOrdersLoading(false);
@@ -231,7 +306,7 @@ const Dashboard = () => {
           .in("id", mealIds);
 
         if (!mealsError && meals) {
-          const restaurantIds = [...new Set(meals.map((m: any) => m.restaurant_id).filter(Boolean))] as string[];
+          const restaurantIds = [...new Set(meals.map((m: { restaurant_id: string }) => m.restaurant_id).filter(Boolean))] as string[];
 
           let restaurantsData: any[] = [];
           if (restaurantIds.length > 0) {
@@ -245,14 +320,14 @@ const Dashboard = () => {
             }
           }
 
-          mealsData = meals.map((meal: any) => ({
+          mealsData = meals.map((meal: { id: string; name: string; restaurant_id: string }) => ({
             ...meal,
             restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: "Restaurant" },
           }));
         }
       }
 
-      const orders = schedules.map((schedule: any) => {
+      const orders: ActiveOrder[] = schedules.map((schedule) => {
         const meal = mealsData.find(m => m.id === schedule.meal_id);
         return {
           id: schedule.id,
@@ -293,7 +368,7 @@ const Dashboard = () => {
 
       if (error) throw error;
       const stats = { total: data?.length || 0, completed: 0, cancelled: 0 };
-      (data || []).forEach((s: any) => {
+      (data || []).forEach((s: { order_status: string }) => {
         if (s.order_status === "delivered" || s.order_status === "completed") stats.completed++;
         else if (s.order_status === "cancelled") stats.cancelled++;
       });
@@ -311,7 +386,7 @@ const Dashboard = () => {
     try {
       const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: scheduleId });
       if (error) throw error;
-      setActiveOrders((prev) => prev.filter((o: any) => o.id !== scheduleId));
+      setActiveOrders((prev) => prev.filter((o) => o.id !== scheduleId));
     } catch (err) {
       console.error("Error cancelling order:", err);
     } finally {
@@ -339,7 +414,7 @@ const Dashboard = () => {
       if (featuredError) throw featuredError;
 
       const restaurants = (featured || [])
-        .map((f: any) => f.restaurants)
+        .map((f: { restaurants: TopRestaurant[] }) => f.restaurants)
         .filter(Boolean);
       setTopRestaurants(restaurants);
     } catch (err) {
@@ -427,9 +502,15 @@ const Dashboard = () => {
     600
   );
 
+  const onboardingRedirected = useRef(false);
   useEffect(() => {
-    if (!profileLoading && profile && profile.onboarding_completed === false) {
-      navigate("/onboarding");
+    if (profileLoading || onboardingRedirected.current) return;
+    if (profile && profile.onboarding_completed === false) {
+      const hasOnboardingData = profile.goal && profile.daily_calorie_target;
+      if (!hasOnboardingData) {
+        onboardingRedirected.current = true;
+        navigate("/onboarding");
+      }
     }
   }, [profile, profileLoading, navigate]);
 
@@ -728,12 +809,15 @@ const Dashboard = () => {
     );
   }
 
-  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + rolloverCredits;
-  const balanceDisplay = isUnlimited ? "∞" : Number.isFinite(effectiveMealsLeft) ? Number(effectiveMealsLeft) : 40;
-  const totalMealsDisplay = isUnlimited ? "∞" : Number.isFinite(totalMeals) ? Number(totalMeals) : 40;
-  const rawUserName = profile?.full_name?.split(" ")[0] || t("guest_greeting") || "Khamis";
+  const effectiveMealsLeft = isUnlimited ? Infinity : remainingMeals + (rolloverCredits || 0);
+  const balanceDisplay = isUnlimited ? "∞" : Number.isFinite(effectiveMealsLeft) ? Number(effectiveMealsLeft) : "…";
+  const totalMealsDisplay = isUnlimited ? "∞" : Number.isFinite(totalMeals) ? Number(totalMeals) : "…";
+  const rawUserName = profile?.full_name?.trim() 
+    ? (profile.full_name.includes(" ") ? profile.full_name.split(" ")[0] : profile.full_name)
+    : t("guest_greeting") || "Guest";
   const userName = rawUserName.charAt(0).toUpperCase() + rawUserName.slice(1).toLowerCase();
-  const hourNow = new Date().getHours();
+  const qatarNow = getQatarNow();
+  const hourNow = qatarNow.getHours();
   const timeGreeting = hourNow < 12 ? "Good morning ☀️" : hourNow < 18 ? "Good afternoon ☀️" : "Good evening 🌙";
   const dateLabel = formatLocaleDate(selectedDate, language, { weekday: "short", month: "short", day: "numeric" });
   const dailyCalories = profile?.daily_calorie_target || 2066;
@@ -925,14 +1009,14 @@ const Dashboard = () => {
                           <p className="mt-0.5 text-[11px] text-slate-500">No new notifications</p>
                         </div>
                       ) : (
-                        recentNotifications.map((notif: any) => {
+                        recentNotifications.map((notif) => {
                           const cfg = (({
                             order_update: { icon: Truck, bg: "bg-[#E6FFF5]", iconColor: "text-[#10B981]" },
                             meal_reminder: { icon: Utensils, bg: "bg-[#FFF4E6]", iconColor: "text-[#F97316]" },
                             subscription_alert: { icon: Crown, bg: "bg-[#FFF7ED]", iconColor: "text-[#EA580C]" },
                             general: { icon: TrendingUp, bg: "bg-[#EFF6FF]", iconColor: "text-[#3B82F6]" },
                             announcement: { icon: Bell, bg: "bg-[#FEF3C7]", iconColor: "text-[#F59E0B]" },
-                          } as any)[notif.type]) || { icon: Bell, bg: "bg-slate-100", iconColor: "text-slate-500" };
+                          } as Record<string, { icon: React.ElementType; bg: string; iconColor: string }>)[notif.type]) || { icon: Bell, bg: "bg-slate-100", iconColor: "text-slate-500" };
                           const IconComponent = cfg.icon;
                           const isUnread = notif.status === "unread";
                           return (
@@ -1010,7 +1094,7 @@ const Dashboard = () => {
                 { type: "dinner", label: "Dinner", icon: UtensilsCrossed, color: "from-violet-400 to-purple-500", bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-200" },
               ];
               const hasAnyMeal = slots.some((s) => {
-                const m = todayMeals.find((tm: any) => tm.type === s.type);
+                const m = todayMeals.find((tm) => tm.type === s.type);
                 return m && m.meal;
               });
 
@@ -1047,7 +1131,7 @@ const Dashboard = () => {
               }
 
               return slots.map((slot) => {
-              const meal = todayMeals.find((m: any) => m.type === slot.type);
+              const meal = todayMeals.find((m) => m.type === slot.type);
               const hasMeal = meal && meal.meal;
               const IconSlot = slot.icon;
 
@@ -1771,7 +1855,7 @@ const Dashboard = () => {
                 {/* Badge Preview */}
                 <div className="flex shrink-0 -space-x-2">
                   {Array.from(gamification.earnedIds).slice(0, 3).reverse().map((badgeId: string) => {
-                    const badge = gamification.badges.find((b: any) => b.id === badgeId);
+                    const badge = gamification.badges.find((b) => b.id === badgeId);
                     const rarityGradient: Record<string, string> = {
                       common: "from-gray-400 to-gray-500",
                       rare: "from-blue-400 to-blue-600",
@@ -1820,8 +1904,8 @@ const Dashboard = () => {
                       <div className="mb-3">
                         <div className="flex flex-wrap gap-2">
                           {gamification.badges
-                            .filter((b: any) => gamification.earnedIds.has(b.id))
-                            .map((badge: any) => {
+                            .filter((b) => gamification.earnedIds.has(b.id))
+                            .map((badge) => {
                               const cfg = rarityConfig[badge.rarity] || rarityConfig.common;
                               return (
                                 <div
@@ -1849,9 +1933,9 @@ const Dashboard = () => {
                         <p className="text-[10px] font-semibold text-slate-500 mb-2">Next to unlock</p>
                         <div className="space-y-1.5">
                           {gamification.badges
-                            .filter((b: any) => !gamification.earnedIds.has(b.id))
+                            .filter((b) => !gamification.earnedIds.has(b.id))
                             .slice(0, 3)
-                            .map((badge: any) => {
+                            .map((badge) => {
                               const cfg = rarityConfig[badge.rarity] || rarityConfig.common;
                               return (
                                 <div key={badge.id} className="flex items-center gap-2 rounded-xl bg-slate-50 p-2">
@@ -1878,7 +1962,6 @@ const Dashboard = () => {
           </motion.div>
 
           {user && <BodyCorrelationWidget />}
-          {user && <ReferralMilestonesWidget />}
 
           <div className="mt-5">
             <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
@@ -1968,7 +2051,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders</h2>
-                    <p className="text-[11px] font-medium text-slate-500">{activeOrders.length} order{activeOrders.length !== 1 ? "s" : ""} in progress</p>
+                    <p className="text-[11px] font-medium text-slate-500">{totalActiveOrders} order{totalActiveOrders !== 1 ? "s" : ""} in progress{totalActiveOrders > 3 ? ` · Showing first ${activeOrders.length}` : ""}</p>
                   </div>
                 </div>
                 <Link to="/orders" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">

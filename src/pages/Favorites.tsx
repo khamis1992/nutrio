@@ -56,7 +56,7 @@ const Favorites = () => {
   const [activeTab, setActiveTab] = useState("restaurants");
 
   useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
+    if (profile && !profile.onboarding_completed && !profile.goal) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);

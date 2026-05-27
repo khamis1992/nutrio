@@ -482,7 +482,7 @@ const OrderHistory = () => {
 
   // Check if user completed onboarding
   useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
+    if (profile && !profile.onboarding_completed && !profile.goal) {
       navigate("/onboarding");
     }
   }, [profile, navigate]);

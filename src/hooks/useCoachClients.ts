@@ -26,6 +26,75 @@ export function useCoachClients(coachId: string | undefined) {
   const [pending, setPending] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchPending = useCallback(async () => {
+    if (!coachId) return;
+    try {
+      const { data: pendingRows } = await supabase
+        .from("coach_client_assignments")
+        .select("id, client_id, invite_code, created_at")
+        .eq("coach_id", coachId)
+        .eq("status", "pending");
+
+      if (!pendingRows?.length) {
+        setPending([]);
+        return;
+      }
+
+      const clientIds = pendingRows.filter((r) => r.client_id).map((r) => r.client_id);
+      const profileMap = new Map<string, { full_name: string | null; avatar_url: string | null }>();
+
+      if (clientIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, avatar_url")
+          .in("user_id", clientIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.user_id, p);
+        }
+      }
+
+      setPending(
+        pendingRows.map((r) => ({
+          assignmentId: r.id,
+          clientId: r.client_id || "",
+          fullName: r.client_id ? (profileMap.get(r.client_id)?.full_name || "Unknown Client") : "Waiting (via invite code)",
+          avatarUrl: r.client_id ? profileMap.get(r.client_id)?.avatar_url || null : null,
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching pending requests:", err);
+    }
+  }, [coachId]);
+
+  const handleAccept = useCallback(
+    async (assignmentId: string) => {
+      const { error } = await supabase
+        .from("coach_client_assignments")
+        .update({ status: "active" })
+        .eq("id", assignmentId)
+        .eq("coach_id", coachId);
+
+      if (error) throw error;
+      setPending((prev) => prev.filter((r) => r.assignmentId !== assignmentId));
+      await fetchClients();
+    },
+    [coachId]
+  );
+
+  const handleReject = useCallback(
+    async (assignmentId: string) => {
+      const { error } = await supabase
+        .from("coach_client_assignments")
+        .update({ status: "revoked" })
+        .eq("id", assignmentId)
+        .eq("coach_id", coachId);
+
+      if (error) throw error;
+      setPending((prev) => prev.filter((r) => r.assignmentId !== assignmentId));
+    },
+    [coachId]
+  );
+
   const fetchClients = useCallback(async () => {
     if (!coachId) {
       setLoading(false);
@@ -165,8 +234,8 @@ export function useCoachClients(coachId: string | undefined) {
   }, [coachId]);
 
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+    Promise.all([fetchClients(), fetchPending()]);
+  }, []);
 
-  return { clients, loading, refresh: fetchClients };
+  return { clients, pending, loading, refresh: () => Promise.all([fetchClients(), fetchPending()]), handleAccept, handleReject };
 }

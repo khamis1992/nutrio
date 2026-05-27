@@ -251,7 +251,7 @@ export default function DeliveryTracking() {
 
   // ── Onboarding redirect ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (profile && !profile.onboarding_completed) navigate("/onboarding");
+    if (profile && !profile.onboarding_completed && !profile.goal) navigate("/onboarding");
   }, [profile, navigate]);
 
   // ── Real-time subscription ──────────────────────────────────────────────────
