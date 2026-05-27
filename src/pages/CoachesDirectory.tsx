@@ -42,8 +42,6 @@ export default function CoachesDirectory() {
 
   const fetchCoaches = useCallback(async () => {
     if (!user?.id) return;
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user?.id) return;
     try {
       const { data: coachRoles } = await supabase
         .from("user_roles")
@@ -58,7 +56,7 @@ export default function CoachesDirectory() {
 
       const coachIds = coachRoles.map((r) => r.user_id);
 
-      const [{ data: profiles }, { data: assignments }, { data: goals }, { data: reviews }] = await Promise.all([
+      const [{ data: profiles }, { data: assignments }, { data: goals }, { data: reviews }, { data: myAssignments }] = await Promise.all([
         supabase
           .from("profiles")
           .select("user_id, full_name, avatar_url, bio, specialties")
@@ -76,6 +74,11 @@ export default function CoachesDirectory() {
           .from("coach_reviews")
           .select("coach_id, rating")
           .in("coach_id", coachIds),
+        supabase
+          .from("coach_client_assignments")
+          .select("coach_id, status")
+          .eq("client_id", user.id)
+          .in("status", ["pending", "active"]),
       ]);
 
       const clientCounts = new Map<string, number>();
@@ -105,6 +108,12 @@ export default function CoachesDirectory() {
         if (a.client_id === user?.id && a.status === "pending") {
           myPending.add(a.coach_id);
         }
+      }
+
+      // Directly populate from user's own assignments (bypasses RLS timing issues on cold load)
+      for (const ma of myAssignments || []) {
+        if (ma.status === "active") myActiveCoach.add(ma.coach_id);
+        if (ma.status === "pending") myPending.add(ma.coach_id);
       }
 
       const sorted: CoachProfile[] = (profiles || [])
