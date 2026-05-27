@@ -54,7 +54,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  INSERT INTO notifications (user_id, title, message, type, status, created_at)
+  INSERT INTO notifications (user_id, title, message, type)
   VALUES (
     CASE WHEN NEW.sender_role = 'coach' THEN NEW.client_id ELSE NEW.coach_id END,
     CASE WHEN NEW.sender_role = 'coach' 
@@ -62,9 +62,7 @@ BEGIN
       ELSE 'New message from your client' 
     END,
     substring(NEW.message, 1, 100),
-    'general',
-    'unread',
-    now()
+    'general'
   );
   RETURN NEW;
 END;
