@@ -7,6 +7,8 @@ import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+import { CoachPricingSection } from "@/components/coach/CoachPricingSection";
+
 const SPECIALTY_OPTIONS = [
   "Weight Loss", "Muscle Gain", "Sports Nutrition", "Plant-Based",
   "Diabetes Management", "Heart Health", "Gut Health", "Meal Planning",
@@ -193,6 +195,9 @@ export default function CoachSettings() {
           </button>
         </div>
       </motion.div>
+
+      {/* Pricing */}
+      <CoachPricingSection />
 
       {/* Privacy */}
       <motion.div

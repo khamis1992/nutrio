@@ -1,12 +1,12 @@
 import { useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Users, BarChart3, MessageSquare, Settings } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Users, BarChart3, MessageSquare, Settings, TrendingUp } from "lucide-react";
 
 const tabs = [
   { path: "/coach", label: "Clients", Icon: Users },
   { path: "/coach/insights", label: "Insights", Icon: BarChart3 },
   { path: "/coach/chat", label: "Chat", Icon: MessageSquare },
+  { path: "/coach/earnings", label: "Earnings", Icon: TrendingUp },
   { path: "/coach/settings", label: "Settings", Icon: Settings },
 ];
 

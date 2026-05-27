@@ -72,6 +72,7 @@ const AdminProfitDashboard = lazy(() => import("./pages/admin/AdminProfitDashboa
 const AdminMealApprovals = lazy(() => import("./pages/admin/AdminMealApprovals"));
 const AdminPremiumAnalytics = lazy(() => import("./pages/admin/AdminPremiumAnalytics"));
 const AdminCoachApprovals = lazy(() => import("./pages/admin/AdminCoachApprovals"));
+const AdminCoachCommission = lazy(() => import("./pages/admin/AdminCoachCommission"));
 
 // Driver pages
 const DriverAuth = lazy(() => import("./pages/driver/DriverAuth"));
@@ -92,6 +93,7 @@ const CoachInsights = lazy(() => import("./pages/coach/CoachInsights"));
 const CoachSettings = lazy(() => import("./pages/coach/CoachSettings"));
 const CoachChatPage = lazy(() => import("./pages/coach/CoachChatPage"));
 const CoachClientDetail = lazy(() => import("./pages/coach/CoachClientDetail"));
+const CoachEarningsPage = lazy(() => import("./pages/coach/CoachEarningsPage"));
 const CoachPortalLayout = lazy(() => import("./components/coach/CoachPortalLayout").then(m => ({ default: m.CoachPortalLayout })));
 
 const PageLoader = () => (
@@ -506,6 +508,14 @@ const App = () => (
     </ProtectedRoute>
   } 
 />
+<Route 
+  path="/admin/coach-commission" 
+  element={
+    <ProtectedRoute requiredRole="admin">
+      <AdminCoachCommission />
+    </ProtectedRoute>
+  } 
+/>
             {/* Driver Portal Routes */}
             <Route path="/driver/auth" element={<DriverAuth />} />
             <Route 
@@ -547,6 +557,7 @@ const App = () => (
               <Route index element={<CoachDashboard />} />
               <Route path="insights" element={<CoachInsights />} />
               <Route path="chat" element={<CoachChatPage />} />
+              <Route path="earnings" element={<CoachEarningsPage />} />
               <Route path="settings" element={<CoachSettings />} />
               <Route path="client/:clientId" element={<CoachClientDetail />} />
             </Route>
