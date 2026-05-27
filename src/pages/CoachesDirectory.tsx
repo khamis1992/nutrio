@@ -38,7 +38,14 @@ export default function CoachesDirectory() {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [myCoach, setMyCoach] = useState<string | null>(null);
   const [myCoachProfile, setMyCoachProfile] = useState<CoachProfile | null>(null);
-  const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
+  const [pendingRequests, setPendingRequests] = useState<Set<string>>(() => {
+    try {
+      const stored = sessionStorage.getItem("coach_pending_requests");
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
 
   const fetchCoaches = useCallback(async () => {
     if (!user?.id) return;
@@ -159,6 +166,13 @@ export default function CoachesDirectory() {
   useEffect(() => {
     fetchCoaches();
   }, [fetchCoaches]);
+
+  // Sync pending state to sessionStorage so it survives hard refresh
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("coach_pending_requests", JSON.stringify([...pendingRequests]));
+    } catch {}
+  }, [pendingRequests]);
 
   const handleRequestCoach = async (coachId: string) => {
     if (!user) return;
