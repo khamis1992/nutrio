@@ -60,11 +60,11 @@ CREATE POLICY "coaches_update_own_assignments" ON coach_client_assignments
   USING (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()))
   WITH CHECK (coach_id = (SELECT user_id FROM profiles WHERE user_id = auth.uid()));
 
--- Coaches can read profiles of their active clients
+-- Coaches can read profiles of their clients (active or pending)
 CREATE POLICY "coaches_view_client_profiles" ON profiles
   FOR SELECT
   TO authenticated
-  USING (EXISTS (SELECT 1 FROM coach_client_assignments WHERE coach_id = auth.uid() AND client_id = profiles.user_id AND status = 'active'));
+  USING (EXISTS (SELECT 1 FROM coach_client_assignments WHERE coach_id = auth.uid() AND client_id = profiles.user_id AND status IN ('active', 'pending')));
 
 -- Clients can request coaches (client-initiated discovery)
 CREATE POLICY "clients_request_coaches" ON coach_client_assignments
