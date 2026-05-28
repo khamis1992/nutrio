@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 interface ClientProfile {
   full_name: string | null;
   avatar_url: string | null;
-  goal: string | null;
+  health_goal: string | null;
   daily_calorie_target: number | null;
   protein_target_g: number | null;
   carbs_target_g: number | null;
@@ -81,7 +81,7 @@ export default function CoachClientDetail() {
         { data: weightData },
         { data: streakData },
       ] = await Promise.all([
-        supabase.from("profiles").select("full_name, avatar_url, goal, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g").eq("user_id", clientId).single(),
+        supabase.from("profiles").select("full_name, avatar_url, health_goal, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g").eq("user_id", clientId).single(),
         supabase.from("meal_schedules").select("id, scheduled_date, order_status, meals:meal_id(name, calories, protein_g, carbs_g, fat_g), restaurants:restaurant_id(name)").eq("user_id", clientId).gte("scheduled_date", weekAgoStr).lte("scheduled_date", todayStr).order("scheduled_date", { ascending: true }),
         supabase.from("body_measurements").select("log_date, weight_kg").eq("user_id", clientId).gte("log_date", weekAgoStr).order("log_date", { ascending: true }),
         supabase.from("user_streaks").select("current_streak").eq("user_id", clientId).eq("streak_type", "logging").maybeSingle(),
@@ -201,7 +201,7 @@ export default function CoachClientDetail() {
               {profile.full_name || "Client"}
             </h1>
             <p className="text-[11px] font-medium text-slate-500">
-              {profile.goal ? profile.goal.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()) : "General Health"}
+              {profile.health_goal ? profile.health_goal.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase()) : "General Health"}
               {streak > 0 && ` · 🔥 ${streak}-day streak`}
             </p>
           </div>
