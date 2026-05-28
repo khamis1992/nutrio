@@ -76,11 +76,15 @@ export default function CoachClientDetail() {
 
     try {
       // Fetch profile separately so it always resolves even if other queries fail
-      const { data: prof } = await supabase
+      const { data: prof, error: profError } = await supabase
         .from("profiles")
         .select("full_name, avatar_url, health_goal, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
         .eq("user_id", clientId)
-        .single();
+        .maybeSingle();
+
+      if (profError) {
+        console.error("Profile query error:", profError);
+      }
 
       setProfile(prof || null);
 
