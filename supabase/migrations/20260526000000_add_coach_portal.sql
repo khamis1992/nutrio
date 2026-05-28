@@ -66,6 +66,20 @@ CREATE POLICY "Users can view their own assignments" ON coach_client_assignments
   FOR SELECT TO authenticated USING ((coach_id = auth.uid()) OR (client_id = auth.uid()));
 
 -- Coaches can read profiles of their clients (active or pending)
+-- Uses SECURITY DEFINER function to avoid circular RLS recursion
+CREATE OR REPLACE FUNCTION is_coach_of(p_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM coach_client_assignments
+    WHERE coach_id = auth.uid() AND client_id = p_user_id AND status IN ('active', 'pending')
+  );
+$$;
+
 CREATE POLICY "coaches_view_client_profiles" ON profiles
-  FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM coach_client_assignments WHERE coach_id = auth.uid() AND client_id = profiles.user_id AND status IN ('active', 'pending')));
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid() OR is_coach_of(user_id));
