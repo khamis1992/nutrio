@@ -618,7 +618,7 @@ export default function ProgressRedesigned() {
               </article>
             </section>
 
-            {/* Your Week - 7 Day Grid */}
+            {/* Your Week - Calendar Grid with Rows */}
             <section className="mb-5">
               <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
                 <div className="flex items-center justify-between mb-4">
@@ -629,116 +629,190 @@ export default function ProgressRedesigned() {
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" /> No Data</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-                    const isOnTrack = i < 5;
-                    const isPartial = i === 5;
-                    const calories = [2078, 1920, 2150, 1980, 2200, 1800, 1950][i];
+                
+                {/* Calendar Grid */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-center">
+                    <thead>
+                      <tr>
+                        <th className="pb-2 text-[11px] font-bold text-slate-400 w-20"></th>
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                          <th key={day} className="pb-2 text-[11px] font-bold text-slate-400">{day}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Meals Logged Row */}
+                      <tr>
+                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Meals Logged</td>
+                        {[{val: '2,078', status: 'on'}, {val: '1,920', status: 'on'}, {val: '2,150', status: 'on'}, {val: '1,980', status: 'on'}, {val: '2,200', status: 'on'}, {val: '1,800', status: 'partial'}, {val: '1,950', status: 'none'}].map((item, i) => (
+                          <td key={i} className="py-2">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${item.status === 'on' ? 'bg-emerald-100' : item.status === 'partial' ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                                {item.status === 'on' ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : item.status === 'partial' ? <div className="h-2 w-2 rounded-full bg-orange-400" /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              </div>
+                              <span className="text-[9px] font-bold text-slate-600">{item.val}</span>
+                              <span className="text-[8px] text-slate-400">kcal</span>
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Workouts Row */}
+                      <tr>
+                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Workouts</td>
+                        {[{done: true}, {done: true}, {done: false}, {done: true}, {done: true}, {done: false}, {done: false}].map((item, i) => (
+                          <td key={i} className="py-2">
+                            <div className="flex justify-center">
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${item.done ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                                {item.done ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              </div>
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                      {/* Water Goal Row */}
+                      <tr>
+                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Water Goal</td>
+                        {[{done: true}, {done: true}, {done: true}, {done: true}, {done: false}, {done: true}, {done: false}].map((item, i) => (
+                          <td key={i} className="py-2">
+                            <div className="flex justify-center">
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${item.done ? 'bg-blue-100' : 'bg-slate-100'}`}>
+                                {item.done ? <Check className="h-3 w-3 text-blue-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              </div>
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </section>
+
+            {/* Nutrient Trends with Line Graphs */}
+            <section className="mb-5">
+              <SectionHeader title="Nutrient Trends" />
+              <div className="grid grid-cols-3 gap-2.5">
+                {/* Calories Trend */}
+                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
+                  <p className="text-[10px] font-semibold text-slate-500 mb-1">Calories (avg)</p>
+                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">1,986<span className="text-[12px] font-semibold text-slate-400 ml-0.5">kcal</span></p>
+                  {/* Sparkline Graph */}
+                  <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
+                    <polyline
+                      fill="none"
+                      stroke="#F97316"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points="0,30 13,25 26,28 40,20 53,15 66,18 80,10"
+                    />
+                  </svg>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
+                    <ArrowUp className="h-3 w-3" />
+                    8% vs last week
+                  </div>
+                </article>
+                {/* Protein Trend */}
+                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
+                  <p className="text-[10px] font-semibold text-slate-500 mb-1">Protein (avg)</p>
+                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">132<span className="text-[12px] font-semibold text-slate-400 ml-0.5">g</span></p>
+                  {/* Sparkline Graph */}
+                  <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
+                    <polyline
+                      fill="none"
+                      stroke="#3B82F6"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points="0,35 13,30 26,32 40,25 53,18 66,15 80,8"
+                    />
+                  </svg>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
+                    <ArrowUp className="h-3 w-3" />
+                    14% vs last week
+                  </div>
+                </article>
+                {/* Water Trend */}
+                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
+                  <p className="text-[10px] font-semibold text-slate-500 mb-1">Water (avg)</p>
+                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">6.2<span className="text-[12px] font-semibold text-slate-400 ml-0.5">Glasses</span></p>
+                  {/* Sparkline Graph */}
+                  <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
+                    <polyline
+                      fill="none"
+                      stroke="#0EA5E9"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points="0,10 13,15 26,12 40,20 53,25 66,22 80,30"
+                    />
+                  </svg>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 mt-1">
+                    <ArrowDown className="h-3 w-3" />
+                    5% vs last week
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            {/* This Week Highlights - 3 Separate Cards */}
+            <section className="mb-5">
+              <h3 className="text-[14px] font-black text-slate-800 mb-3">This Week Highlights</h3>
+              <div className="grid grid-cols-3 gap-2.5">
+                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
+                  <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-amber-100 mb-2">
+                    <Trophy className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-700">Best Protein Day</p>
+                  <p className="text-[9px] text-slate-500">Tuesday</p>
+                  <p className="text-[14px] font-black text-slate-900">168 g</p>
+                </article>
+                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
+                  <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-orange-100 mb-2">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-700">Highest Calories</p>
+                  <p className="text-[9px] text-slate-500">Friday</p>
+                  <p className="text-[14px] font-black text-slate-900">720 kcal</p>
+                </article>
+                <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
+                  <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-blue-100 mb-2">
+                    <Droplet className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-700">Most Hydrated</p>
+                  <p className="text-[9px] text-slate-500">Monday</p>
+                  <p className="text-[14px] font-black text-slate-900">8 Glasses</p>
+                </article>
+              </div>
+            </section>
+
+            {/* This Week vs Last Week */}
+            <section className="mb-5">
+              <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                <h3 className="text-[13px] font-black text-slate-800 mb-3">This Week vs Last Week</h3>
+                <div className="space-y-2.5">
+                  {[
+                    { label: 'Calories', trend: '+8%', up: true, Icon: Flame, color: '#F97316' },
+                    { label: 'Protein', trend: '+14%', up: true, Icon: Target, color: '#3B82F6' },
+                    { label: 'Water', trend: '-5%', up: false, Icon: Droplet, color: '#0EA5E9' },
+                    { label: 'Consistency', trend: '+21%', up: true, Icon: TrendingUp, color: '#10B981' },
+                  ].map((item) => {
+                    const ItemIcon = item.Icon;
                     return (
-                      <div key={day} className="text-center">
-                        <p className="text-[10px] font-bold text-slate-400 mb-1">{day}</p>
-                        <div className={`rounded-[10px] p-2 ${isOnTrack ? 'bg-emerald-50' : isPartial ? 'bg-orange-50' : 'bg-slate-50'}`}>
-                          <p className="text-[10px] font-black text-slate-700">{(calories / 1000).toFixed(1)}k</p>
-                          <div className="mt-1 flex justify-center gap-0.5">
-                            <span className={`h-1.5 w-1.5 rounded-full ${isOnTrack || isPartial ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                            <span className={`h-1.5 w-1.5 rounded-full ${i < 4 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                            <span className={`h-1.5 w-1.5 rounded-full ${i < 3 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          </div>
+                      <div key={item.label} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ItemIcon className="h-4 w-4" style={{ color: item.color }} />
+                          <span className="text-[11px] font-semibold text-slate-600">{item.label}</span>
                         </div>
+                        <span className={`text-[11px] font-bold ${item.up ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {item.trend} {item.up ? '↑' : '↓'}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
               </article>
-            </section>
-
-            {/* Nutrient Trends */}
-            <section className="mb-5">
-              <SectionHeader title="Nutrient Trends" />
-              <div className="grid grid-cols-3 gap-2.5">
-                {[
-                  { label: 'Calories (avg)', value: '1,986', unit: 'kcal', trend: '+8%', up: true, color: '#F97316', Icon: Flame },
-                  { label: 'Protein (avg)', value: '132', unit: 'g', trend: '+14%', up: true, color: '#3B82F6', Icon: Target },
-                  { label: 'Water (avg)', value: '6.2', unit: 'Glasses', trend: '-5%', up: false, color: '#0EA5E9', Icon: Droplet },
-                ].map((tr) => {
-                  const TrIcon = tr.Icon;
-                  return (
-                    <article key={tr.label} className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                      <div className="grid h-8 w-8 place-items-center rounded-full mb-2" style={{ backgroundColor: `${tr.color}20` }}>
-                        <TrIcon className="h-4 w-4" style={{ color: tr.color }} />
-                      </div>
-                      <p className="text-[20px] font-black tracking-[-0.04em] text-slate-900">{tr.value}</p>
-                      <p className="text-[10px] font-semibold text-slate-400">{tr.unit}</p>
-                      <div className={`mt-2 flex items-center gap-1 text-[10px] font-bold ${tr.up ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {tr.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                        {tr.trend} vs last week
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Highlights & Comparison */}
-            <section className="mb-5">
-              <div className="grid grid-cols-2 gap-3">
-                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <h3 className="text-[13px] font-black text-slate-800 mb-3">This Week Highlights</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-100">
-                        <Trophy className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-700 truncate">Best Protein Day</p>
-                        <p className="text-[10px] text-slate-400">Tuesday 168 g</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-100">
-                        <Flame className="h-5 w-5 text-orange-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-700 truncate">Highest Calories</p>
-                        <p className="text-[10px] text-slate-400">Friday 720 kcal</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-100">
-                        <Droplet className="h-5 w-5 text-blue-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-700 truncate">Most Hydrated</p>
-                        <p className="text-[10px] text-slate-400">Monday 8 Glasses</p>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <h3 className="text-[13px] font-black text-slate-800 mb-3">vs Last Week</h3>
-                  <div className="space-y-2.5">
-                    {[
-                      { label: 'Calories', trend: '+8%', up: true, Icon: Flame, color: '#F97316' },
-                      { label: 'Protein', trend: '+14%', up: true, Icon: Target, color: '#3B82F6' },
-                      { label: 'Water', trend: '-5%', up: false, Icon: Droplet, color: '#0EA5E9' },
-                      { label: 'Consistency', trend: '+21%', up: true, Icon: TrendingUp, color: '#10B981' },
-                    ].map((item) => {
-                      const ItemIcon = item.Icon;
-                      return (
-                        <div key={item.label} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <ItemIcon className="h-4 w-4" style={{ color: item.color }} />
-                            <span className="text-[11px] font-semibold text-slate-600">{item.label}</span>
-                          </div>
-                          <span className={`text-[11px] font-bold ${item.up ? 'text-emerald-600' : 'text-red-500'}`}>
-                            {item.trend} {item.up ? '↑' : '↓'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </article>
-              </div>
             </section>
 
             {/* Habit Consistency & Goal Progress */}
@@ -799,12 +873,12 @@ export default function ProgressRedesigned() {
             {/* AI Insight & Achievements */}
             <section className="mb-5">
               <div className="grid grid-cols-2 gap-3">
-                <article className="rounded-[18px] bg-gradient-to-br from-violet-500 to-purple-600 p-4 text-white shadow-[0_12px_28px_rgba(139,92,246,0.25)]">
+                <article className="rounded-[18px] bg-violet-50 border border-violet-100 p-4 shadow-[0_10px_24px_rgba(139,92,246,0.08)]">
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-5 w-5 text-amber-300" />
-                    <h3 className="text-[13px] font-black">AI Weekly Insight</h3>
+                    <Star className="h-5 w-5 text-violet-500" />
+                    <h3 className="text-[13px] font-black text-violet-900">AI Weekly Insight</h3>
                   </div>
-                  <p className="text-[11px] font-medium leading-relaxed text-white/90">
+                  <p className="text-[11px] font-medium leading-relaxed text-slate-700">
                     Your protein intake improved 18% this week. Keep this pace for better muscle recovery and energy!
                   </p>
                 </article>
