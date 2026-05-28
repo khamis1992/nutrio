@@ -36,14 +36,6 @@ import { useWaterIntake } from "@/hooks/useWaterIntake";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-type GoalFocusItem = {
-  label: string;
-  Icon: LucideIcon;
-  accent: string;
-  bg: string;
-  active?: boolean;
-};
-
 type RingMetric = {
   label: string;
   value: number;
@@ -52,15 +44,6 @@ type RingMetric = {
   color: string;
   track: string;
 };
-
-const goalFocusItems: GoalFocusItem[] = [
-  { label: "Weight Loss", Icon: Scale, accent: "#10B981", bg: "from-emerald-50 to-white", active: true },
-  { label: "Muscle Gain", Icon: Dumbbell, accent: "#3B82F6", bg: "from-blue-50 to-white" },
-  { label: "Healthy Lifestyle", Icon: Leaf, accent: "#16C784", bg: "from-emerald-50 to-white" },
-  { label: "Keto", Icon: Flame, accent: "#F05252", bg: "from-rose-50 to-white" },
-  { label: "Balance", Icon: Sparkles, accent: "#8B5CF6", bg: "from-violet-50 to-white" },
-  { label: "Energy", Icon: Zap, accent: "#F59E0B", bg: "from-amber-50 to-white" },
-];
 
 const achievements = [
   { label: "First Week Complete", Icon: Trophy, unlocked: true },
@@ -155,25 +138,6 @@ function SectionHeader({ title, action, onClick }: { title: string; action?: str
   );
 }
 
-function GoalFocusCard({ item, onClick }: { item: GoalFocusItem; onClick: () => void }) {
-  const Icon = item.Icon;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex h-[74px] min-w-[68px] flex-col items-center justify-center rounded-[18px] border bg-gradient-to-b ${item.bg} text-center shadow-[0_12px_22px_rgba(15,23,42,0.04)] transition-all active:scale-95 ${
-        item.active ? "border-[#15C78D] ring-1 ring-[#15C78D]/20" : "border-slate-100"
-      }`}
-    >
-      <div className="mb-1.5 grid h-8 w-8 place-items-center rounded-[10px] text-white shadow-[0_8px_16px_rgba(16,185,129,0.22)]" style={{ backgroundColor: item.accent }}>
-        <Icon className="h-5 w-5" strokeWidth={2.4} />
-      </div>
-      <span className={`max-w-[60px] text-[10px] font-extrabold leading-[1.15] ${item.active ? "text-[#00A86B]" : "text-slate-700"}`}>{item.label}</span>
-    </button>
-  );
-}
-
 function HumanSilhouette() {
   return (
     <div className="relative mx-auto h-[92px] w-[50px] opacity-70">
@@ -186,15 +150,6 @@ function HumanSilhouette() {
     </div>
   );
 }
-
-const focusToGoalType: Record<string, "weight_loss" | "muscle_gain" | "general_health" | "maintenance"> = {
-  "Weight Loss": "weight_loss",
-  "Muscle Gain": "muscle_gain",
-  "Healthy Lifestyle": "general_health",
-  "Keto": "weight_loss",
-  "Balance": "general_health",
-  "Energy": "general_health",
-};
 
 const goalTypeLabel: Record<string, string> = {
   weight_loss: "Weight Loss",
@@ -221,8 +176,8 @@ export default function ProgressRedesigned() {
   const { dailySummary: waterSummary, addWater: addWaterIntake } = useWaterIntake(user?.id);
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [selectedFocus, setSelectedFocus] = useState(goalFocusItems[0].label);
   const [activeTab, setActiveTab] = useState<"today" | "week" | "goals">("goals");
+  const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [newWeight, setNewWeight] = useState("");
   const [showWeekDetails, setShowWeekDetails] = useState(false);
@@ -291,21 +246,16 @@ export default function ProgressRedesigned() {
     return `Keep balanced macros — ${protein}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, ${activeGoal?.fat_target_g ?? 65}g fat daily for optimal health.`;
   }, [goalType, activeGoal, weeklySummary]);
 
-  const handleFocusSelect = async (label: string) => {
-    setSelectedFocus(label);
-    const targetType = focusToGoalType[label];
-    if (!targetType) return;
-
-    const existingGoal = goals.find(
-      (g) => g.goal_type === targetType && g.is_active
-    );
-    if (existingGoal) return;
-
+  const handleGoalChange = async (newGoalType: string) => {
+    if (newGoalType === goalType) {
+      setShowGoalPicker(false);
+      return;
+    }
     try {
       await setGoal({
-        goal_type: targetType,
-        target_weight_kg: null,
-        target_date: null,
+        goal_type: newGoalType as "weight_loss" | "muscle_gain" | "general_health" | "maintenance",
+        target_weight_kg: activeGoal?.target_weight_kg ?? null,
+        target_date: activeGoal?.target_date ?? null,
         daily_calorie_target: activeGoal?.daily_calorie_target ?? 2000,
         protein_target_g: activeGoal?.protein_target_g ?? 120,
         carbs_target_g: activeGoal?.carbs_target_g ?? 200,
@@ -313,9 +263,10 @@ export default function ProgressRedesigned() {
         fiber_target_g: activeGoal?.fiber_target_g ?? 25,
         is_active: true,
       });
-      toast({ description: `Switched goal to ${label}` });
+      toast({ description: `Goal changed to ${goalTypeLabel[newGoalType]}` });
+      setShowGoalPicker(false);
     } catch {
-      toast({ description: "Failed to switch goal. Try again.", variant: "destructive" });
+      toast({ description: "Failed to change goal. Try again.", variant: "destructive" });
     }
   };
 
@@ -610,17 +561,17 @@ export default function ProgressRedesigned() {
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/20">
                     <Target className="h-6 w-6" strokeWidth={2.2} />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-[18px] font-black text-slate-900 truncate">{goalName}</h3>
-                    <p className="text-[12px] text-slate-500 font-semibold">Active nutrition goal</p>
-                  </div>
-                  {weightDiff > 0 && (
-                    <div className="ml-auto shrink-0 rounded-[14px] bg-emerald-100 px-3 py-1.5 text-center">
-                      <span className={`text-[11px] font-black ${isGoalLoss ? "text-emerald-700" : "text-blue-700"}`}>
-                        {targetLabel}
-                      </span>
-                    </div>
-                  )}
+                   <div className="min-w-0">
+                     <h3 className="text-[18px] font-black text-slate-900 truncate">{goalName}</h3>
+                     <p className="text-[12px] text-slate-500 font-semibold">Active nutrition goal</p>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={() => setShowGoalPicker((v) => !v)}
+                     className="ml-auto shrink-0 rounded-[14px] bg-white/90 border border-emerald-200 px-3.5 py-1.5 text-[12px] font-extrabold text-emerald-700 hover:bg-emerald-50 transition-colors active:scale-95"
+                   >
+                     Change
+                   </button>
                 </div>
 
                 <div className="grid grid-cols-4 gap-2">
@@ -640,6 +591,29 @@ export default function ProgressRedesigned() {
                     );
                   })}
                 </div>
+
+                {showGoalPicker && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {Object.entries(goalTypeLabel).map(([key, label]) => {
+                      const Icon = goalTypeIcon[key] ?? Leaf;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => handleGoalChange(key)}
+                          className={`flex items-center gap-1.5 rounded-[14px] px-3 py-2 text-[12px] font-extrabold transition-all active:scale-95 ${
+                            goalType === key
+                              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                              : "bg-white border border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5" strokeWidth={2.4} />
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <p className="mt-3 text-[11px] leading-relaxed text-slate-500 bg-white/60 rounded-[14px] px-3 py-2.5">
                   {isGoalLoss
