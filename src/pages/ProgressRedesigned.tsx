@@ -838,117 +838,131 @@ export default function ProgressRedesigned() {
           <>
             <section className="mb-6">
               <SectionHeader title="Goal Focus" />
-              <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.055)]">
-                {/* Header row */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600">
-                    <Target className="h-5 w-5" strokeWidth={2.4} />
+              <article className="overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
+                {/* Gradient card header */}
+                <div className="relative p-5">
+                  <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_70%_30%,white_2px,transparent_1px),radial-gradient(circle_at_20%_60%,white_1.5px,transparent_1px)]" />
+                  <div className="relative z-10">
+                    {/* Top bar: icon + label + change button */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-white/20">
+                          {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-5 w-5 text-white" strokeWidth={2.2} />; })()}
+                        </div>
+                        <div>
+                          <h3 className="text-[15px] font-black tracking-[-0.03em] text-white">{goalName}</h3>
+                          <p className="text-[10px] font-semibold text-white/60">Your goal</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowGoalPicker((v) => !v)}
+                        className="rounded-[12px] border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm"
+                      >
+                        {showGoalPicker ? "Close" : "Change"}
+                      </button>
+                    </div>
+
+                    {/* Goal picker chips */}
+                    {showGoalPicker && (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {Object.entries(goalTypeLabel).map(([key, label]) => {
+                          const Icon = goalTypeIcon[key] ?? Leaf;
+                          const isActive = goalType === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => handleGoalChange(key)}
+                              className={`flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[10px] font-extrabold transition-all active:scale-95 ${
+                                isActive
+                                  ? "bg-white text-emerald-700 shadow-md"
+                                  : "bg-white/10 text-white/80 border border-white/20 hover:bg-white/20"
+                              }`}
+                            >
+                              <Icon className="h-3 w-3" strokeWidth={isActive ? 2.5 : 2} />
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Weight progress section */}
+                    {goalWeight > 0 && (
+                      <div className="flex items-center gap-4 mb-1">
+                        <div className="relative grid h-[72px] w-[72px] shrink-0 place-items-center">
+                          <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" />
+                            <circle
+                              cx="40" cy="40" r="32"
+                              fill="none"
+                              stroke="rgba(255,255,255,0.9)"
+                              strokeLinecap="round"
+                              strokeWidth="6"
+                              strokeDasharray={`${(progressPct / 100) * 200.96} 200.96`}
+                            />
+                          </svg>
+                          <div className="relative z-10 text-center">
+                            <span className="block text-[16px] font-black leading-none text-white">{progressPct}%</span>
+                            <span className="block text-[8px] font-bold text-white/60">there</span>
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-[26px] font-black tracking-[-0.05em] text-white">{currentWeight.toFixed(1)}</span>
+                            <span className="text-[11px] font-bold text-white/60">kg</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className={`text-[13px] font-extrabold ${isGoalLoss ? "text-emerald-200" : "text-blue-200"}`}>
+                              {targetLabel}
+                            </span>
+                          </div>
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-white/70 to-white"
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-[17px] font-black tracking-[-0.04em] text-slate-900 truncate">{goalName}</h3>
-                    <p className="text-[11px] font-semibold text-slate-400">Your active nutrition goal</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowGoalPicker((v) => !v)}
-                    className="shrink-0 rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-extrabold text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50 transition-all active:scale-95"
-                  >
-                    {showGoalPicker ? "Close" : "Change"}
-                  </button>
                 </div>
 
-                {/* Goal picker chips */}
-                {showGoalPicker && (
-                  <div className="mb-4 flex flex-wrap gap-2 pb-4 border-b border-slate-100">
-                    {Object.entries(goalTypeLabel).map(([key, label]) => {
-                      const Icon = goalTypeIcon[key] ?? Leaf;
-                      const isActive = goalType === key;
+                {/* Macro pills */}
+                <div className="bg-white/[0.07] border-t border-white/10 px-4 py-3.5">
+                  <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {[
+                      { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", Icon: Flame, color: "#F97316" },
+                      { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", Icon: Target, color: "#3B82F6" },
+                      { label: "Carbs", value: activeGoal?.carbs_target_g ?? 200, unit: "g", Icon: Wheat, color: "#F59E0B" },
+                      { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", Icon: Droplet, color: "#10B981" },
+                    ].map((m) => {
+                      const MI = m.Icon;
                       return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => handleGoalChange(key)}
-                          className={`flex items-center gap-1.5 rounded-[12px] px-3 py-1.5 text-[11px] font-extrabold transition-all active:scale-95 ${
-                            isActive
-                              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20"
-                              : "bg-slate-50 border border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50/50"
-                          }`}
+                        <div
+                          key={m.label}
+                          className="flex items-center gap-2 shrink-0 rounded-[12px] bg-white/10 px-3 py-2"
                         >
-                          <Icon className="h-3.5 w-3.5" strokeWidth={isActive ? 2.5 : 2} />
-                          {label}
-                        </button>
+                          <MI className="h-4 w-4 text-white/80" strokeWidth={2.2} style={{ color: m.color }} />
+                          <span className="text-[14px] font-black text-white">{m.value.toLocaleString()}</span>
+                          <span className="text-[9px] font-bold text-white/50">{m.unit}</span>
+                        </div>
                       );
                     })}
-                  </div>
-                )}
-
-                {/* Macro targets — 2x2 grid matching Today's Nutrition style */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="grid h-7 w-7 place-items-center rounded-full bg-orange-100 text-orange-500">
-                        <Flame className="h-3.5 w-3.5" strokeWidth={2.4} />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-slate-600">Calories</span>
-                    </div>
-                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.daily_calorie_target?.toLocaleString() ?? "2,000"}<span className="ml-1 text-[10px] font-bold text-slate-400">kcal</span></p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500" style={{ width: `${Math.min(100, (todayProgress?.calories ?? 0) / (activeGoal?.daily_calorie_target || 1) * 100)}%` }} />
-                    </div>
-                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.calories ?? 0} / {activeGoal?.daily_calorie_target ?? 2000} kcal today</p>
-                  </div>
-                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="grid h-7 w-7 place-items-center rounded-full bg-blue-100 text-blue-500">
-                        <Target className="h-3.5 w-3.5" strokeWidth={2.4} />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-slate-600">Protein</span>
-                    </div>
-                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.protein_target_g ?? 120}<span className="ml-1 text-[10px] font-bold text-slate-400">g</span></p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${Math.min(100, (todayProgress?.protein ?? 0) / (activeGoal?.protein_target_g || 1) * 100)}%` }} />
-                    </div>
-                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.protein ?? 0} / {activeGoal?.protein_target_g ?? 120}g today</p>
-                  </div>
-                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-100 text-amber-500">
-                        <Wheat className="h-3.5 w-3.5" strokeWidth={2.4} />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-slate-600">Carbs</span>
-                    </div>
-                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.carbs_target_g ?? 200}<span className="ml-1 text-[10px] font-bold text-slate-400">g</span></p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500" style={{ width: `${Math.min(100, (todayProgress?.carbs ?? 0) / (activeGoal?.carbs_target_g || 1) * 100)}%` }} />
-                    </div>
-                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.carbs ?? 0} / {activeGoal?.carbs_target_g ?? 200}g today</p>
-                  </div>
-                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="grid h-7 w-7 place-items-center rounded-full bg-emerald-100 text-emerald-500">
-                        <Droplet className="h-3.5 w-3.5" strokeWidth={2.4} />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-slate-600">Fat</span>
-                    </div>
-                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.fat_target_g ?? 65}<span className="ml-1 text-[10px] font-bold text-slate-400">g</span></p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500" style={{ width: `${Math.min(100, (todayProgress?.fat ?? 0) / (activeGoal?.fat_target_g || 1) * 100)}%` }} />
-                    </div>
-                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.fat ?? 0} / {activeGoal?.fat_target_g ?? 65}g today</p>
                   </div>
                 </div>
 
                 {/* Bottom tip */}
-                <div className="mt-4 flex items-start gap-2.5 rounded-[14px] bg-emerald-50/60 px-3.5 py-3">
-                  <div className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600 mt-0.5">
-                    <Sparkles className="h-3.5 w-3.5" strokeWidth={2.2} />
-                  </div>
-                  <p className="text-[11px] font-semibold leading-relaxed text-slate-600">
+                <div className="bg-white/[0.04] border-t border-white/10 px-4 py-3">
+                  <p className="text-[10px] font-semibold leading-relaxed text-white/70">
+                    <Sparkles className="inline h-3 w-3 text-amber-300 mr-1 -mt-0.5" />
                     {isGoalLoss
-                      ? `Focus on a calorie deficit. Keep protein at ${activeGoal?.protein_target_g ?? 120}g daily to preserve muscle while burning fat.`
+                      ? `Keep protein at ${activeGoal?.protein_target_g ?? 120}g daily while in a calorie deficit to preserve muscle.`
                       : goalType === "muscle_gain"
-                      ? `Aim for a calorie surplus. Hit ${activeGoal?.protein_target_g ?? 150}g+ protein daily to fuel muscle growth and recovery.`
-                      : `Stay balanced with ${activeGoal?.protein_target_g ?? 120}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, and ${activeGoal?.fat_target_g ?? 65}g fat each day for optimal health.`}
+                      ? `Hit ${activeGoal?.protein_target_g ?? 150}g+ protein in a calorie surplus to fuel muscle growth.`
+                      : `Aim for ${activeGoal?.protein_target_g ?? 120}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, ${activeGoal?.fat_target_g ?? 65}g fat daily.`}
                   </p>
                 </div>
               </article>
