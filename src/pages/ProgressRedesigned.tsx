@@ -914,24 +914,22 @@ export default function ProgressRedesigned() {
               <SectionHeader title="Goal Focus" />
               <article className="overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
                 {/* Gradient card header */}
-                <div className="relative p-5">
+                <div className="relative p-5 pb-3">
                   <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_70%_30%,white_2px,transparent_1px),radial-gradient(circle_at_20%_60%,white_1.5px,transparent_1px)]" />
                   <div className="relative z-10">
                     {/* Top bar: icon + label + change button */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="grid h-9 w-9 place-items-center rounded-full bg-white/20">
-                          {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-5 w-5 text-white" strokeWidth={2.2} />; })()}
-                        </div>
-                        <div>
-                          <h3 className="text-[15px] font-black tracking-[-0.03em] text-white">{goalName}</h3>
-                          <p className="text-[10px] font-semibold text-white/60">Your goal</p>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20 mt-0.5">
+                        {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-6 w-6 text-white" strokeWidth={2.2} />; })()}
+                      </div>
+                      <div className="min-w-0 flex-1 pt-px">
+                        <h3 className="text-[18px] font-black tracking-[-0.03em] text-white leading-tight">{goalName}</h3>
+                        <p className="text-[11px] font-semibold text-white/50 mt-0.5">Active nutrition goal</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowGoalPicker((v) => !v)}
-                        className="rounded-[12px] border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-extrabold text-white hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm"
+                        className="shrink-0 self-center rounded-[12px] border border-white/20 bg-white/10 px-4 py-2 text-[12px] font-extrabold text-white hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm"
                       >
                         {showGoalPicker ? "Close" : "Change"}
                       </button>
@@ -939,7 +937,7 @@ export default function ProgressRedesigned() {
 
                     {/* Goal picker chips */}
                     {showGoalPicker && (
-                      <div className="mb-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap gap-2">
                         {Object.entries(goalTypeLabel).map(([key, label]) => {
                           const Icon = goalTypeIcon[key] ?? Leaf;
                           const isActive = goalType === key;
@@ -948,13 +946,13 @@ export default function ProgressRedesigned() {
                               key={key}
                               type="button"
                               onClick={() => handleGoalChange(key)}
-                              className={`flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[10px] font-extrabold transition-all active:scale-95 ${
+                              className={`flex items-center gap-1.5 rounded-[11px] px-3 py-2 text-[11px] font-extrabold transition-all active:scale-95 ${
                                 isActive
                                   ? "bg-white text-emerald-700 shadow-md"
                                   : "bg-white/10 text-white/80 border border-white/20 hover:bg-white/20"
                               }`}
                             >
-                              <Icon className="h-3 w-3" strokeWidth={isActive ? 2.5 : 2} />
+                              <Icon className="h-3.5 w-3.5" strokeWidth={isActive ? 2.5 : 2} />
                               {label}
                             </button>
                           );
@@ -964,7 +962,7 @@ export default function ProgressRedesigned() {
 
                     {/* Weight progress section */}
                     {goalWeight > 0 && (
-                      <div className="flex items-center gap-4 mb-1">
+                      <div className="flex items-center gap-4 mt-4">
                         <div className="relative grid h-[72px] w-[72px] shrink-0 place-items-center">
                           <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
                             <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" />
