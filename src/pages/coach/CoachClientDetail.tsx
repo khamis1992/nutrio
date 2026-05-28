@@ -4,9 +4,10 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, CalendarCheck, Target, TrendingDown, TrendingUp, Minus,
-  Flame, Loader2, UtensilsCrossed, Clock, ChefHat, AlertCircle
+  Flame, Loader2, UtensilsCrossed, Clock, ChefHat, AlertCircle, Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EditClientTargetsModal } from "@/components/coach/EditClientTargetsModal";
 
 interface ClientProfile {
   full_name: string | null;
@@ -60,6 +61,7 @@ export default function CoachClientDetail() {
   const [adherenceDays, setAdherenceDays] = useState<DayAdherence[]>([]);
   const [overallAdherence, setOverallAdherence] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [targetsModalOpen, setTargetsModalOpen] = useState(false);
 
   useEffect(() => {
     if (!clientId) return;
@@ -231,9 +233,18 @@ export default function CoachClientDetail() {
               <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Daily Targets</h2>
               <p className="text-[11px] font-medium text-slate-500">Macro goals for this client</p>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5">
-              <CalendarCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-[12px] font-bold text-emerald-700">{overallAdherence}% adherence</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setTargetsModalOpen(true)}
+                className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 active:scale-95 transition-all"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit
+              </button>
+              <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5">
+                <CalendarCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[12px] font-bold text-emerald-700">{overallAdherence}% adherence</span>
+              </div>
             </div>
           </div>
 
@@ -380,6 +391,19 @@ export default function CoachClientDetail() {
           <p className="text-[12px] text-slate-500">This client hasn't scheduled any meals this week.</p>
         </motion.div>
       )}
+
+      {/* Edit Targets Modal */}
+      <EditClientTargetsModal
+        clientId={clientId || ""}
+        clientName={profile?.full_name || "Client"}
+        currentCalories={profile?.daily_calorie_target || null}
+        currentProtein={profile?.protein_target_g || null}
+        currentCarbs={profile?.carbs_target_g || null}
+        currentFat={profile?.fat_target_g || null}
+        open={targetsModalOpen}
+        onClose={() => setTargetsModalOpen(false)}
+        onSaved={() => fetchClientData()}
+      />
     </div>
   );
 }
