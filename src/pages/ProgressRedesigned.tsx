@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
-  Bot,
+  Brain,
   CalendarCheck,
   Check,
   ChevronRight,
@@ -250,8 +250,6 @@ export default function ProgressRedesigned() {
   }, [currentWeight, goalWeight]);
 
   const isLoading = profileLoading || goalsLoading;
-
-  const selectedGoalType = focusToGoalType[selectedFocus] ?? "weight_loss";
 
   const weeklyMetrics: RingMetric[] = useMemo(() => {
     const macros = weeklySummary?.macros;
@@ -606,16 +604,51 @@ export default function ProgressRedesigned() {
         {activeTab !== "today" && (
           <>
             <section className="mb-6">
-              <SectionHeader action="View All" title="Goal Focus" onClick={() => toast({ description: "All focus areas coming soon" })} />
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {goalFocusItems.map((item) => (
-              <GoalFocusCard
-                key={item.label}
-                item={{ ...item, active: selectedFocus === item.label }}
-                onClick={() => handleFocusSelect(item.label)}
-              />
-            ))}
-          </div>
+              <SectionHeader title="Goal Focus" />
+              <div className="rounded-[24px] bg-gradient-to-br from-emerald-50/80 to-teal-50/60 border border-emerald-200/60 p-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/20">
+                    <Target className="h-6 w-6" strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-[18px] font-black text-slate-900 truncate">{goalName}</h3>
+                    <p className="text-[12px] text-slate-500 font-semibold">Active nutrition goal</p>
+                  </div>
+                  {weightDiff > 0 && (
+                    <div className="ml-auto shrink-0 rounded-[14px] bg-emerald-100 px-3 py-1.5 text-center">
+                      <span className={`text-[11px] font-black ${isGoalLoss ? "text-emerald-700" : "text-blue-700"}`}>
+                        {targetLabel}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", Icon: Flame },
+                    { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", Icon: Target },
+                    { label: "Carbs", value: activeGoal?.carbs_target_g ?? 200, unit: "g", Icon: Wheat },
+                    { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", Icon: Droplet },
+                  ].map((m) => {
+                    const MI = m.Icon;
+                    return (
+                      <div key={m.label} className="rounded-[16px] bg-white/80 border border-slate-100 px-2.5 py-3 text-center">
+                        <MI className="mx-auto mb-1.5 h-4 w-4 text-emerald-600" strokeWidth={2.4} />
+                        <span className="block text-[16px] font-black text-slate-900 leading-[1.1]">{m.value.toLocaleString()}</span>
+                        <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{m.unit} {m.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-3 text-[11px] leading-relaxed text-slate-500 bg-white/60 rounded-[14px] px-3 py-2.5">
+                  {isGoalLoss
+                    ? `Focus on a calorie deficit with ${activeGoal?.protein_target_g ?? 120}g protein to preserve muscle while losing weight.`
+                    : goalType === "muscle_gain"
+                    ? `Aim for a calorie surplus with ${activeGoal?.protein_target_g ?? 150}g+ protein to fuel muscle growth.`
+                    : `Stay balanced with ${activeGoal?.protein_target_g ?? 120}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, and ${activeGoal?.fat_target_g ?? 65}g fat daily.`}
+                </p>
+              </div>
         </section>
 
         <section className="mb-5">
@@ -679,20 +712,15 @@ export default function ProgressRedesigned() {
           </article>
 
           <article className="relative overflow-hidden rounded-[20px] border border-violet-50 bg-[radial-gradient(circle_at_7%_18%,rgba(139,92,246,0.22),transparent_22%),linear-gradient(135deg,#FFFFFF_0%,#F5F0FF_55%,#FFFFFF_100%)] p-5 shadow-[0_16px_34px_rgba(76,29,149,0.10)]">
-            <Sparkles className="absolute right-5 top-5 h-4 w-4 text-white" />
             <div className="mb-5 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-violet-100 text-violet-600 shadow-[0_8px_20px_rgba(139,92,246,0.22)]">
-                <Bot className="h-6 w-6" />
+              <div className="relative grid h-11 w-11 place-items-center">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 shadow-[0_8px_24px_rgba(139,92,246,0.35)]" />
+                <Brain className="relative z-10 h-[22px] w-[22px] text-white" strokeWidth={2} />
               </div>
               <h3 className="text-[18px] font-black tracking-[-0.05em]">AI Coach</h3>
               <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-600">NEW</span>
             </div>
-            <div className="flex gap-4">
-              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-gradient-to-b from-blue-100 to-violet-100 shadow-[0_10px_24px_rgba(59,130,246,0.22)]">
-                <Bot className="h-9 w-9 text-blue-600" />
-              </div>
-              <p className="text-[14px] font-medium leading-[1.55] text-slate-600">{coachRecommendation}</p>
-            </div>
+            <p className="text-[14px] font-medium leading-[1.55] text-slate-600">{coachRecommendation}</p>
             <button
               className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-r from-[#10B981] to-[#009B72] text-[14px] font-black text-white shadow-[0_12px_20px_rgba(16,185,129,0.24)] disabled:opacity-60"
               type="button"
