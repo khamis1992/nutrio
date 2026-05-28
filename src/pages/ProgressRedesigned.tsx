@@ -4,19 +4,25 @@ import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowDown,
+  ArrowUp,
   Brain,
   CalendarCheck,
   Check,
   ChevronRight,
+  Crown,
   Droplet,
   Dumbbell,
   Flame,
+  Info,
   Leaf,
   Lock,
   Minus,
   Plus,
+  RefreshCw,
   Scale,
   Sparkles,
+  Star,
   Target,
   Trophy,
   TrendingUp,
@@ -552,62 +558,323 @@ export default function ProgressRedesigned() {
           </>
         )}
 
-        {activeTab !== "today" && (
+        {activeTab === "week" && (
           <>
-            <section className="mb-6">
-              <SectionHeader title="Goal Focus" />
-              <div className="rounded-[24px] bg-gradient-to-br from-emerald-50/80 to-teal-50/60 border border-emerald-200/60 p-5">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/20">
-                    <Target className="h-6 w-6" strokeWidth={2.2} />
-                  </div>
-                   <div className="min-w-0">
-                     <h3 className="text-[18px] font-black text-slate-900 truncate">{goalName}</h3>
-                     <p className="text-[12px] text-slate-500 font-semibold">Active nutrition goal</p>
-                   </div>
-                   <button
-                     type="button"
-                     onClick={() => setShowGoalPicker((v) => !v)}
-                     className="ml-auto shrink-0 rounded-[14px] bg-white/90 border border-emerald-200 px-3.5 py-1.5 text-[12px] font-extrabold text-emerald-700 hover:bg-emerald-50 transition-colors active:scale-95"
-                   >
-                     Change
-                   </button>
-                </div>
+            {/* Greeting Section */}
+            <section className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900">Hello, {firstName}! 👋</h2>
+                <p className="text-[13px] text-slate-500 font-medium">Here's your weekly nutrition overview.</p>
+              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-[14px] bg-emerald-50 border border-emerald-200 px-3 py-2 text-[12px] font-bold text-emerald-700 active:scale-95"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Sync Now
+              </button>
+            </section>
 
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", Icon: Flame },
-                    { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", Icon: Target },
-                    { label: "Carbs", value: activeGoal?.carbs_target_g ?? 200, unit: "g", Icon: Wheat },
-                    { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", Icon: Droplet },
-                  ].map((m) => {
-                    const MI = m.Icon;
+            {/* Weekly Score Card */}
+            <section className="mb-5">
+              <article className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-teal-600 via-emerald-600 to-teal-700 p-5 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
+                <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_30%,white_1px,transparent_1px),radial-gradient(circle_at_80%_20%,white_1px,transparent_1px)]" />
+                <div className="relative z-10 flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-[12px] font-bold text-white/90">Weekly Score</span>
+                      <Info className="h-3.5 w-3.5 text-white/60" />
+                    </div>
+                    <div className="text-[48px] font-black leading-none tracking-[-0.06em]">
+                      {weeklySummary?.consistency?.score ?? 82}<span className="text-[24px] font-bold text-white/70"> / 100</span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-semibold text-white/80">+12 pts vs last week</p>
+                  </div>
+                  <div className="relative grid h-20 w-20 place-items-center">
+                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#5CF0A7" strokeLinecap="round" strokeWidth="6" strokeDasharray={`${((weeklySummary?.consistency?.score ?? 82) / 100) * 213.6} 213.6`} />
+                    </svg>
+                    <Crown className="h-7 w-7 text-amber-300" />
+                  </div>
+                </div>
+                <div className="relative z-10 mt-5 flex justify-between gap-2">
+                  <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
+                    <Flame className="mx-auto h-5 w-5 text-orange-400" />
+                    <p className="mt-1 text-[11px] font-bold text-white">5 Day Streak</p>
+                    <p className="text-[9px] text-white/70">Keep it up!</p>
+                  </div>
+                  <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
+                    <Leaf className="mx-auto h-5 w-5 text-green-300" />
+                    <p className="mt-1 text-[11px] font-bold text-white">82% Nutrition</p>
+                    <p className="text-[9px] text-white/70">Consistency</p>
+                  </div>
+                  <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
+                    <Droplet className="mx-auto h-5 w-5 text-blue-300" />
+                    <p className="mt-1 text-[11px] font-bold text-white">+12% Water</p>
+                    <p className="text-[9px] text-white/70">vs last week</p>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            {/* Your Week - 7 Day Grid */}
+            <section className="mb-5">
+              <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[16px] font-black tracking-[-0.04em] text-slate-900">Your Week</h3>
+                  <div className="flex items-center gap-3 text-[10px]">
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> On Track</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" /> Partial</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" /> No Data</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
+                    const isOnTrack = i < 5;
+                    const isPartial = i === 5;
+                    const calories = [2078, 1920, 2150, 1980, 2200, 1800, 1950][i];
                     return (
-                      <div key={m.label} className="rounded-[16px] bg-white/80 border border-slate-100 px-2.5 py-3 text-center">
-                        <MI className="mx-auto mb-1.5 h-4 w-4 text-emerald-600" strokeWidth={2.4} />
-                        <span className="block text-[16px] font-black text-slate-900 leading-[1.1]">{m.value.toLocaleString()}</span>
-                        <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{m.unit} {m.label}</span>
+                      <div key={day} className="text-center">
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">{day}</p>
+                        <div className={`rounded-[10px] p-2 ${isOnTrack ? 'bg-emerald-50' : isPartial ? 'bg-orange-50' : 'bg-slate-50'}`}>
+                          <p className="text-[10px] font-black text-slate-700">{(calories / 1000).toFixed(1)}k</p>
+                          <div className="mt-1 flex justify-center gap-0.5">
+                            <span className={`h-1.5 w-1.5 rounded-full ${isOnTrack || isPartial ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                            <span className={`h-1.5 w-1.5 rounded-full ${i < 4 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                            <span className={`h-1.5 w-1.5 rounded-full ${i < 3 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+              </article>
+            </section>
 
+            {/* Nutrient Trends */}
+            <section className="mb-5">
+              <SectionHeader title="Nutrient Trends" />
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { label: 'Calories (avg)', value: '1,986', unit: 'kcal', trend: '+8%', up: true, color: '#F97316', Icon: Flame },
+                  { label: 'Protein (avg)', value: '132', unit: 'g', trend: '+14%', up: true, color: '#3B82F6', Icon: Target },
+                  { label: 'Water (avg)', value: '6.2', unit: 'Glasses', trend: '-5%', up: false, color: '#0EA5E9', Icon: Droplet },
+                ].map((tr) => {
+                  const TrIcon = tr.Icon;
+                  return (
+                    <article key={tr.label} className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
+                      <div className="grid h-8 w-8 place-items-center rounded-full mb-2" style={{ backgroundColor: `${tr.color}20` }}>
+                        <TrIcon className="h-4 w-4" style={{ color: tr.color }} />
+                      </div>
+                      <p className="text-[20px] font-black tracking-[-0.04em] text-slate-900">{tr.value}</p>
+                      <p className="text-[10px] font-semibold text-slate-400">{tr.unit}</p>
+                      <div className={`mt-2 flex items-center gap-1 text-[10px] font-bold ${tr.up ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {tr.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                        {tr.trend} vs last week
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Highlights & Comparison */}
+            <section className="mb-5">
+              <div className="grid grid-cols-2 gap-3">
+                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                  <h3 className="text-[13px] font-black text-slate-800 mb-3">This Week Highlights</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-100">
+                        <Trophy className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-slate-700 truncate">Best Protein Day</p>
+                        <p className="text-[10px] text-slate-400">Tuesday 168 g</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-100">
+                        <Flame className="h-5 w-5 text-orange-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-slate-700 truncate">Highest Calories</p>
+                        <p className="text-[10px] text-slate-400">Friday 720 kcal</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-100">
+                        <Droplet className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-slate-700 truncate">Most Hydrated</p>
+                        <p className="text-[10px] text-slate-400">Monday 8 Glasses</p>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                  <h3 className="text-[13px] font-black text-slate-800 mb-3">vs Last Week</h3>
+                  <div className="space-y-2.5">
+                    {[
+                      { label: 'Calories', trend: '+8%', up: true, Icon: Flame, color: '#F97316' },
+                      { label: 'Protein', trend: '+14%', up: true, Icon: Target, color: '#3B82F6' },
+                      { label: 'Water', trend: '-5%', up: false, Icon: Droplet, color: '#0EA5E9' },
+                      { label: 'Consistency', trend: '+21%', up: true, Icon: TrendingUp, color: '#10B981' },
+                    ].map((item) => {
+                      const ItemIcon = item.Icon;
+                      return (
+                        <div key={item.label} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ItemIcon className="h-4 w-4" style={{ color: item.color }} />
+                            <span className="text-[11px] font-semibold text-slate-600">{item.label}</span>
+                          </div>
+                          <span className={`text-[11px] font-bold ${item.up ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {item.trend} {item.up ? '↑' : '↓'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            {/* Habit Consistency & Goal Progress */}
+            <section className="mb-5">
+              <div className="grid grid-cols-2 gap-3">
+                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                  <h3 className="text-[13px] font-black text-slate-800 mb-3">Habit Consistency</h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Meal Logging', days: '6/7', pct: 86, color: '#10B981' },
+                      { label: 'Water Tracking', days: '5/7', pct: 71, color: '#10B981' },
+                      { label: 'Workouts', days: '3/7', pct: 43, color: '#8B5CF6' },
+                      { label: 'Sleep Goal', days: '6/7', pct: 86, color: '#10B981' },
+                    ].map((habit) => (
+                      <div key={habit.label}>
+                        <div className="flex justify-between text-[10px] mb-1">
+                          <span className="font-semibold text-slate-600">{habit.label}</span>
+                          <span className="font-bold text-slate-500">{habit.days} days</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-100">
+                          <div className="h-full rounded-full" style={{ width: `${habit.pct}%`, backgroundColor: habit.color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                  <h3 className="text-[13px] font-black text-slate-800 mb-2">Weekly Goal Progress</h3>
+                  <div className="relative grid h-24 w-24 mx-auto place-items-center">
+                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="#EEF2F7" strokeWidth="6" />
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="#10B981" strokeLinecap="round" strokeWidth="6" strokeDasharray="180.8 251.2" />
+                    </svg>
+                    <div className="text-center">
+                      <span className="text-[22px] font-black text-slate-900">72%</span>
+                      <p className="text-[9px] font-semibold text-slate-500">Completed</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5">
+                    {[
+                      { label: 'Calories Goal', done: true },
+                      { label: 'Protein Goal', done: true },
+                      { label: 'Water Goal', done: true },
+                      { label: 'Activity Goal', done: false },
+                    ].map((goal) => (
+                      <div key={goal.label} className="flex items-center justify-between text-[10px]">
+                        <span className="font-semibold text-slate-600">{goal.label}</span>
+                        <div className={`grid h-5 w-5 place-items-center rounded-full ${goal.done ? 'bg-emerald-100 text-emerald-600' : 'border border-slate-200 text-slate-300'}`}>
+                          {goal.done ? <Check className="h-3 w-3" strokeWidth={3} /> : <span className="text-[8px]">○</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            {/* AI Insight & Achievements */}
+            <section className="mb-5">
+              <div className="grid grid-cols-2 gap-3">
+                <article className="rounded-[18px] bg-gradient-to-br from-violet-500 to-purple-600 p-4 text-white shadow-[0_12px_28px_rgba(139,92,246,0.25)]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="h-5 w-5 text-amber-300" />
+                    <h3 className="text-[13px] font-black">AI Weekly Insight</h3>
+                  </div>
+                  <p className="text-[11px] font-medium leading-relaxed text-white/90">
+                    Your protein intake improved 18% this week. Keep this pace for better muscle recovery and energy!
+                  </p>
+                </article>
+                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                  <h3 className="text-[13px] font-black text-slate-800 mb-3">Achievements</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { icon: Flame, color: '#F97316', label: '5 Day Streak' },
+                      { icon: Wheat, color: '#10B981', label: 'Balanced Week' },
+                      { icon: Droplet, color: '#0EA5E9', label: 'Hydration Hero' },
+                      { icon: Star, color: '#F59E0B', label: 'Consistency Pro' },
+                    ].map((ach, i) => {
+                      const AchIcon = ach.icon;
+                      return (
+                        <div key={i} className="flex flex-col items-center">
+                          <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-100 text-amber-600">
+                            <AchIcon className="h-5 w-5" />
+                          </div>
+                          <p className="mt-1 text-[9px] font-bold text-slate-600">{ach.label}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === "goals" && (
+          <>
+            <section className="mb-6">
+              <SectionHeader title="Goal Focus" />
+              <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.055)]">
+                {/* Header row */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600">
+                    <Target className="h-5 w-5" strokeWidth={2.4} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[17px] font-black tracking-[-0.04em] text-slate-900 truncate">{goalName}</h3>
+                    <p className="text-[11px] font-semibold text-slate-400">Your active nutrition goal</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowGoalPicker((v) => !v)}
+                    className="shrink-0 rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-extrabold text-slate-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50 transition-all active:scale-95"
+                  >
+                    {showGoalPicker ? "Close" : "Change"}
+                  </button>
+                </div>
+
+                {/* Goal picker chips */}
                 {showGoalPicker && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mb-4 flex flex-wrap gap-2 pb-4 border-b border-slate-100">
                     {Object.entries(goalTypeLabel).map(([key, label]) => {
                       const Icon = goalTypeIcon[key] ?? Leaf;
+                      const isActive = goalType === key;
                       return (
                         <button
                           key={key}
                           type="button"
                           onClick={() => handleGoalChange(key)}
-                          className={`flex items-center gap-1.5 rounded-[14px] px-3 py-2 text-[12px] font-extrabold transition-all active:scale-95 ${
-                            goalType === key
-                              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                              : "bg-white border border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-700"
+                          className={`flex items-center gap-1.5 rounded-[12px] px-3 py-1.5 text-[11px] font-extrabold transition-all active:scale-95 ${
+                            isActive
+                              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20"
+                              : "bg-slate-50 border border-slate-200 text-slate-600 hover:border-emerald-200 hover:bg-emerald-50/50"
                           }`}
                         >
-                          <Icon className="h-3.5 w-3.5" strokeWidth={2.4} />
+                          <Icon className="h-3.5 w-3.5" strokeWidth={isActive ? 2.5 : 2} />
                           {label}
                         </button>
                       );
@@ -615,14 +882,76 @@ export default function ProgressRedesigned() {
                   </div>
                 )}
 
-                <p className="mt-3 text-[11px] leading-relaxed text-slate-500 bg-white/60 rounded-[14px] px-3 py-2.5">
-                  {isGoalLoss
-                    ? `Focus on a calorie deficit with ${activeGoal?.protein_target_g ?? 120}g protein to preserve muscle while losing weight.`
-                    : goalType === "muscle_gain"
-                    ? `Aim for a calorie surplus with ${activeGoal?.protein_target_g ?? 150}g+ protein to fuel muscle growth.`
-                    : `Stay balanced with ${activeGoal?.protein_target_g ?? 120}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, and ${activeGoal?.fat_target_g ?? 65}g fat daily.`}
-                </p>
-              </div>
+                {/* Macro targets — 2x2 grid matching Today's Nutrition style */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="grid h-7 w-7 place-items-center rounded-full bg-orange-100 text-orange-500">
+                        <Flame className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </div>
+                      <span className="text-[11px] font-extrabold text-slate-600">Calories</span>
+                    </div>
+                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.daily_calorie_target?.toLocaleString() ?? "2,000"}<span className="ml-1 text-[10px] font-bold text-slate-400">kcal</span></p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500" style={{ width: `${Math.min(100, (todayProgress?.calories ?? 0) / (activeGoal?.daily_calorie_target || 1) * 100)}%` }} />
+                    </div>
+                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.calories ?? 0} / {activeGoal?.daily_calorie_target ?? 2000} kcal today</p>
+                  </div>
+                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="grid h-7 w-7 place-items-center rounded-full bg-blue-100 text-blue-500">
+                        <Target className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </div>
+                      <span className="text-[11px] font-extrabold text-slate-600">Protein</span>
+                    </div>
+                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.protein_target_g ?? 120}<span className="ml-1 text-[10px] font-bold text-slate-400">g</span></p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${Math.min(100, (todayProgress?.protein ?? 0) / (activeGoal?.protein_target_g || 1) * 100)}%` }} />
+                    </div>
+                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.protein ?? 0} / {activeGoal?.protein_target_g ?? 120}g today</p>
+                  </div>
+                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-100 text-amber-500">
+                        <Wheat className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </div>
+                      <span className="text-[11px] font-extrabold text-slate-600">Carbs</span>
+                    </div>
+                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.carbs_target_g ?? 200}<span className="ml-1 text-[10px] font-bold text-slate-400">g</span></p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500" style={{ width: `${Math.min(100, (todayProgress?.carbs ?? 0) / (activeGoal?.carbs_target_g || 1) * 100)}%` }} />
+                    </div>
+                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.carbs ?? 0} / {activeGoal?.carbs_target_g ?? 200}g today</p>
+                  </div>
+                  <div className="rounded-[16px] border border-slate-100 bg-[#FAFBFC] px-3.5 py-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="grid h-7 w-7 place-items-center rounded-full bg-emerald-100 text-emerald-500">
+                        <Droplet className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </div>
+                      <span className="text-[11px] font-extrabold text-slate-600">Fat</span>
+                    </div>
+                    <p className="text-[28px] font-black tracking-[-0.05em] text-slate-950">{activeGoal?.fat_target_g ?? 65}<span className="ml-1 text-[10px] font-bold text-slate-400">g</span></p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500" style={{ width: `${Math.min(100, (todayProgress?.fat ?? 0) / (activeGoal?.fat_target_g || 1) * 100)}%` }} />
+                    </div>
+                    <p className="mt-1 text-[9px] font-semibold text-slate-400">{todayProgress?.fat ?? 0} / {activeGoal?.fat_target_g ?? 65}g today</p>
+                  </div>
+                </div>
+
+                {/* Bottom tip */}
+                <div className="mt-4 flex items-start gap-2.5 rounded-[14px] bg-emerald-50/60 px-3.5 py-3">
+                  <div className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600 mt-0.5">
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  </div>
+                  <p className="text-[11px] font-semibold leading-relaxed text-slate-600">
+                    {isGoalLoss
+                      ? `Focus on a calorie deficit. Keep protein at ${activeGoal?.protein_target_g ?? 120}g daily to preserve muscle while burning fat.`
+                      : goalType === "muscle_gain"
+                      ? `Aim for a calorie surplus. Hit ${activeGoal?.protein_target_g ?? 150}g+ protein daily to fuel muscle growth and recovery.`
+                      : `Stay balanced with ${activeGoal?.protein_target_g ?? 120}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, and ${activeGoal?.fat_target_g ?? 65}g fat each day for optimal health.`}
+                  </p>
+                </div>
+              </article>
         </section>
 
         <section className="mb-5">
