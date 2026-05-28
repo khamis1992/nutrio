@@ -917,23 +917,25 @@ export default function ProgressRedesigned() {
                 <div className="relative p-5 pb-3">
                   <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_70%_30%,white_2px,transparent_1px),radial-gradient(circle_at_20%_60%,white_1.5px,transparent_1px)]" />
                   <div className="relative z-10">
-                    {/* Top bar: icon + label + change button */}
-                    <div className="flex items-start gap-3">
-                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20 mt-0.5">
+                    {/* Icon + title */}
+                    <div className="flex items-start gap-4">
+                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20">
                         {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-6 w-6 text-white" strokeWidth={2.2} />; })()}
                       </div>
-                      <div className="min-w-0 flex-1 pt-px">
-                        <h3 className="text-[18px] font-black tracking-[-0.03em] text-white leading-tight">{goalName}</h3>
-                        <p className="text-[11px] font-semibold text-white/50 mt-0.5">Active nutrition goal</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[20px] font-black tracking-[-0.03em] text-white leading-tight">{goalName}</h3>
+                        <p className="text-[11px] font-semibold text-white/50 mt-1">Active nutrition goal</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowGoalPicker((v) => !v)}
-                        className="shrink-0 self-center rounded-[12px] border border-white/20 bg-white/10 px-4 py-2 text-[12px] font-extrabold text-white hover:bg-white/20 transition-all active:scale-95 backdrop-blur-sm"
-                      >
-                        {showGoalPicker ? "Close" : "Change"}
-                      </button>
                     </div>
+
+                    {/* Change button */}
+                    <button
+                      type="button"
+                      onClick={() => setShowGoalPicker((v) => !v)}
+                      className="mt-4 w-full rounded-[14px] border border-white/25 bg-white/15 py-3 text-[13px] font-extrabold text-white hover:bg-white/25 transition-all active:scale-[0.98] backdrop-blur-sm"
+                    >
+                      {showGoalPicker ? "Close" : "Change goal type"}
+                    </button>
 
                     {/* Goal picker chips */}
                     {showGoalPicker && (
