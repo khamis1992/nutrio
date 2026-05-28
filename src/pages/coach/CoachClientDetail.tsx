@@ -75,19 +75,25 @@ export default function CoachClientDetail() {
     const todayStr = today.toISOString().split("T")[0];
 
     try {
+      // Fetch profile separately so it always resolves even if other queries fail
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url, health_goal, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g")
+        .eq("user_id", clientId)
+        .single();
+
+      setProfile(prof || null);
+
+      // Fetch secondary data in parallel (non-blocking for profile display)
       const [
-        { data: prof },
         { data: mealData },
         { data: weightData },
         { data: streakData },
       ] = await Promise.all([
-        supabase.from("profiles").select("full_name, avatar_url, health_goal, daily_calorie_target, protein_target_g, carbs_target_g, fat_target_g").eq("user_id", clientId).single(),
         supabase.from("meal_schedules").select("id, scheduled_date, order_status, meals:meal_id(name, calories, protein_g, carbs_g, fat_g), restaurants:restaurant_id(name)").eq("user_id", clientId).gte("scheduled_date", weekAgoStr).lte("scheduled_date", todayStr).order("scheduled_date", { ascending: true }),
         supabase.from("body_measurements").select("log_date, weight_kg").eq("user_id", clientId).gte("log_date", weekAgoStr).order("log_date", { ascending: true }),
         supabase.from("user_streaks").select("current_streak").eq("user_id", clientId).eq("streak_type", "logging").maybeSingle(),
       ]);
-
-      setProfile(prof || null);
       setStreak(streakData?.current_streak || 0);
 
       if (weightData) {
