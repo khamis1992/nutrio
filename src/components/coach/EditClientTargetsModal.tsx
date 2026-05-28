@@ -39,7 +39,6 @@ export function EditClientTargetsModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Update both profiles and nutrition_goals so client dashboard picks it up
       const updates = {
         daily_calorie_target: calories,
         protein_target_g: protein,
@@ -70,20 +69,25 @@ export function EditClientTargetsModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
       />
+
+      {/* Modal card — centered, max height respects safe area */}
       <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.96 }}
+        initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 28 }}
-        className="relative z-10 w-full max-w-[400px] mx-4 mb-4 sm:mb-0 bg-white rounded-3xl shadow-xl border border-gray-100"
+        className="relative z-10 w-full max-w-[400px] bg-white rounded-3xl shadow-xl border border-gray-100 flex flex-col"
+        style={{ maxHeight: "calc(100dvh - 100px - env(safe-area-inset-bottom, 16px) - 32px)" }}
       >
-        <div className="flex items-center justify-between px-6 pt-5 pb-3">
+        {/* Fixed header */}
+        <div className="shrink-0 flex items-center justify-between px-6 pt-5 pb-3">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-emerald-600" />
             <h2 className="text-lg font-extrabold text-gray-900">Edit Daily Targets</h2>
@@ -96,11 +100,12 @@ export function EditClientTargetsModal({
           </button>
         </div>
 
-        <p className="px-6 pb-4 text-[12px] text-slate-500">
-          Setting new targets for <span className="font-semibold text-slate-700">{clientName}</span>. These will appear on their dashboard.
+        <p className="shrink-0 px-6 pb-3 text-[12px] text-slate-500">
+          Setting new targets for <span className="font-semibold text-slate-700">{clientName}</span>.
         </p>
 
-        <div className="px-6 pb-6 space-y-3">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
           {fields.map((field) => (
             <div key={field.label} className="space-y-1.5">
               <label className="text-[12px] font-semibold text-slate-600">{field.label}</label>
@@ -118,11 +123,14 @@ export function EditClientTargetsModal({
               </div>
             </div>
           ))}
+        </div>
 
+        {/* Fixed footer */}
+        <div className="shrink-0 px-6 pb-6 pt-2">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full h-[46px] rounded-[16px] bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-3"
+            className="w-full h-[46px] rounded-[16px] bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
