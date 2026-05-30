@@ -15,6 +15,7 @@ import {
 import {
   User,
   ArrowLeft,
+  ArrowRight,
   Loader2,
   LogOut,
   Trash2,
@@ -27,8 +28,11 @@ import {
   Tag,
   MessageCircle,
   Lock,
+  Globe,
   Leaf,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   AlertTriangle,
   HelpCircle,
   Users,
@@ -47,6 +51,8 @@ import { FamilyPlansCard } from "@/components/family/FamilyPlansCard";
 import { AddFamilyMemberSheet } from "@/components/family/AddFamilyMemberSheet";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useBadges } from "@/hooks/useBadges";
+import { BadgeCard } from "@/components/BadgeCard";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -61,7 +67,7 @@ import { Button } from "@/components/ui/button";
 /* ─── Leaf decoration SVG ─── */
 const LeafDecoration = () => (
   <svg
-    className="absolute right-4 top-1/2 -translate-y-1/2 w-28 h-28 text-white/10 pointer-events-none"
+    className="absolute end-4 top-1/2 -translate-y-1/2 w-28 h-28 text-white/10 pointer-events-none"
     viewBox="0 0 100 100"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -135,10 +141,10 @@ const MenuRow = ({
         )}
       </div>
       {right ?? (
-        <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+        <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 rtl-flip" />
       )}
     </motion.div>
-    {showDivider && <div className="h-px bg-slate-100 ml-16" />}
+    {showDivider && <div className="h-px bg-slate-100 ms-16" />}
   </>
 );
 
@@ -176,14 +182,17 @@ const Profile = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [showAddFamilySheet, setShowAddFamilySheet] = useState(false);
+  const [showAllBadges, setShowAllBadges] = useState(false);
   const { toast } = useToast();
   const { isApprovedAffiliate } = useAffiliateApplication();
-  const { t } = useLanguage();
+  const { t, isRTL, language, setLanguage } = useLanguage();
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [coachConnecting, setCoachConnecting] = useState(false);
-  const [currentCoach, setCurrentCoach] = useState<{ id: string; full_name: string | null } | null>(null);
+  const [currentCoach, setCurrentCoach] = useState<{ id: string; full_name: string | null; assignmentId: string | null } | null>(null);
   const [coachLoading, setCoachLoading] = useState(true);
+  const [removeCoachOpen, setRemoveCoachOpen] = useState(false);
+  const [removingCoach, setRemovingCoach] = useState(false);
 
   const userId = user?.id;
   const { goals } = useNutritionGoals(userId);
@@ -192,6 +201,7 @@ const Profile = () => {
   const activeGoal = goals.find((g) => g.is_active) || goals[0];
   const calorieTarget = activeGoal?.daily_calorie_target ?? 0;
   const currentStreak = streaks?.logging?.currentStreak ?? 0;
+  const { badges, unlockedCount, totalCount } = useBadges(userId);
 
   /* Points = streak-based for visual appeal */
   const points = currentStreak > 0 ? currentStreak * 10 : 40;
@@ -207,14 +217,14 @@ const Profile = () => {
     const fetchCoach = async () => {
       const { data } = await supabase
         .from("coach_client_assignments")
-        .select("coach_id, status")
+        .select("id, coach_id, status")
         .eq("status", "active")
         .eq("client_id", userId)
         .maybeSingle();
 
       if (data?.coach_id) {
         const { data: profile } = await supabase.from("profiles").select("full_name").eq("user_id", data.coach_id).single();
-        setCurrentCoach({ id: data.coach_id, full_name: profile?.full_name || null });
+        setCurrentCoach({ id: data.coach_id, full_name: profile?.full_name || null, assignmentId: data.id || null });
       }
       setCoachLoading(false);
     };
@@ -233,7 +243,7 @@ const Profile = () => {
         .maybeSingle();
 
       if (error || !assignment) {
-        toast.error("Invalid invite code", { description: "Please check the code and try again." });
+        toast.error(t("invalid_invite_code"), { description: t("invalid_invite_code_desc") });
         return;
       }
 
@@ -243,14 +253,35 @@ const Profile = () => {
         .eq("id", assignment.id);
 
       const { data: coachProfile } = await supabase.from("profiles").select("full_name").eq("user_id", assignment.coach_id).single();
-      setCurrentCoach({ id: assignment.coach_id, full_name: coachProfile?.full_name || null });
+      setCurrentCoach({ id: assignment.coach_id, full_name: coachProfile?.full_name || null, assignmentId: assignment.id });
       setInviteCode("");
       setCoachDialogOpen(false);
-      toast.success("Coach connected!", { description: "Your coach can now view your progress." });
+      toast.success(t("coach_connected"), { description: t("coach_connected_desc") });
     } catch (err) {
-      toast.error("Connection failed", { description: "Please try again." });
+      toast.error(t("coach_connection_failed"), { description: t("coach_connection_failed_desc") });
     } finally {
       setCoachConnecting(false);
+    }
+  };
+
+  const handleRemoveCoach = async () => {
+    if (!currentCoach) return;
+    setRemovingCoach(true);
+    try {
+      const { error } = await supabase
+        .from("coach_client_assignments")
+        .update({ status: "revoked" })
+        .eq("id", currentCoach.assignmentId);
+
+      if (error) throw error;
+
+      setCurrentCoach(null);
+      setRemoveCoachOpen(false);
+      toast.success(t("coach_removed"), { description: t("coach_removed_desc") });
+    } catch (err) {
+      toast.error(t("coach_remove_failed"), { description: t("coach_remove_failed_desc") });
+    } finally {
+      setRemovingCoach(false);
     }
   };
 
@@ -268,7 +299,7 @@ const Profile = () => {
 
 
   const formatMemberDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString(isRTL ? "ar-QA" : "en-US", {
       month: "short",
       year: "numeric",
     });
@@ -300,11 +331,11 @@ const Profile = () => {
         className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-100 pt-safe"
       >
         <div className="flex items-center gap-3 px-4 h-14 max-w-[480px] md:max-w-lg mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:bg-slate-200"
-          >
-            <ArrowLeft className="w-4 h-4 text-slate-700" />
+            <button
+              onClick={() => navigate(-1)}
+              className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:bg-slate-200"
+            >
+              {isRTL ? <ArrowRight className="w-4 h-4 text-slate-700" /> : <ArrowLeft className="w-4 h-4 text-slate-700" />}
           </button>
           <h1 className="text-[17px] font-bold flex-1 text-slate-900">
             {t("profile_settings")}
@@ -354,6 +385,33 @@ const Profile = () => {
           </div>
         </motion.div>
 
+        <div className="px-4 mt-4">
+          <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[14px] font-black text-slate-800">Achievements</h3>
+              <span className="text-[11px] font-bold text-emerald-600">{unlockedCount}/{totalCount} Unlocked</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, showAllBadges ? totalCount : 4).map((badge) => (
+                <BadgeCard key={badge.id} badge={badge} variant="compact" />
+              ))}
+            </div>
+            <button
+              onClick={() => setShowAllBadges(!showAllBadges)}
+              className="mt-3 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700"
+            >
+              {showAllBadges ? (
+                <>Show Less <ChevronUp className="h-3 w-3" /></>
+              ) : (
+                <>View All ({totalCount}) <ChevronDown className="h-3 w-3" /></>
+              )}
+            </button>
+            <div className="mt-2 h-1.5 rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0}%` }} />
+            </div>
+          </article>
+        </div>
+
         <div className="px-4">
           {/* ─── Security Warning ─── */}
           <motion.div
@@ -373,7 +431,7 @@ const Profile = () => {
                 {t("weak_password_warning")}
               </p>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-2" />
+            <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-2 rtl-flip" />
           </motion.div>
 
           <div className="mt-4">
@@ -411,9 +469,9 @@ const Profile = () => {
               right={
                 <div className="flex items-center gap-1">
                   <span className="text-[13px] font-semibold text-emerald-600">
-                    {calorieTarget > 0 ? `${calorieTarget} Cal` : "—"}
+                    {calorieTarget > 0 ? `${calorieTarget} ${t("cal_unit")}` : "—"}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 rtl-flip" />
                 </div>
               }
             />
@@ -434,14 +492,23 @@ const Profile = () => {
             <MenuRow
               icon={<Users className="w-full h-full" />}
               iconBg="bg-violet-500"
-              label={currentCoach ? "Your Coach" : "Connect with Coach"}
-              subtitle={coachLoading ? "Loading..." : currentCoach ? currentCoach.full_name || "Your trainer" : "Enter an invite code from your trainer"}
-              onClick={() => !currentCoach && setCoachDialogOpen(true)}
+              label={currentCoach ? t("your_coach") : t("connect_with_coach")}
+              subtitle={coachLoading ? t("coach_loading") : currentCoach ? currentCoach.full_name || t("coach_default_name") : t("coach_invite_hint")}
+              onClick={() => {
+                if (currentCoach) {
+                  setRemoveCoachOpen(true);
+                } else {
+                  setCoachDialogOpen(true);
+                }
+              }}
               right={
                 currentCoach ? (
-                  <span className="text-[13px] font-semibold text-violet-600">Active</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[13px] font-semibold text-violet-600">{t("coach_active")}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 rtl-flip" />
+                  </div>
                 ) : coachLoading ? undefined : (
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 rtl-flip" />
                 )
               }
             />
@@ -471,6 +538,18 @@ const Profile = () => {
           {/* ─── Support & Account ─── */}
           <SectionLabel>{t("support_account")}</SectionLabel>
           <CardSection>
+            <MenuRow
+              icon={<Globe className="w-full h-full" />}
+              iconBg="bg-indigo-500"
+              label={t("language_label")}
+              subtitle={language === "ar" ? "العربية" : "English"}
+              onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
+              right={
+                <span className="text-[13px] font-semibold text-indigo-600">
+                  {language === "ar" ? "EN" : "عربي"}
+                </span>
+              }
+            />
             <MenuRow
               icon={<HelpCircle className="w-full h-full" />}
               iconBg="bg-slate-500"
@@ -517,7 +596,7 @@ const Profile = () => {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button className="flex items-center">
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 rtl-flip" />
                     </button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="rounded-2xl mx-4">
@@ -526,7 +605,7 @@ const Profile = () => {
                         <Trash2 className="w-6 h-6 text-red-500" />
                       </div>
                       <AlertDialogTitle className="text-center">
-                        {t("delete_account")}?
+                        {t("delete_account_confirm_title")}
                       </AlertDialogTitle>
                       <AlertDialogDescription className="text-center">
                         {t("delete_account_warning")}
@@ -560,16 +639,51 @@ const Profile = () => {
         onAdd={addMember}
       />
 
+      <AlertDialog open={removeCoachOpen} onOpenChange={setRemoveCoachOpen}>
+        <AlertDialogContent className="rounded-2xl mx-4 max-w-sm">
+          <AlertDialogHeader>
+            <div className="w-12 h-12 rounded-full bg-violet-50 flex items-center justify-center mx-auto mb-2">
+              <Users className="w-6 h-6 text-violet-500" />
+            </div>
+            <AlertDialogTitle className="text-center text-lg">
+              {t("remove_coach_title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              {currentCoach?.full_name ? (
+                <>{t("remove_coach_confirm_named", { name: currentCoach.full_name })}</>
+              ) : (
+                t("remove_coach_confirm_generic")
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl h-11">
+              {t("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveCoach}
+              disabled={removingCoach}
+              className="bg-violet-600 text-white hover:bg-violet-700 rounded-xl h-11"
+            >
+              {removingCoach ? (
+                <Loader2 className="w-4 h-4 animate-spin ms-1" />
+              ) : null}
+              {removingCoach ? t("removing_coach") : t("remove_coach_btn")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={coachDialogOpen} onOpenChange={setCoachDialogOpen}>
         <DialogContent className="max-w-sm rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-center text-lg font-extrabold">Connect with Coach</DialogTitle>
+            <DialogTitle className="text-center text-lg font-extrabold">{t("coach_dialog_title")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-slate-500 text-center mb-4">
-            Enter the invite code your coach shared with you.
+            {t("coach_dialog_desc")}
           </p>
           <Input
-            placeholder="NUTR-XXXXXX"
+            placeholder={t("coach_invite_placeholder")}
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             className="h-12 rounded-xl text-center text-lg font-mono font-bold tracking-wider"
@@ -583,7 +697,7 @@ const Profile = () => {
             {coachConnecting ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              "Connect"
+              t("connect_btn")
             )}
           </Button>
         </DialogContent>

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
-import { nutrioReportPDF } from "@/lib/nutrio-report-pdf";
+import { professionalWeeklyReportPDF } from "@/lib/professional-weekly-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from "@/lib/nutrition-calculator";
 
@@ -186,7 +186,7 @@ export function useDownloadReport(
         waterTargetMl: 2500,
       };
 
-      await nutrioReportPDF.download(reportData);
+      await professionalWeeklyReportPDF.download(reportData);
       toast({ title: t("report_downloaded"), description: "Your Nutrition Performance & Habit Intelligence report has been saved." });
     } catch (error) {
       console.error("Error generating report:", error);

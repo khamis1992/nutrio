@@ -2,36 +2,65 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 
-const FONT_SCALE = 1.2;
+// ═══════════════════════════════════════════════════
+//  WARM & ORGANIC DESIGN SYSTEM — Nutrio Wellness Report
+//  Aesthetic: personal wellness journal with earth tones,
+//  sage greens, rounded cards, and soft organic touches.
+// ═══════════════════════════════════════════════════
 
-const COLORS = {
-  primary: [34, 168, 88] as [number, number, number],
-  primaryDark: [22, 140, 72] as [number, number, number],
-  accent: [26, 178, 159] as [number, number, number],
-  warning: [245, 158, 11] as [number, number, number],
-  danger: [239, 68, 68] as [number, number, number],
-  success: [34, 197, 94] as [number, number, number],
-  white: [255, 255, 255] as [number, number, number],
-  black: [0, 0, 0] as [number, number, number],
-  background: [248, 250, 252] as [number, number, number],
-  card: [255, 255, 255] as [number, number, number],
-  border: [226, 232, 240] as [number, number, number],
-  textPrimary: [15, 23, 42] as [number, number, number],
-  textSecondary: [71, 85, 105] as [number, number, number],
-  textMuted: [148, 163, 184] as [number, number, number],
-  gradientStart: [34, 168, 88] as [number, number, number],
-  gradientEnd: [26, 178, 159] as [number, number, number],
-  slate: [30, 41, 59] as [number, number, number],
-  slateDark: [15, 23, 42] as [number, number, number],
-  violet: [139, 92, 246] as [number, number, number],
-  rose: [244, 63, 94] as [number, number, number],
-  amber: [251, 191, 36] as [number, number, number],
-  emerald: [52, 211, 153] as [number, number, number],
-};
+/* ─── Color Palette ─── */
+const C = {
+  // Base
+  cream:      [252, 250, 245] as [number, number, number],
+  paper:      [255, 253, 250] as [number, number, number],
+  warmWhite:  [255, 255, 252] as [number, number, number],
 
-const MARGIN = 15;
-const PAGE_WIDTH = 210;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+  // Greens (Nutrio brand anchor)
+  sage:       [122, 163, 117] as [number, number, number],
+  sageDeep:   [82,  121, 79]  as [number, number, number],
+  sageLight:  [180, 210, 176] as [number, number, number],
+  olive:      [133, 147, 102] as [number, number, number],
+  mint:       [200, 227, 196] as [number, number, number],
+
+  // Warm earth tones
+  terracotta: [198, 120, 86]  as [number, number, number],
+  clay:       [180, 108, 76]  as [number, number, number],
+  honey:      [212, 175, 55]  as [number, number, number],
+  amber:      [230, 162, 60]  as [number, number, number],
+
+  // Brown text palette
+  espresso:   [58,  45,  35]  as [number, number, number],
+  mocha:      [102, 82,  64]  as [number, number, number],
+  latte:      [160, 140, 118] as [number, number, number],
+
+  // Semantic
+  success:    [122, 163, 117] as [number, number, number],
+  warning:    [212, 175, 55]  as [number, number, number],
+  caution:    [230, 162, 60]  as [number, number, number],
+  soft:       [198, 120, 86]  as [number, number, number],
+} as const;
+
+/* ─── Layout Constants ─── */
+const MARGIN = 18;
+const PAGE_W = 210;
+const CONTENT_W = PAGE_W - MARGIN * 2;
+const CARD_RADIUS = 6;
+
+/* ─── Typography Scale ─── */
+const T = {
+  hero:    28,
+  h1:      22,
+  h2:      16,
+  h3:      13,
+  body:    9.5,
+  small:   8,
+  tiny:    7,
+  micro:   6,
+} as const;
+
+// ═══════════════════════════════════════════════════
+//  DATA INTERFACES (preserved from original)
+// ═══════════════════════════════════════════════════
 
 export interface MealPlanMeal {
   id: string;
@@ -111,7 +140,7 @@ export interface WeeklyReportData {
     consistency: number;
   };
   mealPlan?: MealPlanDay[];
-  mealImages?: Map<string, string>; // Map of meal ID to base64 image
+  mealImages?: Map<string, string>;
   trackerInsights?: {
     dailySteps: Array<{ date: string; steps: number }>;
     dailyWater: Array<{ date: string; waterMl: number }>;
@@ -124,6 +153,10 @@ export interface WeeklyReportData {
   };
 }
 
+// ═══════════════════════════════════════════════════
+//  PDF GENERATOR CLASS
+// ═══════════════════════════════════════════════════
+
 export class ProfessionalWeeklyReportPDF {
   private doc: jsPDF;
   private pageNumber = 1;
@@ -131,20 +164,13 @@ export class ProfessionalWeeklyReportPDF {
   private logoBase64: string | null = null;
 
   constructor() {
-    this.doc = new jsPDF({
-      unit: "mm",
-      format: "a4",
-      compress: true,
-    });
+    this.doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   }
 
-  private setFontSize(size: number) {
-    this.doc.setFontSize(Math.round(size * FONT_SCALE * 10) / 10);
-  }
-
+  // ─── Logo Loading ───
   private async loadLogo(): Promise<void> {
     try {
-      const response = await fetch('/logo.png');
+      const response = await fetch("/logo.png");
       if (!response.ok) return;
       const blob = await response.blob();
       return new Promise((resolve) => {
@@ -157,1564 +183,1253 @@ export class ProfessionalWeeklyReportPDF {
         reader.readAsDataURL(blob);
       });
     } catch {
-      // Logo not available — will use text fallback
+      // Logo not available
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  //  DESIGN PRIMITIVES — reusable visual helpers
+  // ═══════════════════════════════════════════════════
+
+  /** Draw a warm card: rounded rect with soft border + optional left accent bar */
+  private card(x: number, y: number, w: number, h: number, accent?: [number, number, number]) {
+    // Card body
+    this.doc.setFillColor(...C.paper);
+    this.doc.setDrawColor(...C.latte);
+    this.doc.setLineWidth(0.3);
+    this.doc.roundedRect(x, y, w, h, CARD_RADIUS, CARD_RADIUS, "FD");
+
+    // Colored left accent bar
+    if (accent) {
+      this.doc.setFillColor(...accent);
+      this.doc.roundedRect(x, y + 4, 3.5, h - 8, 2, 2, "F");
+    }
+  }
+
+  /** Draw a section header with number badge + title */
+  private sectionHeader(number: string, title: string, y: number) {
+    // Number badge in sage circle
+    this.doc.setFillColor(...C.sage);
+    this.doc.circle(MARGIN + 9, y + 6, 9, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(number, MARGIN + 9, y + 10, { align: "center" });
+
+    // Title
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.h2);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(title, MARGIN + 22, y + 10);
+
+    // Soft underline in mint
+    this.doc.setDrawColor(...C.mint);
+    this.doc.setLineWidth(1.2);
+    this.doc.line(MARGIN + 22, y + 14, MARGIN + 22 + 50, y + 14);
+  }
+
+  /** Draw a progress ring (donut chart) */
+  private progressRing(cx: number, cy: number, r: number, pct: number, color: [number, number, number]) {
+    const strokeW = 4;
+    const trackR = r - strokeW / 2;
+
+    // Track
+    this.doc.setDrawColor(...C.mint);
+    this.doc.setLineWidth(strokeW);
+    this.doc.circle(cx, cy, trackR, "S");
+
+    // Filled arc — approximate with many small segments
+    this.doc.setDrawColor(...color);
+    this.doc.setLineWidth(strokeW);
+    const segments = 36;
+    const arcPct = Math.min(1, Math.max(0, pct / 100));
+    const startAngle = -90;
+    for (let i = 0; i < segments * arcPct; i++) {
+      const a1 = (startAngle + (i / segments) * 360) * Math.PI / 180;
+      const a2 = (startAngle + ((i + 1) / segments) * 360) * Math.PI / 180;
+      const x1 = cx + trackR * Math.cos(a1);
+      const y1 = cy + trackR * Math.sin(a1);
+      const x2 = cx + trackR * Math.cos(a2);
+      const y2 = cy + trackR * Math.sin(a2);
+      this.doc.line(x1, y1, x2, y2);
+    }
+  }
+
+  /** Draw a horizontal progress bar */
+  private progressBar(x: number, y: number, w: number, h: number, pct: number, color: [number, number, number]) {
+    const p = Math.min(100, Math.max(0, pct));
+    // Track
+    this.doc.setFillColor(...C.mint);
+    this.doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
+    // Fill
+    if (p > 0) {
+      this.doc.setFillColor(...color);
+      this.doc.roundedRect(x, y, w * (p / 100), h, h / 2, h / 2, "F");
+    }
+  }
+
+  /** Draw a vertical mini bar for chart use */
+  private miniBar(x: number, baseY: number, val: number, max: number, h: number, w: number, color: [number, number, number]) {
+    const barH = max > 0 ? (val / max) * h : 0;
+    const y = baseY - barH;
+    this.doc.setFillColor(...color);
+    this.doc.roundedRect(x, y, w, barH, 1.5, 1.5, "F");
+  }
+
+  /** Draw a stat badge (small colored pill) */
+  private statBadge(x: number, y: number, label: string, color: [number, number, number]) {
+    this.doc.setFillColor(...color);
+    this.doc.roundedRect(x, y, 36, 14, 7, 7, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(T.tiny);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(label, x + 18, y + 10, { align: "center" });
+  }
+
+  private insightBox(x: number, y: number, w: number, title: string, body: string, accent: [number, number, number]) {
+    this.doc.setFontSize(T.small);
+    this.doc.setFont("helvetica", "normal");
+    const bodyLines = this.doc.splitTextToSize(body, w - 24);
+    const bodyH = Math.max(12, bodyLines.length * 8 + 4);
+    const cardH = 18 + bodyH;
+    this.card(x, y, w, cardH, accent);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(title, x + 12, y + 10);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text(bodyLines, x + 12, y + 20);
+    return cardH;
+  }
+
+  /** Draw a decorative leaf dot cluster */
+  private leafCluster(x: number, y: number) {
+    const dots = [
+      [0, 0, C.sageDeep],
+      [4, -2, C.sage],
+      [7, 1, C.mint],
+      [3, 5, C.sageLight],
+    ];
+    for (const [dx, dy, c] of dots) {
+      this.doc.setFillColor(...c);
+      this.doc.circle(x + dx, y + dy, 1.8, "F");
+    }
+  }
+
+  /** Stamp footer on each page */
+  private stampFooter(pageNum: number) {
+    const y = 288;
+    this.doc.setDrawColor(...C.mint);
+    this.doc.setLineWidth(0.4);
+    this.doc.line(MARGIN, y - 4, PAGE_W - MARGIN, y - 4);
+
+    this.doc.setTextColor(...C.latte);
+    this.doc.setFontSize(T.micro);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text("Nutrio  ·  Wellness Report", MARGIN, y);
+    this.doc.text(`${pageNum} / ${this.totalPages}`, PAGE_W - MARGIN, y, { align: "right" });
+
+    this.leafCluster(PAGE_W / 2, y);
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  MAIN GENERATION FLOW
+  // ═══════════════════════════════════════════════════
+
   generate(data: WeeklyReportData): jsPDF {
     this.pageNumber = 1;
+
     this.addCoverPage(data);
-    this.addPerformanceScore(data);
+    this.addWellnessScore(data);
     this.addWeeklySnapshot(data);
-    this.addMacroStability(data);
-    this.addMomentumScore(data);
-    this.addHabitRiskDetection(data);
-    this.addCalorieOverview(data);
-    this.addMacroDistribution(data);
-    this.addHydrationConsistency(data);
-    if (data.trackerInsights) this.addTrackerInsights(data);
-    this.addMealPlanningRecommendations(data);
+    this.addEatingRhythm(data);
+    this.addMomentum(data);
+    this.addHabitCheckin(data);
+    this.addCalorieAlignment(data);
+    this.addMacroBalance(data);
+    this.addHydration(data);
+    this.addPersonalizedTips(data);
     this.addMealPlan(data);
-    this.addTrendAnalysis(data);
-    this.addPredictiveTimeline(data);
-    this.addDataAvailabilityStatus(data);
-    this.addDisclaimer(data);
+    this.addTrends(data);
+    this.addLookingAhead(data);
+    this.addDataNotes(data);
 
     this.totalPages = this.pageNumber;
 
-    // Second pass: stamp footers on every page (skip cover = page 1)
+    // Stamp footers on every page except cover
     for (let p = 2; p <= this.totalPages; p++) {
       this.doc.setPage(p);
       this.stampFooter(p);
     }
-    
+
     return this.doc;
   }
 
+  // ═══════════════════════════════════════════════════
+  //  COVER PAGE
+  // ═══════════════════════════════════════════════════
+
   private addCoverPage(data: WeeklyReportData) {
-    // Dark background
-    this.doc.setFillColor(...COLORS.slateDark);
-    this.doc.rect(0, 0, PAGE_WIDTH, 297, "F");
+    // Full-bleed warm cream background
+    this.doc.setFillColor(...C.cream);
+    this.doc.rect(0, 0, PAGE_W, 297, "F");
 
-    // Top accent bar
-    this.drawGradientBar(0, 0, PAGE_WIDTH, 4, COLORS.gradientStart, COLORS.gradientEnd);
+    // Top organic accent — layered green bands
+    this.doc.setFillColor(...C.sageDeep);
+    this.doc.rect(0, 0, PAGE_W, 60, "F");
+    this.doc.setFillColor(...C.sage);
+    this.doc.rect(0, 60, PAGE_W, 80, "F");
+    this.doc.setFillColor(...C.sageLight);
+    this.doc.rect(0, 140, PAGE_W, 65, "F");
 
-    // Logo
-    const logoY = 40;
-    if (this.logoBase64) {
-      try {
-        const raw = this.logoBase64.split(',')[1] || this.logoBase64;
-        this.doc.addImage(raw, 'PNG', PAGE_WIDTH / 2 - 18, logoY, 36, 36, undefined, 'FAST');
-      } catch {
-        this.drawTextLogo(PAGE_WIDTH / 2, logoY + 18, 18, true);
-      }
-    } else {
-      this.drawTextLogo(PAGE_WIDTH / 2, logoY + 18, 18, true);
+    // Decorative dot pattern overlay on green area
+    for (let i = 0; i < 15; i++) {
+      const dx = 20 + (i * 40) % 180;
+      const dy = 15 + Math.floor(i / 5) * 35;
+      this.leafCluster(dx, dy);
     }
 
-    // Brand name
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(14);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Nutrio", PAGE_WIDTH / 2, logoY + 48, { align: "center" });
+    // Logo area
+    const logoY = 28;
+    if (this.logoBase64) {
+      try {
+        const raw = this.logoBase64.split(",")[1] || this.logoBase64;
+        this.doc.addImage(raw, "PNG", PAGE_W / 2 - 20, logoY, 40, 40, undefined, "FAST");
+      } catch {
+        this.drawTextLogo(PAGE_W / 2, logoY + 20, 22);
+      }
+    } else {
+      this.drawTextLogo(PAGE_W / 2, logoY + 20, 22);
+    }
 
-    // Title block
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(22);
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(14);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("NUTRITION PERFORMANCE", PAGE_WIDTH / 2, 115, { align: "center" });
-    this.doc.text("& HABIT INTELLIGENCE", PAGE_WIDTH / 2, 126, { align: "center" });
+    this.doc.text("Nutrio", PAGE_W / 2, logoY + 42, { align: "center" });
 
-    this.setFontSize(10);
+    this.doc.setFontSize(T.hero);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Your Wellness", PAGE_W / 2, 110, { align: "center" });
+    this.doc.text("Journal", PAGE_W / 2, 125, { align: "center" });
+
+    const score = this.calcOverallScore(data);
+    const scoreCY = 148.5;
+    this.doc.setFillColor(...C.terracotta);
+    this.doc.circle(PAGE_W / 2, scoreCY, 28, "F");
+    this.doc.setFillColor(...C.clay);
+    this.doc.circle(PAGE_W / 2, scoreCY, 23, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(24);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(`${score}`, PAGE_W / 2, scoreCY + 8, { align: "center" });
+
+    const label = score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "Steady" : "Beginning";
+    this.doc.setFontSize(T.tiny);
+    this.doc.setTextColor(...C.cream);
+    this.doc.text(label.toUpperCase(), PAGE_W / 2, scoreCY + 18, { align: "center" });
+
+    this.doc.setFontSize(T.body);
     this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.emerald);
-    this.doc.text("Weekly Report", PAGE_WIDTH / 2, 138, { align: "center" });
+    this.doc.setTextColor(...C.cream);
+    this.doc.text("Weekly Nutrition Report", PAGE_W / 2, 185, { align: "center" });
 
-    // Thin divider
-    this.drawGradientBar(PAGE_WIDTH / 2 - 30, 145, 60, 1.5, COLORS.gradientStart, COLORS.gradientEnd);
-
-    // Date range
-    const dateRange = `${format(new Date(data.weekStart), "MMM d")} - ${format(new Date(data.weekEnd), "MMM d, yyyy")}`;
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(11);
+    // Date range on card
+    const dateRange = `${format(new Date(data.weekStart), "MMM d")} – ${format(new Date(data.weekEnd), "MMM d, yyyy")}`;
+    this.doc.setFillColor(255, 255, 255, 0.25);
+    this.doc.roundedRect(PAGE_W / 2 - 55, 194, 110, 18, 9, 9, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(dateRange, PAGE_WIDTH / 2, 158, { align: "center" });
+    this.doc.text(dateRange, PAGE_W / 2, 206, { align: "center" });
 
-    // User info card
-    this.doc.setFillColor(40, 52, 72);
-    this.doc.roundedRect(MARGIN + 15, 172, CONTENT_WIDTH - 30, 50, 6, 6, "F");
-
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("PREPARED FOR", PAGE_WIDTH / 2, 187, { align: "center" });
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(15);
+    // User card on cream area
+    this.card(PAGE_W / 2 - 60, 228, 120, 40, C.sage);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.h3);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(data.userName.toUpperCase(), PAGE_WIDTH / 2, 202, { align: "center" });
-
-    this.setFontSize(8);
+    this.doc.text(data.userName, PAGE_W / 2, 252, { align: "center" });
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.tiny);
     this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.doc.text(data.userEmail, PAGE_WIDTH / 2, 213, { align: "center" });
-
-    // Overall Score
-    const overallScore = this.calculateOverallScore(data);
-    const scoreLabel = overallScore >= 80 ? "Excellent" : overallScore >= 60 ? "Good" : overallScore >= 40 ? "Fair" : "Developing";
-
-    this.doc.setFillColor(...COLORS.primary);
-    this.doc.circle(PAGE_WIDTH / 2, 253, 22, "F");
-    this.doc.setFillColor(...COLORS.primaryDark);
-    this.doc.circle(PAGE_WIDTH / 2, 253, 18, "F");
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(26);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${overallScore}`, PAGE_WIDTH / 2, 259, { align: "center" });
-
-    this.setFontSize(7);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(...COLORS.emerald);
-    this.doc.text(scoreLabel.toUpperCase(), PAGE_WIDTH / 2, 268, { align: "center" });
+    this.doc.text(data.userEmail, PAGE_W / 2, 262, { align: "center" });
 
     // Generated date
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
-    this.doc.text(`Generated ${format(new Date(), "MMMM d, yyyy 'at' h:mm a")}`, PAGE_WIDTH / 2, 284, { align: "center" });
-
-    // Bottom accent bar
-    this.drawGradientBar(0, 293, PAGE_WIDTH, 4, COLORS.gradientStart, COLORS.gradientEnd);
+    this.doc.setTextColor(...C.latte);
+    this.doc.setFontSize(T.micro);
+    this.doc.text(`Generated ${format(new Date(), "MMMM d, yyyy")}`, PAGE_W / 2, 290, { align: "center" });
   }
 
-  private drawTextLogo(cx: number, cy: number, r: number, onDark: boolean) {
-    this.doc.setFillColor(...COLORS.primary);
+  private drawTextLogo(cx: number, cy: number, r: number) {
+    this.doc.setFillColor(...C.cream);
     this.doc.circle(cx, cy, r, "F");
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(r * 1.4);
+    this.doc.setTextColor(...C.sageDeep);
+    this.doc.setFontSize(r * 1.2);
     this.doc.setFont("helvetica", "bold");
     this.doc.text("N", cx, cy + r * 0.35, { align: "center" });
   }
 
-  private addPerformanceScore(data: WeeklyReportData) {
+  // ═══════════════════════════════════════════════════
+  //  1. WELLNESS SCORE
+  // ═══════════════════════════════════════════════════
+
+  private addWellnessScore(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    this.addSectionHeader("1. OVERALL PERFORMANCE SCORE");
+    let y = 30;
 
-    let y = 45;
+    this.sectionHeader("1", "Wellness Score", y);
+    y += 25;
 
-    const overallScore = this.calculateOverallScore(data);
-    const scoreLabel = overallScore >= 80 ? "Excellent" : overallScore >= 60 ? "Good" : overallScore >= 40 ? "Fair" : "Developing";
+    const score = this.calcOverallScore(data);
+    const label = score >= 80 ? "Thriving" : score >= 60 ? "Balanced" : score >= 40 ? "Building" : "Starting";
 
-    // Score display
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 50, 8, 8, "F");
+    // Score display card
+    this.card(MARGIN, y, CONTENT_W, 52, C.sage);
 
-    this.doc.setFillColor(...COLORS.primary);
-    this.doc.circle(MARGIN + 40, y + 25, 18, "F");
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(20);
+    // Score ring
+    this.progressRing(MARGIN + 35, y + 26, 20, score, C.sage);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(20);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${overallScore}`, MARGIN + 40, y + 30, { align: "center" });
+    this.doc.text(`${score}`, MARGIN + 35, y + 30, { align: "center" });
 
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(14);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.h3);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${overallScore} / 100`, MARGIN + 70, y + 22);
+    this.doc.text(`Wellness Score: ${score}/100`, MARGIN + 55, y + 18);
 
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.statBadge(MARGIN + 55, y + 23, label, C.sage);
+
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(`Performance Rating: ${scoreLabel}`, MARGIN + 70, y + 32);
+    this.doc.text("Your overall wellness combines tracking consistency,", MARGIN + 55, y + 42);
+    this.doc.text("nutrition alignment, and healthy habits.", MARGIN + 55, y + 50);
 
-    y += 60;
+    y += 62;
 
-    // Score Breakdown
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(11);
+    // Score breakdown
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("Score Composition", MARGIN, y);
-
+    this.doc.text("What makes up your score", MARGIN, y);
     y += 10;
 
-    const scores = [
-      { label: "Logging Consistency", value: 30, pct: data.consistencyScore },
-      { label: "Calorie Alignment", value: 25, pct: Math.min(100, Math.round((data.avgCalories / data.calorieTarget) * 100)) },
-      { label: "Protein Alignment", value: 15, pct: Math.min(100, Math.round((data.avgProtein / data.proteinTarget) * 100)) },
-      { label: "Macro Balance", value: 10, pct: data.mealQualityScore },
-      { label: "Hydration", value: 10, pct: Math.min(100, Math.round((data.waterAverage / 8) * 100)) },
-      { label: "Stability & Momentum", value: 10, pct: Math.min(100, (data.currentStreak / Math.max(data.bestStreak, 1)) * 100) },
+    const breakdown = [
+      { label: "Tracking consistency",  pct: data.consistencyScore, color: C.sage },
+      { label: "Calorie alignment",     pct: Math.min(100, Math.round((data.avgCalories / data.calorieTarget) * 100)), color: C.olive },
+      { label: "Protein target",        pct: Math.min(100, Math.round((data.avgProtein / data.proteinTarget) * 100)), color: C.sage },
+      { label: "Meal quality",          pct: data.mealQualityScore, color: C.terracotta },
+      { label: "Hydration",             pct: Math.min(100, Math.round((data.waterAverage / 8) * 100)), color: C.honey },
+      { label: "Streak momentum",       pct: Math.min(100, (data.currentStreak / Math.max(data.bestStreak, 1)) * 100), color: C.amber },
     ];
 
-    scores.forEach((score, idx) => {
-      const sy = y + idx * 12;
-      
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
+    for (const item of breakdown) {
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.small);
       this.doc.setFont("helvetica", "normal");
-      this.doc.text(`${score.label} (${score.value}%)`, MARGIN, sy);
+      this.doc.text(item.label, MARGIN + 5, y + 5);
 
-      // Progress bar
-      this.doc.setFillColor(...COLORS.border);
-      this.doc.roundedRect(MARGIN + 80, sy - 4, 60, 6, 3, 3, "F");
-      
-      const barColor = score.pct >= 70 ? COLORS.success : score.pct >= 40 ? COLORS.warning : COLORS.primary;
-      this.doc.setFillColor(...barColor);
-      this.doc.roundedRect(MARGIN + 80, sy - 4, 60 * (score.pct / 100), 6, 3, 3, "F");
+      this.progressBar(MARGIN + 80, y, 65, 6, item.pct, item.color);
 
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(8);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.tiny);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${score.pct}%`, MARGIN + 145, sy);
-    });
+      this.doc.text(`${item.pct}%`, MARGIN + 150, y + 5);
 
-    y += 90;
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "italic");
-    this.doc.text("Your performance score reflects the consistency of your tracking habits and alignment with nutritional targets.", MARGIN, y);
+      y += 14;
+    }
   }
+
+  // ═══════════════════════════════════════════════════
+  //  2. WEEKLY SNAPSHOT
+  // ═══════════════════════════════════════════════════
 
   private addWeeklySnapshot(data: WeeklyReportData) {
-    let y = 200;
-
     this.doc.addPage();
     this.pageNumber++;
-    y = 45;
+    let y = 30;
 
-    this.addSectionHeader("2. WEEKLY SNAPSHOT");
+    this.sectionHeader("2", "Weekly Snapshot", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("A summary of your key nutrition metrics for the week.", MARGIN, y);
+    this.doc.text("Your week in numbers.", MARGIN, y);
     y += 12;
 
-    // Metrics grid
+    // 2×2 metric grid
     const metrics = [
-      { label: "Days Logged", value: `${data.daysLogged} / 7`, subtext: "tracking consistency" },
-      { label: "Avg Daily Calories", value: `${Math.round(data.avgCalories)} kcal`, subtext: `target: ${data.calorieTarget}` },
-      { label: "Avg Protein", value: `${Math.round(data.avgProtein)} g`, subtext: `target: ${data.proteinTarget}g` },
-      { label: "Hydration Days", value: `${data.dailyData.filter(d => d.water > 0).length} / 7`, subtext: "days with water logs" },
+      { label: "Days Tracked",   value: `${data.daysLogged} / 7`,      sub: "meals logged",    color: C.sage, icon: "✿" },
+      { label: "Avg Calories",   value: `${Math.round(data.avgCalories)}`, sub: `target ${data.calorieTarget} kcal`, color: C.terracotta, icon: "◆" },
+      { label: "Avg Protein",    value: `${Math.round(data.avgProtein)}g`, sub: `target ${data.proteinTarget}g`, color: C.olive, icon: "●" },
+      { label: "Water Days",     value: `${data.dailyData.filter(d => d.water > 0).length} / 7`, sub: "hydration tracked", color: C.honey, icon: "♦" },
     ];
 
-    metrics.forEach((metric, idx) => {
-      const col = idx % 2;
-      const row = Math.floor(idx / 2);
-      const x = MARGIN + col * (CONTENT_WIDTH / 2 + 5);
-      const my = y + row * 35;
+    const cardW = (CONTENT_W - 10) / 2;
+    for (let i = 0; i < metrics.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const cx = MARGIN + col * (cardW + 10);
+      const cy = y + row * 38;
 
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(x, my, CONTENT_WIDTH / 2 - 5, 30, 6, 6, "F");
+      this.card(cx, cy, cardW, 32, metrics[i].color);
 
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.setFontSize(7);
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.tiny);
       this.doc.setFont("helvetica", "normal");
-      this.doc.text(metric.label, x + 8, my + 9);
+      this.doc.text(metrics[i].label, cx + 12, cy + 9);
 
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(12);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.h3);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(metric.value, x + 8, my + 20);
+      this.doc.text(metrics[i].value, cx + 12, cy + 21);
 
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.setFontSize(6);
-      this.doc.text(metric.subtext, x + 8, my + 27);
-    });
+      this.doc.setTextColor(...C.latte);
+      this.doc.setFontSize(T.micro);
+      this.doc.text(metrics[i].sub, cx + 12, cy + 29);
+    }
 
-    y += 85;
+    y += 82;
 
-    // Quick Insight
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 45, 6, 6, "F");
-
-    this.doc.setFillColor(...COLORS.primary);
-    this.doc.roundedRect(MARGIN, y, 4, 45, 2, 2, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(10);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Weekly Insight", MARGIN + 10, y + 12);
-
+    // Quick insight
     const insight = this.generateQuickInsight(data);
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    const insightLines = this.doc.splitTextToSize(insight, CONTENT_WIDTH - 24);
-    this.doc.text(insightLines, MARGIN + 10, y + 22);
+    this.insightBox(MARGIN, y, CONTENT_W, "This week's reflection", insight, C.sage);
   }
 
-  private addMacroStability(data: WeeklyReportData) {
-    let y = 290;
+  // ═══════════════════════════════════════════════════
+  //  3. EATING RHYTHM
+  // ═══════════════════════════════════════════════════
 
+  private addEatingRhythm(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    y = 45;
+    let y = 30;
 
-    this.addSectionHeader("3. MACRO STABILITY INDEX");
+    this.sectionHeader("3", "Eating Rhythm", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Measures how consistent your daily calorie intake was throughout the week.", MARGIN, y);
+    this.doc.text("How steady was your daily intake this week?", MARGIN, y);
     y += 15;
 
-    // Calculate variance
-    const calorieVariance = this.calculateVariance(data.dailyData.map(d => d.calories).filter(c => c > 0));
-    const stabilityLevel = calorieVariance < 10 ? "High" : calorieVariance < 20 ? "Moderate" : "Variable";
+    const variance = this.calcVariance(data.dailyData.map(d => d.calories).filter(c => c > 0));
+    const level = variance < 10 ? "Steady" : variance < 20 ? "Gentle waves" : "Rolling hills";
+    const rhythmColor = variance < 10 ? C.sage : variance < 20 ? C.amber : C.terracotta;
 
-    // Stability Score Card
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 45, 8, 8, "F");
+    // Rhythm card
+    this.card(MARGIN, y, CONTENT_W, 48, rhythmColor);
 
-    const stabilityColor = stabilityLevel === "High" ? COLORS.success : stabilityLevel === "Moderate" ? COLORS.warning : COLORS.primary;
-    this.doc.setFillColor(...stabilityColor);
-    this.doc.circle(MARGIN + 25, y + 22, 15, "F");
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(10);
+    this.doc.setFillColor(...rhythmColor);
+    this.doc.circle(MARGIN + 30, y + 24, 16, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(11);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(stabilityLevel, MARGIN + 25, y + 26, { align: "center" });
+    this.doc.text(level, MARGIN + 30, y + 29, { align: "center" });
 
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(12);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.h3);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(`Stability Level: ${stabilityLevel}`, MARGIN + 50, y + 18);
+    this.doc.text(`Eating Rhythm: ${level}`, MARGIN + 55, y + 16);
 
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(`Calorie variance: ${Math.round(calorieVariance)}%`, MARGIN + 50, y + 28);
+    this.doc.text(`Daily calorie variance: ${Math.round(variance)}%`, MARGIN + 55, y + 28);
 
-    y += 55;
+    y += 58;
 
-    // Stability Classification
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(10);
+    // Daily calorie mini chart
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("Stability Benchmarks", MARGIN, y);
+    this.doc.text("Your daily calorie rhythm", MARGIN, y);
+    y += 12;
 
+    const loggedDays = data.dailyData.filter(d => d.calories > 0);
+    const maxCal = Math.max(...loggedDays.map(d => d.calories), data.calorieTarget, 1);
+    const chartH = 50;
+    const barW = Math.min(16, (CONTENT_W - 10) / loggedDays.length - 4);
+    const barGap = (CONTENT_W - loggedDays.length * barW) / (loggedDays.length + 1);
+
+    // Target line
+    const targetY = y + chartH - (data.calorieTarget / maxCal) * chartH;
+    this.doc.setDrawColor(...C.terracotta);
+    this.doc.setLineDashPattern([3, 3], 0);
+    this.doc.line(MARGIN, targetY, MARGIN + CONTENT_W, targetY);
+    this.doc.setLineDashPattern([], 0);
+    this.doc.setTextColor(...C.terracotta);
+    this.doc.setFontSize(T.micro);
+    this.doc.text("target", MARGIN + CONTENT_W - 16, targetY - 2);
+
+    loggedDays.forEach((d, i) => {
+      const bx = MARGIN + barGap + i * (barW + barGap);
+      const barColor = d.calories >= data.calorieTarget * 0.9 && d.calories <= data.calorieTarget * 1.1
+        ? C.sage : d.calories > data.calorieTarget ? C.amber : C.terracotta;
+      this.miniBar(bx, y + chartH, d.calories, maxCal, chartH, barW, barColor);
+
+      const dayLabel = format(new Date(d.date), "EEE");
+      this.doc.setTextColor(...C.latte);
+      this.doc.setFontSize(T.micro);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(dayLabel, bx + barW / 2, y + chartH + 6, { align: "center" });
+    });
+
+    y += chartH + 16;
+
+    // Rhythm insight
+    const rhythmInsight = level === "Steady"
+      ? "Your intake stayed consistent day-to-day — a sign of a well-established routine. This steady rhythm supports reliable energy and progress."
+      : level === "Gentle waves"
+      ? "Your intake had some natural variation. A bit of flexibility is healthy — the key is keeping the overall average close to your target."
+      : "Your intake varied quite a bit this week. Consider checking in with yourself before meals — small adjustments can smooth out the highs and lows.";
+
+    this.insightBox(MARGIN, y, CONTENT_W, "What this means", rhythmInsight, rhythmColor);
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  4. MOMENTUM
+  // ═══════════════════════════════════════════════════
+
+  private addMomentum(data: WeeklyReportData) {
+    this.doc.addPage();
+    this.pageNumber++;
+    let y = 30;
+
+    this.sectionHeader("4", "Your Momentum", y);
+    y += 25;
+
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text("Are your habits trending in the right direction?", MARGIN, y);
+    y += 15;
+
+    const momentum = this.calcMomentum(data);
+    const mStatus = momentum > 2 ? "Building" : momentum < -2 ? "Recalibrating" : "Holding steady";
+    const mColor = momentum > 2 ? C.sage : momentum < -2 ? C.terracotta : C.amber;
+
+    // Momentum card
+    this.card(MARGIN, y, CONTENT_W, 48, mColor);
+
+    this.doc.setFillColor(...mColor);
+    this.doc.circle(MARGIN + 30, y + 24, 16, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(14);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(momentum > 0 ? `+${momentum}` : `${momentum}`, MARGIN + 30, y + 29, { align: "center" });
+
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.h3);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(`Momentum: ${mStatus}`, MARGIN + 55, y + 18);
+
+    this.statBadge(MARGIN + 55, y + 23, mStatus, mColor);
+
+    y += 58;
+
+    // Contributing factors
+    const factors = momentum > 2
+      ? ["Consistent tracking habits", "Protein intake near target", "Stable daily intake pattern", "Regular hydration logging", "Active streak building momentum"]
+      : momentum < -2
+      ? ["Tracking frequency below optimal", "Protein below target range", "Higher day-to-day variation", "Hydration gaps detected", "Streak needs attention"]
+      : ["Habits holding at baseline", "Some areas improving, others stable", "Foundation for growth in place", "Room for small improvements", "Steady state maintained"];
+
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("What's contributing", MARGIN, y);
     y += 10;
 
-    const classifications = [
-      { range: "< 10% variance", level: "High Stability", desc: "Consistent daily intake", color: COLORS.success },
-      { range: "10-20% variance", level: "Moderate", desc: "Some daily variation", color: COLORS.warning },
-      { range: "> 20% variance", level: "Variable", desc: "Significant fluctuation", color: COLORS.primary },
-    ];
+    for (const f of factors) {
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.small);
+      this.doc.text(`·  ${f}`, MARGIN + 5, y);
+      y += 9;
+    }
 
-    classifications.forEach((cls, idx) => {
-      const cy = y + idx * 14;
-      
-      this.doc.setFillColor(...cls.color);
-      this.doc.circle(MARGIN + 5, cy - 2, 4, "F");
+    y += 5;
 
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(8);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${cls.range}: ${cls.level}`, MARGIN + 15, cy);
+    const mInsight = mStatus === "Building"
+      ? "Your habits are gathering strength. The consistency you're building creates compounding benefits — each day builds on the last."
+      : mStatus === "Recalibrating"
+      ? "Momentum has slowed — this is a normal part of any journey. Small daily intentions can gently rebuild your rhythm."
+      : "You're holding steady. This stable foundation is valuable. From here, even tiny adjustments can create forward movement.";
 
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(7);
-      this.doc.setFont("helvetica", "normal");
-      this.doc.text(cls.desc, MARGIN + 15, cy + 5);
-    });
-
-    y += 55;
-
-    // Insight
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 40, 6, 6, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("What This Means", MARGIN + 10, y + 12);
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    
-    const stabilityInsight = stabilityLevel === "High" 
-      ? "Your intake remained consistent day-to-day, indicating a structured routine. This stability supports steady progress toward your goals."
-      : stabilityLevel === "Moderate"
-      ? "Your intake varied moderately across the week. Adding more consistency to meal timing and portions could enhance your results."
-      : "Your intake fluctuated significantly between days. Consider establishing regular meal patterns to create more predictable energy levels.";
-    
-    const lines = this.doc.splitTextToSize(stabilityInsight, CONTENT_WIDTH - 24);
-    this.doc.text(lines, MARGIN + 10, y + 22);
+    this.insightBox(MARGIN, y, CONTENT_W, "Reflection", mInsight, mColor);
   }
 
-  private addMomentumScore(data: WeeklyReportData) {
+  // ═══════════════════════════════════════════════════
+  //  5. HABIT CHECK-IN
+  // ═══════════════════════════════════════════════════
+
+  private addHabitCheckin(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("4. WEEKLY MOMENTUM SCORE");
+    this.sectionHeader("5", "Habit Check-in", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Tracks the direction of your habits based on recent performance trends.", MARGIN, y);
+    this.doc.text("Patterns we noticed this week.", MARGIN, y);
     y += 15;
 
-    // Calculate momentum
-    const momentum = this.calculateMomentum(data);
-    const momentumStatus = momentum > 2 ? "Building" : momentum < -2 ? "Adjusting" : "Stable";
-    const momentumColor = momentum > 2 ? COLORS.success : momentum < -2 ? COLORS.rose : COLORS.warning;
+    const risks = this.detectHabitRisks(data);
+    const riskLevel = risks.length === 0 ? "Smooth sailing" : risks.length <= 2 ? "A few bumps" : "Some turbulence";
+    const riskColor = risks.length === 0 ? C.sage : risks.length <= 2 ? C.amber : C.terracotta;
 
-    // Momentum Card
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 50, 8, 8, "F");
+    // Risk level card
+    this.card(MARGIN, y, CONTENT_W, 50, riskColor);
 
-    this.doc.setFillColor(...momentumColor);
-    this.doc.circle(MARGIN + 25, y + 25, 15, "F");
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(12);
+    this.doc.setFillColor(...riskColor);
+    this.doc.roundedRect(MARGIN, y, 70, 50, CARD_RADIUS, CARD_RADIUS, "F");
+    this.doc.setTextColor(...C.cream);
+    this.doc.setFontSize(T.body);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(momentum > 0 ? `+${momentum}` : `${momentum}`, MARGIN + 25, y + 30, { align: "center" });
+    this.doc.text("Pattern Level:", MARGIN + 10, y + 14);
+    this.doc.setFontSize(T.h3);
+    this.doc.text(riskLevel, MARGIN + 10, y + 30);
 
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(11);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(`Momentum Score: ${momentum}`, MARGIN + 50, y + 18);
-
-    this.doc.setTextColor(...momentumColor);
-    this.setFontSize(9);
-    this.doc.text(`Status: ${momentumStatus}`, MARGIN + 50, y + 30);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.tiny);
+    this.doc.setFont("helvetica", "normal");
+    const monitors = ["Tracking frequency", "Intake variance", "Protein gaps", "Weekend patterns", "Missed days"];
+    monitors.forEach((m, i) => {
+      this.doc.text(`· ${m}`, MARGIN + 82, y + 16 + i * 7);
+    });
 
     y += 60;
 
-    // Contributing factors - dynamic based on momentum direction
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Contributing Factors:", MARGIN, y);
-
-    y += 10;
-
-    const factors = momentum > 2 
-      ? [
-          "Strong logging consistency maintained",
-          "Protein targets approached or achieved", 
-          "Reduced intake variance observed",
-          "Hydration habits above baseline",
-          "Active tracking streak in progress"
-        ]
-      : momentum < -2
-      ? [
-          "Logging frequency below optimal levels",
-          "Protein intake below target range",
-          "Higher day-to-day intake variance",
-          "Hydration tracking gaps detected",
-          "Recent break in tracking streak"
-        ]
-      : [
-          "Consistency levels holding steady",
-          "Some metrics improving, others stable",
-          "Baseline habits maintained",
-          "Room for incremental improvements",
-          "Foundation established for growth"
-        ];
-
-    factors.forEach((factor, idx) => {
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(7);
-      this.doc.text(`- ${factor}`, MARGIN + 5, y + idx * 8);
-    });
-
-    y += 50;
-
-    // Momentum insight
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 35, 6, 6, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Momentum Analysis", MARGIN + 10, y + 12);
-
-    const momentumInsight = momentum > 2 
-      ? "Your habits are trending positively. The consistency you're building creates compounding benefits for long-term success."
-      : momentum < -2
-      ? "Your tracking momentum has slowed. This is a natural part of habit formation. Consider setting daily reminders to rebuild consistency."
-      : "Your habits are holding steady. This stability provides a solid foundation. Small, intentional improvements can build momentum from here.";
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    const insightLines = this.doc.splitTextToSize(momentumInsight, CONTENT_WIDTH - 24);
-    this.doc.text(insightLines, MARGIN + 10, y + 22);
-  }
-
-  private addHabitRiskDetection(data: WeeklyReportData) {
-    let y = 290;
-
-    this.doc.addPage();
-    this.pageNumber++;
-    y = 45;
-
-    this.addSectionHeader("5. HABIT PATTERN ANALYSIS");
-
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("Identifies behavioral patterns that may impact your progress toward nutrition goals.", MARGIN, y);
-    y += 15;
-
-    // Detect risks
-    const risks = this.detectHabitRisks(data);
-    const riskLevel = risks.length === 0 ? "Low" : risks.length <= 2 ? "Moderate" : "High";
-    const riskColor = risks.length === 0 ? COLORS.success : risks.length <= 2 ? COLORS.warning : COLORS.primary;
-
-    // Risk Level Card
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 40, 8, 8, "F");
-
-    this.doc.setFillColor(...riskColor);
-    this.doc.roundedRect(MARGIN, y, 80, 40, 8, 8, "F");
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(10);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Pattern Level:", MARGIN + 10, y + 15);
-
-    this.setFontSize(14);
-    this.doc.text(riskLevel, MARGIN + 10, y + 30);
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(7);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("System monitors:", MARGIN + 90, y + 12);
-
-    const detections = [
-      "Logging frequency (< 5 days/week)",
-      "Daily intake variance (> 25%)",
-      "Protein gaps (< 50% of target)",
-      "Weekend pattern deviations",
-      "Consecutive missed log days",
-    ];
-
-    detections.forEach((det, idx) => {
-      this.doc.text(`- ${det}`, MARGIN + 90, y + 22 + idx * 5);
-    });
-
-    y += 50;
-
-    // Risk output
+    // Patterns found
     if (risks.length > 0) {
-      this.doc.setFillColor(...COLORS.background);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 25 + risks.length * 10, 6, 6, "F");
-
-      this.doc.setFillColor(...COLORS.primary);
-      this.doc.roundedRect(MARGIN, y, 4, 25 + risks.length * 10, 2, 2, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(9);
+      this.card(MARGIN, y, CONTENT_W, 22 + risks.length * 10, C.terracotta);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text("Observed Patterns:", MARGIN + 10, y + 12);
+      this.doc.text("What we noticed:", MARGIN + 12, y + 12);
 
-      risks.forEach((risk, idx) => {
-        this.doc.setTextColor(...COLORS.textSecondary);
-        this.setFontSize(8);
-        this.doc.text(`- ${risk}`, MARGIN + 10, y + 22 + idx * 10);
+      risks.forEach((r, i) => {
+        this.doc.setTextColor(...C.mocha);
+        this.doc.setFontSize(T.small);
+        this.doc.text(`·  ${r}`, MARGIN + 12, y + 22 + i * 10);
       });
-
-      y += 35 + risks.length * 10;
+      y += 32 + risks.length * 10;
+    } else {
+      y += 5;
     }
 
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
+    this.doc.setTextColor(...C.latte);
+    this.doc.setFontSize(T.micro);
     this.doc.setFont("helvetica", "italic");
-    this.doc.text("This analysis focuses on tracking and intake patterns for lifestyle optimization.", MARGIN, y);
+    this.doc.text("This looks at your tracking and intake patterns — not a medical assessment.", MARGIN, y);
   }
 
-  private addCalorieOverview(data: WeeklyReportData) {
+  // ═══════════════════════════════════════════════════
+  //  6. CALORIE ALIGNMENT
+  // ═══════════════════════════════════════════════════
+
+  private addCalorieAlignment(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("6. CALORIE ALIGNMENT OVERVIEW");
+    this.sectionHeader("6", "Calorie Alignment", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Compares your actual intake against your personalized calorie target.", MARGIN, y);
+    this.doc.text("How your intake compares to your daily target.", MARGIN, y);
     y += 15;
 
-    // Calorie stats
-    const calorieDiff = data.avgCalories - data.calorieTarget;
-    const alignment = Math.abs(calorieDiff) < 100 ? "Aligned" : calorieDiff > 0 ? "Above Target" : "Below Target";
-    const variance = this.calculateVariance(data.dailyData.map(d => d.calories).filter(c => c > 0));
-    const stability = variance < 10 ? "High" : variance < 20 ? "Moderate" : "Variable";
+    const diff = data.avgCalories - data.calorieTarget;
+    const alignment = Math.abs(diff) < 100 ? "Aligned" : diff > 0 ? "Above target" : "Below target";
+    const alignColor = Math.abs(diff) < 100 ? C.sage : diff > 0 ? C.amber : C.terracotta;
 
     // Stats card
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 65, 8, 8, "F");
+    this.card(MARGIN, y, CONTENT_W, 62, alignColor);
 
     const stats = [
-      { label: "Your Target:", value: `${data.calorieTarget.toLocaleString()} kcal/day` },
-      { label: "Weekly Average:", value: `${Math.round(data.avgCalories).toLocaleString()} kcal/day` },
-      { label: "Difference:", value: `${calorieDiff > 0 ? '+' : ''}${Math.round(calorieDiff).toLocaleString()} kcal/day` },
+      { label: "Your daily target", value: `${data.calorieTarget.toLocaleString()} kcal` },
+      { label: "Weekly average",    value: `${Math.round(data.avgCalories).toLocaleString()} kcal` },
+      { label: "Difference",         value: `${diff > 0 ? "+" : ""}${Math.round(diff).toLocaleString()} kcal` },
     ];
 
-    stats.forEach((stat, idx) => {
-      const sy = y + 15 + idx * 16;
-      
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.setFontSize(8);
-      this.doc.text(stat.label, MARGIN + 10, sy);
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(10);
+    stats.forEach((s, i) => {
+      const sy = y + 14 + i * 16;
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.small);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(s.label, MARGIN + 12, sy);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(stat.value, MARGIN + 60, sy);
+      this.doc.text(s.value, MARGIN + 65, sy);
     });
 
-    // Alignment badge
-    const alignColor = alignment === "Aligned" ? COLORS.success : alignment === "Below Target" ? COLORS.warning : COLORS.primary;
-    this.doc.setFillColor(...alignColor);
-    this.doc.roundedRect(MARGIN + 110, y + 10, 75, 22, 11, 11, "F");
+    this.statBadge(MARGIN + 130, y + 10, alignment, alignColor);
 
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(alignment, MARGIN + 147.5, y + 24, { align: "center" });
-
-    // Additional metrics
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    const variance = this.calcVariance(data.dailyData.map(d => d.calories).filter(c => c > 0));
+    const stability = variance < 10 ? "Steady" : variance < 20 ? "Moderate" : "Variable";
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.tiny);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(`Daily Consistency: ${stability}`, MARGIN + 10, y + 58);
+    this.doc.text(`Daily consistency: ${stability}`, MARGIN + 12, y + 56);
 
-    y += 80;
+    y += 72;
 
-    // Caution note for very low intake
+    // Low intake caution
     if (data.avgCalories < 1200 && data.daysLogged >= 3) {
-      this.doc.setFillColor(...COLORS.background);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 35, 6, 6, "F");
-
-      this.doc.setFillColor(...COLORS.warning);
-      this.doc.roundedRect(MARGIN, y, 4, 35, 2, 2, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(9);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text("Intake Observation", MARGIN + 10, y + 12);
-
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(7);
-      this.doc.setFont("helvetica", "normal");
-      const cautionLines = this.doc.splitTextToSize(
-        "Your recorded intake is below typical ranges. Ensure you're logging all meals and snacks. If this reflects actual consumption, consider consulting a nutrition professional to support your goals safely.",
-        CONTENT_WIDTH - 24
-      );
-      this.doc.text(cautionLines, MARGIN + 10, y + 22);
+      this.insightBox(MARGIN, y, CONTENT_W, "A gentle note",
+        "Your recorded intake is below typical ranges. Make sure you're logging all meals and snacks. If this reflects actual consumption, consider checking in with a nutrition professional to support your goals safely.",
+        C.terracotta);
     }
   }
 
-  private addMacroDistribution(data: WeeklyReportData) {
+  // ═══════════════════════════════════════════════════
+  //  7. MACRO BALANCE
+  // ═══════════════════════════════════════════════════
+
+  private addMacroBalance(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("7. MACRONUTRIENT DISTRIBUTION");
+    this.sectionHeader("7", "Macro Balance", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Breakdown of your protein, carbohydrate, and fat intake compared to targets.", MARGIN, y);
+    this.doc.text("Your protein, carbs, and fat breakdown.", MARGIN, y);
     y += 15;
 
-    // Table
-    const totalMacros = data.avgProtein * 4 + data.avgCarbs * 4 + data.avgFat * 9;
-    const proteinPct = totalMacros > 0 ? Math.round((data.avgProtein * 4 / totalMacros) * 100) : 0;
-    const carbsPct = totalMacros > 0 ? Math.round((data.avgCarbs * 4 / totalMacros) * 100) : 0;
-    const fatPct = totalMacros > 0 ? 100 - proteinPct - carbsPct : 0;
-
+    // Macro table
     autoTable(this.doc, {
       startY: y,
-      head: [["Macronutrient", "Actual (Daily Avg)", "Your Target", "Progress"]],
+      head: [["Nutrient", "Daily avg", "Your target", "Progress"]],
       body: [
         ["Protein", `${Math.round(data.avgProtein)}g`, `${data.proteinTarget}g`, `${Math.round((data.avgProtein / data.proteinTarget) * 100)}%`],
-        ["Carbohydrates", `${Math.round(data.avgCarbs)}g`, `${data.carbsTarget}g`, `${Math.round((data.avgCarbs / data.carbsTarget) * 100)}%`],
+        ["Carbs", `${Math.round(data.avgCarbs)}g`, `${data.carbsTarget}g`, `${Math.round((data.avgCarbs / data.carbsTarget) * 100)}%`],
         ["Fat", `${Math.round(data.avgFat)}g`, `${data.fatTarget}g`, `${Math.round((data.avgFat / data.fatTarget) * 100)}%`],
       ],
-      headStyles: {
-        fillColor: COLORS.slate,
-        textColor: COLORS.white,
-        fontStyle: "bold",
-        fontSize: 9,
-      },
-      bodyStyles: {
-        fontSize: 9,
-        textColor: COLORS.textPrimary,
-      },
-      alternateRowStyles: {
-        fillColor: COLORS.background,
-      },
+      headStyles: { fillColor: C.sage, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: C.espresso },
+      alternateRowStyles: { fillColor: C.cream },
       margin: { left: MARGIN, right: MARGIN },
     });
 
-    y += 60;
-
-    // Macro Balance (%)
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(10);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Your Calorie Distribution:", MARGIN, y);
-
-    y += 12;
-
-    const macros = [
-      { label: "Protein", pct: proteinPct, color: COLORS.primary, desc: "4 calories per gram" },
-      { label: "Carbohydrates", pct: carbsPct, color: COLORS.accent, desc: "4 calories per gram" },
-      { label: "Fat", pct: fatPct, color: COLORS.violet, desc: "9 calories per gram" },
-    ];
-
-    macros.forEach((macro, idx) => {
-      const my = y + idx * 14;
-      
-      this.doc.setFillColor(...macro.color);
-      this.doc.circle(MARGIN + 5, my - 2, 4, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(8);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${macro.label}: ${macro.pct}%`, MARGIN + 15, my);
-
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(7);
-      this.doc.setFont("helvetica", "normal");
-      this.doc.text(macro.desc, MARGIN + 15, my + 5);
-    });
-
     y += 55;
 
-    // Insight
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 30, 6, 6, "F");
+    // Calorie distribution
+    const totalMacroCals = data.avgProtein * 4 + data.avgCarbs * 4 + data.avgFat * 9;
+    const pPct = totalMacroCals > 0 ? Math.round((data.avgProtein * 4 / totalMacroCals) * 100) : 0;
+    const cPct = totalMacroCals > 0 ? Math.round((data.avgCarbs * 4 / totalMacroCals) * 100) : 0;
+    const fPct = 100 - pPct - cPct;
 
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    const macroInsight = `Your macronutrient distribution shows ${proteinPct}% from protein, ${carbsPct}% from carbohydrates, and ${fatPct}% from fat. Protein alignment is ${(data.avgProtein / data.proteinTarget * 100) >= 90 ? 'strong' : 'an area for improvement'}.`;
-    const lines = this.doc.splitTextToSize(macroInsight, CONTENT_WIDTH - 20);
-    this.doc.text(lines, MARGIN + 10, y + 12);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Your calorie mix", MARGIN, y);
+    y += 10;
+
+    const distribution = [
+      { label: "Protein", pct: pPct, color: C.sage, note: "4 cal per gram" },
+      { label: "Carbs",    pct: cPct, color: C.olive, note: "4 cal per gram" },
+      { label: "Fat",      pct: fPct, color: C.terracotta, note: "9 cal per gram" },
+    ];
+
+    for (const d of distribution) {
+      this.doc.setFillColor(...d.color);
+      this.doc.circle(MARGIN + 5, y + 2, 4, "F");
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.small);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(`${d.label}: ${d.pct}%`, MARGIN + 15, y + 6);
+      this.doc.setTextColor(...C.latte);
+      this.doc.setFontSize(T.micro);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(d.note, MARGIN + 15, y + 11);
+      y += 16;
+    }
+
+    y += 5;
+
+    const macroInsight = `Your calorie mix is ${pPct}% protein, ${cPct}% carbs, and ${fPct}% fat. Protein alignment is ${(data.avgProtein / data.proteinTarget * 100) >= 90 ? "strong" : "an area with room to grow"}.`;
+    this.insightBox(MARGIN, y, CONTENT_W, "At a glance", macroInsight, C.sage);
   }
 
-  private addHydrationConsistency(data: WeeklyReportData) {
+  // ═══════════════════════════════════════════════════
+  //  8. HYDRATION
+  // ═══════════════════════════════════════════════════
+
+  private addHydration(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("8. HYDRATION TRACKING");
+    this.sectionHeader("8", "Hydration", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Tracks your daily water intake logging and average consumption.", MARGIN, y);
+    this.doc.text("Your water tracking for the week.", MARGIN, y);
     y += 15;
 
     const daysTracked = data.dailyData.filter(d => d.water > 0).length;
-    const avgWater = data.waterAverage;
-    const targetWater = 8;
-    const stability = avgWater >= 6 ? "High" : avgWater >= 4 ? "Moderate" : "Developing";
 
-    // Stats cards
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH / 3 - 5, 42, 6, 6, "F");
-    this.doc.roundedRect(MARGIN + CONTENT_WIDTH / 3, y, CONTENT_WIDTH / 3 - 5, 42, 6, 6, "F");
-    this.doc.roundedRect(MARGIN + (CONTENT_WIDTH / 3) * 2, y, CONTENT_WIDTH / 3 - 5, 42, 6, 6, "F");
+    // 3 stat cards
+    const cardW = (CONTENT_W - 10) / 3;
+    const statCards = [
+      { label: "Days logged", value: `${daysTracked} / 7`, sub: "of 7 days", color: C.sage },
+      { label: "Daily average", value: `${data.waterAverage.toFixed(1)}`, sub: "glasses per day", color: C.honey },
+      { label: "Daily target", value: "8", sub: "glasses per day", color: C.terracotta },
+    ];
 
-    // Days tracked
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
-    this.doc.text("Days Logged", MARGIN + 10, y + 10);
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(14);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${daysTracked} / 7`, MARGIN + 10, y + 25);
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(6);
-    this.doc.text("out of 7 days", MARGIN + 10, y + 33);
+    for (let i = 0; i < 3; i++) {
+      const cx = MARGIN + i * (cardW + 5);
+      this.card(cx, y, cardW, 38, statCards[i].color);
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.tiny);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(statCards[i].label, cx + 12, y + 10);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.h3);
+      this.doc.setFont("helvetica", "bold");
+      this.doc.text(statCards[i].value, cx + 12, y + 23);
+      this.doc.setTextColor(...C.latte);
+      this.doc.setFontSize(T.micro);
+      this.doc.text(statCards[i].sub, cx + 12, y + 32);
+    }
 
-    // Average intake
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
-    this.doc.text("Daily Average", MARGIN + CONTENT_WIDTH / 3 + 10, y + 10);
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(14);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${avgWater.toFixed(1)}`, MARGIN + CONTENT_WIDTH / 3 + 10, y + 25);
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(6);
-    this.doc.text("glasses per day", MARGIN + CONTENT_WIDTH / 3 + 10, y + 33);
+    y += 48;
 
-    // Target
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
-    this.doc.text("Daily Target", MARGIN + (CONTENT_WIDTH / 3) * 2 + 10, y + 10);
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(14);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(`${targetWater}`, MARGIN + (CONTENT_WIDTH / 3) * 2 + 10, y + 25);
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(6);
-    this.doc.text("glasses per day", MARGIN + (CONTENT_WIDTH / 3) * 2 + 10, y + 33);
+    const hInsight = data.waterAverage >= 6
+      ? `You're averaging ${data.waterAverage.toFixed(1)} glasses per day — great consistency. Good hydration supports energy, focus, and overall wellness.`
+      : data.waterAverage >= 4
+      ? `Averaging ${data.waterAverage.toFixed(1)} glasses per day. There's room to edge closer to the 8-glass target for optimal hydration.`
+      : `Averaging ${data.waterAverage.toFixed(1)} glasses per day. Try keeping a water bottle nearby as a gentle reminder to sip throughout the day.`;
 
-    y += 55;
-
-    // Insight
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 35, 6, 6, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Hydration Insight", MARGIN + 10, y + 12);
-
-    const hydrationInsight = avgWater >= 6
-      ? `You're averaging ${avgWater.toFixed(1)} glasses per day with ${stability.toLowerCase()} consistency. Good hydration supports energy levels and overall wellness.`
-      : avgWater >= 4
-      ? `You're averaging ${avgWater.toFixed(1)} glasses per day. There's room to increase toward the 8-glass target for optimal hydration.`
-      : `Hydration tracking shows ${avgWater.toFixed(1)} glasses per day average. Consider setting reminders to build this healthy habit.`;
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    const lines = this.doc.splitTextToSize(hydrationInsight, CONTENT_WIDTH - 24);
-    this.doc.text(lines, MARGIN + 10, y + 22);
+    this.insightBox(MARGIN, y, CONTENT_W, "Hydration note", hInsight, C.honey);
   }
 
-  private addMealPlanningRecommendations(data: WeeklyReportData) {
-    let y = 280;
+  // ═══════════════════════════════════════════════════
+  //  9. PERSONALIZED TIPS
+  // ═══════════════════════════════════════════════════
 
+  private addPersonalizedTips(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    y = 45;
+    let y = 30;
 
-    this.addSectionHeader("9. PERSONALIZED RECOMMENDATIONS");
+    this.sectionHeader("9", "Personalized Tips", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Actionable guidance based on your specific nutrition patterns.", MARGIN, y);
+    this.doc.text("Suggestions based on your patterns.", MARGIN, y);
     y += 15;
 
-    const recommendations = this.generateMealRecommendations(data);
+    const recs = this.generateMealRecs(data);
 
-    recommendations.forEach((rec, idx) => {
-      const ry = y + idx * 40;
-      
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(MARGIN, ry, CONTENT_WIDTH, 35, 6, 6, "F");
-
-      this.doc.setFillColor(...COLORS.primary);
-      this.doc.roundedRect(MARGIN, ry, 25, 35, 6, 6, "F");
-
-      this.doc.setTextColor(255, 255, 255);
-      this.setFontSize(10);
+    recs.forEach((rec, i) => {
+      this.card(MARGIN, y, CONTENT_W, 32, C.sage);
+      this.doc.setFillColor(...C.sage);
+      this.doc.roundedRect(MARGIN, y, 22, 32, CARD_RADIUS, CARD_RADIUS, "F");
+      this.doc.setTextColor(...C.cream);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${idx + 1}`, MARGIN + 12.5, ry + 22, { align: "center" });
+      this.doc.text(`${i + 1}`, MARGIN + 11, y + 21, { align: "center" });
 
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(9);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(rec.title, MARGIN + 32, ry + 14);
-
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(7);
+      this.doc.text(rec.title, MARGIN + 30, y + 12);
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.tiny);
       this.doc.setFont("helvetica", "normal");
-      const descLines = this.doc.splitTextToSize(rec.description, CONTENT_WIDTH - 50);
-      this.doc.text(descLines, MARGIN + 32, ry + 24);
+      const descLines = this.doc.splitTextToSize(rec.description, CONTENT_W - 48);
+      this.doc.text(descLines, MARGIN + 30, y + 20);
+
+      y += 38;
     });
 
-    y += recommendations.length * 40 + 10;
-
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
+    y += 5;
+    this.doc.setTextColor(...C.latte);
+    this.doc.setFontSize(T.micro);
     this.doc.setFont("helvetica", "italic");
-    this.doc.text("Recommendations are generated from your personal data patterns to support your lifestyle goals.", MARGIN, y);
+    this.doc.text("These suggestions are generated from your personal patterns to support your goals.", MARGIN, y);
   }
+
+  // ═══════════════════════════════════════════════════
+  //  10. MEAL PLAN
+  // ═══════════════════════════════════════════════════
 
   private addMealPlan(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("10. NEXT WEEK MEAL PLAN");
+    this.sectionHeader("10", "Your Meal Plan", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("AI-generated meal suggestions for next week based on your nutrition targets and preferences.", MARGIN, y);
+    this.doc.text("Meal suggestions for the week ahead.", MARGIN, y);
     y += 15;
 
-    // Check if meal plan exists
     if (!data.mealPlan || data.mealPlan.length === 0) {
-      this.doc.setFillColor(...COLORS.background);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 50, 6, 6, "F");
-      
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(10);
+      this.card(MARGIN, y, CONTENT_W, 42, C.sage);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text("Generate Your Personalized Meal Plan", MARGIN + 10, y + 15);
-      
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      const infoLines = this.doc.splitTextToSize(
-        "Our AI analyzes your nutrition targets, dietary preferences, and favorite restaurants to create a personalized 7-day meal plan. Each suggestion is carefully selected to help you meet your goals while enjoying delicious meals from our partner restaurants.",
-        CONTENT_WIDTH - 24
+      this.doc.text("Generate your personalized meal plan", MARGIN + 12, y + 12);
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.small);
+      this.doc.setFont("helvetica", "normal");
+      const info = this.doc.splitTextToSize(
+        "Our AI analyzes your nutrition targets, preferences, and favorite restaurants to create a 7-day meal plan. Each suggestion helps you meet your goals while enjoying meals from partner restaurants.",
+        CONTENT_W - 24
       );
-      this.doc.text(infoLines, MARGIN + 10, y + 28);
-      
-      this.doc.setTextColor(...COLORS.primary);
-      this.setFontSize(8);
-      this.doc.text("Visit the app to generate your custom meal plan.", MARGIN + 10, y + 48);
+      this.doc.text(info, MARGIN + 12, y + 24);
+      this.doc.setTextColor(...C.sageDeep);
+      this.doc.text("Visit the Nutrio app to create your plan.", MARGIN + 12, y + 36);
       return;
     }
 
-    // Calculate next week dates
-    const today = new Date();
-    const nextWeekStart = new Date(today);
-    nextWeekStart.setDate(today.getDate() + (7 - today.getDay()));
-    const nextWeekEnd = new Date(nextWeekStart);
-    nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
+    // Week totals
+    const totals = data.mealPlan.reduce((t, day) => ({
+      cal: t.cal + day.dailyCalories,
+      prot: t.prot + day.dailyProtein,
+      price: t.price + day.dailyPrice,
+    }), { cal: 0, prot: 0, price: 0 });
 
-    // Week range display
-    this.doc.setFillColor(...COLORS.primary);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 25, 6, 6, "F");
-    
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(10);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(
-      `Week of ${format(nextWeekStart, "MMM d")} - ${format(nextWeekEnd, "MMM d, yyyy")}`,
-      PAGE_WIDTH / 2,
-      y + 16,
-      { align: "center" }
-    );
-
-    y += 35;
-
-    // Calculate weekly totals
-    const weekTotals = data.mealPlan.reduce((totals, day) => ({
-      calories: totals.calories + day.dailyCalories,
-      protein: totals.protein + day.dailyProtein,
-      price: totals.price + day.dailyPrice
-    }), { calories: 0, protein: 0, price: 0 });
-
-    const avgCalories = Math.round(weekTotals.calories / 7);
-    const avgProtein = Math.round(weekTotals.protein / 7);
-    const avgCarbs = Math.round(data.mealPlan.reduce((sum, day) => sum + (day.breakfast?.carbs_g || 0) + (day.lunch?.carbs_g || 0) + (day.dinner?.carbs_g || 0), 0) / 7);
-
-    // Enhanced Stats cards - 4 columns
-    const statsY = y;
-    const cardWidth = (CONTENT_WIDTH - 15) / 4;
-    
-    const stats = [
-      { label: "Avg Calories", value: `${avgCalories}`, unit: "kcal/day", color: COLORS.primary, icon: "KCAL" },
-      { label: "Avg Protein", value: `${avgProtein}g`, unit: "per day", color: COLORS.accent, icon: "PROT" },
-      { label: "Avg Carbs", value: `${avgCarbs}g`, unit: "per day", color: COLORS.warning, icon: "CARB" },
-      { label: "Est. Weekly Cost", value: `QAR ${weekTotals.price.toFixed(0)}`, unit: "total", color: COLORS.success, icon: "COST" },
+    const cardW2 = (CONTENT_W - 15) / 4;
+    const statCards2 = [
+      { label: "Avg Calories", value: `${Math.round(totals.cal / 7)}`, unit: "kcal/day", color: C.sage },
+      { label: "Avg Protein",  value: `${Math.round(totals.prot / 7)}g`, unit: "per day", color: C.olive },
+      { label: "Avg Carbs",    value: `${Math.round(data.mealPlan.reduce((s, d) => s + (d.breakfast?.carbs_g || 0) + (d.lunch?.carbs_g || 0) + (d.dinner?.carbs_g || 0), 0) / 7)}g`, unit: "per day", color: C.honey },
+      { label: "Est. Cost",    value: `QAR ${totals.price.toFixed(0)}`, unit: "for the week", color: C.terracotta },
     ];
 
-    stats.forEach((stat, idx) => {
-      const x = MARGIN + idx * (cardWidth + 5);
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(x, statsY, cardWidth, 45, 6, 6, "F");
-
-      this.doc.setFillColor(...stat.color);
-      this.doc.circle(x + 12, statsY + 14, 6, "F");
-      
-      this.doc.setTextColor(255, 255, 255);
-      this.setFontSize(6);
-      this.doc.text(stat.icon, x + 8, statsY + 16);
-      
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.setFontSize(6);
-      this.doc.text(stat.label, x + 22, statsY + 10);
-      
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(10);
+    for (let i = 0; i < 4; i++) {
+      const cx = MARGIN + i * (cardW2 + 5);
+      this.card(cx, y, cardW2, 38, statCards2[i].color);
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.tiny);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(statCards2[i].label, cx + 10, y + 9);
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(stat.value, x + 22, statsY + 24);
-      
-      this.doc.setTextColor(...COLORS.textMuted);
-      this.setFontSize(6);
-      this.doc.text(stat.unit, x + 22, statsY + 32);
-    });
+      this.doc.text(statCards2[i].value, cx + 10, y + 22);
+      this.doc.setTextColor(...C.latte);
+      this.doc.setFontSize(T.micro);
+      this.doc.text(statCards2[i].unit, cx + 10, y + 31);
+    }
 
-    y += 55;
+    y += 48;
 
-    // AI Recommendation Note
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 30, 6, 6, "F");
-    
-    this.doc.setFillColor(...COLORS.primary);
-    this.doc.roundedRect(MARGIN, y, 4, 30, 2, 2, "F");
-    
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("AI-Powered Recommendations", MARGIN + 10, y + 12);
-    
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(7);
-    this.doc.setFont("helvetica", "normal");
-    const recLines = this.doc.splitTextToSize(
-      `These meals are selected based on your target of ${data.calorieTarget} kcal/day and ${data.proteinTarget}g protein. Each meal is chosen from highly-rated partner restaurants to support your nutrition goals.`,
-      CONTENT_WIDTH - 24
-    );
-    this.doc.text(recLines, MARGIN + 10, y + 22);
-
-    y += 40;
-
-    // Meal plan by day - Detailed view
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(10);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Your 7-Day Meal Schedule:", MARGIN, y);
-    
-    y += 12;
-
-    // Process each day
-    data.mealPlan.forEach((day, dayIndex) => {
-      // Check if we need a new page
+    // Each day
+    for (const day of data.mealPlan) {
       if (y > 230) {
         this.doc.addPage();
         this.pageNumber++;
-        y = 45;
-        this.addSectionHeader(dayIndex < 4 ? "10. NEXT WEEK MEAL PLAN (CONT.)" : "10. NEXT WEEK MEAL PLAN (DAYS 5-7)");
-        y += 15;
+        y = 30;
+        this.sectionHeader("10", "Meal Plan (continued)", y);
+        y += 25;
       }
 
       // Day header
-      this.doc.setFillColor(...COLORS.slate);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 18, 4, 4, "F");
-      
-      this.doc.setTextColor(255, 255, 255);
-      this.setFontSize(10);
+      this.doc.setFillColor(...C.sage);
+      this.doc.roundedRect(MARGIN, y, CONTENT_W, 16, 4, 4, "F");
+      this.doc.setTextColor(...C.cream);
+      this.doc.setFontSize(T.body);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${day.day} - ${day.date}`, MARGIN + 8, y + 12);
-      
-      // Daily totals
-      this.setFontSize(8);
-      this.doc.text(`${day.dailyCalories} kcal | ${day.dailyProtein}g protein | QAR ${day.dailyPrice.toFixed(0)}`, PAGE_WIDTH - MARGIN - 8, y + 12, { align: "right" });
-      
+      this.doc.text(`${day.day} — ${day.date}`, MARGIN + 8, y + 11);
+      this.doc.setFontSize(T.tiny);
+      this.doc.text(`${day.dailyCalories} kcal | ${day.dailyProtein}g protein | QAR ${day.dailyPrice.toFixed(0)}`, PAGE_W - MARGIN - 8, y + 11, { align: "right" });
+
       y += 22;
 
-      // Meals for this day
       const meals = [
-        { type: "Breakfast", meal: day.breakfast, icon: "B" },
-        { type: "Lunch", meal: day.lunch, icon: "L" },
-        { type: "Dinner", meal: day.dinner, icon: "D" }
+        { type: "Breakfast", meal: day.breakfast, color: C.honey as [number, number, number] },
+        { type: "Lunch",     meal: day.lunch,     color: C.sage as [number, number, number] },
+        { type: "Dinner",    meal: day.dinner,    color: C.terracotta as [number, number, number] },
       ];
 
-      meals.forEach(({ type, meal, icon }) => {
-        if (!meal) return;
-
-        // Page break if meal card won't fit (card = 55mm + 5mm spacing)
-        if (y + 60 > 275) {
+      for (const { type, meal, color } of meals) {
+        if (!meal) continue;
+        if (y + 44 > 275) {
           this.doc.addPage();
           this.pageNumber++;
-          y = 25;
-          this.addSectionHeader("10. NEXT WEEK MEAL PLAN (CONT.)");
-          y = 45;
+          y = 30;
         }
 
-        // Meal type colors for visual distinction
-        const typeColors = {
-          "Breakfast": [251, 191, 36] as [number, number, number], // Amber
-          "Lunch": [52, 211, 153] as [number, number, number],     // Emerald
-          "Dinner": [6, 182, 212] as [number, number, number]      // Cyan
-        };
-        const typeColor = typeColors[type as keyof typeof typeColors] || COLORS.primary;
+        this.card(MARGIN + 5, y, CONTENT_W - 10, 40, color);
 
-        // Meal card - taller to accommodate image
-        this.doc.setFillColor(...COLORS.card);
-        this.doc.roundedRect(MARGIN + 5, y, CONTENT_WIDTH - 10, 55, 4, 4, "F");
-        
-        // Image box on the left (32x32mm)
-        const imgX = MARGIN + 10;
-        const imgY = y + 5;
-        const imgSize = 32;
-        
-        // Try to load actual meal image
-        const mealImageBase64 =
-          data.mealImages?.get(meal.id) ||
-          (typeof meal.image_url === "string" && meal.image_url.startsWith("data:image/")
-            ? meal.image_url
-            : null);
+        this.doc.setFillColor(...color);
+        this.doc.roundedRect(MARGIN + 5, y, 3.5, 40, 2, 2, "F");
 
-        let imageRendered = false;
-        if (mealImageBase64) {
+        this.doc.setTextColor(...color);
+        this.doc.setFontSize(T.micro);
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text(type.toUpperCase(), MARGIN + 14, y + 8);
+
+        this.doc.setTextColor(...C.espresso);
+        this.doc.setFontSize(T.small);
+        this.doc.setFont("helvetica", "bold");
+        const name = meal.name.length > 28 ? meal.name.substring(0, 25) + "…" : meal.name;
+        this.doc.text(name, MARGIN + 14, y + 17);
+
+        this.doc.setTextColor(...C.mocha);
+        this.doc.setFontSize(T.tiny);
+        this.doc.setFont("helvetica", "normal");
+        this.doc.text(meal.restaurant_name || "Partner Restaurant", MARGIN + 14, y + 24);
+
+        this.doc.setTextColor(...C.latte);
+        this.doc.setFontSize(T.micro);
+        this.doc.text(`${meal.calories || 0} kcal | P:${meal.protein_g || 0}g C:${meal.carbs_g || 0}g F:${meal.fat_g || 0}g`, MARGIN + 14, y + 31);
+
+        // Meal image if available
+        const imgBase64 = data.mealImages?.get(meal.id)
+          || (typeof meal.image_url === "string" && meal.image_url.startsWith("data:image/") ? meal.image_url : null);
+
+        if (imgBase64) {
           try {
-            // Strip data URL prefix — jsPDF works better with raw base64
-            let rawBase64 = mealImageBase64;
-            if (rawBase64.startsWith('data:')) {
-              rawBase64 = rawBase64.split(',')[1] || rawBase64;
-            }
-            this.doc.addImage(
-              rawBase64,
-              'JPEG',
-              imgX,
-              imgY,
-              imgSize,
-              imgSize,
-              undefined,
-              'FAST'
-            );
-            imageRendered = true;
-          } catch (e) {
-            console.warn(`[PDF] addImage failed for ${meal.name}:`, e);
-          }
+            let raw = imgBase64;
+            if (raw.startsWith("data:")) raw = raw.split(",")[1] || raw;
+            this.doc.addImage(raw, "JPEG", PAGE_W - MARGIN - 42, y + 4, 32, 32, undefined, "FAST");
+          } catch { /* skip image */ }
         }
-        if (!imageRendered) {
-          this.renderMealPlaceholder(imgX, imgY, imgSize, typeColor, icon);
-        }
-        
-        // Meal type label above name with color
-        this.doc.setTextColor(...typeColor);
-        this.setFontSize(6);
-        this.doc.setFont("helvetica", "bold");
-        this.doc.text(type.toUpperCase(), MARGIN + 48, y + 10);
-        
-        // Meal name
-        this.doc.setTextColor(...COLORS.textPrimary);
-        this.setFontSize(9);
-        this.doc.setFont("helvetica", "bold");
-        const name = meal.name.length > 30 ? meal.name.substring(0, 27) + "..." : meal.name;
-        this.doc.text(name, MARGIN + 48, y + 20);
-        
-        // Restaurant
-        this.doc.setTextColor(...COLORS.textSecondary);
-        this.setFontSize(7);
-        const restaurant = (meal.restaurant_name || "Partner Restaurant").length > 25 ? 
-          (meal.restaurant_name || "Partner Restaurant").substring(0, 22) + "..." : 
-          (meal.restaurant_name || "Partner Restaurant");
-        this.doc.text(restaurant, MARGIN + 48, y + 30);
-        
-        // Macros
-        const macrosText = `${meal.calories || 0} kcal | P:${meal.protein_g || 0}g C:${meal.carbs_g || 0}g F:${meal.fat_g || 0}g`;
-        this.doc.setTextColor(...COLORS.textMuted);
-        this.setFontSize(6);
-        this.doc.text(macrosText, MARGIN + 48, y + 38);
-        
-        // Rating on the right side
-        const rightX = PAGE_WIDTH - MARGIN - 45;
-        
-        // Rating
+
         if (meal.rating) {
-          this.doc.setFillColor(...COLORS.warning);
-          this.doc.roundedRect(rightX, y + 8, 40, 18, 9, 9, "F");
-          this.doc.setTextColor(255, 255, 255);
-          this.setFontSize(10);
+          this.doc.setFillColor(...C.honey);
+          this.doc.roundedRect(PAGE_W - MARGIN - 40, y + 28, 32, 10, 5, 5, "F");
+          this.doc.setTextColor(...C.cream);
+          this.doc.setFontSize(T.micro);
           this.doc.setFont("helvetica", "bold");
-          this.doc.text(`* ${meal.rating.toFixed(1)}`, rightX + 20, y + 20, { align: "center" });
-        }
-        
-        // Dietary tags below rating
-        if (meal.is_vegetarian || meal.is_vegan || meal.is_gluten_free) {
-          const tags = [];
-          if (meal.is_vegan) tags.push("Vegan");
-          else if (meal.is_vegetarian) tags.push("Vegetarian");
-          if (meal.is_gluten_free) tags.push("GF");
-          
-          this.doc.setFillColor(...COLORS.accent);
-          this.doc.roundedRect(rightX, y + 30, 40, 14, 7, 7, "F");
-          this.doc.setTextColor(255, 255, 255);
-          this.setFontSize(6);
-          this.doc.text(tags.join(" | "), rightX + 20, y + 40, { align: "center" });
+          this.doc.text(`★ ${meal.rating.toFixed(1)}`, PAGE_W - MARGIN - 24, y + 35, { align: "center" });
         }
 
-        y += 60;
-      });
+        y += 46;
+      }
 
-      y += 8; // Space between days
-    });
+      y += 6;
+    }
 
-    // Footer note
-    y += 10;
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
+    y += 5;
+    this.doc.setTextColor(...C.latte);
+    this.doc.setFontSize(T.micro);
     this.doc.setFont("helvetica", "italic");
-    const footerLines = this.doc.splitTextToSize(
-      "Meal plan curated from highly-rated partner restaurants. All prices and availability subject to change. Images and detailed descriptions available in the Nutrio app.",
-      CONTENT_WIDTH
-    );
-    this.doc.text(footerLines, MARGIN, y);
+    this.doc.text("Meals curated from partner restaurants. Availability and prices subject to change.", MARGIN, y);
   }
 
-  private renderMealPlaceholder(
-    x: number,
-    y: number,
-    size: number,
-    color: [number, number, number],
-    icon: string
-  ) {
-    // Gradient-like background using multiple rectangles
-    // Base color
-    this.doc.setFillColor(...color);
-    this.doc.roundedRect(x, y, size, size, 3, 3, "F");
+  // ═══════════════════════════════════════════════════
+  //  11. TRENDS
+  // ═══════════════════════════════════════════════════
 
-    // Lighter overlay for gradient effect (top half)
-    const lighterColor = color.map(c => Math.min(255, c + 40)) as [number, number, number];
-    this.doc.setFillColor(...lighterColor);
-    this.doc.roundedRect(x, y, size, size / 2, 3, 3, "F");
-
-    // White circle overlay for icon
-    this.doc.setFillColor(255, 255, 255);
-    this.doc.circle(x + size / 2, y + size / 2, 10, "F");
-
-    // Icon text
-    this.doc.setTextColor(...color);
-    this.setFontSize(12);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(icon, x + size / 2, y + size / 2 + 4, { align: "center" });
-
-    // Add "No Image" text below icon
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(5);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("No Image", x + size / 2, y + size - 4, { align: "center" });
-  }
-
-  private addTrendAnalysis(data: WeeklyReportData) {
+  private addTrends(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("11. PERFORMANCE TRENDS");
+    this.sectionHeader("11", "Your Trends", y);
+    y += 25;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text("Directional analysis of your key nutrition metrics.", MARGIN, y);
+    this.doc.text("Direction of your key metrics.", MARGIN, y);
     y += 15;
 
     if (data.daysLogged < 4) {
-      this.doc.setFillColor(...COLORS.background);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 40, 6, 6, "F");
-
-      this.doc.setFillColor(...COLORS.warning);
-      this.doc.roundedRect(MARGIN, y, 4, 40, 2, 2, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(9);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text("Insufficient Data", MARGIN + 10, y + 12);
-
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      this.doc.text("Trend analysis requires at least 4 days of consistent tracking.", MARGIN + 10, y + 25);
-      this.doc.text("Continue logging your meals to unlock trend insights.", MARGIN + 10, y + 33);
+      this.insightBox(MARGIN, y, CONTENT_W, "Not enough data yet",
+        `Trend analysis needs at least 4 days of tracking. You've logged ${data.daysLogged} day${data.daysLogged === 1 ? "" : "s"} this week — keep going to unlock trend insights.`,
+        C.amber);
       return;
     }
 
-    // Trends
     const trends = [
-      { label: "Calorie Intake", trend: data.avgCalories > data.calorieTarget ? "Above Target" : data.avgCalories < data.calorieTarget * 0.9 ? "Below Target" : "On Target", color: data.avgCalories > data.calorieTarget ? COLORS.primary : data.avgCalories < data.calorieTarget * 0.9 ? COLORS.warning : COLORS.success },
-      { label: "Protein Intake", trend: (data.avgProtein / data.proteinTarget) >= 0.9 ? "Meeting Target" : "Below Target", color: (data.avgProtein / data.proteinTarget) >= 0.9 ? COLORS.success : COLORS.warning },
-      { label: "Logging Consistency", trend: data.consistencyScore >= 70 ? "Strong" : data.consistencyScore >= 40 ? "Moderate" : "Needs Attention", color: data.consistencyScore >= 70 ? COLORS.success : data.consistencyScore >= 40 ? COLORS.warning : COLORS.primary },
-      { label: "Intake Stability", trend: this.calculateVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) < 15 ? "Consistent" : "Variable", color: this.calculateVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) < 15 ? COLORS.success : COLORS.warning },
+      { label: "Calorie Intake", trend: data.avgCalories > data.calorieTarget ? "Above target" : data.avgCalories < data.calorieTarget * 0.9 ? "Below target" : "On target", color: data.avgCalories > data.calorieTarget ? C.amber : data.avgCalories < data.calorieTarget * 0.9 ? C.terracotta : C.sage },
+      { label: "Protein Intake", trend: (data.avgProtein / data.proteinTarget) >= 0.9 ? "Meeting target" : "Below target", color: (data.avgProtein / data.proteinTarget) >= 0.9 ? C.sage : C.amber },
+      { label: "Consistency", trend: data.consistencyScore >= 70 ? "Strong" : data.consistencyScore >= 40 ? "Moderate" : "Growing", color: data.consistencyScore >= 70 ? C.sage : data.consistencyScore >= 40 ? C.amber : C.terracotta },
+      { label: "Intake Stability", trend: this.calcVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) < 15 ? "Consistent" : "Variable", color: this.calcVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) < 15 ? C.sage : C.amber },
     ];
 
-    trends.forEach((trend, idx) => {
-      const ty = y + idx * 18;
-      
-      this.doc.setFillColor(...trend.color);
-      this.doc.circle(MARGIN + 5, ty - 2, 5, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(9);
+    for (const t of trends) {
+      this.doc.setFillColor(...t.color);
+      this.doc.circle(MARGIN + 6, y + 6, 5, "F");
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(T.small);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(trend.label, MARGIN + 15, ty);
-
-      this.doc.setTextColor(...trend.color);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text(trend.trend, MARGIN + 75, ty);
-    });
-
-    y += 90;
-
-    // Trend summary
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 35, 6, 6, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Trend Summary", MARGIN + 10, y + 12);
-
-    const positiveTrends = trends.filter(t => t.color === COLORS.success).length;
-    const trendText = positiveTrends >= 3
-      ? `${positiveTrends} of 4 metrics are trending positively. You're building strong habits that support your goals.`
-      : positiveTrends >= 2
-      ? `2 of 4 metrics are on track. Focus on the areas flagged for improvement to build more consistency.`
-      : `Most metrics need attention. Small, daily improvements will create meaningful progress over time.`;
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    const lines = this.doc.splitTextToSize(trendText, CONTENT_WIDTH - 24);
-    this.doc.text(lines, MARGIN + 10, y + 22);
-  }
-
-  private addPredictiveTimeline(data: WeeklyReportData) {
-    this.doc.addPage();
-    this.pageNumber++;
-    let y = 45;
-
-    this.addSectionHeader("12. PROGRESS TIMELINE");
-
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("Estimated timeline to goal alignment based on current patterns.", MARGIN, y);
-    y += 15;
-
-    // Based on section
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(9);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Current Metrics:", MARGIN, y);
+      this.doc.text(t.label, MARGIN + 16, y + 9);
+      this.statBadge(MARGIN + 100, y + 2, t.trend, t.color);
+      y += 22;
+    }
 
     y += 10;
 
+    const posCount = trends.filter(t => t.color === C.sage).length;
+    const tInsight = posCount >= 3
+      ? `${posCount} of 4 metrics are trending well. Your habits are building a strong foundation.`
+      : posCount >= 2
+      ? `${posCount} of 4 are on track. Focus on the areas with room to grow — small steps add up.`
+      : "Most metrics show room for growth. Each day is a fresh opportunity to build momentum.";
+
+    this.insightBox(MARGIN, y, CONTENT_W, "Trend summary", tInsight, C.sage);
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  12. LOOKING AHEAD
+  // ═══════════════════════════════════════════════════
+
+  private addLookingAhead(data: WeeklyReportData) {
+    this.doc.addPage();
+    this.pageNumber++;
+    let y = 30;
+
+    this.sectionHeader("12", "Looking Ahead", y);
+    y += 25;
+
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text("Projected timeline based on your current pace.", MARGIN, y);
+    y += 15;
+
+    // Current metrics
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Current metrics", MARGIN, y);
+    y += 8;
+
     const factors = [
       `Average intake: ${Math.round(data.avgCalories).toLocaleString()} kcal/day`,
-      `Selected goal: ${data.activeGoal || 'General Health'}`,
-      `Tracking consistency: ${data.consistencyScore}%`,
+      `Goal: ${data.activeGoal || "General wellness"}`,
+      `Consistency: ${data.consistencyScore}%`,
     ];
+    for (const f of factors) {
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.small);
+      this.doc.text(`·  ${f}`, MARGIN + 5, y);
+      y += 8;
+    }
 
-    factors.forEach((factor, idx) => {
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      this.doc.text(`- ${factor}`, MARGIN + 5, y + idx * 8);
-    });
-
-    y += 40;
-
-    // Estimated Timeline
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 55, 8, 8, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(11);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Projected Timeline", MARGIN + 10, y + 15);
+    y += 10;
 
     if (data.daysLogged >= 4) {
-      const weeks = this.calculateTimeline(data);
-      const speed = weeks > 12 ? "Gradual" : weeks > 6 ? "Moderate" : "Accelerated";
-      
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      this.doc.text("At your current pace:", MARGIN + 10, y + 28);
+      const weeks = this.calcTimeline(data);
+      const speed = weeks > 12 ? "Gradual" : weeks > 6 ? "Moderate" : "Steady";
 
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(14);
+      this.card(MARGIN, y, CONTENT_W, 44, C.sage);
+
+      this.doc.setTextColor(...C.mocha);
+      this.doc.setFontSize(T.small);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text("At your current pace", MARGIN + 12, y + 12);
+
+      this.doc.setTextColor(...C.espresso);
+      this.doc.setFontSize(26);
       this.doc.setFont("helvetica", "bold");
-      this.doc.text(`${weeks} weeks`, MARGIN + 10, y + 42);
+      this.doc.text(`${weeks} weeks`, MARGIN + 12, y + 32);
 
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      this.doc.text(`Progress rate: ${speed}`, MARGIN + 10, y + 50);
+      this.statBadge(MARGIN + 80, y + 16, `Progress: ${speed}`, C.sage);
 
-      // Note about consistency impact
       if (data.consistencyScore < 60) {
-        this.doc.setTextColor(...COLORS.warning);
-        this.setFontSize(7);
-        this.doc.text("* Improving tracking consistency could accelerate this timeline.", MARGIN + 10, y + 58);
+        this.doc.setTextColor(...C.terracotta);
+        this.doc.setFontSize(T.micro);
+        this.doc.setFont("helvetica", "italic");
+        this.doc.text("Better tracking consistency could speed up this timeline.", MARGIN + 12, y + 40);
       }
     } else {
-      this.doc.setFillColor(...COLORS.warning);
-      this.doc.roundedRect(MARGIN + 10, y + 20, 4, 20, 2, 2, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(9);
-      this.doc.text("More Data Needed", MARGIN + 20, y + 28);
-
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(7);
-      this.doc.text("Timeline projections require at least 4 days of tracking data.", MARGIN + 20, y + 36);
-      this.doc.text(`You've logged ${data.daysLogged} days so far. Keep tracking to see projections.`, MARGIN + 20, y + 44);
+      this.insightBox(MARGIN, y, CONTENT_W, "More data needed",
+        `Timeline projections need at least 4 days of tracking. You've logged ${data.daysLogged} day${data.daysLogged === 1 ? "" : "s"} — keep tracking to see your projected timeline.`,
+        C.amber);
     }
   }
 
-  private addDataAvailabilityStatus(data: WeeklyReportData) {
+  // ═══════════════════════════════════════════════════
+  //  13. DATA NOTES
+  // ═══════════════════════════════════════════════════
+
+  private addDataNotes(data: WeeklyReportData) {
     this.doc.addPage();
     this.pageNumber++;
-    let y = 45;
+    let y = 30;
 
-    this.addSectionHeader("13. DATA COMPLETENESS");
+    this.sectionHeader("13", "About This Report", y);
+    y += 30;
 
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("Indicates how much tracking data was available for this analysis.", MARGIN, y);
-    y += 15;
-
-    this.doc.setFillColor(...COLORS.card);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 55, 8, 8, "F");
-
-    let statusText = "";
-    let statusColor = COLORS.textSecondary;
-    let statusTitle = "";
-
+    // Data completeness
+    let title: string, text: string, color: [number, number, number];
     if (data.daysLogged < 3) {
-      statusTitle = "Limited Dataset";
-      statusText = "This report contains preliminary insights based on limited tracking data. For a comprehensive analysis that unlocks personalized recommendations and predictive features, aim to log at least 5 days per week.";
-      statusColor = COLORS.warning;
+      title = "Limited data"; text = "This report has preliminary insights based on limited tracking. Try logging at least 5 days for a fuller picture.";
+      color = C.terracotta;
     } else if (data.daysLogged < 6) {
-      statusTitle = "Moderate Dataset";
-      statusText = "This report provides meaningful insights based on your logged data. For the most accurate analysis and trend detection, continue improving your daily tracking consistency.";
-      statusColor = COLORS.accent;
+      title = "Good coverage"; text = "This report provides meaningful insights. More consistent tracking will unlock deeper analysis.";
+      color = C.amber;
     } else {
-      statusTitle = "Complete Dataset";
-      statusText = "This report is based on comprehensive tracking data from the week. All analysis features and recommendations are fully activated.";
-      statusColor = COLORS.success;
+      title = "Full picture"; text = "This report draws from comprehensive tracking data. All analysis features are fully active.";
+      color = C.sage;
     }
 
-    this.doc.setFillColor(...statusColor);
-    this.doc.roundedRect(MARGIN, y, 5, 55, 2, 2, "F");
-
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(10);
+    this.card(MARGIN, y, CONTENT_W, 48, color);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.h3);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(statusTitle, MARGIN + 12, y + 15);
-
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
+    this.doc.text(`Data completeness: ${title}`, MARGIN + 12, y + 14);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    const lines = this.doc.splitTextToSize(statusText, CONTENT_WIDTH - 28);
-    this.doc.text(lines, MARGIN + 12, y + 28);
+    const lines = this.doc.splitTextToSize(text, CONTENT_W - 24);
+    this.doc.text(lines, MARGIN + 12, y + 26);
+    this.doc.setTextColor(...C.latte);
+    this.doc.setFontSize(T.micro);
+    this.doc.text(`Days logged: ${data.daysLogged} of 7`, MARGIN + 12, y + 42);
 
-    // Days logged indicator
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(7);
-    this.doc.text(`Days logged this week: ${data.daysLogged} of 7`, MARGIN + 12, y + 50);
-  }
+    y += 58;
 
-  private addDisclaimer(_data: WeeklyReportData) {
-    this.doc.addPage();
-    this.pageNumber++;
-    let y = 45;
-
-    this.addSectionHeader("14. ABOUT THIS REPORT");
-
-    // Executive Summary
-    this.doc.setTextColor(...COLORS.textSecondary);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("Important information about the data and purpose of this report.", MARGIN, y);
-    y += 15;
-
-    this.doc.setFillColor(...COLORS.slate);
-    this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 50, 6, 6, "F");
-
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(8);
+    // Disclaimer
+    this.card(MARGIN, y, CONTENT_W, 50, C.sage);
+    this.doc.setTextColor(...C.espresso);
+    this.doc.setFontSize(T.body);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text("Purpose & Limitations", MARGIN + 10, y + 12);
+    this.doc.text("Purpose & Notes", MARGIN + 12, y + 12);
 
-    this.doc.setTextColor(255, 255, 255);
-    this.setFontSize(7);
+    this.doc.setTextColor(...C.mocha);
+    this.doc.setFontSize(T.small);
     this.doc.setFont("helvetica", "normal");
-    
-    const disclaimerParagraphs = [
-      "This report is generated from your self-reported nutrition tracking data. It is designed for lifestyle performance optimization and habit awareness.",
-      "This is not a medical report. It does not provide medical advice, diagnosis, or clinical evaluation. Always consult qualified healthcare professionals for medical guidance."
-    ];
-    
-    this.doc.text(disclaimerParagraphs[0], MARGIN + 10, y + 24, { maxWidth: CONTENT_WIDTH - 20 });
-    this.doc.text(disclaimerParagraphs[1], MARGIN + 10, y + 38, { maxWidth: CONTENT_WIDTH - 20 });
+    const d1 = this.doc.splitTextToSize(
+      "This report is generated from your self-reported nutrition tracking data for lifestyle awareness and habit building.",
+      CONTENT_W - 24
+    );
+    this.doc.text(d1, MARGIN + 12, y + 24);
+
+    const d2 = this.doc.splitTextToSize(
+      "This is not medical advice. Always consult qualified healthcare professionals for medical guidance. Nutrio helps you understand your patterns — your health decisions are yours.",
+      CONTENT_W - 24
+    );
+    this.doc.text(d2, MARGIN + 12, y + 36);
   }
 
-  // Helper methods
+  // ═══════════════════════════════════════════════════
+  //  CALCULATION HELPERS
+  // ═══════════════════════════════════════════════════
 
-  private addSectionHeader(title: string) {
-    // Header bar with logo + brand + section title
-    this.doc.setFillColor(...COLORS.background);
-    this.doc.rect(0, 0, PAGE_WIDTH, 18, "F");
-
-    // Small logo circle in header
-    if (this.logoBase64) {
-      try {
-        const raw = this.logoBase64.split(',')[1] || this.logoBase64;
-        this.doc.addImage(raw, 'PNG', MARGIN, 3, 12, 12, undefined, 'FAST');
-      } catch {
-        this.drawTextLogo(MARGIN + 6, 9, 5, false);
-      }
-    } else {
-      this.drawTextLogo(MARGIN + 6, 9, 5, false);
-    }
-
-    this.doc.setTextColor(...COLORS.primaryDark);
-    this.setFontSize(8);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text("Nutrio", MARGIN + 15, 11);
-
-    // Top accent line
-    this.drawGradientBar(0, 18, PAGE_WIDTH, 1, COLORS.gradientStart, COLORS.gradientEnd);
-
-    // Section title
-    this.doc.setTextColor(...COLORS.textPrimary);
-    this.setFontSize(12);
-    this.doc.setFont("helvetica", "bold");
-    this.doc.text(title, MARGIN, 30);
-
-    this.doc.setDrawColor(...COLORS.primary);
-    this.doc.setLineWidth(0.8);
-    this.doc.line(MARGIN, 33, MARGIN + 40, 33);
-  }
-
-  private stampFooter(pageNum: number) {
-    const y = 287;
-
-    this.doc.setDrawColor(...COLORS.border);
-    this.doc.setLineWidth(0.3);
-    this.doc.line(MARGIN, y - 4, PAGE_WIDTH - MARGIN, y - 4);
-
-    this.doc.setTextColor(...COLORS.textMuted);
-    this.setFontSize(6.5);
-    this.doc.setFont("helvetica", "normal");
-    this.doc.text("Nutrio  |  Nutrition Intelligence Report", MARGIN, y);
-    this.doc.text(`${pageNum} / ${this.totalPages}`, PAGE_WIDTH - MARGIN, y, { align: "right" });
-
-    // Bottom accent line
-    this.drawGradientBar(0, 293, PAGE_WIDTH, 1, COLORS.gradientStart, COLORS.gradientEnd);
-  }
-
-  private drawGradientBar(x: number, y: number, width: number, height: number, start: [number, number, number], end: [number, number, number]) {
-    const steps = 20;
-    const stepWidth = width / steps;
-    for (let i = 0; i < steps; i++) {
-      const ratio = i / steps;
-      const r = Math.round(start[0] + (end[0] - start[0]) * ratio);
-      const g = Math.round(start[1] + (end[1] - start[1]) * ratio);
-      const b = Math.round(start[2] + (end[2] - start[2]) * ratio);
-      this.doc.setFillColor(r, g, b);
-      this.doc.rect(x + i * stepWidth, y, stepWidth + 0.5, height, "F");
-    }
-  }
-
-  private calculateOverallScore(data: WeeklyReportData): number {
+  private calcOverallScore(data: WeeklyReportData): number {
     const scores = [
       data.consistencyScore * 0.30,
       Math.min(100, Math.round((data.avgCalories / data.calorieTarget) * 100)) * 0.25,
@@ -1726,325 +1441,97 @@ export class ProfessionalWeeklyReportPDF {
     return Math.round(scores.reduce((a, b) => a + b, 0));
   }
 
-  private calculateVariance(values: number[]): number {
+  private calcVariance(values: number[]): number {
     if (values.length === 0) return 0;
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
-    const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / squaredDiffs.length;
-    return Math.sqrt(avgSquaredDiff) / mean * 100;
+    return Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / squaredDiffs.length) / mean * 100;
   }
 
-  private calculateMomentum(data: WeeklyReportData): number {
-    let momentum = 0;
-    if (data.consistencyScore > 50) momentum += 2;
-    if ((data.avgProtein / data.proteinTarget) > 0.7) momentum += 2;
-    if (this.calculateVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) < 20) momentum += 2;
-    if (data.waterAverage > 5) momentum += 2;
-    if (data.currentStreak > 3) momentum += 2;
-    return momentum - 5;
+  private calcMomentum(data: WeeklyReportData): number {
+    let m = 0;
+    if (data.consistencyScore > 50) m += 2;
+    if ((data.avgProtein / data.proteinTarget) > 0.7) m += 2;
+    if (this.calcVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) < 20) m += 2;
+    if (data.waterAverage > 5) m += 2;
+    if (data.currentStreak > 3) m += 2;
+    return m - 5;
   }
 
   private detectHabitRisks(data: WeeklyReportData): string[] {
-    const risks: string[] = [];
-    
-    if (data.daysLogged <= 3) risks.push("Limited tracking: Only " + data.daysLogged + " days logged. Aim for 5+ days for meaningful insights.");
-    if (this.calculateVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) > 25) risks.push("Variable intake: Daily calories fluctuate significantly. Meal planning may help.");
-    if ((data.avgProtein / data.proteinTarget) < 0.5) risks.push("Protein gap: Intake at " + Math.round((data.avgProtein / data.proteinTarget) * 100) + "% of target. Consider protein-rich additions.");
-    
-    const weekendDays = data.dailyData.filter(d => {
+    const r: string[] = [];
+    if (data.daysLogged <= 3) r.push(`Only ${data.daysLogged} days tracked — aim for 5+ for meaningful insights`);
+    if (this.calcVariance(data.dailyData.map(d => d.calories).filter(c => c > 0)) > 25) r.push("Daily calories fluctuate quite a bit — meal planning may help smooth things out");
+    if ((data.avgProtein / data.proteinTarget) < 0.5) r.push(`Protein at ${Math.round((data.avgProtein / data.proteinTarget) * 100)}% of target — consider adding protein-rich foods`);
+    const weekendHigh = data.dailyData.filter(d => {
       const day = new Date(d.date).getDay();
       return (day === 0 || day === 6) && d.calories > data.calorieTarget * 1.3;
     });
-    if (weekendDays.length > 0) risks.push("Weekend pattern: Higher intake detected on weekends. Consider pre-planning.");
-    
-    return risks;
+    if (weekendHigh.length > 0) r.push("Higher intake on weekends — pre-planning weekend meals could help");
+    return r;
   }
 
-  private calculateTimeline(data: WeeklyReportData): number {
-    const calorieDiff = Math.abs(data.avgCalories - data.calorieTarget);
-    const consistency = data.consistencyScore / 100;
-    const baseWeeks = calorieDiff > 300 ? 12 : calorieDiff > 100 ? 8 : 4;
-    return Math.round(baseWeeks / Math.max(consistency, 0.3));
+  private calcTimeline(data: WeeklyReportData): number {
+    const diff = Math.abs(data.avgCalories - data.calorieTarget);
+    const c = data.consistencyScore / 100;
+    const base = diff > 300 ? 12 : diff > 100 ? 8 : 4;
+    return Math.round(base / Math.max(c, 0.3));
   }
 
   private generateQuickInsight(data: WeeklyReportData): string {
-    if (data.daysLogged < 3) {
-      return "Welcome to your nutrition tracking journey. You've logged " + data.daysLogged + " day" + (data.daysLogged === 1 ? "" : "s") + " this week. To unlock personalized insights and recommendations, aim to track at least 4-5 days consistently.";
-    }
-    
+    if (data.daysLogged < 3) return `You've logged ${data.daysLogged} day${data.daysLogged === 1 ? "" : "s"} this week. Keep tracking to unlock personalized insights and a fuller picture of your wellness.`;
+
     const parts: string[] = [];
-    
-    if (data.consistencyScore >= 80) {
-      parts.push(`Strong week: ${data.consistencyScore}% logging consistency demonstrates committed tracking habits.`);
-    } else if (data.consistencyScore >= 50) {
-      parts.push(`Good progress: You maintained tracking for ${data.daysLogged} days this week.`);
-    } else {
-      parts.push(`This week you logged ${data.daysLogged} days. Increasing consistency will provide more accurate insights.`);
-    }
-    
-    const calorieDiff = data.avgCalories - data.calorieTarget;
-    const calorieAlignment = Math.abs(calorieDiff) / data.calorieTarget;
-    if (calorieAlignment < 0.05) {
-      parts.push(`Your calorie intake aligned closely with your target.`);
-    } else if (calorieDiff > 0) {
-      parts.push(`Your intake averaged ${Math.round(calorieDiff)} calories above target.`);
-    } else {
-      parts.push(`Your intake averaged ${Math.round(Math.abs(calorieDiff))} calories below target.`);
-    }
-    
-    const proteinRatio = data.avgProtein / data.proteinTarget;
-    if (proteinRatio >= 0.9) {
-      parts.push(`Excellent protein intake at ${Math.round(proteinRatio * 100)}% of your goal.`);
-    } else if (proteinRatio < 0.6) {
-      parts.push(`Protein intake at ${Math.round(proteinRatio * 100)}% of target. Consider adding protein sources to meals.`);
-    }
-    
+    if (data.consistencyScore >= 80) parts.push(`${data.consistencyScore}% tracking consistency shows real dedication.`);
+    else if (data.consistencyScore >= 50) parts.push(`You tracked ${data.daysLogged} days — a solid foundation to build on.`);
+    else parts.push(`You logged ${data.daysLogged} days. Even small increases in consistency bring richer insights.`);
+
+    const diff = data.avgCalories - data.calorieTarget;
+    if (Math.abs(diff) < 50) parts.push("Your calorie intake aligned beautifully with your target.");
+    else if (diff > 0) parts.push(`Intake averaged ${Math.round(diff)} calories above target.`);
+    else parts.push(`Intake averaged ${Math.round(Math.abs(diff))} calories below target.`);
+
+    const pr = data.avgProtein / data.proteinTarget;
+    if (pr >= 0.9) parts.push(`Protein at ${Math.round(pr * 100)}% of goal — nicely done.`);
+    else if (pr < 0.6) parts.push(`Protein at ${Math.round(pr * 100)}% of target — there's room to grow here.`);
+
     return parts.join(" ");
   }
 
-  private generateMealRecommendations(data: WeeklyReportData): Array<{ title: string; description: string }> {
+  private generateMealRecs(data: WeeklyReportData): Array<{ title: string; description: string }> {
     const recs: Array<{ title: string; description: string }> = [];
-    
-    const proteinRatio = data.avgProtein / data.proteinTarget;
-    if (proteinRatio < 0.8) {
-      recs.push({
-        title: "Add Protein to Every Meal",
-        description: "Include a protein source at each meal: eggs at breakfast, chicken or fish at lunch and dinner, Greek yogurt or nuts as snacks."
-      });
+    if ((data.avgProtein / data.proteinTarget) < 0.8) {
+      recs.push({ title: "Add protein to each meal", description: "Try eggs at breakfast, chicken or fish at lunch and dinner, Greek yogurt or nuts for snacks — small additions make a difference." });
     }
-    
-    const calorieDiff = data.avgCalories - data.calorieTarget;
-    if (Math.abs(calorieDiff) > 200) {
-      recs.push({
-        title: "Plan Meals Ahead",
-        description: "Spend 10 minutes each evening planning tomorrow's meals. This reduces impulsive choices and helps align intake with your targets."
-      });
+    if (Math.abs(data.avgCalories - data.calorieTarget) > 200) {
+      recs.push({ title: "Plan tomorrow tonight", description: "Spend a few minutes each evening planning the next day's meals. This gentle habit reduces impulsive choices and helps you stay aligned." });
     }
-    
     if (data.consistencyScore < 70) {
-      recs.push({
-        title: "Establish Logging Rituals",
-        description: "Link logging to existing habits: log breakfast while having coffee, lunch right after eating, dinner during evening wind-down."
-      });
+      recs.push({ title: "Anchor logging to routines", description: "Link meal logging to something you already do: log breakfast with coffee, lunch right after eating, dinner during evening wind-down." });
     }
-    
     if (recs.length < 3) {
-      recs.push({
-        title: "Prep Components on Weekends",
-        description: "Prepare versatile ingredients on weekends: grilled chicken, roasted vegetables, cooked grains. Mix and match during the week for quick, balanced meals."
-      });
+      recs.push({ title: "Prep once, eat all week", description: "Prepare a few versatile ingredients on the weekend — grilled chicken, roasted vegetables, cooked grains — then mix and match during the week." });
     }
-    
     return recs.slice(0, 3);
   }
 
-  private addTrackerInsights(data: WeeklyReportData) {
-    const insights = data.trackerInsights!;
-    this.doc.addPage();
-    this.pageNumber++;
-    let y = 45;
-
-    this.addSectionHeader("TRACKER INSIGHTS");
-
-    // ── BMI Card ──
-    if (insights.bmi !== null) {
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 50, 8, 8, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(11);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text("BMI (Body Mass Index)", MARGIN + 10, y + 14);
-
-      // BMI value
-      this.doc.setTextColor(...COLORS.primary);
-      this.setFontSize(22);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text(insights.bmi.toFixed(1), MARGIN + 10, y + 34);
-
-      // BMI label
-      const bmiColor = insights.bmi < 18.5 ? COLORS.accent
-        : insights.bmi < 25 ? COLORS.success
-        : insights.bmi < 30 ? COLORS.warning
-        : COLORS.danger;
-      this.doc.setFillColor(...bmiColor);
-      this.doc.roundedRect(MARGIN + 40, y + 24, 55, 14, 7, 7, "F");
-      this.doc.setTextColor(...COLORS.white);
-      this.setFontSize(8);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text(insights.bmiLabel || "Normal", MARGIN + 67.5, y + 33, { align: "center" });
-
-      // Height
-      if (insights.heightCm) {
-        this.doc.setTextColor(...COLORS.textSecondary);
-        this.setFontSize(8);
-        this.doc.setFont("helvetica", "normal");
-        this.doc.text(`Height: ${insights.heightCm} cm`, MARGIN + 110, y + 20);
-      }
-
-      // BMI range bar
-      const barX = MARGIN + 10;
-      const barY = y + 43;
-      const barW = CONTENT_WIDTH - 20;
-      const barH = 4;
-      const segments = [
-        { color: COLORS.accent, label: "Under" },
-        { color: COLORS.success, label: "Normal" },
-        { color: COLORS.warning, label: "Over" },
-        { color: [255, 120, 50] as [number,number,number], label: "Obese I" },
-        { color: COLORS.danger, label: "Obese II" },
-      ];
-      segments.forEach((seg, i) => {
-        this.doc.setFillColor(...seg.color);
-        this.doc.roundedRect(barX + i * (barW / 5), barY, barW / 5 - 1, barH, 2, 2, "F");
-      });
-      // BMI needle
-      const needleX = barX + Math.min(Math.max((insights.bmi - 15) / 25, 0), 1) * barW;
-      this.doc.setFillColor(...COLORS.textPrimary);
-      this.doc.circle(needleX, barY + barH / 2, 2, "F");
-
-      y += 60;
-    }
-
-    // ── Weekly Steps Chart ──
-    if (insights.dailySteps.length > 0) {
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 70, 8, 8, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(11);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text("Daily Steps", MARGIN + 10, y + 14);
-
-      const totalSteps = insights.dailySteps.reduce((s, d) => s + d.steps, 0);
-      const avgSteps = Math.round(totalSteps / Math.max(insights.dailySteps.length, 1));
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      this.doc.setFont("helvetica", "normal");
-      this.doc.text(`Weekly Avg: ${avgSteps.toLocaleString()} steps/day  |  Goal: ${insights.stepGoal.toLocaleString()} steps`, MARGIN + 10, y + 22);
-
-      // Bar chart
-      const chartX = MARGIN + 10;
-      const chartY = y + 28;
-      const chartH = 30;
-      const chartW = CONTENT_WIDTH - 20;
-      const maxSteps = Math.max(...insights.dailySteps.map(d => d.steps), insights.stepGoal, 1);
-      const barW2 = chartW / insights.dailySteps.length - 2;
-
-      insights.dailySteps.forEach((d, i) => {
-        const barH2 = (d.steps / maxSteps) * chartH;
-        const bx = chartX + i * (chartW / insights.dailySteps.length);
-        const by = chartY + chartH - barH2;
-        const barColor = d.steps >= insights.stepGoal ? COLORS.success : COLORS.primary;
-        this.doc.setFillColor(...barColor);
-        this.doc.roundedRect(bx, by, barW2, barH2, 2, 2, "F");
-
-        // Day label
-        this.doc.setTextColor(...COLORS.textMuted);
-        this.setFontSize(6);
-        this.doc.setFont("helvetica", "normal");
-        const dayLabel = format(new Date(d.date), "EEE");
-        this.doc.text(dayLabel, bx + barW2 / 2, chartY + chartH + 6, { align: "center" });
-      });
-
-      // Goal line
-      const goalY = chartY + chartH - (insights.stepGoal / maxSteps) * chartH;
-      this.doc.setDrawColor(...COLORS.warning);
-      this.doc.setLineDashPattern([2, 2], 0);
-      this.doc.line(chartX, goalY, chartX + chartW, goalY);
-      this.doc.setLineDashPattern([], 0);
-
-      y += 80;
-    }
-
-    // ── Weekly Water Chart ──
-    if (insights.dailyWater.length > 0) {
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 70, 8, 8, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(11);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text("Daily Water Intake (mL)", MARGIN + 10, y + 14);
-
-      const avgWater = Math.round(insights.dailyWater.reduce((s, d) => s + d.waterMl, 0) / Math.max(insights.dailyWater.length, 1));
-      this.doc.setTextColor(...COLORS.textSecondary);
-      this.setFontSize(8);
-      this.doc.setFont("helvetica", "normal");
-      this.doc.text(`Weekly Avg: ${avgWater.toLocaleString()} mL/day  |  Goal: ${insights.waterTargetMl.toLocaleString()} mL`, MARGIN + 10, y + 22);
-
-      const chartX = MARGIN + 10;
-      const chartY = y + 28;
-      const chartH = 30;
-      const chartW = CONTENT_WIDTH - 20;
-      const maxWater = Math.max(...insights.dailyWater.map(d => d.waterMl), insights.waterTargetMl, 1);
-      const barW3 = chartW / insights.dailyWater.length - 2;
-
-      insights.dailyWater.forEach((d, i) => {
-        const barH3 = (d.waterMl / maxWater) * chartH;
-        const bx = chartX + i * (chartW / insights.dailyWater.length);
-        const by = chartY + chartH - barH3;
-        const barColor = d.waterMl >= insights.waterTargetMl ? COLORS.success : COLORS.accent;
-        this.doc.setFillColor(...barColor);
-        this.doc.roundedRect(bx, by, barW3, barH3, 2, 2, "F");
-
-        this.doc.setTextColor(...COLORS.textMuted);
-        this.setFontSize(6);
-        this.doc.setFont("helvetica", "normal");
-        const dayLabel = format(new Date(d.date), "EEE");
-        this.doc.text(dayLabel, bx + barW3 / 2, chartY + chartH + 6, { align: "center" });
-      });
-
-      // Goal line
-      const goalY2 = chartY + chartH - (insights.waterTargetMl / maxWater) * chartH;
-      this.doc.setDrawColor(...COLORS.warning);
-      this.doc.setLineDashPattern([2, 2], 0);
-      this.doc.line(chartX, goalY2, chartX + chartW, goalY2);
-      this.doc.setLineDashPattern([], 0);
-
-      y += 80;
-    }
-
-    // ── Weight History Table ──
-    const validWeights = insights.weightHistory.filter(w => w.weight_kg !== null);
-    if (validWeights.length > 0) {
-      this.doc.setFillColor(...COLORS.card);
-      this.doc.roundedRect(MARGIN, y, CONTENT_WIDTH, 14 + validWeights.length * 10, 8, 8, "F");
-
-      this.doc.setTextColor(...COLORS.textPrimary);
-      this.setFontSize(11);
-      this.doc.setFont("helvetica", "bold");
-      this.doc.text("Weight History (kg)", MARGIN + 10, y + 14);
-
-      autoTable(this.doc, {
-        startY: y + 18,
-        head: [["Date", "Weight (kg)"]],
-        body: validWeights.map(w => [
-          format(new Date(w.date), "MMM d, yyyy"),
-          w.weight_kg!.toFixed(1),
-        ]),
-        theme: "plain",
-        headStyles: { fillColor: COLORS.primary, textColor: [255, 255, 255], fontSize: 8, fontStyle: "bold" },
-        bodyStyles: { fontSize: 8, textColor: COLORS.textPrimary },
-        alternateRowStyles: { fillColor: COLORS.background },
-        margin: { left: MARGIN + 5, right: MARGIN + 5 },
-      });
-    }
-  }
+  // ═══════════════════════════════════════════════════
+  //  PUBLIC API
+  // ═══════════════════════════════════════════════════
 
   async download(data: WeeklyReportData, filename?: string) {
     await this.loadLogo();
     this.doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
-    const pdf = this.generate(data);
-    const defaultFilename = `nutrio-nutrition-report-${format(new Date(), "yyyy-MM-dd")}.pdf`;
-    pdf.save(filename || defaultFilename);
+    this.generate(data);
+    const defaultName = `nutrio-wellness-journal-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+    this.doc.save(filename || defaultName);
   }
 
   async getBlob(data: WeeklyReportData): Promise<Blob> {
     await this.loadLogo();
     this.doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
-    const pdf = this.generate(data);
-    return pdf.output("blob");
+    this.generate(data);
+    return this.doc.output("blob");
   }
 }
 

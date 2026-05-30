@@ -2,21 +2,22 @@ import { useEffect, useState } from "react";
 import { ChevronRight, Lock, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useBadges } from "@/hooks/useBadges";
+import { cn } from "@/lib/utils";
 
 type UserGamification = {
   xp: number;
   level: number;
   xpToNextLevel: number;
-  totalBadges: number;
 };
 
 export function GamificationWidget() {
   const { user } = useAuth();
+  const { badges, unlockedCount, totalCount } = useBadges(user?.id);
   const [gamification, setGamification] = useState<UserGamification>({
     xp: 0,
     level: 1,
     xpToNextLevel: 100,
-    totalBadges: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +27,7 @@ export function GamificationWidget() {
       return;
     }
 
-    const fetchGamificationData = async () => {
+    const fetchXpData = async () => {
       try {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
@@ -36,13 +37,6 @@ export function GamificationWidget() {
 
         if (profileError) throw profileError;
 
-        const { count, error: badgesError } = await supabase
-          .from("user_badges")
-          .select("badge_id", { count: "exact", head: true })
-          .eq("user_id", user.id);
-
-        if (badgesError) throw badgesError;
-
         const level = profile?.level || 1;
         const xp = profile?.xp || 0;
 
@@ -50,7 +44,6 @@ export function GamificationWidget() {
           xp,
           level,
           xpToNextLevel: level * 100,
-          totalBadges: count || 0,
         });
       } catch (err) {
         console.error("Error fetching gamification data:", err);
@@ -59,14 +52,13 @@ export function GamificationWidget() {
       }
     };
 
-    void fetchGamificationData();
+    void fetchXpData();
   }, [user?.id]);
 
   if (loading) return null;
 
   const xpProgress = Math.min((gamification.xp / gamification.xpToNextLevel) * 100, 100);
   const visibleProgress = xpProgress > 0 ? xpProgress : 8;
-  const displayedBadges = Math.min(gamification.totalBadges, 4);
 
   return (
     <div className="overflow-hidden rounded-[26px] border border-violet-200 bg-gradient-to-br from-[#FCF8FF] to-[#F6F0FF] shadow-[0_10px_24px_rgba(91,33,182,0.06)]">
@@ -109,11 +101,23 @@ export function GamificationWidget() {
           <div className="mt-2 h-2 rounded-full bg-white/80">
             <div className="h-full rounded-full bg-violet-500" style={{ width: `${xpProgress}%` }} />
           </div>
-          <p className="mt-4 text-[13px] font-semibold text-foreground">Badges ({displayedBadges}/4)</p>
+          <p className="mt-4 text-[13px] font-semibold text-foreground">
+            Badges ({unlockedCount}/{totalCount})
+          </p>
           <div className="mt-2 flex items-center gap-2">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-500">
-                <Lock className="h-4 w-4" />
+            {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, 4).map((badge) => (
+              <div key={badge.id} className="relative h-9 w-9">
+                <img
+                  src={badge.image}
+                  alt={badge.name}
+                  className={cn(
+                    "h-full w-full object-contain",
+                    badge.unlocked ? "" : "grayscale opacity-50",
+                  )}
+                />
+                {!badge.unlocked && (
+                  <Lock className="absolute inset-0 m-auto h-4 w-4 text-slate-400" />
+                )}
               </div>
             ))}
           </div>

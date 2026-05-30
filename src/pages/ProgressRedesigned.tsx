@@ -2,7 +2,8 @@ import type { LucideIcon } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  AlertCircle,
+  Activity,
+  Apple,
   ArrowLeft,
   ArrowDown,
   ArrowUp,
@@ -10,6 +11,8 @@ import {
   CalendarCheck,
   Check,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Crown,
   Droplet,
   Dumbbell,
@@ -19,13 +22,13 @@ import {
   Lock,
   Minus,
   Plus,
-  RefreshCw,
   Scale,
   Sparkles,
   Star,
   Target,
   Trophy,
   TrendingUp,
+  TrendingDown,
   UserRound,
   Wheat,
   Zap,
@@ -39,8 +42,17 @@ import { useWeeklySummary } from "@/hooks/useWeeklySummary";
 import { useStreak } from "@/hooks/useStreak";
 import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { useWaterIntake } from "@/hooks/useWaterIntake";
+import { useWeightChartData } from "@/hooks/useWeightChartData";
+import { useClientGoalProposals } from "@/hooks/useClientGoalProposals";
+import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
+import { useMealQuality } from "@/hooks/useMealQuality";
+import { useAIInsight } from "@/hooks/useAIInsight";
+import { AIInsightImageCard } from "@/components/progress/AIInsightImageCard";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useBadges } from "@/hooks/useBadges";
+import { useWeekdayData } from "@/hooks/useWeekdayData";
+import { BadgeCard } from "@/components/BadgeCard";
 
 type RingMetric = {
   label: string;
@@ -51,12 +63,7 @@ type RingMetric = {
   track: string;
 };
 
-const achievements = [
-  { label: "First Week Complete", Icon: Trophy, unlocked: true },
-  { label: "Protein Pro", Icon: Dumbbell, unlocked: true },
-  { label: "Hydration Hero", Icon: Lock, unlocked: false },
-  { label: "30-Day Streak", Icon: Lock, unlocked: false },
-];
+
 
 function ProgressRing({ value, size = 112, stroke = 8, color = "#51F3A0", label }: {
   value: number;
@@ -180,14 +187,60 @@ export default function ProgressRedesigned() {
   const { streaks, loading: streaksLoading } = useStreak(user?.id);
   const { todayProgress } = useTodayProgress(user?.id, new Date(), 0);
   const { dailySummary: waterSummary, addWater: addWaterIntake } = useWaterIntake(user?.id);
+  const { badges, unlockedCount, totalCount } = useBadges(user?.id);
+  const { days: weekdayData } = useWeekdayData(user?.id, activeGoal?.daily_calorie_target ?? 2000);
+  const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
   const { toast } = useToast();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<"today" | "week" | "goals">("goals");
+  const [activeTab, setActiveTab] = useState<"today" | "week" | "goals">("today");
   const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [newWeight, setNewWeight] = useState("");
   const [showWeekDetails, setShowWeekDetails] = useState(false);
+  const [showAllWeekBadges, setShowAllWeekBadges] = useState(false);
   const [showWaterTracker, setShowWaterTracker] = useState(false);
+  const {
+    proposals: coachProposals,
+    progress: coachGoalProgress,
+    loading: coachGoalsLoading,
+    acceptGoal: acceptCoachGoal,
+    rejectGoal: rejectCoachGoal,
+  } = useClientGoalProposals(user?.id);
+  const { recommendations: smartRecs, loading: smartRecsLoading, refresh: refreshRecs } = useSmartRecommendations(user?.id);
+  const { averageScore: mealQualityScore, weeklyQuality } = useMealQuality(user?.id);
+  const { weightChartData: weightHistory } = useWeightChartData(user?.id);
+
+  const aiContext = useMemo(() => {
+    if (!weeklySummary) return null;
+    const weekScores = weeklyQuality.map((d) => d.avgScore);
+    const thisWeek = weekScores.length >= 3 ? weekScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(-3).length : mealQualityScore;
+    const lastWeek = weekScores.length >= 6 ? weekScores.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(0, 3).length : null;
+    return {
+      weeklyMacros: {
+        avgCalories: weeklySummary.calories?.thisWeekAvg ?? 0,
+        avgProtein: weeklySummary.macros?.protein?.consumed ?? 0,
+        avgCarbs: weeklySummary.macros?.carbs?.consumed ?? 0,
+        avgFat: weeklySummary.macros?.fat?.consumed ?? 0,
+      },
+      goals: {
+        calorieTarget: activeGoal?.daily_calorie_target ?? 2000,
+        proteinTarget: activeGoal?.protein_target_g ?? 120,
+        goalType: activeGoal?.goal_type ?? "general",
+      },
+      mealQuality: {
+        avgScore: Math.round(thisWeek),
+        trend: lastWeek && lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : null,
+      },
+      streak: {
+        current: streaks?.logging?.currentStreak ?? 2,
+        best: streaks?.logging?.bestStreak ?? 2,
+      },
+      daysLogged: weeklySummary?.consistency?.daysLogged ?? 0,
+      waterAvg: waterSummary?.total ?? 0,
+    };
+  }, [weeklySummary, weeklyQuality, mealQualityScore, activeGoal, streaks, waterSummary]);
+
+  const { insight: aiInsight, loading: aiInsightLoading } = useAIInsight(user?.id, aiContext);
   const [isApplyingSuggestion, setIsApplyingSuggestion] = useState(false);
   const [isLoggingWeight, setIsLoggingWeight] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -210,6 +263,45 @@ export default function ProgressRedesigned() {
     return 72;
   }, [currentWeight, goalWeight]);
 
+  const goalRingValue = useMemo(() => {
+    const proteinPct = weeklySummary?.macros?.protein?.percentage ?? 0;
+    const consistencyPct = weeklySummary?.consistency?.percentage ?? 0;
+    switch (goalType) {
+      case "weight_loss": return progressPct;
+      case "muscle_gain": return proteinPct;
+      case "maintenance": return consistencyPct;
+      default: return Math.round((progressPct + proteinPct + consistencyPct) / 3);
+    }
+  }, [goalType, progressPct, weeklySummary]);
+
+  const goalRingLabel = useMemo(() => {
+    switch (goalType) {
+      case "weight_loss": return "to target";
+      case "muscle_gain": return "protein goal";
+      case "maintenance": return "on track";
+      default: return "wellness";
+    }
+  }, [goalType]);
+
+  const goalRightMetric = useMemo(() => {
+    switch (goalType) {
+      case "weight_loss": return { label: "Current Weight", value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
+      case "muscle_gain": return { label: "Weekly Avg Protein", value: `${weeklySummary?.macros?.protein?.consumed ?? 0}`, unit: "g" };
+      case "maintenance": return { label: "Current Weight", value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
+      default: return { label: "Current Streak", value: `${streaks.logging?.currentStreak ?? 0}`, unit: "days" };
+    }
+  }, [goalType, currentWeight, weeklySummary, streaks]);
+
+  const goalSubLabel = useMemo(() => {
+    const isLoss = goalType === "weight_loss";
+    switch (goalType) {
+      case "weight_loss": return isLoss ? `−${weightDiff.toFixed(0)} kg target` : `+${weightDiff.toFixed(0)} kg target`;
+      case "muscle_gain": return `target: ${activeGoal?.protein_target_g ?? 120}g`;
+      case "maintenance": return "stay within range";
+      default: return `best: ${streaks.logging?.bestStreak ?? 0} days`;
+    }
+  }, [goalType, weightDiff, activeGoal, streaks]);
+
   const isLoading = profileLoading || goalsLoading;
 
   const weeklyMetrics: RingMetric[] = useMemo(() => {
@@ -226,17 +318,82 @@ export default function ProgressRedesigned() {
     ];
   }, [weeklySummary, activeGoal?.daily_calorie_target]);
 
+  const todayLogged = streaks.logging?.lastLogDate === format(new Date(), "yyyy-MM-dd");
+
+  const keepGoingMessage = useMemo(() => {
+    const logStreak = streaks.logging?.currentStreak ?? 0;
+    switch (goalType) {
+      case "weight_loss":
+        if (currentWeight <= goalWeight) return "You hit your goal weight! Set a new target to keep the momentum.";
+        return `Only ${Math.max(1, Math.round(weightDiff))} kg left to reach your target weight.`;
+      case "muscle_gain":
+        if (currentWeight >= goalWeight) return "Goal weight reached! Time to set a new target and keep building.";
+        return `${Math.max(1, Math.round(weightDiff))} kg to go — keep hitting protein and pushing heavier.`;
+      case "maintenance":
+        if (!todayLogged) return "Log today's meals to stay on track with your maintenance plan.";
+        return logStreak > 0
+          ? `${logStreak}-day streak — consistency is key for maintenance.`
+          : "Start your streak — consistency keeps you at your best.";
+      default:
+        if (!todayLogged) return "Log your meals today to build healthy tracking habits.";
+        return logStreak > 0
+          ? `${logStreak}-day streak! Each day builds a healthier you.`
+          : "Start tracking today — small steps lead to big changes.";
+    }
+  }, [goalType, currentWeight, goalWeight, weightDiff, streaks, todayLogged]);
+
+  const keepGoingSubtext = useMemo(() => {
+    const proteinPct = weeklySummary?.macros?.protein?.percentage ?? 0;
+    switch (goalType) {
+      case "weight_loss":
+        return proteinPct >= 80 ? "Protein intake is solid — keep it up to preserve muscle." : "Boost protein to protect muscle while losing weight.";
+      case "muscle_gain":
+        return proteinPct >= 80 ? "Protein on point — your muscles are getting what they need." : "Increase protein to fuel muscle growth effectively.";
+      case "maintenance":
+        return "Stay balanced with your macros and keep moving daily.";
+      default:
+        return "Aim for balanced meals with protein, carbs, and healthy fats.";
+    }
+  }, [goalType, weeklySummary]);
+
   const weeklyChecklist = useMemo(() => {
     const logStreak = streaks.logging?.currentStreak ?? 0;
     const waterStreak = streaks.water?.currentStreak ?? 0;
-    const todayLogged = streaks.logging?.lastLogDate === format(new Date(), "yyyy-MM-dd");
-    return [
-      { label: "Calories On Track", Icon: Droplet, color: "#10B981", done: todayLogged },
-      { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-      { label: "Water Improved", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
-      { label: "Late Night Snacking", Icon: AlertCircle, color: "#FB923C", done: false },
-    ];
-  }, [streaks, activeGoal?.goal_type, weeklySummary?.macros]);
+    const proteinPct = weeklySummary?.macros?.protein?.percentage ?? 0;
+    const calPct = activeGoal?.daily_calorie_target
+      ? Math.min(100, Math.round(((weeklySummary?.calories?.thisWeekAvg ?? 0) / activeGoal.daily_calorie_target) * 100))
+      : 0;
+    switch (goalType) {
+      case "weight_loss":
+        return [
+          { label: "Calorie Deficit", Icon: Flame, color: "#F97316", done: calPct <= 100 && calPct > 0 },
+          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
+          { label: "Protein Target", Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
+          { label: "Water Intake", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
+        ];
+      case "muscle_gain":
+        return [
+          { label: "Protein Target", Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
+          { label: "Calorie Surplus", Icon: Flame, color: "#F97316", done: calPct >= 90 },
+          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
+          { label: "Workouts Logged", Icon: Activity, color: "#8B5CF6", done: weekdayData.filter(d => d.hasWorkout).length >= 3 },
+        ];
+      case "maintenance":
+        return [
+          { label: "Calories On Track", Icon: Flame, color: "#F97316", done: calPct >= 80 && calPct <= 110 },
+          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
+          { label: "Balanced Macros", Icon: Leaf, color: "#10B981", done: proteinPct >= 70 },
+          { label: "Water Intake", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
+        ];
+      default:
+        return [
+          { label: "Meals Logged", Icon: Apple, color: "#10B981", done: todayLogged },
+          { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
+          { label: "Protein Target", Icon: Target, color: "#3B82F6", done: proteinPct >= 70 },
+          { label: "Water Intake", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
+        ];
+    }
+  }, [goalType, streaks, weeklySummary, activeGoal, todayLogged, weekdayData]);
 
   const coachRecommendation = useMemo(() => {
     const protein = activeGoal?.protein_target_g ?? 120;
@@ -348,7 +505,7 @@ export default function ProgressRedesigned() {
           >
             <ArrowLeft className="h-7 w-7" strokeWidth={2.6} />
           </button>
-          <h1 className="text-[23px] font-black tracking-[-0.06em] text-[#111827]">Goals</h1>
+          <h1 className="text-[23px] font-black tracking-[-0.06em] text-[#111827]">Progress</h1>
           <button
             aria-label="Open calendar"
             className="grid h-10 w-10 place-items-center rounded-full text-[#0F172A] active:bg-slate-100"
@@ -396,185 +553,504 @@ export default function ProgressRedesigned() {
           })}
         </div>
 
-        <section className="relative mb-7 overflow-hidden rounded-[22px] bg-[radial-gradient(circle_at_62%_35%,rgba(81,243,160,0.22),transparent_33%),linear-gradient(135deg,#06966E_0%,#007D67_46%,#006754_100%)] p-5 text-white shadow-[0_18px_40px_rgba(0,128,96,0.24)]">
-          <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(circle_at_12%_22%,white_1px,transparent_1px),radial-gradient(circle_at_74%_20%,white_1.5px,transparent_2px),radial-gradient(circle_at_44%_44%,white_1.5px,transparent_2px),radial-gradient(circle_at_92%_12%,white_1.5px,transparent_2px),radial-gradient(circle_at_70%_82%,white_1px,transparent_1px)]" />
+        {activeTab === "today" && (() => {
+          const calTarget = activeGoal?.daily_calorie_target ?? 2078;
+          const proteinTarget = activeGoal?.protein_target_g ?? 182;
+          const carbsTarget = activeGoal?.carbs_target_g ?? 240;
+          const fatTarget = activeGoal?.fat_target_g ?? 70;
+          const calConsumed = todayProgress.calories ?? 0;
+          const proteinConsumed = todayProgress.protein ?? 0;
+          const carbsConsumed = todayProgress.carbs ?? 0;
+          const fatConsumed = todayProgress.fat ?? 0;
+          const dailyPct = calTarget > 0 ? Math.min(100, Math.round((calConsumed / calTarget) * 100)) : 0;
+          const proteinPct = proteinTarget > 0 ? Math.min(100, Math.round((proteinConsumed / proteinTarget) * 100)) : 0;
+          const carbsPct = carbsTarget > 0 ? Math.min(100, Math.round((carbsConsumed / carbsTarget) * 100)) : 0;
+          const fatPct = fatTarget > 0 ? Math.min(100, Math.round((fatConsumed / fatTarget) * 100)) : 0;
+          const overallPct = Math.round((dailyPct + proteinPct) / 2);
+          const realMealScore = mealQualityScore > 0 ? Math.round(mealQualityScore) : overallPct;
+          const mealQualityScoreLabel = realMealScore >= 80 ? "Good" : realMealScore >= 60 ? "Moderate" : "Needs Work";
+          const weekScores = weeklyQuality.map((d) => d.avgScore);
+          const daysLogged = weekScores.length;
+          const completeness = Math.min(1, daysLogged / 7);
+          let consistencyFactor = 0.5;
+          if (daysLogged >= 2) {
+            const mean = weekScores.reduce((a: number, b: number) => a + b, 0) / daysLogged;
+            const variance = weekScores.reduce((a: number, s: number) => a + (s - mean) ** 2, 0) / daysLogged;
+            const stdDev = Math.sqrt(variance);
+            const cv = mean > 0 ? stdDev / mean : 1;
+            consistencyFactor = Math.max(0, 1 - Math.min(1, cv));
+          }
+          const aiConfidence = Math.round(completeness * consistencyFactor * 100);
+          const thisWeekAvg = weekScores.length >= 3 ? weekScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(-3).length : realMealScore;
+          const lastWeekAvg = weekScores.length >= 6 ? weekScores.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(0, 3).length : null;
+          const scoreTrend = lastWeekAvg && lastWeekAvg > 0
+            ? Math.round(((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100)
+            : null;
+          const dayName = format(new Date(), "EEEE, MMMM d");
+          const streakDays = profile?.streak_days ?? 0;
+          const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+          const todayIdx = (new Date().getDay() + 6) % 7;
+          const loggedDates = new Set(
+            weekdayData.filter((d) => d.calories > 0).map((d) => d.date)
+          );
 
-          <div className="relative z-10">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase backdrop-blur-md">
-                  <Flame className="h-5 w-5 fill-orange-400 text-orange-400" />
-                  Active Goal
+          const smartRecItems = smartRecs.slice(0, 3);
+
+          return (
+            <>
+              <section className="mb-5 flex items-center justify-between">
+                <div>
+                  <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900">Hello, {firstName}! 👋</h2>
+                  <p className="text-[13px] text-slate-500 font-medium">Here's your daily nutrition overview.</p>
                 </div>
-                <h2 className="text-[25px] font-black leading-none tracking-[-0.06em]">{goalName}</h2>
-                <p className="mt-2 text-[13px] font-medium text-white/90">Your transformation progress</p>
+              </section>
 
-                <div className="mt-4 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setShowWeightInput(!showWeightInput); setNewWeight(String(currentWeight)); }}
-                    className="rounded-[12px] bg-white/12 px-3 py-2 text-center shadow-inner shadow-white/5 backdrop-blur-md hover:bg-white/18 active:scale-95 transition-all"
-                  >
-                    <div className="text-[22px] font-black leading-none">{currentWeight}<span className="ml-1 text-[11px]">kg</span></div>
-                    <div className="mt-1 text-[10px] text-white/75">Current ▾</div>
-                  </button>
-                  <ArrowLeft className="h-5 w-5 rotate-180 text-white shrink-0" />
-                  <div className="rounded-[12px] bg-white/12 px-3 py-2 text-center shadow-inner shadow-white/5 backdrop-blur-md">
-                    <div className="text-[22px] font-black leading-none">{goalWeight}<span className="ml-1 text-[11px]">kg</span></div>
-                    <div className="mt-1 text-[10px] text-white/75">Goal</div>
+              <section className="mb-5">
+                {activeGoal ? (
+                  <article className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(255,255,255,0.14)_0%,transparent_45%),radial-gradient(130%_130%_at_-20%_0%,rgba(255,255,255,0.10)_0%,transparent_50%),linear-gradient(135deg,#0EA76B_0%,#0B8C6A_50%,#0A6D64_100%)] p-5 text-white shadow-[0_22px_48px_rgba(15,118,110,0.28)]">
+                    <div className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-soft-light [background-image:radial-gradient(circle_at_14%_22%,white_1px,transparent_1px),radial-gradient(circle_at_78%_18%,white_1.2px,transparent_2px),radial-gradient(circle_at_46%_62%,white_1.2px,transparent_2px),radial-gradient(circle_at_92%_12%,white_1px,transparent_1px)]" />
+
+                    <div className="relative z-10 flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm">
+                          <CalendarCheck className="h-4 w-4" />
+                          Today • {dayName}
+                        </div>
+
+                        <div className="flex items-start gap-2 mb-3">
+                          <Flame className="mt-0.5 h-5 w-5 text-amber-300" />
+                          <div>
+                            <p className="text-[26px] font-black leading-none tracking-[-0.06em]">{calConsumed.toLocaleString()}<span className="ml-1 text-[14px] font-bold">kcal</span></p>
+                            <p className="mt-0.5 text-[11px] font-semibold text-white/80">of {calTarget.toLocaleString()} kcal</p>
+                          </div>
+                        </div>
+
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/18">
+                          <div className="h-full rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400" style={{ width: `${dailyPct}%` }} />
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-[12px] bg-white/12 px-3 py-2 backdrop-blur-sm">
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="text-[10px] font-extrabold uppercase text-white/85">Protein</span>
+                              <Target className="h-4 w-4 text-blue-200" />
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-[16px] font-black leading-none">{proteinConsumed}</span>
+                              <span className="text-[10px] font-semibold text-white/80">/ {proteinTarget}g</span>
+                            </div>
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+                              <div className="h-full rounded-full bg-blue-300" style={{ width: `${proteinPct}%` }} />
+                            </div>
+                          </div>
+
+                          <div className="rounded-[12px] bg-white/12 px-3 py-2 backdrop-blur-sm">
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="text-[10px] font-extrabold uppercase text-white/85">Hydration</span>
+                              <Droplet className="h-4 w-4 text-sky-200" />
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-[16px] font-black leading-none">{waterGlasses}</span>
+                              <span className="text-[10px] font-semibold text-white/80">/ {waterTarget} glasses</span>
+                            </div>
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+                              <div className="h-full rounded-full bg-sky-300" style={{ width: `${Math.min(100, Math.round((waterGlasses / waterTarget) * 100))}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 pt-1">
+                        <svg width="118" height="118" viewBox="0 0 118 118" className="-rotate-90">
+                          <defs>
+                            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                              <stop offset="0%" stopColor="#5CF0A7" />
+                              <stop offset="100%" stopColor="#A7F3D0" />
+                            </linearGradient>
+                          </defs>
+                          <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="9" />
+                          <circle cx="59" cy="59" r="50" fill="none" stroke="url(#ringGrad)" strokeLinecap="round" strokeWidth="9" strokeDasharray={`${(overallPct / 100) * (2 * Math.PI * 50)} ${2 * Math.PI * 50}`} />
+                        </svg>
+                        <div className="-mt-24 rotate-0 text-center">
+                          <div className="text-[30px] font-black leading-none">{overallPct}<span className="text-[14px]">%</span></div>
+                          <div className="mt-1 text-[10px] font-semibold text-white/85">Daily Score</div>
+                          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold backdrop-blur-sm">
+                            <Star className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                            {overallPct >= 70 ? "Great start" : "Keep going"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(255,255,255,0.14)_0%,transparent_45%),radial-gradient(130%_130%_at_-20%_0%,rgba(255,255,255,0.10)_0%,transparent_50%),linear-gradient(135deg,#0EA76B_0%,#0B8C6A_50%,#0A6D64_100%)] p-5 text-white shadow-[0_22px_48px_rgba(15,118,110,0.28)]">
+                    <div className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-soft-light [background-image:radial-gradient(circle_at_14%_22%,white_1px,transparent_1px),radial-gradient(circle_at_78%_18%,white_1.2px,transparent_2px),radial-gradient(circle_at_46%_62%,white_1.2px,transparent_2px),radial-gradient(circle_at_92%_12%,white_1px,transparent_1px)]" />
+
+                    <div className="relative z-10 flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm">
+                          <CalendarCheck className="h-4 w-4" />
+                          Today • {dayName}
+                        </div>
+
+                        <div className="flex items-start gap-2 mb-3">
+                          <Flame className="mt-0.5 h-5 w-5 text-amber-300" />
+                          <div>
+                            <p className="text-[26px] font-black leading-none tracking-[-0.06em]">{calConsumed.toLocaleString()}<span className="ml-1 text-[14px] font-bold">kcal</span></p>
+                            <p className="mt-0.5 text-[11px] font-semibold text-white/80">calories logged today</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-3 rounded-[14px] bg-white/10 px-4 py-3 backdrop-blur-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Target className="h-5 w-5 text-amber-300" />
+                            <p className="text-[14px] font-black">Set a nutrition goal</p>
+                          </div>
+                          <p className="text-[11px] font-medium leading-relaxed text-white/80">
+                            Set your calorie and macro targets to track daily progress and get personalized insights.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("goals")}
+                          className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3 text-[14px] font-black text-emerald-700 shadow-[0_8px_20px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-transform"
+                        >
+                          <Target className="h-4 w-4" />
+                          Set Your Goal
+                        </button>
+                      </div>
+
+                      <div className="shrink-0 pt-1">
+                        <div className="relative grid h-[118px] w-[118px] place-items-center">
+                          <svg width="118" height="118" viewBox="0 0 118 118" className="absolute inset-0 -rotate-90">
+                            <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="9" />
+                            <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.25)" strokeLinecap="round" strokeWidth="9" strokeDasharray="15 299" opacity="0.5" />
+                          </svg>
+                          <div className="text-center">
+                            <Target className="mx-auto h-9 w-9 text-amber-300" />
+                            <div className="mt-2 text-[10px] font-semibold text-white/70">Goal not set</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                )}
+              </section>
+
+              {/* Nutrient Cards Row */}
+              {activeGoal ? (
+                <section className="mb-5">
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { icon: Flame, label: "Calories", current: calConsumed, target: calTarget, unit: "kcal", color: "#F97316", bg: "#FFF7ED" },
+                      { icon: Target, label: "Protein", current: proteinConsumed, target: proteinTarget, unit: "g", color: "#3B82F6", bg: "#EFF6FF" },
+                      { icon: Leaf, label: "Carbs", current: carbsConsumed, target: carbsTarget, unit: "g", color: "#10B981", bg: "#ECFDF5" },
+                      { icon: Droplet, label: "Fat", current: fatConsumed, target: fatTarget, unit: "g", color: "#8B5CF6", bg: "#F5F3FF" },
+                    ].map((n) => {
+                      const NIcon = n.icon;
+                      const pct = n.target > 0 ? Math.min(100, Math.round((n.current / n.target) * 100)) : 0;
+                      return (
+                        <article key={n.label} className="rounded-[14px] border border-slate-100 bg-white p-2.5 text-center shadow-[0_6px_16px_rgba(15,23,42,0.05)]">
+                          <div className="mx-auto mb-1.5 grid h-7 w-7 place-items-center rounded-full" style={{ backgroundColor: n.bg }}>
+                            <NIcon className="h-3.5 w-3.5" style={{ color: n.color }} />
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-500">{n.label}</p>
+                          <p className="text-[14px] font-black tracking-[-0.03em] text-slate-900">{n.current}<span className="text-[9px] font-bold text-slate-400">/{n.target}</span></p>
+                          <p className="text-[8px] font-semibold text-slate-400">{n.unit}</p>
+                          <div className="mx-auto mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: n.color }} />
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
-                </div>
-              </div>
+                </section>
+              ) : null}
 
-              <div className="shrink-0">
-                <ProgressRing value={progressPct} label="Progress" />
-                <div className="mt-4 flex justify-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-white" />
-                  <span className="h-2 w-2 rounded-full bg-white/25" />
-                  <span className="h-2 w-2 rounded-full bg-white/25" />
-                  <span className="h-2 w-2 rounded-full bg-white/25" />
-                </div>
-              </div>
-            </div>
+              {/* Streak Section */}
+              <section className="mb-5">
+                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-8 w-8 place-items-center rounded-full bg-orange-100">
+                        <Flame className="h-4 w-4 text-orange-500" />
+                      </div>
+                      <div>
+                        <p className="text-[14px] font-black text-slate-900">Streak</p>
+                        <p className="text-[10px] font-medium text-slate-500">{streakDays > 0 ? "Keep it going!" : loggedDates.has(format(new Date(), "yyyy-MM-dd")) ? "Start your streak today!" : "Log a meal to start!"}</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-orange-100 px-3 py-1 text-[11px] font-bold text-orange-600">{streakDays} Day Streak</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    {weekDays.map((d, i) => {
+                      const dateStr = weekdayData[i]?.date;
+                      const isLogged = dateStr ? loggedDates.has(dateStr) : false;
+                      const isToday = i === todayIdx;
+                      return (
+                        <div key={i} className="flex flex-col items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-400">{d}</span>
+                          <div className={`grid h-8 w-8 place-items-center rounded-full ${isLogged ? 'bg-emerald-100' : isToday ? 'bg-orange-400' : 'bg-slate-100'}`}>
+                            {isLogged ? <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} /> : isToday ? <Flame className="h-4 w-4 text-white" /> : <span className="h-2 w-2 rounded-full bg-slate-300" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              </section>
 
-            <div className="mt-4 flex items-center gap-3 text-[12px] font-extrabold text-white/90">
-              <span>{targetLabel}</span>
-              <span className="h-1 w-1 rounded-full bg-white/70" />
-              <span>82% consistency</span>
-            </div>
-
-            <div className="mt-3 inline-flex items-center gap-2 rounded-[10px] bg-white/12 px-3 py-2 backdrop-blur-md">
-              <TrendingUp className="h-6 w-6 text-[#5CF0A7]" strokeWidth={2.6} />
-              <p className="text-[10px] font-bold leading-tight text-white/90">You're ahead of last month!</p>
-            </div>
-          </div>
-        </section>
-
-        {showWeightInput && (
-          <div className="mb-7 -mt-4 rounded-b-[22px] bg-white/95 backdrop-blur-lg border border-white/30 p-4 shadow-[0_10px_24px_rgba(0,0,0,0.08)]">
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                value={newWeight}
-                onChange={(e) => setNewWeight(e.target.value)}
-                placeholder={`${currentWeight}`}
-                step="0.1"
-                className="h-12 flex-1 rounded-[12px] border border-slate-200 bg-[#F8FAFC] px-4 text-[18px] font-bold text-slate-800"
+              {/* AI Insight */}
+              <AIInsightImageCard
+                score={realMealScore}
+                confidence={aiConfidence}
+                mealQualityStatus={mealQualityScoreLabel}
+                summary={aiInsight || (scoreTrend !== null ? `${scoreTrend >= 0 ? '+' : ''}${scoreTrend}% vs last week` : "")}
+                proteinStatus={proteinPct >= 80 ? "On Track" : "Need More"}
+                hydrationStatus={(waterSummary?.percentage ?? 0) >= 60 ? "On Track" : "Need More"}
+                calorieStatus={dailyPct >= 80 ? "On Track" : dailyPct >= 50 ? "Need More" : "Off Track"}
+                loading={aiInsightLoading}
+                onViewAnalysis={() => navigate("/ai-report")}
               />
-              <span className="text-[14px] font-bold text-slate-500">kg</span>
+
+              {/* Smart Recommendations */}
+              <section className="mb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[14px] font-black text-slate-900">Smart Recommendations</h3>
+
+                </div>
+
+                {smartRecsLoading ? (
+                  <div className="space-y-2.5">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse rounded-[14px] border border-slate-100 bg-white p-4 shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
+                        <div className="flex items-start gap-3">
+                          <div className="h-9 w-9 rounded-full bg-slate-200" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 w-2/3 rounded-full bg-slate-200" />
+                            <div className="h-2.5 w-full rounded-full bg-slate-100" />
+                            <div className="h-1.5 w-1/2 rounded-full bg-slate-100" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : smartRecItems.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {smartRecItems.map((r) => {
+                      const catIcons: Record<string, LucideIcon> = {
+                        nutrition: Apple,
+                        hydration: Droplet,
+                        activity: Zap,
+                        sleep: Star,
+                        general: Sparkles,
+                      };
+                      const catColors: Record<string, string> = {
+                        nutrition: "bg-emerald-100 text-emerald-600",
+                        hydration: "bg-blue-100 text-blue-600",
+                        activity: "bg-orange-100 text-orange-600",
+                        sleep: "bg-purple-100 text-purple-600",
+                        general: "bg-indigo-100 text-indigo-600",
+                      };
+                      const priorityBadge: Record<string, string> = {
+                        high: "bg-red-100 text-red-700",
+                        medium: "bg-amber-100 text-amber-700",
+                        low: "bg-slate-100 text-slate-600",
+                      };
+                      const CatIcon = catIcons[r.category] || Sparkles;
+                      const iconColors = catColors[r.category] || "bg-slate-100 text-slate-600";
+                      const badgeColors = priorityBadge[r.priority] || "bg-slate-100 text-slate-600";
+                      const progress = r.progress;
+
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          className="w-full rounded-[14px] border border-l-4 border-slate-100 bg-white p-4 text-left shadow-[0_6px_16px_rgba(15,23,42,0.04)] active:scale-[0.99] transition-transform"
+                          style={{ borderLeftColor: r.priority === "high" ? "#EF4444" : r.priority === "medium" ? "#F59E0B" : "#94A3B8" }}
+                          onClick={() => {
+                            if (r.action_link) navigate(r.action_link);
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${iconColors.split(" ")[0]}`}>
+                              <CatIcon className={`h-4.5 w-4.5 ${iconColors.split(" ")[1]}`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <p className="text-[13px] font-bold text-slate-900 truncate">{r.title}</p>
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${badgeColors}`}>
+                                  {r.priority}
+                                </span>
+                              </div>
+                              <p className="text-[11px] leading-relaxed text-slate-500 line-clamp-2">{r.description}</p>
+                              {progress && (
+                                <div className="mt-2">
+                                  <div className="mb-1 flex items-center justify-between text-[10px]">
+                                    <span className="font-semibold text-slate-500">{progress.value}/{progress.max} {progress.unit}</span>
+                                    <span className="font-bold text-slate-400">{Math.round((progress.value / progress.max) * 100)}%</span>
+                                  </div>
+                                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                      className="h-full rounded-full"
+                                      style={{
+                                        width: `${Math.min(100, Math.round((progress.value / progress.max) * 100))}%`,
+                                        backgroundColor: r.priority === "high" ? "#EF4444" : r.priority === "medium" ? "#F59E0B" : "#10B981",
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              {r.action_text && r.action_link && (
+                                <p className="mt-2 text-[10px] font-bold text-emerald-600">{r.action_text} →</p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </section>
+
+              {/* Weight Forecast */}
+              {(() => {
+                const actualPoints = weightHistory.filter((p) => p.actual !== null);
+                const predictedPoints = weightHistory.filter((p) => p.predicted !== null);
+                const allPoints = weightHistory.filter((p) => p.actual !== null || p.predicted !== null);
+
+                if (allPoints.length < 2) {
+                  return (
+                    <section className="mb-5">
+                      <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-[14px] font-black text-slate-900">Weight Forecast</h3>
+                          <span className="text-[11px] font-bold text-emerald-600">Target: {goalWeight} kg</span>
+                        </div>
+                        <p className="text-[12px] text-slate-400 py-4 text-center">Log your weight a few times to see a trend.</p>
+                      </article>
+                    </section>
+                  );
+                }
+
+                const weights = actualPoints.map((p) => p.actual!);
+                const minW = Math.min(...weights);
+                const maxW = Math.max(...weights);
+                const padding = Math.max(1, (maxW - minW) * 0.3);
+                const yMin = minW - padding;
+                const yMax = maxW + padding;
+                const yRange = yMax - yMin || 1;
+
+                const toX = (i: number) => (i / Math.max(allPoints.length - 1, 1)) * 200;
+                const toY = (w: number) => 60 - ((w - yMin) / yRange) * 48;
+
+                const actualLinePoints = actualPoints
+                  .map((p, i) => {
+                    const allIdx = allPoints.indexOf(p);
+                    return `${toX(allIdx)},${toY(p.actual!)}`;
+                  })
+                  .join(" ");
+
+                const predictedLinePoints = predictedPoints
+                  .map((p, i) => {
+                    const allIdx = allPoints.indexOf(p);
+                    const prevActual = actualPoints[actualPoints.length - 1];
+                    if (i === 0 && prevActual) {
+                      return `${toX(allPoints.indexOf(prevActual))},${toY(prevActual.actual!)} ${toX(allIdx)},${toY(p.predicted!)}`;
+                    }
+                    return `${toX(allIdx)},${toY(p.predicted!)}`;
+                  })
+                  .join(" ");
+
+                const slope = actualPoints.length >= 2
+                  ? (weights[weights.length - 1] - weights[0]) / Math.max(1, weights.length - 1)
+                  : 0;
+                const weeklyChange = slope * 7;
+                const daysToGoal = goalWeight && slope !== 0
+                  ? Math.round((goalWeight - currentWeight) / slope)
+                  : null;
+
+                return (
+                  <section className="mb-5">
+                    <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-[14px] font-black text-slate-900">Weight Forecast</h3>
+                        <span className="text-[11px] font-bold text-emerald-600">Target: {goalWeight} kg</span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{currentWeight} kg Today</span>
+                      </div>
+                      <svg className="w-full h-16" viewBox="0 0 200 60" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10B981" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        <path d={`M${actualLinePoints.split(" ")[0]} L${actualLinePoints.split(" ").slice(-1)[0]} L200,60 L0,60 Z`} fill="url(#wg)" />
+
+                        {actualLinePoints && (
+                          <polyline
+                            fill="none"
+                            stroke="#10B981"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            points={actualLinePoints}
+                          />
+                        )}
+
+                        {predictedLinePoints && (
+                          <polyline
+                            fill="none"
+                            stroke="#10B981"
+                            strokeWidth="2"
+                            strokeDasharray="4,3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            points={predictedLinePoints}
+                          />
+                        )}
+
+                        {actualPoints.map((p, i) => {
+                          const allIdx = allPoints.indexOf(p);
+                          return (
+                            <circle key={p.date} cx={toX(allIdx)} cy={toY(p.actual!)} r="3" fill="#10B981" />
+                          );
+                        })}
+                      </svg>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-[11px] font-semibold text-slate-600">
+                          {weeklyChange !== 0
+                            ? `${weeklyChange < 0 ? "Losing" : "Gaining"} ${Math.abs(weeklyChange).toFixed(1)} kg/week`
+                            : "Weight stable"}
+                          {daysToGoal && daysToGoal > 0 ? ` · ~${daysToGoal} days to goal` : ""}
+                        </p>
+                        <p className="text-[10px] font-medium text-slate-400">
+                          {weeklyChange < 0 ? "On track" : weeklyChange > 0 ? "Trending up" : "Steady"}
+                        </p>
+                      </div>
+                    </article>
+                  </section>
+                );
+              })()}
+
+              {/* Log Today's Progress Button */}
               <button
                 type="button"
-                onClick={handleLogWeight}
-                disabled={isLoggingWeight}
-                className="h-12 rounded-[12px] bg-emerald-600 px-5 text-[14px] font-black text-white active:scale-95 disabled:opacity-60"
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-[16px] bg-emerald-500 py-4 text-[15px] font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-transform"
+                onClick={() => navigate("/tracker")}
               >
-                {isLoggingWeight ? "..." : "Save"}
+                <Plus className="h-5 w-5" />
+                Log Today's Progress
               </button>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "today" && (
-          <>
-            <section className="mb-5">
-              <SectionHeader title="Today's Nutrition" />
-              <div className="grid grid-cols-2 gap-3">
-                <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.055)]">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="grid h-8 w-8 place-items-center rounded-full bg-orange-100 text-orange-500">
-                      <Flame className="h-4 w-4" />
-                    </div>
-                    <span className="text-[12px] font-extrabold text-slate-600">Calories</span>
-                  </div>
-                  <p className="text-[32px] font-black tracking-[-0.06em] text-slate-950">{todayProgress.calories}</p>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500" style={{ width: `${Math.min(100, ((todayProgress.calories / (activeGoal?.daily_calorie_target || 2000)) * 100))}%` }} />
-                  </div>
-                  <p className="mt-1 text-[11px] font-semibold text-slate-500">of {activeGoal?.daily_calorie_target ?? 2000} kcal</p>
-                </article>
-                <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.055)]">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="grid h-8 w-8 place-items-center rounded-full bg-blue-100 text-blue-500">
-                      <Dumbbell className="h-4 w-4" />
-                    </div>
-                    <span className="text-[12px] font-extrabold text-slate-600">Protein</span>
-                  </div>
-                  <p className="text-[32px] font-black tracking-[-0.06em] text-slate-950">{todayProgress.protein}<span className="ml-1 text-[14px] font-bold text-slate-400">g</span></p>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${Math.min(100, ((todayProgress.protein / (activeGoal?.protein_target_g || 120)) * 100))}%` }} />
-                  </div>
-                  <p className="mt-1 text-[11px] font-semibold text-slate-500">of {activeGoal?.protein_target_g ?? 120}g</p>
-                </article>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <article className="rounded-[16px] border border-slate-100 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-                  <span className="text-[11px] font-semibold text-slate-500">Carbs</span>
-                  <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{todayProgress.carbs}<span className="ml-1 text-[11px] font-bold text-slate-400">g</span></p>
-                  <span className="text-[10px] font-semibold text-slate-400">of {activeGoal?.carbs_target_g ?? 200}g</span>
-                </article>
-                <article className="rounded-[16px] border border-slate-100 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-                  <span className="text-[11px] font-semibold text-slate-500">Fat</span>
-                  <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{todayProgress.fat}<span className="ml-1 text-[11px] font-bold text-slate-400">g</span></p>
-                  <span className="text-[10px] font-semibold text-slate-400">of {activeGoal?.fat_target_g ?? 65}g</span>
-                </article>
-              </div>
-            </section>
-
-            <section className="mb-5">
-              <SectionHeader title="Water Tracker" />
-              <article className="rounded-[20px] border border-blue-50 bg-[linear-gradient(135deg,#F0F9FF_0%,#EFF6FF_50%,#F5F9FF_100%)] p-4 shadow-[0_12px_28px_rgba(59,130,246,0.08)]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-12 w-12 place-items-center rounded-full bg-blue-100 text-blue-500">
-                      <Droplet className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-[24px] font-black tracking-[-0.05em] text-slate-950">{waterGlasses}<span className="text-slate-400">/{(waterTarget)}</span></p>
-                      <p className="text-[12px] font-semibold text-slate-500">glasses today</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleWaterRemove}
-                      className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-[0_6px_14px_rgba(0,0,0,0.06)] text-slate-600 active:scale-95 border border-slate-200"
-                    >
-                      <Minus className="h-5 w-5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleWaterAdd}
-                      className="grid h-11 w-11 place-items-center rounded-full bg-blue-500 shadow-[0_6px_14px_rgba(59,130,246,0.3)] text-white active:scale-95"
-                    >
-                      <Plus className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-blue-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style={{ width: `${Math.min(100, (waterGlasses / waterTarget) * 100)}%` }} />
-                </div>
-              </article>
-            </section>
-          </>
-        )}
+            </>
+          );
+        })()}
 
         {activeTab === "week" && (
           <>
-            {/* Greeting Section */}
-            <section className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900">Hello, {firstName}! 👋</h2>
-                <p className="text-[13px] text-slate-500 font-medium">Here's your weekly nutrition overview.</p>
-              </div>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-[14px] bg-emerald-50 border border-emerald-200 px-3 py-2 text-[12px] font-bold text-emerald-700 active:scale-95"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Sync Now
-              </button>
-            </section>
-
             {/* Weekly Score Card */}
             <section className="mb-5">
               <article className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-teal-600 via-emerald-600 to-teal-700 p-5 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
@@ -618,6 +1094,40 @@ export default function ProgressRedesigned() {
               </article>
             </section>
 
+            <section className="mb-4 overflow-hidden rounded-[24px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+              <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_6px_14px_rgba(16,185,129,0.25)]">
+                  <Trophy className="h-5 w-5 text-white" strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Keep going, {firstName}! 💪</h3>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">{keepGoingMessage}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Achievements */}
+            <section className="mb-5">
+              <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                <h3 className="text-[13px] font-black text-slate-800 mb-3">Achievements</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, showAllWeekBadges ? totalCount : 4).map((badge) => (
+                    <BadgeCard key={badge.id} badge={badge} variant="compact" />
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowAllWeekBadges(!showAllWeekBadges)}
+                  className="mt-3 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700"
+                >
+                  {showAllWeekBadges ? (
+                    <>Show Less <ChevronUp className="h-3 w-3" /></>
+                  ) : (
+                    <>View All ({totalCount}) <ChevronDown className="h-3 w-3" /></>
+                  )}
+                </button>
+              </article>
+            </section>
+
             {/* Your Week - Calendar Grid with Rows */}
             <section className="mb-5">
               <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
@@ -645,26 +1155,31 @@ export default function ProgressRedesigned() {
                       {/* Meals Logged Row */}
                       <tr>
                         <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Meals Logged</td>
-                        {[{val: '2,078', status: 'on'}, {val: '1,920', status: 'on'}, {val: '2,150', status: 'on'}, {val: '1,980', status: 'on'}, {val: '2,200', status: 'on'}, {val: '1,800', status: 'partial'}, {val: '1,950', status: 'none'}].map((item, i) => (
-                          <td key={i} className="py-2">
-                            <div className="flex flex-col items-center gap-1">
-                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${item.status === 'on' ? 'bg-emerald-100' : item.status === 'partial' ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                                {item.status === 'on' ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : item.status === 'partial' ? <div className="h-2 w-2 rounded-full bg-orange-400" /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                        {weekdayData.map((day, i) => {
+                          const hasData = day.calories > 0;
+                          const onTarget = hasData && day.calories >= calorieTarget * 0.9 && day.calories <= calorieTarget * 1.1;
+                          const status = !hasData ? "none" : onTarget ? "on" : "partial";
+                          return (
+                            <td key={i} className="py-2">
+                              <div className="flex flex-col items-center gap-1">
+                                <div className={`h-6 w-6 rounded-full flex items-center justify-center ${status === 'on' ? 'bg-emerald-100' : status === 'partial' ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                                  {status === 'on' ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : status === 'partial' ? <div className="h-2 w-2 rounded-full bg-orange-400" /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                                </div>
+                                <span className="text-[9px] font-bold text-slate-600">{hasData ? day.calories.toLocaleString() : "—"}</span>
+                                <span className="text-[8px] text-slate-400">kcal</span>
                               </div>
-                              <span className="text-[9px] font-bold text-slate-600">{item.val}</span>
-                              <span className="text-[8px] text-slate-400">kcal</span>
-                            </div>
-                          </td>
-                        ))}
+                            </td>
+                          );
+                        })}
                       </tr>
                       {/* Workouts Row */}
                       <tr>
                         <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Workouts</td>
-                        {[{done: true}, {done: true}, {done: false}, {done: true}, {done: true}, {done: false}, {done: false}].map((item, i) => (
+                        {weekdayData.map((day, i) => (
                           <td key={i} className="py-2">
                             <div className="flex justify-center">
-                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${item.done ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                                {item.done ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${day.hasWorkout ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                                {day.hasWorkout ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
                               </div>
                             </div>
                           </td>
@@ -673,11 +1188,11 @@ export default function ProgressRedesigned() {
                       {/* Water Goal Row */}
                       <tr>
                         <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Water Goal</td>
-                        {[{done: true}, {done: true}, {done: true}, {done: true}, {done: false}, {done: true}, {done: false}].map((item, i) => (
+                        {weekdayData.map((day, i) => (
                           <td key={i} className="py-2">
                             <div className="flex justify-center">
-                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${item.done ? 'bg-blue-100' : 'bg-slate-100'}`}>
-                                {item.done ? <Check className="h-3 w-3 text-blue-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
+                              <div className={`h-6 w-6 rounded-full flex items-center justify-center ${day.waterGlasses >= 8 ? 'bg-blue-100' : 'bg-slate-100'}`}>
+                                {day.waterGlasses >= 8 ? <Check className="h-3 w-3 text-blue-600" strokeWidth={3} /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
                               </div>
                             </div>
                           </td>
@@ -696,8 +1211,9 @@ export default function ProgressRedesigned() {
                 {/* Calories Trend */}
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                   <p className="text-[10px] font-semibold text-slate-500 mb-1">Calories (avg)</p>
-                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">1,986<span className="text-[12px] font-semibold text-slate-400 ml-0.5">kcal</span></p>
-                  {/* Sparkline Graph */}
+                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
+                    {weeklySummary?.calories.thisWeekAvg.toLocaleString() ?? "—"}<span className="text-[12px] font-semibold text-slate-400 ml-0.5">kcal</span>
+                  </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
                       fill="none"
@@ -705,19 +1221,25 @@ export default function ProgressRedesigned() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      points="0,30 13,25 26,28 40,20 53,15 66,18 80,10"
+                      points={(() => {
+                        const vals = weekdayData.map(d => d.calories);
+                        const max = Math.max(...vals, 1);
+                        const xs = [0, 13, 27, 40, 53, 67, 80];
+                        return xs.map((x, i) => `${x},${35 - (vals[i] / max) * 30}`).join(" ");
+                      })()}
                     />
                   </svg>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
-                    <ArrowUp className="h-3 w-3" />
-                    8% vs last week
+                  <div className="flex items-center gap-1 text-[10px] font-bold mt-1" style={{ color: (weeklySummary?.calories.changePercent ?? 0) >= 0 ? "#059669" : "#EF4444" }}>
+                    {(weeklySummary?.calories.changePercent ?? 0) >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                    {Math.abs(weeklySummary?.calories.changePercent ?? 0)}% vs last week
                   </div>
                 </article>
                 {/* Protein Trend */}
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                   <p className="text-[10px] font-semibold text-slate-500 mb-1">Protein (avg)</p>
-                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">132<span className="text-[12px] font-semibold text-slate-400 ml-0.5">g</span></p>
-                  {/* Sparkline Graph */}
+                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
+                    {weeklySummary?.macros.protein.consumed ?? "—"}<span className="text-[12px] font-semibold text-slate-400 ml-0.5">g</span>
+                  </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
                       fill="none"
@@ -725,19 +1247,30 @@ export default function ProgressRedesigned() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      points="0,35 13,30 26,32 40,25 53,18 66,15 80,8"
+                      points={(() => {
+                        const vals = weekdayData.map(d => d.protein);
+                        const max = Math.max(...vals, 1);
+                        const xs = [0, 13, 27, 40, 53, 67, 80];
+                        return xs.map((x, i) => `${x},${35 - (vals[i] / max) * 30}`).join(" ");
+                      })()}
                     />
                   </svg>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
                     <ArrowUp className="h-3 w-3" />
-                    14% vs last week
+                    {weeklySummary?.macros.protein.percentage ?? 0}% of target
                   </div>
                 </article>
                 {/* Water Trend */}
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                   <p className="text-[10px] font-semibold text-slate-500 mb-1">Water (avg)</p>
-                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">6.2<span className="text-[12px] font-semibold text-slate-400 ml-0.5">Glasses</span></p>
-                  {/* Sparkline Graph */}
+                  <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
+                    {(() => {
+                      const avg = weekdayData.length > 0
+                        ? weekdayData.reduce((s, d) => s + d.waterGlasses, 0) / weekdayData.length
+                        : 0;
+                      return <>{avg.toFixed(1)}<span className="text-[12px] font-semibold text-slate-400 ml-0.5">Glasses</span></>;
+                    })()}
+                  </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
                       fill="none"
@@ -745,12 +1278,17 @@ export default function ProgressRedesigned() {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      points="0,10 13,15 26,12 40,20 53,25 66,22 80,30"
+                      points={(() => {
+                        const vals = weekdayData.map(d => d.waterGlasses);
+                        const max = Math.max(...vals, 1);
+                        const xs = [0, 13, 27, 40, 53, 67, 80];
+                        return xs.map((x, i) => `${x},${35 - (vals[i] / max) * 30}`).join(" ");
+                      })()}
                     />
                   </svg>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-red-500 mt-1">
-                    <ArrowDown className="h-3 w-3" />
-                    5% vs last week
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
+                    <Check className="h-3 w-3" />
+                    {weekdayData.filter(d => d.waterGlasses >= 8).length}/7 days hit goal
                   </div>
                 </article>
               </div>
@@ -765,24 +1303,54 @@ export default function ProgressRedesigned() {
                     <Trophy className="h-5 w-5 text-amber-600" />
                   </div>
                   <p className="text-[10px] font-bold text-slate-700">Best Protein Day</p>
-                  <p className="text-[9px] text-slate-500">Tuesday</p>
-                  <p className="text-[14px] font-black text-slate-900">168 g</p>
+                  <p className="text-[9px] text-slate-500">
+                    {(() => {
+                      const best = weekdayData.reduce((a, b) => b.protein > a.protein ? b : a, weekdayData[0]);
+                      return best?.dayLabel ?? "—";
+                    })()}
+                  </p>
+                  <p className="text-[14px] font-black text-slate-900">
+                    {(() => {
+                      const max = Math.max(...weekdayData.map(d => d.protein));
+                      return max > 0 ? `${max} g` : "—";
+                    })()}
+                  </p>
                 </article>
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-orange-100 mb-2">
                     <Flame className="h-5 w-5 text-orange-500" />
                   </div>
                   <p className="text-[10px] font-bold text-slate-700">Highest Calories</p>
-                  <p className="text-[9px] text-slate-500">Friday</p>
-                  <p className="text-[14px] font-black text-slate-900">720 kcal</p>
+                  <p className="text-[9px] text-slate-500">
+                    {(() => {
+                      const best = weekdayData.reduce((a, b) => b.calories > a.calories ? b : a, weekdayData[0]);
+                      return best?.dayLabel ?? "—";
+                    })()}
+                  </p>
+                  <p className="text-[14px] font-black text-slate-900">
+                    {(() => {
+                      const max = Math.max(...weekdayData.map(d => d.calories));
+                      return max > 0 ? `${max.toLocaleString()} kcal` : "—";
+                    })()}
+                  </p>
                 </article>
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-blue-100 mb-2">
                     <Droplet className="h-5 w-5 text-blue-500" />
                   </div>
                   <p className="text-[10px] font-bold text-slate-700">Most Hydrated</p>
-                  <p className="text-[9px] text-slate-500">Monday</p>
-                  <p className="text-[14px] font-black text-slate-900">8 Glasses</p>
+                  <p className="text-[9px] text-slate-500">
+                    {(() => {
+                      const best = weekdayData.reduce((a, b) => b.waterGlasses > a.waterGlasses ? b : a, weekdayData[0]);
+                      return best?.dayLabel ?? "—";
+                    })()}
+                  </p>
+                  <p className="text-[14px] font-black text-slate-900">
+                    {(() => {
+                      const max = Math.max(...weekdayData.map(d => d.waterGlasses));
+                      return max > 0 ? `${max} Glasses` : "—";
+                    })()}
+                  </p>
                 </article>
               </div>
             </section>
@@ -792,25 +1360,42 @@ export default function ProgressRedesigned() {
               <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                 <h3 className="text-[13px] font-black text-slate-800 mb-3">This Week vs Last Week</h3>
                 <div className="space-y-2.5">
-                  {[
-                    { label: 'Calories', trend: '+8%', up: true, Icon: Flame, color: '#F97316' },
-                    { label: 'Protein', trend: '+14%', up: true, Icon: Target, color: '#3B82F6' },
-                    { label: 'Water', trend: '-5%', up: false, Icon: Droplet, color: '#0EA5E9' },
-                    { label: 'Consistency', trend: '+21%', up: true, Icon: TrendingUp, color: '#10B981' },
-                  ].map((item) => {
-                    const ItemIcon = item.Icon;
-                    return (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <ItemIcon className="h-4 w-4" style={{ color: item.color }} />
-                          <span className="text-[11px] font-semibold text-slate-600">{item.label}</span>
-                        </div>
-                        <span className={`text-[11px] font-bold ${item.up ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {item.trend} {item.up ? '↑' : '↓'}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Flame className="h-4 w-4" style={{ color: '#F97316' }} />
+                      <span className="text-[11px] font-semibold text-slate-600">Calories</span>
+                    </div>
+                    <span className={`text-[11px] font-bold ${(weeklySummary?.calories.changePercent ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {(weeklySummary?.calories.changePercent ?? 0) >= 0 ? '+' : ''}{weeklySummary?.calories.changePercent ?? 0}% {(weeklySummary?.calories.trend === 'up' ? '↑' : weeklySummary?.calories.trend === 'down' ? '↓' : '→')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4" style={{ color: '#3B82F6' }} />
+                      <span className="text-[11px] font-semibold text-slate-600">Protein</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-emerald-600">
+                      {weeklySummary?.macros.protein.percentage ?? 0}% of target
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Droplet className="h-4 w-4" style={{ color: '#0EA5E9' }} />
+                      <span className="text-[11px] font-semibold text-slate-600">Water</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-emerald-600">
+                      {weekdayData.filter(d => d.waterGlasses >= 8).length}/7 days
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" style={{ color: '#10B981' }} />
+                      <span className="text-[11px] font-semibold text-slate-600">Consistency</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-emerald-600">
+                      {weeklySummary?.consistency.percentage ?? 0}% {weeklySummary?.consistency.percentage >= 70 ? '↑' : '→'}
+                    </span>
+                  </div>
                 </div>
               </article>
             </section>
@@ -821,87 +1406,70 @@ export default function ProgressRedesigned() {
                 <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                   <h3 className="text-[13px] font-black text-slate-800 mb-3">Habit Consistency</h3>
                   <div className="space-y-3">
-                    {[
-                      { label: 'Meal Logging', days: '6/7', pct: 86, color: '#10B981' },
-                      { label: 'Water Tracking', days: '5/7', pct: 71, color: '#10B981' },
-                      { label: 'Workouts', days: '3/7', pct: 43, color: '#8B5CF6' },
-                      { label: 'Sleep Goal', days: '6/7', pct: 86, color: '#10B981' },
-                    ].map((habit) => (
-                      <div key={habit.label}>
-                        <div className="flex justify-between text-[10px] mb-1">
-                          <span className="font-semibold text-slate-600">{habit.label}</span>
-                          <span className="font-bold text-slate-500">{habit.days} days</span>
+                    {(() => {
+                      const waterDays = weekdayData.filter(d => d.waterGlasses > 0).length;
+                      const workoutDays = weekdayData.filter(d => d.hasWorkout).length;
+                      const habits = [
+                        { label: 'Meal Logging', days: weeklySummary?.consistency.daysLogged ?? 0, pct: weeklySummary?.consistency.percentage ?? 0, color: '#10B981' },
+                        { label: 'Water Tracking', days: waterDays, pct: Math.round((waterDays / 7) * 100), color: '#0EA5E9' },
+                        { label: 'Workouts', days: workoutDays, pct: Math.round((workoutDays / 7) * 100), color: '#8B5CF6' },
+                      ];
+                      return habits.map((habit) => (
+                        <div key={habit.label}>
+                          <div className="flex justify-between text-[10px] mb-1">
+                            <span className="font-semibold text-slate-600">{habit.label}</span>
+                            <span className="font-bold text-slate-500">{habit.days}/7 days</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-100">
+                            <div className="h-full rounded-full" style={{ width: `${habit.pct}%`, backgroundColor: habit.color }} />
+                          </div>
                         </div>
-                        <div className="h-2 rounded-full bg-slate-100">
-                          <div className="h-full rounded-full" style={{ width: `${habit.pct}%`, backgroundColor: habit.color }} />
-                        </div>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </article>
                 <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                   <h3 className="text-[13px] font-black text-slate-800 mb-2">Weekly Goal Progress</h3>
-                  <div className="relative grid h-24 w-24 mx-auto place-items-center">
-                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
-                      <circle cx="48" cy="48" r="40" fill="none" stroke="#EEF2F7" strokeWidth="6" />
-                      <circle cx="48" cy="48" r="40" fill="none" stroke="#10B981" strokeLinecap="round" strokeWidth="6" strokeDasharray="180.8 251.2" />
-                    </svg>
-                    <div className="text-center">
-                      <span className="text-[22px] font-black text-slate-900">72%</span>
-                      <p className="text-[9px] font-semibold text-slate-500">Completed</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 space-y-1.5">
-                    {[
-                      { label: 'Calories Goal', done: true },
-                      { label: 'Protein Goal', done: true },
-                      { label: 'Water Goal', done: true },
-                      { label: 'Activity Goal', done: false },
-                    ].map((goal) => (
-                      <div key={goal.label} className="flex items-center justify-between text-[10px]">
-                        <span className="font-semibold text-slate-600">{goal.label}</span>
-                        <div className={`grid h-5 w-5 place-items-center rounded-full ${goal.done ? 'bg-emerald-100 text-emerald-600' : 'border border-slate-200 text-slate-300'}`}>
-                          {goal.done ? <Check className="h-3 w-3" strokeWidth={3} /> : <span className="text-[8px]">○</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            {/* AI Insight & Achievements */}
-            <section className="mb-5">
-              <div className="grid grid-cols-2 gap-3">
-                <article className="rounded-[18px] bg-violet-50 border border-violet-100 p-4 shadow-[0_10px_24px_rgba(139,92,246,0.08)]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Star className="h-5 w-5 text-violet-500" />
-                    <h3 className="text-[13px] font-black text-violet-900">AI Weekly Insight</h3>
-                  </div>
-                  <p className="text-[11px] font-medium leading-relaxed text-slate-700">
-                    Your protein intake improved 18% this week. Keep this pace for better muscle recovery and energy!
-                  </p>
-                </article>
-                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <h3 className="text-[13px] font-black text-slate-800 mb-3">Achievements</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { icon: Flame, color: '#F97316', label: '5 Day Streak' },
-                      { icon: Wheat, color: '#10B981', label: 'Balanced Week' },
-                      { icon: Droplet, color: '#0EA5E9', label: 'Hydration Hero' },
-                      { icon: Star, color: '#F59E0B', label: 'Consistency Pro' },
-                    ].map((ach, i) => {
-                      const AchIcon = ach.icon;
-                      return (
-                        <div key={i} className="flex flex-col items-center">
-                          <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-100 text-amber-600">
-                            <AchIcon className="h-5 w-5" />
+                  {(() => {
+                    const calOnTarget = weeklySummary && Math.abs(weeklySummary.calories.thisWeekAvg - (activeGoal?.daily_calorie_target ?? 2000)) <= 200;
+                    const proteinOnTarget = (weeklySummary?.macros.protein.percentage ?? 0) >= 80;
+                    const waterOnTarget = weekdayData.filter(d => d.waterGlasses >= 8).length >= 4;
+                    const activityOnTarget = weekdayData.filter(d => d.hasWorkout).length >= 3;
+                    const goals = [
+                      { label: 'Calories Goal', done: calOnTarget },
+                      { label: 'Protein Goal', done: proteinOnTarget },
+                      { label: 'Water Goal', done: waterOnTarget },
+                      { label: 'Activity Goal', done: activityOnTarget },
+                    ];
+                    const doneCount = goals.filter(g => g.done).length;
+                    const goalPct = Math.round((doneCount / goals.length) * 100);
+                    const circumference = 2 * Math.PI * 40;
+                    const dash = (goalPct / 100) * circumference;
+                    return (
+                      <>
+                        <div className="relative grid h-24 w-24 mx-auto place-items-center">
+                          <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
+                            <circle cx="48" cy="48" r="40" fill="none" stroke="#EEF2F7" strokeWidth="6" />
+                            <circle cx="48" cy="48" r="40" fill="none" stroke="#10B981" strokeLinecap="round" strokeWidth="6" strokeDasharray={`${dash.toFixed(1)} ${(circumference - dash).toFixed(1)}`} />
+                          </svg>
+                          <div className="text-center">
+                            <span className="text-[22px] font-black text-slate-900">{goalPct}%</span>
+                            <p className="text-[9px] font-semibold text-slate-500">Completed</p>
                           </div>
-                          <p className="mt-1 text-[9px] font-bold text-slate-600">{ach.label}</p>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="mt-3 space-y-1.5">
+                          {goals.map((goal) => (
+                            <div key={goal.label} className="flex items-center justify-between text-[10px]">
+                              <span className="font-semibold text-slate-600">{goal.label}</span>
+                              <div className={`grid h-5 w-5 place-items-center rounded-full ${goal.done ? 'bg-emerald-100 text-emerald-600' : 'border border-slate-200 text-slate-300'}`}>
+                                {goal.done ? <Check className="h-3 w-3" strokeWidth={3} /> : <span className="text-[8px]">○</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </article>
               </div>
             </section>
@@ -912,135 +1480,281 @@ export default function ProgressRedesigned() {
           <>
             <section className="mb-6">
               <SectionHeader title="Goal Focus" />
-              <article className="overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-700 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
-                {/* Gradient card header */}
-                <div className="relative p-5 pb-3">
-                  <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_70%_30%,white_2px,transparent_1px),radial-gradient(circle_at_20%_60%,white_1.5px,transparent_1px)]" />
-                  <div className="relative z-10">
-                    {/* Icon + title */}
-                    <div className="flex items-start gap-4">
-                      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20">
-                        {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-6 w-6 text-white" strokeWidth={2.2} />; })()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-[20px] font-black tracking-[-0.03em] text-white leading-tight">{goalName}</h3>
-                        <p className="text-[11px] font-semibold text-white/50 mt-1">Active nutrition goal</p>
+              <article className="relative overflow-hidden rounded-[28px] bg-[radial-gradient(140%_140%_at_70%_-10%,rgba(255,193,120,0.18)_0%,transparent_55%),radial-gradient(130%_130%_at_-20%_80%,rgba(16,185,129,0.25)_0%,transparent_50%),linear-gradient(145deg,#0D5C54_0%,#0A6D58_35%,#096650_70%,#074A44_100%)] text-white shadow-[0_24px_56px_rgba(7,74,68,0.35)]">
+                <div className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-soft-light [background-image:radial-gradient(circle_at_18%_20%,white_1.5px,transparent_2px),radial-gradient(circle_at_72%_28%,white_1px,transparent_1.5px),radial-gradient(circle_at_40%_52%,white_1.2px,transparent_1.8px),radial-gradient(circle_at_88%_18%,white_1px,transparent_1px),radial-gradient(circle_at_10%_75%,white_1px,transparent_1px)]" />
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber-400/8 blur-3xl" />
+                <div className="pointer-events-none absolute -left-8 -bottom-8 h-36 w-36 rounded-full bg-emerald-300/8 blur-3xl" />
+
+                <div className="relative z-10 p-5">
+                  {/* Header row: icon, title, change goal button */}
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-2xl bg-white/12 shadow-inner shadow-white/5">
+                      {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-[22px] w-[22px] text-white" strokeWidth={2.2} />; })()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-[20px] font-black tracking-[-0.04em] text-white leading-tight">{goalName}</h3>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${goalType === "weight_loss" ? "bg-amber-400/20 text-amber-300" : goalType === "muscle_gain" ? "bg-blue-400/20 text-blue-300" : "bg-emerald-400/20 text-emerald-300"}`}>
+                          Active
+                        </span>
                       </div>
                     </div>
-
-                    {/* Change button */}
                     <button
                       type="button"
                       onClick={() => setShowGoalPicker((v) => !v)}
-                      className="mt-4 w-full rounded-[14px] border border-white/25 bg-white/15 py-3 text-[13px] font-extrabold text-white hover:bg-white/25 transition-all active:scale-[0.98] backdrop-blur-sm"
+                      className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${showGoalPicker ? "border-white/40 bg-white/15 text-white" : "border-white/20 bg-white/8 text-white/70 hover:bg-white/14 hover:border-white/30"}`}
                     >
-                      {showGoalPicker ? "Close" : "Change goal type"}
+                      Change Goal
                     </button>
+                  </div>
 
-                    {/* Goal picker chips */}
-                    {showGoalPicker && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {Object.entries(goalTypeLabel).map(([key, label]) => {
-                          const Icon = goalTypeIcon[key] ?? Leaf;
-                          const isActive = goalType === key;
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => handleGoalChange(key)}
-                              className={`flex items-center gap-1.5 rounded-[11px] px-3 py-2 text-[11px] font-extrabold transition-all active:scale-95 ${
-                                isActive
-                                  ? "bg-white text-emerald-700 shadow-md"
-                                  : "bg-white/10 text-white/80 border border-white/20 hover:bg-white/20"
-                              }`}
-                            >
-                              <Icon className="h-3.5 w-3.5" strokeWidth={isActive ? 2.5 : 2} />
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                  {/* Goal picker — inline pills */}
+                  {showGoalPicker && (
+                    <div className="mb-5 flex flex-wrap gap-1.5">
+                      {Object.entries(goalTypeLabel).map(([key, label]) => {
+                        const Icon = goalTypeIcon[key] ?? Leaf;
+                        const isActive = goalType === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => handleGoalChange(key)}
+                            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-extrabold transition-all duration-200 active:scale-95 ${isActive ? "bg-white text-emerald-700 shadow-lg shadow-black/10 scale-105" : "bg-white/8 text-white/70 hover:bg-white/14"}`}
+                          >
+                            <Icon className="h-3.5 w-3.5" strokeWidth={isActive ? 2.5 : 1.8} />
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                    {/* Weight progress section */}
-                    {goalWeight > 0 && (
-                      <div className="flex items-center gap-4 mt-4">
-                        <div className="relative grid h-[72px] w-[72px] shrink-0 place-items-center">
-                          <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
-                            <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="6" />
-                            <circle
-                              cx="40" cy="40" r="32"
-                              fill="none"
-                              stroke="rgba(255,255,255,0.9)"
-                              strokeLinecap="round"
-                              strokeWidth="6"
-                              strokeDasharray={`${(progressPct / 100) * 200.96} 200.96`}
-                            />
-                          </svg>
-                          <div className="relative z-10 text-center">
-                            <span className="block text-[16px] font-black leading-none text-white">{progressPct}%</span>
-                            <span className="block text-[8px] font-bold text-white/60">there</span>
-                          </div>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-[26px] font-black tracking-[-0.05em] text-white">{currentWeight.toFixed(1)}</span>
-                            <span className="text-[11px] font-bold text-white/60">kg</span>
-                          </div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className={`text-[13px] font-extrabold ${isGoalLoss ? "text-emerald-200" : "text-blue-200"}`}>
-                              {targetLabel}
-                            </span>
-                          </div>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-white/70 to-white"
-                              style={{ width: `${progressPct}%` }}
-                            />
-                          </div>
+                  {/* Goal progress ring */}
+                  {goalWeight > 0 || goalType !== "weight_loss" ? (
+                    <div className="flex items-center gap-5">
+                      <div className="relative grid h-[100px] w-[100px] shrink-0 place-items-center">
+                        <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+                          <defs>
+                            <linearGradient id="progGlow" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
+                              <stop offset="50%" stopColor="rgba(255,255,255,0.85)" />
+                              <stop offset="100%" stopColor="rgba(255,255,255,0.6)" />
+                            </linearGradient>
+                          </defs>
+                          <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="5" />
+                          <circle cx="50" cy="50" r="40" fill="none" stroke="url(#progGlow)" strokeLinecap="round" strokeWidth="5" strokeDasharray={`${(goalRingValue / 100) * 251.3} 251.3`} className="animate-pulse" />
+                        </svg>
+                        <div className="text-center">
+                          <span className="block text-[24px] font-black leading-none tracking-[-0.06em] text-white">{goalRingValue}<span className="text-[12px] font-bold">%</span></span>
+                          <span className="block text-[9px] font-bold text-white/50 mt-0.5">{goalRingLabel}</span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Macro pills */}
-                <div className="bg-white/[0.07] border-t border-white/10 px-4 py-3.5">
-                  <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[
-                      { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", Icon: Flame, color: "#F97316" },
-                      { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", Icon: Target, color: "#3B82F6" },
-                      { label: "Carbs", value: activeGoal?.carbs_target_g ?? 200, unit: "g", Icon: Wheat, color: "#F59E0B" },
-                      { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", Icon: Droplet, color: "#10B981" },
-                    ].map((m) => {
-                      const MI = m.Icon;
-                      return (
-                        <div
-                          key={m.label}
-                          className="flex items-center gap-2 shrink-0 rounded-[12px] bg-white/10 px-3 py-2"
-                        >
-                          <MI className="h-4 w-4 text-white/80" strokeWidth={2.2} style={{ color: m.color }} />
-                          <span className="text-[14px] font-black text-white">{m.value.toLocaleString()}</span>
-                          <span className="text-[9px] font-bold text-white/50">{m.unit}</span>
+                      <button
+                        type="button"
+                        onClick={() => { setShowWeightInput(!showWeightInput); setNewWeight(String(currentWeight)); }}
+                        className="flex-1 min-w-0 text-left active:scale-[0.98] transition-transform"
+                      >
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/40 mb-1">{goalRightMetric.label}</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[36px] font-black leading-none tracking-[-0.06em] text-white">{goalRightMetric.value}</span>
+                          <span className="text-[12px] font-bold text-white/40">{goalRightMetric.unit}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-[13px] font-extrabold ${goalType === "weight_loss" ? "text-amber-300" : goalType === "muscle_gain" ? "text-blue-300" : "text-emerald-300"}`}>
+                            {goalSubLabel}
+                          </span>
+                          <div className="flex-1 h-1 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full rounded-full bg-gradient-to-r from-amber-300/80 to-white/60" style={{ width: `${goalRingValue}%` }} />
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  ) : goalType === "weight_loss" || goalType === "muscle_gain" ? (
+                    <div className="mb-2 py-4 text-center">
+                      <p className="text-[14px] font-bold text-white/70 mb-2">Set a target weight to track progress</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowWeightInput(true)}
+                        className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-[12px] font-black text-white hover:bg-white/20 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Set Weight Goal
+                      </button>
+                    </div>
+                  ) : null}
 
-                {/* Bottom tip */}
-                <div className="bg-white/[0.04] border-t border-white/10 px-4 py-3">
-                  <p className="text-[10px] font-semibold leading-relaxed text-white/70">
-                    <Sparkles className="inline h-3 w-3 text-amber-300 mr-1 -mt-0.5" />
-                    {isGoalLoss
-                      ? `Keep protein at ${activeGoal?.protein_target_g ?? 120}g daily while in a calorie deficit to preserve muscle.`
-                      : goalType === "muscle_gain"
-                      ? `Hit ${activeGoal?.protein_target_g ?? 150}g+ protein in a calorie surplus to fuel muscle growth.`
-                      : `Aim for ${activeGoal?.protein_target_g ?? 120}g protein, ${activeGoal?.carbs_target_g ?? 200}g carbs, ${activeGoal?.fat_target_g ?? 65}g fat daily.`}
-                  </p>
+                  {/* Macro river — horizontal flowing pills */}
+                  <div className="mt-5 pt-4 border-t border-white/8">
+                    <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/30 mb-2.5">Daily Targets</p>
+                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                      {[
+                        { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", color: "border-l-amber-400 bg-amber-400/10" },
+                        { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", color: "border-l-blue-400 bg-blue-400/10" },
+                        { label: "Carbs", value: activeGoal?.carbs_target_g ?? 250, unit: "g", color: "border-l-orange-400 bg-orange-400/10" },
+                        { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", color: "border-l-purple-400 bg-purple-400/10" },
+                        { label: "Fiber", value: activeGoal?.fiber_target_g ?? 25, unit: "g", color: "border-l-emerald-400 bg-emerald-400/10" },
+                      ].map((m) => (
+                        <div key={m.label} className={`flex items-center gap-2 shrink-0 rounded-[12px] border-l-2 ${m.color} px-3 py-2 backdrop-blur-sm`}>
+                          <span className="text-[15px] font-black leading-none text-white">{m.value.toLocaleString()}</span>
+                          <div className="text-right">
+                            <span className="block text-[8px] font-bold text-white/40">{m.unit}</span>
+                            <span className="block text-[9px] font-extrabold text-white/50">{m.label}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </article>
+            </section>
+
+        {showWeightInput && (
+          <div className="mb-5 rounded-[18px] bg-white/95 backdrop-blur-lg border border-slate-200 p-4 shadow-[0_10px_24px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                value={newWeight}
+                onChange={(e) => setNewWeight(e.target.value)}
+                placeholder={`${currentWeight}`}
+                step="0.1"
+                className="h-12 flex-1 rounded-[12px] border border-slate-200 bg-[#F8FAFC] px-4 text-[18px] font-bold text-slate-800"
+              />
+              <span className="text-[14px] font-bold text-slate-500">kg</span>
+              <button
+                type="button"
+                onClick={handleLogWeight}
+                disabled={isLoggingWeight}
+                className="h-12 rounded-[12px] bg-emerald-600 px-5 text-[14px] font-black text-white active:scale-95 disabled:opacity-60"
+              >
+                {isLoggingWeight ? "..." : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        </>
+        )}
+
+        {coachProposals.length > 0 && (
+        <section className="mb-5">
+          <SectionHeader title="Coach Goals" />
+          <div className="space-y-3">
+            {coachProposals.map((proposal) => {
+              const prog = coachGoalProgress.find((p) => p.proposalId === proposal.id);
+              const goalTypeDisplay: Record<string, string> = {
+                weight_target: "Weight Target",
+                calorie_target: "Calorie Target",
+                macro_target: "Macro Target",
+                meal_adherence: "Meal Adherence",
+                workout_frequency: "Workout Frequency",
+                streak_target: "Streak Target",
+              };
+              const goalIcon: Record<string, LucideIcon> = {
+                weight_target: Scale,
+                calorie_target: Flame,
+                macro_target: Target,
+                meal_adherence: Leaf,
+                workout_frequency: Dumbbell,
+                streak_target: CalendarCheck,
+              };
+              const Icon = goalIcon[proposal.goal_type] ?? Target;
+              const isProposed = proposal.status === "proposed";
+
+              return (
+                <article
+                  key={proposal.id}
+                  className={`overflow-hidden rounded-[20px] border bg-white shadow-[0_16px_34px_rgba(15,23,42,0.06)] ${
+                    isProposed ? "border-amber-200" : "border-emerald-200"
+                  }`}
+                >
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                        isProposed
+                          ? "bg-amber-100 text-amber-600"
+                          : "bg-emerald-100 text-emerald-600"
+                      }`}>
+                        <Icon className="h-5 w-5" strokeWidth={2.2} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-[15px] font-black tracking-[-0.03em] text-slate-900">
+                            {goalTypeDisplay[proposal.goal_type] ?? proposal.goal_type}
+                          </h4>
+                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                            isProposed
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}>
+                            {isProposed ? "NEW" : "ACTIVE"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-medium text-slate-500">
+                          From {proposal.coach_name}
+                          {proposal.deadline && prog?.daysRemaining != null && (
+                            <> · {prog.daysRemaining} days left</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="rounded-[12px] bg-slate-50 px-3 py-2 text-center">
+                        <p className="text-[18px] font-black text-slate-900">{prog?.currentValue ?? "—"}</p>
+                        <p className="text-[9px] font-bold text-slate-400">CURRENT</p>
+                      </div>
+                      <div className="flex-1">
+                        <div className="h-2 rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isProposed ? "bg-amber-400" : "bg-gradient-to-r from-emerald-400 to-emerald-600"
+                            }`}
+                            style={{ width: `${prog?.progressPct ?? 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="rounded-[12px] bg-emerald-50 px-3 py-2 text-center">
+                        <p className="text-[18px] font-black text-emerald-700">{proposal.target_value}</p>
+                        <p className="text-[9px] font-bold text-emerald-400">TARGET</p>
+                      </div>
+                    </div>
+
+                    {prog && (
+                      <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                        {prog.progressPct}% of goal reached · {prog.unit}
+                      </p>
+                    )}
+
+                    {proposal.notes && (
+                      <p className="mt-2 text-[12px] text-slate-600 italic">"{proposal.notes}"</p>
+                    )}
+
+                    {isProposed && (
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => acceptCoachGoal(proposal.id)}
+                          className="flex-1 h-11 rounded-[12px] bg-emerald-600 text-[13px] font-bold text-white active:scale-95 transition-all hover:bg-emerald-700"
+                        >
+                          Accept Goal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => rejectCoachGoal(proposal.id)}
+                          className="h-11 rounded-[12px] bg-slate-100 px-5 text-[13px] font-bold text-slate-500 active:scale-95 transition-all hover:bg-slate-200"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </section>
+        )}
 
         <section className="mb-5">
           <SectionHeader action={showWeekDetails ? "Hide Details" : "View Details"} title="Weekly Performance" onClick={() => setShowWeekDetails(!showWeekDetails)} />
@@ -1151,54 +1865,18 @@ export default function ProgressRedesigned() {
               <button className="text-[13px] font-black text-[#00A86B]" type="button">View All</button>
             </div>
             <div className="grid grid-cols-4 gap-3 text-center">
-              {achievements.map((achievement) => {
-                const Icon = achievement.Icon;
-                return (
-                  <div key={achievement.label} className="flex flex-col items-center">
-                    <div className={`grid h-[52px] w-[52px] place-items-center rounded-[16px] border shadow-inner ${achievement.unlocked ? "border-amber-200 bg-gradient-to-br from-amber-200 to-amber-500 text-amber-800" : "border-slate-300 bg-gradient-to-br from-slate-100 to-slate-300 text-slate-500"}`}>
-                      <Icon className="h-7 w-7" />
-                    </div>
-                    <p className="mt-2.5 text-[11px] font-semibold leading-[1.15] text-slate-600">{achievement.label}</p>
-                  </div>
-                );
-              })}
+              {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, 4).map((badge) => (
+                <BadgeCard key={badge.id} badge={badge} variant="full" />
+              ))}
             </div>
             <div className="mt-5 flex items-center gap-3">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full w-1/2 rounded-full bg-[#10B981]" />
+                <div className="h-full rounded-full bg-[#10B981]" style={{ width: `${totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0}%` }} />
               </div>
-              <p className="text-[12px] font-black text-[#00A86B]">2 <span className="font-semibold text-slate-500">/ 4 Unlocked</span></p>
+              <p className="text-[12px] font-black text-[#00A86B]">{unlockedCount} <span className="font-semibold text-slate-500">/ {totalCount} Unlocked</span></p>
               <div className="h-1.5 flex-1 rounded-full bg-slate-100" />
             </div>
           </article>
-        </section>
-        </>)}
-
-        <section className="mb-4 overflow-hidden rounded-[24px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-          <div className="flex items-center gap-3 px-5 pt-5 pb-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_6px_14px_rgba(16,185,129,0.25)]">
-              <Trophy className="h-5 w-5 text-white" strokeWidth={2.5} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Keep going, {firstName}! 💪</h3>
-              <p className="mt-0.5 text-[11px] font-medium text-slate-500">Only {Math.max(1, Math.round(weightDiff))} kg left to unlock your first milestone</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 border-t border-slate-50 bg-[linear-gradient(100deg,#ECFDF5_0%,#F0FDF6_50%,#EFF6FF_100%)] px-5 py-3">
-            <div className="flex items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-100">
-                <TrendingUp className="h-4 w-4 text-[#10B981]" strokeWidth={2.5} />
-              </div>
-              <p className="text-[11px] font-semibold text-slate-700">Better than <span className="font-extrabold text-[#059669]">68%</span> of users</p>
-            </div>
-            <div className="h-5 w-px bg-slate-200" />
-            <div className="flex items-center gap-2">
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-amber-100">
-                <Zap className="h-4 w-4 text-amber-600" strokeWidth={2.5} />
-              </div>
-              <p className="text-[11px] font-semibold text-slate-700"><span className="font-extrabold text-amber-600">82%</span> consistency</p>
-            </div>
-          </div>
         </section>
       </div>
     </main>

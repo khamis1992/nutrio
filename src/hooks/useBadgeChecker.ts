@@ -11,6 +11,8 @@ export function useBadgeChecker(userId: string | undefined) {
 
     try {
       const today = new Date().toISOString().split("T")[0];
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+
       const { data: existing } = await supabase.from("user_badges").select("badge_id").eq("user_id", userId);
       const earned = new Set((existing || []).map((b: any) => b.badge_id));
 
@@ -19,11 +21,17 @@ export function useBadgeChecker(userId: string | undefined) {
         { data: mealSchedules },
         { data: waterLogs },
         { data: orders },
+        { data: calorieLogs },
+        { data: subscriptions },
+        { data: userProfile },
       ] = await Promise.all([
-        supabase.from("profiles").select("user_id, level, target_weight, weight, protein_target_g").eq("user_id", userId).single(),
+        supabase.from("profiles").select("user_id, level, target_weight, weight, protein_target_g, daily_calorie_target, referral_rewards_earned").eq("user_id", userId).single(),
         supabase.from("meal_schedules").select("meal_id, order_status, meals(name)").eq("user_id", userId).limit(200),
         supabase.from("water_entries").select("amount_ml, log_date").eq("user_id", userId).gte("log_date", new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0]),
         supabase.from("user_orders_view").select("restaurant_id, restaurant_name").eq("user_id", userId).limit(100),
+        supabase.from("progress_logs").select("calories_consumed, log_date").eq("user_id", userId).gte("log_date", thirtyDaysAgo).order("log_date", { ascending: false }),
+        supabase.from("subscriptions").select("start_date, status").eq("user_id", userId).neq("status", "cancelled").order("start_date", { ascending: true }),
+        supabase.from("profiles").select("referral_rewards_earned").eq("user_id", userId).single(),
       ]);
 
       const newBadges: Array<{ badge_id: string; xp_reward: number }> = [];
@@ -69,6 +77,38 @@ export function useBadgeChecker(userId: string | undefined) {
         }
       }
 
+      // Variety King — same as explorer (10 restaurants), separate badge
+      if (!earned.has("variety_king")) {
+        const restaurants = new Set((orders || []).map((o: any) => o.restaurant_id));
+        if (restaurants.size >= 10) {
+          newBadges.push({ badge_id: "variety_king", xp_reward: 200 });
+        }
+      }
+
+      // Nutrition Ninja — hit calorie goal 5 days in a row
+      if (!earned.has("nutrition_ninja")) {
+        const calorieTarget = profile?.daily_calorie_target || 2000;
+        if (calorieLogs && calorieLogs.length >= 5) {
+          const dailyCals = new Map<string, number>();
+          for (const l of calorieLogs || []) {
+            const current = dailyCals.get(l.log_date) || 0;
+            dailyCals.set(l.log_date, current + (l.calories_consumed || 0));
+          }
+          let consecutiveDays = 0;
+          for (const [_, total] of dailyCals) {
+            if (total >= calorieTarget) {
+              consecutiveDays++;
+              if (consecutiveDays >= 5) break;
+            } else {
+              consecutiveDays = 0;
+            }
+          }
+          if (consecutiveDays >= 5) {
+            newBadges.push({ badge_id: "nutrition_ninja", xp_reward: 150 });
+          }
+        }
+      }
+
       // Goal Crusher — reached weight goal
       if (!earned.has("goal_crusher") && profile?.target_weight && profile?.weight) {
         if (profile.weight <= profile.target_weight) {
@@ -76,10 +116,30 @@ export function useBadgeChecker(userId: string | undefined) {
         }
       }
 
-      // Streak 30 — 30-day logging streak (handled by celebrate hook already for 7/14/30)
+      // Streak 30 — 30-day logging streak
       const { data: streakData } = await supabase.from("user_streaks").select("current_streak").eq("user_id", userId).eq("streak_type", "logging").single();
       if (!earned.has("streak_30") && streakData?.current_streak >= 30) {
         newBadges.push({ badge_id: "streak_30", xp_reward: 300 });
+      }
+
+      // Social Butterfly — 3 referrals who subscribed
+      if (!earned.has("social_butterfly")) {
+        const referralCount = profile?.referral_rewards_earned || userProfile?.referral_rewards_earned || 0;
+        if (referralCount >= 3) {
+          newBadges.push({ badge_id: "social_butterfly", xp_reward: 250 });
+        }
+      }
+
+      // Subscription Hero — 6 months subscribed
+      if (!earned.has("subscription_hero")) {
+        const activeSubs = subscriptions || [];
+        if (activeSubs.length > 0) {
+          const earliestStart = new Date(activeSubs[0].start_date);
+          const monthsDiff = (new Date().getFullYear() - earliestStart.getFullYear()) * 12 + (new Date().getMonth() - earliestStart.getMonth());
+          if (monthsDiff >= 6) {
+            newBadges.push({ badge_id: "subscription_hero", xp_reward: 400 });
+          }
+        }
       }
 
       // Nutrio Royalty — Level 50
