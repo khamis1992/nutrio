@@ -103,6 +103,12 @@ export function useNutritionGoals(userId: string | undefined) {
     fetchGoals();
   }, [fetchGoals]);
 
+  useEffect(() => {
+    const onFocus = () => fetchGoals();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchGoals]);
+
   const updateGoalTargets = useCallback(async (
     updates: Partial<Pick<NutritionGoal, "daily_calorie_target" | "protein_target_g" | "carbs_target_g" | "fat_target_g">>
   ) => {

@@ -1,7 +1,9 @@
 import { motion } from "framer-motion";
-import { Loader2, DollarSign, Clock, CheckCircle2, TrendingUp, User, Calendar, ArrowUpRight } from "lucide-react";
+import { Loader2, DollarSign, Clock, CheckCircle2, TrendingUp, User, Calendar, ArrowUpRight, Download, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachEarnings } from "@/hooks/useCoachEarnings";
+import { useCoachWithdrawal } from "@/hooks/useCoachWithdrawal";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const statCard = {
@@ -17,6 +19,13 @@ export default function CoachEarningsPage() {
   const { user } = useAuth();
   const coachId = user?.id;
   const { summary, subscriptions, earnings, loading, commissionPct, refresh } = useCoachEarnings(coachId);
+  const { withdrawals, submitting, requestWithdrawal, refresh: refreshWithdrawals } = useCoachWithdrawal(coachId);
+  const { toast } = useToast();
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [iban, setIban] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   if (loading) {
     return (
@@ -170,6 +179,179 @@ export default function CoachEarningsPage() {
           <p className="text-[12px] text-slate-500 max-w-[260px] mx-auto">
             Set your pricing and start coaching to earn income. Your earnings will appear here.
           </p>
+        </motion.div>
+      )}
+      {/* Withdraw CTA */}
+      {summary.availableToWithdraw > 0 && (
+        <motion.div
+          variants={statCard}
+          initial="hidden"
+          animate="visible"
+          className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[14px] font-extrabold text-slate-800">Withdraw Funds</h2>
+              <p className="text-[10px] text-slate-400">Transfer available balance to your bank account</p>
+            </div>
+            <button
+              onClick={() => {
+                setWithdrawAmount(String(summary.availableToWithdraw));
+                setWithdrawModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 h-[38px] px-5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[13px] font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 active:scale-95 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              Withdraw
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Withdrawal Modal */}
+      {withdrawModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="w-full max-w-md bg-white rounded-[24px] p-6 shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[16px] font-extrabold text-slate-950">Withdraw to Bank</h2>
+              <button onClick={() => setWithdrawModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Amount (QAR)</label>
+                <input
+                  type="number"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full h-[44px] px-4 rounded-full bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+                {Number(withdrawAmount) > summary.availableToWithdraw && (
+                  <p className="text-[10px] text-red-500 mt-1">Cannot exceed available balance ({formatCurrency(summary.availableToWithdraw)})</p>
+                )}
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Bank Name</label>
+                <input
+                  type="text"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="e.g. QNB"
+                  className="w-full h-[44px] px-4 rounded-full bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">IBAN</label>
+                <input
+                  type="text"
+                  value={iban}
+                  onChange={(e) => setIban(e.target.value)}
+                  placeholder="QA12345678901234567890"
+                  className="w-full h-[44px] px-4 rounded-full bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Account Holder Name</label>
+                <input
+                  type="text"
+                  value={accountHolder}
+                  onChange={(e) => setAccountHolder(e.target.value)}
+                  placeholder="e.g. Ahmed Ali"
+                  className="w-full h-[44px] px-4 rounded-full bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  const amount = Number(withdrawAmount);
+                  if (!amount || amount <= 0) {
+                    toast({ title: "Invalid amount", description: "Please enter a valid withdrawal amount.", variant: "destructive" });
+                    return;
+                  }
+                  if (amount > summary.availableToWithdraw) {
+                    toast({ title: "Exceeds balance", description: `You can withdraw up to ${formatCurrency(summary.availableToWithdraw)}.`, variant: "destructive" });
+                    return;
+                  }
+                  if (!bankName.trim()) {
+                    toast({ title: "Missing bank", description: "Please enter your bank name.", variant: "destructive" });
+                    return;
+                  }
+                  if (!iban.trim()) {
+                    toast({ title: "Missing IBAN", description: "Please enter your IBAN.", variant: "destructive" });
+                    return;
+                  }
+                  if (!accountHolder.trim()) {
+                    toast({ title: "Missing name", description: "Please enter the account holder name.", variant: "destructive" });
+                    return;
+                  }
+                  const result = await requestWithdrawal(amount, bankName, iban, accountHolder);
+                  if (result.success) {
+                    toast({ title: "Withdrawal requested", description: "Your withdrawal request has been submitted for admin approval." });
+                    setWithdrawModalOpen(false);
+                    setBankName("");
+                    setIban("");
+                    setAccountHolder("");
+                    setWithdrawAmount("");
+                    refreshWithdrawals();
+                    refresh();
+                  } else {
+                    toast({ title: "Failed", description: result.error?.message || "Please try again.", variant: "destructive" });
+                  }
+                }}
+                disabled={submitting}
+                className="w-full h-[44px] rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[13px] font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Submit Request
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Withdrawal History */}
+      {withdrawals.length > 0 && (
+        <motion.div
+          variants={statCard}
+          initial="hidden"
+          animate="visible"
+          className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+        >
+          <h2 className="text-[14px] font-extrabold text-slate-800 mb-3">Withdrawal History</h2>
+          <div className="space-y-1">
+            {withdrawals.map((w) => {
+              const statusColors: Record<string, string> = {
+                pending: "bg-amber-50 text-amber-700",
+                approved: "bg-blue-50 text-blue-700",
+                rejected: "bg-red-50 text-red-700",
+                processed: "bg-emerald-50 text-emerald-700",
+              };
+              return (
+                <div key={w.id} className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+                  <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold", statusColors[w.status])}>
+                    {w.status === "pending" ? "⏳" : w.status === "approved" ? "✓" : w.status === "processed" ? "✓" : "✕"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold text-slate-900">QAR {w.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                    <p className="text-[10px] text-slate-400">{w.bank_name} · {w.iban.slice(0, 4)}...{w.iban.slice(-4)} · {w.account_holder}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", statusColors[w.status])}>
+                      {w.status.charAt(0).toUpperCase() + w.status.slice(1)}
+                    </span>
+                    <p className="text-[9px] text-slate-400 mt-0.5">
+                      {new Date(w.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </motion.div>
       )}
     </div>

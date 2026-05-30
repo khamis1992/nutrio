@@ -79,8 +79,44 @@ serve(async (req) => {
       }
     }
 
+    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+    const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+    if (DEEPSEEK_API_KEY) {
+      try {
+        const dsResponse = await fetch(DEEPSEEK_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.6,
+            max_tokens: 2000,
+          }),
+        });
+
+        if (dsResponse.ok) {
+          const dsData = await dsResponse.json();
+          const content = dsData.choices?.[0]?.message?.content;
+          if (content) {
+            return new Response(
+              JSON.stringify({ content, provider: "deepseek" }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+      } catch {
+      }
+    }
+
     return new Response(
-      JSON.stringify({ error: "All models failed" }),
+      JSON.stringify({ error: "All models failed (OpenRouter + DeepSeek)" }),
       { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

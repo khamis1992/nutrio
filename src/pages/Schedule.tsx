@@ -152,7 +152,7 @@ const Schedule = () => {
   const { settings, loading: settingsLoading } = usePlatformSettings();
   const { toast } = useToast();
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
-  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, refetch: refetchSubscription } = useSubscription();
+  const { remainingMeals, isUnlimited, hasActiveSubscription, subscription, remainingSnacks, snacksPerMonth, refetch: refetchSubscription } = useSubscription();
   const { wallet, refresh: refetchWallet } = useWallet();
 
   const pricePerMeal = subscription?.price_per_meal ?? 50;
@@ -767,23 +767,27 @@ const Schedule = () => {
                 ));
               }
 
-              /* ── Empty Slot Card ─── */
+              /* ── Empty Slot Card(s) ─── */
               const isFirstSlot = typeIndex === 0;
-              return (
+              const maxEmptySlots = mealType === "snack"
+                ? Math.max(1, Math.ceil((snacksPerMonth || 0) / 30) - typeMeals.length)
+                : 1;
+
+              return Array.from({ length: maxEmptySlots }).map((_, emptyIdx) => (
                 <motion.div
-                  key={`empty-${mealType}`}
+                  key={`empty-${mealType}-${emptyIdx}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: typeIndex * 0.05 }}
+                  transition={{ delay: (typeIndex + emptyIdx) * 0.05 }}
                   className="relative"
                 >
                   <span className={`absolute left-[-15px] top-[34px] z-10 h-[7px] w-[7px] rounded-full ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
                   <EmptyMealSlot
                     config={config}
-                    mealTypeName={mealTypeName}
+                    mealTypeName={emptyIdx > 0 ? `${mealTypeName} ${emptyIdx + 1}` : mealTypeName}
                     timeLabel={timeLabel}
-                    noMealsLeft={noMealsLeft}
-                    isFirstSlot={isFirstSlot}
+                    noMealsLeft={noMealsLeft || (mealType === "snack" && remainingSnacks <= 0)}
+                    isFirstSlot={isFirstSlot && emptyIdx === 0}
                     onSwipeRight={() => {
                       if (!user) {
                         promptLogin({
@@ -812,7 +816,7 @@ const Schedule = () => {
                     onBuyCredits={() => setShowBuyCredit(true)}
                   />
                 </motion.div>
-              );
+              ));
             })}
           </div>
         )}

@@ -4,7 +4,6 @@ import {
   Bell,
   BellOff,
   Truck,
-  Star,
   TrendingUp,
   Crown,
   Loader2,
@@ -13,16 +12,23 @@ import {
   CheckCheck,
   Sparkles,
   Utensils,
+  MessageCircle,
+  Send,
+  X,
+  User,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useClientCoachMessages } from "@/hooks/useClientCoachMessages";
 import { formatDistanceToNow, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 interface Notification {
   id: string;
-  type: "order_update" | "meal_reminder" | "subscription_alert" | "general" | "announcement";
+  type: "order_update" | "meal_reminder" | "subscription_alert" | "general" | "announcement" | "coach_message";
   title: string;
   message: string;
   status: "unread" | "read" | "archived";
@@ -62,12 +68,19 @@ const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: s
     gradient: "from-[#F59E0B] to-[#D97706]",
     shadow: "shadow-[0_8px_16px_rgba(245,158,11,0.2)]"
   },
+  coach_message: {
+    icon: MessageCircle,
+    bg: "bg-[#F3E8FF]",
+    gradient: "from-[#8B5CF6] to-[#7C3AED]",
+    shadow: "shadow-[0_8px_16px_rgba(139,92,246,0.2)]"
+  },
 };
 
 const FILTERS = [
   { key: "all", label: "All", icon: Bell },
   { key: "orders", label: "Orders", icon: Truck },
   { key: "meals", label: "Meals", icon: Utensils },
+  { key: "messages", label: "Messages", icon: MessageCircle },
   { key: "offers", label: "Offers", icon: Sparkles },
 ] as const;
 
@@ -79,6 +92,7 @@ const TYPE_TO_FILTER: Record<Notification["type"], FilterKey> = {
   subscription_alert: "offers",
   general: "offers",
   announcement: "offers",
+  coach_message: "messages",
 };
 
 function getTimeGroup(date: Date): string {
@@ -122,6 +136,168 @@ const itemVariants = {
   visible: { opacity: 1, x: 0 }
 };
 
+// ─── Inline coach chat component ───
+function CoachReplySheet({
+  notification,
+  clientId,
+  onClose,
+}: {
+  notification: Notification;
+  clientId: string;
+  onClose: () => void;
+}) {
+  const { messages, coachInfo, loading, sending, sendMessage, markAsRead } = useClientCoachMessages(clientId);
+  const [messageInput, setMessageInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (coachInfo) {
+      markAsRead();
+    }
+  }, [coachInfo, messages.length]);
+
+  const handleSend = async () => {
+    if (!messageInput.trim()) return;
+    await sendMessage(messageInput.trim());
+    setMessageInput("");
+    inputRef.current?.focus();
+  };
+
+  const formatTime = (ts: string) => {
+    if (!ts) return "";
+    const date = new Date(ts);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) {
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }).toLowerCase();
+    }
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  return (
+    <motion.div
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", damping: 28, stiffness: 260 }}
+      className="fixed inset-0 z-50 flex flex-col bg-white"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 h-14 border-b border-slate-100 shrink-0">
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:bg-slate-200"
+        >
+          <ArrowLeft className="w-4 h-4 text-slate-700" />
+        </button>
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center shrink-0">
+            {coachInfo?.coachAvatar ? (
+              <img src={coachInfo.coachAvatar} alt="" className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <User className="w-4 h-4 text-violet-600" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-[14px] font-extrabold text-slate-900 truncate">
+              {coachInfo?.coachName || "Your Coach"}
+            </h2>
+            <p className="text-[10px] text-slate-500">Coach</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-2"
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <MessageCircle className="w-10 h-10 text-slate-200 mb-3" />
+            <p className="text-[13px] text-slate-400">No messages yet</p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            {messages.map((msg) => {
+              const isClient = msg.sender_role === "client";
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn("flex", isClient ? "justify-end" : "justify-start")}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[75%] px-4 py-2.5 text-sm leading-relaxed rounded-2xl",
+                      isClient
+                        ? "bg-violet-600 text-white rounded-br-sm"
+                        : "bg-white text-slate-700 rounded-bl-sm shadow-sm border border-slate-100"
+                    )}
+                  >
+                    <p>{msg.message}</p>
+                    <p className={cn(
+                      "text-[10px] mt-1",
+                      isClient ? "text-violet-200" : "text-slate-400"
+                    )}>
+                      {formatTime(msg.created_at)}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        )}
+
+        {sending && (
+          <div className="flex justify-end">
+            <div className="bg-violet-600/50 text-white text-sm rounded-2xl rounded-br-sm px-4 py-2.5 flex items-center gap-1">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Sending...
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="px-4 py-3 border-t border-slate-100 bg-white shrink-0">
+        <div className="flex items-center gap-2 bg-slate-50 rounded-[20px] border border-slate-200 px-3 py-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Reply to your coach..."
+            className="flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none"
+            autoFocus
+          />
+          <button
+            onClick={handleSend}
+            disabled={!messageInput.trim() || sending}
+            className="w-10 h-10 rounded-full bg-violet-600 text-white flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-all"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Notifications() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -130,8 +306,10 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
-  const [swipedId, setSwipedId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const [replyNotification, setReplyNotification] = useState<Notification | null>(null);
+
+  const clientId = user?.id;
 
   useEffect(() => {
     if (!user) return;
@@ -159,6 +337,15 @@ export default function Notifications() {
       .channel("notifications-channel")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         (payload) => setNotifications((prev) => [payload.new as Notification, ...prev])
+      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const updated = payload.new as Notification;
+          setNotifications((prev) => {
+            const filtered = prev.filter((n) => n.id !== updated.id);
+            return [updated, ...filtered];
+          });
+        }
       )
       .subscribe();
 
@@ -214,6 +401,14 @@ export default function Notifications() {
 
   return (
     <div className="min-h-screen bg-white">
+      {replyNotification && clientId && (
+        <CoachReplySheet
+          notification={replyNotification}
+          clientId={clientId}
+          onClose={() => setReplyNotification(null)}
+        />
+      )}
+
       {/* Floating Header */}
       <div className="sticky top-0 z-10 bg-white pt-12 px-5 pb-2">
         <div className="mx-auto max-w-[430px]">
@@ -249,7 +444,7 @@ export default function Notifications() {
             </motion.button>
           </div>
 
-          {/* Filter Tabs - Segmented Control Style */}
+          {/* Filter Tabs */}
           <motion.div
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
@@ -316,7 +511,6 @@ export default function Notifications() {
                     animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                     exit={prefersReducedMotion ? undefined : { opacity: 0, y: -20 }}
                   >
-                    {/* Time Group Header */}
                     <div className="mb-3 flex items-center gap-2 px-1">
                       <span className="text-[13px] font-semibold uppercase tracking-[0.04em] text-slate-500">
                         {group}
@@ -324,7 +518,6 @@ export default function Notifications() {
                       <div className="h-px flex-1 bg-slate-200" />
                     </div>
 
-                    {/* Notification Cards */}
                     <motion.div
                       variants={containerVariants}
                       initial="hidden"
@@ -335,6 +528,7 @@ export default function Notifications() {
                         const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.general;
                         const Icon = cfg.icon;
                         const isUnread = n.status === "unread";
+                        const isCoachMessage = n.type === "coach_message";
 
                         return (
                           <motion.div
@@ -350,13 +544,11 @@ export default function Notifications() {
                                   : "border-slate-100 bg-white/60 shadow-sm"
                               }`}
                             >
-                              {/* Unread indicator bar */}
                               {isUnread && (
                                 <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-[#10B981] to-[#059669]" />
                               )}
 
                               <div className="flex items-start gap-3 p-4">
-                                {/* Icon */}
                                 <motion.div
                                   whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
                                   className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cfg.gradient} ${cfg.shadow}`}
@@ -364,7 +556,6 @@ export default function Notifications() {
                                   <Icon className="h-5 w-5 text-white" strokeWidth={2} />
                                 </motion.div>
 
-                                {/* Content */}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="min-w-0 flex-1">
@@ -389,7 +580,20 @@ export default function Notifications() {
 
                               {/* Action Buttons */}
                               <div className="flex items-center gap-1 border-t border-slate-100 bg-slate-50/50 px-4 py-2">
-                                {isUnread && (
+                                {isCoachMessage && clientId && (
+                                  <motion.button
+                                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                                    onClick={() => {
+                                      markAsRead(n.id);
+                                      setReplyNotification(n);
+                                    }}
+                                    className="flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-1.5 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100"
+                                  >
+                                    <MessageCircle className="h-3 w-3" strokeWidth={2.5} />
+                                    Reply
+                                  </motion.button>
+                                )}
+                                {isUnread && !isCoachMessage && (
                                   <motion.button
                                     whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                                     onClick={() => markAsRead(n.id)}

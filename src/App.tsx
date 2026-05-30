@@ -95,6 +95,8 @@ const CoachChatPage = lazy(() => import("./pages/coach/CoachChatPage"));
 const CoachClientDetail = lazy(() => import("./pages/coach/CoachClientDetail"));
 const CoachEarningsPage = lazy(() => import("./pages/coach/CoachEarningsPage"));
 const CoachPortalLayout = lazy(() => import("./components/coach/CoachPortalLayout").then(m => ({ default: m.CoachPortalLayout })));
+const CoachOnboarding = lazy(() => import("./pages/nutrio/CoachOnboarding"));
+const CoachSchedule = lazy(() => import("./pages/coach/CoachSchedule"));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -560,6 +562,7 @@ const App = () => (
               <Route path="earnings" element={<CoachEarningsPage />} />
               <Route path="settings" element={<CoachSettings />} />
               <Route path="client/:clientId" element={<CoachClientDetail />} />
+              <Route path="schedule" element={<CoachSchedule />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

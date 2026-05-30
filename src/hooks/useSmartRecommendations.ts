@@ -118,7 +118,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (calorieDiff > 300 && daysLogged >= 3 && (goalType === "lose_weight" || goalType === "maintain_weight")) {
+      if (calorieDiff > 300 && daysLogged >= 3 && (goalType === "weight_loss" || goalType === "maintenance")) {
         recs.push({
           id: "calories-over",
           category: "nutrition",
@@ -131,7 +131,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (calorieDiff < -400 && daysLogged >= 3 && goalType === "gain_muscle") {
+      if (calorieDiff < -400 && daysLogged >= 3 && goalType === "muscle_gain") {
         recs.push({
           id: "calories-under",
           category: "nutrition",
@@ -197,7 +197,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         });
       }
 
-      if (avgCarbs > 300 && daysLogged >= 3 && goalType === "lose_weight") {
+      if (avgCarbs > 300 && daysLogged >= 3 && goalType === "weight_loss") {
         recs.push({
           id: "carbs-high",
           category: "nutrition",

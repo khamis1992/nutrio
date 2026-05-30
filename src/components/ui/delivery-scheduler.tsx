@@ -43,11 +43,16 @@ export const DeliveryScheduler = ({
 
   const [selectedDate, setSelectedDate] = useState<Date>(parseInitial());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Build 7-day week starting from today + weekOffset*7
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const initDate = parseInitial();
+  const diffDays = Math.floor((initDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const initialWeekOffset = Math.floor(diffDays / 7);
+
+  const [weekOffset, setWeekOffset] = useState<number>(initialWeekOffset);
+
+  // Build 7-day week starting from today + weekOffset*7
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() + weekOffset * 7);
 

@@ -2,7 +2,11 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/nutrio/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/nutrio/(.*)",
       "destination": "/index.html"
     }
   ],

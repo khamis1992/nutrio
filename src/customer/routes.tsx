@@ -43,6 +43,13 @@ const SmartRecommendationsPage = lazy(() => import("@/pages/recommendations/Smar
 const CoachesDirectory = lazy(() => import("@/pages/CoachesDirectory"));
 const ApplyCoach = lazy(() => import("@/pages/coach/ApplyCoach"));
 const CoachMessages = lazy(() => import("@/pages/CoachMessages"));
+const CoachOnboarding = lazy(() => import("@/pages/nutrio/CoachOnboarding"));
+const CoachSubscription = lazy(() => import("@/pages/nutrio/CoachSubscription"));
+const CoachPrograms = lazy(() => import("@/pages/nutrio/CoachPrograms"));
+const GuidedWorkout = lazy(() => import("@/pages/nutrio/GuidedWorkout"));
+const CoachSchedule = lazy(() => import("@/pages/coach/CoachSchedule"));
+const WorkoutHistory = lazy(() => import("@/pages/nutrio/WorkoutHistory"));
+const AIReport = lazy(() => import("@/pages/AIReport"));
 
 export const customerRoutes = (
   <>
@@ -352,6 +359,62 @@ export const customerRoutes = (
       element={
         <ProtectedRoute>
           <CoachMessages />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/coach-onboarding"
+      element={
+        <ProtectedRoute>
+          <CoachOnboarding />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/coach-subscription"
+      element={
+        <ProtectedRoute>
+          <CoachSubscription />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/coach-programs"
+      element={
+        <ProtectedRoute>
+          <CoachPrograms />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/coach-programs/workout/:programId/day/:dayNumber"
+      element={
+        <ProtectedRoute>
+          <GuidedWorkout />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/workout-history"
+      element={
+        <ProtectedRoute>
+          <WorkoutHistory />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/ai-report"
+      element={
+        <ProtectedRoute>
+          <AIReport />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/coach-schedule"
+      element={
+        <ProtectedRoute>
+          <CoachSchedule />
         </ProtectedRoute>
       }
     />

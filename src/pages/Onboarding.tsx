@@ -541,7 +541,7 @@ const Onboarding = () => {
         carbs={plan.carbs}
         protein={plan.protein}
         fat={plan.fat}
-        onViewDashboard={() => navigate("/dashboard")}
+        onViewDashboard={() => navigate("/dashboard", { state: { onboardingDone: true } })}
       />
     );
   }

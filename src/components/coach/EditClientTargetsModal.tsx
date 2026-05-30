@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Save, Loader2, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +34,13 @@ export function EditClientTargetsModal({
   const [fat, setFat] = useState(currentFat ?? 65);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    setCalories(currentCalories ?? 2000);
+    setProtein(currentProtein ?? 150);
+    setCarbs(currentCarbs ?? 250);
+    setFat(currentFat ?? 65);
+  }, [currentCalories, currentProtein, currentCarbs, currentFat]);
+
   if (!open) return null;
 
   const handleSave = async () => {
@@ -46,15 +53,44 @@ export function EditClientTargetsModal({
         fat_target_g: fat,
       };
 
-      await Promise.all([
-        supabase.from("profiles").update(updates).eq("user_id", clientId),
-        supabase.from("nutrition_goals").update(updates).eq("user_id", clientId).eq("is_active", true),
-      ]);
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("user_id", clientId);
+      if (profileError) throw profileError;
+
+      const { data: activeGoals, error: fetchError } = await supabase
+        .from("nutrition_goals")
+        .select("id")
+        .eq("user_id", clientId)
+        .eq("is_active", true);
+
+      if (fetchError) throw fetchError;
+
+      if (activeGoals && activeGoals.length > 0) {
+        const { error: goalError } = await supabase
+          .from("nutrition_goals")
+          .update(updates)
+          .eq("id", activeGoals[0].id);
+        if (goalError) throw goalError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("nutrition_goals")
+          .insert({
+            user_id: clientId,
+            goal_type: "general_health",
+            ...updates,
+            fiber_target_g: 25,
+            is_active: true,
+          });
+        if (insertError) throw insertError;
+      }
 
       toast({ title: "Targets updated", description: `${clientName}'s daily targets have been saved.` });
       onSaved();
       onClose();
     } catch (err) {
+      console.error("Failed to save targets:", err);
       toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
     } finally {
       setSaving(false);
@@ -62,10 +98,10 @@ export function EditClientTargetsModal({
   };
 
   const fields = [
-    { label: "Daily Calories", value: calories, setter: setCalories, unit: "kcal", min: 800, max: 5000, step: 50 },
-    { label: "Protein", value: protein, setter: setProtein, unit: "g", min: 30, max: 300, step: 5 },
-    { label: "Carbs", value: carbs, setter: setCarbs, unit: "g", min: 50, max: 500, step: 5 },
-    { label: "Fat", value: fat, setter: setFat, unit: "g", min: 20, max: 200, step: 5 },
+    { label: "Daily Calories", value: calories, setter: setCalories, unit: "kcal", min: 0, max: 99999, step: 1 },
+    { label: "Protein", value: protein, setter: setProtein, unit: "g", min: 0, max: 99999, step: 1 },
+    { label: "Carbs", value: carbs, setter: setCarbs, unit: "g", min: 0, max: 99999, step: 1 },
+    { label: "Fat", value: fat, setter: setFat, unit: "g", min: 0, max: 99999, step: 1 },
   ];
 
   return (
@@ -113,7 +149,20 @@ export function EditClientTargetsModal({
                 <input
                   type="number"
                   value={field.value}
-                  onChange={(e) => field.setter(Math.min(field.max, Math.max(field.min, Number(e.target.value) || field.min)))}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      field.setter(0);
+                      return;
+                    }
+                    const num = Number(raw);
+                    if (!isNaN(num)) {
+                      field.setter(num);
+                    }
+                  }}
+                  onBlur={() => {
+                    field.setter(Math.min(field.max, Math.max(field.min, field.value || field.min)));
+                  }}
                   min={field.min}
                   max={field.max}
                   step={field.step}

@@ -20,7 +20,6 @@ import {
   Zap,
 } from "lucide-react";
 
-import goalWomanReference from "@/assets/goal-woman-reference.png";
 import { CreateGoalModal } from "@/components/progress/CreateGoalModal";
 import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
@@ -217,7 +216,7 @@ export const GoalsTab = ({
 
   return (
     <div className="space-y-5 pb-2 animate-in fade-in duration-300">
-      <section className="relative min-h-[360px] overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#069D76_0%,#078B85_52%,#036667_100%)] px-4 pb-4 pt-4 text-white shadow-[0_18px_38px_rgba(0,108,95,0.22)]">
+      <section className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#069D76_0%,#078B85_52%,#036667_100%)] px-4 pb-4 pt-4 text-white shadow-[0_18px_38px_rgba(0,108,95,0.22)]">
         {/* Background wavy lines */}
         <div className="absolute inset-0 opacity-30">
           <svg viewBox="0 0 390 360" className="h-full w-full" preserveAspectRatio="none">
@@ -233,53 +232,51 @@ export const GoalsTab = ({
         <div className="absolute right-[34%] top-[40%] h-1 w-1 rounded-full bg-white/30" />
         <div className="absolute right-[30%] top-[20%] h-1.5 w-1.5 rounded-full bg-white/25" />
 
-        {/* Woman image - right side */}
-        <div className="absolute right-0 bottom-0 top-0 w-[140px] overflow-hidden">
-          <img src={goalWomanReference} alt="" className="h-full w-full object-cover object-center" />
-        </div>
-
-        {/* Progress ring - between text and woman */}
-          <div className="absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2 h-[140px] w-[140px]">
-            <ProgressRing percent={progressPct} size={140} stroke={10} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <p className="text-[40px] font-black leading-none tracking-[-0.07em] drop-shadow-md">
-                {progressPct}
-                <span className="text-[20px]">%</span>
-              </p>
-              <p className="mt-1 text-[13px] font-semibold text-white/95 drop-shadow-sm">Progress</p>
-            </div>
-          </div>
-
-        {/* Top-left content */}
-        <div className="relative">
-          <div className="mb-3 flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-orange-500 shadow-[0_6px_12px_rgba(249,115,22,0.3)]">
-              <Flame className="h-5 w-5 fill-white text-white" />
-            </div>
-          <span className="rounded-full bg-white border border-emerald-400 text-emerald-600 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em]">
-            Active Goal
-          </span>
-          </div>
-
-          <h2 className="text-[34px] font-black leading-[1.05] tracking-[-0.045em]">{goalName}</h2>
-          <p className="mt-1 text-[14px] font-semibold text-white/85">Your transformation progress</p>
-
-          {/* Current → Goal */}
-          <div className="mt-4 flex items-center gap-2">
-            <div className="min-w-[78px] rounded-[14px] border border-white/10 bg-white/14 px-3 py-2 shadow-[inset_0_1px_8px_rgba(255,255,255,0.12)] backdrop-blur-md">
-              <div className="flex items-baseline gap-0.5">
-                <p className="text-[22px] font-black leading-none">{currentWeight}</p>
-                <p className="text-[11px] font-extrabold text-white/80">kg</p>
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-orange-500 shadow-[0_6px_12px_rgba(249,115,22,0.3)]">
+                  <Flame className="h-5 w-5 fill-white text-white" />
+                </div>
+                <span className="rounded-full bg-white border border-emerald-400 text-emerald-600 px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                  Active Goal
+                </span>
               </div>
-              <p className="mt-1 text-[11px] font-semibold text-white/74">Current</p>
-            </div>
-            <ArrowRight className="h-5 w-5 shrink-0 text-white/75" />
-            <div className="min-w-[78px] rounded-[14px] border border-white/10 bg-white/14 px-3 py-2 shadow-[inset_0_1px_8px_rgba(255,255,255,0.12)] backdrop-blur-md">
-              <div className="flex items-baseline gap-0.5">
-                <p className="text-[22px] font-black leading-none">{goalWeight}</p>
-                <p className="text-[11px] font-extrabold text-white/80">kg</p>
+
+              <h2 className="text-[34px] font-black leading-[1.05] tracking-[-0.045em]">{goalName}</h2>
+              <p className="mt-1 text-[14px] font-semibold text-white/85">Your transformation progress</p>
+
+              {/* Current → Goal */}
+              <div className="mt-4 flex items-center gap-2">
+                <div className="min-w-[78px] rounded-[14px] border border-white/10 bg-white/14 px-3 py-2 shadow-[inset_0_1px_8px_rgba(255,255,255,0.12)] backdrop-blur-md">
+                  <div className="flex items-baseline gap-0.5">
+                    <p className="text-[22px] font-black leading-none">{currentWeight}</p>
+                    <p className="text-[11px] font-extrabold text-white/80">kg</p>
+                  </div>
+                  <p className="mt-1 text-[11px] font-semibold text-white/74">Current</p>
+                </div>
+                <ArrowRight className="h-5 w-5 shrink-0 text-white/75" />
+                <div className="min-w-[78px] rounded-[14px] border border-white/10 bg-white/14 px-3 py-2 shadow-[inset_0_1px_8px_rgba(255,255,255,0.12)] backdrop-blur-md">
+                  <div className="flex items-baseline gap-0.5">
+                    <p className="text-[22px] font-black leading-none">{goalWeight}</p>
+                    <p className="text-[11px] font-extrabold text-white/80">kg</p>
+                  </div>
+                  <p className="mt-1 text-[11px] font-semibold text-white/74">Goal</p>
+                </div>
               </div>
-              <p className="mt-1 text-[11px] font-semibold text-white/74">Goal</p>
+            </div>
+
+            {/* Progress ring */}
+            <div className="shrink-0 relative h-[140px] w-[140px]">
+              <ProgressRing percent={progressPct} size={140} stroke={10} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <p className="text-[40px] font-black leading-none tracking-[-0.07em] drop-shadow-md">
+                  {progressPct}
+                  <span className="text-[20px]">%</span>
+                </p>
+                <p className="mt-1 text-[13px] font-semibold text-white/95 drop-shadow-sm">Progress</p>
+              </div>
             </div>
           </div>
 

@@ -57,7 +57,7 @@ const Settings = () => {
   const { user } = useAuth();
   const { subscription, hasActiveSubscription, isPaused, pauseSubscription, resumeSubscription, refetch: refetchSubscription } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme, isDark } = useTheme();
   
   const [loading, setLoading] = useState(true);
@@ -364,6 +364,27 @@ const Settings = () => {
             <Switch
               checked={isDark}
               onCheckedChange={toggleTheme}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              {t("language_label") || "Language"}
+            </CardTitle>
+            <CardDescription>
+              {language === "ar" ? "العربية" : "English"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">{language === "ar" ? "التبديل إلى الإنجليزية" : "Switch to Arabic"}</span>
+            </div>
+            <Switch
+              checked={language === "ar"}
+              onCheckedChange={(checked) => setLanguage(checked ? "ar" : "en")}
             />
           </CardContent>
         </Card>

@@ -1,19 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, Loader2, Search, MessageSquare, User } from "lucide-react";
+import { Send, ArrowLeft, Loader2, Search, MessageSquare, User, Paperclip, Image, FileText, Download, CheckSquare, Square, Megaphone, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachMessages } from "@/hooks/useCoachMessages";
+import { useCoachAttachments } from "@/hooks/useCoachAttachments";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 export default function CoachChatPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const coachId = user?.id;
   const {
     conversations, activeMessages, activeClientId, loading, sending,
     fetchMessages, sendMessage, markAsRead, refreshConversations,
   } = useCoachMessages(coachId);
+  const { uploading, uploadFile, saveAttachment } = useCoachAttachments(coachId, activeClientId);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ sent: 0, total: 0 });
+  const [lastBulkSend, setLastBulkSend] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +47,59 @@ export default function CoachChatPage() {
     inputRef.current?.focus();
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeClientId) return;
+    try {
+      const fileData = await uploadFile(file);
+      // Send message with file info
+      const fileMessage = file.type.startsWith("image/")
+        ? `[Image: ${file.name}]`
+        : `[File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)]`;
+      await sendMessage(activeClientId, fileMessage);
+      refreshConversations();
+      toast({ title: "File sent", description: `${file.name} uploaded successfully.` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
+    } finally {
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleBulkSend = async () => {
+    if (!bulkMessage.trim() || !coachId) return;
+    const now = Date.now();
+    // Throttle — minimum 30s between bulk sends
+    if (now - lastBulkSend < 30000) {
+      toast({ title: "Too soon", description: "Please wait before sending another bulk message.", variant: "destructive" });
+      return;
+    }
+    const activeClientIds = conversations.filter(c => c.clientId !== activeClientId || true).map(c => c.clientId);
+    if (activeClientIds.length === 0) {
+      toast({ title: "No clients", description: "You have no active clients to message.", variant: "destructive" });
+      return;
+    }
+    setBulkSending(true);
+    setBulkProgress({ sent: 0, total: activeClientIds.length });
+    setLastBulkSend(now);
+    try {
+      for (let i = 0; i < activeClientIds.length; i++) {
+        await sendMessage(activeClientIds[i], bulkMessage.trim());
+        setBulkProgress(prev => ({ ...prev, sent: i + 1 }));
+      }
+      toast({ title: "Sent!", description: `Message sent to ${activeClientIds.length} client${activeClientIds.length !== 1 ? "s" : ""}.` });
+      setBulkModalOpen(false);
+      setBulkMessage("");
+    } catch (err) {
+      toast({ title: "Failed", description: "Some messages failed to send. Please try again.", variant: "destructive" });
+    } finally {
+      setBulkSending(false);
+      refreshConversations();
+    }
+  };
+
   const filteredConversations = conversations.filter((c) =>
     c.clientName.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -57,11 +120,22 @@ export default function CoachChatPage() {
     return (
       <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 56px - 100px - env(safe-area-inset-bottom, 16px))" }}>
       {/* Header */}
-      <div className="mb-3">
-        <h1 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Messages</h1>
-        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-          {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h1 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Messages</h1>
+          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+            {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {conversations.length > 1 && (
+          <button
+            onClick={() => setBulkModalOpen(true)}
+            className="flex items-center gap-1.5 h-[34px] px-3 rounded-full bg-purple-600 text-white text-[11px] font-bold shadow-sm hover:bg-purple-700 active:scale-95 transition-all"
+          >
+            <Megaphone className="w-3.5 h-3.5" />
+            Message All
+          </button>
+        )}
       </div>
 
       {/* Search */}
@@ -226,6 +300,20 @@ export default function CoachChatPage() {
       {/* Input */}
       <div className="flex items-center gap-2 bg-white rounded-[20px] border border-slate-200 px-3 py-2 shadow-sm">
         <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          className="hidden"
+          accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 hover:bg-slate-200 active:scale-95 transition-all disabled:opacity-40"
+        >
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+        </button>
+        <input
           ref={inputRef}
           type="text"
           value={messageInput}
@@ -243,6 +331,52 @@ export default function CoachChatPage() {
           <Send className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Bulk Message Modal */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="w-full max-w-md bg-white rounded-[24px] p-6 shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-[16px] font-extrabold text-slate-950">Message All Clients</h2>
+                <p className="text-[11px] text-slate-500">Sending to {conversations.length} active client{conversations.length !== 1 ? "s" : ""}</p>
+              </div>
+              <button onClick={() => { if (!bulkSending) { setBulkModalOpen(false); setBulkMessage(""); } }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            <textarea
+              value={bulkMessage}
+              onChange={(e) => setBulkMessage(e.target.value)}
+              placeholder="Write your message to all active clients..."
+              className="w-full h-32 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 mb-4"
+              disabled={bulkSending}
+            />
+            {bulkSending && (
+              <div className="mb-4 p-3 rounded-2xl bg-purple-50 text-center">
+                <p className="text-[12px] font-semibold text-purple-700">
+                  Sending... ({bulkProgress.sent}/{bulkProgress.total})
+                </p>
+                <div className="mt-2 w-full h-2 rounded-full bg-purple-100 overflow-hidden">
+                  <div className="h-full bg-purple-600 rounded-full transition-all" style={{ width: `${(bulkProgress.sent / bulkProgress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
+            <button
+              onClick={handleBulkSend}
+              disabled={!bulkMessage.trim() || bulkSending}
+              className="w-full h-[44px] rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-[13px] font-bold shadow-lg shadow-purple-600/20 hover:shadow-xl hover:shadow-purple-600/30 disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              {bulkSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />}
+              {bulkSending ? "Sending..." : "Send to All"}
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

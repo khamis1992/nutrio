@@ -66,6 +66,7 @@ import { getQatarNow, getQatarDay, formatLocaleDate } from "@/lib/dateUtils";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
+import { useBadgeChecker } from "@/hooks/useBadgeChecker";
 import {
   progressRingVariants,
   staggerContainer,
@@ -79,6 +80,8 @@ interface ActiveOrder {
   order_status: "pending" | "confirmed" | "preparing" | "ready" | "out_for_delivery";
   meal_id: string;
   delivery_type: string | null;
+  delivery_time_slot: string | null;
+  meal_type: string | null;
   updated_at: string;
   meal_name?: string;
   restaurant_name?: string;
@@ -185,6 +188,7 @@ const Dashboard = () => {
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
   const { streaks } = useStreak(user?.id);
   const dailyStreak = streaks?.logging?.currentStreak ?? 0;
+  useBadgeChecker(user?.id);
   const todayStr = selectedDate.toISOString().split("T")[0];
 
   useEffect(() => {
@@ -247,7 +251,7 @@ const Dashboard = () => {
         setGamification({
           xp: userXp,
           level: userLevel,
-          xpToNextLevel: userLevel * 100,
+          xpToNextLevel: 100,
           earnedBadges: earnedIds.size,
           totalBadges: (allBadges || []).length,
           badges: (allBadges || []),
@@ -272,8 +276,16 @@ const Dashboard = () => {
             scheduled_date,
             order_status,
             meal_id,
+            meal_type,
             delivery_type,
-            updated_at
+            delivery_time_slot,
+            updated_at,
+            meals:meal_id (
+              id, name, restaurant_id,
+              restaurants:restaurant_id (
+                id, name
+              )
+            )
           `)
           .eq("user_id", user.id)
           .in("order_status", ["pending", "confirmed", "preparing", "ready", "out_for_delivery"])
@@ -296,49 +308,20 @@ const Dashboard = () => {
         return;
       }
 
-      const mealIds = [...new Set(schedules.map(s => s.meal_id).filter(Boolean))];
-
-      let mealsData: any[] = [];
-      if (mealIds.length > 0) {
-        const { data: meals, error: mealsError } = await supabase
-          .from("meals")
-          .select("id, name, restaurant_id")
-          .in("id", mealIds);
-
-        if (!mealsError && meals) {
-          const restaurantIds = [...new Set(meals.map((m: { restaurant_id: string }) => m.restaurant_id).filter(Boolean))] as string[];
-
-          let restaurantsData: any[] = [];
-          if (restaurantIds.length > 0) {
-            const { data: restaurants, error: restaurantsError } = await supabase
-              .from("restaurants")
-              .select("id, name")
-              .in("id", restaurantIds);
-
-            if (!restaurantsError && restaurants) {
-              restaurantsData = restaurants;
-            }
-          }
-
-          mealsData = meals.map((meal: { id: string; name: string; restaurant_id: string }) => ({
-            ...meal,
-            restaurant: restaurantsData.find(r => r.id === meal.restaurant_id) || { name: "Restaurant" },
-          }));
-        }
-      }
-
-      const orders: ActiveOrder[] = schedules.map((schedule) => {
-        const meal = mealsData.find(m => m.id === schedule.meal_id);
-        return {
+      const orders: ActiveOrder[] = schedules
+        .filter((schedule: any) => schedule.meals !== null)
+        .map((schedule: any) => ({
           id: schedule.id,
           order_status: schedule.order_status,
           scheduled_date: schedule.scheduled_date,
-          meal_name: meal?.name || "Meal",
-          restaurant_name: meal?.restaurant?.name || "Restaurant",
+          meal_id: schedule.meal_id,
+          meal_type: schedule.meal_type || null,
+          meal_name: schedule.meals?.name || "Meal",
+          restaurant_name: schedule.meals?.restaurants?.name || "Restaurant",
           delivery_type: schedule.delivery_type || "pickup",
+          delivery_time_slot: schedule.delivery_time_slot || null,
           updated_at: schedule.updated_at,
-        };
-      });
+        }));
 
       setActiveOrders(orders);
     } catch (err) {
@@ -860,9 +843,9 @@ const Dashboard = () => {
     setSelectedDate(next);
   };
 
-  const carbsTarget = activeGoal?.carbs_target_g ?? profile?.carbs_target_g ?? 250;
-  const proteinTarget = activeGoal?.protein_target_g ?? profile?.protein_target_g ?? 150;
-  const fatTarget = activeGoal?.fat_target_g ?? profile?.fat_target_g ?? 65;
+  const carbsTarget = profile?.carbs_target_g || activeGoal?.carbs_target_g || 250;
+  const proteinTarget = profile?.protein_target_g || activeGoal?.protein_target_g || 150;
+  const fatTarget = profile?.fat_target_g || activeGoal?.fat_target_g || 65;
 
   const macroCards = [
     {
@@ -1358,6 +1341,9 @@ const Dashboard = () => {
               <span className="text-[11px] font-semibold text-slate-700">Subscription</span>
               <span className="rounded-full bg-[#D8F5E0] px-2 py-0.5 text-[10px] font-extrabold text-[#0E9F59]">{planName}</span>
               <span className="text-[10px] font-medium text-slate-500">{joinedLabel}</span>
+              <div className="mt-1 h-[2px] w-[42px] rounded-full overflow-hidden bg-slate-200">
+                <div className="h-full w-full rounded-full bg-gradient-to-r from-transparent via-slate-400 to-transparent" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2.5s ease-in-out infinite' }} />
+              </div>
             </button>
           </div>
         </motion.section>
@@ -1790,24 +1776,6 @@ const Dashboard = () => {
                 <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
               </motion.button>
             </div>
-            {workoutCount === 0 && !totalBurned && (
-              <motion.button
-                type="button"
-                onClick={() => setSheetOpen(true)}
-                initial={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
-                animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={prefersReducedMotion ? undefined : { delay: 0.3, type: "spring", stiffness: 300, damping: 28 }}
-                className="mt-2.5 flex w-full items-center gap-2.5 rounded-[14px] bg-[#F0FDF6] px-4 py-2.5 text-left transition-colors hover:bg-[#E0F9EE]"
-              >
-                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_6px_rgba(16,185,129,0.12)]">
-                  <Plus className="h-[14px] w-[14px] text-[#10B981]" strokeWidth={2.5} />
-                </div>
-                <div>
-                  <p className="text-[13px] font-semibold text-[#10B981]">Log your first workout</p>
-                  <p className="text-[11px] font-medium text-slate-500">Track your activity to see progress here</p>
-                </div>
-              </motion.button>
-            )}
           </div>
 
           {/* Achievement Strip */}
@@ -1841,7 +1809,7 @@ const Dashboard = () => {
                   <div className="mt-2 h-[4px] w-full overflow-hidden rounded-full bg-violet-200">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min((gamification.xp / gamification.xpToNextLevel) * 100, 100)}%` }}
+                      animate={{ width: `${Math.min(((gamification.xp % 100) / 100) * 100, 100)}%` }}
                       transition={{ duration: 0.6, ease: "easeOut" }}
                       className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
                     />

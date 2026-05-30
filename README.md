@@ -1,177 +1,166 @@
-# Supabase CLI
+# Nutrio Fuel
 
-[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
-](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
+Healthy meal delivery and nutrition tracking platform for Qatar markets.
 
-[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
+## Overview
 
-This repository contains all the functionality for Supabase CLI.
+Nutrio is a React single-page application (SPA) that connects users with healthy meal options from partner restaurants. The platform supports five distinct user portals:
 
-- [x] Running Supabase locally
-- [x] Managing database migrations
-- [x] Creating and deploying Supabase Functions
-- [x] Generating types directly from your database schema
-- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
+- **Customer Portal** - Browse restaurants, order meals, track nutrition, manage subscriptions
+- **Partner Portal** - Restaurant management, menu editing, order fulfillment
+- **Admin Portal** - Platform administration, analytics, user management
+- **Driver Portal** - Delivery tracking, earnings, route management
+- **Fleet Portal** - Fleet management for delivery operations
 
-## Getting started
+## Tech Stack
 
-### Install the CLI
+| Layer | Technology |
+|-------|-------------|
+| **Frontend** | React 18, TypeScript, Vite |
+| **UI** | Tailwind CSS, shadcn/ui, Radix UI |
+| **State** | TanStack Query, Zustand |
+| **Backend** | Supabase (Auth, Database, Storage, Realtime) |
+| **Mobile** | Capacitor (iOS, Android) |
+| **Analytics** | PostHog, Sentry |
+| **Maps** | Mapbox GL, Leaflet |
+| **Payments** | SADAD integration |
 
-Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
+## Prerequisites
 
-```bash
-npm i supabase --save-dev
-```
+- Node.js 18+ 
+- npm or yarn
+- Supabase CLI (`npm install -g supabase`)
+- For mobile: Xcode (iOS) or Android Studio
 
-When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
-
-```
-NODE_OPTIONS=--no-experimental-fetch yarn add supabase
-```
-
-> **Note**
-For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
-
-<details>
-  <summary><b>macOS</b></summary>
-
-  Available via [Homebrew](https://brew.sh). To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To install the beta release channel:
-  
-  ```sh
-  brew install supabase/tap/supabase-beta
-  brew link --overwrite supabase-beta
-  ```
-  
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Windows</b></summary>
-
-  Available via [Scoop](https://scoop.sh). To install:
-
-  ```powershell
-  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
-  scoop install supabase
-  ```
-
-  To upgrade:
-
-  ```powershell
-  scoop update supabase
-  ```
-</details>
-
-<details>
-  <summary><b>Linux</b></summary>
-
-  Available via [Homebrew](https://brew.sh) and Linux packages.
-
-  #### via Homebrew
-
-  To install:
-
-  ```sh
-  brew install supabase/tap/supabase
-  ```
-
-  To upgrade:
-
-  ```sh
-  brew upgrade supabase
-  ```
-
-  #### via Linux packages
-
-  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
-
-  ```sh
-  sudo apk add --allow-untrusted <...>.apk
-  ```
-
-  ```sh
-  sudo dpkg -i <...>.deb
-  ```
-
-  ```sh
-  sudo rpm -i <...>.rpm
-  ```
-
-  ```sh
-  sudo pacman -U <...>.pkg.tar.zst
-  ```
-</details>
-
-<details>
-  <summary><b>Other Platforms</b></summary>
-
-  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
-
-  ```sh
-  go install github.com/supabase/cli@latest
-  ```
-
-  Add a symlink to the binary in `$PATH` for easier access:
-
-  ```sh
-  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
-  ```
-
-  This works on other non-standard Linux distros.
-</details>
-
-<details>
-  <summary><b>Community Maintained Packages</b></summary>
-
-  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
-  To install in your working directory:
-
-  ```bash
-  pkgx install supabase
-  ```
-
-  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
-</details>
-
-### Run the CLI
+## Quick Start
 
 ```bash
-supabase bootstrap
+# Install dependencies
+npm install
+
+# Copy environment template
+cp .env.example .env
+
+# Fill in your Supabase credentials
+# VITE_SUPABASE_URL=your-project-url
+# VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+
+# Start development server
+npm run dev
 ```
 
-Or using npx:
+The app runs at `http://localhost:5173/nutrio/`
+
+## Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server (port 5173) |
+| `npm run build` | Production build |
+| `npm run build:dev` | Development build |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | TypeScript type checking |
+| `npm run test` | Vitest in watch mode |
+| `npm run test:run` | Run tests once |
+| `npm run test:coverage` | Test coverage report |
+| `npm run preview` | Preview production build |
+
+## Mobile Development
 
 ```bash
-npx supabase bootstrap
+# Sync Capacitor
+npm run cap:sync
+
+# Build and open Android
+npm run cap:android
+
+# Build and open iOS
+npm run cap:ios
+
+# Run on device
+npm run cap:dev:android
+npm run cap:dev:ios
 ```
 
-The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
+## E2E Testing
 
-## Docs
+```bash
+# Run all E2E tests
+npm run test:e2e
 
-Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
+# Run with UI
+npm run test:e2e:ui
 
-## Breaking changes
-
-We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
-
-However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
-
-## Developing
-
-To run from source:
-
-```sh
-# Go >= 1.22
-go run . help
+# Specific test suites
+npm run test:customer-journey
+npm run test:partner-onboarding
+npm run test:driver-delivery
+npm run test:admin-management
 ```
+
+## Project Structure
+
+```
+nutrio/
+├── src/
+│   ├── components/         # Reusable UI components
+│   │   ├── ui/              # shadcn/ui primitives
+│   │   └── [feature]/       # Feature-specific components
+│   ├── contexts/            # React contexts (Auth, Language, Theme)
+│   ├── hooks/               # Custom React hooks for data fetching
+│   ├── lib/                 # Utilities and helpers
+│   ├── pages/               # Route components by portal
+│   │   ├── admin/
+│   │   ├── partner/
+│   │   ├── driver/
+│   │   ├── fleet/
+│   │   ├── coach/
+│   │   └── [public]/
+│   ├── customer/            # Customer routes and layout
+│   ├── fleet/               # Fleet routes and layout
+│   └── integrations/
+│       └── supabase/        # Supabase client and types
+├── supabase/
+│   ├── functions/           # Edge Functions (Deno)
+│   └── migrations/          # Database migrations
+└── public/                  # Static assets
+```
+
+## Key Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `src/contexts/` | Global state (AuthContext, LanguageContext, AnalyticsContext) |
+| `src/hooks/` | TanStack Query hooks for data fetching (useProfile, useSubscription, etc.) |
+| `src/lib/` | Utilities (analytics, sentry, capacitor, whatsapp, sadad, currency) |
+| `src/components/ui/` | shadcn/ui primitives (add via `npx shadcn-ui add <component>`) |
+
+## Authentication Flow
+
+1. User lands on `/nutrio/auth` (WelcomeScreen → SignInScreen)
+2. Supabase Auth handles email/password and OAuth (Google, Apple)
+3. AuthContext provides `user`, `userRole`, `profile` to app
+4. ProtectedRoute enforces role-based access (`customer`, `partner`, `admin`, `driver`, `fleet`, `coach`)
+5. Qatar geo-restriction enforced via IP check on signup
+
+## Configuration
+
+Environment variables (`.env`):
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_SUPABASE_URL` | Yes | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Yes | Supabase anon/public key |
+| `VITE_SENTRY_DSN` | Optional | Sentry error tracking |
+| `VITE_POSTHOG_KEY` | Optional | PostHog analytics |
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - System design and data flow
+- [SETUP.md](./SETUP.md) - Detailed environment setup
+- [CONTRIBUTING.md](./CONTRIBUTING.md) - Coding standards and PR workflow
+- [docs/API.md](./docs/API.md) - Supabase schema and Edge Functions
+
+## License
+
+Private - All rights reserved.

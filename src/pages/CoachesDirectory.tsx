@@ -15,6 +15,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useCoachReviews } from "@/hooks/useCoachReviews";
+import { useCoachAvailability } from "@/hooks/useCoachAvailability";
 import { cn } from "@/lib/utils";
 
 interface CoachProfile {
@@ -46,6 +48,7 @@ export default function CoachesDirectory() {
       return new Set<string>();
     }
   });
+  const [coachAvailabilities, setCoachAvailabilities] = useState<Map<string, { isAccepting: boolean; clientRange: string; responseLabel: string | null }>>(new Map());
 
   const fetchCoaches = useCallback(async () => {
     if (!user?.id) return;
@@ -167,6 +170,49 @@ export default function CoachesDirectory() {
     fetchCoaches();
   }, [fetchCoaches]);
 
+  // Fetch availability signals for all coaches
+  useEffect(() => {
+    if (!coaches.length) return;
+    const fetchAvailabilities = async () => {
+      try {
+        const coachIds = coaches.map(c => c.id);
+        const [{ data: pricingData }, { data: clientCounts }] = await Promise.all([
+          supabase.from("coach_pricing").select("coach_id, is_active").in("coach_id", coachIds),
+          supabase.from("coach_client_assignments").select("coach_id", { count: "exact", head: true })
+            .in("coach_id", coachIds)
+            .eq("status", "active")
+        ]);
+        const availMap = new Map<string, { isAccepting: boolean; clientRange: string; responseLabel: string | null }>();
+        const activeCountMap = new Map<string, number>();
+        
+        // Build client counts from assignments
+        if (clientCounts) {
+          // Individual counts for each coach
+          for (const cid of coachIds) {
+            const { count } = await supabase.from("coach_client_assignments")
+              .select("id", { count: "exact", head: true })
+              .eq("coach_id", cid)
+              .eq("status", "active");
+            activeCountMap.set(cid, count || 0);
+          }
+        }
+        
+        for (const p of pricingData || []) {
+          const count = activeCountMap.get(p.coach_id) || 0;
+          availMap.set(p.coach_id, {
+            isAccepting: p.is_active,
+            clientRange: count <= 5 ? "1-5" : count <= 10 ? "5-10" : "10+",
+            responseLabel: null,
+          });
+        }
+        setCoachAvailabilities(availMap);
+      } catch (err) {
+        console.error("Error fetching availabilities:", err);
+      }
+    };
+    fetchAvailabilities();
+  }, [coaches]);
+
   // Sync pending state to sessionStorage so it survives hard refresh
   useEffect(() => {
     try {
@@ -269,10 +315,10 @@ export default function CoachesDirectory() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate("/progress")}
+                onClick={() => navigate("/coach-programs")}
                 className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 active:scale-[0.98] transition-all"
               >
-                View Progress
+                My Programs
               </button>
               <button
                 onClick={() => navigate("/profile")}
@@ -342,16 +388,28 @@ export default function CoachesDirectory() {
                             <Users className="w-3.5 h-3.5" />
                             {coach.clientCount} client{coach.clientCount !== 1 ? "s" : ""}
                           </div>
-                          {coach.goalTypes.length > 0 && (
-                            <>
-                              <span className="text-gray-300">·</span>
-                              <div className="flex items-center gap-1 text-xs text-gray-500">
-                                <Target className="w-3.5 h-3.5" />
-                                {coach.goalTypes[0]}
-                              </div>
-                            </>
-                          )}
                         </div>
+                        {/* Availability signals */}
+                        {coachAvailabilities.has(coach.id) && (
+                          <div className="flex items-center gap-2 mt-1.5">
+                            {(() => {
+                              const avail = coachAvailabilities.get(coach.id)!;
+                              return (
+                                <>
+                                  {avail.responseLabel && (
+                                    <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {avail.responseLabel}
+                                    </span>
+                                  )}
+                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${avail.isAccepting ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    {avail.isAccepting ? "Accepting clients" : "Not accepting"}
+                                  </span>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
 
                       {/* Action */}

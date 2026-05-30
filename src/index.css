@@ -371,3 +371,8 @@
 [dir="rtl"] .page-back-header {
   flex-direction: row-reverse;
 }
+
+/* RTL icon flip for directional icons (chevrons, arrows) */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
