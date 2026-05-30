@@ -82,16 +82,16 @@ export default function Community() {
           </div>
         </motion.div>
 
+        <DashboardErrorBoundary name="community gamification">
+          <GamificationWidget />
+        </DashboardErrorBoundary>
+
         <DashboardErrorBoundary name="community challenges">
           <CommunityChallengeCard />
         </DashboardErrorBoundary>
 
         <DashboardErrorBoundary name="popular combos">
           <PopularCombos />
-        </DashboardErrorBoundary>
-
-        <DashboardErrorBoundary name="community gamification">
-          <GamificationWidget />
         </DashboardErrorBoundary>
 
         <DashboardErrorBoundary name="referral milestones">

@@ -11,12 +11,11 @@ import {
   CalendarCheck,
   Check,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Crown,
   Droplet,
   Dumbbell,
   Flame,
+  Hand,
   Info,
   Leaf,
   Lock,
@@ -52,7 +51,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useBadges } from "@/hooks/useBadges";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
-import { BadgeCard } from "@/components/BadgeCard";
+import { AchievementsSection } from "@/components/progress/AchievementsSection";
 
 type RingMetric = {
   label: string;
@@ -197,8 +196,6 @@ export default function ProgressRedesigned() {
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [newWeight, setNewWeight] = useState("");
   const [showWeekDetails, setShowWeekDetails] = useState(false);
-  const [showAllWeekBadges, setShowAllWeekBadges] = useState(false);
-  const [showWaterTracker, setShowWaterTracker] = useState(false);
   const {
     proposals: coachProposals,
     progress: coachGoalProgress,
@@ -544,7 +541,7 @@ export default function ProgressRedesigned() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tabKey)}
-                className={`rounded-full text-[14px] font-extrabold transition-colors ${activeTab === tabKey ? 'bg-white text-[#00A86B] shadow-[0_10px_22px_rgba(15,23,42,0.10)]' : 'text-slate-500'}`}
+                className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === tabKey ? 'bg-white text-[#00A86B] shadow-[0_10px_22px_rgba(15,23,42,0.10)]' : 'text-slate-500'}`}
                 type="button"
               >
                 {tab}
@@ -600,9 +597,15 @@ export default function ProgressRedesigned() {
             <>
               <section className="mb-5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900">Hello, {firstName}! 👋</h2>
+                  <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900 flex items-center gap-2">Hello, {firstName}! <Hand className="h-5 w-5 text-amber-400" /></h2>
                   <p className="text-[13px] text-slate-500 font-medium">Here's your daily nutrition overview.</p>
                 </div>
+                {(streaks.logging?.currentStreak ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1.5">
+                    <Flame className="h-4 w-4 text-orange-500" />
+                    <span className="text-[12px] font-black text-orange-600">{streaks.logging?.currentStreak} day streak</span>
+                  </div>
+                )}
               </section>
 
               <section className="mb-5">
@@ -756,8 +759,8 @@ export default function ProgressRedesigned() {
                             <NIcon className="h-3.5 w-3.5" style={{ color: n.color }} />
                           </div>
                           <p className="text-[9px] font-bold text-slate-500">{n.label}</p>
-                          <p className="text-[14px] font-black tracking-[-0.03em] text-slate-900">{n.current}<span className="text-[9px] font-bold text-slate-400">/{n.target}</span></p>
-                          <p className="text-[8px] font-semibold text-slate-400">{n.unit}</p>
+                          <p className="text-[14px] font-black tracking-[-0.03em] text-slate-900">{n.current}<span className="text-[9px] font-bold text-slate-500">/{n.target}</span></p>
+                          <p className="text-[8px] font-semibold text-slate-500">{n.unit}</p>
                           <div className="mx-auto mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
                             <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: n.color }} />
                           </div>
@@ -767,39 +770,6 @@ export default function ProgressRedesigned() {
                   </div>
                 </section>
               ) : null}
-
-              {/* Streak Section */}
-              <section className="mb-5">
-                <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="grid h-8 w-8 place-items-center rounded-full bg-orange-100">
-                        <Flame className="h-4 w-4 text-orange-500" />
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-black text-slate-900">Streak</p>
-                        <p className="text-[10px] font-medium text-slate-500">{streakDays > 0 ? "Keep it going!" : loggedDates.has(format(new Date(), "yyyy-MM-dd")) ? "Start your streak today!" : "Log a meal to start!"}</p>
-                      </div>
-                    </div>
-                    <span className="rounded-full bg-orange-100 px-3 py-1 text-[11px] font-bold text-orange-600">{streakDays} Day Streak</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    {weekDays.map((d, i) => {
-                      const dateStr = weekdayData[i]?.date;
-                      const isLogged = dateStr ? loggedDates.has(dateStr) : false;
-                      const isToday = i === todayIdx;
-                      return (
-                        <div key={i} className="flex flex-col items-center gap-1.5">
-                          <span className="text-[10px] font-bold text-slate-400">{d}</span>
-                          <div className={`grid h-8 w-8 place-items-center rounded-full ${isLogged ? 'bg-emerald-100' : isToday ? 'bg-orange-400' : 'bg-slate-100'}`}>
-                            {isLogged ? <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} /> : isToday ? <Flame className="h-4 w-4 text-white" /> : <span className="h-2 w-2 rounded-full bg-slate-300" />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </article>
-              </section>
 
               {/* AI Insight */}
               <AIInsightImageCard
@@ -824,7 +794,7 @@ export default function ProgressRedesigned() {
                 {smartRecsLoading ? (
                   <div className="space-y-2.5">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse rounded-[14px] border border-slate-100 bg-white p-4 shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
+                      <div key={i} className="motion-safe:animate-pulse rounded-[14px] border border-slate-100 bg-white p-4 shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
                         <div className="flex items-start gap-3">
                           <div className="h-9 w-9 rounded-full bg-slate-200" />
                           <div className="flex-1 space-y-2">
@@ -889,7 +859,7 @@ export default function ProgressRedesigned() {
                                 <div className="mt-2">
                                   <div className="mb-1 flex items-center justify-between text-[10px]">
                                     <span className="font-semibold text-slate-500">{progress.value}/{progress.max} {progress.unit}</span>
-                                    <span className="font-bold text-slate-400">{Math.round((progress.value / progress.max) * 100)}%</span>
+                                    <span className="font-bold text-slate-500">{Math.round((progress.value / progress.max) * 100)}%</span>
                                   </div>
                                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                                     <div
@@ -928,7 +898,7 @@ export default function ProgressRedesigned() {
                           <h3 className="text-[14px] font-black text-slate-900">Weight Forecast</h3>
                           <span className="text-[11px] font-bold text-emerald-600">Target: {goalWeight} kg</span>
                         </div>
-                        <p className="text-[12px] text-slate-400 py-4 text-center">Log your weight a few times to see a trend.</p>
+                        <p className="text-[12px] text-slate-500 py-4 text-center">Log your weight a few times to see a trend.</p>
                       </article>
                     </section>
                   );
@@ -1027,7 +997,7 @@ export default function ProgressRedesigned() {
                             : "Weight stable"}
                           {daysToGoal && daysToGoal > 0 ? ` · ~${daysToGoal} days to goal` : ""}
                         </p>
-                        <p className="text-[10px] font-medium text-slate-400">
+                        <p className="text-[10px] font-medium text-slate-500">
                           {weeklyChange < 0 ? "On track" : weeklyChange > 0 ? "Trending up" : "Steady"}
                         </p>
                       </div>
@@ -1053,6 +1023,16 @@ export default function ProgressRedesigned() {
           <>
             {/* Weekly Score Card */}
             <section className="mb-5">
+              {(() => {
+                const pct = weeklySummary?.consistency?.percentage ?? 0;
+                const protPct = weeklySummary?.macros?.protein?.percentage ?? 0;
+                const waterDays = weekdayData.filter(d => d.waterGlasses >= 8).length;
+                const waterPct = Math.round((waterDays / 7) * 100);
+                const weekScore = Math.round((pct + protPct + waterPct) / 3);
+                const change = weeklySummary?.calories?.changePercent ?? 0;
+                const streak = streaks.logging?.currentStreak ?? 0;
+                const dash = (weekScore / 100) * (2 * Math.PI * 34);
+                return (
               <article className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-teal-600 via-emerald-600 to-teal-700 p-5 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
                 <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_30%,white_1px,transparent_1px),radial-gradient(circle_at_80%_20%,white_1px,transparent_1px)]" />
                 <div className="relative z-10 flex items-start justify-between gap-4">
@@ -1062,14 +1042,14 @@ export default function ProgressRedesigned() {
                       <Info className="h-3.5 w-3.5 text-white/60" />
                     </div>
                     <div className="text-[48px] font-black leading-none tracking-[-0.06em]">
-                      {weeklySummary?.consistency?.score ?? 82}<span className="text-[24px] font-bold text-white/70"> / 100</span>
+                      {weekScore}<span className="text-[24px] font-bold text-white/70"> / 100</span>
                     </div>
-                    <p className="mt-1 text-[11px] font-semibold text-white/80">+12 pts vs last week</p>
+                    <p className="mt-1 text-[11px] font-semibold text-white/80">{change >= 0 ? '+' : ''}{Math.round(change)} pts vs last week</p>
                   </div>
                   <div className="relative grid h-20 w-20 place-items-center">
                     <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
                       <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
-                      <circle cx="40" cy="40" r="34" fill="none" stroke="#5CF0A7" strokeLinecap="round" strokeWidth="6" strokeDasharray={`${((weeklySummary?.consistency?.score ?? 82) / 100) * 213.6} 213.6`} />
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#5CF0A7" strokeLinecap="round" strokeWidth="6" strokeDasharray={`${dash} ${2 * Math.PI * 34}`} />
                     </svg>
                     <Crown className="h-7 w-7 text-amber-300" />
                   </div>
@@ -1077,55 +1057,23 @@ export default function ProgressRedesigned() {
                 <div className="relative z-10 mt-5 flex justify-between gap-2">
                   <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
                     <Flame className="mx-auto h-5 w-5 text-orange-400" />
-                    <p className="mt-1 text-[11px] font-bold text-white">5 Day Streak</p>
-                    <p className="text-[9px] text-white/70">Keep it up!</p>
+                    <p className="mt-1 text-[11px] font-bold text-white">{streak} Day Streak</p>
+                    <p className="text-[9px] text-white/70">{streak > 0 ? "Keep it up!" : "Start today!"}</p>
                   </div>
                   <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
                     <Leaf className="mx-auto h-5 w-5 text-green-300" />
-                    <p className="mt-1 text-[11px] font-bold text-white">82% Nutrition</p>
+                    <p className="mt-1 text-[11px] font-bold text-white">{pct}% Nutrition</p>
                     <p className="text-[9px] text-white/70">Consistency</p>
                   </div>
                   <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
                     <Droplet className="mx-auto h-5 w-5 text-blue-300" />
-                    <p className="mt-1 text-[11px] font-bold text-white">+12% Water</p>
-                    <p className="text-[9px] text-white/70">vs last week</p>
+                    <p className="mt-1 text-[11px] font-bold text-white">{waterDays}/7 Water</p>
+                    <p className="text-[9px] text-white/70">days hit goal</p>
                   </div>
                 </div>
               </article>
-            </section>
-
-            <section className="mb-4 overflow-hidden rounded-[24px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-              <div className="flex items-center gap-3 px-5 pt-5 pb-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_6px_14px_rgba(16,185,129,0.25)]">
-                  <Trophy className="h-5 w-5 text-white" strokeWidth={2.5} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Keep going, {firstName}! 💪</h3>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">{keepGoingMessage}</p>
-                </div>
-              </div>
-            </section>
-
-            {/* Achievements */}
-            <section className="mb-5">
-              <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                <h3 className="text-[13px] font-black text-slate-800 mb-3">Achievements</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, showAllWeekBadges ? totalCount : 4).map((badge) => (
-                    <BadgeCard key={badge.id} badge={badge} variant="compact" />
-                  ))}
-                </div>
-                <button
-                  onClick={() => setShowAllWeekBadges(!showAllWeekBadges)}
-                  className="mt-3 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700"
-                >
-                  {showAllWeekBadges ? (
-                    <>Show Less <ChevronUp className="h-3 w-3" /></>
-                  ) : (
-                    <>View All ({totalCount}) <ChevronDown className="h-3 w-3" /></>
-                  )}
-                </button>
-              </article>
+              );
+            })()}
             </section>
 
             {/* Your Week - Calendar Grid with Rows */}
@@ -1145,9 +1093,9 @@ export default function ProgressRedesigned() {
                   <table className="w-full text-center">
                     <thead>
                       <tr>
-                        <th className="pb-2 text-[11px] font-bold text-slate-400 w-20"></th>
+                        <th className="pb-2 text-[11px] font-bold text-slate-500 w-20"></th>
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                          <th key={day} className="pb-2 text-[11px] font-bold text-slate-400">{day}</th>
+                          <th key={day} className="pb-2 text-[11px] font-bold text-slate-500">{day}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1166,7 +1114,7 @@ export default function ProgressRedesigned() {
                                   {status === 'on' ? <Check className="h-3 w-3 text-emerald-600" strokeWidth={3} /> : status === 'partial' ? <div className="h-2 w-2 rounded-full bg-orange-400" /> : <div className="h-2 w-2 rounded-full bg-slate-300" />}
                                 </div>
                                 <span className="text-[9px] font-bold text-slate-600">{hasData ? day.calories.toLocaleString() : "—"}</span>
-                                <span className="text-[8px] text-slate-400">kcal</span>
+                                <span className="text-[8px] text-slate-500">kcal</span>
                               </div>
                             </td>
                           );
@@ -1212,7 +1160,7 @@ export default function ProgressRedesigned() {
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                   <p className="text-[10px] font-semibold text-slate-500 mb-1">Calories (avg)</p>
                   <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
-                    {weeklySummary?.calories.thisWeekAvg.toLocaleString() ?? "—"}<span className="text-[12px] font-semibold text-slate-400 ml-0.5">kcal</span>
+                    {weeklySummary?.calories.thisWeekAvg.toLocaleString() ?? "—"}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">kcal</span>
                   </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
@@ -1238,7 +1186,7 @@ export default function ProgressRedesigned() {
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
                   <p className="text-[10px] font-semibold text-slate-500 mb-1">Protein (avg)</p>
                   <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
-                    {weeklySummary?.macros.protein.consumed ?? "—"}<span className="text-[12px] font-semibold text-slate-400 ml-0.5">g</span>
+                    {weeklySummary?.macros.protein.consumed ?? "—"}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">g</span>
                   </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
@@ -1268,7 +1216,7 @@ export default function ProgressRedesigned() {
                       const avg = weekdayData.length > 0
                         ? weekdayData.reduce((s, d) => s + d.waterGlasses, 0) / weekdayData.length
                         : 0;
-                      return <>{avg.toFixed(1)}<span className="text-[12px] font-semibold text-slate-400 ml-0.5">Glasses</span></>;
+                      return <>{avg.toFixed(1)}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">Glasses</span></>;
                     })()}
                   </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
@@ -1473,44 +1421,41 @@ export default function ProgressRedesigned() {
                 </article>
               </div>
             </section>
+
+            <section className="mb-4 overflow-hidden rounded-[24px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+              <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_6px_14px_rgba(16,185,129,0.25)]">
+                  <Trophy className="h-5 w-5 text-white" strokeWidth={2.5} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Keep going, {firstName}!</h3>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">{keepGoingMessage}</p>
+                </div>
+              </div>
+            </section>
+
           </>
         )}
 
         {activeTab === "goals" && (
           <>
-            <section className="mb-6">
-              <SectionHeader title="Goal Focus" />
-              <article className="relative overflow-hidden rounded-[28px] bg-[radial-gradient(140%_140%_at_70%_-10%,rgba(255,193,120,0.18)_0%,transparent_55%),radial-gradient(130%_130%_at_-20%_80%,rgba(16,185,129,0.25)_0%,transparent_50%),linear-gradient(145deg,#0D5C54_0%,#0A6D58_35%,#096650_70%,#074A44_100%)] text-white shadow-[0_24px_56px_rgba(7,74,68,0.35)]">
-                <div className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-soft-light [background-image:radial-gradient(circle_at_18%_20%,white_1.5px,transparent_2px),radial-gradient(circle_at_72%_28%,white_1px,transparent_1.5px),radial-gradient(circle_at_40%_52%,white_1.2px,transparent_1.8px),radial-gradient(circle_at_88%_18%,white_1px,transparent_1px),radial-gradient(circle_at_10%_75%,white_1px,transparent_1px)]" />
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-amber-400/8 blur-3xl" />
-                <div className="pointer-events-none absolute -left-8 -bottom-8 h-36 w-36 rounded-full bg-emerald-300/8 blur-3xl" />
-
-                <div className="relative z-10 p-5">
-                  {/* Header row: icon, title, change goal button */}
-                  <div className="flex items-start gap-3 mb-5">
-                    <div className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-2xl bg-white/12 shadow-inner shadow-white/5">
-                      {(() => { const GI = goalTypeIcon[goalType] ?? Leaf; return <GI className="h-[22px] w-[22px] text-white" strokeWidth={2.2} />; })()}
+            <section className="mb-5">
+              <article className="rounded-[24px] bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
+                <div className="flex items-center justify-between gap-5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-2">{goalRightMetric.label}</p>
+                    <div className="text-[42px] font-black leading-none tracking-[-0.06em] text-slate-900 mb-1">
+                      {goalRightMetric.value}
+                      <span className="text-[16px] font-bold text-slate-500 ml-1">{goalRightMetric.unit}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="text-[20px] font-black tracking-[-0.04em] text-white leading-tight">{goalName}</h3>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${goalType === "weight_loss" ? "bg-amber-400/20 text-amber-300" : goalType === "muscle_gain" ? "bg-blue-400/20 text-blue-300" : "bg-emerald-400/20 text-emerald-300"}`}>
-                          Active
-                        </span>
-                      </div>
+                    <p className={`text-[14px] font-extrabold ${goalType === "weight_loss" ? "text-amber-600" : goalType === "muscle_gain" ? "text-blue-600" : "text-emerald-600"}`}>
+                      {goalSubLabel}
+                    </p>
+                    <div className="mt-3 h-1.5 rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${goalRingValue}%` }} />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowGoalPicker((v) => !v)}
-                      className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${showGoalPicker ? "border-white/40 bg-white/15 text-white" : "border-white/20 bg-white/8 text-white/70 hover:bg-white/14 hover:border-white/30"}`}
-                    >
-                      Change Goal
-                    </button>
-                  </div>
 
-                  {/* Goal picker — inline pills */}
-                  {showGoalPicker && (
-                    <div className="mb-5 flex flex-wrap gap-1.5">
+                    <div className="mt-4 flex flex-wrap gap-1.5">
                       {Object.entries(goalTypeLabel).map(([key, label]) => {
                         const Icon = goalTypeIcon[key] ?? Leaf;
                         const isActive = goalType === key;
@@ -1519,121 +1464,90 @@ export default function ProgressRedesigned() {
                             key={key}
                             type="button"
                             onClick={() => handleGoalChange(key)}
-                            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-extrabold transition-all duration-200 active:scale-95 ${isActive ? "bg-white text-emerald-700 shadow-lg shadow-black/10 scale-105" : "bg-white/8 text-white/70 hover:bg-white/14"}`}
+                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-extrabold transition-all active:scale-95 ${isActive ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                           >
-                            <Icon className="h-3.5 w-3.5" strokeWidth={isActive ? 2.5 : 1.8} />
+                            <Icon className="h-3 w-3" strokeWidth={2} />
                             {label}
                           </button>
                         );
                       })}
                     </div>
-                  )}
+                  </div>
 
-                  {/* Goal progress ring */}
-                  {goalWeight > 0 || goalType !== "weight_loss" ? (
-                    <div className="flex items-center gap-5">
-                      <div className="relative grid h-[100px] w-[100px] shrink-0 place-items-center">
-                        <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
-                          <defs>
-                            <linearGradient id="progGlow" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
-                              <stop offset="50%" stopColor="rgba(255,255,255,0.85)" />
-                              <stop offset="100%" stopColor="rgba(255,255,255,0.6)" />
-                            </linearGradient>
-                          </defs>
-                          <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="5" />
-                          <circle cx="50" cy="50" r="40" fill="none" stroke="url(#progGlow)" strokeLinecap="round" strokeWidth="5" strokeDasharray={`${(goalRingValue / 100) * 251.3} 251.3`} className="animate-pulse" />
-                        </svg>
-                        <div className="text-center">
-                          <span className="block text-[24px] font-black leading-none tracking-[-0.06em] text-white">{goalRingValue}<span className="text-[12px] font-bold">%</span></span>
-                          <span className="block text-[9px] font-bold text-white/50 mt-0.5">{goalRingLabel}</span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => { setShowWeightInput(!showWeightInput); setNewWeight(String(currentWeight)); }}
-                        className="flex-1 min-w-0 text-left active:scale-[0.98] transition-transform"
-                      >
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-white/40 mb-1">{goalRightMetric.label}</p>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-[36px] font-black leading-none tracking-[-0.06em] text-white">{goalRightMetric.value}</span>
-                          <span className="text-[12px] font-bold text-white/40">{goalRightMetric.unit}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-[13px] font-extrabold ${goalType === "weight_loss" ? "text-amber-300" : goalType === "muscle_gain" ? "text-blue-300" : "text-emerald-300"}`}>
-                            {goalSubLabel}
-                          </span>
-                          <div className="flex-1 h-1 overflow-hidden rounded-full bg-white/10">
-                            <div className="h-full rounded-full bg-gradient-to-r from-amber-300/80 to-white/60" style={{ width: `${goalRingValue}%` }} />
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  ) : goalType === "weight_loss" || goalType === "muscle_gain" ? (
-                    <div className="mb-2 py-4 text-center">
-                      <p className="text-[14px] font-bold text-white/70 mb-2">Set a target weight to track progress</p>
-                      <button
-                        type="button"
-                        onClick={() => setShowWeightInput(true)}
-                        className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-[12px] font-black text-white hover:bg-white/20 transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Set Weight Goal
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {/* Macro river — horizontal flowing pills */}
-                  <div className="mt-5 pt-4 border-t border-white/8">
-                    <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/30 mb-2.5">Daily Targets</p>
-                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                      {[
-                        { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", color: "border-l-amber-400 bg-amber-400/10" },
-                        { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", color: "border-l-blue-400 bg-blue-400/10" },
-                        { label: "Carbs", value: activeGoal?.carbs_target_g ?? 250, unit: "g", color: "border-l-orange-400 bg-orange-400/10" },
-                        { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", color: "border-l-purple-400 bg-purple-400/10" },
-                        { label: "Fiber", value: activeGoal?.fiber_target_g ?? 25, unit: "g", color: "border-l-emerald-400 bg-emerald-400/10" },
-                      ].map((m) => (
-                        <div key={m.label} className={`flex items-center gap-2 shrink-0 rounded-[12px] border-l-2 ${m.color} px-3 py-2 backdrop-blur-sm`}>
-                          <span className="text-[15px] font-black leading-none text-white">{m.value.toLocaleString()}</span>
-                          <div className="text-right">
-                            <span className="block text-[8px] font-bold text-white/40">{m.unit}</span>
-                            <span className="block text-[9px] font-extrabold text-white/50">{m.label}</span>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="relative grid h-[96px] w-[96px] shrink-0 place-items-center">
+                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="#F1F5F9" strokeWidth="6" />
+                      <circle
+                        cx="48" cy="48" r="40" fill="none"
+                        stroke={goalType === "weight_loss" ? "#F59E0B" : goalType === "muscle_gain" ? "#3B82F6" : "#10B981"}
+                        strokeLinecap="round" strokeWidth="6"
+                        strokeDasharray={`${(goalRingValue / 100) * 251.3} 251.3`}
+                      />
+                    </svg>
+                    <div className="text-center">
+                      <span className="text-[22px] font-black text-slate-900">{goalRingValue}</span>
                     </div>
                   </div>
+                </div>
+
+                {(goalType === "weight_loss" || goalType === "muscle_gain") && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={showWeightInput ? newWeight : currentWeight.toFixed(1)}
+                      onFocus={() => { setShowWeightInput(true); setNewWeight(String(currentWeight)); }}
+                      onChange={(e) => setNewWeight(e.target.value)}
+                      placeholder={`${currentWeight}`}
+                      step="0.1"
+                      className="h-10 flex-1 rounded-[10px] border border-slate-200 bg-slate-50 px-3 text-[15px] font-bold text-slate-800"
+                    />
+                    <span className="text-[13px] font-bold text-slate-500">kg</span>
+                    {showWeightInput && (
+                      <button
+                        type="button"
+                        onClick={handleLogWeight}
+                        disabled={isLoggingWeight}
+                        className="h-10 rounded-[10px] bg-emerald-600 px-4 text-[13px] font-black text-white active:scale-95 disabled:opacity-60"
+                      >
+                        {isLoggingWeight ? "..." : "Save"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </article>
+            </section>
+
+            <section className="mb-5">
+              <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
+                <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-wider mb-3">Your Plan</h3>
+
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+                  {[
+                    { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", pct: activeGoal?.daily_calorie_target ? Math.min(100, Math.round(((weeklySummary?.calories?.thisWeekAvg ?? 0) / activeGoal.daily_calorie_target) * 100)) : 0 },
+                    { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", pct: weeklySummary?.macros?.protein?.percentage ?? 0 },
+                    { label: "Carbs", value: activeGoal?.carbs_target_g ?? 250, unit: "g", pct: weeklySummary?.macros?.carbs?.percentage ?? 0 },
+                    { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", pct: weeklySummary?.macros?.fat?.percentage ?? 0 },
+                    { label: "Fiber", value: activeGoal?.fiber_target_g ?? 25, unit: "g", pct: 0 },
+                  ].map((m) => (
+                    <div key={m.label} className="flex items-center gap-2 shrink-0 rounded-[12px] bg-slate-50 px-3 py-2">
+                      <div className={`h-2 w-2 rounded-full ${m.pct >= 80 ? 'bg-emerald-500' : m.pct >= 50 ? 'bg-amber-500' : m.pct > 0 ? 'bg-red-400' : 'bg-slate-300'}`} />
+                      <div>
+                        <span className="block text-[14px] font-black leading-none text-slate-800">{m.value.toLocaleString()}</span>
+                        <span className="block text-[9px] font-bold text-slate-500">{m.label} ({m.unit})</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </article>
             </section>
 
-        {showWeightInput && (
-          <div className="mb-5 rounded-[18px] bg-white/95 backdrop-blur-lg border border-slate-200 p-4 shadow-[0_10px_24px_rgba(0,0,0,0.06)]">
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                value={newWeight}
-                onChange={(e) => setNewWeight(e.target.value)}
-                placeholder={`${currentWeight}`}
-                step="0.1"
-                className="h-12 flex-1 rounded-[12px] border border-slate-200 bg-[#F8FAFC] px-4 text-[18px] font-bold text-slate-800"
-              />
-              <span className="text-[14px] font-bold text-slate-500">kg</span>
-              <button
-                type="button"
-                onClick={handleLogWeight}
-                disabled={isLoggingWeight}
-                className="h-12 rounded-[12px] bg-emerald-600 px-5 text-[14px] font-black text-white active:scale-95 disabled:opacity-60"
-              >
-                {isLoggingWeight ? "..." : "Save"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        </>
+            <AchievementsSection
+              badges={badges}
+              unlockedCount={unlockedCount}
+              totalCount={totalCount}
+              className="mb-5"
+            />
+          </>
         )}
 
         {coachProposals.length > 0 && (
@@ -1702,7 +1616,7 @@ export default function ProgressRedesigned() {
                     <div className="mt-3 flex items-center gap-3">
                       <div className="rounded-[12px] bg-slate-50 px-3 py-2 text-center">
                         <p className="text-[18px] font-black text-slate-900">{prog?.currentValue ?? "—"}</p>
-                        <p className="text-[9px] font-bold text-slate-400">CURRENT</p>
+                        <p className="text-[9px] font-bold text-slate-500">CURRENT</p>
                       </div>
                       <div className="flex-1">
                         <div className="h-2 rounded-full bg-slate-100">
@@ -1766,13 +1680,13 @@ export default function ProgressRedesigned() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <article className="rounded-[16px] border border-slate-100 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
                 <span className="text-[11px] font-semibold text-slate-500">Avg Calories/Day</span>
-                <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.calories.thisWeekAvg}<span className="ml-1 text-[11px] font-bold text-slate-400">kcal</span></p>
-                <span className="text-[10px] font-semibold text-slate-400">vs {weeklySummary.calories.lastWeekAvg} last week</span>
+                <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.calories.thisWeekAvg}<span className="ml-1 text-[11px] font-bold text-slate-500">kcal</span></p>
+                <span className="text-[10px] font-semibold text-slate-500">vs {weeklySummary.calories.lastWeekAvg} last week</span>
               </article>
               <article className="rounded-[16px] border border-slate-100 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
                 <span className="text-[11px] font-semibold text-slate-500">Days Logged</span>
-                <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.consistency.daysLogged}<span className="text-slate-400">/7</span></p>
-                <span className="text-[10px] font-semibold text-slate-400">streak: {weeklySummary.consistency.streak}</span>
+                <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.consistency.daysLogged}<span className="text-slate-500">/7</span></p>
+                <span className="text-[10px] font-semibold text-slate-500">streak: {weeklySummary.consistency.streak}</span>
               </article>
             </div>
           )}
