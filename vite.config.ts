@@ -86,6 +86,10 @@ export default defineConfig(({ mode }) => ({
     },
     // Split chunks for better caching
     rollupOptions: {
+      external: [
+        '@perfood/capacitor-healthkit',
+        '@capacitor-community/google-fit',
+      ],
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
