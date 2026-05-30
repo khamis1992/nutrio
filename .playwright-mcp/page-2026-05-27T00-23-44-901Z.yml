@@ -1,0 +1,213 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e41]:
+    - generic [ref=e44]:
+      - banner [ref=e45]:
+        - generic [ref=e46]:
+          - button [ref=e47] [cursor=pointer]:
+            - img [ref=e48]
+          - heading "Goals" [level=1] [ref=e50]
+          - button [ref=e51] [cursor=pointer]:
+            - img [ref=e52]
+        - generic [ref=e55]:
+          - button "Today" [ref=e56] [cursor=pointer]
+          - button "Week" [ref=e57] [cursor=pointer]
+          - button "Goals" [active] [ref=e58] [cursor=pointer]
+      - main [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - img [ref=e63]
+            - generic [ref=e72]:
+              - img [ref=e73]
+              - generic [ref=e76]:
+                - paragraph [ref=e77]: 15%
+                - paragraph [ref=e78]: Progress
+            - generic [ref=e79]:
+              - generic [ref=e80]:
+                - img [ref=e82]
+                - generic [ref=e84]: Active Goal
+              - heading "Weight Loss" [level=2] [ref=e85]
+              - paragraph [ref=e86]: Your transformation progress
+              - generic [ref=e87]:
+                - generic [ref=e88]:
+                  - generic [ref=e89]:
+                    - paragraph [ref=e90]: "120"
+                    - paragraph [ref=e91]: kg
+                  - paragraph [ref=e92]: Current
+                - img [ref=e93]
+                - generic [ref=e95]:
+                  - generic [ref=e96]:
+                    - paragraph [ref=e97]: "63"
+                    - paragraph [ref=e98]: kg
+                  - paragraph [ref=e99]: Goal
+              - paragraph [ref=e100]: "-57 kg target • 82% consistency"
+              - generic [ref=e101]:
+                - img [ref=e102]
+                - generic [ref=e105]:
+                  - text: You're ahead of
+                  - text: last month!
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - heading "Goal Focus" [level=2] [ref=e113]
+              - button "View All" [ref=e114] [cursor=pointer]:
+                - text: View All
+                - img [ref=e115]
+            - generic [ref=e117]:
+              - button "Weight Loss" [ref=e118] [cursor=pointer]:
+                - img [ref=e120]
+                - generic [ref=e124]: Weight Loss
+              - button "Muscle Gain" [ref=e125] [cursor=pointer]:
+                - img [ref=e127]
+                - generic [ref=e133]: Muscle Gain
+              - button "Healthy Lifestyle" [ref=e134] [cursor=pointer]:
+                - img [ref=e136]
+                - generic [ref=e139]: Healthy Lifestyle
+              - button "Keto" [ref=e140] [cursor=pointer]:
+                - img [ref=e142]
+                - generic [ref=e144]: Keto
+              - button "Balance" [ref=e145] [cursor=pointer]:
+                - img [ref=e147]
+                - generic [ref=e151]: Balance
+              - button "Energy" [ref=e152] [cursor=pointer]:
+                - img [ref=e154]
+                - generic [ref=e156]: Energy
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - heading "Weekly Performance" [level=2] [ref=e159]
+              - button "View Details" [ref=e160] [cursor=pointer]:
+                - text: View Details
+                - img [ref=e161]
+            - generic [ref=e163]:
+              - generic [ref=e164]:
+                - generic [ref=e165]:
+                  - img [ref=e166]
+                  - img [ref=e170]
+                - paragraph [ref=e172]: Calories
+                - paragraph [ref=e173]: 72%
+                - paragraph [ref=e174]: On Track
+              - generic [ref=e177]:
+                - generic [ref=e178]:
+                  - img [ref=e179]
+                  - img [ref=e183]
+                - paragraph [ref=e186]: Protein
+                - paragraph [ref=e187]: 58%
+                - paragraph [ref=e188]: Improve
+              - generic [ref=e191]:
+                - generic [ref=e192]:
+                  - img [ref=e193]
+                  - img [ref=e197]
+                - paragraph [ref=e201]: Carbs
+                - paragraph [ref=e202]: 61%
+                - paragraph [ref=e203]: Stable
+              - generic [ref=e206]:
+                - generic [ref=e207]:
+                  - img [ref=e208]
+                  - img [ref=e212]
+                - paragraph [ref=e214]: Fat
+                - paragraph [ref=e215]: 81%
+                - paragraph [ref=e216]: Excellent
+          - generic [ref=e219]:
+            - generic [ref=e220]:
+              - generic [ref=e221]:
+                - img [ref=e223]
+                - heading "Body Metrics" [level=3] [ref=e226]
+              - generic [ref=e227]:
+                - generic [ref=e228]:
+                  - generic [ref=e229]:
+                    - paragraph [ref=e230]: Current Weight
+                    - paragraph [ref=e231]: 120kg
+                  - generic [ref=e232]:
+                    - paragraph [ref=e233]: Height
+                    - paragraph [ref=e234]: 180cm
+                - img [ref=e235]
+                - generic [ref=e238]:
+                  - generic [ref=e239]:
+                    - paragraph [ref=e240]: Goal Weight
+                    - paragraph [ref=e241]: 63kg
+                  - generic [ref=e242]:
+                    - paragraph [ref=e243]: BMI
+                    - paragraph [ref=e244]: "37"
+                    - paragraph [ref=e245]: High
+            - generic [ref=e248]:
+              - img [ref=e249]
+              - generic [ref=e251]:
+                - generic [ref=e252]:
+                  - img [ref=e254]
+                  - heading "AI Coach" [level=3] [ref=e257]
+                - generic [ref=e258]: NEW
+              - generic [ref=e259]:
+                - img [ref=e261]
+                - paragraph [ref=e264]: Increase protein intake by 18g daily to improve fat burning and muscle retention.
+              - button "Apply Suggestion" [ref=e265] [cursor=pointer]:
+                - img [ref=e266]
+                - text: Apply Suggestion
+          - generic [ref=e268]:
+            - generic [ref=e269]:
+              - heading "This Week" [level=3] [ref=e270]
+              - generic [ref=e271]:
+                - generic [ref=e272]:
+                  - img [ref=e274]
+                  - generic [ref=e276]: Calories On Track
+                  - img [ref=e277]
+                - generic [ref=e280]:
+                  - img [ref=e282]
+                  - generic [ref=e284]: 5 Day Streak
+                  - img [ref=e285]
+                - generic [ref=e288]:
+                  - img [ref=e290]
+                  - generic [ref=e292]: Water Improved
+                  - img [ref=e293]
+                - generic [ref=e296]:
+                  - img [ref=e298]
+                  - generic [ref=e300]: Late Night Snacking
+                  - img [ref=e301]
+            - generic [ref=e303]:
+              - generic [ref=e304]:
+                - heading "Achievements" [level=3] [ref=e305]
+                - button "View All" [ref=e306] [cursor=pointer]
+              - generic [ref=e307]:
+                - generic [ref=e308]:
+                  - img [ref=e310]
+                  - paragraph [ref=e316]: First Week Complete
+                - generic [ref=e317]:
+                  - img [ref=e319]
+                  - paragraph [ref=e325]: Protein Pro
+                - generic [ref=e326]:
+                  - img [ref=e328]
+                  - paragraph [ref=e331]: Hydration Hero
+                - generic [ref=e332]:
+                  - img [ref=e334]
+                  - paragraph [ref=e337]: 30-Day Streak
+              - generic [ref=e341]: 2 / 4 Unlocked
+          - generic [ref=e343]:
+            - img [ref=e345]
+            - generic:
+              - heading "Keep going, KHAMIS!" [level=3]:
+                - text: Keep going, KHAMIS!
+                - img
+              - paragraph: Only 48 kg left to unlock your first transformation milestone.
+            - generic [ref=e356]:
+              - img [ref=e357]
+              - paragraph [ref=e360]: You're doing better than 68% of users this week!
+    - navigation:
+      - generic [ref=e363]:
+        - link "home" [ref=e364] [cursor=pointer]:
+          - /url: /nutrio/dashboard
+          - generic [ref=e366]:
+            - img [ref=e367]
+            - generic [ref=e370]: home
+        - link "Meals" [ref=e371] [cursor=pointer]:
+          - /url: /nutrio/meals
+          - generic [ref=e373]:
+            - img [ref=e374]
+            - generic [ref=e379]: Meals
+        - link "Schedule" [ref=e380] [cursor=pointer]:
+          - /url: /nutrio/schedule
+          - generic [ref=e382]:
+            - img [ref=e383]
+            - generic [ref=e385]: Schedule
+        - link "Profile" [ref=e386] [cursor=pointer]:
+          - /url: /nutrio/profile
+          - generic [ref=e388]:
+            - img [ref=e389]
+            - generic [ref=e392]: Profile

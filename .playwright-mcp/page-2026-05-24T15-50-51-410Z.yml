@@ -1,0 +1,16 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e112]:
+        - generic [ref=e114]: Welcome Back You have successfully signed in.
+  - generic [ref=e116]:
+    - img [ref=e118]
+    - heading "Something went wrong" [level=1] [ref=e120]
+    - paragraph [ref=e121]: "Failed to fetch dynamically imported module: http://localhost:5173/nutrio/src/pages/Dashboard.tsx?t=1779637786924"
+    - generic [ref=e122]:
+      - button "Go Home" [ref=e123] [cursor=pointer]:
+        - img
+        - text: Go Home
+      - button "Reload" [ref=e124] [cursor=pointer]:
+        - img
+        - text: Reload

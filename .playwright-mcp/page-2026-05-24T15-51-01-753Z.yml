@@ -1,0 +1,13 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e4]:
+    - img [ref=e6]
+    - heading "Something went wrong" [level=1] [ref=e8]
+    - paragraph [ref=e9]: "Failed to fetch dynamically imported module: http://localhost:5173/nutrio/src/pages/Dashboard.tsx?t=1779637786924"
+    - generic [ref=e10]:
+      - button "Go Home" [ref=e11] [cursor=pointer]:
+        - img
+        - text: Go Home
+      - button "Reload" [ref=e12] [cursor=pointer]:
+        - img
+        - text: Reload

@@ -1,0 +1,44 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e494]:
+    - generic [ref=e495]:
+      - button [ref=e496] [cursor=pointer]:
+        - img [ref=e497]
+      - generic [ref=e499]:
+        - heading "Order Tracking" [level=1] [ref=e500]
+        - paragraph [ref=e501]: Live updates as your order progresses
+      - button [ref=e502] [cursor=pointer]:
+        - img [ref=e503]
+    - generic [ref=e508]:
+      - generic [ref=e509]:
+        - img [ref=e514]
+        - heading "Preparing Your Order" [level=2] [ref=e516]
+        - paragraph [ref=e517]: The kitchen is working on your meal. We'll find you a driver as soon as it's ready.
+        - generic [ref=e518]: Looking for a nearby driverâ€¦
+      - generic [ref=e522]:
+        - paragraph [ref=e523]: Order Progress
+        - generic [ref=e524]:
+          - generic [ref=e525]:
+            - img [ref=e527]
+            - generic [ref=e530]: Order Received
+          - generic [ref=e531]:
+            - img [ref=e535]
+            - generic [ref=e537]: Being Prepared
+            - generic [ref=e538]: Now
+          - generic [ref=e539]:
+            - img [ref=e541]
+            - generic [ref=e546]: Driver Assigned
+          - generic [ref=e547]:
+            - img [ref=e549]
+            - generic [ref=e552]: Out for Delivery
+          - generic [ref=e553]:
+            - img [ref=e555]
+            - generic [ref=e558]: Delivered
+      - generic [ref=e559]:
+        - img [ref=e560]
+        - generic [ref=e563]:
+          - paragraph [ref=e564]: Estimated 20â€“35 minutes
+          - paragraph [ref=e565]: Live map will appear automatically once a driver picks up your order.
+    - button "Refresh Status" [ref=e567] [cursor=pointer]:
+      - img [ref=e568]
+      - text: Refresh Status

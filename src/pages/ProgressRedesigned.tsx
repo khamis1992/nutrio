@@ -1756,6 +1756,7 @@ export default function ProgressRedesigned() {
         </section>
         )}
 
+        {activeTab === "week" && (
         <section className="mb-5">
           <SectionHeader action={showWeekDetails ? "Hide Details" : "View Details"} title="Weekly Performance" onClick={() => setShowWeekDetails(!showWeekDetails)} />
           <div className="grid grid-cols-4 gap-2.5">
@@ -1776,8 +1777,10 @@ export default function ProgressRedesigned() {
             </div>
           )}
         </section>
+        )}
 
-        <section className="mb-5 flex flex-col gap-4">
+        {activeTab === "today" && (
+        <section className="mb-5">
           <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
             <div className="mb-5 flex items-center gap-2">
               <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-emerald-600">
@@ -1800,7 +1803,7 @@ export default function ProgressRedesigned() {
               <div className="space-y-6 text-right">
                 <div>
                   <p className="text-[11px] font-semibold text-slate-500">Goal Weight</p>
-                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{goalWeight}<span className="ml-1 text-[12px] font-bold">kg</span></p>
+                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{activeGoal?.target_weight_kg ? `${goalWeight}` : "—"}<span className="ml-1 text-[12px] font-bold">kg</span></p>
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold text-slate-500">BMI</p>
@@ -1809,75 +1812,18 @@ export default function ProgressRedesigned() {
                 </div>
               </div>
             </div>
+            {activeGoal?.target_weight_kg && (
             <div className="mt-5 h-2 rounded-full bg-slate-100">
               <div className="relative h-full rounded-full bg-gradient-to-r from-emerald-200 to-emerald-500" style={{ width: `${progressPct}%` }}>
                 <span className="absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-emerald-500 shadow" />
               </div>
             </div>
-          </article>
-
-          <article className="relative overflow-hidden rounded-[20px] border border-violet-50 bg-[radial-gradient(circle_at_7%_18%,rgba(139,92,246,0.22),transparent_22%),linear-gradient(135deg,#FFFFFF_0%,#F5F0FF_55%,#FFFFFF_100%)] p-5 shadow-[0_16px_34px_rgba(76,29,149,0.10)]">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="relative grid h-11 w-11 place-items-center">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 shadow-[0_8px_24px_rgba(139,92,246,0.35)]" />
-                <Brain className="relative z-10 h-[22px] w-[22px] text-white" strokeWidth={2} />
-              </div>
-              <h3 className="text-[18px] font-black tracking-[-0.05em]">AI Coach</h3>
-              <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-600">NEW</span>
-            </div>
-            <p className="text-[14px] font-medium leading-[1.55] text-slate-600">{coachRecommendation}</p>
-            <button
-              className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-r from-[#10B981] to-[#009B72] text-[14px] font-black text-white shadow-[0_12px_20px_rgba(16,185,129,0.24)] disabled:opacity-60"
-              type="button"
-              onClick={handleApplySuggestion}
-              disabled={isApplyingSuggestion}
-            >
-              <Sparkles className="h-5 w-5" />
-              {isApplyingSuggestion ? "Applying..." : "Apply Suggestion"}
-            </button>
+            )}
           </article>
         </section>
+        )}
 
-        <section className="mb-5 flex flex-col gap-4">
-          <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
-            <h3 className="mb-4 text-[17px] font-black tracking-[-0.05em]">This Week</h3>
-            <div className="space-y-4">
-              {weeklyChecklist.map((item) => {
-                const Icon = item.Icon;
-                return (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ backgroundColor: `${item.color}1A`, color: item.color }}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <span className="min-w-0 flex-1 text-[13px] font-semibold text-slate-600">{item.label}</span>
-                    <div className={`grid h-7 w-7 place-items-center rounded-full ${item.done ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-500"}`}>
-                      {item.done ? <Check className="h-5 w-5" strokeWidth={3} /> : <span className="text-sm font-black">!</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </article>
 
-          <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-[17px] font-black tracking-[-0.05em]">Achievements</h3>
-              <button className="text-[13px] font-black text-[#00A86B]" type="button">View All</button>
-            </div>
-            <div className="grid grid-cols-4 gap-3 text-center">
-              {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, 4).map((badge) => (
-                <BadgeCard key={badge.id} badge={badge} variant="full" />
-              ))}
-            </div>
-            <div className="mt-5 flex items-center gap-3">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-[#10B981]" style={{ width: `${totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0}%` }} />
-              </div>
-              <p className="text-[12px] font-black text-[#00A86B]">{unlockedCount} <span className="font-semibold text-slate-500">/ {totalCount} Unlocked</span></p>
-              <div className="h-1.5 flex-1 rounded-full bg-slate-100" />
-            </div>
-          </article>
-        </section>
       </div>
     </main>
   );

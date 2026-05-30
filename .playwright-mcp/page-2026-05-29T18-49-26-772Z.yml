@@ -1,0 +1,394 @@
+- generic:
+  - generic:
+    - region "Notifications alt+T"
+    - generic:
+      - generic:
+        - generic:
+          - main:
+            - generic:
+              - link:
+                - /url: /nutrio/profile
+                - generic:
+                  - img
+                - generic:
+                  - paragraph: Good evening 🌙
+                  - heading [level=1]: Khamis
+              - generic:
+                - generic:
+                  - button:
+                    - img
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=2]: Today's Meals
+                  - paragraph: What's on your plate today
+                - link:
+                  - /url: /nutrio/schedule
+                  - text: Schedule
+                  - img
+              - generic:
+                - link:
+                  - /url: /nutrio/meals
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - img
+                      - generic:
+                        - img
+                    - generic:
+                      - heading [level=3]: Plan your meals for today
+                      - paragraph: Fresh, nutritious meals delivered to your door — curated by local restaurants.
+                    - generic:
+                      - img
+            - generic:
+              - generic:
+                - generic:
+                  - img
+                  - generic:
+                    - generic: "40"
+                    - generic: Avail. Balance
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic: Mo. Balance
+                    - generic: 40 / 40
+                  - generic:
+                    - generic:
+                      - img
+                    - generic: Transfer Bal.
+                    - generic: "+0"
+                  - generic:
+                    - generic:
+                      - img
+                    - generic: Total Avail.
+                    - generic: "40"
+                - button:
+                  - generic:
+                    - img
+                  - generic: Subscription
+                  - generic: healthy
+                  - generic: Joined Feb 2026
+            - generic:
+              - generic:
+                - generic:
+                  - img
+                  - generic: Fri, May 29
+                - generic:
+                  - button:
+                    - img
+                  - button [disabled]:
+                    - img
+              - generic:
+                - generic:
+                  - img
+                  - generic: Daily Streak
+                - generic: 1/7
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - paragraph: This Week
+                    - paragraph: 1,667 / 21000 cal · holding steady
+                  - generic: 43%
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - paragraph: Water
+                    - paragraph: 0 cups
+                  - img
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - paragraph: Steps
+                    - paragraph: "0"
+                  - img
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic: Consumed
+                    - generic: "0"
+                    - generic: Cal
+                  - generic:
+                    - img
+                    - generic:
+                      - generic: "3000"
+                      - generic: Remaining
+                      - generic: 0%
+                  - generic:
+                    - generic:
+                      - img
+                    - generic: Burned
+                    - generic: "0"
+                    - generic: Cal
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - paragraph: Carbs
+                        - paragraph: 0g
+                    - generic:
+                      - generic: /1000g
+                      - generic: 0%
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - paragraph: Protein
+                        - paragraph: 0g
+                    - generic:
+                      - generic: /1000g
+                      - generic: 0%
+                  - generic:
+                    - generic:
+                      - generic:
+                        - img
+                      - generic:
+                        - paragraph: Fat
+                        - paragraph: 0g
+                    - generic:
+                      - generic: /500g
+                      - generic: 0%
+              - generic:
+                - generic:
+                  - generic: ↓
+                  - generic:
+                    - generic: 36.5 kg
+                    - paragraph: 7-day trend
+                - img
+              - generic:
+                - generic:
+                  - img
+                  - heading [level=2]: Activity Details
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Total Burned
+                      - paragraph: 0 Cal
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Sessions
+                      - paragraph: "0"
+                  - button:
+                    - img
+                - button:
+                  - generic:
+                    - img
+                  - generic:
+                    - paragraph: Log your first workout
+                    - paragraph: Track your activity to see progress here
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Level 1
+                      - paragraph: Start earning badges today
+                    - generic:
+                      - generic:
+                        - img
+                    - img
+              - generic:
+                - heading [level=3]: Quick Actions
+                - generic:
+                  - button:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Tracker
+                      - paragraph: Track your progress
+                  - button:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Favorite
+                      - paragraph: Saved meals & restaurants
+                  - button:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Progress
+                      - paragraph: View your analytics
+                  - button:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Community
+                      - paragraph: Connect & challenge
+              - button:
+                - img
+                - text: Log Meal
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - heading [level=2]: Active Orders
+                      - paragraph: 6 orders in progress · Showing first 3
+                  - link:
+                    - /url: /nutrio/orders
+                    - text: View All
+                    - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /nutrio/live/12eacc24-17a4-413e-b2fd-1ec0a8780b36
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic:
+                            - heading [level=3]: Restaurant
+                            - generic: On The Way
+                          - paragraph: Meal
+                          - generic:
+                            - generic:
+                              - generic: Arriving now
+                        - img
+                  - generic:
+                    - link:
+                      - /url: /nutrio/live/edca9eaf-320b-4675-bcd9-8cdace1be91b
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic:
+                            - heading [level=3]: Restaurant
+                            - generic: Pending
+                          - paragraph: Meal
+                          - generic:
+                            - paragraph: Awaiting confirmation · ~5 min
+                        - img
+                    - generic:
+                      - button:
+                        - img
+                        - text: Reschedule
+                      - button:
+                        - img
+                        - text: Cancel
+                  - generic:
+                    - link:
+                      - /url: /nutrio/live/4c6ad9d2-5095-4c92-9c7f-f49bc10548a6
+                      - generic:
+                        - generic:
+                          - img
+                        - generic:
+                          - generic:
+                            - heading [level=3]: Fitness Fuel Station
+                            - generic: Pending
+                          - paragraph: High-Protein Breakfast
+                          - generic:
+                            - paragraph: Awaiting confirmation · ~5 min
+                        - img
+                    - generic:
+                      - button:
+                        - img
+                        - text: Reschedule
+                      - button:
+                        - img
+                        - text: Cancel
+              - generic:
+                - generic:
+                  - img
+                - generic:
+                  - paragraph: This Month
+                  - paragraph: 6 orders · 6 completed
+                - generic: 100%
+      - navigation:
+        - generic [ref=e476]:
+          - link [ref=e540] [cursor=pointer]:
+            - /url: /nutrio/dashboard
+            - generic [ref=e479]:
+              - img [ref=e481]
+              - generic [ref=e484]: home
+          - link [ref=e541] [cursor=pointer]:
+            - /url: /nutrio/meals
+            - generic [ref=e487]:
+              - img [ref=e488]
+              - generic [ref=e493]: Meals
+          - link [ref=e542] [cursor=pointer]:
+            - /url: /nutrio/schedule
+            - generic [ref=e496]:
+              - img [ref=e497]
+              - generic [ref=e499]: Schedule
+          - link [ref=e543] [cursor=pointer]:
+            - /url: /nutrio/profile
+            - generic [ref=e502]:
+              - img [ref=e503]
+              - generic [ref=e506]: Profile
+  - dialog "Select Delivery Time" [active] [ref=e569]:
+    - generic [ref=e546]:
+      - heading "Select Delivery Time" [level=2] [ref=e570]
+      - paragraph [ref=e548]: Choose a new date and time for your order
+    - generic [ref=e571]:
+      - generic [ref=e572]:
+        - generic [ref=e573]:
+          - generic [ref=e574]:
+            - img [ref=e575]
+            - text: Select Date
+          - generic [ref=e577]:
+            - button [disabled]:
+              - img
+            - button [ref=e578] [cursor=pointer]:
+              - img
+        - generic [ref=e579]:
+          - button "Fri 29" [ref=e580] [cursor=pointer]:
+            - generic [ref=e581]: Fri
+            - generic [ref=e582]: "29"
+          - button "Sat 30" [ref=e583] [cursor=pointer]:
+            - generic [ref=e584]: Sat
+            - generic [ref=e585]: "30"
+          - button "Sun 31" [ref=e586] [cursor=pointer]:
+            - generic [ref=e587]: Sun
+            - generic [ref=e588]: "31"
+          - button "Mon 1" [ref=e589] [cursor=pointer]:
+            - generic [ref=e590]: Mon
+            - generic [ref=e591]: "1"
+          - button "Tue 2" [ref=e592] [cursor=pointer]:
+            - generic [ref=e593]: Tue
+            - generic [ref=e594]: "2"
+          - button "Wed 3" [ref=e595] [cursor=pointer]:
+            - generic [ref=e596]: Wed
+            - generic [ref=e597]: "3"
+          - button "Thu 4" [ref=e598] [cursor=pointer]:
+            - generic [ref=e599]: Thu
+            - generic [ref=e600]: "4"
+        - paragraph [ref=e601]: Saturday, March 28 • Qatar (GMT +3)
+      - generic [ref=e602]:
+        - generic [ref=e603]:
+          - img [ref=e604]
+          - text: Select Time
+        - generic [ref=e607]:
+          - button "7:00 AM" [ref=e608] [cursor=pointer]
+          - button "8:00 AM" [ref=e609] [cursor=pointer]
+          - button "9:00 AM" [ref=e610] [cursor=pointer]
+          - button "11:00 AM" [ref=e611] [cursor=pointer]
+          - button "12:00 PM" [ref=e612] [cursor=pointer]
+          - button "1:00 PM" [ref=e613] [cursor=pointer]
+          - button "5:00 PM" [ref=e614] [cursor=pointer]
+          - button "6:00 PM" [ref=e615] [cursor=pointer]
+          - button "7:00 PM" [ref=e616] [cursor=pointer]
+      - generic [ref=e617]:
+        - button "Cancel" [ref=e618] [cursor=pointer]
+        - button "Confirm" [disabled]
+    - button "Close" [ref=e564] [cursor=pointer]:
+      - img [ref=e565]
+      - generic [ref=e568]: Close

@@ -1,0 +1,52 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e320]:
+    - banner [ref=e321]:
+      - generic [ref=e322]:
+        - img "Nutrio Fuel" [ref=e323]
+        - generic [ref=e324]: Step 2 of 5
+    - generic [ref=e325]:
+      - generic [ref=e326]:
+        - generic [ref=e327]: Step 2 of 5
+        - generic [ref=e328]: 40% Complete
+      - progressbar [ref=e329]
+      - generic [ref=e331]:
+        - generic [ref=e332]:
+          - img [ref=e334]
+          - generic [ref=e336]: Your Goal
+        - generic [ref=e337]:
+          - img [ref=e410]
+          - generic [ref=e342]: Gender
+        - generic [ref=e343]:
+          - img [ref=e345]
+          - generic [ref=e349]: Body Metrics
+        - generic [ref=e350]:
+          - img [ref=e352]
+          - generic [ref=e354]: Activity Level
+        - generic [ref=e355]:
+          - img [ref=e357]
+          - generic [ref=e360]: Dietary Preferences
+    - main [ref=e361]:
+      - generic [ref=e413]:
+        - generic [ref=e414]:
+          - heading "Tell us about yourself" [level=1] [ref=e415]
+          - paragraph [ref=e416]: We'll use this to calculate your daily calorie needs
+        - generic [ref=e417]:
+          - generic [ref=e419] [cursor=pointer]:
+            - img [ref=e421]
+            - heading "Male" [level=3] [ref=e424]
+          - generic [ref=e426] [cursor=pointer]:
+            - img [ref=e428]
+            - heading "Female" [level=3] [ref=e431]
+    - contentinfo [ref=e403]:
+      - generic [ref=e404]:
+        - button "Back" [ref=e432] [cursor=pointer]:
+          - img
+          - text: Back
+        - button "Continue" [disabled]:
+          - text: Continue
+          - img
+      - generic [ref=e406]:
+        - button "Quick Start — apply recommended defaults for me" [ref=e407] [cursor=pointer]
+        - button "Skip for now — I'll set up later" [ref=e408] [cursor=pointer]
+        - paragraph [ref=e409]: You can always update your preferences in Settings

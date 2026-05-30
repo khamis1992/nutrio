@@ -1,0 +1,43 @@
+- generic:
+  - generic:
+    - region "Notifications alt+T"
+    - generic [ref=e56]:
+      - generic [ref=e57]:
+        - button [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+        - img "Nutrio Fuel" [ref=e62]
+        - heading "Welcome Back" [level=1] [ref=e63]
+        - paragraph [ref=e64]: Sign in to your Nutrio account
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - generic [ref=e67]: Email
+            - generic [ref=e68]:
+              - img [ref=e70]
+              - textbox "Enter your email" [active] [ref=e73]: eng.aljabor@gmail.com
+              - button "Clear email" [ref=e74] [cursor=pointer]:
+                - img [ref=e75]
+          - generic [ref=e78]:
+            - generic [ref=e79]: Password
+            - generic [ref=e80]:
+              - img [ref=e82]
+              - textbox "Enter your password" [ref=e85]: "123456789"
+              - button "Toggle password visibility" [ref=e86] [cursor=pointer]
+          - generic [ref=e89]:
+            - generic [ref=e90] [cursor=pointer]:
+              - checkbox "Remember me" [ref=e92]
+              - generic [ref=e95]: Remember me
+            - button "Forgot Password?" [ref=e96] [cursor=pointer]
+          - generic [ref=e99]: or
+          - generic [ref=e101]:
+            - button "Google Continue with Google" [ref=e102] [cursor=pointer]:
+              - img "Google" [ref=e103]
+              - generic [ref=e104]: Continue with Google
+            - button "Apple Continue with Apple" [ref=e105] [cursor=pointer]:
+              - img "Apple" [ref=e106]
+              - generic [ref=e107]: Continue with Apple
+          - paragraph [ref=e108]:
+            - text: Don't have an account?
+            - button "Sign Up" [ref=e109] [cursor=pointer]
+      - button "Sign In" [ref=e111] [cursor=pointer]:
+        - img
+        - text: Sign In

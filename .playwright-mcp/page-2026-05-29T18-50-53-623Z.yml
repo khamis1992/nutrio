@@ -1,0 +1,123 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e56]:
+    - generic [ref=e695]:
+      - generic [ref=e696]:
+        - button [ref=e697] [cursor=pointer]:
+          - img [ref=e698]
+        - img [ref=e701]
+        - generic [ref=e704]:
+          - heading "Tracker" [level=1] [ref=e705]
+          - paragraph [ref=e706]: Track your daily progress
+      - generic [ref=e707]:
+        - button "Today" [ref=e708] [cursor=pointer]:
+          - img [ref=e709]
+          - text: Today
+        - button "Insights" [ref=e713] [cursor=pointer]:
+          - img [ref=e714]
+          - text: Insights
+      - generic [ref=e716]:
+        - generic [ref=e717]:
+          - generic [ref=e718]:
+            - img [ref=e720]
+            - generic [ref=e724]: Water
+          - generic [ref=e725]:
+            - generic [ref=e726]:
+              - paragraph [ref=e727]: 0 mL
+              - paragraph [ref=e728]: / 2,500 mL
+            - generic [ref=e729]:
+              - generic [ref=e730]:
+                - img [ref=e731]
+                - img [ref=e733]
+              - button [disabled] [ref=e735]:
+                - img [ref=e736]
+              - link [ref=e737] [cursor=pointer]:
+                - /url: /nutrio/water-tracker
+                - img [ref=e738]
+          - generic [ref=e741]: 0%
+          - generic [ref=e742]:
+            - img [ref=e743]
+            - generic [ref=e747]: Stay hydrated, drink water throughout the day.
+        - generic [ref=e748]:
+          - generic [ref=e749]:
+            - img [ref=e751]
+            - generic [ref=e754]: Steps
+          - generic [ref=e755]:
+            - generic [ref=e756]:
+              - paragraph [ref=e757]: 0 Steps
+              - paragraph [ref=e758]: / 6,000 Steps
+            - generic [ref=e759]:
+              - img [ref=e760]
+              - generic [ref=e764]: 0%
+          - link "Add steps" [ref=e765] [cursor=pointer]:
+            - /url: /nutrio/step-counter
+            - img [ref=e766]
+            - text: Add steps
+          - generic [ref=e769]:
+            - img [ref=e770]
+            - generic [ref=e772]: Keep moving! Every step counts.
+        - generic [ref=e773]:
+          - generic [ref=e774]:
+            - img [ref=e776]
+            - generic [ref=e779]: Weight
+          - generic [ref=e780]:
+            - generic [ref=e781]:
+              - paragraph [ref=e782]: 82.5 kg
+              - paragraph [ref=e783]:
+                - img [ref=e784]
+                - text: 67.5 kg
+            - button "Update" [ref=e786] [cursor=pointer]
+          - generic [ref=e789]:
+            - generic [ref=e790]:
+              - text: "Starting:"
+              - generic [ref=e791]: 119 kg
+            - generic [ref=e792]:
+              - text: "Goal:"
+              - generic [ref=e793]: 90 kg
+          - generic [ref=e794]:
+            - img [ref=e795]
+            - generic [ref=e798]: You're making progress towards your goal!
+        - generic [ref=e799]:
+          - generic [ref=e800]:
+            - img [ref=e802]
+            - generic [ref=e804]: BMI (kg/m²)
+          - generic [ref=e805]:
+            - generic [ref=e806]:
+              - paragraph [ref=e807]: "25.5"
+              - paragraph [ref=e808]: Overweight
+            - button [ref=e809] [cursor=pointer]:
+              - img [ref=e810]
+          - generic [ref=e822]:
+            - generic [ref=e823]: Underweight
+            - generic [ref=e824]: Normal
+            - generic [ref=e825]: Overweight
+            - generic [ref=e826]: Obese
+        - button "Consistency is key! Track daily to see the best results." [ref=e827] [cursor=pointer]:
+          - generic [ref=e828]:
+            - img [ref=e830]
+            - generic [ref=e832]:
+              - paragraph [ref=e833]: Consistency is key!
+              - paragraph [ref=e834]: Track daily to see the best results.
+          - img [ref=e835]
+    - navigation:
+      - generic [ref=e476]:
+        - link "home" [ref=e690] [cursor=pointer]:
+          - /url: /nutrio/dashboard
+          - generic [ref=e479]:
+            - img [ref=e837]
+            - generic [ref=e840]: home
+        - link "Meals" [ref=e691] [cursor=pointer]:
+          - /url: /nutrio/meals
+          - generic [ref=e487]:
+            - img [ref=e488]
+            - generic [ref=e493]: Meals
+        - link "Schedule" [ref=e692] [cursor=pointer]:
+          - /url: /nutrio/schedule
+          - generic [ref=e496]:
+            - img [ref=e497]
+            - generic [ref=e499]: Schedule
+        - link "Profile" [ref=e693] [cursor=pointer]:
+          - /url: /nutrio/profile
+          - generic [ref=e502]:
+            - img [ref=e503]
+            - generic [ref=e506]: Profile

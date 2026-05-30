@@ -1,0 +1,289 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e56]:
+    - main [ref=e59]:
+      - generic [ref=e60]:
+        - link "Khamis Good evening 🌙 Khamis" [ref=e61] [cursor=pointer]:
+          - /url: /nutrio/profile
+          - img "Khamis" [ref=e63]
+          - generic [ref=e64]:
+            - paragraph [ref=e65]: Good evening 🌙
+            - heading "Khamis" [level=1] [ref=e66]
+        - button "Notifications" [ref=e69] [cursor=pointer]:
+          - img [ref=e70]
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - heading "Today's Meals" [level=2] [ref=e76]
+            - paragraph [ref=e77]: What's on your plate today
+          - link "Schedule" [ref=e78] [cursor=pointer]:
+            - /url: /nutrio/schedule
+            - text: Schedule
+            - img [ref=e79]
+        - link "Plan your meals for today Fresh, nutritious meals delivered to your door — curated by local restaurants." [ref=e82] [cursor=pointer]:
+          - /url: /nutrio/meals
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - img [ref=e86]
+              - img [ref=e89]
+              - img [ref=e96]
+            - generic [ref=e101]:
+              - heading "Plan your meals for today" [level=3] [ref=e102]
+              - paragraph [ref=e103]: Fresh, nutritious meals delivered to your door — curated by local restaurants.
+            - img [ref=e105]
+      - generic [ref=e107]:
+        - generic [ref=e108]:
+          - img [ref=e109]
+          - generic [ref=e112]:
+            - generic [ref=e113]: "40"
+            - generic [ref=e114]:
+              - text: Avail.
+              - text: Balance
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - img [ref=e119]
+            - generic [ref=e121]: Mo. Balance
+            - generic [ref=e122]: 40 / 40
+          - generic [ref=e123]:
+            - img [ref=e125]
+            - generic [ref=e128]: Transfer Bal.
+            - generic [ref=e129]: "+0"
+          - generic [ref=e131]:
+            - img [ref=e133]
+            - generic [ref=e136]: Total Avail.
+            - generic [ref=e137]: "40"
+        - button "View subscription" [ref=e139] [cursor=pointer]:
+          - img [ref=e141]
+          - generic [ref=e143]: Subscription
+          - generic [ref=e144]: healthy
+          - generic [ref=e145]: Joined Feb 2026
+      - generic [ref=e146]:
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - img [ref=e149]
+            - generic [ref=e151]: Fri, May 29
+          - generic [ref=e152]:
+            - button "Previous day" [ref=e153] [cursor=pointer]:
+              - img [ref=e154]
+            - button "Next day" [disabled] [ref=e156]:
+              - img [ref=e157]
+        - generic [ref=e159]:
+          - generic [ref=e160]:
+            - img [ref=e161]
+            - generic [ref=e163]: Daily Streak
+          - generic [ref=e171]: 1/7
+        - generic [ref=e173]:
+          - img [ref=e175]
+          - generic [ref=e177]:
+            - paragraph [ref=e178]: This Week
+            - paragraph [ref=e179]: 1,667 / 21000 cal · holding steady
+          - generic [ref=e180]: 43%
+        - generic [ref=e181]:
+          - generic [ref=e182] [cursor=pointer]:
+            - img [ref=e184]
+            - generic [ref=e187]:
+              - paragraph [ref=e188]: Water
+              - paragraph [ref=e189]: 0 cups
+            - img [ref=e191]
+          - generic [ref=e193] [cursor=pointer]:
+            - img [ref=e195]
+            - generic [ref=e198]:
+              - paragraph [ref=e199]: Steps
+              - paragraph [ref=e200]: "0"
+            - img [ref=e202]
+        - generic [ref=e205]:
+          - generic [ref=e206]:
+            - img [ref=e208]
+            - generic [ref=e211]: Consumed
+            - generic [ref=e212]: "0"
+            - generic [ref=e213]: Cal
+          - generic [ref=e214]:
+            - img [ref=e215]
+            - generic [ref=e218]:
+              - generic [ref=e219]: "3000"
+              - generic [ref=e220]: Remaining
+              - generic [ref=e221]: 0%
+          - generic [ref=e222]:
+            - img [ref=e224]
+            - generic [ref=e226]: Burned
+            - generic [ref=e227]: "0"
+            - generic [ref=e228]: Cal
+        - generic [ref=e230]:
+          - generic [ref=e231]:
+            - generic [ref=e232]:
+              - img [ref=e234]
+              - generic [ref=e243]:
+                - paragraph [ref=e244]: Carbs
+                - paragraph [ref=e245]: 0g
+            - generic [ref=e248]:
+              - generic [ref=e249]: /1000g
+              - generic [ref=e250]: 0%
+          - generic [ref=e251]:
+            - generic [ref=e252]:
+              - img [ref=e254]
+              - generic [ref=e257]:
+                - paragraph [ref=e258]: Protein
+                - paragraph [ref=e259]: 0g
+            - generic [ref=e262]:
+              - generic [ref=e263]: /1000g
+              - generic [ref=e264]: 0%
+          - generic [ref=e265]:
+            - generic [ref=e266]:
+              - img [ref=e268]
+              - generic [ref=e270]:
+                - paragraph [ref=e271]: Fat
+                - paragraph [ref=e272]: 0g
+            - generic [ref=e275]:
+              - generic [ref=e276]: /500g
+              - generic [ref=e277]: 0%
+        - generic [ref=e278]:
+          - generic [ref=e279]:
+            - generic [ref=e280]: ↓
+            - generic [ref=e281]:
+              - generic [ref=e282]: 36.5 kg
+              - paragraph [ref=e283]: 7-day trend
+          - img [ref=e284]
+        - generic [ref=e288]:
+          - generic [ref=e289]:
+            - img [ref=e290]
+            - heading "Activity Details" [level=2] [ref=e292]
+          - generic [ref=e293]:
+            - generic [ref=e294]:
+              - img [ref=e296]
+              - generic [ref=e298]:
+                - paragraph [ref=e299]: Total Burned
+                - paragraph [ref=e300]: 0 Cal
+            - generic [ref=e301]:
+              - img [ref=e303]
+              - generic [ref=e305]:
+                - paragraph [ref=e306]: Sessions
+                - paragraph [ref=e307]: "0"
+            - button "Log activity" [ref=e308] [cursor=pointer]:
+              - img [ref=e309]
+          - button "Log your first workout Track your activity to see progress here" [ref=e310] [cursor=pointer]:
+            - img [ref=e312]
+            - generic [ref=e313]:
+              - paragraph [ref=e314]: Log your first workout
+              - paragraph [ref=e315]: Track your activity to see progress here
+        - generic [ref=e318] [cursor=pointer]:
+          - img [ref=e320]
+          - generic [ref=e326]:
+            - paragraph [ref=e327]: Level 1
+            - paragraph [ref=e328]: Start earning badges today
+          - img [ref=e332]
+          - img [ref=e338]
+        - generic [ref=e340]:
+          - heading "Quick Actions" [level=3] [ref=e341]
+          - generic [ref=e342]:
+            - button "Tracker" [ref=e343] [cursor=pointer]:
+              - img [ref=e345]
+              - generic [ref=e349]:
+                - paragraph [ref=e350]: Tracker
+                - paragraph [ref=e351]: Track your progress
+            - button "Favorite" [ref=e352] [cursor=pointer]:
+              - img [ref=e354]
+              - generic [ref=e356]:
+                - paragraph [ref=e357]: Favorite
+                - paragraph [ref=e358]: Saved meals & restaurants
+            - button "Progress" [ref=e359] [cursor=pointer]:
+              - img [ref=e361]
+              - generic [ref=e362]:
+                - paragraph [ref=e363]: Progress
+                - paragraph [ref=e364]: View your analytics
+            - button "Community" [ref=e365] [cursor=pointer]:
+              - img [ref=e367]
+              - generic [ref=e372]:
+                - paragraph [ref=e373]: Community
+                - paragraph [ref=e374]: Connect & challenge
+        - button "Log Meal" [ref=e375] [cursor=pointer]:
+          - img [ref=e376]
+          - text: Log Meal
+        - generic [ref=e379]:
+          - generic [ref=e380]:
+            - generic [ref=e381]:
+              - img [ref=e383]
+              - generic [ref=e386]:
+                - heading "Active Orders" [level=2] [ref=e387]
+                - paragraph [ref=e388]: 6 orders in progress · Showing first 3
+            - link "View All" [ref=e389] [cursor=pointer]:
+              - /url: /nutrio/orders
+              - text: View All
+              - img [ref=e390]
+          - generic [ref=e392]:
+            - link "Restaurant On The Way Meal Arriving now" [ref=e394] [cursor=pointer]:
+              - /url: /nutrio/live/12eacc24-17a4-413e-b2fd-1ec0a8780b36
+              - generic [ref=e395]:
+                - img [ref=e397]
+                - generic [ref=e402]:
+                  - generic [ref=e403]:
+                    - heading "Restaurant" [level=3] [ref=e404]
+                    - generic [ref=e405]: On The Way
+                  - paragraph [ref=e406]: Meal
+                  - generic [ref=e409]: Arriving now
+                - img [ref=e411]
+            - generic [ref=e413]:
+              - link "Restaurant Pending Meal Awaiting confirmation · ~5 min" [ref=e414] [cursor=pointer]:
+                - /url: /nutrio/live/edca9eaf-320b-4675-bcd9-8cdace1be91b
+                - generic [ref=e415]:
+                  - img [ref=e417]
+                  - generic [ref=e420]:
+                    - generic [ref=e421]:
+                      - heading "Restaurant" [level=3] [ref=e422]
+                      - generic [ref=e423]: Pending
+                    - paragraph [ref=e424]: Meal
+                    - paragraph [ref=e426]: Awaiting confirmation · ~5 min
+                  - img [ref=e427]
+              - generic [ref=e429]:
+                - button "Reschedule" [ref=e430] [cursor=pointer]:
+                  - img [ref=e431]
+                  - text: Reschedule
+                - button "Cancel" [ref=e434] [cursor=pointer]:
+                  - img [ref=e435]
+                  - text: Cancel
+            - generic [ref=e439]:
+              - link "Fitness Fuel Station Pending High-Protein Breakfast Awaiting confirmation · ~5 min" [ref=e440] [cursor=pointer]:
+                - /url: /nutrio/live/4c6ad9d2-5095-4c92-9c7f-f49bc10548a6
+                - generic [ref=e441]:
+                  - img [ref=e443]
+                  - generic [ref=e446]:
+                    - generic [ref=e447]:
+                      - heading "Fitness Fuel Station" [level=3] [ref=e448]
+                      - generic [ref=e449]: Pending
+                    - paragraph [ref=e450]: High-Protein Breakfast
+                    - paragraph [ref=e452]: Awaiting confirmation · ~5 min
+                  - img [ref=e453]
+              - generic [ref=e455]:
+                - button "Reschedule" [ref=e456] [cursor=pointer]:
+                  - img [ref=e457]
+                  - text: Reschedule
+                - button "Cancel" [ref=e460] [cursor=pointer]:
+                  - img [ref=e461]
+                  - text: Cancel
+        - generic [ref=e465]:
+          - img [ref=e467]
+          - generic [ref=e470]:
+            - paragraph [ref=e471]: This Month
+            - paragraph [ref=e472]: 6 orders · 6 completed
+          - generic [ref=e473]: 100%
+    - navigation:
+      - generic [ref=e476]:
+        - link "home" [ref=e536] [cursor=pointer]:
+          - /url: /nutrio/dashboard
+          - generic [ref=e479]:
+            - img [ref=e481]
+            - generic [ref=e484]: home
+        - link "Meals" [ref=e537] [cursor=pointer]:
+          - /url: /nutrio/meals
+          - generic [ref=e487]:
+            - img [ref=e488]
+            - generic [ref=e493]: Meals
+        - link "Schedule" [ref=e538] [cursor=pointer]:
+          - /url: /nutrio/schedule
+          - generic [ref=e496]:
+            - img [ref=e497]
+            - generic [ref=e499]: Schedule
+        - link "Profile" [ref=e539] [cursor=pointer]:
+          - /url: /nutrio/profile
+          - generic [ref=e502]:
+            - img [ref=e503]
+            - generic [ref=e506]: Profile

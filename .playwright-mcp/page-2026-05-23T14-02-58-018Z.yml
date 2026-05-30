@@ -1,0 +1,67 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e59]:
+        - generic [ref=e61]: Welcome Back You have successfully signed in.
+  - generic [ref=e62]:
+    - generic [ref=e63]:
+      - banner [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - link [ref=e67] [cursor=pointer]:
+              - /url: /nutrio/dashboard
+              - img [ref=e69]
+            - heading "Meals" [level=1] [ref=e71]
+          - generic [ref=e72]:
+            - img
+            - textbox "Search meals, restaurants..." [ref=e73]
+            - button [ref=e75] [cursor=pointer]:
+              - img [ref=e76]
+        - generic [ref=e78]:
+          - button "All Cuisine" [ref=e79] [cursor=pointer]:
+            - img [ref=e81]
+            - generic [ref=e84]: All Cuisine
+          - button "Breakfast" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+            - generic [ref=e88]: Breakfast
+          - button "Lunch" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+            - generic [ref=e96]: Lunch
+          - button "Dinner" [ref=e97] [cursor=pointer]:
+            - img [ref=e98]
+            - generic [ref=e104]: Dinner
+          - button "snacks" [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+            - generic [ref=e111]: snacks
+          - button "desserts" [ref=e112] [cursor=pointer]:
+            - img [ref=e113]
+            - generic [ref=e116]: desserts
+          - button "beverages" [ref=e117] [cursor=pointer]:
+            - img [ref=e118]
+            - generic [ref=e120]: beverages
+      - main [ref=e121]:
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - heading "Restaurants" [level=2] [ref=e169]
+            - paragraph [ref=e170]: 0 Meals
+          - generic [ref=e172]:
+            - button "Restaurants" [ref=e173] [cursor=pointer]
+            - button "Meals" [ref=e174] [cursor=pointer]
+    - navigation [ref=e290]:
+      - generic [ref=e293]:
+        - link "home" [ref=e294] [cursor=pointer]:
+          - /url: /nutrio/dashboard
+          - img [ref=e297]
+          - generic [ref=e299]: home
+        - link "Meals" [ref=e300] [cursor=pointer]:
+          - /url: /nutrio/meals
+          - img [ref=e304]
+          - generic [ref=e306]: Meals
+        - link "Schedule" [ref=e307] [cursor=pointer]:
+          - /url: /nutrio/schedule
+          - img [ref=e310]
+          - generic [ref=e312]: Schedule
+        - link "Profile" [ref=e313] [cursor=pointer]:
+          - /url: /nutrio/profile
+          - img [ref=e316]
+          - generic [ref=e319]: Profile

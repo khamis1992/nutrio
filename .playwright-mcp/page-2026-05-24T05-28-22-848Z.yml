@@ -1,0 +1,270 @@
+- generic:
+  - generic:
+    - region "Notifications alt+T"
+    - generic:
+      - generic:
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - paragraph: Good afternoon 🌥️
+                - heading [level=1]: Khamis
+            - generic:
+              - link:
+                - /url: /nutrio/notifications
+                - img
+                - generic: "1"
+          - generic:
+            - generic:
+              - generic:
+                - img
+                - generic:
+                  - generic: "40"
+                  - generic: Avail. Balance
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic: Mo. Balance
+                  - generic: 40 / 40
+                - generic:
+                  - generic:
+                    - img
+                  - generic: Transfer Bal.
+                  - generic: "+0"
+                - generic:
+                  - generic:
+                    - img
+                  - generic: Total Avail.
+                  - generic: "40"
+              - button:
+                - generic:
+                  - img
+                - generic: Subscription
+                - generic: healthy
+                - generic: Joined Feb 2026
+          - generic:
+            - generic:
+              - generic:
+                - img
+                - generic: Sun, May 24
+              - generic:
+                - button:
+                  - img
+                - button [disabled]:
+                  - img
+            - generic:
+              - generic:
+                - img
+                - generic: Daily Streak
+              - generic: 7/7
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: Consumed
+                  - generic:
+                    - generic: "0"
+                    - img
+                  - paragraph: Cal
+                - generic:
+                  - img
+                  - generic:
+                    - generic: "2066"
+                    - generic: CAL LEFT
+                    - generic: 100% Remaining
+                - generic:
+                  - paragraph: Burned
+                  - generic:
+                    - img
+                    - generic: "0"
+                  - paragraph: Cal
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Carbs
+                      - paragraph: 0g
+                  - generic:
+                    - generic: /181g
+                    - generic: 0%
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Protein
+                      - paragraph: 0g
+                  - generic:
+                    - generic: /181g
+                    - generic: 0%
+                - generic:
+                  - generic:
+                    - generic:
+                      - img
+                    - generic:
+                      - paragraph: Fat
+                      - paragraph: 0g
+                  - generic:
+                    - generic: /69g
+                    - generic: 0%
+            - generic:
+              - generic:
+                - img
+                - heading [level=2]: Activity Details
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - paragraph: Total Burned
+                    - paragraph: 0 Cal
+                - generic:
+                  - generic:
+                    - img
+                  - generic:
+                    - paragraph: Sessions
+                    - paragraph: "0"
+                - button:
+                  - img
+            - generic:
+              - heading [level=3]: Quick Actions
+              - generic:
+                - button:
+                  - generic:
+                    - img
+                  - generic: Tracker
+                - button:
+                  - generic:
+                    - img
+                  - generic: Favorite
+                - button:
+                  - generic:
+                    - img
+                  - generic: Progress
+            - button:
+              - img
+              - text: Log Meal
+            - generic:
+              - generic:
+                - img
+                - heading [level=2]: Active Orders (3)
+              - link:
+                - /url: /nutrio/orders
+                - text: View All
+                - img
+            - generic:
+              - generic:
+                - link:
+                  - /url: /nutrio/orders
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: Restaurant
+                      - generic: On The Way
+                    - paragraph: Meal, Meal • Mar 13
+                  - img
+              - generic:
+                - link:
+                  - /url: /nutrio/orders
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: Fitness Fuel Station
+                      - generic: Pending
+                    - paragraph: High-Protein Breakfast, High-Protein Bre... • Apr 25
+                  - img
+              - generic:
+                - link:
+                  - /url: /nutrio/orders
+                  - generic:
+                    - img
+                  - generic:
+                    - generic:
+                      - paragraph: Organic Harvest
+                      - generic: Pending
+                    - paragraph: Organic Acai Bowl • Apr 25
+                  - img
+            - generic:
+              - heading [level=2]: Top Rated
+              - link:
+                - /url: /nutrio/meals
+                - text: View All
+                - img
+            - generic:
+              - generic:
+                - generic: ★
+                - generic: ★
+              - generic:
+                - heading [level=3]: No featured restaurants yet
+                - paragraph: Check back soon for our highlighted partner restaurants!
+                - link:
+                  - /url: /nutrio/meals
+                  - text: Explore Restaurants
+                  - img
+      - navigation:
+        - generic [ref=e315]:
+          - link [ref=e342] [cursor=pointer]:
+            - /url: /nutrio/dashboard
+            - generic [ref=e317]:
+              - img [ref=e319]
+              - generic [ref=e321]: home
+          - link [ref=e343] [cursor=pointer]:
+            - /url: /nutrio/meals
+            - generic [ref=e323]:
+              - img [ref=e325]
+              - generic [ref=e328]: Meals
+          - link [ref=e344] [cursor=pointer]:
+            - /url: /nutrio/schedule
+            - generic [ref=e330]:
+              - img [ref=e332]
+              - generic [ref=e334]: Schedule
+          - link [ref=e345] [cursor=pointer]:
+            - /url: /nutrio/profile
+            - generic [ref=e336]:
+              - img [ref=e338]
+              - generic [ref=e341]: Profile
+  - dialog "Log Meal" [ref=e347]:
+    - heading "Log Meal" [level=2] [ref=e348]
+    - generic [ref=e349]:
+      - generic [ref=e350]:
+        - generic [ref=e351]:
+          - button "Close add meal" [active] [ref=e352] [cursor=pointer]:
+            - img [ref=e353]
+          - generic [ref=e355]:
+            - heading "Add Meal" [level=2] [ref=e356]
+            - button "Select date" [ref=e357] [cursor=pointer]:
+              - text: Sunday, May 24
+              - img [ref=e358]
+        - generic [ref=e361]:
+          - generic [ref=e362]:
+            - img [ref=e364]
+            - generic [ref=e366]:
+              - paragraph [ref=e367]: Sunday
+              - paragraph [ref=e368]: May 24
+              - paragraph [ref=e369]: Select meals for 4 times today
+          - generic [ref=e370]:
+            - button "Breakfast" [ref=e371] [cursor=pointer]:
+              - img [ref=e373]
+              - generic [ref=e378]: Breakfast
+            - button "Lunch" [ref=e379] [cursor=pointer]:
+              - img [ref=e381]
+              - generic [ref=e387]: Lunch
+            - button "Dinner" [ref=e388] [cursor=pointer]:
+              - img [ref=e390]
+              - generic [ref=e392]: Dinner
+            - button "Snack" [ref=e393] [cursor=pointer]:
+              - img [ref=e395]
+              - generic [ref=e398]: Snack
+      - button "Choose Meals Pick meals and start tracking your nutrition" [ref=e400] [cursor=pointer]:
+        - generic [ref=e402]:
+          - img [ref=e403]
+          - heading "Choose Meals" [level=3] [ref=e405]
+          - paragraph [ref=e406]: Pick meals and start tracking your nutrition
+        - img [ref=e408]

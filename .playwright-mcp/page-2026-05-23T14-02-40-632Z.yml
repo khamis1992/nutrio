@@ -1,0 +1,32 @@
+- generic [active]:
+  - generic:
+    - region "Notifications alt+T"
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - button [ref=e21] [cursor=pointer]:
+          - img [ref=e22]
+        - img "Nutrio Fuel" [ref=e25]
+        - heading "Welcome Back" [level=1] [ref=e26]
+        - paragraph [ref=e27]: Sign in to your Nutrio account
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]: Email
+            - generic [ref=e31]:
+              - img [ref=e32]
+              - textbox "Email" [ref=e35]
+          - generic [ref=e36]:
+            - generic [ref=e37]: Password
+            - generic [ref=e38]:
+              - img [ref=e39]
+              - textbox "Password" [ref=e42]
+              - button [ref=e43] [cursor=pointer]:
+                - img [ref=e44]
+          - generic [ref=e47]:
+            - generic [ref=e48] [cursor=pointer]:
+              - checkbox "Remember me" [ref=e50]
+              - generic [ref=e53]: Remember me
+            - button "Forgot Password?" [ref=e54] [cursor=pointer]
+          - paragraph [ref=e55]:
+            - text: Don't have an account?
+            - button "Sign Up" [ref=e56] [cursor=pointer]
+      - button "Sign In" [ref=e58] [cursor=pointer]
