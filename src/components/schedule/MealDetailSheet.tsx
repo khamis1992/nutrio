@@ -109,7 +109,7 @@ const MealDetailSheet = ({
                       </span>
                     );
                   })()}
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedMeal.meal.name}</h2>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{selectedMeal.meal.name}</h2>
                 </div>
                 <button
                   onClick={onClose}
@@ -142,30 +142,30 @@ const MealDetailSheet = ({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-2xl p-4 text-center border border-amber-100 dark:border-amber-800/50"
+                  className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-2xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
                 >
                   <Flame className="h-5 w-5 text-amber-500 mx-auto mb-1" />
-                  <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.calories}</p>
+                  <p className="text-xl font-black text-slate-900 dark:text-white">{selectedMeal.meal.calories}</p>
                   <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wide">Calories</p>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/30 dark:to-pink-900/30 rounded-2xl p-4 text-center border border-rose-100 dark:border-rose-800/50"
+                  className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/30 dark:to-pink-900/30 rounded-2xl p-4 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
                 >
                   <Beef className="h-5 w-5 text-rose-500 mx-auto mb-1" />
-                  <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.protein_g}g</p>
+                  <p className="text-xl font-black text-slate-900 dark:text-white">{selectedMeal.meal.protein_g}g</p>
                   <p className="text-[10px] text-rose-500 font-semibold uppercase tracking-wide">Protein</p>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-2xl p-4 text-center border border-blue-100 dark:border-blue-800/50"
+                  className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-2xl p-4 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
                 >
                   <Leaf className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-                  <p className="text-xl font-black text-gray-900 dark:text-white">{selectedMeal.meal.carbs_g}g</p>
+                  <p className="text-xl font-black text-slate-900 dark:text-white">{selectedMeal.meal.carbs_g}g</p>
                   <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">Carbs</p>
                 </motion.div>
               </div>
@@ -178,7 +178,7 @@ const MealDetailSheet = ({
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Delivery Time</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">
                         {selectedMeal.delivery_time_slot || "Not scheduled"}
                       </p>
                     </div>

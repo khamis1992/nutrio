@@ -119,7 +119,8 @@ export function useSmartSubstitutions({
 
     setLoading(true);
     try {
-      const mealIds = [...new Set(schedules.map((s) => s.meal_id))];
+      const mealIds = [...new Set(schedules.map((s) => s.meal_id).filter(Boolean))] as string[];
+      if (mealIds.length === 0) { setUnavailableMeals([]); setLoading(false); return; }
 
       const { data: mealsData, error } = await supabase
         .from("meals")

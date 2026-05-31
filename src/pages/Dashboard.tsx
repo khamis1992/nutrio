@@ -233,7 +233,7 @@ const Dashboard = () => {
     const fetchGamification = async () => {
       try {
         const { data: profile } = await supabase
-          .from("profiles").select("xp, level").eq("id", user.id).single();
+          .from("profiles").select("level").eq("user_id", user.id).single();
 
         if (cancelled) return;
 
@@ -581,7 +581,7 @@ const Dashboard = () => {
           </div>
 
           {/* Balance card skeleton */}
-          <div className="mt-5 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+          <div className="mt-5 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <div className="flex items-center gap-3">
               <div className="h-[96px] w-[96px] rounded-full bg-emerald-100/60 animate-pulse" />
               <div className="mx-3 h-[80px] w-px bg-slate-100" />
@@ -632,7 +632,7 @@ const Dashboard = () => {
           </div>
 
           {/* Calorie tracking skeleton */}
-          <div className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+          <div className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
@@ -643,7 +643,7 @@ const Dashboard = () => {
                 <div className="h-[34px] w-[34px] rounded-full bg-emerald-100/60 animate-pulse" />
               </div>
             </div>
-            <div className="mt-4 flex h-[32px] items-center rounded-full border border-slate-100 bg-slate-50 px-3">
+            <div className="mt-4 flex h-[32px] items-center rounded-full border-slate-100 bg-slate-50 px-3">
               <div className="h-2.5 w-20 rounded-full bg-emerald-100/60 animate-pulse" />
               <div className="mx-3 flex flex-1 gap-2">
                 {[1,2,3,4,5,6].map(i => <div key={i} className="h-[4px] flex-1 rounded-full bg-emerald-100/60 animate-pulse" />)}
@@ -723,7 +723,7 @@ const Dashboard = () => {
               <div className="h-2.5 w-12 rounded-full bg-emerald-100/60 animate-pulse" />
             </div>
             {[1, 2].map(i => (
-              <div key={i} className="mb-2 rounded-2xl border border-slate-100 bg-slate-50 p-3 h-[56px] flex items-center gap-3">
+              <div key={i} className="mb-2 rounded-2xl border-slate-100 bg-slate-50 p-3 h-[56px] flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-emerald-100/60 animate-pulse" />
                 <div className="flex-1 space-y-1">
                   <div className="h-2.5 w-32 rounded-full bg-emerald-100/60 animate-pulse" />
@@ -1200,7 +1200,7 @@ const Dashboard = () => {
                       transition={{ type: "spring", stiffness: 300, damping: 28 }}
                       className="overflow-hidden"
                     >
-                      <div className="mx-3 mb-2 mt-1 rounded-2xl bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.08)] ring-1 ring-slate-100">
+                      <div className="mx-3 mb-2 mt-1 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Nutrition Facts</p>
                         <div className="mt-3 grid grid-cols-4 gap-2">
                           <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-2.5 text-center ring-1 ring-amber-100">
@@ -1241,7 +1241,7 @@ const Dashboard = () => {
           </div>
 
           {todayMealsError && (
-            <div className="mt-3 rounded-2xl border border-amber-200 bg-[#FFFCF0] p-3">
+            <div className="mt-3 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[16px] w-[16px]" strokeWidth={1.75} />
@@ -1273,7 +1273,7 @@ const Dashboard = () => {
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
           animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut" }}
-          className="mt-6 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80"
+          className="mt-6 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
         >
           <div className="flex items-center">
             <div className="relative flex h-[96px] w-[96px] shrink-0 items-center justify-center">
@@ -1353,7 +1353,7 @@ const Dashboard = () => {
           <SubscriptionNudge />
         </div>
 
-        <section className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+        <section className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Calendar className="h-5 w-5 text-slate-500" strokeWidth={2} />
@@ -1858,7 +1858,7 @@ const Dashboard = () => {
                   transition={{ type: "spring", stiffness: 280, damping: 28 }}
                   className="overflow-hidden"
                 >
-                  <div className="mx-1 mt-2 rounded-2xl bg-white p-4 ring-1 ring-slate-100 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+                  <div className="mx-1 mt-2 rounded-2xl bg-white p-4 ring-1 ring-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400 mb-3">
                       Your Achievements
                     </p>
@@ -1986,7 +1986,7 @@ const Dashboard = () => {
 
           {/* Active Orders section */}
           {ordersError && (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-[#FFFCF0] p-4">
+            <div className="mt-4 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -2007,7 +2007,7 @@ const Dashboard = () => {
             </div>
           )}
           {activeOrders.length > 0 && (
-            <section className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.08)] ring-1 ring-slate-100/80">
+            <section className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_6px_12px_rgba(16,185,129,0.18)]">
@@ -2149,7 +2149,7 @@ const Dashboard = () => {
           )}
 
           {(topRestaurantsError && !topRestaurantsLoading && topRestaurants.length === 0) && (
-            <div className="mt-5 rounded-3xl border border-amber-200 bg-[#FFFCF0] p-4">
+            <div className="mt-5 rounded-3xl ring-1 ring-amber-100 bg-amber-50 p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -2335,7 +2335,7 @@ const QuickActionCard = ({
     onClick={onClick}
     whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
     whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
-    className={`flex flex-col items-center justify-center gap-2.5 rounded-[22px] ${bg} ${border} border p-4 shadow-[0_4px_14px_rgba(15,23,42,0.04)] transition-all duration-250 ease-out hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)] min-h-[100px]`}
+    className={`flex flex-col items-center justify-center gap-2.5 rounded-[22px] ${bg} ${border} border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] min-h-[100px]`}
     aria-label={label}
   >
     <span className={`flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${iconGradient} text-white shadow-[0_4px_10px_rgba(0,0,0,0.1)]`}>

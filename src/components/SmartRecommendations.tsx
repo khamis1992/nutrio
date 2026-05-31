@@ -193,14 +193,14 @@ export function SmartRecommendations() {
   }
 
   const mealTypeLabels: Record<string, string> = {
-    breakfast: "وجبة الإفطار",
-    lunch: "وجبة الغداء",
-    snacks: "وجبة خفيفة",
-    dinner: "وجبة العشاء",
+    breakfast: t("meal_type_breakfast"),
+    lunch: t("meal_type_lunch"),
+    snacks: t("meal_type_snacks"),
+    dinner: t("meal_type_dinner"),
   };
 
   const currentLabel =
-    mealTypeLabels[recommendations.currentMealType] || "الغداء";
+    mealTypeLabels[recommendations.currentMealType] || t("meal_type_default");
 
   return (
     <motion.div
@@ -209,13 +209,6 @@ export function SmartRecommendations() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex items-center gap-2 px-1 mb-1">
-        <Star className="w-4 h-4 text-amber-500" />
-        <span className="text-xs font-bold text-foreground">
-          {t("smart_rec_section_title")}
-        </span>
-      </div>
-
       <SectionHeader
         title={t("smart_rec_for_you_title")}
         subtitle={t("smart_rec_for_you_subtitle")}
@@ -229,7 +222,7 @@ export function SmartRecommendations() {
             key={meal.id}
             meal={meal}
             index={i}
-            badge={i < 3 ? "Top" : undefined}
+            badge={i < 3 ? t("smart_rec_top_badge") : undefined}
             badgeColor="bg-amber-500/90 text-white"
           />
         ))}
@@ -238,8 +231,8 @@ export function SmartRecommendations() {
       {recommendations.byTime.length > 0 && (
         <>
           <SectionHeader
-            title={`وقت ${currentLabel}`}
-            subtitle="اختر الوجبة المناسبة لهذا الوقت"
+            title={t("smart_rec_time_title", { mealType: currentLabel })}
+            subtitle={t("smart_rec_time_subtitle")}
             icon={Clock}
             iconColor="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
           />
@@ -249,7 +242,7 @@ export function SmartRecommendations() {
                 key={meal.id}
                 meal={meal}
                 index={i}
-                badge={meal.meal_type === recommendations.currentMealType ? "مثالي" : undefined}
+                badge={meal.meal_type === recommendations.currentMealType ? t("smart_rec_ideal_badge") : undefined}
                 badgeColor="bg-emerald-500/90 text-white"
               />
             ))}
@@ -260,11 +253,11 @@ export function SmartRecommendations() {
       {recommendations.forProtein.length > 0 && (
         <>
           <SectionHeader
-            title="حقق هدف البروتين"
+            title={t("smart_rec_protein_title")}
             subtitle={
               recommendations.proteinRemaining > 0
-                ? `متبقي ${Math.round(recommendations.proteinRemaining)}g بروتين لهدفك`
-                : "وصلت لهدف البروتين — وجبات متوازنة"
+                ? t("smart_rec_protein_remaining", { remaining: String(Math.round(recommendations.proteinRemaining)) })
+                : t("smart_rec_protein_complete")
             }
             icon={Dumbbell}
             iconColor="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
@@ -277,7 +270,7 @@ export function SmartRecommendations() {
                 index={i}
                 badge={
                   meal.protein_g && meal.protein_g >= 30
-                    ? `${Math.round(meal.protein_g)}g Protein`
+                    ? t("smart_rec_protein_badge", { grams: String(Math.round(meal.protein_g)) })
                     : undefined
                 }
                 badgeColor="bg-emerald-600/90 text-white"

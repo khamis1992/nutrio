@@ -35,9 +35,9 @@ export function useXp(userId: string | undefined) {
     if (!userId || loadingRef.current) return;
     loadingRef.current = true;
     try {
-      const { data } = await supabase.from("profiles").select("xp, level").eq("user_id", userId).single();
+      const { data } = await supabase.from("profiles").select("level").eq("user_id", userId).single();
       if (data) {
-        const xp = data.xp || 0;
+        const xp = 0; // xp column not yet available
         const level = data.level || 1;
         setState({ xp, level, xpToNextLevel: level * 100 });
       }
@@ -80,7 +80,7 @@ export function useXp(userId: string | undefined) {
 
     setState({ xp: newXp, level: newLevel, xpToNextLevel: newLevel * 100 });
 
-    await supabase.from("profiles").update({ xp: newXp, level: newLevel }).eq("user_id", userId);
+    await supabase.from("profiles").update({ level: newLevel }).eq("user_id", userId);
 
     if (leveledUp) {
       toast.custom(

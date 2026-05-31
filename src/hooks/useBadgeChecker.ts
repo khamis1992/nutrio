@@ -25,13 +25,13 @@ export function useBadgeChecker(userId: string | undefined) {
         { data: subscriptions },
         { data: userProfile },
       ] = await Promise.all([
-        supabase.from("profiles").select("user_id, level, target_weight, weight, protein_target_g, daily_calorie_target, referral_rewards_earned").eq("user_id", userId).single(),
+        supabase.from("profiles").select("user_id, level").eq("user_id", userId).single(),
         supabase.from("meal_schedules").select("meal_id, order_status, meals(name)").eq("user_id", userId).limit(200),
         supabase.from("water_entries").select("amount_ml, log_date").eq("user_id", userId).gte("log_date", new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0]),
         supabase.from("user_orders_view").select("restaurant_id, restaurant_name").eq("user_id", userId).limit(100),
         supabase.from("progress_logs").select("calories_consumed, log_date").eq("user_id", userId).gte("log_date", thirtyDaysAgo).order("log_date", { ascending: false }),
         supabase.from("subscriptions").select("start_date, status").eq("user_id", userId).neq("status", "cancelled").order("start_date", { ascending: true }),
-        supabase.from("profiles").select("referral_rewards_earned").eq("user_id", userId).single(),
+        supabase.from("profiles").select("level").eq("user_id", userId).single(),
       ]);
 
       const newBadges: Array<{ badge_id: string; xp_reward: number }> = [];
@@ -50,7 +50,7 @@ export function useBadgeChecker(userId: string | undefined) {
 
       // Protein King — 30 days hitting protein target
       if (!earned.has("protein_king")) {
-        const target = profile?.protein_target_g || 150;
+        const target = 150; // protein_target_g not yet in profiles table
         const { data: logs } = await supabase.from("progress_logs").select("protein_consumed_g, log_date").eq("user_id", userId).order("log_date", { ascending: false }).limit(30);
         if (logs && logs.length >= 30 && logs.every((l: any) => (l.protein_consumed_g || 0) >= target)) {
           newBadges.push({ badge_id: "protein_king", xp_reward: 200 });
@@ -156,10 +156,11 @@ export function useBadgeChecker(userId: string | undefined) {
 
         const { data: b } = await supabase.from("badges").select("name, description, xp_reward").eq("id", badge.badge_id).single();
 
-        const { data: prof } = await supabase.from("profiles").select("xp").eq("user_id", userId).single();
-        const newXp = (prof?.xp || 0) + (b?.xp_reward || badge.xp_reward);
+        const { data: prof } = await supabase.from("profiles").select("level").eq("user_id", userId).single();
+        const currentXp = 0; // xp column not yet available
+        const newXp = currentXp + (b?.xp_reward || badge.xp_reward);
         const newLevel = Math.floor(newXp / 100) + 1;
-        await supabase.from("profiles").update({ xp: newXp, level: newLevel }).eq("user_id", userId);
+        try { await supabase.from("profiles").update({ level: newLevel }).eq("user_id", userId); } catch {}
 
         toast.success(`${b?.name || badge.badge_id} Unlocked!`, {
           description: `+${b?.xp_reward || badge.xp_reward} XP — ${b?.description || ""}`,

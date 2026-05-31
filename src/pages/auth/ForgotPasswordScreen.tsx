@@ -37,7 +37,7 @@ export const ForgotPasswordScreen = ({
           onClick={onBack}
           className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
-          <ArrowLeft className="w-6 h-6 text-gray-800" />
+          <ArrowLeft className="w-6 h-6 text-slate-600" />
         </button>
 
         {/* Title */}
@@ -51,7 +51,7 @@ export const ForgotPasswordScreen = ({
         {/* Form */}
         <form id="forgot-form" onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="space-y-1">
-            <Label htmlFor="forgot-email" className="text-sm font-semibold text-gray-800">
+            <Label htmlFor="forgot-email" className="text-sm font-semibold text-slate-600">
               {t("registered_email")}
             </Label>
             <div className="relative">
@@ -62,7 +62,7 @@ export const ForgotPasswordScreen = ({
                 placeholder="your@email.com"
                 value={forgotEmail}
                 onChange={(e) => { onEmailChange(e.target.value); onErrorClear(); }}
-                className={`h-12 pl-11 rounded-2xl border-0 bg-gray-100 text-gray-800 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${forgotError ? "ring-1 ring-destructive" : ""}`}
+                className={`h-12 pl-11 rounded-2xl border-0 bg-gray-100 text-slate-600 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${forgotError ? "ring-1 ring-destructive" : ""}`}
                 required
                 disabled={forgotLoading}
                 autoComplete="email"

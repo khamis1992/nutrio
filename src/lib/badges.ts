@@ -14,7 +14,6 @@ import Badge6 from "@/assets/Badge/Badge 6.png";
 import Badge7 from "@/assets/Badge/Badge 7.png";
 import Badge8 from "@/assets/Badge/Badge 8.png";
 import Badge9 from "@/assets/Badge/Badge 9.png";
-import Badge10 from "@/assets/Badge/Badge 10.png";
 import Badge11 from "@/assets/Badge/Badge 11.png";
 import Badge12 from "@/assets/Badge/Badge 12.png";
 import Badge13 from "@/assets/Badge/Badge 13.png";
@@ -69,7 +68,6 @@ export const BADGE_REGISTRY: BadgeMeta[] = [
   { id: "social_butterfly",  name: "Social Butterfly",    description: "Refer 3 friends who subscribe",          rarity: "rare",      image: Badge7,  xpReward: 250 },
   { id: "hydration_hero",    name: "Hydration Hero",      description: "Log 8 cups of water for 14 days",        rarity: "rare",      image: Badge8,  xpReward: 100 },
   { id: "protein_king",      name: "Protein King",        description: "Hit protein target 30 days",             rarity: "epic",      image: Badge9,  xpReward: 200 },
-  { id: "protein_king",      name: "Protein King",        description: "Hit protein target 30 days",             rarity: "epic",      image: Badge10, xpReward: 200 },
   { id: "streak_master",     name: "Streak Master",       description: "30-day streak",                          rarity: "epic",      image: Badge11, xpReward: 300 },
   { id: "subscription_hero", name: "Subscription Hero",   description: "6 months subscribed",                    rarity: "epic",      image: Badge12, xpReward: 400 },
   { id: "streak_30",         name: "30-Day Streak",       description: "30 days of meal logging",                rarity: "legendary", image: Badge13, xpReward: 300 },
@@ -79,7 +77,7 @@ export const BADGE_REGISTRY: BadgeMeta[] = [
 
 /**
  * Lookup badge metadata by its database id.
- * Returns the first match (for duplicate badges like protein_king, returns the first entry).
+ * Returns the first matching badge by database id.
  */
 export function getBadgeMeta(badgeId: string): BadgeMeta | undefined {
   return BADGE_REGISTRY.find((b) => b.id === badgeId);

@@ -58,7 +58,7 @@ export const OtpScreen = ({
           onClick={onBack}
           className="mb-6 flex items-center justify-center hover:opacity-70 transition-opacity"
         >
-          <ArrowLeft className="w-6 h-6 text-gray-800" />
+          <ArrowLeft className="w-6 h-6 text-slate-600" />
         </button>
 
         {/* Title */}

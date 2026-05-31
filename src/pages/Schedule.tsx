@@ -518,7 +518,7 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="min-h-screen pb-24 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-black">
+      <div className="min-h-screen pb-24 bg-[#F8FAFC] dark:from-gray-900 dark:to-black">
         <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 safe-top">
           <div className="flex items-center justify-between px-5 h-16 max-w-lg mx-auto">
             <button
@@ -635,7 +635,7 @@ const Schedule = () => {
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800"
+                className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 dark:ring-gray-800 border-0"
               >
                 <div className="flex items-center gap-3 p-4 pl-5 animate-pulse">
                   <div className="w-[72px] h-[72px] rounded-2xl bg-gray-200 dark:bg-gray-700" />
@@ -675,7 +675,7 @@ const Schedule = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: typeIndex * 0.05 + mealIndex * 0.05 }}
                     onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
-                    className={`group relative bg-white dark:bg-gray-900 rounded-[24px] overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 active:scale-[0.98] transition-all cursor-pointer ${
+                    className={`group relative bg-white dark:bg-gray-900 rounded-[24px] overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 dark:ring-gray-800 border-0 active:scale-[0.98] transition-all cursor-pointer ${
                       schedule.is_completed ? "ring-2 ring-emerald-400/30" : ""
                     }`}
                   >

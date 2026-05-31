@@ -580,7 +580,7 @@ const MealDetail = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-card rounded-3xl shadow-xl border border-border/50 p-6"
+          className="bg-card rounded-3xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-border/30 p-6"
         >
           {/* Restaurant Info */}
           <div className="flex items-center gap-3 mb-4">
@@ -657,7 +657,7 @@ const MealDetail = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-card rounded-3xl shadow-lg border border-border/50 p-6"
+          className="bg-card rounded-3xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-border/30 p-6"
         >
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold">Nutrition Facts</h2>
@@ -726,7 +726,7 @@ const MealDetail = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 }}
-          className="bg-card rounded-3xl shadow-lg border border-border/50 p-6 space-y-5"
+          className="bg-card rounded-3xl shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-border/30 p-6 space-y-5"
         >
           <PortionSelector
             value={customization.portionSize}

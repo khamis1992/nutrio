@@ -40,12 +40,12 @@ export function usePopularCombos() {
           protein_g,
           carbs_g,
           fat_g,
-          category,
-          restaurants (
+          meal_type,
+          restaurants:restaurant_id (
             name
           )
         `)
-        .eq("status", "active")
+        .eq("is_available", true)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -53,7 +53,7 @@ export function usePopularCombos() {
         // Fallback: show featured meals directly
         const { data: anyMeals } = await supabase
           .from("meals")
-          .select("id, name, image_url, calories, protein_g, category, restaurants(name)")
+          .select("id, name, image_url, calories, protein_g, meal_type, restaurants:restaurant_id(name)")
           .limit(12);
 
         if (anyMeals && anyMeals.length >= 3) {
@@ -67,7 +67,7 @@ export function usePopularCombos() {
               image: meal.image_url || "",
               likes: 0,
               comments: 0,
-              tags: [meal.category || "Healthy"],
+              tags: [meal.meal_type || "Healthy"],
               comboMeals: [{
                 meal_id: meal.id,
                 name: meal.name,
@@ -75,7 +75,7 @@ export function usePopularCombos() {
                 restaurant_name: (meal as any).restaurants?.name || "Nutrio",
                 calories: meal.calories || 0,
                 protein_g: meal.protein_g || 0,
-                tag: meal.category || "Healthy",
+                tag: meal.meal_type || "Healthy",
               }],
             });
           }

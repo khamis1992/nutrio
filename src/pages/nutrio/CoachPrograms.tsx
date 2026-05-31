@@ -12,6 +12,7 @@ import {
   CalendarPlus,
   Shuffle,
   X,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachPrograms, ProgramMeal } from "@/hooks/useCoachPrograms";
@@ -203,7 +204,13 @@ export default function CoachPrograms() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-        <div className="w-10" />
+        <button
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 active:scale-95 transition-transform"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="w-5 h-5 text-slate-500" strokeWidth={2} />
+        </button>
         <h1 className="text-[16px] font-extrabold text-slate-950 text-center">
           My Programs
         </h1>
