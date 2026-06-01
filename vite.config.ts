@@ -33,6 +33,14 @@ export default defineConfig(({ mode }) => ({
       name: 'nutrio-middleware',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
+          // Redirect bare root to /nutrio/ so React Router's basename matches.
+          // Without this, visiting http://localhost:5173/ produces a blank page
+          // and the warning: "Router basename=/nutrio is not able to match URL /"
+          if (req.url === '/' || req.url === '') {
+            res.writeHead(301, { Location: '/nutrio/' });
+            res.end();
+            return;
+          }
           if (req.url === '/nutrio') {
             res.writeHead(301, { Location: '/nutrio/' });
             res.end();
