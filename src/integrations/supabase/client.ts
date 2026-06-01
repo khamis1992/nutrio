@@ -10,12 +10,17 @@ import { isNative } from '@/lib/capacitor';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Guard: prevent crash if env vars are missing (e.g. APK built without secrets configured)
+// Log a warning if Supabase config is missing, but DO NOT throw.
+// Throwing at module level causes a white screen on Capacitor APK builds
+// because it crashes React before the first render — error boundaries
+// can't catch module-evaluation errors. Instead we fall back to placeholder
+// values so the app renders and the user sees a meaningful error state.
+// Common scenario: .env is gitignored and GitHub Secrets are not configured.
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error(
-    '[Nutrio] Missing Supabase configuration. ' +
-    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set in your build environment. ' +
-    'Current values - URL: ' + SUPABASE_URL + ', KEY: ' + SUPABASE_PUBLISHABLE_KEY
+  console.warn(
+    '[Nutrio] Missing Supabase configuration — app will start with placeholder values. ' +
+    'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your build environment. ' +
+    'Add them as GitHub Secrets for APK builds (Settings → Secrets and variables → Actions).'
   );
 }
 

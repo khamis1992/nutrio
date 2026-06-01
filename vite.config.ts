@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => ({
       timeout: 5000,
     },
     watch: {
-      // Ignore node_modules and dist to reduce load
-      ignored: ['**/node_modules/**', '**/dist/**'],
+      // Ignore node_modules, dist, and native build output dirs to reduce load
+      ignored: ['**/node_modules/**', '**/dist/**', '**/ios/**', '**/android/**'],
     },
   },
   plugins: [
@@ -69,6 +69,10 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    exclude: [
+      '@capacitor-community/google-fit',
+      '@perfood/capacitor-healthkit',
+    ],
   },
   // Optimizations for mobile
   build: {

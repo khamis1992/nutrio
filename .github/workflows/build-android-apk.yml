@@ -55,8 +55,17 @@ jobs:
       - name: Build web app
         run: npm run build
         env:
+          # Required — app won't connect to Supabase without these.
+          # Configure in: GitHub repo → Settings → Secrets and variables → Actions
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # Optional — app degrades gracefully when missing, but features
+          # (maps, analytics, error tracking) will be unavailable.
+          VITE_APP_VERSION: ${{ secrets.VITE_APP_VERSION || '1.0.0' }}
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN || '' }}
+          VITE_GOOGLE_FIT_CLIENT_ID: ${{ secrets.VITE_GOOGLE_FIT_CLIENT_ID || '' }}
+          VITE_APP_URL: ${{ secrets.VITE_APP_URL || '' }}
+          VITE_ENABLE_PAYMENT_SIMULATION: 'false'
 
       - name: Update Capacitor Android project
         run: npx @capacitor/cli sync android
