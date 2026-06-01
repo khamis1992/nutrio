@@ -378,6 +378,7 @@ const OrderHistory = () => {
       if (orderType === 'scheduled') {
         const { data, error } = await supabase.rpc("cancel_meal_schedule", {
           p_schedule_id: orderId,
+          p_reason: null,
         });
         
         // Handle specific error for "preparing" status

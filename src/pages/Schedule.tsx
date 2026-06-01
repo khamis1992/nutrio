@@ -378,6 +378,7 @@ const Schedule = () => {
     try {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: scheduleId,
+        p_reason: null,
       });
 
       if (error) {

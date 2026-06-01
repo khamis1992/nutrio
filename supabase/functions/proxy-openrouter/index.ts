@@ -112,6 +112,7 @@ serve(async (req) => {
           }
         }
       } catch {
+        /* fallback failed, continue */
       }
     }
 

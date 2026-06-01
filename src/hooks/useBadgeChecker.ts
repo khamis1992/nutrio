@@ -160,7 +160,7 @@ export function useBadgeChecker(userId: string | undefined) {
         const currentXp = 0; // xp column not yet available
         const newXp = currentXp + (b?.xp_reward || badge.xp_reward);
         const newLevel = Math.floor(newXp / 100) + 1;
-        try { await supabase.from("profiles").update({ level: newLevel }).eq("user_id", userId); } catch {}
+        try { await supabase.from("profiles").update({ level: newLevel }).eq("user_id", userId); } catch { /* noop */ }
 
         toast.success(`${b?.name || badge.badge_id} Unlocked!`, {
           description: `+${b?.xp_reward || badge.xp_reward} XP — ${b?.description || ""}`,

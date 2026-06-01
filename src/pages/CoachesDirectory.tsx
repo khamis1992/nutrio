@@ -217,7 +217,7 @@ export default function CoachesDirectory() {
   useEffect(() => {
     try {
       sessionStorage.setItem("coach_pending_requests", JSON.stringify([...pendingRequests]));
-    } catch {}
+    } catch { /* intentionally empty */ }
   }, [pendingRequests]);
 
   const handleRequestCoach = async (coachId: string) => {

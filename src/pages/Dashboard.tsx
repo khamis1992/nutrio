@@ -367,7 +367,7 @@ const Dashboard = () => {
     if (!window.confirm("Cancel this order? You can reorder anytime.")) return;
     setCancellingId(scheduleId);
     try {
-      const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: scheduleId });
+      const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: scheduleId, p_reason: null });
       if (error) throw error;
       setActiveOrders((prev) => prev.filter((o) => o.id !== scheduleId));
     } catch (err) {

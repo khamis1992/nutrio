@@ -374,6 +374,7 @@ const OrderDetail = () => {
     try {
       const { data, error } = await supabase.rpc("cancel_meal_schedule", {
         p_schedule_id: id,
+        p_reason: null,
       });
       
       // Handle specific error for "preparing" status

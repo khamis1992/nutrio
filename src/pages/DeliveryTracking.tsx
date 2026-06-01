@@ -300,12 +300,12 @@ export default function DeliveryTracking() {
     setCancelling(id);
     try {
       if (type === "scheduled") {
-        const { data, error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id });
+        const { data, error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id, p_reason: null });
         if (error) throw error;
         if (!(data as { success?: boolean })?.success) throw new Error("Cancellation failed.");
         setScheduledMeals(prev => prev.map(m => m.id === id ? { ...m, order_status: "cancelled" } : m));
       } else {
-        const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id });
+        const { error } = await supabase.rpc("cancel_meal_schedule", { p_schedule_id: id, p_reason: null });
         if (error) {
           const { error: rawError } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
           if (rawError) throw rawError;
