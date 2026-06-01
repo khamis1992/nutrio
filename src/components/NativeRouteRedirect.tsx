@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Capacitor } from "@capacitor/core";
 import { Loader2 } from "lucide-react";
+import { assetPath } from "@/lib/asset-path";
 
 interface NativeRouteRedirectProps {
   children: React.ReactNode;
@@ -70,7 +71,7 @@ export const NativeRouteRedirect = ({ children }: NativeRouteRedirectProps) => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
         <img
-          src="/nutrio/logo.png"
+          src={assetPath("/logo.png")}
           alt="Nutrio"
           className="h-14 w-auto object-contain opacity-90"
         />

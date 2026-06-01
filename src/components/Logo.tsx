@@ -1,4 +1,5 @@
 import React from 'react';
+import { assetPath } from '@/lib/asset-path';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -22,7 +23,7 @@ export const Logo: React.FC<LogoProps> = ({
 
   return (
     <img
-      src="/nutrio/logo.png"
+      src={assetPath('/logo.png')}
       alt="Nutrio Fuel"
       className={`${heightClass} w-auto object-contain ${className}`}
     />

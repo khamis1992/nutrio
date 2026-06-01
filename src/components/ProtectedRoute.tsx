@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PostgrestError } from "@supabase/supabase-js";
+import { assetPath } from "@/lib/asset-path";
 
 // Define user roles
 export type UserRole = 
@@ -326,7 +327,7 @@ export const ProtectedRoute = ({
   if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-3">
-        <img src="/nutrio/logo.png" alt="Nutrio" className="h-12 w-auto object-contain opacity-80" />
+        <img src={assetPath("/logo.png")} alt="Nutrio" className="h-12 w-auto object-contain opacity-80" />
         <Loader2 className="w-7 h-7 animate-spin text-primary" />
       </div>
     );

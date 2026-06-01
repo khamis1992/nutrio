@@ -57,50 +57,6 @@
 
   <body>
     <div id="root"></div>
-    <!-- Diagnostic overlay: catches ALL JS errors before/during React mount.
-         If the APK shows a white page, this will display the exact error.
-         Remove this block once the root cause is confirmed fixed. -->
-    <script>
-      (function() {
-        var el = document.createElement('div');
-        el.id = '__nutrio_diag';
-        el.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:#0a0a0a;color:#e0e0e0;font:13px/1.6 monospace;padding:16px;overflow:auto;white-space:pre-wrap;word-break:break-all';
-        document.body.appendChild(el);
-        var msgs = [];
-        function show() {
-          el.style.display = 'block';
-          // Header with green status bar if no errors yet
-          el.innerHTML = '<div style="background:#166534;color:#4ade80;padding:8px 12px;margin:-16px -16px 12px -16px;font-weight:bold;font-size:14px">Nutrio Debug Panel — App Loaded</div>'
-            + msgs.join('\n');
-        }
-        function add(prefix, text) {
-          var ts = new Date().toISOString().slice(11,23);
-          msgs.push('[' + ts + '] ' + prefix + ': ' + String(text).slice(0,2000));
-          show();
-        }
-        window.addEventListener('error', function(e) { add('UNCAUGHT', (e.error && e.error.stack) || e.message || e.filename + ':' + e.lineno); }, true);
-        window.addEventListener('unhandledrejection', function(e) { add('PROMISE', (e.reason && e.reason.stack) || e.reason); });
-        var _w = console.warn, _e = console.error;
-        console.warn = function() { _w.apply(console,arguments); add('WARN', Array.prototype.join.call(arguments,' ')); };
-        console.error = function() { _e.apply(console,arguments); add('ERROR', Array.prototype.join.call(arguments,' ')); };
-        add('INFO', 'URL=' + location.href + ' UA=' + navigator.userAgent.slice(0,100));
-        // After 5s, check whether React rendered into #root
-        setTimeout(function() {
-          var root = document.getElementById('root');
-          var hasKids = root && root.children.length > 0;
-          var hasText = root && root.textContent && root.textContent.trim().length > 0;
-          var innerHTML = root ? root.innerHTML.slice(0, 500) : '(root not found)';
-          add('DOM_CHECK', 'rootHasChildren=' + hasKids + ' rootHasText=' + hasText + ' innerHTML=' + innerHTML);
-        }, 5000);
-        // After 15s, check again
-        setTimeout(function() {
-          var root = document.getElementById('root');
-          var hasKids = root && root.children.length > 0;
-          var innerHTML = root ? root.innerHTML.slice(0, 1000) : '(not found)';
-          add('DOM_CHECK_15s', 'rootHasChildren=' + hasKids + ' innerHTML=' + innerHTML);
-        }, 15000);
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
