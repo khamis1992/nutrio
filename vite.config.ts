@@ -63,6 +63,9 @@ export default defineConfig(({ mode }) => ({
     // Without this, Capacitor APKs can show a white screen on devices
     // whose WebView doesn't support optional chaining, nullish coalescing,
     // or dynamic import (common on Samsung / older Android).
+    // NOTE: Do NOT set build.target alongside this plugin — the legacy plugin
+    // controls the output target automatically. Setting 'esnext' in build.target
+    // causes a conflict warning and may produce incorrect bundles.
     legacy({
       targets: ['chrome >= 52', 'android >= 5'],
       additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
@@ -95,8 +98,9 @@ export default defineConfig(({ mode }) => ({
   // Optimizations for mobile
   build: {
     outDir: 'dist',
-    // Target modern browsers for better performance
-    target: 'esnext',
+    // NOTE: Do NOT set build.target here — @vitejs/plugin-legacy controls the
+    // target automatically. Setting 'esnext' here causes the legacy plugin to
+    // emit a warning and may produce incorrect output for older Android WebViews.
     // Enable sourcemaps for error tracking (Sentry needs these)
     sourcemap: true,
     // Optimize for mobile
@@ -120,7 +124,9 @@ export default defineConfig(({ mode }) => ({
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
           'charts': ['recharts'],
-          'dashboard': ['./src/pages/Dashboard.tsx'],
+          // NOTE: 'dashboard' chunk was removed — it created a circular dependency
+          // (dashboard -> ui-vendor -> dashboard) that caused module loading to fail
+          // on Android WebView. Vite/Rollup will split Dashboard automatically.
           'meals': ['./src/pages/Meals.tsx'],
         },
       },

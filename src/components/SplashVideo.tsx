@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { isNative } from '@/lib/capacitor';
 
 interface SplashVideoProps {
   onComplete: () => void;
@@ -21,6 +22,12 @@ export const SplashVideo: React.FC<SplashVideoProps> = ({ onComplete }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // On Capacitor (APK/IPA) the base is './' so assets are at './splash.mp4'.
+  // On Vercel web the base is '/nutrio/' so the path is '/nutrio/splash.mp4'.
+  // Using a relative path './splash.mp4' works for both when the video is in
+  // the dist root, but the safest approach is to check the platform.
+  const splashSrc = isNative ? './splash.mp4' : '/nutrio/splash.mp4';
+
   return (
     <div
       className={`fixed inset-0 z-[9999] bg-white flex items-center justify-center transition-opacity duration-600 ${
@@ -29,7 +36,7 @@ export const SplashVideo: React.FC<SplashVideoProps> = ({ onComplete }) => {
     >
       <video
         ref={videoRef}
-        src="/nutrio/splash.mp4"
+        src={splashSrc}
         autoPlay
         playsInline
         onEnded={finish}
