@@ -6,9 +6,12 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Use absolute paths for Vercel web deployment
-  // Use relative paths only for Capacitor mobile builds
-  base: '/nutrio/',
+  // Use '/nutrio/' as the base path ONLY for Vercel web deployment.
+  // For Capacitor mobile builds (APK/IPA) we MUST use './' (relative paths)
+  // because the WebView loads assets from the local file:// / https://localhost
+  // origin — a hardcoded '/nutrio/' prefix makes every asset request 404 and
+  // the app shows a blank white screen.
+  base: process.env.VERCEL ? '/nutrio/' : './',
   server: {
     host: true,
     port: 5173,

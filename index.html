@@ -44,8 +44,12 @@
     <!-- Leaflet Map CSS is imported via npm in components that use maps -->
     <!-- Removed CDN link to prevent blocking on devices with no/slow internet -->
 
-    <!-- Content Security Policy: restrict resource loading to trusted sources -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.posthog.com https://api.posthog.com https://us.i.posthog.com https://*.sentry.io; img-src 'self' data: blob: https://*.supabase.co https://ui-avatars.com https://images.unsplash.com; frame-src 'none'; base-uri 'self'; form-action 'self';" />
+    <!-- Content Security Policy: restrict resource loading to trusted sources.
+         'self' covers https://localhost (Capacitor Android androidScheme:https)
+         and capacitor:// (Capacitor iOS) so no extra origin is needed for
+         local assets.  The connect-src additions allow Supabase realtime and
+         analytics from the mobile app. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' capacitor: https://localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' capacitor: https://localhost; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com capacitor: https://localhost; font-src 'self' https://fonts.gstatic.com capacitor: https://localhost; connect-src 'self' capacitor: https://localhost https://*.supabase.co wss://*.supabase.co https://*.posthog.com https://api.posthog.com https://us.i.posthog.com https://*.sentry.io; img-src 'self' data: blob: capacitor: https://localhost https://*.supabase.co https://ui-avatars.com https://images.unsplash.com; frame-src 'none'; base-uri 'self'; form-action 'self';" />
   </head>
 
   <body>

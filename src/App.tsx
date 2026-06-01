@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
+import { isNative } from "@/lib/capacitor";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -136,7 +137,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster position="top-right" />
-      <BrowserRouter basename="/nutrio">
+      <BrowserRouter basename={isNative ? undefined : "/nutrio"}>
         <AuthProvider>
           <AnalyticsProvider>
             <SessionTimeoutManager>
