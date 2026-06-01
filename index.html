@@ -54,6 +54,33 @@
 
   <body>
     <div id="root"></div>
+    <!-- Diagnostic overlay: catches ALL JS errors before/during React mount.
+         If the APK shows a white page, this will display the exact error.
+         Remove this block once the root cause is fixed. -->
+    <script>
+      (function() {
+        var el = document.createElement('div');
+        el.id = '__nutrio_diag';
+        el.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;background:#1a0000;color:#ff4444;font:13px/1.6 monospace;padding:24px;overflow:auto;white-space:pre-wrap;word-break:break-all';
+        document.body.appendChild(el);
+        var msgs = [];
+        function show() {
+          el.style.display = 'block';
+          el.textContent = '=== Nutrio Crash Report ===\n\n' + msgs.join('\n');
+        }
+        function add(prefix, text) {
+          var ts = new Date().toISOString().slice(11,23);
+          msgs.push('[' + ts + '] ' + prefix + ': ' + String(text).slice(0,2000));
+          if (msgs.length === 1) show();
+        }
+        window.addEventListener('error', function(e) { add('UNCAUGHT', (e.error && e.error.stack) || e.message || e.filename + ':' + e.lineno); }, true);
+        window.addEventListener('unhandledrejection', function(e) { add('PROMISE', (e.reason && e.reason.stack) || e.reason); });
+        var _w = console.warn, _e = console.error;
+        console.warn = function() { _w.apply(console,arguments); add('WARN', Array.prototype.join.call(arguments,' ')); };
+        console.error = function() { _e.apply(console,arguments); add('ERROR', Array.prototype.join.call(arguments,' ')); };
+        add('INFO', 'URL=' + location.href + ' UA=' + navigator.userAgent.slice(0,100));
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
