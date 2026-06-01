@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import legacy from "@vitejs/plugin-legacy";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
@@ -57,6 +58,15 @@ export default defineConfig(({ mode }) => ({
     },
     react({
       devTarget: 'es2020',
+    }),
+    // Transpile modern JS for older Android WebViews.
+    // Without this, Capacitor APKs can show a white screen on devices
+    // whose WebView doesn't support optional chaining, nullish coalescing,
+    // or dynamic import (common on Samsung / older Android).
+    legacy({
+      targets: ['chrome >= 52', 'android >= 5'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+      modernPolyfills: true,
     }),
     mode === "development" && componentTagger(),
     // Sentry plugin for source maps (only in production AND only when auth token is available)
