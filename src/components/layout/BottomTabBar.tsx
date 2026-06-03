@@ -31,23 +31,24 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
   return (
     <nav
       data-testid="bottom-tab-bar"
-      className="pointer-events-none fixed bottom-0 left-0 right-0 z-[1000] px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[1000]"
       style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom, 16px) + 8px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)",
         opacity: keyboardOpen ? 0 : 1,
         transition: "opacity 0.15s ease",
         pointerEvents: keyboardOpen ? "none" : undefined,
+        background: "linear-gradient(to top, rgba(255,255,255,0.6) 0%, transparent 100%)",
       }}
     >
-      <div className="pointer-events-auto mx-auto max-w-[420px]">
+      <div className="pointer-events-auto mx-auto max-w-[430px] px-3">
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="relative rounded-[28px] border border-white/50 bg-white/80 shadow-[0_-2px_20px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-[24px]"
-          style={{ minHeight: "78px" }}
+          style={{ minHeight: "68px" }}
         >
-          <div className="flex items-center justify-around px-4 py-3">
+          <div className="flex items-center justify-around px-2 py-2">
             {displayTabs.map((tab, i) => {
               const active = i === rtlActiveIndex;
               const IconComponent = tab.Icon;

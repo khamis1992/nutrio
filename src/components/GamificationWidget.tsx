@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { Lock, Star, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,47 +15,94 @@ export function GamificationWidget() {
   const [g, setG] = useState<UserGamification>({ xp: 0, level: 1, xpToNextLevel: 100 });
   const [loading, setLoading] = useState(true);
   useEffect(() => { if (!user?.id) { setLoading(false); return; } (async () => { try { const { data: p } = await supabase.from("profiles").select("level").eq("user_id", user.id).maybeSingle(); setG({ xp: 0, level: p?.level || 1, xpToNextLevel: (p?.level || 1) * 100 }); } finally { setLoading(false); } })(); }, [user?.id]);
-  if (loading) return null;
+
+  const gradientId = useId();
+  const CIRCUMFERENCE = 2 * Math.PI * 38;
   const pct = Math.min((g.xp / g.xpToNextLevel) * 100, 100);
+  const progressOffset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+
+  if (loading) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-[#F0FDF6] shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      {/* ─── Medal ─── */}
-      <div className="flex flex-col items-center pt-7 pb-5">
-        <div className="relative grid h-[100px] w-[100px] place-items-center rounded-full bg-white shadow-[0_0_40px_rgba(251,191,36,0.12),0_0_80px_rgba(251,191,36,0.04)]">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500" style={{ mask: "radial-gradient(circle at center, transparent 38px, black 39px)", WebkitMask: "radial-gradient(circle at center, transparent 38px, black 39px)" }} />
-          <div className="absolute inset-[6px] rounded-full bg-white" />
-          <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(251,191,36,0.1)" strokeWidth="2.5" />
-            <circle cx="50" cy="50" r="44" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${(pct/100)*276.5} 276.5`} className="transition-all duration-700" />
-          </svg>
-          <span className="relative z-10 text-[36px] font-black tracking-[-0.04em] text-slate-800">{g.level}</span>
-        </div>
-        <p className="mt-3 text-[12px] font-extrabold uppercase tracking-[0.14em] text-amber-600">{getLevelName(g.level)}</p>
-        <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 ring-1 ring-amber-100">
-          <span className="text-[14px] font-extrabold text-slate-800">{g.xp}</span><span className="text-[11px] text-slate-400">/ {g.xpToNextLevel} XP</span>
-          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-700">{Math.round(pct)}%</span>
-        </div>
-        <div className="mt-2 h-1.5 w-36 rounded-full bg-amber-100">
-          <div className="h-full rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.15)] transition-all duration-700" style={{ width: `${Math.max(pct,3)}%` }} />
+    <div className="relative overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+      {/* ═══════ LEVEL HEADER ═══════ */}
+      <div className="px-5 pt-5 pb-4">
+        <div className="flex items-center gap-4">
+          {/* ─── Level Medal ─── */}
+          <div className="relative shrink-0">
+            <svg className="h-[88px] w-[88px] -rotate-90" viewBox="0 0 88 88">
+              <defs>
+                <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#10B981" />
+                  <stop offset="100%" stopColor="#059669" />
+                </linearGradient>
+              </defs>
+              <circle cx="44" cy="44" r="38" fill="none" stroke="#F1F5F9" strokeWidth="5" />
+              <circle
+                cx="44" cy="44" r="38" fill="none"
+                stroke={`url(#${gradientId})`}
+                strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={CIRCUMFERENCE}
+                strokeDashoffset={progressOffset}
+                className="transition-[stroke-dashoffset] duration-700 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[28px] font-black leading-none tracking-[-0.03em] text-slate-900">
+                {g.level}
+              </span>
+              <span className="mt-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
+                LEVEL
+              </span>
+            </div>
+          </div>
+
+          {/* ─── Level Info ─── */}
+          <div className="flex-1 min-w-0">
+            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-emerald-600">
+              {getLevelName(g.level)}
+            </span>
+            <div className="mt-3 flex items-baseline gap-1.5">
+              <span className="text-[26px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
+                {g.xp}
+              </span>
+              <span className="text-[13px] font-medium text-slate-400">
+                / {g.xpToNextLevel} XP
+              </span>
+            </div>
+            <div className="mt-3 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.25)] transition-all duration-700 ease-out"
+                style={{ width: `${Math.max(pct, 4)}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ─── Next level ─── */}
-      <div className="mx-4 mb-4 rounded-xl bg-white p-3 shadow-sm">
+      {/* ═══════ NEXT LEVEL ═══════ */}
+      <div className="mx-4 mb-4 rounded-xl bg-[#F0FDF6] p-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
-            <span className="text-[15px] font-black text-amber-600">{g.level + 1}</span>
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-emerald-100">
+            <span className="text-[16px] font-black text-emerald-600">{g.level + 1}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-extrabold text-slate-800">{getLevelName(g.level + 1)}</p>
-            <p className="text-[11px] text-slate-400">{g.xpToNextLevel - g.xp} XP until unlock</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[13px] font-extrabold text-slate-800">{getLevelName(g.level + 1)}</p>
+              <span className="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-700">
+                {Math.round(pct)}%
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-slate-400">
+              {g.xpToNextLevel - g.xp} XP remaining to unlock
+            </p>
           </div>
-          <Zap className="h-4 w-4 text-amber-400" />
+          <Zap className="h-4 w-4 text-emerald-400" />
         </div>
       </div>
 
-      {/* ─── Badges ─── */}
+      {/* ═══════ BADGES ═══════ */}
+      {/* KEEP THIS SECTION IDENTICAL TO ORIGINAL — DO NOT MODIFY */}
       <div className="mx-4 mb-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">Badges</p>
