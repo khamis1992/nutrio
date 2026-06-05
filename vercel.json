@@ -1,5 +1,9 @@
 {
   "version": 2,
+  "redirects": [
+    { "source": "/", "destination": "/nutrio/", "permanent": true },
+    { "source": "/nutrio", "destination": "/nutrio/", "permanent": true }
+  ],
   "rewrites": [
     {
       "source": "/nutrio/assets/(.*)",
