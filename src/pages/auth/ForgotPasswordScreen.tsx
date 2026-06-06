@@ -70,21 +70,18 @@ export const ForgotPasswordScreen = ({
             </div>
             {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
           </div>
+          <div className="pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+            <Button
+              type="submit"
+              variant="gradient"
+              size="lg"
+              className="w-full rounded-2xl font-bold"
+              disabled={forgotLoading}
+            >
+              {forgotLoading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("sending")}</> : t("send_otp_code")}
+            </Button>
+          </div>
         </form>
-      </div>
-
-      {/* Fixed bottom button */}
-      <div className="px-6 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-        <Button
-          type="submit"
-          form="forgot-form"
-          variant="gradient"
-          size="lg"
-          className="w-full rounded-2xl font-bold"
-          disabled={forgotLoading}
-        >
-          {forgotLoading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("sending")}</> : t("send_otp_code")}
-        </Button>
       </div>
     </div>
   );

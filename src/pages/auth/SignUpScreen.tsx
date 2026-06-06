@@ -110,20 +110,18 @@ export const SignUpScreen = ({
               {t('sign_in')}
             </button>
           </p>
+          <div className="pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+            <Button
+              type="submit"
+              variant="gradient"
+              size="lg"
+              className="w-full rounded-2xl font-bold"
+              disabled={loading || !agreedToTerms}
+            >
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t('creating_account')}</> : t('sign_up')}
+            </Button>
+          </div>
         </form>
-      </div>
-
-      <div className="px-6 pt-3 bg-background dark:bg-gray-950 border-t border-border dark:border-gray-800" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-        <Button
-          type="submit"
-          form="signup-form"
-          variant="gradient"
-          size="lg"
-          className="w-full rounded-2xl font-bold"
-          disabled={loading || !agreedToTerms}
-        >
-          {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t('creating_account')}</> : t('sign_up')}
-        </Button>
       </div>
     </div>
   )
