@@ -34,7 +34,17 @@ export const CustomerLayout = () => {
       setKeyboardOpen(isKBOpen);
     };
     vv.addEventListener("resize", handleResize);
-    return () => vv.removeEventListener("resize", handleResize);
+
+    // Safety reset: spurious resize events during page load (address bar
+    // show/hide, orientation changes) can fire before React has settled,
+    // leaving keyboardOpen stuck at true. Force-reset after a short delay
+    // to guarantee the dock is never permanently hidden.
+    const safetyTimer = setTimeout(() => setKeyboardOpen(false), 400);
+
+    return () => {
+      vv.removeEventListener("resize", handleResize);
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   // Scroll to top on every route change
