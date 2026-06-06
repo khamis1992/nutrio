@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
 
@@ -18,7 +18,6 @@ export const CustomerLayout = () => {
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const initialRestoreDone = useRef(false);
   const previousPath = useRef<string>(location.pathname);
 
   useEffect(() => {
@@ -26,70 +25,37 @@ export const CustomerLayout = () => {
     if (!vv) return;
 
     const handleResize = () => {
-      setKeyboardOpen(window.innerHeight - vv.height > 100);
+      // Dual check: viewport must be BOTH significantly smaller AND pushed
+      // up from the top. This prevents false positives from browser
+      // address bar hide/show, dev tools resize, or window resize on
+      // desktop — those change the height diff but offsetTop stays 0.
+      const diff = window.innerHeight - vv.height;
+      const isKBOpen = diff > 150 && vv.offsetTop > 0;
+      setKeyboardOpen(isKBOpen);
     };
     vv.addEventListener("resize", handleResize);
     return () => vv.removeEventListener("resize", handleResize);
   }, []);
 
-  // On every route change: reset inner scroller to top, then save the previous
-  // page's scroll position under a per-route key so the user comes back to the
-  // same place if they navigate back to it.
+  // Scroll to top on every route change
+  // Also reset keyboard state — a virtual keyboard cannot remain open
+  // during a route transition (the browser hides it on navigation).
   useEffect(() => {
     const prev = previousPath.current;
     if (prev !== location.pathname) {
-      // Save the old page's scroll position under its own key
-      if (scrollRef.current) {
-        sessionStorage.setItem(
-          `customer-layout-scroll:${prev}`,
-          String(scrollRef.current.scrollTop)
-        );
-      }
-      // Restore the new page's previous position if any, else scroll to top
+      previousPath.current = location.pathname;
+      setKeyboardOpen(false);
+      // Force scroll to top — use requestAnimationFrame to ensure
+      // the new page content has painted before resetting
       const el = scrollRef.current;
       if (el) {
-        const saved = sessionStorage.getItem(
-          `customer-layout-scroll:${location.pathname}`
-        );
-        if (saved !== null && initialRestoreDone.current) {
-          el.scrollTop = Number(saved);
-        } else {
+        el.scrollTop = 0;
+        requestAnimationFrame(() => {
           el.scrollTop = 0;
-        }
+        });
       }
-      previousPath.current = location.pathname;
-      initialRestoreDone.current = true;
     }
   }, [location.pathname]);
-
-  // First-mount restore: only runs once, picks up the most recent global fallback
-  useEffect(() => {
-    if (initialRestoreDone.current) return;
-    const el = scrollRef.current;
-    if (!el) return;
-    const saved = sessionStorage.getItem(
-      `customer-layout-scroll:${location.pathname}`
-    );
-    if (saved !== null) {
-      el.scrollTop = Number(saved);
-    } else {
-      el.scrollTop = 0;
-    }
-    initialRestoreDone.current = true;
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    if (scrollRef.current) {
-      sessionStorage.setItem(
-        `customer-layout-scroll:${location.pathname}`,
-        String(scrollRef.current.scrollTop)
-      );
-    }
-  }, [location.pathname]);
-
-  if (import.meta.env.DEV) {
-    console.log('[CustomerLayout] Path:', location.pathname, 'Should hide:', shouldHideNav);
-  }
 
   return (
     <div
@@ -99,7 +65,6 @@ export const CustomerLayout = () => {
     >
       <div
         ref={scrollRef}
-        onScroll={handleScroll}
         className="flex-1 overflow-y-auto overflow-x-hidden"
         style={{
           paddingBottom: shouldHideNav ? undefined : DOCK_RESERVED_HEIGHT,
