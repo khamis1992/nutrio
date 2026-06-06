@@ -1,11 +1,10 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { forwardRef, useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Activity,
   AlertCircle,
   ArrowRightLeft,
-  BarChart2,
   Bell,
   Bike,
   Calendar,
@@ -16,12 +15,10 @@ import {
   Coffee,
   ConciergeBell,
   Crown,
-  Droplet,
   Droplets,
   Drumstick,
   Flame,
   Footprints,
-  Heart,
   Loader2,
   Lock,
   Medal,
@@ -33,18 +30,174 @@ import {
   Soup,
   Star,
   Store,
-  Target,
   TrendingUp,
   Trophy,
   Truck,
   Utensils,
   UtensilsCrossed,
-  Users,
   Wallet,
   Wheat,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
+
+/* ═══════════════════════════════════════════════════════════════════
+   Custom hand-drawn SVG icons for the Quick Actions cards.
+   Each icon is a forwardRef component (matching Lucide's contract) so
+   it can be passed to QuickActionCard the same way Lucide icons were.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const TrackerIcon = forwardRef<SVGSVGElement, { className?: string }>(
+  ({ className }, ref) => (
+    <svg
+      ref={ref}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Outer ring */}
+      <circle cx="12" cy="12" r="9" strokeOpacity="0.45" />
+      {/* Middle ring */}
+      <circle cx="12" cy="12" r="5.5" strokeOpacity="0.75" />
+      {/* Bullseye dot */}
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
+      {/* Arrow shaft */}
+      <path d="M20 4L13 11" />
+      {/* Arrow head pointing into bullseye */}
+      <path d="M13 11L15 9.5M13 11L11 13" />
+      {/* Fletching */}
+      <path d="M20 4L21.6 4.4M20 4L20.4 5.6M20 4L19 5.4" strokeWidth={1.6} />
+    </svg>
+  )
+);
+TrackerIcon.displayName = "TrackerIcon";
+
+const FavoriteIcon = forwardRef<SVGSVGElement, { className?: string }>(
+  ({ className }, ref) => (
+    <svg
+      ref={ref}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Heart shape */}
+      <path
+        d="M12 20.5s-7.5-4.4-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 3c0 5.8-7.5 10.2-7.5 10.2Z"
+        fill="currentColor"
+        fillOpacity="0.18"
+      />
+      {/* Star inside the heart */}
+      <path
+        d="M12 10.4L13 12.2L14.9 12.5L13.5 13.7L13.9 15.6L12 14.6L10.1 15.6L10.5 13.7L9.1 12.5L11 12.2L12 10.4Z"
+        fill="currentColor"
+        stroke="none"
+      />
+      {/* Tiny sparkle */}
+      <path d="M18 7L18.5 8.2L19.7 8.7L18.5 9.2L18 10.4L17.5 9.2L16.3 8.7L17.5 8.2L18 7Z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+);
+FavoriteIcon.displayName = "FavoriteIcon";
+
+const ProgressIcon = forwardRef<SVGSVGElement, { className?: string }>(
+  ({ className }, ref) => (
+    <svg
+      ref={ref}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Baseline */}
+      <path d="M3 20.5H21" strokeOpacity="0.4" />
+      {/* Three bars — ascending */}
+      <rect x="5" y="14" width="3.5" height="6" rx="0.8" fill="currentColor" fillOpacity="0.3" />
+      <rect x="10.25" y="10" width="3.5" height="10" rx="0.8" fill="currentColor" fillOpacity="0.55" />
+      <rect x="15.5" y="6" width="3.5" height="14" rx="0.8" fill="currentColor" fillOpacity="0.85" />
+      {/* Trend arrow over the bars */}
+      <path d="M5 9L10 7L15 4L19 3" strokeWidth={1.8} />
+      <path d="M19 3L17 3.2M19 3L18.8 5" strokeWidth={1.8} />
+    </svg>
+  )
+);
+ProgressIcon.displayName = "ProgressIcon";
+
+const CommunityIcon = forwardRef<SVGSVGElement, { className?: string }>(
+  ({ className }, ref) => (
+    <svg
+      ref={ref}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Center person (front) */}
+      <circle cx="12" cy="9" r="3" fill="currentColor" fillOpacity="0.25" />
+      <path d="M6.5 19.5C6.5 16.5 9 14.5 12 14.5C15 14.5 17.5 16.5 17.5 19.5" />
+      {/* Left person (back) */}
+      <circle cx="5.5" cy="10.5" r="2.4" strokeOpacity="0.6" />
+      <path d="M2 19.5C2 17.2 3.6 15.7 5.5 15.5" strokeOpacity="0.6" />
+      {/* Right person (back) */}
+      <circle cx="18.5" cy="10.5" r="2.4" strokeOpacity="0.6" />
+      <path d="M22 19.5C22 17.2 20.4 15.7 18.5 15.5" strokeOpacity="0.6" />
+    </svg>
+  )
+);
+CommunityIcon.displayName = "CommunityIcon";
+
+/* Fat icon — avocado silhouette with pit, the universal "healthy fat"
+   metaphor used across nutrition apps. More semantically correct than
+   a water droplet. */
+const FatIcon = forwardRef<SVGSVGElement, { className?: string }>(
+  ({ className }, ref) => (
+    <svg
+      ref={ref}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Avocado body — pear shape */}
+      <path
+        d="M12 3.5C8.4 3.5 5.5 6.4 5.5 10.2C5.5 14.5 8 19.5 12 20.5C16 19.5 18.5 14.5 18.5 10.2C18.5 6.4 15.6 3.5 12 3.5Z"
+        fill="currentColor"
+        fillOpacity="0.18"
+      />
+      {/* Stem dimple at top */}
+      <path d="M11.2 3.7C11.2 2.8 11.6 2.3 12 2.3C12.4 2.3 12.8 2.8 12.8 3.7" strokeWidth={1.5} />
+      {/* Pit */}
+      <circle cx="12" cy="11.2" r="2.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+);
+FatIcon.displayName = "FatIcon";
 
 import LogMealModal from "@/components/LogMealModal";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
@@ -567,7 +720,7 @@ const Dashboard = () => {
     return (
       <div className="overflow-x-hidden text-slate-900 relative">
         <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(135deg, #FEFFFE 0%, #F8FDF9 50%, #F5FAF7 100%)" }} />
-        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-28 pt-6">
+        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-4 pt-6">
           {/* Header skeleton */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -870,7 +1023,7 @@ const Dashboard = () => {
       label: "Fat",
       value: Math.round(todayProgress.fat),
       target: fatTarget,
-      Icon: Droplet,
+      Icon: FatIcon,
       iconClass: "from-[#B08CFF] to-[#7548F7] text-white",
       dotClass: "bg-[#7C4DFF]",
       pillClass: "bg-[#EEE5FF] text-[#744AE8]",
@@ -915,7 +1068,7 @@ const Dashboard = () => {
           mixBlendMode: "overlay",
         }}
       />
-      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-safe-offset-20 pt-safe-offset-4 pb-28 pt-6">
+      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pt-safe-offset-4 pb-4 pt-6">
         <header className="flex items-center justify-between">
           <Link to="/profile" className="flex items-center gap-3">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)] overflow-hidden">
@@ -1219,7 +1372,7 @@ const Dashboard = () => {
                             <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">Carbs</p>
                           </div>
                           <div className="rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 p-2.5 text-center ring-1 ring-purple-100">
-                            <Droplet className="mx-auto h-[18px] w-[18px] text-purple-500" strokeWidth={1.75} />
+                            <FatIcon className="mx-auto h-[18px] w-[18px] text-purple-500" strokeWidth={1.75} />
                             <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.fat_g || 0}g</p>
                             <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Fat</p>
                           </div>
@@ -1690,7 +1843,7 @@ const Dashboard = () => {
             const gaps = [
               { label: "protein", pct: protPct, remaining: protRemaining, unit: "g", color: "text-orange-600", bg: "bg-[#FFF0DA]", icon: Drumstick, ring: "ring-orange-200" },
               { label: "carbs", pct: carbsPct, remaining: carbsRemaining, unit: "g", color: "text-emerald-600", bg: "bg-[#DDF8E7]", icon: Wheat, ring: "ring-emerald-200" },
-              { label: "fat", pct: fatPct, remaining: fatRemaining, unit: "g", color: "text-violet-600", bg: "bg-[#EEE5FF]", icon: Droplet, ring: "ring-violet-200" },
+              { label: "fat", pct: fatPct, remaining: fatRemaining, unit: "g", color: "text-violet-600", bg: "bg-[#EEE5FF]", icon: FatIcon, ring: "ring-violet-200" },
             ].filter(g => g.remaining > 0 && g.pct >= 0.2);
 
             if (gaps.length === 0 || !isUnlimited) return null;
@@ -1931,7 +2084,7 @@ const Dashboard = () => {
             <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-3">
               <QuickActionCard
-                icon={Target}
+                icon={TrackerIcon}
                 label="Tracker"
                 subtitle="Track your progress"
                 bg="bg-[#F0FDF5]"
@@ -1941,7 +2094,7 @@ const Dashboard = () => {
                 prefersReducedMotion={prefersReducedMotion}
               />
               <QuickActionCard
-                icon={Heart}
+                icon={FavoriteIcon}
                 label="Favorite"
                 subtitle="Saved meals & restaurants"
                 bg="bg-[#FFF1F2]"
@@ -1951,7 +2104,7 @@ const Dashboard = () => {
                 prefersReducedMotion={prefersReducedMotion}
               />
               <QuickActionCard
-                icon={BarChart2}
+                icon={ProgressIcon}
                 label="Progress"
                 subtitle="View your analytics"
                 bg="bg-[#F0F7FF]"
@@ -1961,7 +2114,7 @@ const Dashboard = () => {
                 prefersReducedMotion={prefersReducedMotion}
               />
               <QuickActionCard
-                icon={Users}
+                icon={CommunityIcon}
                 label="Community"
                 subtitle="Connect & challenge"
                 bg="bg-[#FAF5FF]"

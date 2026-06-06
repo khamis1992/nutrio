@@ -22,7 +22,7 @@ export function PopularCombos() {
   const handleLike = async (comboId: string) => { if (!user) { toast.error("Sign in"); return; } if (likingId) return; setLikingId(comboId); try { if (likedIds.has(comboId)) { await supabase.from("favorites").delete().eq("user_id", user.id).eq("meal_id", comboId.replace("combo-", "")); setLikedIds((p) => { const n = new Set(p); n.delete(comboId); return n; }); toast.success("Removed"); } else { await supabase.from("favorites").upsert({ user_id: user.id, meal_id: comboId.replace("combo-", "") }, { onConflict: "user_id,meal_id" }); setLikedIds((p) => new Set(p).add(comboId)); toast.success("Added"); } } catch { toast.error("Error"); } finally { setLikingId(null); } };
   const handleTryCombo = (combo: typeof combos[0]) => { if (!user) { toast.error("Sign in"); return; } navigate(`/schedule?combo=${combo.comboMeals.map((m) => m.meal_id).join(",")}`); };
 
-  if (loading) return (<div className="space-y-3"><div className="flex items-center justify-between px-1"><h2 className="text-[16px] font-extrabold text-slate-900">Popular Combos</h2></div><div className="flex gap-3 overflow-x-auto px-1">{[1,2,3,4].map((i)=>(<div key={i} className="w-[130px] shrink-0 animate-pulse rounded-xl bg-slate-50 p-3"><div className="h-[108px] w-full rounded-lg bg-slate-200" /><div className="mt-2 h-3 w-3/4 rounded bg-slate-200" /><div className="mt-1 h-2 w-1/2 rounded bg-slate-100" /></div>))}</div></div>);
+  if (loading) return (<div className="space-y-3"><div className="flex items-center justify-between px-1"><h2 className="text-[16px] font-extrabold text-slate-900">Popular Combos</h2></div><div className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"><div className="flex gap-3 pr-5">{[1,2,3,4].map((i)=>(<div key={i} className="w-[130px] shrink-0 animate-pulse rounded-xl bg-slate-50 p-3"><div className="h-[108px] w-full rounded-lg bg-slate-200" /><div className="mt-2 h-3 w-3/4 rounded bg-slate-200" /><div className="mt-1 h-2 w-1/2 rounded bg-slate-100" /></div>))}</div></div></div>);
   if (combos.length === 0) return null;
 
   return (
@@ -52,7 +52,7 @@ export function PopularCombos() {
           ))}
           </div>
         </div>
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent" /><div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent" />
         {scrollPos>0&&<button onClick={()=>handleScroll("left")} className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(15,23,42,0.1)] ring-1 ring-slate-100" aria-label="Scroll left"><ChevronLeft className="h-4 w-4 text-slate-500" /></button>}
         {scrollPos<maxScroll-8&&<button onClick={()=>handleScroll("right")} className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(15,23,42,0.1)] ring-1 ring-slate-100" aria-label="Scroll right"><ChevronRight className="h-4 w-4 text-slate-500" /></button>}
       </div>

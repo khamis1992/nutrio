@@ -33,7 +33,7 @@ function RecommendationCard({
       animate="visible"
       transition={{ delay: index * 0.04 }}
       whileTap={{ scale: 0.97 }}
-      className="flex-shrink-0 w-40 snap-start"
+      className="flex-shrink-0 w-40"
     >
       <Link to={`/meals/${meal.id}`} className="block group">
         <div className="bg-card dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-border/50 dark:border-gray-800 hover:shadow-md transition-all">
@@ -139,14 +139,13 @@ function SectionHeader({
 
 function HorizontalScroll({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative -mx-4 px-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2">
-      <div className="flex gap-3 pb-1 snap-x snap-mandatory">
+    <div
+      className="-mx-4 overflow-x-auto px-4 scrollbar-hide pb-2"
+      style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+    >
+      <div className="flex gap-3 pr-4">
         {children}
       </div>
-      <div
-        className="pointer-events-none absolute top-0 right-0 bottom-2 w-6 bg-gradient-to-l from-background to-transparent"
-        aria-hidden="true"
-      />
     </div>
   );
 }
