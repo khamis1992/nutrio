@@ -42,7 +42,7 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
     >
       <div className="pointer-events-auto mx-auto max-w-[430px] px-3">
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
+          initial={false}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="relative rounded-[28px] border border-white/50 bg-white/80 shadow-[0_-2px_20px_rgba(0,0,0,0.04),0_8px_32px_rgba(0,0,0,0.06)] backdrop-blur-[24px]"
@@ -67,13 +67,13 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
                   >
                     {active ? (
                       <motion.div
-                        initial={{ scale: 0.85, opacity: 0 }}
+                        initial={false}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ type: "spring", stiffness: 420, damping: 28 }}
                         className="flex h-[46px] w-[46px] flex-col items-center justify-center"
                       >
                         <motion.div
-                          initial={{ scale: 0, opacity: 0 }}
+                          initial={false}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ delay: 0.05, type: "spring", stiffness: 500, damping: 28 }}
                           className="mb-1 h-[4px] w-[4px] rounded-full bg-[#10B981]"
