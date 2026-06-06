@@ -10,7 +10,9 @@ export function initPostHog() {
   const apiHost = import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
 
   if (!apiKey) {
-    console.warn("PostHog API key not configured");
+    if (import.meta.env.DEV) {
+      console.warn("PostHog API key not configured");
+    }
     return;
   }
 
