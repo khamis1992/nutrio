@@ -292,7 +292,7 @@ export default function AIReportPage() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-4 space-y-4 pb-20">
+      <div className="max-w-md mx-auto px-4 py-4 space-y-4 pb-4">
         <motion.div variants={fadeIn} initial="hidden" animate="visible" className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 p-5 text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)]">
           <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_20%_30%,white_2px,transparent_3px),radial-gradient(circle_at_80%_20%,white_1px,transparent_2px)]" />
           <div className="relative z-10">

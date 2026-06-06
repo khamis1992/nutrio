@@ -266,7 +266,7 @@ export default function NutritionDashboard() {
   }));
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-4">
       <div className="relative overflow-hidden bg-gradient-to-r from-primary/90 via-primary/80 to-primary/90 text-white py-12 px-4">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/60 rounded-full blur-3xl" />

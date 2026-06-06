@@ -528,7 +528,7 @@ const Addresses = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-4">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border pt-safe">
         <div className="container max-w-2xl mx-auto px-4 py-4">

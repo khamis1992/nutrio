@@ -475,7 +475,7 @@ export default function Notifications() {
       </div>
 
       {/* Content */}
-      <div className="px-5 pb-32" ref={listRef}>
+      <div className="px-5 pb-4" ref={listRef}>
         <div className="mx-auto max-w-[430px]">
           {loading ? (
             <motion.div

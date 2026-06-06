@@ -74,7 +74,7 @@ export default function MyBookings() {
   };
 
   return (
-    <div className="px-4 pb-24">
+    <div className="px-4 pb-4">
       {/* Header */}
       <div className="pt-6 pb-4">
         <div className="flex items-center gap-3 mb-4">

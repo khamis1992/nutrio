@@ -304,7 +304,7 @@ export default function StepCounter() {
   const isBelowGoal = isToday(selectedDate) && steps < goalSteps;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-4">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-gray-100">
         <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">

@@ -213,7 +213,7 @@ export default function Affiliate() {
   // ── Not approved ──────────────────────────────────────────────────────────
   if (!isApprovedAffiliate) {
     return (
-      <div className="min-h-screen pb-24">
+      <div className="min-h-screen pb-4">
         <NativeHeader title={t("affiliate_title")} onBack={() => navigate(-1)} />
         <div className="px-4 pt-5 space-y-4">
           <AffiliateApplicationCard />
@@ -224,7 +224,7 @@ export default function Affiliate() {
   // ── Program disabled ──────────────────────────────────────────────────────
   if (!settings.enabled) {
     return (
-      <div className="min-h-screen pb-24">
+      <div className="min-h-screen pb-4">
         <NativeHeader title={t("affiliate_title")} onBack={() => navigate(-1)} />
         <div className="px-4 pt-12 flex flex-col items-center text-center gap-4">
           <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center">
@@ -242,7 +242,7 @@ export default function Affiliate() {
 
   // ── Active affiliate dashboard ────────────────────────────────────────────
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-4">
       {/* Header */}
       <NativeHeader
         title={t("affiliate_title")}

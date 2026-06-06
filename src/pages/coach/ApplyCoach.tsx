@@ -82,7 +82,7 @@ export default function ApplyCoach() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] pb-20">
+    <div className="min-h-screen bg-[#F8F9FA] pb-4">
       <div className="max-w-[480px] mx-auto px-4 py-5">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

@@ -120,6 +120,11 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         }
       } else {
         // Use browser API for web
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setHasPermission(false);
+          setError("Camera requires HTTPS or localhost. Open this app in the Nutrio mobile app to scan barcodes.");
+          return;
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "environment",
@@ -351,8 +356,8 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="fixed inset-0 z-[9999] bg-background/95 flex items-center justify-center p-4" onClick={onClose}>
+      <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Barcode className="h-5 w-5" />

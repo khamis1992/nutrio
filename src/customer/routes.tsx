@@ -41,6 +41,11 @@ const NutritionGoals = lazy(() => import("@/pages/NutritionGoals"));
 const BodyMetrics = lazy(() => import("@/pages/BodyMetrics"));
 const SmartRecommendationsPage = lazy(() => import("@/pages/recommendations/SmartMealRecommendations"));
 const CoachesDirectory = lazy(() => import("@/pages/CoachesDirectory"));
+// PHASE 2: Uncomment when marketplace & recipes are ready
+// const Recipes = lazy(() => import("@/pages/Recipes"));
+// const RecipeNew = lazy(() => import("@/pages/RecipeNew"));
+// const RecipeDetail = lazy(() => import("@/pages/RecipeDetail"));
+// const Marketplace = lazy(() => import("@/pages/Marketplace"));
 const ApplyCoach = lazy(() => import("@/pages/coach/ApplyCoach"));
 const CoachMessages = lazy(() => import("@/pages/CoachMessages"));
 const CoachOnboarding = lazy(() => import("@/pages/nutrio/CoachOnboarding"));
@@ -418,5 +423,11 @@ export const customerRoutes = (
         </ProtectedRoute>
       }
     />
+    {/* PHASE 2: Uncomment when marketplace & recipes are ready
+    <Route path="/recipes" element={<ProtectedRoute><Recipes /></ProtectedRoute>} />
+    <Route path="/recipes/new" element={<ProtectedRoute><RecipeNew /></ProtectedRoute>} />
+    <Route path="/recipes/:id" element={<ProtectedRoute><RecipeDetail /></ProtectedRoute>} />
+    <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+    */}
   </>
 );

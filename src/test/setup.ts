@@ -1,69 +1,43 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
-// Mock environment variables
-vi.mock("import.meta.env", () => ({
-  VITE_SUPABASE_URL: "https://test.supabase.co",
-  VITE_SUPABASE_PUBLISHABLE_KEY: "test-key",
-  VITE_SENTRY_DSN: "",
-  VITE_POSTHOG_KEY: "",
-  DEV: true,
-  MODE: "test",
+export function createSupabaseMockChain(resolver?: () => Promise<unknown>): Record<string, ReturnType<typeof vi.fn>> {
+  const chain: Record<string, ReturnType<typeof vi.fn>> = {};
+  const methods = new Set(["select", "insert", "update", "delete", "upsert", "eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "is", "in", "contains", "not", "or", "and", "filter", "match", "order", "limit", "range", "offset", "maybeSingle", "single", "then", "setHeader", "overrideTypes"]);
+  const proxy = new Proxy(chain, {
+    get(target, prop) {
+      if (typeof prop === "symbol") return undefined;
+      if (prop === "then") { if (!resolver) return undefined; return (cb: (v: unknown) => unknown) => Promise.resolve(resolver()).then(cb); }
+      if (prop in target) return (target as any)[prop];
+      const fn = vi.fn().mockReturnValue(proxy);
+      (target as any)[prop] = fn;
+      return fn;
+    },
+  });
+  for (const m of methods) (chain as any)[m] = vi.fn().mockReturnValue(proxy);
+  if (resolver) { (chain as any).maybeSingle = vi.fn().mockImplementation(resolver); (chain as any).single = vi.fn().mockImplementation(resolver); }
+  return proxy;
+}
+
+// Global supabase mock — handles ALL query methods via Proxy
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: vi.fn().mockReturnValue(createSupabaseMockChain()),
+    channel: vi.fn().mockReturnValue({ on: vi.fn().mockReturnThis(), subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) }),
+    removeChannel: vi.fn(),
+    auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }), signInWithPassword: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }) },
+    functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: null }) },
+    realtime: { setAuth: vi.fn() },
+  },
 }));
 
-// Mock window.matchMedia
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+vi.mock("import.meta.env", () => ({ VITE_SUPABASE_URL: "https://test.supabase.co", VITE_SUPABASE_PUBLISHABLE_KEY: "test-key", VITE_SENTRY_DSN: "", VITE_POSTHOG_KEY: "", DEV: true, MODE: "test" }));
 
-// Mock IntersectionObserver
-class MockIntersectionObserver {
-  observe = vi.fn();
-  disconnect = vi.fn();
-  unobserve = vi.fn();
-}
-
-Object.defineProperty(window, "IntersectionObserver", {
-  writable: true,
-  value: MockIntersectionObserver,
-});
-
-// Mock ResizeObserver
-class MockResizeObserver {
-  observe = vi.fn();
-  disconnect = vi.fn();
-  unobserve = vi.fn();
-}
-
-Object.defineProperty(window, "ResizeObserver", {
-  writable: true,
-  value: MockResizeObserver,
-});
-
-// Mock scrollTo
+Object.defineProperty(window, "matchMedia", { writable: true, value: vi.fn().mockImplementation((q: string) => ({ matches: false, media: q, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() })) });
+class MockIO { observe = vi.fn(); disconnect = vi.fn(); unobserve = vi.fn(); }
+Object.defineProperty(window, "IntersectionObserver", { writable: true, value: MockIO });
+class MockRO { observe = vi.fn(); disconnect = vi.fn(); unobserve = vi.fn(); }
+Object.defineProperty(window, "ResizeObserver", { writable: true, value: MockRO });
 window.scrollTo = vi.fn();
-
-// Suppress console errors during tests
-const originalConsoleError = console.error;
-console.error = (...args: unknown[]) => {
-  // Filter out React warnings and other expected errors
-  const message = args[0]?.toString() || "";
-  if (
-    message.includes("Warning:") ||
-    message.includes("act") ||
-    message.includes("not wrapped in act")
-  ) {
-    return;
-  }
-  originalConsoleError(...args);
-};
+const _err = console.error;
+console.error = (...args: unknown[]) => { const m = args[0]?.toString() || ""; if (m.includes("Warning:") || m.includes("act") || m.includes("not wrapped in act")) return; _err(...args); };

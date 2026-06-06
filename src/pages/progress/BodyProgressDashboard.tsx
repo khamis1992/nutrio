@@ -225,7 +225,7 @@ export default function BodyProgressDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-4">
       {/* Header */}
       <div className="relative overflow-hidden bg-gradient-to-r from-emerald-900 via-teal-900 to-cyan-900 text-white py-12 px-4">
         <div className="absolute inset-0 opacity-20">

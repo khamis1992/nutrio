@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, ScanLine, Plus, Utensils } from "lucide-react";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
 
 interface FoodItem {
   id: string;
@@ -36,6 +37,20 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<FoodItem[]>([]);
   const [tab, setTab] = useState<"Recent">("Recent");
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+
+  const handleBarcodeScanned = (product: ScannedProduct) => {
+    const item: FoodItem = {
+      id: `barcode-${product.barcode}-${Date.now()}`,
+      name: product.name,
+      calories: product.calories ?? 0,
+      protein_g: product.protein_g ?? 0,
+      carbs_g: product.carbs_g ?? 0,
+      fat_g: product.fat_g ?? 0,
+    };
+    setSelectedItems((prev) => [...prev, item]);
+    toast.success("Product found!", { description: product.name });
+  };
 
   // Load recent meals
   const loadRecentMeals = useCallback(async () => {
@@ -145,8 +160,10 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-full max-h-[720px] rounded-3xl bg-white flex flex-col p-4">
+        <DialogTitle className="sr-only">Log Meal</DialogTitle>
           {/* Header with icon and subtitle */}
           <div className="flex items-center justify-start gap-4 mb-3">
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -170,6 +187,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
               />
             </div>
             <button
+              onClick={() => setShowBarcodeScanner(true)}
               className="flex items-center gap-1 rounded-lg bg-green-100 px-4 py-2 text-green-700 hover:bg-green-200"
               aria-label="Scan Food"
             >
@@ -265,7 +283,14 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
             </Button>
           </div>
         </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScanned}
+      />
+    </>
   );
 };
 

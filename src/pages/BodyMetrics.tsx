@@ -151,7 +151,7 @@ const BodyMetrics = () => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 pb-24 pt-safe">
+    <div className="min-h-screen bg-muted/40 pb-4 pt-safe">
       <div className="sticky top-0 z-10 border-b border-border/50 bg-muted/60 backdrop-blur-md">
         <div className="flex items-center gap-3 px-4 py-4 rtl:flex-row-reverse">
           <Button

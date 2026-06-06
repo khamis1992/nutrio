@@ -151,7 +151,7 @@ export default function BloodWorkUpload() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-4">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg border-b">
         <div className="flex items-center gap-3 p-4 max-w-lg mx-auto">

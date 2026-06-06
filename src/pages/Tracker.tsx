@@ -97,7 +97,7 @@ export default function Tracker() {
   const handleUpdateWeight = async () => { /* unchanged business logic */ };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-24">
+    <div className="min-h-screen bg-[#F8FAFC] pb-4">
       <div className="max-w-[480px] mx-auto px-5 py-6">
 
         {/* ── Header ── */}

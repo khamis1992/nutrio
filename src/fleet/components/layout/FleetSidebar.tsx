@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   Car,
   BarChart2,
+  Building2,
+  Zap,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -36,7 +38,7 @@ const navItems = [
   { icon: CreditCard, label: 'Payouts', to: '/fleet/payouts' },
   { icon: BarChart2, label: 'Analytics', to: '/fleet/analytics' },
   { icon: Zap, label: 'Auto Dispatch', to: '/fleet/auto-dispatch' },
-  { icon: Settings, label: 'Settings', to: '/fleet/settings' },
+  { icon: Building2, label: 'Branch Orders', to: '/fleet/branch-orders' },
 ];
 
 export function FleetSidebar() {

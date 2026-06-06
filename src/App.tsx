@@ -96,8 +96,8 @@ const CoachChatPage = lazy(() => import("./pages/coach/CoachChatPage"));
 const CoachClientDetail = lazy(() => import("./pages/coach/CoachClientDetail"));
 const CoachEarningsPage = lazy(() => import("./pages/coach/CoachEarningsPage"));
 const CoachPortalLayout = lazy(() => import("./components/coach/CoachPortalLayout").then(m => ({ default: m.CoachPortalLayout })));
-const CoachOnboarding = lazy(() => import("./pages/nutrio/CoachOnboarding"));
 const CoachSchedule = lazy(() => import("./pages/coach/CoachSchedule"));
+const AdminAIEngineMonitor = lazy(() => import("./pages/admin/AdminAIEngineMonitor"));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -516,6 +516,14 @@ const App = () => (
   element={
     <ProtectedRoute requiredRole="admin">
       <AdminCoachCommission />
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+  path="/admin/ai-engine" 
+  element={
+    <ProtectedRoute requiredRole="admin">
+      <AdminAIEngineMonitor />
     </ProtectedRoute>
   } 
 />

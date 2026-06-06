@@ -691,7 +691,7 @@ const OrderHistory = () => {
 
   return (
     <div
-      className="min-h-screen pb-24"
+      className="min-h-screen pb-4"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

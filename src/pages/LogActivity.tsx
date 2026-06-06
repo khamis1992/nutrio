@@ -266,7 +266,7 @@ export default function LogActivity() {
 
       {/* Workout Log Tab */}
       {tab === "log" && (
-        <div className="bg-[#F8FFFB] px-5 pb-24">
+        <div className="bg-[#F8FFFB] px-5 pb-4">
           {/* Search */}
           <div className="relative mt-5">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-6 w-6 -translate-y-1/2 text-[#7A869A]" strokeWidth={2} />
@@ -334,7 +334,7 @@ export default function LogActivity() {
 
       {/* Sessions Tab */}
       {tab === "sessions" && (
-        <div className="bg-[#F8FFFB] px-5 pb-24">
+        <div className="bg-[#F8FFFB] px-5 pb-4">
           {/* Google Fit */}
           <div className="mt-5 rounded-[24px] border border-[#CDEBE0] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
             <div className="flex items-center gap-3">

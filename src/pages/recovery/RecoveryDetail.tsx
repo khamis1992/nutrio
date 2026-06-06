@@ -32,7 +32,7 @@ export default function RecoveryDetail() {
 
   if (loading) {
     return (
-      <div className="px-4 pb-24">
+      <div className="px-4 pb-4">   
         <Skeleton className="h-48 w-full mb-4" />
         <Skeleton className="h-6 w-3/4 mb-2" />
         <Skeleton className="h-4 w-1/2 mb-6" />
@@ -57,7 +57,7 @@ export default function RecoveryDetail() {
   const completedCount = partnerBookings.filter((b) => b.status === "completed").length;
 
   return (
-    <div className="pb-24">
+    <div className="pb-4">
       {/* Cover */}
       <div className="h-48 bg-gradient-to-br from-violet-200 to-purple-300 dark:from-violet-950 dark:to-purple-950 relative">
         <button

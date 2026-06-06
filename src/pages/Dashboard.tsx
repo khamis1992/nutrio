@@ -203,6 +203,7 @@ import LogMealModal from "@/components/LogMealModal";
 import { LogActivitySheet } from "@/components/LogActivitySheet";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { BodyCorrelationWidget } from "@/components/dashboard/BodyCorrelationWidget";
+import { StepTrackerCard } from "@/components/dashboard/StepTrackerCard";
 import { SubscriptionNudge } from "@/components/SubscriptionNudge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -2079,6 +2080,8 @@ const Dashboard = () => {
           </motion.div>
 
           {user && <BodyCorrelationWidget />}
+
+          <StepTrackerCard />
 
           <div className="mt-5">
             <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>

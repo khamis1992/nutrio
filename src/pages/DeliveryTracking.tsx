@@ -502,7 +502,7 @@ export default function DeliveryTracking() {
   // ── Main render ─────────────────────────────────────────────────────────────
   return (
     <div
-      className="min-h-screen bg-white pb-24"
+      className="min-h-screen bg-white pb-4"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

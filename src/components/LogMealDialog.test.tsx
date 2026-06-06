@@ -47,45 +47,6 @@ vi.mock("@/contexts/LanguageContext", () => ({
   }),
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          }),
-          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-        in: vi.fn().mockResolvedValue({ data: [], error: null }),
-      }),
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-      }),
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
-      }),
-      delete: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-      }),
-    }),
-    auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
-    functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: null }) },
-    channel: vi.fn().mockReturnValue({
-      on: vi.fn().mockReturnThis(),
-      subscribe: vi.fn(),
-    }),
-    removeChannel: vi.fn(),
-    realtime: { setAuth: vi.fn() },
-  },
-}));
-
 vi.mock("@/lib/capacitor", () => ({
   isNative: false,
 }));

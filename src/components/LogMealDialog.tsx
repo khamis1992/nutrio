@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -620,6 +620,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   const handleTakePhoto = async () => {
+    console.log("[LogMeal] handleTakePhoto called, isNative:", isNative, "ref:", !!cameraInputRef.current);
     if (isNative) {
       try {
         // Request camera permission explicitly before opening camera
@@ -647,6 +648,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   const handlePickFromGallery = async () => {
+    console.log("[LogMeal] handlePickFromGallery called, isNative:", isNative, "ref:", !!galleryInputRef.current);
     if (isNative) {
       try {
         const photo = await Camera.getPhoto({
@@ -698,6 +700,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         className="h-[95vh] p-0 rounded-t-3xl overflow-hidden flex flex-col bg-white [&>button]:hidden"
       >
         <SheetTitle className="sr-only">Log Meal</SheetTitle>
+        <SheetDescription className="sr-only">Log your meals and track nutrition</SheetDescription>
 
         {/* ── MAIN VIEW ── */}
         {view === "main" && (
@@ -716,9 +719,13 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 <div className="w-8" />
               </div>
 
-              {/* Camera inputs */}
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanImage} aria-label="Take food photo with camera" />
-              <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleScanImage} aria-label="Upload food photo from gallery" />
+              {/* Camera inputs — visually hidden but clickable via JS */}
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+                className="absolute w-px h-px opacity-0 overflow-hidden"
+                onChange={handleScanImage} aria-label="Take food photo with camera" />
+              <input ref={galleryInputRef} type="file" accept="image/*"
+                className="absolute w-px h-px opacity-0 overflow-hidden"
+                onChange={handleScanImage} aria-label="Upload food photo from gallery" />
 
               {/* Search */}
               <div className="px-5 pb-2">
@@ -738,7 +745,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                 <div className="px-5 pb-3">
                   <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
                     <button
-                      onClick={() => setTab("Recent")}
+                      onClick={() => { setTab("Recent"); }}
                       className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                         tab === "Recent" ? "gradient-primary text-white shadow-sm" : "text-gray-500"
                       }`}
@@ -746,7 +753,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                       {t("recent")}
                     </button>
                     <button
-                      onClick={() => setTab("Scan")}
+                      onClick={() => { setTab("Scan"); setSearchQuery(""); }}
                       className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                         tab === "Scan" ? "gradient-primary text-white shadow-sm" : "text-gray-500"
                       }`}
@@ -918,7 +925,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           </div>
                         </button>
                         <button
-                          onClick={() => setShowBarcodeScanner(true)}
+                          onClick={() => { console.log("[LogMeal] barcode scanner button clicked"); setShowBarcodeScanner(true); }}
                           className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-colors"
                         >
                           <div className="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
