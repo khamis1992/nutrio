@@ -6,11 +6,11 @@
   ],
   "rewrites": [
     {
-      "source": "/nutrio/assets/(.*)",
-      "destination": "/assets/$1"
+      "source": "/nutrio/(.*)",
+      "destination": "/$1"
     },
     {
-      "source": "/nutrio/(.*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
