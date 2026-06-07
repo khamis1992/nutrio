@@ -2165,7 +2165,7 @@ const Dashboard = () => {
                     <p className="text-[11px] font-medium text-slate-500">{totalActiveOrders} order{totalActiveOrders !== 1 ? "s" : ""} in progress{totalActiveOrders > 3 ? ` · Showing first ${activeOrders.length}` : ""}</p>
                   </div>
                 </div>
-                <Link to="/orders" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">
+                <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">
                   View All
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Link>

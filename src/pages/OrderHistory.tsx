@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -114,12 +114,17 @@ const statusConfig: Record<string, { labelKey: string; icon: React.ElementType; 
 const OrderHistory = () => {
   const { t, isRTL } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
   const [reordering, setReordering] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("scheduled");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "orders" || tab === "completed" || tab === "scheduled") return tab;
+    return "scheduled";
+  });
   const [refreshing, setRefreshing] = useState(false);
   
   // Orders state

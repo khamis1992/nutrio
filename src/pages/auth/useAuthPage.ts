@@ -166,8 +166,13 @@ export const useAuthPage = () => {
         toast({ title: t("signin_failed"), description: error.message.includes("Invalid login credentials") ? t("invalid_credentials") : error.message, variant: "destructive" });
       } else {
         if (enableBiometric) await biometricAuth.setCredentials(values.email, values.password);
-        if (rememberMe) localStorage.setItem("remembered_email", values.email);
-        else localStorage.removeItem("remembered_email");
+        if (rememberMe) {
+          localStorage.setItem("remembered_email", values.email);
+          localStorage.setItem("nutrio_remember_me", "true");
+        } else {
+          localStorage.removeItem("remembered_email");
+          localStorage.removeItem("nutrio_remember_me");
+        }
         toast({ title: t("welcome_back"), description: t("sign_in_success") });
       }
     } catch {
