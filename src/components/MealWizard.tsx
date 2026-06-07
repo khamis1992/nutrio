@@ -754,7 +754,8 @@ const MealWizard = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="flex flex-1 flex-col overflow-y-auto bg-[#FBFCFC] px-5 pb-6 pt-4"
+              className="flex flex-1 flex-col overflow-y-auto bg-[#FBFCFC] px-5 pt-4"
+              style={{ paddingBottom: 'max(6rem, calc(1.5rem + env(safe-area-inset-bottom)))' }}
             >
               <div className="flex flex-col flex-1">
                 <section className="rounded-[20px] border border-slate-100 bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
@@ -853,7 +854,9 @@ const MealWizard = ({
                   <p className="text-[15px] font-medium leading-snug">All meals are prepared fresh and made with high-quality ingredients.</p>
                 </div>
 
-                <div className="mt-auto pt-5">
+                <div className="sticky bottom-0 left-0 right-0 mt-5 bg-[#FBFCFC] pt-3"
+                  style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+                >
                   <motion.button
                     onClick={() => setShowDeliveryScheduler(true)}
                     whileTap={{ scale: 0.98 }}
@@ -863,7 +866,7 @@ const MealWizard = ({
                     Schedule Delivery
                   </motion.button>
 
-                  <div className="mt-4 flex items-center justify-center gap-2 text-[14px] font-medium text-slate-500">
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[14px] font-medium text-slate-500">
                     <Lock className="h-4 w-4" strokeWidth={2.2} />
                     Secure & encrypted checkout
                   </div>

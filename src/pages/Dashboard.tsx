@@ -1751,26 +1751,25 @@ const Dashboard = () => {
                     key={label}
                     variants={prefersReducedMotion ? undefined : staggerItem}
                     whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-                    className="rounded-[18px] border border-slate-100 bg-white px-3 py-3 shadow-[0_9px_22px_rgba(15,23,42,0.055)]"
+                    className="overflow-hidden rounded-[18px] border border-slate-100 bg-white p-2.5 shadow-[0_9px_22px_rgba(15,23,42,0.055)]"
                   >
-                    <div className="flex items-start gap-2.5">
-                      <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-[0_8px_16px_rgba(15,23,42,0.08)] ${iconClass}`}>
-                        <Icon className="h-[22px] w-[22px]" strokeWidth={2.25} />
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className={`flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-[0_4px_8px_rgba(15,23,42,0.08)] ${iconClass}`}>
+                        <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
                       </div>
-                      <div className="min-w-0 pt-1">
-                        <p className="text-[12px] font-bold leading-tight text-slate-500">{label}</p>
-                        <p className="mt-1 text-[20px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{value}g</p>
+                      <div className="w-full min-w-0 text-center">
+                        <p className="truncate text-[10px] font-bold leading-tight text-slate-500">{label}</p>
+                        <p className="mt-0.5 text-[16px] font-extrabold leading-none tracking-[-0.04em] text-slate-950">{value}g</p>
                       </div>
                     </div>
 
-                    <div className="mt-4 flex h-[7px] items-center rounded-full bg-slate-200/80">
-                      <span className={`h-[9px] w-[9px] shrink-0 rounded-full ${dotClass}`} />
-                      <span className={`-ml-[2px] h-[4px] rounded-full ${dotClass}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                    <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-slate-200/80">
+                      <div className={`h-full rounded-full ${dotClass}`} style={{ width: `${Math.min(percent, 100)}%` }} />
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-1.5">
-                      <span className="text-[12px] font-bold tracking-[-0.03em] text-slate-500">/{target}g</span>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold leading-none ${pillClass}`}>{percent}%</span>
+                    <div className="mt-2 flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold tracking-[-0.02em] text-slate-400">/{target}g</span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-extrabold leading-none ${pillClass}`}>{percent}%</span>
                     </div>
                   </motion.div>
                 );
@@ -2080,8 +2079,6 @@ const Dashboard = () => {
           </motion.div>
 
           {user && <BodyCorrelationWidget />}
-
-          <StepTrackerCard />
 
           <div className="mt-5">
             <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>

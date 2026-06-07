@@ -715,6 +715,24 @@ export const MealPlanGenerator = ({
           </motion.div>
         )}
 
+        {/* ── Apply to Schedule Footer ── */}
+        {phase === "preview" && (
+          <div
+            className="sticky bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 pt-3"
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+          >
+            <motion.button
+              onClick={handleApplyToSchedule}
+              whileTap={{ scale: 0.98 }}
+              disabled={filledSlots === 0}
+              className="flex h-[58px] w-full items-center justify-center gap-3 rounded-[22px] bg-gradient-to-r from-emerald-400 to-teal-500 text-[17px] font-extrabold tracking-[-0.02em] text-white shadow-[0_10px_24px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CheckCircle2 className="h-6 w-6" strokeWidth={2.25} />
+              Apply {filledSlots} Meals to Schedule
+            </motion.button>
+          </div>
+        )}
+
         {phase === "applying" && (
           <motion.div
             key="applying"

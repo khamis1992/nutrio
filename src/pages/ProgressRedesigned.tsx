@@ -99,7 +99,7 @@ function ProgressRing({ value, size = 112, stroke = 8, color = "#51F3A0", label 
 }
 
 function MetricRing({ metric }: { metric: RingMetric }) {
-  const size = 86;
+  const size = 72;
   const stroke = 5;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -107,7 +107,7 @@ function MetricRing({ metric }: { metric: RingMetric }) {
   const Icon = metric.Icon;
 
   return (
-    <article className="rounded-[18px] border border-slate-100 bg-white px-2.5 py-3 text-center shadow-[0_14px_28px_rgba(15,23,42,0.06)]">
+    <article className="overflow-hidden rounded-[18px] border border-slate-100 bg-white p-2 text-center shadow-[0_14px_28px_rgba(15,23,42,0.06)]">
       <div className="relative mx-auto grid place-items-center" style={{ width: size, height: size }}>
         <svg className="absolute inset-0 -rotate-90" viewBox={`0 0 ${size} ${size}`}>
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#EEF2F7" strokeWidth={stroke} />
@@ -122,14 +122,14 @@ function MetricRing({ metric }: { metric: RingMetric }) {
             strokeDasharray={`${dash} ${circumference}`}
           />
         </svg>
-        <div className="flex flex-col items-center">
-          <Icon className="h-5 w-5" style={{ color: metric.color }} strokeWidth={2.4} />
-          <span className="mt-1 text-[11px] font-semibold text-slate-700">{metric.label}</span>
-          <span className="text-[22px] font-black leading-none tracking-[-0.06em] text-[#111827]">{metric.value}%</span>
+        <div className="flex flex-col items-center gap-0.5">
+          <Icon className="h-4 w-4" style={{ color: metric.color }} strokeWidth={2.4} />
+          <span className="text-[16px] font-black leading-none tracking-[-0.04em] text-[#111827]">{metric.value}%</span>
         </div>
       </div>
-      <p className="mt-2 text-[11px] font-medium text-slate-500">{metric.status}</p>
-      <div className="mx-auto mt-2 h-1 w-11 overflow-hidden rounded-full bg-slate-100">
+      <p className="mt-1 truncate text-[10px] font-semibold text-slate-700">{metric.label}</p>
+      <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">{metric.status}</p>
+      <div className="mx-auto mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
         <div className="h-full rounded-full" style={{ width: `${metric.value}%`, backgroundColor: metric.color }} />
       </div>
     </article>
@@ -1006,15 +1006,7 @@ export default function ProgressRedesigned() {
                 );
               })()}
 
-              {/* Log Today's Progress Button */}
-              <button
-                type="button"
-                className="mb-6 flex w-full items-center justify-center gap-2 rounded-[16px] bg-emerald-500 py-4 text-[15px] font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-transform"
-                onClick={() => navigate("/tracker")}
-              >
-                <Plus className="h-5 w-5" />
-                Log Today's Progress
-              </button>
+
             </>
           );
         })()}
