@@ -610,95 +610,135 @@ export default function ProgressRedesigned() {
 
               <section className="mb-5">
                 {activeGoal ? (
-                  <article className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0D9488] via-[#059669] to-[#065F46] p-5 text-white shadow-[0_24px_52px_rgba(6,95,70,0.30)]">
-                    {/* Decorative blobs */}
-                    <div className="pointer-events-none absolute inset-0">
-                      <div className="absolute -top-8 -right-8 h-40 w-40 rounded-full bg-white/8 blur-2xl" />
-                      <div className="absolute bottom-0 -left-6 h-32 w-32 rounded-full bg-emerald-300/10 blur-2xl" />
-                    </div>
+                  <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
 
-                    {/* Header row */}
-                    <div className="relative z-10 mb-4 flex items-center justify-between">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider backdrop-blur-sm">
-                        <CalendarCheck className="h-3.5 w-3.5" />
-                        {dayName}
+                    {/* ── Top banner: date + streak ── */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                      <div>
+                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Today</p>
+                        <p className="text-[15px] font-black text-slate-900">{dayName}</p>
                       </div>
-                      {(streaks.logging?.currentStreak ?? 0) > 0 && (
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1.5 text-[11px] font-black text-amber-300 backdrop-blur-sm">
-                          <Flame className="h-3.5 w-3.5" />
-                          {streaks.logging?.currentStreak}d streak
+                      {(streaks.logging?.currentStreak ?? 0) > 0 ? (
+                        <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 ring-1 ring-orange-100">
+                          <Flame className="h-3.5 w-3.5 text-orange-500" />
+                          <span className="text-[12px] font-black text-orange-600">{streaks.logging?.currentStreak}d</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 ring-1 ring-slate-100">
+                          <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-[11px] font-bold text-slate-500">Start streak</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Calorie hero row */}
-                    <div className="relative z-10 flex items-end justify-between gap-3 mb-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold text-white/70 mb-1 uppercase tracking-wide">Calories Today</p>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-[44px] font-black leading-none tracking-[-0.06em]">{calConsumed.toLocaleString()}</span>
-                          <span className="text-[16px] font-bold text-white/70">/ {calTarget.toLocaleString()}</span>
-                          <span className="text-[13px] font-semibold text-white/60 ml-0.5">kcal</span>
-                        </div>
-                        <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/15">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${dailyPct}%`, background: dailyPct > 100 ? 'linear-gradient(90deg,#FCD34D,#F87171)' : 'linear-gradient(90deg,#6EE7B7,#34D399)' }}
-                          />
-                        </div>
-                        <p className="mt-1.5 text-[11px] font-semibold text-white/60">
-                          {calTarget - calConsumed > 0 ? `${(calTarget - calConsumed).toLocaleString()} kcal remaining` : `${(calConsumed - calTarget).toLocaleString()} kcal over target`}
-                        </p>
-                      </div>
-                      {/* Ring */}
+                    {/* ── Calorie donut section ── */}
+                    <div className="relative flex items-center gap-4 px-5 pb-4">
+                      {/* Large donut */}
                       <div className="relative shrink-0">
-                        <svg width="88" height="88" viewBox="0 0 88 88" className="-rotate-90">
-                          <defs>
-                            <linearGradient id="todayRingGrad" x1="0" y1="0" x2="1" y2="1">
-                              <stop offset="0%" stopColor="#6EE7B7" />
-                              <stop offset="100%" stopColor="#34D399" />
-                            </linearGradient>
-                          </defs>
-                          <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="7" />
-                          <circle cx="44" cy="44" r="36" fill="none" stroke="url(#todayRingGrad)" strokeLinecap="round" strokeWidth="7" strokeDasharray={`${(overallPct / 100) * (2 * Math.PI * 36)} ${2 * Math.PI * 36}`} />
+                        <svg width="110" height="110" viewBox="0 0 110 110">
+                          {/* Background track */}
+                          <circle cx="55" cy="55" r="46" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                          {/* Protein arc */}
+                          <circle cx="55" cy="55" r="46" fill="none" stroke="#818CF8" strokeLinecap="round" strokeWidth="10"
+                            strokeDasharray={`${(proteinPct / 100) * (2 * Math.PI * 46)} ${2 * Math.PI * 46}`}
+                            transform="rotate(-90 55 55)"
+                          />
+                          {/* Calorie arc (inner) */}
+                          <circle cx="55" cy="55" r="34" fill="none" stroke="#F1F5F9" strokeWidth="8" />
+                          <circle cx="55" cy="55" r="34" fill="none"
+                            stroke={dailyPct > 100 ? '#F87171' : '#34D399'}
+                            strokeLinecap="round" strokeWidth="8"
+                            strokeDasharray={`${(Math.min(dailyPct, 100) / 100) * (2 * Math.PI * 34)} ${2 * Math.PI * 34}`}
+                            transform="rotate(-90 55 55)"
+                          />
+                          {/* Center text */}
+                          <text x="55" y="50" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0F172A" fontFamily="system-ui">{calConsumed > 999 ? `${(calConsumed/1000).toFixed(1)}k` : calConsumed}</text>
+                          <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">kcal</text>
                         </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center rotate-0">
-                          <span className="text-[22px] font-black leading-none">{overallPct}</span>
-                          <span className="text-[9px] font-bold text-white/70">score</span>
+                        {/* Legend dots */}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#34D399] inline-block" />Cal</span>
+                          <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />Pro</span>
+                        </div>
+                      </div>
+
+                      {/* Right side stats */}
+                      <div className="flex-1 min-w-0 space-y-2.5">
+                        {/* Calorie remaining */}
+                        <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
+                          <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">
+                            {calTarget - calConsumed > 0 ? 'Remaining' : 'Over target'}
+                          </p>
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-[22px] font-black leading-none ${calTarget - calConsumed > 0 ? 'text-slate-900' : 'text-rose-500'}`}>
+                              {Math.abs(calTarget - calConsumed).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">/ {calTarget.toLocaleString()} kcal</span>
+                          </div>
+                          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${dailyPct}%`, backgroundColor: dailyPct > 100 ? '#F87171' : '#34D399' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Score badge */}
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-black text-white"
+                            style={{ backgroundColor: overallPct >= 80 ? '#10B981' : overallPct >= 50 ? '#F59E0B' : '#F87171' }}
+                          >
+                            {overallPct}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-black text-slate-900">
+                              {overallPct >= 80 ? 'Great day!' : overallPct >= 50 ? 'On track' : 'Keep going'}
+                            </p>
+                            <p className="text-[9px] text-slate-400">Daily score</p>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Macro pills row */}
-                    <div className="relative z-10 grid grid-cols-3 gap-2">
+                    {/* ── Divider ── */}
+                    <div className="mx-5 h-px bg-slate-100" />
+
+                    {/* ── Macro bars ── */}
+                    <div className="grid grid-cols-3 gap-px bg-slate-100">
                       {[
-                        { label: 'Protein', current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#93C5FD', bg: 'rgba(147,197,253,0.15)' },
-                        { label: 'Carbs', current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#6EE7B7', bg: 'rgba(110,231,183,0.15)' },
-                        { label: 'Fat', current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#FCA5A5', bg: 'rgba(252,165,165,0.15)' },
+                        { label: 'Protein', current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#818CF8', light: '#EEF2FF' },
+                        { label: 'Carbs', current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#FB923C', light: '#FFF7ED' },
+                        { label: 'Fat', current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#F472B6', light: '#FDF2F8' },
                       ].map((m) => (
-                        <div key={m.label} className="rounded-[14px] px-3 py-2.5 backdrop-blur-sm" style={{ backgroundColor: m.bg }}>
-                          <p className="text-[9px] font-extrabold uppercase tracking-wide" style={{ color: m.color }}>{m.label}</p>
-                          <div className="mt-0.5 flex items-baseline gap-0.5">
-                            <span className="text-[16px] font-black leading-none text-white">{m.current}</span>
-                            <span className="text-[9px] font-semibold text-white/60">/{m.target}{m.unit}</span>
+                        <div key={m.label} className="flex flex-col items-center bg-white px-2 py-3">
+                          <div className="mb-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
                           </div>
-                          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/15">
-                            <div className="h-full rounded-full" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
+                          <div className="flex items-baseline gap-0.5">
+                            <span className="text-[15px] font-black text-slate-900">{m.current}</span>
+                            <span className="text-[9px] font-bold text-slate-400">/{m.target}{m.unit}</span>
                           </div>
+                          <p className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide" style={{ color: m.color }}>{m.label}</p>
                         </div>
                       ))}
                     </div>
 
-                    {/* Water row */}
-                    <div className="relative z-10 mt-3 flex items-center gap-3 rounded-[14px] bg-white/10 px-3 py-2.5 backdrop-blur-sm">
-                      <Droplet className="h-4 w-4 shrink-0 text-sky-300" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-extrabold text-white/80 uppercase tracking-wide">Hydration</p>
-                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
-                          <div className="h-full rounded-full bg-sky-300" style={{ width: `${Math.min(100, Math.round((waterGlasses / waterTarget) * 100))}%` }} />
-                        </div>
+                    {/* ── Water strip ── */}
+                    <div className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {Array.from({ length: waterTarget }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-4 w-2.5 rounded-full transition-colors duration-300"
+                            style={{ backgroundColor: i < waterGlasses ? '#38BDF8' : '#E2E8F0' }}
+                          />
+                        ))}
                       </div>
-                      <span className="text-[14px] font-black text-white shrink-0">{waterGlasses}<span className="text-[10px] font-semibold text-white/70">/{waterTarget}</span></span>
+                      <div className="ml-auto flex items-center gap-1">
+                        <Droplet className="h-3.5 w-3.5 text-sky-400" />
+                        <span className="text-[12px] font-black text-slate-700">{waterGlasses}<span className="text-[10px] font-semibold text-slate-400">/{waterTarget}</span></span>
+                      </div>
                     </div>
 
                   </article>
