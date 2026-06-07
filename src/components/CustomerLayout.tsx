@@ -8,8 +8,8 @@ const HIDDEN_NAV_PATHS = [
   "/subscription",
 ];
 
-// Dock height: 56px dock + env(safe-area-inset-bottom)
-const DOCK_RESERVED_HEIGHT = "calc(56px + env(safe-area-inset-bottom, 0px))";
+// Dock height: exactly 56px — no extra safe-area padding to avoid blank space below dock
+const DOCK_RESERVED_HEIGHT = "56px";
 
 export const CustomerLayout = () => {
   const location = useLocation();
