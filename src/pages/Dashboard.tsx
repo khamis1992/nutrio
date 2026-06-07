@@ -2080,46 +2080,40 @@ const Dashboard = () => {
 
           {user && <BodyCorrelationWidget />}
 
-          <div className="mt-5">
-            <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="mt-6">
+            <div className="mb-4 flex items-center justify-between pl-0.5">
+              <h3 className="text-[17px] font-black tracking-[-0.04em] text-slate-950">Quick Actions</h3>
+            </div>
+            <div className="grid grid-cols-4 gap-2.5">
               <QuickActionCard
                 icon={TrackerIcon}
                 label="Tracker"
-                subtitle="Track your progress"
-                bg="bg-[#F0FDF5]"
-                border="border-[#C6F6D5]"
-                iconGradient="from-emerald-500 to-teal-600"
+                iconBg="bg-emerald-500"
+                iconShadow="shadow-[0_6px_16px_rgba(16,185,129,0.35)]"
                 onClick={() => navigate("/tracker")}
                 prefersReducedMotion={prefersReducedMotion}
               />
               <QuickActionCard
                 icon={FavoriteIcon}
-                label="Favorite"
-                subtitle="Saved meals & restaurants"
-                bg="bg-[#FFF1F2]"
-                border="border-[#FECDD3]"
-                iconGradient="from-rose-500 to-pink-600"
+                label="Favorites"
+                iconBg="bg-rose-500"
+                iconShadow="shadow-[0_6px_16px_rgba(244,63,94,0.35)]"
                 onClick={() => navigate("/favorites")}
                 prefersReducedMotion={prefersReducedMotion}
               />
               <QuickActionCard
                 icon={ProgressIcon}
                 label="Progress"
-                subtitle="View your analytics"
-                bg="bg-[#F0F7FF]"
-                border="border-[#BFDBFE]"
-                iconGradient="from-blue-500 to-indigo-600"
+                iconBg="bg-blue-500"
+                iconShadow="shadow-[0_6px_16px_rgba(59,130,246,0.35)]"
                 onClick={() => navigate("/progress")}
                 prefersReducedMotion={prefersReducedMotion}
               />
               <QuickActionCard
                 icon={CommunityIcon}
                 label="Community"
-                subtitle="Connect & challenge"
-                bg="bg-[#FAF5FF]"
-                border="border-[#E9D5FF]"
-                iconGradient="from-violet-500 to-purple-600"
+                iconBg="bg-violet-500"
+                iconShadow="shadow-[0_6px_16px_rgba(139,92,246,0.35)]"
                 onClick={() => navigate("/community")}
                 prefersReducedMotion={prefersReducedMotion}
               />
@@ -2467,37 +2461,35 @@ const Dashboard = () => {
 const QuickActionCard = ({
   icon: Icon,
   label,
-  subtitle,
-  bg,
-  border,
-  iconGradient,
+  iconBg,
+  iconShadow,
   onClick,
   prefersReducedMotion,
 }: {
   icon: LucideIcon;
   label: string;
-  subtitle: string;
-  bg: string;
-  border: string;
-  iconGradient: string;
+  iconBg: string;
+  iconShadow: string;
   onClick: () => void;
   prefersReducedMotion: boolean;
 }) => (
   <motion.button
     type="button"
     onClick={onClick}
-    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-    whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
-    className={`flex flex-col items-center justify-center gap-2.5 rounded-[22px] ${bg} ${border} border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] min-h-[100px]`}
+    whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+    className="flex flex-col items-center gap-2.5"
     aria-label={label}
   >
-    <span className={`flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${iconGradient} text-white shadow-[0_4px_10px_rgba(0,0,0,0.1)]`}>
-      <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+    {/* Icon container */}
+    <span
+      className={`flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] ${iconBg} ${iconShadow} text-white`}
+    >
+      <Icon className="h-[26px] w-[26px]" strokeWidth={2} />
     </span>
-    <div className="text-center">
-      <p className="text-[13px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{label}</p>
-      <p className="mt-0.5 text-[10px] font-medium leading-tight text-slate-500">{subtitle}</p>
-    </div>
+    {/* Label */}
+    <p className="w-full truncate text-center text-[11px] font-bold leading-tight tracking-[-0.01em] text-slate-700">
+      {label}
+    </p>
   </motion.button>
 );
 
