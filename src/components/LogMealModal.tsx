@@ -166,7 +166,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-full max-h-[85dvh] rounded-3xl bg-white flex flex-col p-0 overflow-hidden">
+        <DialogContent hideCloseButton className="w-full max-w-full max-h-[85dvh] rounded-3xl bg-white flex flex-col p-0 overflow-hidden">
           <DialogTitle className="sr-only">Log Meal</DialogTitle>
 
           {/* Header */}
@@ -300,9 +300,9 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
         </DialogContent>
       </Dialog>
 
-      {/* Scan Food Choice Sheet */}
+      {/* Scan Food Choice Sheet - z-[300] to appear above Dialog z-[201] */}
       {showScanChoice && (
-        <div className="fixed inset-0 z-[200] flex flex-col justify-end">
+        <div className="fixed inset-0 z-[300] flex flex-col justify-end">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowScanChoice(false)}
