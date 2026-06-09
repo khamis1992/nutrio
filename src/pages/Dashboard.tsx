@@ -1069,8 +1069,9 @@ const Dashboard = () => {
           mixBlendMode: "overlay",
         }}
       />
-      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pt-safe-offset-4 pb-20 pt-6">
-        <header className="flex items-center justify-between">
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-100/60 shadow-[0_1px_8px_rgba(15,23,42,0.06)]">
+        <div className="mx-auto max-w-[430px] px-4 sm:px-6 py-3">
+          <header className="flex items-center justify-between">
           <Link to="/profile" className="flex items-center gap-3">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)] overflow-hidden">
               {profile?.avatar_url ? (
@@ -1196,7 +1197,10 @@ const Dashboard = () => {
               </AnimatePresence>
             </div>
           </div>
-        </header>
+          </header>
+        </div>
+      </div>
+      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-20 pt-4">
 
         {/* Today's Meals Section */}
         <motion.section

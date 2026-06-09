@@ -15,13 +15,22 @@ interface Restaurant { id: string; name: string; description: string | null; log
 interface RestaurantTemplate { name: string; description: string; meals: number; image: string; }
 interface ShowcaseRestaurant extends RestaurantTemplate { liveRestaurantId?: string; }
 
-const categoryTabs: Array<{ id: MealCategory; labelKey: string; icon: LucideIcon }> = [
-  { id: "all", labelKey: "all_cuisine", icon: Utensils },
-  { id: "breakfast", labelKey: "breakfast", icon: Coffee },
-  { id: "lunch", labelKey: "lunch", icon: Soup },
-  { id: "dinner", labelKey: "dinner", icon: Soup },
-  { id: "snacks", labelKey: "snacks_tab", icon: UtensilsCrossed },
+const categoryTabs: Array<{ id: MealCategory; labelKey: string; icon: LucideIcon; activeClass: string; shadowClass: string }> = [
+  { id: "all",       labelKey: "all_cuisine",  icon: Utensils,       activeClass: "bg-emerald-500 text-white",  shadowClass: "shadow-[0_4px_12px_rgba(16,185,129,0.30)]" },
+  { id: "breakfast", labelKey: "breakfast",    icon: Coffee,         activeClass: "bg-amber-400 text-white",    shadowClass: "shadow-[0_4px_12px_rgba(245,158,11,0.35)]" },
+  { id: "lunch",     labelKey: "lunch",        icon: Soup,           activeClass: "bg-orange-500 text-white",   shadowClass: "shadow-[0_4px_12px_rgba(249,115,22,0.35)]" },
+  { id: "dinner",    labelKey: "dinner",       icon: Soup,           activeClass: "bg-indigo-500 text-white",   shadowClass: "shadow-[0_4px_12px_rgba(99,102,241,0.35)]" },
+  { id: "snacks",    labelKey: "snacks_tab",   icon: UtensilsCrossed, activeClass: "bg-pink-500 text-white",    shadowClass: "shadow-[0_4px_12px_rgba(236,72,153,0.35)]" },
 ];
+
+// Map each category to cuisine_type keywords used in the database
+const CATEGORY_KEYWORDS: Record<MealCategory, string[]> = {
+  all:       [],
+  breakfast: ["breakfast", "morning", "brunch", "cafe"],
+  lunch:     ["lunch", "midday", "arabic", "lebanese", "mediterranean", "salad"],
+  dinner:    ["dinner", "evening", "grill", "grilled", "bbq", "steak", "seafood"],
+  snacks:    ["snack", "snacks", "light", "dessert", "sweet", "vegan", "healthy", "protein", "fitness"],
+};
 
 const restaurantTemplates: RestaurantTemplate[] = [
   { name: "Lebanese Kitchen", description: "Traditional Lebanese...", meals: 4, image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=90" },
@@ -88,7 +97,22 @@ const Meals = () => {
 
   const visibleRestaurants = restaurantTemplates.map(hydrateRestaurant).filter((r) => {
     const ms = !search || `${r.name} ${r.description}`.toLowerCase().includes(search);
-    return ms && (!showFavoritesOnly || Boolean(r.liveRestaurantId && isFavorite(r.liveRestaurantId)));
+    if (!ms) return false;
+    if (showFavoritesOnly && !(r.liveRestaurantId && isFavorite(r.liveRestaurantId))) return false;
+    if (selectedCategory !== "all") {
+      const keywords = CATEGORY_KEYWORDS[selectedCategory];
+      const liveData = restaurants.find((lr) => lr.id === r.liveRestaurantId);
+      const cuisineTypes = liveData?.cuisine_types ?? [];
+      // Check cuisine_types from DB first, then fall back to name/description keyword match
+      const matchesCuisine = cuisineTypes.some((ct) =>
+        keywords.some((kw) => ct.toLowerCase().includes(kw))
+      );
+      const matchesName = keywords.some((kw) =>
+        `${r.name} ${r.description}`.toLowerCase().includes(kw)
+      );
+      if (!matchesCuisine && !matchesName) return false;
+    }
+    return true;
   });
 
   return (
@@ -134,7 +158,7 @@ const Meals = () => {
                   className={cn(
                     "flex h-[42px] shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-extrabold transition-all",
                     active
-                      ? "bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)]"
+                      ? `${cat.activeClass} ${cat.shadowClass}`
                       : "bg-white text-slate-600 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200"
                   )}
                 >
