@@ -105,7 +105,7 @@ export default function RecipeNew() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-      className="min-h-screen bg-[#F8F9FA] pb-4 mx-auto max-w-[430px]">
+      className="min-h-screen bg-[#F8F9FA] pb-20 mx-auto max-w-[430px]">
       <div className="bg-white px-4 pt-safe pb-4">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)}

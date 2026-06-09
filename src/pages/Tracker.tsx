@@ -155,7 +155,7 @@ export default function Tracker() {
   const stepsPct = Math.round((steps / STEP_GOAL) * 100);
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA]">
+    <div className="min-h-screen bg-[#F5F7FA] pb-20">
       {/* ── Header ── */}
       <div className="bg-white px-4 pt-5 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3 max-w-[480px] mx-auto">

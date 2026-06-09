@@ -305,7 +305,7 @@ export default function WaterTracker() {
   const waterTopY = 140 - (fillHeight / 100) * 120;
 
   return (
-    <div className="min-h-screen bg-background pb-4">
+    <div className="min-h-screen bg-background pb-36">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">

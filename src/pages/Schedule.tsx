@@ -519,7 +519,7 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="min-h-screen pb-4 bg-[#F8FAFC] dark:from-gray-900 dark:to-black">
+      <div className="min-h-screen pb-20 bg-[#F8FAFC] dark:from-gray-900 dark:to-black">
         <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 safe-top">
           <div className="flex items-center justify-between px-5 h-16 max-w-lg mx-auto">
             <button
@@ -560,7 +560,7 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#FCFCFB]">
+    <div className="min-h-screen bg-[#FCFCFB] pb-20">
       {/* ── Native iOS/Android Header ───────────────────────────── */}
       <ScheduleHeader
         currentWeekStart={currentWeekStart}

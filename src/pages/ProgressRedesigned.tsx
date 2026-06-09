@@ -492,7 +492,7 @@ export default function ProgressRedesigned() {
 
   return (
     <main className="min-h-screen bg-[#FAFBFC] text-[#101827]">
-      <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-8 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
+      <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-20 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
         <header className="mb-6 flex items-center justify-between px-0.5">
           <button
             aria-label="Go back"

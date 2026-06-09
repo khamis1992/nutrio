@@ -42,8 +42,8 @@ export default function Community() {
             <button onClick={() => navigate(-1)} className="mt-0.5 flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition hover:bg-slate-50 hover:text-slate-600" aria-label="Go back">
               <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
-            <div className="space-y-0.5">
-              <h1 className="text-[34px] leading-[1.05] font-extrabold text-slate-900 tracking-[-0.03em]">{t("community") || "Community"}</h1>
+            <div className="space-y-0.5 min-w-0">
+              <h1 className="text-[26px] leading-[1.05] font-extrabold text-slate-900 tracking-[-0.03em]">{t("community") || "Community"}</h1>
               <p className="text-[13px] font-medium text-slate-500">{t("community_subtitle") || "Connect, challenge, and grow together"}</p>
             </div>
           </div>

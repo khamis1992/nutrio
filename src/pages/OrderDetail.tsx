@@ -431,7 +431,7 @@ const OrderDetail = () => {
   const isDelivered = order.order_status === "delivered";
 
   return (
-    <div className="min-h-screen bg-background pb-4">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <div className="bg-primary text-white sticky top-0 z-10 pt-safe">
         <div className="flex items-center justify-between p-4 rtl:flex-row-reverse">

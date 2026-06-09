@@ -43,7 +43,7 @@ export default function Wallet() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container max-w-md mx-auto px-4 py-6 pb-4">
+      <main className="container max-w-md mx-auto px-4 py-6 pb-20">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">{t("wallet_title")}</h1>

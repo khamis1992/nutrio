@@ -431,7 +431,7 @@ export default function SubscriptionPage() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 px-4 pb-6">
+      <div className="flex-1 overflow-y-auto space-y-3 px-4 pb-20">
         {/* Hero Card */}
         <div className="relative mt-2 overflow-hidden rounded-[28px] border border-slate-100 bg-white px-4 py-3.5 shadow-[0_18px_44px_rgba(15,23,42,0.07)]">
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-emerald-50/45 via-transparent to-transparent" />

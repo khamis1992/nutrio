@@ -162,7 +162,7 @@ export default function Leaderboard() {
   const activeCategoryConfig = CATEGORIES.find(c => c.key === activeCategory)!;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20">
       <div className="mx-auto max-w-lg px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">

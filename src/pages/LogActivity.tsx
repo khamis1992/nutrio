@@ -218,7 +218,7 @@ export default function LogActivity() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FFFB]">
+    <div className="min-h-screen bg-[#F8FFFB] pb-20">
       {/* Header */}
       <div className="bg-gradient-to-b from-[#1BD37F] to-[#14B869] px-5 pb-6 pt-12">
         <button

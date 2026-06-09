@@ -210,7 +210,7 @@ export default function RecoveryDetail() {
       </div>
 
       {/* Book Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm border-t">
+      <div className="fixed bottom-14 left-0 right-0 p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm border-t z-30">
         <Button
           className="w-full h-12 bg-violet-600 hover:bg-violet-700 text-base"
           onClick={() => setBookingOpen(true)}
