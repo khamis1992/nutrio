@@ -118,60 +118,114 @@ const Meals = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
 
-      {/* ── Sticky header: title + search + filters ── */}
-      <div className="sticky top-0 z-20 bg-[#F8FAFC]/95 backdrop-blur-sm">
-        <div className="mx-auto w-full max-w-[430px] px-4 pt-6 pb-4">
+      {/* ── Hero Header: Illustration on Gradient ── */}
+      <div className="sticky top-0 z-20">
+        <div className="mx-auto w-full max-w-[430px] overflow-hidden">
 
-          {/* Title row */}
-          <header className="flex items-start justify-between mb-5">
-            <div className="flex items-start gap-6">
-              <Link to="/dashboard" className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100" aria-label="Back">
-                <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} />
-              </Link>
-              <div className="pt-0.5">
-                <h1 className="text-[34px] font-extrabold text-slate-900 tracking-[-0.03em]">{t("meals")}</h1>
-                <p className="mt-1 text-[15px] font-medium text-slate-500">{t("meals_page_subtitle")}</p>
+          {/* Gradient banner with illustration */}
+          <div
+            className="relative overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #064e3b 0%, #065f46 50%, #059669 100%)",
+              paddingTop: "env(safe-area-inset-top, 0px)",
+            }}
+          >
+            {/* Illustration background */}
+            <img
+              src="/meals-header-illustration.png"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+              style={{ opacity: 0.18, mixBlendMode: "luminosity" }}
+            />
+
+            {/* Ambient glow circles */}
+            <div className="pointer-events-none absolute -right-12 -top-12 h-[180px] w-[180px] rounded-full" style={{ background: "radial-gradient(circle, rgba(52,211,153,0.25) 0%, transparent 70%)" }} />
+            <div className="pointer-events-none absolute -bottom-8 -left-8 h-[140px] w-[140px] rounded-full" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)" }} />
+
+            <div className="relative z-10 px-5 pt-5 pb-0">
+              {/* Top row: back + actions */}
+              <div className="flex items-center justify-between mb-4">
+                <Link
+                  to="/dashboard"
+                  className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white backdrop-blur-sm transition active:scale-95"
+                  aria-label="Back"
+                >
+                  <ArrowLeft className="h-[20px] w-[20px]" strokeWidth={2.5} />
+                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowFavoritesOnly((v) => !v)}
+                    className={cn(
+                      "flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border backdrop-blur-sm transition active:scale-95",
+                      showFavoritesOnly
+                        ? "border-rose-300/60 bg-rose-500/80 text-white"
+                        : "border-white/20 bg-white/15 text-white"
+                    )}
+                    aria-label="Toggle favorites"
+                  >
+                    <Heart className={cn("h-[18px] w-[18px]", showFavoritesOnly && "fill-white")} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Title block */}
+              <div className="mb-5">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-white/90 backdrop-blur-sm">
+                  <span>🥗</span> Fresh &amp; Healthy
+                </div>
+                <h1 className="text-[30px] font-black leading-[1.1] tracking-[-0.03em] text-white">
+                  Discover{" "}
+                  <em className="not-italic text-emerald-300">{t("meals")}</em>
+                  <br />You&apos;ll Love
+                </h1>
+                <p className="mt-1.5 text-[13px] font-medium text-white/65">
+                  {t("meals_page_subtitle")}
+                </p>
+              </div>
+
+              {/* Search bar — floats on gradient */}
+              <div
+                className="-mx-5 rounded-t-[20px] bg-white px-4 pt-4 shadow-[0_-8px_24px_rgba(0,0,0,0.15)]"
+              >
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" strokeWidth={2} />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t("search_meals_placeholder")}
+                    className="h-[48px] w-full rounded-[14px] border border-slate-200 bg-slate-50 pl-[42px] pr-[16px] text-[14px] font-semibold text-slate-900 outline-none placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all"
+                  />
+                </div>
+
+                {/* Category tabs */}
+                <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+                  {categoryTabs.map((cat) => {
+                    const Icon = cat.icon;
+                    const active = selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat.id); }}
+                        className={cn(
+                          "flex h-[36px] shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-extrabold transition-all",
+                          active
+                            ? `${cat.activeClass} ${cat.shadowClass}`
+                            : "border border-slate-200 bg-slate-50 text-slate-600"
+                        )}
+                      >
+                        <Icon className={cn("h-[13px] w-[13px]", active ? "text-white" : "text-slate-400")} strokeWidth={2.25} />
+                        {t(cat.labelKey)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </header>
-
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-6 top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-slate-400" strokeWidth={2} />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("search_meals_placeholder")}
-              className="h-[54px] w-full rounded-full bg-white pl-[60px] pr-[16px] text-[15px] font-semibold text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400 transition-shadow"
-            />
           </div>
-
-          {/* Category tabs */}
-          <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            {categoryTabs.map((cat) => {
-              const Icon = cat.icon;
-              const active = selectedCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat.id); }}
-                  className={cn(
-                    "flex h-[42px] shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-extrabold transition-all",
-                    active
-                      ? `${cat.activeClass} ${cat.shadowClass}`
-                      : "bg-white text-slate-600 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200"
-                  )}
-                >
-                  <Icon className={cn("h-[16px] w-[16px]", active ? "text-white" : "text-slate-400")} strokeWidth={2.25} />
-                  {t(cat.labelKey)}
-                </button>
-              );
-            })}
-          </div>
-
         </div>
         {/* thin separator */}
-        <div className="h-px bg-slate-100 mx-4" />
+        <div className="h-px bg-slate-100" />
       </div>
 
       {/* ── Scrollable content ── */}
