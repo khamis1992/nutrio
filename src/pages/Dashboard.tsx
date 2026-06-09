@@ -1203,38 +1203,211 @@ const Dashboard = () => {
       </div>
       <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-20 pt-4">
 
-        {/* Today's Meals Section — Horizontal Scroll */}
+        {/* Today's Meals Section */}
         <motion.section
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 16 }}
           animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={prefersReducedMotion ? undefined : { duration: 0.35, ease: "easeOut", delay: 0.05 }}
-          className="mt-5"
+          className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
         >
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Today's Meals</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Today's Meals</h2>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500">What's on your plate today</p>
+            </div>
             <Link
               to="/schedule"
-              className="flex h-[28px] items-center gap-1 rounded-full bg-[#F0FDF6] px-2.5 text-[11px] font-semibold text-[#10B981]"
+              className="flex h-[30px] items-center gap-1 rounded-full bg-[#F0FDF6] px-2.5 text-[11px] font-semibold text-[#10B981]"
             >
               Schedule
               <ChevronRight className="h-3 w-3" />
             </Link>
           </div>
 
-          {todayMealsLoading ? (
-            <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-[110px] w-[130px] shrink-0 animate-pulse rounded-[20px] bg-slate-100" />
-              ))}
-            </div>
-          ) : todayMealsError ? (
-            <div className="rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-3">
+          <div className="mt-3 space-y-2">
+            {(() => {
+              const slots = [
+                { type: "breakfast", label: "Breakfast", icon: Coffee, color: "from-amber-400 to-orange-500", bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-200" },
+                { type: "lunch", label: "Lunch", icon: Soup, color: "from-emerald-400 to-teal-500", bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-200" },
+                { type: "dinner", label: "Dinner", icon: UtensilsCrossed, color: "from-violet-400 to-purple-500", bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-200" },
+              ];
+              const hasAnyMeal = slots.some((s) => {
+                const m = todayMeals.find((tm) => tm.type === s.type);
+                return m && m.meal;
+              });
+
+              if (!hasAnyMeal) {
+                return (
+                  <Link
+                    to="/meals"
+                    className="block rounded-2xl bg-gradient-to-br from-[#F0FDF6] via-[#F6FFF9] to-[#F0F7FF] p-5 ring-1 ring-emerald-100/60 transition active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex -space-x-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-[0_6px_14px_rgba(251,146,60,0.3)] ring-2 ring-white">
+                          <Coffee className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-[0_6px_14px_rgba(16,185,129,0.3)] ring-2 ring-white">
+                          <Soup className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-purple-500 text-white shadow-[0_6px_14px_rgba(139,92,246,0.3)] ring-2 ring-white">
+                          <UtensilsCrossed className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[14px] font-extrabold text-slate-900">Plan your meals for today</h3>
+                        <p className="mt-0.5 text-[12px] text-slate-500 leading-relaxed">
+                          Fresh, nutritious meals delivered to your door — curated by local restaurants.
+                        </p>
+                      </div>
+                      <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_14px_rgba(16,185,129,0.3)]">
+                        <Plus className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              }
+
+              return slots.map((slot) => {
+              const meal = todayMeals.find((m) => m.type === slot.type);
+              const hasMeal = meal && meal.meal;
+              const IconSlot = slot.icon;
+
+            return (
+              <div key={slot.type}>
+                <motion.div
+                  whileTap={prefersReducedMotion ? undefined : { scale: hasMeal ? 0.98 : 1 }}
+                  onClick={() => hasMeal && setExpandedMeal(expandedMeal === `${slot.type}-${meal.schedule_id}` ? null : `${slot.type}-${meal.schedule_id}`)}
+                  className={`flex items-center gap-3 rounded-[16px] p-3 transition-colors ${
+                    hasMeal ? `${slot.bg} ring-1 ${slot.ring} cursor-pointer` : "bg-slate-50 border border-dashed border-slate-200"
+                  }`}
+                >
+                  {/* Slot Icon */}
+                  <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white shadow-[0_6px_14px_rgba(0,0,0,0.12)]`}>
+                    <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.75} />
+                  </div>
+
+                  {hasMeal ? (
+                    <>
+                      {/* Meal Image */}
+                      {meal.meal?.image_url ? (
+                        <img
+                          src={meal.meal.image_url}
+                          alt={meal.meal.name}
+                          className="h-[48px] w-[48px] shrink-0 rounded-xl object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                          <Utensils className="h-[20px] w-[20px] text-slate-400" strokeWidth={1.5} />
+                        </div>
+                      )}
+
+                      {/* Meal Info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-bold leading-snug text-slate-950">
+                          {meal.meal?.name || slot.label}
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                          {meal.restaurant?.name && (
+                            <span className="truncate">{meal.restaurant.name}</span>
+                          )}
+                          {meal.meal?.calories && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span>{meal.meal.calories} cal</span>
+                            </>
+                          )}
+                          {meal.delivery_time_slot && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span>{meal.delivery_time_slot}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      <div className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition-transform ${expandedMeal === `${slot.type}-${meal.schedule_id}` ? "rotate-90" : ""}`}>
+                        <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Empty Slot */}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[13px] font-semibold ${slot.text}`}>{slot.label}</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-slate-400">No meal planned</p>
+                      </div>
+
+                      {/* Order Now CTA */}
+                      <Link
+                        to="/meals"
+                        className="flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-[#10B981] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FDF6]"
+                      >
+                        <Plus className="h-[13px] w-[13px]" strokeWidth={2.5} />
+                        Order Now
+                      </Link>
+                    </>
+                  )}
+                </motion.div>
+
+                <AnimatePresence>
+                  {expandedMeal === `${slot.type}-${meal?.schedule_id}` && hasMeal && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 28 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mx-3 mb-2 mt-1 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Nutrition Facts</p>
+                        <div className="mt-3 grid grid-cols-4 gap-2">
+                          <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-2.5 text-center ring-1 ring-amber-100">
+                            <Flame className="mx-auto h-[18px] w-[18px] text-amber-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.calories || 0}</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">Cal</p>
+                          </div>
+                          <div className="rounded-xl bg-gradient-to-br from-rose-50 to-pink-50 p-2.5 text-center ring-1 ring-rose-100">
+                            <Drumstick className="mx-auto h-[18px] w-[18px] text-rose-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.protein_g || 0}g</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-rose-600">Protein</p>
+                          </div>
+                          <div className="rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-2.5 text-center ring-1 ring-blue-100">
+                            <Wheat className="mx-auto h-[18px] w-[18px] text-blue-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.carbs_g || 0}g</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">Carbs</p>
+                          </div>
+                          <div className="rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 p-2.5 text-center ring-1 ring-purple-100">
+                            <FatIcon className="mx-auto h-[18px] w-[18px] text-purple-500" strokeWidth={1.75} />
+                            <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.fat_g || 0}g</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Fat</p>
+                          </div>
+                        </div>
+                        <Link
+                          to={`/meals/${meal.meal?.id}`}
+                          className="mt-3 flex items-center justify-center gap-1 rounded-full bg-[#F0FDF6] py-2 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]"
+                        >
+                          View Full Details
+                          <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+            })})()}
+          </div>
+
+          {todayMealsError && (
+            <div className="mt-3 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[16px] w-[16px]" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-semibold text-slate-800">Couldn&apos;t load today&apos;s meals</p>
+                  <p className="text-[10px] text-slate-500">Tap to try again</p>
                 </div>
                 <button
                   type="button"
@@ -1245,105 +1418,12 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-          ) : (
-            <div
-              className="flex gap-3 overflow-x-auto scrollbar-none pb-1"
-              style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
-            >
-              {([
-                { type: "breakfast", label: "Breakfast", icon: Coffee,          color: "from-amber-400 to-orange-500",   bg: "bg-amber-50",   text: "text-amber-600",   ring: "ring-amber-200",   accent: "#F97316" },
-                { type: "lunch",     label: "Lunch",     icon: Soup,            color: "from-emerald-400 to-teal-500",  bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-200", accent: "#10B981" },
-                { type: "dinner",    label: "Dinner",    icon: UtensilsCrossed, color: "from-violet-400 to-purple-500", bg: "bg-violet-50",  text: "text-violet-600",  ring: "ring-violet-200",  accent: "#8B5CF6" },
-                { type: "snack",     label: "Snack",     icon: Apple,           color: "from-pink-400 to-rose-500",     bg: "bg-pink-50",    text: "text-pink-600",    ring: "ring-pink-200",    accent: "#EC4899" },
-              ] as const).map((slot) => {
-                const meal = todayMeals.find((m) => m.type === slot.type);
-                const hasMeal = meal && meal.meal;
-                const IconSlot = slot.icon;
-                return (
-                  <motion.div
-                    key={slot.type}
-                    whileTap={prefersReducedMotion ? undefined : { scale: 0.96 }}
-                    onClick={() => hasMeal && setExpandedMeal(expandedMeal === `${slot.type}-${meal.schedule_id}` ? null : `${slot.type}-${meal.schedule_id}`)}
-                    style={{ scrollSnapAlign: "start" }}
-                    className={`relative flex w-[130px] shrink-0 flex-col items-center gap-2 rounded-[20px] p-3 pt-4 ${
-                      hasMeal ? `${slot.bg} ring-1 ${slot.ring} cursor-pointer` : "bg-white ring-1 ring-slate-100 shadow-[0_4px_12px_rgba(15,23,42,0.05)]"
-                    }`}
-                  >
-                    {/* Icon */}
-                    <div className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${slot.color} text-white shadow-[0_6px_14px_rgba(0,0,0,0.12)]`}>
-                      <IconSlot className="h-[20px] w-[20px]" strokeWidth={1.75} />
-                    </div>
-
-                    {/* Label */}
-                    <p className={`text-[11px] font-extrabold ${slot.text}`}>{slot.label}</p>
-
-                    {hasMeal ? (
-                      <>
-                        <p className="line-clamp-2 text-center text-[10px] font-medium leading-tight text-slate-600">
-                          {meal.meal?.name || slot.label}
-                        </p>
-                        {meal.meal?.calories && (
-                          <span className="rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-bold" style={{ color: slot.accent }}>
-                            {meal.meal.calories} cal
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-center text-[10px] font-medium text-slate-400">Not planned</p>
-                        <Link
-                          to="/meals"
-                          className="flex items-center gap-0.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold shadow-[0_2px_6px_rgba(0,0,0,0.06)]" style={{ color: slot.accent }}
-                        >
-                          <Plus className="h-[11px] w-[11px]" strokeWidth={2.5} />
-                          Order
-                        </Link>
-                      </>
-                    )}
-
-                    {/* Expanded Nutrition Overlay */}
-                    <AnimatePresence>
-                      {expandedMeal === `${slot.type}-${meal?.schedule_id}` && hasMeal && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 28 }}
-                          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 rounded-[20px] bg-white/95 p-2 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-200 backdrop-blur-sm"
-                          onClick={(e) => { e.stopPropagation(); setExpandedMeal(null); }}
-                        >
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Nutrition</p>
-                          <div className="grid grid-cols-2 gap-1 w-full">
-                            <div className="rounded-lg bg-amber-50 p-1.5 text-center">
-                              <p className="text-[13px] font-extrabold text-slate-900">{meal.meal?.calories || 0}</p>
-                              <p className="text-[8px] font-semibold text-amber-600">Cal</p>
-                            </div>
-                            <div className="rounded-lg bg-rose-50 p-1.5 text-center">
-                              <p className="text-[13px] font-extrabold text-slate-900">{meal.meal?.protein_g || 0}g</p>
-                              <p className="text-[8px] font-semibold text-rose-600">Protein</p>
-                            </div>
-                            <div className="rounded-lg bg-blue-50 p-1.5 text-center">
-                              <p className="text-[13px] font-extrabold text-slate-900">{meal.meal?.carbs_g || 0}g</p>
-                              <p className="text-[8px] font-semibold text-blue-600">Carbs</p>
-                            </div>
-                            <div className="rounded-lg bg-purple-50 p-1.5 text-center">
-                              <p className="text-[13px] font-extrabold text-slate-900">{meal.meal?.fat_g || 0}g</p>
-                              <p className="text-[8px] font-semibold text-purple-600">Fat</p>
-                            </div>
-                          </div>
-                          <Link
-                            to={`/meals/${meal.meal?.id}`}
-                            className="mt-1 text-[9px] font-semibold text-[#10B981]"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            View Details →
-                          </Link>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                );
-              })}
+          )}
+          {todayMealsLoading && (
+            <div className="mt-3 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-[70px] animate-pulse rounded-[16px] bg-slate-100" />
+              ))}
             </div>
           )}
         </motion.section>
