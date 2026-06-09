@@ -92,7 +92,7 @@ const Meals = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-4">
+    <div className="min-h-screen bg-[#F8FAFC] pb-20">
       <div className="mx-auto w-full max-w-[430px] px-4 pt-6">
 
         {/* Header */}

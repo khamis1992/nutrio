@@ -721,7 +721,7 @@ const Dashboard = () => {
     return (
       <div className="overflow-x-hidden text-slate-900 relative">
         <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(135deg, #FEFFFE 0%, #F8FDF9 50%, #F5FAF7 100%)" }} />
-        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-4 pt-6">
+        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-20 pt-6">
           {/* Header skeleton */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1069,7 +1069,7 @@ const Dashboard = () => {
           mixBlendMode: "overlay",
         }}
       />
-      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pt-safe-offset-4 pb-4 pt-6">
+      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pt-safe-offset-4 pb-20 pt-6">
         <header className="flex items-center justify-between">
           <Link to="/profile" className="flex items-center gap-3">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)] overflow-hidden">

@@ -31,10 +31,10 @@ export default function Community() {
   return (
     <motion.div
       variants={pageVariants} initial="hidden" animate="visible"
-      className="min-h-screen bg-[#F8FAFC] pb-4"
+      className="min-h-screen bg-[#F8FAFC] pb-20"
       style={{ overscrollBehaviorY: "contain" }}
     >
-      <div className="mx-auto min-h-screen max-w-[430px] bg-white px-5 pt-10 pb-4 shadow-[0_0_0_1px_rgba(15,23,42,0.04),0_18px_50px_rgba(15,23,42,0.06)]">
+      <div className="mx-auto min-h-screen max-w-[430px] bg-white px-5 pt-10 pb-20 shadow-[0_0_0_1px_rgba(15,23,42,0.04),0_18px_50px_rgba(15,23,42,0.06)]">
 
         {/* ═══════ HEADER ═══════ */}
         <div className="flex items-start justify-between pb-6">

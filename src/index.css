@@ -15,11 +15,13 @@
     -webkit-user-select: none;
     user-select: none;
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
   }
   
   body {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
   }
   
   .pt-safe-offset-4 {

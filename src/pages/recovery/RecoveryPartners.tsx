@@ -56,7 +56,7 @@ export default function RecoveryPartners() {
   }, [partners, search, filter]);
 
   return (
-    <div className="px-4 pb-4">
+    <div className="px-4 pb-20">
       {/* Header */}
       <div className="pt-6 pb-4">
         <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -178,7 +178,7 @@ export default function RecoveryPartners() {
 
       {/* My Bookings FAB */}
       <Button
-        className="fixed bottom-20 right-4 rounded-full shadow-lg bg-violet-600 hover:bg-violet-700 h-12"
+        className="fixed bottom-20 right-4 rounded-full shadow-lg bg-violet-600 hover:bg-violet-700 h-12 z-10"
         onClick={() => navigate("/recovery/bookings")}
       >
         <Clock className="w-5 h-5 mr-2" />
