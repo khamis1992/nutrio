@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Coffee, Heart, Search, SlidersHorizontal, Store, Soup, Utensils, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Coffee, Heart, Search, Store, Soup, Utensils, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -92,39 +92,78 @@ const Meals = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-20">
-      <div className="mx-auto w-full max-w-[430px] px-4 pt-6">
+    <div className="min-h-screen bg-[#F8FAFC]">
 
-        {/* Header */}
-        <header className="flex items-start justify-between">
-          <div className="flex items-start gap-6">
-            <Link to="/dashboard" className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100" aria-label="Back"><ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} /></Link>
-            <div className="pt-0.5"><h1 className="text-[34px] font-extrabold text-slate-900 tracking-[-0.03em]">{t("meals")}</h1><p className="mt-2 text-[16px] font-medium text-slate-500">{t("meals_page_subtitle")}</p></div>
+      {/* ── Sticky header: title + search + filters ── */}
+      <div className="sticky top-0 z-20 bg-[#F8FAFC]/95 backdrop-blur-sm">
+        <div className="mx-auto w-full max-w-[430px] px-4 pt-6 pb-4">
+
+          {/* Title row */}
+          <header className="flex items-start justify-between mb-5">
+            <div className="flex items-start gap-6">
+              <Link to="/dashboard" className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100" aria-label="Back">
+                <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} />
+              </Link>
+              <div className="pt-0.5">
+                <h1 className="text-[34px] font-extrabold text-slate-900 tracking-[-0.03em]">{t("meals")}</h1>
+                <p className="mt-1 text-[15px] font-medium text-slate-500">{t("meals_page_subtitle")}</p>
+              </div>
+            </div>
+          </header>
+
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-6 top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-slate-400" strokeWidth={2} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("search_meals_placeholder")}
+              className="h-[54px] w-full rounded-full bg-white pl-[60px] pr-[16px] text-[15px] font-semibold text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-200 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400 transition-shadow"
+            />
           </div>
-        </header>
 
-        {/* Search */}
-        <div className="relative mt-7">
-          <Search className="pointer-events-none absolute left-6 top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-slate-400" strokeWidth={2} />
-          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("search_meals_placeholder")} className="h-[60px] w-full rounded-full bg-white pl-[68px] pr-[16px] text-[16px] font-semibold text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400 transition-shadow" />
+          {/* Category tabs */}
+          <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+            {categoryTabs.map((cat) => {
+              const Icon = cat.icon;
+              const active = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat.id); }}
+                  className={cn(
+                    "flex h-[42px] shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-extrabold transition-all",
+                    active
+                      ? "bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)]"
+                      : "bg-white text-slate-600 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200"
+                  )}
+                >
+                  <Icon className={cn("h-[16px] w-[16px]", active ? "text-white" : "text-slate-400")} strokeWidth={2.25} />
+                  {t(cat.labelKey)}
+                </button>
+              );
+            })}
+          </div>
+
         </div>
+        {/* thin separator */}
+        <div className="h-px bg-slate-100 mx-4" />
+      </div>
 
-        {/* Category tabs */}
-        <div className="mt-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {categoryTabs.map((cat) => { const Icon = cat.icon; const active = selectedCategory === cat.id; return (
-            <button key={cat.id} onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat.id); }} className={cn("flex h-[46px] shrink-0 items-center gap-2.5 rounded-full px-5 text-[14px] font-extrabold transition-all", active ? "bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)]" : "bg-white text-slate-600 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200")}>
-              <Icon className={cn("h-[18px] w-[18px]", active ? "text-white" : "text-slate-400")} strokeWidth={2.25} />{t(cat.labelKey)}
-            </button>
-          );})}
-        </div>
-
-        {/* Content */}
+      {/* ── Scrollable content ── */}
+      <div className="mx-auto w-full max-w-[430px] px-4 pb-20 pt-4">
         <main>
           {visibleRestaurants.length > 0 ? (
             <>
               {/* Favorites toggle */}
-              <div className="mt-6 mb-4 flex items-center justify-end">
-                <button onClick={() => setShowFavoritesOnly((v) => !v)} className={cn("inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition", showFavoritesOnly ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500")}>
+              <div className="mb-4 flex items-center justify-end">
+                <button
+                  onClick={() => setShowFavoritesOnly((v) => !v)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition",
+                    showFavoritesOnly ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500"
+                  )}
+                >
                   <Heart className={cn("h-4 w-4", showFavoritesOnly && "fill-emerald-500 text-emerald-500")} strokeWidth={2} />
                   {t("favorites_only")}
                 </button>
@@ -134,17 +173,28 @@ const Meals = () => {
               <section>
                 <div className="mb-5 flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-emerald-500"><Store className="h-6 w-6" strokeWidth={2.4} /></span>
-                    <div><h2 className="text-[20px] font-extrabold text-slate-900">{t("restaurants")}</h2><p className="mt-0.5 text-[15px] font-medium text-slate-500">{t("restaurants_count_label", { count: String(restaurants.length) })}</p></div>
+                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-emerald-500">
+                      <Store className="h-6 w-6" strokeWidth={2.4} />
+                    </span>
+                    <div>
+                      <h2 className="text-[20px] font-extrabold text-slate-900">{t("restaurants")}</h2>
+                      <p className="mt-0.5 text-[15px] font-medium text-slate-500">{t("restaurants_count_label", { count: String(restaurants.length) })}</p>
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-5">
-                  {visibleRestaurants.map((r) => <RestaurantCard key={r.name} restaurant={r} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} />)}
+                  {visibleRestaurants.map((r) => (
+                    <RestaurantCard key={r.name} restaurant={r} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} />
+                  ))}
                 </div>
               </section>
             </>
           ) : (
-            <div className="mt-10 rounded-2xl bg-white px-8 py-14 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"><Utensils className="mx-auto mb-4 h-10 w-10 text-emerald-500" /><h2 className="text-[20px] font-extrabold text-slate-900">{t("no_matches_found")}</h2><p className="mx-auto mt-2 max-w-[360px] text-[14px] font-medium text-slate-500">{t("no_matches_hint")}</p></div>
+            <div className="mt-10 rounded-2xl bg-white px-8 py-14 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+              <Utensils className="mx-auto mb-4 h-10 w-10 text-emerald-500" />
+              <h2 className="text-[20px] font-extrabold text-slate-900">{t("no_matches_found")}</h2>
+              <p className="mx-auto mt-2 max-w-[360px] text-[14px] font-medium text-slate-500">{t("no_matches_hint")}</p>
+            </div>
           )}
         </main>
       </div>
