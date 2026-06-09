@@ -1038,7 +1038,8 @@ const Dashboard = () => {
     <motion.div
       initial={prefersReducedMotion ? undefined : { opacity: 0 }}
       animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-      className="overflow-x-hidden text-slate-900 relative"
+      className="text-slate-900 relative"
+      style={{ overflowX: "clip" }}
     >
       <div
         className="absolute inset-0 pointer-events-none"
