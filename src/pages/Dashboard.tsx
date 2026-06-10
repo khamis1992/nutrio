@@ -2060,7 +2060,7 @@ const Dashboard = () => {
               { img: "/icons/quick-favorites.png", label: "Favorites", bg: "bg-rose-50",     ring: "ring-rose-100",    shadow: "shadow-[0_4px_10px_rgba(244,63,94,0.15)]",   to: "/favorites" },
               { img: "/icons/quick-progress.png",  label: "Progress",  bg: "bg-blue-50",    ring: "ring-blue-100",    shadow: "shadow-[0_4px_10px_rgba(59,130,246,0.15)]",  to: "/progress" },
               { img: "/icons/quick-community.png", label: "Community", bg: "bg-teal-50",    ring: "ring-teal-100",    shadow: "shadow-[0_4px_10px_rgba(20,184,166,0.15)]",  to: "/community" },
-            ].map(({ img, label, bg, ring, shadow, to }) => (
+            ].map(({ img, label, to }) => (
               <motion.button
                 key={label}
                 type="button"
@@ -2069,7 +2069,12 @@ const Dashboard = () => {
                 className="flex flex-1 flex-col items-center gap-1.5"
                 aria-label={label}
               >
-                <img src={img} alt={label} className="h-[44px] w-[44px] object-contain drop-shadow-sm" />
+                {/* Icon + oval shadow */}
+                <div className="relative flex items-center justify-center">
+                  <img src={img} alt={label} className="relative z-10 h-[54px] w-[54px] object-contain drop-shadow-sm" />
+                  {/* Oval shadow beneath icon */}
+                  <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 h-[8px] w-[36px] rounded-full bg-black/10 blur-[3px]" />
+                </div>
                 <p className="text-[10px] font-bold leading-tight text-slate-600">{label}</p>
               </motion.button>
             ))}
