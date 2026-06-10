@@ -2081,9 +2081,7 @@ const Dashboard = () => {
                 className="flex flex-1 flex-col items-center gap-1.5"
                 aria-label={label}
               >
-                <span className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[14px] ${bg} ring-1 ${ring} ${shadow}`}>
-                  <img src={img} alt={label} className="h-[28px] w-[28px] object-contain" />
-                </span>
+                <img src={img} alt={label} className="h-[44px] w-[44px] object-contain drop-shadow-sm" />
                 <p className="text-[10px] font-bold leading-tight text-slate-600">{label}</p>
               </motion.button>
             ))}
