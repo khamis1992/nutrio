@@ -1010,25 +1010,33 @@ const Schedule = () => {
 
             return (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                className="fixed right-4 z-40"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 24 }}
+                className="fixed left-4 right-4 z-40"
                 style={{ bottom: "max(100px, calc(env(safe-area-inset-bottom) + 80px))" }}
               >
                 <motion.button
                   onClick={() => setShowMealPlanGenerator(true)}
-                  whileTap={{ scale: 0.93 }}
-                  whileHover={{ scale: 1.05 }}
-                  className="relative flex h-[44px] items-center gap-[10px] rounded-full bg-gradient-to-r from-[#11C884] to-[#03A96E] px-[18px] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(0,174,120,0.30)] transition-all active:shadow-lg cursor-pointer"
+                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: 1.01 }}
+                  className="relative w-full overflow-hidden rounded-[20px] cursor-pointer border-0 p-0"
+                  style={{ boxShadow: "0 12px 32px rgba(6,78,59,0.45), 0 0 0 1px rgba(52,211,153,0.25)" }}
                 >
-                  <Sparkles className="h-[17px] w-[17px]" />
-                  <span>Fill My Week</span>
+                  {/* Banner image */}
+                  <img
+                    src="/fill-my-week-banner.png"
+                    alt="Fill My Week"
+                    className="w-full h-[72px] object-cover object-center"
+                    draggable={false}
+                  />
+                  {/* Notification badge */}
                   {(isWeekEmpty || hasUnusedSlots) && (
                     <motion.span
                       animate={{ scale: [1, 1.3, 1] }}
                       transition={{ repeat: Infinity, duration: 2 }}
-                      className="absolute -right-[3px] -top-[5px] flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#FF3E65] text-[11px] font-black shadow-lg"
+                      className="absolute right-3 -top-[6px] flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#FF3E65] text-[11px] font-black text-white shadow-lg"
+                      style={{ boxShadow: "0 4px 12px rgba(244,63,94,0.5), 0 0 0 2px white" }}
                     >
                       1
                     </motion.span>
