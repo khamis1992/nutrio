@@ -1542,58 +1542,56 @@ const Dashboard = () => {
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2.5">
+            {/* Water Card */}
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? undefined : { delay: 0.08, type: "spring", stiffness: 280, damping: 26 }}
-              className="flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-gradient-to-br from-blue-50 to-cyan-50 p-3 ring-1 ring-blue-100/60"
+              className="cursor-pointer rounded-[18px] bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
               onClick={() => navigate("/water-tracker")}
             >
-              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#2563EB] shadow-[0_4px_8px_rgba(59,130,246,0.15)]">
-                <Droplets className="h-[16px] w-[16px] text-white" strokeWidth={2} />
+              <div className="flex items-center gap-1.5 mb-2">
+                <Droplets className="h-[16px] w-[16px] text-[#3B82F6]" strokeWidth={2} />
+                <p className="text-[11px] font-semibold text-slate-400">Water</p>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-blue-600">Water</p>
-                <p className="text-[13px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
-                  {Math.round(waterToday / 240 * 10) / 10} cups
-                </p>
-                <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-blue-200">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((waterToday / waterGoal) * 100, 100)}%` }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
-                  />
-                </div>
+              <p className="text-[22px] font-extrabold leading-none tracking-[-0.03em] text-slate-800">
+                {Math.round(waterToday / 240 * 10) / 10}
+                <span className="ml-1 text-[13px] font-semibold text-slate-400">cups</span>
+              </p>
+              <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-[#E2E8F0]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((waterToday / waterGoal) * 100, 100)}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full rounded-full bg-[#3B82F6]"
+                />
               </div>
-              <ChevronRight className="h-[14px] w-[14px] shrink-0 text-blue-400" strokeWidth={2} />
             </motion.div>
 
+            {/* Steps Card */}
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? undefined : { delay: 0.1, type: "spring", stiffness: 280, damping: 26 }}
-              className="flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-gradient-to-br from-orange-50 to-amber-50 p-3 ring-1 ring-orange-100/60"
+              className="cursor-pointer rounded-[18px] bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
               onClick={() => navigate("/step-counter")}
             >
-              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_4px_8px_rgba(249,115,22,0.15)]">
-                <Footprints className="h-[16px] w-[16px] text-white" strokeWidth={2} />
+              <div className="flex items-center gap-1.5 mb-2">
+                <Footprints className="h-[16px] w-[16px] text-[#F97316]" strokeWidth={2} />
+                <p className="text-[11px] font-semibold text-slate-400">Steps</p>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-orange-600">Steps</p>
-                <p className="text-[13px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
-                  {stepsToday.toLocaleString()}
-                </p>
-                <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-orange-200">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((stepsToday / stepsGoal) * 100, 100)}%` }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500"
-                  />
-                </div>
+              <p className="text-[22px] font-extrabold leading-none tracking-[-0.03em] text-slate-800">
+                {stepsToday.toLocaleString()}
+                <span className="ml-1 text-[13px] font-semibold text-slate-400">steps</span>
+              </p>
+              <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-[#FEE2E2]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((stepsToday / stepsGoal) * 100, 100)}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full rounded-full bg-[#F97316]"
+                />
               </div>
-              <ChevronRight className="h-[14px] w-[14px] shrink-0 text-orange-400" strokeWidth={2} />
             </motion.div>
           </div>
 
