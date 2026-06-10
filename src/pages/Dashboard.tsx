@@ -1744,7 +1744,7 @@ const Dashboard = () => {
                 style={{ boxShadow: "0 10px 28px rgba(6,78,59,0.3)" }}
               >
                 <img
-                  src="/log-meal-btn-b.png"
+                  src="/log-meal-v2-b.png"
                   alt="Log Meal"
                   className="w-full object-cover block"
                   style={{ height: "72px" }}
