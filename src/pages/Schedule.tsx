@@ -1027,7 +1027,7 @@ const Schedule = () => {
                   <img
                     src="/fill-my-week-banner.png"
                     alt="Fill My Week"
-                    className="w-full h-[72px] object-cover object-center"
+                    className="w-full object-contain"
                     draggable={false}
                   />
                   {/* Notification badge */}
