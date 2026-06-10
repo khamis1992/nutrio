@@ -1746,7 +1746,8 @@ const Dashboard = () => {
                 <img
                   src="/log-meal-btn-b.png"
                   alt="Log Meal"
-                  className="w-full object-contain block"
+                  className="w-full object-cover block"
+                  style={{ height: "72px" }}
                   draggable={false}
                 />
               </motion.button>
