@@ -1541,32 +1541,29 @@ const Dashboard = () => {
             <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
           </div>
 
-          {!weeklyLoading && weeklySummary && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, type: "spring", stiffness: 280, damping: 26 }}
-              className="mt-3"
+          {/* ── Log Activity Banner ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05, type: "spring", stiffness: 280, damping: 26 }}
+            className="mt-3"
+          >
+            <motion.button
+              type="button"
+              onClick={() => setSheetOpen(true)}
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              className="relative w-full overflow-hidden rounded-[20px] cursor-pointer border-0 p-0"
+              style={{ boxShadow: "0 12px 32px rgba(239,68,68,0.25), 0 0 0 1px rgba(249,115,22,0.2)" }}
             >
-              <div className="flex items-center gap-3 rounded-[16px] bg-gradient-to-r from-emerald-50 to-teal-50 p-3 ring-1 ring-emerald-100/60">
-                <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_8px_rgba(16,185,129,0.15)]">
-                  <Calendar className="h-[14px] w-[14px]" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-bold text-slate-800">This Week</p>
-                  <p className="text-[10px] font-medium text-slate-500">
-                    {weeklySummary.calories.thisWeekAvg.toLocaleString()} / {(profile?.daily_calorie_target || 2066) * 7} cal
-                    {weeklySummary.calories.trend === "up" && " · ↑ on track"}
-                    {weeklySummary.calories.trend === "down" && " · ↓ below target"}
-                    {weeklySummary.calories.trend === "stable" && " · holding steady"}
-                  </p>
-                </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-extrabold text-[#10B981] shadow-[0_2px_6px_rgba(16,185,129,0.1)]">
-                  {weeklySummary.consistency.percentage}%
-                </span>
-              </div>
-            </motion.div>
-          )}
+              <img
+                src="/log-activity-banner.png"
+                alt="Log Activity"
+                className="w-full h-[72px] object-cover object-center"
+                draggable={false}
+              />
+            </motion.button>
+          </motion.div>
 
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <motion.div
