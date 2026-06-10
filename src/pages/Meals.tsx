@@ -171,9 +171,6 @@ const Meals = () => {
 
               {/* Title block */}
               <div className="mb-5">
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-white/90 backdrop-blur-sm">
-                  <span>🥗</span> Fresh &amp; Healthy
-                </div>
                 <h1 className="text-[30px] font-black leading-[1.1] tracking-[-0.03em] text-white">
                   Discover{" "}
                   <em className="not-italic text-emerald-300">{t("meals")}</em>
