@@ -391,7 +391,7 @@ const Profile = () => {
               <h3 className="text-[14px] font-black text-slate-800">Achievements</h3>
               <span className="text-[11px] font-bold text-emerald-600">{unlockedCount}/{totalCount} Unlocked</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {[...badges].sort((a, b) => (b.unlocked ? 1 : 0) - (a.unlocked ? 1 : 0)).slice(0, showAllBadges ? totalCount : 4).map((badge) => (
                 <BadgeCard key={badge.id} badge={badge} variant="compact" />
               ))}
