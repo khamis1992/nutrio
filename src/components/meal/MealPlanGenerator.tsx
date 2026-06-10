@@ -719,7 +719,7 @@ export const MealPlanGenerator = ({
         {phase === "preview" && (
           <div
             className="sticky bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 pt-3"
-            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+            style={{ paddingBottom: 'max(5.5rem, calc(env(safe-area-inset-bottom) + 5rem))' }}
           >
             <motion.button
               onClick={handleApplyToSchedule}
