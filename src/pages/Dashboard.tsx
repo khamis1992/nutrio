@@ -1541,30 +1541,6 @@ const Dashboard = () => {
             <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
           </div>
 
-          {/* ── Log Activity Banner ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05, type: "spring", stiffness: 280, damping: 26 }}
-            className="mt-3"
-          >
-            <motion.button
-              type="button"
-              onClick={() => setSheetOpen(true)}
-              whileTap={{ scale: 0.97 }}
-              whileHover={{ scale: 1.01 }}
-              className="relative w-full overflow-hidden rounded-[20px] cursor-pointer border-0 p-0"
-              style={{ boxShadow: "0 12px 32px rgba(239,68,68,0.25), 0 0 0 1px rgba(249,115,22,0.2)" }}
-            >
-              <img
-                src="/log-activity-banner.png"
-                alt="Log Activity"
-                className="w-full h-[72px] object-cover object-center"
-                draggable={false}
-              />
-            </motion.button>
-          </motion.div>
-
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
