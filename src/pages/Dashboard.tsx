@@ -1723,16 +1723,22 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Log Meal button — inside Hero Card */}
+            {/* Log Meal button — inside Hero Card (Banner B) */}
             <motion.button
               data-testid="log-meal-button"
               type="button"
               onClick={() => setLogMealOpen(true)}
-              whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-              className="mt-4 flex h-[50px] w-full items-center justify-center gap-2.5 rounded-[16px] bg-gradient-to-r from-[#12B969] to-[#079B5A] text-[15px] font-extrabold tracking-[-0.02em] text-white shadow-[0_10px_22px_rgba(6,150,88,0.24)]"
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
+              className="mt-4 relative w-full overflow-hidden rounded-[18px] border-0 p-0 cursor-pointer"
+              style={{ boxShadow: "0 12px 32px rgba(6,78,59,0.35), 0 0 0 1px rgba(52,211,153,0.2)" }}
             >
-              <ConciergeBell className="h-[22px] w-[22px]" strokeWidth={2.1} />
-              Log Meal
+              <img
+                src="/log-meal-btn-b.png"
+                alt="Log Meal"
+                className="w-full h-[68px] object-cover object-center"
+                draggable={false}
+              />
             </motion.button>
           </motion.div>
 
