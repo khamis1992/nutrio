@@ -36,6 +36,7 @@ import {
   Wallet,
   Sparkles,
   ChevronLeft,
+  ArrowRight,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1020,16 +1021,25 @@ const Schedule = () => {
                   onClick={() => setShowMealPlanGenerator(true)}
                   whileTap={{ scale: 0.97 }}
                   whileHover={{ scale: 1.01 }}
-                  className="relative w-full overflow-hidden rounded-[20px] cursor-pointer border-0 p-0"
-                  style={{ boxShadow: "0 12px 32px rgba(6,78,59,0.45), 0 0 0 1px rgba(52,211,153,0.25)" }}
+                  className="relative w-full flex items-center gap-3 rounded-[20px] cursor-pointer border-0 px-4 py-3"
+                  style={{
+                    background: "linear-gradient(135deg, #065F46 0%, #047857 60%, #059669 100%)",
+                    boxShadow: "0 8px 24px rgba(6,78,59,0.35)",
+                  }}
                 >
-                  {/* Banner image */}
-                  <img
-                    src="/fill-my-week-banner.png"
-                    alt="Fill My Week"
-                    className="w-full object-contain"
-                    draggable={false}
-                  />
+                  {/* Left icon */}
+                  <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px]" style={{ background: "rgba(255,255,255,0.15)" }}>
+                    <Sparkles className="h-[22px] w-[22px] text-white" strokeWidth={1.75} />
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 text-left">
+                    <p className="text-[16px] font-extrabold leading-tight text-white">Fill My Week</p>
+                    <p className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>Auto-plan all 7 days</p>
+                  </div>
+                  {/* Right arrow */}
+                  <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-white">
+                    <ArrowRight className="h-[18px] w-[18px] text-emerald-700" strokeWidth={2.5} />
+                  </div>
                   {/* Notification badge */}
                   {(isWeekEmpty || hasUnusedSlots) && (
                     <motion.span
