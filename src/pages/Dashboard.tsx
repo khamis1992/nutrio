@@ -1747,7 +1747,7 @@ const Dashboard = () => {
                   src="/log-meal-v2-c.png"
                   alt="Log Meal"
                   className="w-full object-cover block"
-                  style={{ height: "88px" }}
+                  style={{ height: "60px" }}
                   draggable={false}
                 />
               </motion.button>
