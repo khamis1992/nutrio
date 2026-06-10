@@ -2071,11 +2071,11 @@ const Dashboard = () => {
             <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 whitespace-nowrap">Quick</span>
             <div className="h-[28px] w-px bg-slate-100 shrink-0" />
             {[
-              { icon: TrackerIcon,   label: "Tracker",   bg: "bg-emerald-500", shadow: "shadow-[0_4px_10px_rgba(16,185,129,0.3)]",  to: "/tracker" },
-              { icon: FavoriteIcon,  label: "Favorites", bg: "bg-rose-500",    shadow: "shadow-[0_4px_10px_rgba(244,63,94,0.3)]",   to: "/favorites" },
-              { icon: ProgressIcon,  label: "Progress",  bg: "bg-blue-500",   shadow: "shadow-[0_4px_10px_rgba(59,130,246,0.3)]",  to: "/progress" },
-              { icon: CommunityIcon, label: "Community", bg: "bg-violet-500", shadow: "shadow-[0_4px_10px_rgba(139,92,246,0.3)]", to: "/community" },
-            ].map(({ icon: Icon, label, bg, shadow, to }) => (
+              { img: "/icons/quick-tracker.png",   label: "Tracker",   bg: "bg-emerald-50",  ring: "ring-emerald-100", shadow: "shadow-[0_4px_10px_rgba(16,185,129,0.15)]",  to: "/tracker" },
+              { img: "/icons/quick-favorites.png", label: "Favorites", bg: "bg-rose-50",     ring: "ring-rose-100",    shadow: "shadow-[0_4px_10px_rgba(244,63,94,0.15)]",   to: "/favorites" },
+              { img: "/icons/quick-progress.png",  label: "Progress",  bg: "bg-blue-50",    ring: "ring-blue-100",    shadow: "shadow-[0_4px_10px_rgba(59,130,246,0.15)]",  to: "/progress" },
+              { img: "/icons/quick-community.png", label: "Community", bg: "bg-teal-50",    ring: "ring-teal-100",    shadow: "shadow-[0_4px_10px_rgba(20,184,166,0.15)]",  to: "/community" },
+            ].map(({ img, label, bg, ring, shadow, to }) => (
               <motion.button
                 key={label}
                 type="button"
@@ -2084,8 +2084,8 @@ const Dashboard = () => {
                 className="flex flex-1 flex-col items-center gap-1.5"
                 aria-label={label}
               >
-                <span className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[13px] ${bg} ${shadow} text-white`}>
-                  <Icon className="h-[20px] w-[20px]" strokeWidth={2} />
+                <span className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[14px] ${bg} ring-1 ${ring} ${shadow}`}>
+                  <img src={img} alt={label} className="h-[28px] w-[28px] object-contain" />
                 </span>
                 <p className="text-[10px] font-bold leading-tight text-slate-600">{label}</p>
               </motion.button>
