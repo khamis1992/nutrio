@@ -1723,7 +1723,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Log Meal button — inside Hero Card (Banner B) */}
+            {/* Log Meal button — native button */}
             <div className="mt-4">
               <motion.button
                 data-testid="log-meal-button"
@@ -1731,15 +1731,21 @@ const Dashboard = () => {
                 onClick={() => setLogMealOpen(true)}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
-                className="relative w-full overflow-hidden rounded-[18px] border-0 p-0 cursor-pointer block"
+                className="w-full flex items-center gap-3 rounded-[16px] border border-slate-200 bg-white px-3 py-2.5 cursor-pointer"
               >
-                <img
-                  src="/log-meal-v2-c.png"
-                  alt="Log Meal"
-                  className="w-full object-cover block"
-                  style={{ height: "60px" }}
-                  draggable={false}
-                />
+                {/* Left icon */}
+                <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-emerald-500">
+                  <Utensils className="h-[18px] w-[18px] text-white" strokeWidth={2} />
+                </div>
+                {/* Text */}
+                <div className="flex-1 text-left">
+                  <p className="text-[15px] font-bold leading-tight text-slate-800">Log Meal</p>
+                  <p className="text-[11px] font-medium text-slate-400">Tap to add food</p>
+                </div>
+                {/* Right plus button */}
+                <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-emerald-500">
+                  <Plus className="h-[16px] w-[16px] text-white" strokeWidth={2.5} />
+                </div>
               </motion.button>
             </div>
           </motion.div>
