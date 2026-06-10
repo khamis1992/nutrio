@@ -1724,16 +1724,7 @@ const Dashboard = () => {
             </div>
 
             {/* Log Meal button — inside Hero Card (Banner B) */}
-            <div className="mt-4 relative">
-              {/* Animated glow ring */}
-              {!prefersReducedMotion && (
-                <motion.div
-                  animate={{ opacity: [0.4, 0.85, 0.4], scale: [1, 1.03, 1] }}
-                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute inset-0 rounded-[20px] pointer-events-none"
-                  style={{ boxShadow: "0 0 0 2px rgba(52,211,153,0.55), 0 0 18px 4px rgba(52,211,153,0.25)" }}
-                />
-              )}
+            <div className="mt-4">
               <motion.button
                 data-testid="log-meal-button"
                 type="button"
@@ -1741,7 +1732,6 @@ const Dashboard = () => {
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
                 className="relative w-full overflow-hidden rounded-[18px] border-0 p-0 cursor-pointer block"
-                style={{ boxShadow: "0 10px 28px rgba(6,78,59,0.3)" }}
               >
                 <img
                   src="/log-meal-v2-c.png"
