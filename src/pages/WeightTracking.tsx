@@ -119,7 +119,7 @@ export default function WeightTracking() {
   const displayed = showAll ? entries : entries.slice(0, 7);
 
   return (
-    <div className="min-h-screen bg-muted/50 pb-4">
+    <div className="min-h-screen bg-muted/50 pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-muted">
         <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">

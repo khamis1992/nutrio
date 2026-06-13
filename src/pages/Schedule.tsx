@@ -36,6 +36,7 @@ import {
   Wallet,
   Sparkles,
   ChevronLeft,
+  ArrowRight,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -519,7 +520,7 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="min-h-screen pb-4 bg-[#F8FAFC] dark:from-gray-900 dark:to-black">
+      <div className="min-h-screen pb-20 bg-[#F8FAFC] dark:from-gray-900 dark:to-black">
         <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border-b border-gray-100 dark:border-gray-800 safe-top">
           <div className="flex items-center justify-between px-5 h-16 max-w-lg mx-auto">
             <button
@@ -560,7 +561,7 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#FCFCFB]">
+    <div className="min-h-screen bg-[#FCFCFB] pb-20">
       {/* ── Native iOS/Android Header ───────────────────────────── */}
       <ScheduleHeader
         currentWeekStart={currentWeekStart}
@@ -1010,25 +1011,42 @@ const Schedule = () => {
 
             return (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                className="fixed right-4 z-40"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 24 }}
+                className="fixed left-4 right-4 z-40"
                 style={{ bottom: "max(100px, calc(env(safe-area-inset-bottom) + 80px))" }}
               >
                 <motion.button
                   onClick={() => setShowMealPlanGenerator(true)}
-                  whileTap={{ scale: 0.93 }}
-                  whileHover={{ scale: 1.05 }}
-                  className="relative flex h-[44px] items-center gap-[10px] rounded-full bg-gradient-to-r from-[#11C884] to-[#03A96E] px-[18px] text-[13px] font-black text-white shadow-[0_16px_30px_rgba(0,174,120,0.30)] transition-all active:shadow-lg cursor-pointer"
+                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ scale: 1.01 }}
+                  className="relative w-full flex items-center gap-3 rounded-[20px] cursor-pointer border-0 px-4 py-3"
+                  style={{
+                    background: "linear-gradient(135deg, #065F46 0%, #047857 60%, #059669 100%)",
+                    boxShadow: "0 8px 24px rgba(6,78,59,0.35)",
+                  }}
                 >
-                  <Sparkles className="h-[17px] w-[17px]" />
-                  <span>Fill My Week</span>
+                  {/* Left icon */}
+                  <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px]" style={{ background: "rgba(255,255,255,0.15)" }}>
+                    <Sparkles className="h-[22px] w-[22px] text-white" strokeWidth={1.75} />
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 text-left">
+                    <p className="text-[16px] font-extrabold leading-tight text-white">Fill My Week</p>
+                    <p className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>Auto-plan all 7 days</p>
+                  </div>
+                  {/* Right arrow */}
+                  <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-white">
+                    <ArrowRight className="h-[18px] w-[18px] text-emerald-700" strokeWidth={2.5} />
+                  </div>
+                  {/* Notification badge */}
                   {(isWeekEmpty || hasUnusedSlots) && (
                     <motion.span
                       animate={{ scale: [1, 1.3, 1] }}
                       transition={{ repeat: Infinity, duration: 2 }}
-                      className="absolute -right-[3px] -top-[5px] flex h-[20px] w-[20px] items-center justify-center rounded-full bg-[#FF3E65] text-[11px] font-black shadow-lg"
+                      className="absolute right-3 -top-[6px] flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#FF3E65] text-[11px] font-black text-white shadow-lg"
+                      style={{ boxShadow: "0 4px 12px rgba(244,63,94,0.5), 0 0 0 2px white" }}
                     >
                       1
                     </motion.span>

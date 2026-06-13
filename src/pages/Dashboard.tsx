@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Activity,
   AlertCircle,
+  Apple,
   ArrowRightLeft,
   Bell,
   Bike,
@@ -721,7 +722,7 @@ const Dashboard = () => {
     return (
       <div className="overflow-x-hidden text-slate-900 relative">
         <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(135deg, #FEFFFE 0%, #F8FDF9 50%, #F5FAF7 100%)" }} />
-        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-4 pt-6">
+        <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-20 pt-6">
           {/* Header skeleton */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1037,7 +1038,8 @@ const Dashboard = () => {
     <motion.div
       initial={prefersReducedMotion ? undefined : { opacity: 0 }}
       animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-      className="overflow-x-hidden text-slate-900 relative"
+      className="text-slate-900 relative"
+      style={{ overflowX: "clip" }}
     >
       <div
         className="absolute inset-0 pointer-events-none"
@@ -1069,8 +1071,9 @@ const Dashboard = () => {
           mixBlendMode: "overlay",
         }}
       />
-      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pt-safe-offset-4 pb-4 pt-6">
-        <header className="flex items-center justify-between">
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-100/60 shadow-[0_1px_8px_rgba(15,23,42,0.06)]">
+        <div className="mx-auto max-w-[430px] px-4 sm:px-6 py-3">
+          <header className="flex items-center justify-between">
           <Link to="/profile" className="flex items-center gap-3">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-white bg-white shadow-[0_8px_16px_rgba(15,23,42,0.1)] overflow-hidden">
               {profile?.avatar_url ? (
@@ -1196,7 +1199,10 @@ const Dashboard = () => {
               </AnimatePresence>
             </div>
           </div>
-        </header>
+          </header>
+        </div>
+      </div>
+      <main className="relative mx-auto max-w-[430px] px-4 sm:px-6 pb-20 pt-4">
 
         {/* Today's Meals Section */}
         <motion.section
@@ -1423,14 +1429,16 @@ const Dashboard = () => {
           )}
         </motion.section>
 
-        <motion.section 
+        {/* ── Balance + Subscription — Simplified Card ── */}
+        <motion.section
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
           animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut" }}
-          className="mt-6 rounded-[24px] bg-white px-[14px] py-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
+          className="mt-5 rounded-[24px] bg-white px-4 py-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
         >
-          <div className="flex items-center">
-            <div className="relative flex h-[96px] w-[96px] shrink-0 items-center justify-center">
+          <div className="flex items-center gap-4">
+            {/* Balance Ring */}
+            <div className="relative flex h-[80px] w-[80px] shrink-0 items-center justify-center">
               <svg className="h-full w-full -rotate-90" viewBox="0 0 108 108" aria-hidden="true">
                 <circle cx="54" cy="54" r={balanceRadius} fill="none" stroke="#CBEFD9" strokeWidth="9" />
                 <motion.circle
@@ -1449,55 +1457,39 @@ const Dashboard = () => {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[20px] font-extrabold leading-none tracking-[-0.04em] text-[#10A95F]">{isUnlimited ? "∞" : animatedBalance}</span>
-                <span className="mt-1.5 text-[9px] font-medium leading-[1.28] text-slate-500">Avail.<br />Balance</span>
+                <span className="text-[18px] font-extrabold leading-none tracking-[-0.04em] text-[#10A95F]">{isUnlimited ? "∞" : animatedBalance}</span>
+                <span className="text-[8px] font-medium text-slate-400 mt-0.5">meals left</span>
               </div>
             </div>
 
-            <div className="mx-3 h-[80px] w-px shrink-0 bg-slate-200" />
-
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
-                  <Calendar className="h-[13px] w-[13px]" />
-                </div>
-                <span className="flex-1 text-[11px] font-medium text-slate-500">Mo. Balance</span>
-                <span className="text-[12px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay} / {totalMealsDisplay}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
-                  <ArrowRightLeft className="h-[13px] w-[13px]" />
-                </div>
-                <span className="flex-1 text-[11px] font-medium text-slate-500">Transfer Bal.</span>
-                <span className="text-[12px] font-extrabold tracking-[-0.02em] text-[#10A95F]">+0</span>
-              </div>
-              <div className="h-px bg-slate-200" />
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#EFFAF4] text-[#10A95F]">
-                  <Wallet className="h-[13px] w-[13px]" />
-                </div>
-                <span className="flex-1 text-[11px] font-medium text-slate-500">Total Avail.</span>
-                <span className="text-[12px] font-extrabold tracking-[-0.02em] text-slate-950">{balanceDisplay}</span>
+            {/* Balance Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-slate-500">Monthly Balance</p>
+              <p className="mt-0.5 text-[22px] font-extrabold leading-none tracking-[-0.04em] text-slate-950">
+                {balanceDisplay}<span className="text-[14px] font-medium text-slate-400">/{totalMealsDisplay}</span>
+              </p>
+              {/* Progress bar */}
+              <div className="mt-2 h-[5px] w-full overflow-hidden rounded-full bg-slate-100">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${balancePct}%` }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="h-full rounded-full bg-gradient-to-r from-[#10B981] to-[#059669]"
+                />
               </div>
             </div>
 
-            <div className="mx-3 h-[80px] w-px shrink-0 bg-slate-200" />
-
+            {/* Subscription button */}
             <button
               type="button"
               onClick={() => navigate("/subscription")}
-              className="flex shrink-0 flex-col items-center justify-center gap-1.5 text-center rounded-2xl p-1.5 transition active:scale-95 hover:bg-slate-50"
+              className="flex shrink-0 flex-col items-center gap-1 rounded-[16px] bg-gradient-to-br from-orange-50 to-amber-50 p-3 ring-1 ring-orange-100/60 transition active:scale-95"
               aria-label="View subscription"
             >
-              <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_7px_14px_rgba(249,115,22,0.2)]">
-                <Crown className="h-[18px] w-[18px]" />
+              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_6px_12px_rgba(249,115,22,0.2)]">
+                <Crown className="h-[16px] w-[16px]" />
               </div>
-              <span className="text-[11px] font-semibold text-slate-700">Subscription</span>
-              <span className="rounded-full bg-[#D8F5E0] px-2 py-0.5 text-[10px] font-extrabold text-[#0E9F59]">{planName}</span>
-              <span className="text-[10px] font-medium text-slate-500">{joinedLabel}</span>
-              <div className="mt-1 h-[2px] w-[42px] rounded-full overflow-hidden bg-slate-200">
-                <div className="h-full w-full rounded-full bg-gradient-to-r from-transparent via-slate-400 to-transparent" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2.5s ease-in-out infinite' }} />
-              </div>
+              <span className="text-[10px] font-extrabold text-[#F97316]">{planName}</span>
             </button>
           </div>
         </motion.section>
@@ -1549,86 +1541,57 @@ const Dashboard = () => {
             <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
           </div>
 
-          {!weeklyLoading && weeklySummary && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, type: "spring", stiffness: 280, damping: 26 }}
-              className="mt-3"
-            >
-              <div className="flex items-center gap-3 rounded-[16px] bg-gradient-to-r from-emerald-50 to-teal-50 p-3 ring-1 ring-emerald-100/60">
-                <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_8px_rgba(16,185,129,0.15)]">
-                  <Calendar className="h-[14px] w-[14px]" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-bold text-slate-800">This Week</p>
-                  <p className="text-[10px] font-medium text-slate-500">
-                    {weeklySummary.calories.thisWeekAvg.toLocaleString()} / {(profile?.daily_calorie_target || 2066) * 7} cal
-                    {weeklySummary.calories.trend === "up" && " · ↑ on track"}
-                    {weeklySummary.calories.trend === "down" && " · ↓ below target"}
-                    {weeklySummary.calories.trend === "stable" && " · holding steady"}
-                  </p>
-                </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-extrabold text-[#10B981] shadow-[0_2px_6px_rgba(16,185,129,0.1)]">
-                  {weeklySummary.consistency.percentage}%
-                </span>
-              </div>
-            </motion.div>
-          )}
-
           <div className="mt-3 grid grid-cols-2 gap-2.5">
+            {/* Water Card */}
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? undefined : { delay: 0.08, type: "spring", stiffness: 280, damping: 26 }}
-              className="flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-gradient-to-br from-blue-50 to-cyan-50 p-3 ring-1 ring-blue-100/60"
+              className="cursor-pointer rounded-[18px] bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
               onClick={() => navigate("/water-tracker")}
             >
-              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#2563EB] shadow-[0_4px_8px_rgba(59,130,246,0.15)]">
-                <Droplets className="h-[16px] w-[16px] text-white" strokeWidth={2} />
+              <div className="flex items-center gap-1.5 mb-2">
+                <Droplets className="h-[16px] w-[16px] text-[#3B82F6]" strokeWidth={2} />
+                <p className="text-[11px] font-semibold text-slate-400">Water</p>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-blue-600">Water</p>
-                <p className="text-[13px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
-                  {Math.round(waterToday / 240 * 10) / 10} cups
-                </p>
-                <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-blue-200">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((waterToday / waterGoal) * 100, 100)}%` }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
-                  />
-                </div>
+              <p className="text-[22px] font-extrabold leading-none tracking-[-0.03em] text-slate-800">
+                {Math.round(waterToday / 240 * 10) / 10}
+                <span className="ml-1 text-[13px] font-semibold text-slate-400">cups</span>
+              </p>
+              <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-[#E2E8F0]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((waterToday / waterGoal) * 100, 100)}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full rounded-full bg-[#3B82F6]"
+                />
               </div>
-              <ChevronRight className="h-[14px] w-[14px] shrink-0 text-blue-400" strokeWidth={2} />
             </motion.div>
 
+            {/* Steps Card */}
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? undefined : { delay: 0.1, type: "spring", stiffness: 280, damping: 26 }}
-              className="flex cursor-pointer items-center gap-2.5 rounded-[16px] bg-gradient-to-br from-orange-50 to-amber-50 p-3 ring-1 ring-orange-100/60"
+              className="cursor-pointer rounded-[18px] bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
               onClick={() => navigate("/step-counter")}
             >
-              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F97316] to-[#EA580C] shadow-[0_4px_8px_rgba(249,115,22,0.15)]">
-                <Footprints className="h-[16px] w-[16px] text-white" strokeWidth={2} />
+              <div className="flex items-center gap-1.5 mb-2">
+                <Footprints className="h-[16px] w-[16px] text-[#F97316]" strokeWidth={2} />
+                <p className="text-[11px] font-semibold text-slate-400">Steps</p>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-orange-600">Steps</p>
-                <p className="text-[13px] font-extrabold leading-none tracking-[-0.02em] text-slate-900">
-                  {stepsToday.toLocaleString()}
-                </p>
-                <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-orange-200">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((stepsToday / stepsGoal) * 100, 100)}%` }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500"
-                  />
-                </div>
+              <p className="text-[22px] font-extrabold leading-none tracking-[-0.03em] text-slate-800">
+                {stepsToday.toLocaleString()}
+                <span className="ml-1 text-[13px] font-semibold text-slate-400">steps</span>
+              </p>
+              <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-[#FEE2E2]">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min((stepsToday / stepsGoal) * 100, 100)}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full rounded-full bg-[#F97316]"
+                />
               </div>
-              <ChevronRight className="h-[14px] w-[14px] shrink-0 text-orange-400" strokeWidth={2} />
             </motion.div>
           </div>
 
@@ -1680,25 +1643,17 @@ const Dashboard = () => {
             );
           })()}
 
-          <motion.div 
+          {/* ── Hero Card: Calorie Ring + Macros + Log Meal ── */}
+          <motion.div
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut", delay: 0.1 }}
-            className="mt-3 rounded-[20px] border border-slate-100 bg-white px-3 py-4 shadow-[inset_0_0_20px_rgba(15,23,42,0.012)]"
+            className="mt-3 rounded-[24px] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)] ring-1 ring-slate-100/80"
           >
-            <div className="flex items-center justify-between">
-              {/* Consumed */}
-              <div className="flex flex-col items-center text-center gap-1.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] shadow-[0_4px_8px_rgba(16,185,129,0.08)]">
-                  <Utensils className="h-5 w-5 text-[#10B981]" strokeWidth={2} />
-                </div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.03em] text-slate-400">Consumed</span>
-                <span className="text-[26px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedCalories}</span>
-                <span className="text-[11px] font-medium text-slate-400">Cal</span>
-              </div>
-
+            {/* Row: Ring + Macros */}
+            <div className="flex items-center gap-3">
               {/* Calorie Ring */}
-              <div className="relative flex h-[120px] w-[120px] shrink-0 items-center justify-center">
+              <div className="relative flex h-[116px] w-[116px] shrink-0 items-center justify-center">
                 <svg className="relative h-full w-full -rotate-90" viewBox="0 0 140 140" aria-hidden="true">
                   <circle cx="70" cy="70" r={ringRadius} fill="none" stroke={overBudget ? "#FEE2E2" : "#DCFCE7"} strokeWidth="9" />
                   <motion.circle
@@ -1718,65 +1673,80 @@ const Dashboard = () => {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-[18px] font-extrabold leading-none tracking-[-0.04em]" style={{ color: ringColor }}>{calRemaining}</span>
-                  <span className="mt-1 text-[10px] font-bold uppercase leading-none" style={{ color: ringColor }}>Remaining</span>
-                  <span className="mt-0.5 text-[9px] font-medium text-slate-400">{Math.round(consumedPct)}%</span>
+                  <span className="text-[19px] font-extrabold leading-none tracking-[-0.04em]" style={{ color: ringColor }}>{calRemaining}</span>
+                  <span className="mt-0.5 text-[9px] font-bold uppercase leading-none" style={{ color: ringColor }}>Remaining</span>
+                  <span className="mt-0.5 text-[8px] font-medium text-slate-400">{Math.round(consumedPct)}%</span>
                 </div>
               </div>
 
-              {/* Burned */}
-              <div className="flex flex-col items-center text-center gap-1.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] shadow-[0_4px_8px_rgba(249,115,22,0.08)]">
-                  <Flame className="h-5 w-5 text-[#F97316]" strokeWidth={2} />
+              {/* Macros column */}
+              <div className="flex flex-1 flex-col gap-2">
+                {macroCards.map(({ label, value, target, Icon, iconClass, dotClass, pillClass }) => {
+                  const percent = Math.round((value / (target || 1)) * 100);
+                  return (
+                    <div key={label} className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <div className={`flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${iconClass}`}>
+                            <Icon className="h-[10px] w-[10px]" strokeWidth={2.25} />
+                          </div>
+                          <span className="text-[11px] font-semibold text-slate-500">{label}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-800">{value}<span className="text-slate-400 font-medium">/{target}g</span></span>
+                      </div>
+                      <div className="h-[5px] w-full overflow-hidden rounded-full bg-slate-100">
+                        <div className={`h-full rounded-full ${dotClass}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Consumed / Burned mini row */}
+                <div className="mt-1 flex gap-2">
+                  <div className="flex flex-1 items-center gap-1.5 rounded-[10px] bg-[#F0FDF9] px-2.5 py-1.5">
+                    <Utensils className="h-[12px] w-[12px] text-[#10B981] shrink-0" strokeWidth={2} />
+                    <div>
+                      <p className="text-[8px] font-semibold uppercase text-[#10B981] leading-none">Consumed</p>
+                      <p className="text-[13px] font-extrabold leading-tight tracking-[-0.03em] text-slate-900">{animatedCalories}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-1 items-center gap-1.5 rounded-[10px] bg-[#FFF7ED] px-2.5 py-1.5">
+                    <Flame className="h-[12px] w-[12px] text-[#F97316] shrink-0" strokeWidth={2} />
+                    <div>
+                      <p className="text-[8px] font-semibold uppercase text-[#F97316] leading-none">Burned</p>
+                      <p className="text-[13px] font-extrabold leading-tight tracking-[-0.03em] text-slate-900">{animatedBurned}</p>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.03em] text-slate-400">Burned</span>
-                <span className="text-[26px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{animatedBurned}</span>
-                <span className="text-[11px] font-medium text-slate-400">Cal</span>
               </div>
             </div>
+
+            {/* Log Meal button — native button */}
+            <div className="mt-4">
+              <motion.button
+                data-testid="log-meal-button"
+                type="button"
+                onClick={() => setLogMealOpen(true)}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
+                className="w-full flex items-center gap-3 rounded-[16px] border border-slate-200 bg-white px-3 py-2.5 cursor-pointer"
+              >
+                {/* Left icon */}
+                <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-emerald-500">
+                  <Utensils className="h-[18px] w-[18px] text-white" strokeWidth={2} />
+                </div>
+                {/* Text */}
+                <div className="flex-1 text-left">
+                  <p className="text-[15px] font-bold leading-tight text-slate-800">Log Meal</p>
+                  <p className="text-[11px] font-medium text-slate-400">Tap to add food</p>
+                </div>
+                {/* Right plus button */}
+                <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-emerald-500">
+                  <Plus className="h-[16px] w-[16px] text-white" strokeWidth={2.5} />
+                </div>
+              </motion.button>
+            </div>
           </motion.div>
-
-          <div className="mt-5">
-            <motion.div 
-              initial={prefersReducedMotion ? undefined : "hidden"}
-              animate={prefersReducedMotion ? undefined : "visible"}
-              variants={prefersReducedMotion ? undefined : staggerContainer}
-              className="grid grid-cols-3 gap-2.5"
-            >
-              {macroCards.map(({ label, value, target, Icon, iconClass, dotClass, pillClass }) => {
-                const percent = Math.round((value / (target || 1)) * 100);
-                
-                return (
-                  <motion.div 
-                    key={label}
-                    variants={prefersReducedMotion ? undefined : staggerItem}
-                    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-                    className="rounded-[18px] border border-slate-100 bg-white px-3 py-3 shadow-[0_9px_22px_rgba(15,23,42,0.055)]"
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br shadow-[0_8px_16px_rgba(15,23,42,0.08)] ${iconClass}`}>
-                        <Icon className="h-[22px] w-[22px]" strokeWidth={2.25} />
-                      </div>
-                      <div className="min-w-0 pt-1">
-                        <p className="text-[12px] font-bold leading-tight text-slate-500">{label}</p>
-                        <p className="mt-1 text-[20px] font-extrabold leading-none tracking-[-0.05em] text-slate-950">{value}g</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex h-[7px] items-center rounded-full bg-slate-200/80">
-                      <span className={`h-[9px] w-[9px] shrink-0 rounded-full ${dotClass}`} />
-                      <span className={`-ml-[2px] h-[4px] rounded-full ${dotClass}`} style={{ width: `${Math.min(percent, 100)}%` }} />
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between gap-1.5">
-                      <span className="text-[12px] font-bold tracking-[-0.03em] text-slate-500">/{target}g</span>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold leading-none ${pillClass}`}>{percent}%</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
-          </div>
 
           {(() => {
             const weights = (weightHistory || [])
@@ -2081,64 +2051,34 @@ const Dashboard = () => {
 
           {user && <BodyCorrelationWidget />}
 
-          <StepTrackerCard />
-
-          <div className="mt-5">
-            <h3 className="mb-3 pl-1 text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <QuickActionCard
-                icon={TrackerIcon}
-                label="Tracker"
-                subtitle="Track your progress"
-                bg="bg-[#F0FDF5]"
-                border="border-[#C6F6D5]"
-                iconGradient="from-emerald-500 to-teal-600"
-                onClick={() => navigate("/tracker")}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-              <QuickActionCard
-                icon={FavoriteIcon}
-                label="Favorite"
-                subtitle="Saved meals & restaurants"
-                bg="bg-[#FFF1F2]"
-                border="border-[#FECDD3]"
-                iconGradient="from-rose-500 to-pink-600"
-                onClick={() => navigate("/favorites")}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-              <QuickActionCard
-                icon={ProgressIcon}
-                label="Progress"
-                subtitle="View your analytics"
-                bg="bg-[#F0F7FF]"
-                border="border-[#BFDBFE]"
-                iconGradient="from-blue-500 to-indigo-600"
-                onClick={() => navigate("/progress")}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-              <QuickActionCard
-                icon={CommunityIcon}
-                label="Community"
-                subtitle="Connect & challenge"
-                bg="bg-[#FAF5FF]"
-                border="border-[#E9D5FF]"
-                iconGradient="from-violet-500 to-purple-600"
-                onClick={() => navigate("/community")}
-                prefersReducedMotion={prefersReducedMotion}
-              />
-            </div>
+          {/* ── Quick Access Icon Row ── */}
+          <div className="mt-4 flex items-center gap-2 rounded-[18px] bg-white px-3 py-3 shadow-[0_4px_14px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 whitespace-nowrap">Quick</span>
+            <div className="h-[28px] w-px bg-slate-100 shrink-0" />
+            {[
+              { img: "/icons/quick-tracker.png",   label: "Tracker",   bg: "bg-emerald-50",  ring: "ring-emerald-100", shadow: "shadow-[0_4px_10px_rgba(16,185,129,0.15)]",  to: "/tracker" },
+              { img: "/icons/quick-favorites.png", label: "Favorites", bg: "bg-rose-50",     ring: "ring-rose-100",    shadow: "shadow-[0_4px_10px_rgba(244,63,94,0.15)]",   to: "/favorites" },
+              { img: "/icons/quick-progress.png",  label: "Progress",  bg: "bg-blue-50",    ring: "ring-blue-100",    shadow: "shadow-[0_4px_10px_rgba(59,130,246,0.15)]",  to: "/progress" },
+              { img: "/icons/quick-community.png", label: "Community", bg: "bg-teal-50",    ring: "ring-teal-100",    shadow: "shadow-[0_4px_10px_rgba(20,184,166,0.15)]",  to: "/community" },
+            ].map(({ img, label, to }) => (
+              <motion.button
+                key={label}
+                type="button"
+                onClick={() => navigate(to)}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.92 }}
+                className="flex flex-1 flex-col items-center gap-1.5"
+                aria-label={label}
+              >
+                {/* Icon + oval shadow */}
+                <div className="relative flex items-center justify-center">
+                  <img src={img} alt={label} className="relative z-10 h-[54px] w-[54px] object-contain drop-shadow-sm" />
+                  {/* Oval shadow beneath icon */}
+                  <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 h-[8px] w-[36px] rounded-full bg-black/10 blur-[3px]" />
+                </div>
+                <p className="text-[10px] font-bold leading-tight text-slate-600">{label}</p>
+              </motion.button>
+            ))}
           </div>
-
-          <motion.button
-            data-testid="log-meal-button"
-            type="button"
-            onClick={() => setLogMealOpen(true)}
-            whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-            className="mt-6 flex h-[52px] w-full items-center justify-center gap-3 rounded-[20px] bg-gradient-to-r from-[#12B969] to-[#079B5A] text-[15px] font-extrabold tracking-[-0.02em] text-white shadow-[0_12px_24px_rgba(6,150,88,0.24)]"
-          >
-            <ConciergeBell className="h-[24px] w-[24px]" strokeWidth={2.1} />
-            Log Meal
-          </motion.button>
 
           {/* Active Orders section */}
           {ordersError && (
@@ -2174,7 +2114,7 @@ const Dashboard = () => {
                     <p className="text-[11px] font-medium text-slate-500">{totalActiveOrders} order{totalActiveOrders !== 1 ? "s" : ""} in progress{totalActiveOrders > 3 ? ` · Showing first ${activeOrders.length}` : ""}</p>
                   </div>
                 </div>
-                <Link to="/orders" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">
+                <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">
                   View All
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
@@ -2325,123 +2265,7 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-          {(topRestaurantsLoading || topRestaurants.length > 0) && (
-            <>
-              {/* Section Wrapper Card */}
-              <section className="mt-5 overflow-hidden rounded-[32px] bg-white p-4 pb-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-                {/* Header */}
-                <div className="flex items-center justify-between px-1">
-                  <div>
-                    <h2 className="text-[17px] font-extrabold tracking-[-0.02em] text-slate-950">Top Rated</h2>
-                    <p className="mt-0.5 text-[12px] font-medium text-slate-500">Popular restaurants near you</p>
-                  </div>
-                  <Link
-                    to="/meals"
-                    className="flex h-[32px] items-center gap-1 rounded-full bg-[#F0FDF6] px-3 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]"
-                  >
-                    View All
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-
-                {topRestaurantsLoading ? (
-                  <div className="mt-4 flex gap-[14px] overflow-x-auto scrollbar-none">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="w-[200px] shrink-0">
-                        <div className="h-[130px] w-full animate-pulse rounded-[22px] bg-slate-100" />
-                        <div className="mt-3 h-4 w-3/4 animate-pulse rounded bg-slate-100" />
-                        <div className="mt-1.5 h-3 w-1/2 animate-pulse rounded bg-slate-100" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className="mt-4 flex gap-[14px] overflow-x-auto scrollbar-none scroll-smooth px-1"
-                    style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
-                  >
-                    {topRestaurants.map((restaurant, index) => (
-                      <motion.div
-                        key={restaurant.id}
-                        initial={prefersReducedMotion ? undefined : { opacity: 0, y: 16 }}
-                        animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.08, type: "spring", stiffness: 260, damping: 28 }}
-                        className="w-[200px] shrink-0"
-                        style={{ scrollSnapAlign: "start" }}
-                      >
-                        <Link to={`/restaurant/${restaurant.id}`} className="group block">
-                          <div
-                            className="rounded-[26px] bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out group-hover:shadow-[0_16px_40px_rgba(0,0,0,0.10)] group-hover:-translate-y-[2px]"
-                            style={{ transform: "scale(1)" }}
-                          >
-                            {/* Cover Image */}
-                            <div className="relative h-[130px] w-full overflow-hidden rounded-[18px]">
-                              {restaurant.logo_url ? (
-                                <>
-                                  <img
-                                    src={restaurant.logo_url}
-                                    alt={restaurant.name}
-                                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                                  />
-                                  {/* Bottom gradient overlay */}
-                                  <div className="absolute inset-x-0 bottom-0 h-[60px] bg-gradient-to-t from-black/40 to-transparent" />
-                                </>
-                              ) : (
-                                <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-700">
-                                  {/* Decorative circles */}
-                                  <div className="absolute -right-6 -top-6 h-[80px] w-[80px] rounded-full bg-white/10" />
-                                  <div className="absolute -bottom-4 -left-4 h-[60px] w-[60px] rounded-full bg-white/10" />
-                                  <div className="absolute right-8 bottom-6 h-[30px] w-[30px] rounded-full bg-white/5" />
-                                  <div className="relative z-10 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-white/20 shadow-[0_0_30px_rgba(255,255,255,0.08)] backdrop-blur-sm">
-                                    <Store className="h-[28px] w-[28px] text-white" strokeWidth={1.5} />
-                                  </div>
-                                  {/* Bottom gradient overlay */}
-                                  <div className="absolute inset-x-0 bottom-0 h-[60px] bg-gradient-to-t from-black/40 to-transparent" />
-                                </div>
-                              )}
-
-                              {/* Rating Badge */}
-                              <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 rounded-[10px] bg-black/55 px-2 py-[3px] shadow-[0_4px_12px_rgba(0,0,0,0.2)] backdrop-blur-md">
-                                <Star className="h-[11px] w-[11px] fill-amber-400 text-amber-400" />
-                                <span className="text-[11px] font-bold leading-none text-white">
-                                  {restaurant.rating?.toFixed(1) || "0.0"}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Content */}
-                            <div className="mt-3 px-1">
-                              <h3 className="truncate text-[14px] font-extrabold leading-snug tracking-[-0.01em] text-slate-950">
-                                {restaurant.name}
-                              </h3>
-                              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                                {restaurant.cuisine_types && restaurant.cuisine_types.length > 0 ? (
-                                  <span className="truncate">
-                                    {restaurant.cuisine_types.slice(0, 2).join(" · ")}
-                                  </span>
-                                ) : null}
-                                {restaurant.total_orders ? (
-                                  <span className={restaurant.cuisine_types?.length ? "" : ""}>
-                                    {restaurant.cuisine_types?.length ? "·" : ""} {restaurant.total_orders}+ orders
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-
-                            {/* CTA Button */}
-                            <div className="mt-3 flex items-center justify-end pr-1">
-                              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#F0FDF6] shadow-[0_4px_10px_rgba(16,185,129,0.12)] transition-colors group-hover:bg-[#D1FAE5]">
-                                <ChevronRight className="h-[16px] w-[16px] text-[#10B981]" strokeWidth={2.5} />
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </>
-          )}
+          {/* Top Rated section moved to Meals page */}
         </section>
       </main>
 
@@ -2470,37 +2294,35 @@ const Dashboard = () => {
 const QuickActionCard = ({
   icon: Icon,
   label,
-  subtitle,
-  bg,
-  border,
-  iconGradient,
+  iconBg,
+  iconShadow,
   onClick,
   prefersReducedMotion,
 }: {
   icon: LucideIcon;
   label: string;
-  subtitle: string;
-  bg: string;
-  border: string;
-  iconGradient: string;
+  iconBg: string;
+  iconShadow: string;
   onClick: () => void;
   prefersReducedMotion: boolean;
 }) => (
   <motion.button
     type="button"
     onClick={onClick}
-    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-    whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
-    className={`flex flex-col items-center justify-center gap-2.5 rounded-[22px] ${bg} ${border} border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] min-h-[100px]`}
+    whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+    className="flex flex-col items-center gap-2.5"
     aria-label={label}
   >
-    <span className={`flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${iconGradient} text-white shadow-[0_4px_10px_rgba(0,0,0,0.1)]`}>
-      <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+    {/* Icon container */}
+    <span
+      className={`flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[18px] ${iconBg} ${iconShadow} text-white`}
+    >
+      <Icon className="h-[26px] w-[26px]" strokeWidth={2} />
     </span>
-    <div className="text-center">
-      <p className="text-[13px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{label}</p>
-      <p className="mt-0.5 text-[10px] font-medium leading-tight text-slate-500">{subtitle}</p>
-    </div>
+    {/* Label */}
+    <p className="w-full truncate text-center text-[11px] font-bold leading-tight tracking-[-0.01em] text-slate-700">
+      {label}
+    </p>
   </motion.button>
 );
 

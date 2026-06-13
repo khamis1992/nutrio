@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Coffee, Heart, Search, SlidersHorizontal, Store, Soup, Utensils, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Coffee, Heart, Search, Store, Soup, Utensils, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -15,13 +15,22 @@ interface Restaurant { id: string; name: string; description: string | null; log
 interface RestaurantTemplate { name: string; description: string; meals: number; image: string; }
 interface ShowcaseRestaurant extends RestaurantTemplate { liveRestaurantId?: string; }
 
-const categoryTabs: Array<{ id: MealCategory; labelKey: string; icon: LucideIcon }> = [
-  { id: "all", labelKey: "all_cuisine", icon: Utensils },
-  { id: "breakfast", labelKey: "breakfast", icon: Coffee },
-  { id: "lunch", labelKey: "lunch", icon: Soup },
-  { id: "dinner", labelKey: "dinner", icon: Soup },
-  { id: "snacks", labelKey: "snacks_tab", icon: UtensilsCrossed },
+const categoryTabs: Array<{ id: MealCategory; labelKey: string; icon: LucideIcon; activeClass: string; shadowClass: string }> = [
+  { id: "all",       labelKey: "all_cuisine",  icon: Utensils,       activeClass: "bg-emerald-500 text-white",  shadowClass: "shadow-[0_4px_12px_rgba(16,185,129,0.30)]" },
+  { id: "breakfast", labelKey: "breakfast",    icon: Coffee,         activeClass: "bg-amber-400 text-white",    shadowClass: "shadow-[0_4px_12px_rgba(245,158,11,0.35)]" },
+  { id: "lunch",     labelKey: "lunch",        icon: Soup,           activeClass: "bg-orange-500 text-white",   shadowClass: "shadow-[0_4px_12px_rgba(249,115,22,0.35)]" },
+  { id: "dinner",    labelKey: "dinner",       icon: Soup,           activeClass: "bg-indigo-500 text-white",   shadowClass: "shadow-[0_4px_12px_rgba(99,102,241,0.35)]" },
+  { id: "snacks",    labelKey: "snacks_tab",   icon: UtensilsCrossed, activeClass: "bg-pink-500 text-white",    shadowClass: "shadow-[0_4px_12px_rgba(236,72,153,0.35)]" },
 ];
+
+// Map each category to cuisine_type keywords used in the database
+const CATEGORY_KEYWORDS: Record<MealCategory, string[]> = {
+  all:       [],
+  breakfast: ["breakfast", "morning", "brunch", "cafe"],
+  lunch:     ["lunch", "midday", "arabic", "lebanese", "mediterranean", "salad"],
+  dinner:    ["dinner", "evening", "grill", "grilled", "bbq", "steak", "seafood"],
+  snacks:    ["snack", "snacks", "light", "dessert", "sweet", "vegan", "healthy", "protein", "fitness"],
+};
 
 const restaurantTemplates: RestaurantTemplate[] = [
   { name: "Lebanese Kitchen", description: "Traditional Lebanese...", meals: 4, image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=90" },
@@ -88,43 +97,148 @@ const Meals = () => {
 
   const visibleRestaurants = restaurantTemplates.map(hydrateRestaurant).filter((r) => {
     const ms = !search || `${r.name} ${r.description}`.toLowerCase().includes(search);
-    return ms && (!showFavoritesOnly || Boolean(r.liveRestaurantId && isFavorite(r.liveRestaurantId)));
+    if (!ms) return false;
+    if (showFavoritesOnly && !(r.liveRestaurantId && isFavorite(r.liveRestaurantId))) return false;
+    if (selectedCategory !== "all") {
+      const keywords = CATEGORY_KEYWORDS[selectedCategory];
+      const liveData = restaurants.find((lr) => lr.id === r.liveRestaurantId);
+      const cuisineTypes = liveData?.cuisine_types ?? [];
+      // Check cuisine_types from DB first, then fall back to name/description keyword match
+      const matchesCuisine = cuisineTypes.some((ct) =>
+        keywords.some((kw) => ct.toLowerCase().includes(kw))
+      );
+      const matchesName = keywords.some((kw) =>
+        `${r.name} ${r.description}`.toLowerCase().includes(kw)
+      );
+      if (!matchesCuisine && !matchesName) return false;
+    }
+    return true;
   });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-4">
-      <div className="mx-auto w-full max-w-[430px] px-4 pt-6">
+    <div className="min-h-screen bg-[#F8FAFC]">
 
-        {/* Header */}
-        <header className="flex items-start justify-between">
-          <div className="flex items-start gap-6">
-            <Link to="/dashboard" className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100" aria-label="Back"><ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} /></Link>
-            <div className="pt-0.5"><h1 className="text-[34px] font-extrabold text-slate-900 tracking-[-0.03em]">{t("meals")}</h1><p className="mt-2 text-[16px] font-medium text-slate-500">{t("meals_page_subtitle")}</p></div>
+      {/* ── Hero Header: Illustration on Gradient ── */}
+      <div className="sticky top-0 z-20">
+        <div className="mx-auto w-full max-w-[430px] overflow-hidden">
+
+          {/* Gradient banner with illustration */}
+          <div
+            className="relative overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #064e3b 0%, #065f46 50%, #059669 100%)",
+              paddingTop: "env(safe-area-inset-top, 0px)",
+            }}
+          >
+            {/* Illustration background */}
+            <img
+              src="/meals-header-illustration.png"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+              style={{ opacity: 0.18, mixBlendMode: "luminosity" }}
+            />
+
+            {/* Ambient glow circles */}
+            <div className="pointer-events-none absolute -right-12 -top-12 h-[180px] w-[180px] rounded-full" style={{ background: "radial-gradient(circle, rgba(52,211,153,0.25) 0%, transparent 70%)" }} />
+            <div className="pointer-events-none absolute -bottom-8 -left-8 h-[140px] w-[140px] rounded-full" style={{ background: "radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)" }} />
+
+            <div className="relative z-10 px-5 pt-5 pb-0">
+              {/* Top row: back + actions */}
+              <div className="flex items-center justify-between mb-4">
+                <Link
+                  to="/dashboard"
+                  className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white backdrop-blur-sm transition active:scale-95"
+                  aria-label="Back"
+                >
+                  <ArrowLeft className="h-[20px] w-[20px]" strokeWidth={2.5} />
+                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowFavoritesOnly((v) => !v)}
+                    className={cn(
+                      "flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border backdrop-blur-sm transition active:scale-95",
+                      showFavoritesOnly
+                        ? "border-rose-300/60 bg-rose-500/80 text-white"
+                        : "border-white/20 bg-white/15 text-white"
+                    )}
+                    aria-label="Toggle favorites"
+                  >
+                    <Heart className={cn("h-[18px] w-[18px]", showFavoritesOnly && "fill-white")} strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Title block */}
+              <div className="mb-5">
+                <h1 className="text-[30px] font-black leading-[1.1] tracking-[-0.03em] text-white">
+                  Discover{" "}
+                  <em className="not-italic text-emerald-300">{t("meals")}</em>
+                  <br />You&apos;ll Love
+                </h1>
+                <p className="mt-1.5 text-[13px] font-medium text-white/65">
+                  {t("meals_page_subtitle")}
+                </p>
+              </div>
+
+              {/* Search bar — floats on gradient */}
+              <div
+                className="-mx-5 rounded-t-[20px] bg-white px-4 pt-4 shadow-[0_-8px_24px_rgba(0,0,0,0.15)]"
+              >
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" strokeWidth={2} />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t("search_meals_placeholder")}
+                    className="h-[48px] w-full rounded-[14px] border border-slate-200 bg-slate-50 pl-[42px] pr-[16px] text-[14px] font-semibold text-slate-900 outline-none placeholder:font-medium placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 transition-all"
+                  />
+                </div>
+
+                {/* Category tabs */}
+                <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+                  {categoryTabs.map((cat) => {
+                    const Icon = cat.icon;
+                    const active = selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat.id); }}
+                        className={cn(
+                          "flex h-[36px] shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-extrabold transition-all",
+                          active
+                            ? `${cat.activeClass} ${cat.shadowClass}`
+                            : "border border-slate-200 bg-slate-50 text-slate-600"
+                        )}
+                      >
+                        <Icon className={cn("h-[13px] w-[13px]", active ? "text-white" : "text-slate-400")} strokeWidth={2.25} />
+                        {t(cat.labelKey)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
-        </header>
-
-        {/* Search */}
-        <div className="relative mt-7">
-          <Search className="pointer-events-none absolute left-6 top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-slate-400" strokeWidth={2} />
-          <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("search_meals_placeholder")} className="h-[60px] w-full rounded-full bg-white pl-[68px] pr-[16px] text-[16px] font-semibold text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400 transition-shadow" />
         </div>
+        {/* thin separator */}
+        <div className="h-px bg-slate-100" />
+      </div>
 
-        {/* Category tabs */}
-        <div className="mt-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {categoryTabs.map((cat) => { const Icon = cat.icon; const active = selectedCategory === cat.id; return (
-            <button key={cat.id} onClick={() => { Haptics.impact({ style: "light" }); setSelectedCategory(cat.id); }} className={cn("flex h-[46px] shrink-0 items-center gap-2.5 rounded-full px-5 text-[14px] font-extrabold transition-all", active ? "bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)]" : "bg-white text-slate-600 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200")}>
-              <Icon className={cn("h-[18px] w-[18px]", active ? "text-white" : "text-slate-400")} strokeWidth={2.25} />{t(cat.labelKey)}
-            </button>
-          );})}
-        </div>
-
-        {/* Content */}
+      {/* ── Scrollable content ── */}
+      <div className="mx-auto w-full max-w-[430px] px-4 pb-20 pt-4">
         <main>
           {visibleRestaurants.length > 0 ? (
             <>
               {/* Favorites toggle */}
-              <div className="mt-6 mb-4 flex items-center justify-end">
-                <button onClick={() => setShowFavoritesOnly((v) => !v)} className={cn("inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition", showFavoritesOnly ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500")}>
+              <div className="mb-4 flex items-center justify-end">
+                <button
+                  onClick={() => setShowFavoritesOnly((v) => !v)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition",
+                    showFavoritesOnly ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-500"
+                  )}
+                >
                   <Heart className={cn("h-4 w-4", showFavoritesOnly && "fill-emerald-500 text-emerald-500")} strokeWidth={2} />
                   {t("favorites_only")}
                 </button>
@@ -134,17 +248,28 @@ const Meals = () => {
               <section>
                 <div className="mb-5 flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-emerald-500"><Store className="h-6 w-6" strokeWidth={2.4} /></span>
-                    <div><h2 className="text-[20px] font-extrabold text-slate-900">{t("restaurants")}</h2><p className="mt-0.5 text-[15px] font-medium text-slate-500">{t("restaurants_count_label", { count: String(restaurants.length) })}</p></div>
+                    <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-emerald-500">
+                      <Store className="h-6 w-6" strokeWidth={2.4} />
+                    </span>
+                    <div>
+                      <h2 className="text-[20px] font-extrabold text-slate-900">{t("restaurants")}</h2>
+                      <p className="mt-0.5 text-[15px] font-medium text-slate-500">{t("restaurants_count_label", { count: String(restaurants.length) })}</p>
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-5">
-                  {visibleRestaurants.map((r) => <RestaurantCard key={r.name} restaurant={r} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} />)}
+                  {visibleRestaurants.map((r) => (
+                    <RestaurantCard key={r.name} restaurant={r} isFavorite={isFavorite} onToggleFavorite={handleToggleFavorite} />
+                  ))}
                 </div>
               </section>
             </>
           ) : (
-            <div className="mt-10 rounded-2xl bg-white px-8 py-14 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"><Utensils className="mx-auto mb-4 h-10 w-10 text-emerald-500" /><h2 className="text-[20px] font-extrabold text-slate-900">{t("no_matches_found")}</h2><p className="mx-auto mt-2 max-w-[360px] text-[14px] font-medium text-slate-500">{t("no_matches_hint")}</p></div>
+            <div className="mt-10 rounded-2xl bg-white px-8 py-14 text-center shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+              <Utensils className="mx-auto mb-4 h-10 w-10 text-emerald-500" />
+              <h2 className="text-[20px] font-extrabold text-slate-900">{t("no_matches_found")}</h2>
+              <p className="mx-auto mt-2 max-w-[360px] text-[14px] font-medium text-slate-500">{t("no_matches_hint")}</p>
+            </div>
           )}
         </main>
       </div>

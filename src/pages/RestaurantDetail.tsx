@@ -402,7 +402,7 @@ const RestaurantDetail = () => {
   }
 
   return (
-    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-4">
+    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-20">
       {/* Animated Header */}
       <motion.header
         style={{ opacity: headerOpacitySpring }}

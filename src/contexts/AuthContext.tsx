@@ -148,6 +148,7 @@ const signIn = async (email: string, password: string) => {
 
   const signOut = useCallback(async () => {
     localStorage.removeItem("remembered_email");
+    localStorage.removeItem("nutrio_remember_me");
     clearRoleCache();
     await supabase.auth.signOut();
   }, []);

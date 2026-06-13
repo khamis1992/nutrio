@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ScanLine, Plus, Utensils } from "lucide-react";
+import { Search, ScanLine, Plus, Utensils, Camera, Barcode, X } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner, type ScannedProduct } from "./BarcodeScanner";
+import { FoodPhotoLogSheet } from "./FoodPhotoLogSheet";
 
 interface FoodItem {
   id: string;
@@ -38,6 +39,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
   const [selectedItems, setSelectedItems] = useState<FoodItem[]>([]);
   const [tab, setTab] = useState<"Recent">("Recent");
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [showScanChoice, setShowScanChoice] = useState(false);
 
   const handleBarcodeScanned = (product: ScannedProduct) => {
     const item: FoodItem = {
@@ -78,6 +81,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
     if (open) {
       setSearchQuery("");
       setSelectedItems([]);
+      setShowScanChoice(false);
       loadRecentMeals();
     }
   }, [open, loadRecentMeals]);
@@ -161,46 +165,56 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-full max-h-[720px] rounded-3xl bg-white flex flex-col p-4">
-        <DialogTitle className="sr-only">Log Meal</DialogTitle>
-          {/* Header with icon and subtitle */}
-          <div className="flex items-center justify-start gap-4 mb-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <Utensils className="w-5 h-5 text-green-600" />
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent hideCloseButton className="w-full max-w-full max-h-[85dvh] rounded-3xl bg-white flex flex-col p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Log Meal</DialogTitle>
+
+          {/* Header */}
+          <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center shrink-0">
+                <Utensils className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 leading-tight">Log Meal</h2>
+                <p className="text-xs text-gray-500 leading-tight">Search or choose food to add</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Log Meal</h2>
-              <p className="text-sm text-gray-600 leading-tight">Search or choose food to add to your log</p>
-            </div>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors shrink-0"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 text-gray-600" />
+            </button>
           </div>
 
           {/* Search and scan bar */}
-          <div className="flex items-center gap-3 mb-5">
+          <div className="flex items-center gap-2 px-4 pb-3 shrink-0">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 placeholder="Search food..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 rounded-lg h-12 bg-gray-100 border-0 focus-visible:ring-1 focus-visible:ring-gray-300"
+                className="pl-10 pr-3 rounded-xl h-11 bg-gray-100 border-0 focus-visible:ring-1 focus-visible:ring-gray-300 text-sm"
               />
             </div>
             <button
-              onClick={() => setShowBarcodeScanner(true)}
-              className="flex items-center gap-1 rounded-lg bg-green-100 px-4 py-2 text-green-700 hover:bg-green-200"
+              onClick={() => setShowScanChoice(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-green-100 px-3 py-2.5 text-green-700 hover:bg-green-200 transition-colors text-sm font-semibold shrink-0"
               aria-label="Scan Food"
             >
-              <ScanLine className="w-5 h-5" /> Scan Food
+              <ScanLine className="w-4 h-4" />
+              Scan
             </button>
           </div>
 
-          {/* Recent meals section */}
           {/* Recent meals list */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-4 pb-2">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold text-gray-900">Recently Logged</p>
-              <button className="text-sm font-semibold text-green-600">View all</button>
+              <p className="font-semibold text-gray-900 text-sm">Recently Logged</p>
+              <button className="text-xs font-semibold text-green-600">View all</button>
             </div>
             <div className="space-y-2">
               {loading ? (
@@ -208,7 +222,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                   <div className="w-6 h-6 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : recentItems.length === 0 ? (
-                <p className="text-center py-6 text-gray-400">No recent meals found.</p>
+                <p className="text-center py-6 text-gray-400 text-sm">No recent meals found.</p>
               ) : (
                 recentItems.map((item) => {
                   const isSelected = selectedItems.some((i) => i.id === item.id);
@@ -219,31 +233,31 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                     <div
                       key={item.id}
                       onClick={() => toggleItem(item)}
-                      className={`flex items-center gap-3 p-3 rounded-2xl border border-gray-300 bg-white shadow-sm transition-colors hover:shadow-md cursor-pointer select-none ${
-                        isSelected ? "border-green-600 bg-green-50" : "border-gray-300"
+                      className={`flex items-center gap-3 p-3 rounded-2xl border bg-white shadow-sm transition-colors cursor-pointer select-none ${
+                        isSelected ? "border-green-500 bg-green-50" : "border-gray-200"
                       }`}
                     >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-50">
+                      <div className="w-11 h-11 rounded-xl overflow-hidden bg-gray-50 shrink-0">
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-2xl">🍽️</div>
+                          <div className="w-full h-full flex items-center justify-center bg-gray-100 text-xl">🍽️</div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900 leading-tight max-w-[240px] truncate">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 leading-tight truncate text-sm">
                           {item.name}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          {item.calories} cal • {Math.round(item.protein_g + item.carbs_g + item.fat_g)}g
+                        <p className="text-xs text-gray-500">
+                          {item.calories} cal · {Math.round(item.protein_g + item.carbs_g + item.fat_g)}g
                         </p>
                         <p className="text-xs text-gray-400">{loggedDate}</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <div className="rounded-md bg-gray-200 px-2 py-1 text-xs font-semibold text-gray-700">
-                          {item.calories} cal
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                          {item.calories}
                         </div>
-                        {isSelected && <Plus className="w-5 h-5 text-green-600" />}
+                        {isSelected && <Plus className="w-4 h-4 text-green-600" />}
                       </div>
                     </div>
                   );
@@ -252,24 +266,24 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
             </div>
 
             {/* Can't find your food section */}
-            <div className="mt-6 p-4 rounded-2xl bg-green-50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center shrink-0">
-                  <span className="text-white font-bold">i</span>
+            <div className="mt-4 mb-2 p-3 rounded-2xl bg-green-50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-green-600 flex items-center justify-center shrink-0">
+                  <span className="text-white font-bold text-xs">i</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-green-700">Can't find your food?</p>
-                  <p className="text-sm text-green-700">Use Scan Food to add it instantly</p>
+                  <p className="font-semibold text-green-700 text-sm">Can't find your food?</p>
+                  <p className="text-xs text-green-600">Use Scan Food to add it instantly</p>
                 </div>
               </div>
-              <button className="text-green-600 font-semibold">→</button>
+              <button onClick={() => setShowScanChoice(true)} className="text-green-600 font-semibold text-sm">→</button>
             </div>
           </div>
 
-          {/* Bottom buttons */}
-          <div className="flex gap-3 mt-4">
+          {/* Bottom button */}
+          <div className="px-4 pb-4 pt-2 shrink-0 border-t border-gray-100">
             <Button
-              className="flex-grow rounded-full bg-green-600 text-white h-12"
+              className="w-full rounded-full bg-green-600 text-white h-12 text-sm font-semibold"
               onClick={handleAddSelected}
               disabled={selectedItems.length === 0 || loading}
             >
@@ -277,7 +291,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <span className="text-xl font-bold">+</span> Select items to add
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add {selectedItems.length > 0 ? `${selectedItems.length} item${selectedItems.length > 1 ? "s" : ""}` : "selected items"}
                 </>
               )}
             </Button>
@@ -285,10 +300,72 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
         </DialogContent>
       </Dialog>
 
+      {/* Scan Food Choice Sheet - z-[300] to appear above Dialog z-[201] */}
+      {showScanChoice && (
+        <div className="fixed inset-0 z-[300] flex flex-col justify-end">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowScanChoice(false)}
+          />
+          <div className="relative bg-white rounded-t-3xl p-5 pb-8 space-y-3">
+            <div className="flex justify-center mb-2">
+              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            </div>
+            <h3 className="text-center text-base font-bold text-gray-900 mb-4">Choose Scan Method</h3>
+            <button
+              onClick={() => {
+                setShowScanChoice(false);
+                setShowBarcodeScanner(true);
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
+                <Barcode className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Scan Barcode</p>
+                <p className="text-sm text-gray-500">Scan product barcode to get nutritional info</p>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setShowScanChoice(false);
+                setShowPhotoSheet(true);
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
+                <Camera className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Photo Analysis</p>
+                <p className="text-sm text-gray-500">Take a photo of your food to analyze it with AI</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setShowScanChoice(false)}
+              className="w-full py-3 rounded-2xl bg-gray-100 text-gray-600 font-semibold text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <BarcodeScanner
         isOpen={showBarcodeScanner}
         onClose={() => setShowBarcodeScanner(false)}
         onScan={handleBarcodeScanned}
+      />
+
+      <FoodPhotoLogSheet
+        open={showPhotoSheet}
+        onOpenChange={setShowPhotoSheet}
+        onLogComplete={() => {
+          setShowPhotoSheet(false);
+          onMealLogged();
+          onOpenChange(false);
+        }}
       />
     </>
   );

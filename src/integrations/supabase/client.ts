@@ -55,7 +55,48 @@ const capacitorStorage = {
   },
 };
 
-const storage = isNative ? capacitorStorage : localStorage;
+// Smart storage adapter for web:
+// - If "remember_me" flag is set in localStorage → use localStorage (session persists across browser restarts)
+// - Otherwise → use sessionStorage (session ends when browser/tab is closed)
+// This implements true "Remember Me" behaviour without requiring a different Supabase client instance.
+const webSmartStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      // Always check localStorage first (covers "remember me" users and existing sessions)
+      const local = localStorage.getItem(key);
+      if (local) return local;
+      return sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      const rememberMe = localStorage.getItem('nutrio_remember_me') === 'true';
+      if (rememberMe) {
+        localStorage.setItem(key, value);
+        // Clean up sessionStorage copy if it exists
+        sessionStorage.removeItem(key);
+      } else {
+        sessionStorage.setItem(key, value);
+        // Clean up localStorage copy so old sessions don't linger
+        localStorage.removeItem(key);
+      }
+    } catch {
+      // Silently fail
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    } catch {
+      // Silently fail
+    }
+  },
+};
+
+const storage = isNative ? capacitorStorage : webSmartStorage;
 
 export const supabase = createClient<Database>(
   SUPABASE_URL ?? 'https://placeholder.supabase.co',

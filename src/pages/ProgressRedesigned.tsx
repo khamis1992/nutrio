@@ -99,7 +99,7 @@ function ProgressRing({ value, size = 112, stroke = 8, color = "#51F3A0", label 
 }
 
 function MetricRing({ metric }: { metric: RingMetric }) {
-  const size = 86;
+  const size = 72;
   const stroke = 5;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -107,7 +107,7 @@ function MetricRing({ metric }: { metric: RingMetric }) {
   const Icon = metric.Icon;
 
   return (
-    <article className="rounded-[18px] border border-slate-100 bg-white px-2.5 py-3 text-center shadow-[0_14px_28px_rgba(15,23,42,0.06)]">
+    <article className="overflow-hidden rounded-[18px] border border-slate-100 bg-white p-2 text-center shadow-[0_14px_28px_rgba(15,23,42,0.06)]">
       <div className="relative mx-auto grid place-items-center" style={{ width: size, height: size }}>
         <svg className="absolute inset-0 -rotate-90" viewBox={`0 0 ${size} ${size}`}>
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#EEF2F7" strokeWidth={stroke} />
@@ -122,14 +122,14 @@ function MetricRing({ metric }: { metric: RingMetric }) {
             strokeDasharray={`${dash} ${circumference}`}
           />
         </svg>
-        <div className="flex flex-col items-center">
-          <Icon className="h-5 w-5" style={{ color: metric.color }} strokeWidth={2.4} />
-          <span className="mt-1 text-[11px] font-semibold text-slate-700">{metric.label}</span>
-          <span className="text-[22px] font-black leading-none tracking-[-0.06em] text-[#111827]">{metric.value}%</span>
+        <div className="flex flex-col items-center gap-0.5">
+          <Icon className="h-4 w-4" style={{ color: metric.color }} strokeWidth={2.4} />
+          <span className="text-[16px] font-black leading-none tracking-[-0.04em] text-[#111827]">{metric.value}%</span>
         </div>
       </div>
-      <p className="mt-2 text-[11px] font-medium text-slate-500">{metric.status}</p>
-      <div className="mx-auto mt-2 h-1 w-11 overflow-hidden rounded-full bg-slate-100">
+      <p className="mt-1 truncate text-[10px] font-semibold text-slate-700">{metric.label}</p>
+      <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">{metric.status}</p>
+      <div className="mx-auto mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
         <div className="h-full rounded-full" style={{ width: `${metric.value}%`, backgroundColor: metric.color }} />
       </div>
     </article>
@@ -492,7 +492,7 @@ export default function ProgressRedesigned() {
 
   return (
     <main className="min-h-screen bg-[#FAFBFC] text-[#101827]">
-      <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-8 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
+      <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-20 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
         <header className="mb-6 flex items-center justify-between px-0.5">
           <button
             aria-label="Go back"
@@ -610,80 +610,137 @@ export default function ProgressRedesigned() {
 
               <section className="mb-5">
                 {activeGoal ? (
-                  <article className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(255,255,255,0.14)_0%,transparent_45%),radial-gradient(130%_130%_at_-20%_0%,rgba(255,255,255,0.10)_0%,transparent_50%),linear-gradient(135deg,#0EA76B_0%,#0B8C6A_50%,#0A6D64_100%)] p-5 text-white shadow-[0_22px_48px_rgba(15,118,110,0.28)]">
-                    <div className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-soft-light [background-image:radial-gradient(circle_at_14%_22%,white_1px,transparent_1px),radial-gradient(circle_at_78%_18%,white_1.2px,transparent_2px),radial-gradient(circle_at_46%_62%,white_1.2px,transparent_2px),radial-gradient(circle_at_92%_12%,white_1px,transparent_1px)]" />
+                  <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
 
-                    <div className="relative z-10 flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm">
-                          <CalendarCheck className="h-4 w-4" />
-                          Today • {dayName}
+                    {/* ── Top banner: date + streak ── */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                      <div>
+                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Today</p>
+                        <p className="text-[15px] font-black text-slate-900">{dayName}</p>
+                      </div>
+                      {(streaks.logging?.currentStreak ?? 0) > 0 ? (
+                        <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 ring-1 ring-orange-100">
+                          <Flame className="h-3.5 w-3.5 text-orange-500" />
+                          <span className="text-[12px] font-black text-orange-600">{streaks.logging?.currentStreak}d</span>
                         </div>
-
-                        <div className="flex items-start gap-2 mb-3">
-                          <Flame className="mt-0.5 h-5 w-5 text-amber-300" />
-                          <div>
-                            <p className="text-[26px] font-black leading-none tracking-[-0.06em]">{calConsumed.toLocaleString()}<span className="ml-1 text-[14px] font-bold">kcal</span></p>
-                            <p className="mt-0.5 text-[11px] font-semibold text-white/80">of {calTarget.toLocaleString()} kcal</p>
-                          </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 ring-1 ring-slate-100">
+                          <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-[11px] font-bold text-slate-500">Start streak</span>
                         </div>
+                      )}
+                    </div>
 
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/18">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400" style={{ width: `${dailyPct}%` }} />
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-[12px] bg-white/12 px-3 py-2 backdrop-blur-sm">
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-[10px] font-extrabold uppercase text-white/85">Protein</span>
-                              <Target className="h-4 w-4 text-blue-200" />
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-[16px] font-black leading-none">{proteinConsumed}</span>
-                              <span className="text-[10px] font-semibold text-white/80">/ {proteinTarget}g</span>
-                            </div>
-                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
-                              <div className="h-full rounded-full bg-blue-300" style={{ width: `${proteinPct}%` }} />
-                            </div>
-                          </div>
-
-                          <div className="rounded-[12px] bg-white/12 px-3 py-2 backdrop-blur-sm">
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-[10px] font-extrabold uppercase text-white/85">Hydration</span>
-                              <Droplet className="h-4 w-4 text-sky-200" />
-                            </div>
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-[16px] font-black leading-none">{waterGlasses}</span>
-                              <span className="text-[10px] font-semibold text-white/80">/ {waterTarget} glasses</span>
-                            </div>
-                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
-                              <div className="h-full rounded-full bg-sky-300" style={{ width: `${Math.min(100, Math.round((waterGlasses / waterTarget) * 100))}%` }} />
-                            </div>
-                          </div>
+                    {/* ── Calorie donut section ── */}
+                    <div className="relative flex items-center gap-4 px-5 pb-4">
+                      {/* Large donut */}
+                      <div className="relative shrink-0">
+                        <svg width="110" height="110" viewBox="0 0 110 110">
+                          {/* Background track */}
+                          <circle cx="55" cy="55" r="46" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                          {/* Protein arc */}
+                          <circle cx="55" cy="55" r="46" fill="none" stroke="#818CF8" strokeLinecap="round" strokeWidth="10"
+                            strokeDasharray={`${(proteinPct / 100) * (2 * Math.PI * 46)} ${2 * Math.PI * 46}`}
+                            transform="rotate(-90 55 55)"
+                          />
+                          {/* Calorie arc (inner) */}
+                          <circle cx="55" cy="55" r="34" fill="none" stroke="#F1F5F9" strokeWidth="8" />
+                          <circle cx="55" cy="55" r="34" fill="none"
+                            stroke={dailyPct > 100 ? '#F87171' : '#34D399'}
+                            strokeLinecap="round" strokeWidth="8"
+                            strokeDasharray={`${(Math.min(dailyPct, 100) / 100) * (2 * Math.PI * 34)} ${2 * Math.PI * 34}`}
+                            transform="rotate(-90 55 55)"
+                          />
+                          {/* Center text */}
+                          <text x="55" y="50" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0F172A" fontFamily="system-ui">{calConsumed > 999 ? `${(calConsumed/1000).toFixed(1)}k` : calConsumed}</text>
+                          <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">kcal</text>
+                        </svg>
+                        {/* Legend dots */}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#34D399] inline-block" />Cal</span>
+                          <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />Pro</span>
                         </div>
                       </div>
 
-                      <div className="shrink-0 pt-1">
-                        <svg width="118" height="118" viewBox="0 0 118 118" className="-rotate-90">
-                          <defs>
-                            <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                              <stop offset="0%" stopColor="#5CF0A7" />
-                              <stop offset="100%" stopColor="#A7F3D0" />
-                            </linearGradient>
-                          </defs>
-                          <circle cx="59" cy="59" r="50" fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="9" />
-                          <circle cx="59" cy="59" r="50" fill="none" stroke="url(#ringGrad)" strokeLinecap="round" strokeWidth="9" strokeDasharray={`${(overallPct / 100) * (2 * Math.PI * 50)} ${2 * Math.PI * 50}`} />
-                        </svg>
-                        <div className="-mt-24 rotate-0 text-center">
-                          <div className="text-[30px] font-black leading-none">{overallPct}<span className="text-[14px]">%</span></div>
-                          <div className="mt-1 text-[10px] font-semibold text-white/85">Daily Score</div>
-                          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-[10px] font-bold backdrop-blur-sm">
-                            <Star className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                            {overallPct >= 70 ? "Great start" : "Keep going"}
+                      {/* Right side stats */}
+                      <div className="flex-1 min-w-0 space-y-2.5">
+                        {/* Calorie remaining */}
+                        <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
+                          <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">
+                            {calTarget - calConsumed > 0 ? 'Remaining' : 'Over target'}
+                          </p>
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-[22px] font-black leading-none ${calTarget - calConsumed > 0 ? 'text-slate-900' : 'text-rose-500'}`}>
+                              {Math.abs(calTarget - calConsumed).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">/ {calTarget.toLocaleString()} kcal</span>
+                          </div>
+                          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${dailyPct}%`, backgroundColor: dailyPct > 100 ? '#F87171' : '#34D399' }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Score badge */}
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-black text-white"
+                            style={{ backgroundColor: overallPct >= 80 ? '#10B981' : overallPct >= 50 ? '#F59E0B' : '#F87171' }}
+                          >
+                            {overallPct}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-black text-slate-900">
+                              {overallPct >= 80 ? 'Great day!' : overallPct >= 50 ? 'On track' : 'Keep going'}
+                            </p>
+                            <p className="text-[9px] text-slate-400">Daily score</p>
                           </div>
                         </div>
                       </div>
                     </div>
+
+                    {/* ── Divider ── */}
+                    <div className="mx-5 h-px bg-slate-100" />
+
+                    {/* ── Macro bars ── */}
+                    <div className="grid grid-cols-3 gap-px bg-slate-100">
+                      {[
+                        { label: 'Protein', current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#818CF8', light: '#EEF2FF' },
+                        { label: 'Carbs', current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#FB923C', light: '#FFF7ED' },
+                        { label: 'Fat', current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#F472B6', light: '#FDF2F8' },
+                      ].map((m) => (
+                        <div key={m.label} className="flex flex-col items-center bg-white px-2 py-3">
+                          <div className="mb-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
+                          </div>
+                          <div className="flex items-baseline gap-0.5">
+                            <span className="text-[15px] font-black text-slate-900">{m.current}</span>
+                            <span className="text-[9px] font-bold text-slate-400">/{m.target}{m.unit}</span>
+                          </div>
+                          <p className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide" style={{ color: m.color }}>{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ── Water strip ── */}
+                    <div className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {Array.from({ length: waterTarget }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-4 w-2.5 rounded-full transition-colors duration-300"
+                            style={{ backgroundColor: i < waterGlasses ? '#38BDF8' : '#E2E8F0' }}
+                          />
+                        ))}
+                      </div>
+                      <div className="ml-auto flex items-center gap-1">
+                        <Droplet className="h-3.5 w-3.5 text-sky-400" />
+                        <span className="text-[12px] font-black text-slate-700">{waterGlasses}<span className="text-[10px] font-semibold text-slate-400">/{waterTarget}</span></span>
+                      </div>
+                    </div>
+
                   </article>
                 ) : (
                   <article className="relative overflow-hidden rounded-[24px] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(255,255,255,0.14)_0%,transparent_45%),radial-gradient(130%_130%_at_-20%_0%,rgba(255,255,255,0.10)_0%,transparent_50%),linear-gradient(135deg,#0EA76B_0%,#0B8C6A_50%,#0A6D64_100%)] p-5 text-white shadow-[0_22px_48px_rgba(15,118,110,0.28)]">
@@ -1006,22 +1063,14 @@ export default function ProgressRedesigned() {
                 );
               })()}
 
-              {/* Log Today's Progress Button */}
-              <button
-                type="button"
-                className="mb-6 flex w-full items-center justify-center gap-2 rounded-[16px] bg-emerald-500 py-4 text-[15px] font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.3)] active:scale-[0.98] transition-transform"
-                onClick={() => navigate("/tracker")}
-              >
-                <Plus className="h-5 w-5" />
-                Log Today's Progress
-              </button>
+
             </>
           );
         })()}
 
         {activeTab === "week" && (
           <>
-            {/* Weekly Score Card */}
+            {/* Weekly Score Card - same spirit as Today card */}
             <section className="mb-5">
               {(() => {
                 const pct = weeklySummary?.consistency?.percentage ?? 0;
@@ -1031,46 +1080,142 @@ export default function ProgressRedesigned() {
                 const weekScore = Math.round((pct + protPct + waterPct) / 3);
                 const change = weeklySummary?.calories?.changePercent ?? 0;
                 const streak = streaks.logging?.currentStreak ?? 0;
-                const dash = (weekScore / 100) * (2 * Math.PI * 34);
+                const calAvg = weeklySummary?.calories?.thisWeekAvg ?? 0;
+                const calTarget2 = activeGoal?.daily_calorie_target ?? 2000;
+                const calPct2 = calTarget2 > 0 ? Math.min(100, Math.round((calAvg / calTarget2) * 100)) : 0;
+                const daysLogged2 = weekdayData.filter(d => d.calories > 0).length;
+                const scoreColor = weekScore >= 80 ? '#10B981' : weekScore >= 60 ? '#F59E0B' : '#F87171';
+                const scoreLabel = weekScore >= 80 ? 'Excellent week!' : weekScore >= 60 ? 'Good progress' : 'Keep going';
+                const weekCircumference = 2 * Math.PI * 46;
+                const consistencyCircumference = 2 * Math.PI * 34;
                 return (
-              <article className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-teal-600 via-emerald-600 to-teal-700 p-5 text-white shadow-[0_18px_40px_rgba(16,185,129,0.25)]">
-                <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_30%,white_1px,transparent_1px),radial-gradient(circle_at_80%_20%,white_1px,transparent_1px)]" />
-                <div className="relative z-10 flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-[12px] font-bold text-white/90">Weekly Score</span>
-                      <Info className="h-3.5 w-3.5 text-white/60" />
-                    </div>
-                    <div className="text-[48px] font-black leading-none tracking-[-0.06em]">
-                      {weekScore}<span className="text-[24px] font-bold text-white/70"> / 100</span>
-                    </div>
-                    <p className="mt-1 text-[11px] font-semibold text-white/80">{change >= 0 ? '+' : ''}{Math.round(change)} pts vs last week</p>
+              <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
+
+                {/* ── Top banner ── */}
+                <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                  <div>
+                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">This Week</p>
+                    <p className="text-[15px] font-black text-slate-900">Weekly Performance</p>
                   </div>
-                  <div className="relative grid h-20 w-20 place-items-center">
-                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
-                      <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
-                      <circle cx="40" cy="40" r="34" fill="none" stroke="#5CF0A7" strokeLinecap="round" strokeWidth="6" strokeDasharray={`${dash} ${2 * Math.PI * 34}`} />
+                  {streak > 0 ? (
+                    <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 ring-1 ring-orange-100">
+                      <Flame className="h-3.5 w-3.5 text-orange-500" />
+                      <span className="text-[12px] font-black text-orange-600">{streak}d</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 ring-1 ring-slate-100">
+                      <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-[11px] font-bold text-slate-500">{daysLogged2}/7 days</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Dual donut + right stats ── */}
+                <div className="flex items-center gap-4 px-5 pb-4">
+                  {/* Dual donut: outer = consistency, inner = weekly score */}
+                  <div className="relative shrink-0">
+                    <svg width="110" height="110" viewBox="0 0 110 110">
+                      {/* Outer track */}
+                      <circle cx="55" cy="55" r="46" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                      {/* Outer arc = consistency */}
+                      <circle cx="55" cy="55" r="46" fill="none" stroke="#818CF8" strokeLinecap="round" strokeWidth="10"
+                        strokeDasharray={`${(pct / 100) * weekCircumference} ${weekCircumference}`}
+                        transform="rotate(-90 55 55)"
+                      />
+                      {/* Inner track */}
+                      <circle cx="55" cy="55" r="34" fill="none" stroke="#F1F5F9" strokeWidth="8" />
+                      {/* Inner arc = weekly score */}
+                      <circle cx="55" cy="55" r="34" fill="none"
+                        stroke={scoreColor}
+                        strokeLinecap="round" strokeWidth="8"
+                        strokeDasharray={`${(weekScore / 100) * consistencyCircumference} ${consistencyCircumference}`}
+                        transform="rotate(-90 55 55)"
+                      />
+                      {/* Center */}
+                      <text x="55" y="50" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0F172A" fontFamily="system-ui">{weekScore}</text>
+                      <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">score</text>
                     </svg>
-                    <Crown className="h-7 w-7 text-amber-300" />
+                    {/* Legend */}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />Consist.</span>
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400" style={{ color: scoreColor }}><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: scoreColor }} />Score</span>
+                    </div>
+                  </div>
+
+                  {/* Right stats */}
+                  <div className="flex-1 min-w-0 space-y-2.5">
+                    {/* Score label */}
+                    <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
+                      <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">Weekly Score</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[22px] font-black leading-none" style={{ color: scoreColor }}>{weekScore}</span>
+                        <span className="text-[10px] font-bold text-slate-400">/ 100</span>
+                      </div>
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${weekScore}%`, backgroundColor: scoreColor }} />
+                      </div>
+                    </div>
+
+                    {/* Score badge + trend */}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+                        style={{ backgroundColor: `${scoreColor}18` }}
+                      >
+                        {weekScore >= 80 ? <Trophy className="h-4 w-4" style={{ color: scoreColor }} /> : weekScore >= 60 ? <TrendingUp className="h-4 w-4" style={{ color: scoreColor }} /> : <TrendingDown className="h-4 w-4" style={{ color: scoreColor }} />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-slate-900">{scoreLabel}</p>
+                        <p className="text-[9px] text-slate-400">
+                          {change >= 0 ? `↑ +${Math.round(change)}%` : `↓ ${Math.round(change)}%`} vs last week
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="relative z-10 mt-5 flex justify-between gap-2">
-                  <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
-                    <Flame className="mx-auto h-5 w-5 text-orange-400" />
-                    <p className="mt-1 text-[11px] font-bold text-white">{streak} Day Streak</p>
-                    <p className="text-[9px] text-white/70">{streak > 0 ? "Keep it up!" : "Start today!"}</p>
-                  </div>
-                  <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
-                    <Leaf className="mx-auto h-5 w-5 text-green-300" />
-                    <p className="mt-1 text-[11px] font-bold text-white">{pct}% Nutrition</p>
-                    <p className="text-[9px] text-white/70">Consistency</p>
-                  </div>
-                  <div className="flex-1 text-center rounded-[14px] bg-white/15 px-2 py-2.5 backdrop-blur-sm">
-                    <Droplet className="mx-auto h-5 w-5 text-blue-300" />
-                    <p className="mt-1 text-[11px] font-bold text-white">{waterDays}/7 Water</p>
-                    <p className="text-[9px] text-white/70">days hit goal</p>
-                  </div>
+
+                {/* ── Divider ── */}
+                <div className="mx-5 h-px bg-slate-100" />
+
+                {/* ── Metric bars row ── */}
+                <div className="grid grid-cols-3 gap-px bg-slate-100">
+                  {[
+                    { label: 'Calories', value: `${calPct2}%`, sub: `${calAvg.toLocaleString()} avg`, pct: calPct2, color: '#FB923C' },
+                    { label: 'Protein', value: `${protPct}%`, sub: 'of target', pct: protPct, color: '#818CF8' },
+                    { label: 'Hydration', value: `${waterDays}/7`, sub: 'days met goal', pct: Math.round((waterDays / 7) * 100), color: '#38BDF8' },
+                  ].map((m) => (
+                    <div key={m.label} className="flex flex-col items-center bg-white px-2 py-3">
+                      <div className="mb-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${m.pct}%`, backgroundColor: m.color }} />
+                      </div>
+                      <p className="text-[15px] font-black text-slate-900">{m.value}</p>
+                      <p className="mt-0.5 text-[9px] font-semibold text-slate-400">{m.sub}</p>
+                      <p className="mt-0.5 text-[9px] font-extrabold uppercase tracking-wide" style={{ color: m.color }}>{m.label}</p>
+                    </div>
+                  ))}
                 </div>
+
+                {/* ── Days logged strip ── */}
+                <div className="flex items-center gap-2 px-5 py-3">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400 shrink-0">Days logged</p>
+                  <div className="flex flex-1 items-center gap-1">
+                    {['M','T','W','T','F','S','S'].map((d, i) => {
+                      const dayData = weekdayData[i];
+                      const logged = dayData && dayData.calories > 0;
+                      return (
+                        <div key={i} className="flex flex-1 flex-col items-center gap-1">
+                          <div
+                            className="h-4 w-full rounded-full transition-colors duration-300"
+                            style={{ backgroundColor: logged ? '#34D399' : '#E2E8F0' }}
+                          />
+                          <span className="text-[8px] font-bold text-slate-400">{d}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[12px] font-black text-slate-700 shrink-0">{daysLogged2}<span className="text-[10px] font-semibold text-slate-400">/7</span></span>
+                </div>
+
               </article>
               );
             })()}
@@ -1439,59 +1584,151 @@ export default function ProgressRedesigned() {
 
         {activeTab === "goals" && (
           <>
+            {/* Goals Hero Card - same spirit as Today card */}
             <section className="mb-5">
-              <article className="rounded-[24px] bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
-                <div className="flex items-center justify-between gap-5">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 mb-2">{goalRightMetric.label}</p>
-                    <div className="text-[42px] font-black leading-none tracking-[-0.06em] text-slate-900 mb-1">
-                      {goalRightMetric.value}
-                      <span className="text-[16px] font-bold text-slate-500 ml-1">{goalRightMetric.unit}</span>
-                    </div>
-                    <p className={`text-[14px] font-extrabold ${goalType === "weight_loss" ? "text-amber-600" : goalType === "muscle_gain" ? "text-blue-600" : "text-emerald-600"}`}>
-                      {goalSubLabel}
-                    </p>
-                    <div className="mt-3 h-1.5 rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${goalRingValue}%` }} />
-                    </div>
+              {/* Goal type selector pills */}
+              <div className="mb-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                {Object.entries(goalTypeLabel).map(([key, label]) => {
+                  const Icon = goalTypeIcon[key] ?? Leaf;
+                  const isActive = goalType === key;
+                  const goalColors: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
+                  const activeColor = goalColors[key] ?? '#10B981';
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleGoalChange(key)}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-extrabold transition-all active:scale-95 ${
+                        isActive ? 'text-white shadow-md' : 'bg-slate-100 text-slate-500'
+                      }`}
+                      style={isActive ? { backgroundColor: activeColor } : {}}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
 
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {Object.entries(goalTypeLabel).map(([key, label]) => {
-                        const Icon = goalTypeIcon[key] ?? Leaf;
-                        const isActive = goalType === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => handleGoalChange(key)}
-                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-extrabold transition-all active:scale-95 ${isActive ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                          >
-                            <Icon className="h-3 w-3" strokeWidth={2} />
-                            {label}
-                          </button>
-                        );
-                      })}
+              {/* Main goal card - white card */}
+              {(() => {
+                const goalColors2: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
+                const goalColor = goalColors2[goalType] ?? '#10B981';
+                const goalLightBg: Record<string, string> = { weight_loss: '#FEF3C7', muscle_gain: '#EEF2FF', maintenance: '#D1FAE5', general: '#FDF2F8' };
+                const goalBg = goalLightBg[goalType] ?? '#D1FAE5';
+                const outerC = 2 * Math.PI * 46;
+                const innerC = 2 * Math.PI * 34;
+                const calTarget3 = activeGoal?.daily_calorie_target ?? 2000;
+                const protTarget3 = activeGoal?.protein_target_g ?? 120;
+                const carbTarget3 = activeGoal?.carbs_target_g ?? 240;
+                const fatTarget3 = activeGoal?.fat_target_g ?? 70;
+                return (
+              <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
+
+                {/* ── Top banner ── */}
+                <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                  <div>
+                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Active Goal</p>
+                    <p className="text-[15px] font-black text-slate-900">{goalName}</p>
+                  </div>
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
+                    style={{ backgroundColor: goalBg }}
+                  >
+                    {(() => { const GIcon = goalTypeIcon[goalType] ?? Leaf; return <GIcon className="h-5 w-5" style={{ color: goalColor }} strokeWidth={2.5} />; })()}
+                  </div>
+                </div>
+
+                {/* ── Dual donut + right stats ── */}
+                <div className="flex items-center gap-4 px-5 pb-4">
+                  {/* Dual donut: outer = goal ring value, inner = BMI / secondary */}
+                  <div className="relative shrink-0">
+                    <svg width="110" height="110" viewBox="0 0 110 110">
+                      {/* Outer track */}
+                      <circle cx="55" cy="55" r="46" fill="none" stroke="#F1F5F9" strokeWidth="10" />
+                      {/* Outer arc = goal progress */}
+                      <circle cx="55" cy="55" r="46" fill="none" stroke={goalColor} strokeLinecap="round" strokeWidth="10"
+                        strokeDasharray={`${(goalRingValue / 100) * outerC} ${outerC}`}
+                        transform="rotate(-90 55 55)"
+                      />
+                      {/* Inner track */}
+                      <circle cx="55" cy="55" r="34" fill="none" stroke="#F1F5F9" strokeWidth="8" />
+                      {/* Inner arc = BMI normalized (0-40 scale) */}
+                      <circle cx="55" cy="55" r="34" fill="none"
+                        stroke={bmi < 18.5 ? '#38BDF8' : bmi < 25 ? '#34D399' : bmi < 30 ? '#F59E0B' : '#F87171'}
+                        strokeLinecap="round" strokeWidth="8"
+                        strokeDasharray={`${(Math.min(bmi, 40) / 40) * innerC} ${innerC}`}
+                        transform="rotate(-90 55 55)"
+                      />
+                      {/* Center */}
+                      <text x="55" y="50" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0F172A" fontFamily="system-ui">{goalRingValue}</text>
+                      <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">%</text>
+                    </svg>
+                    {/* Legend */}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: goalColor }} />Goal</span>
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: bmi < 25 ? '#34D399' : '#F59E0B' }} />BMI</span>
                     </div>
                   </div>
 
-                  <div className="relative grid h-[96px] w-[96px] shrink-0 place-items-center">
-                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
-                      <circle cx="48" cy="48" r="40" fill="none" stroke="#F1F5F9" strokeWidth="6" />
-                      <circle
-                        cx="48" cy="48" r="40" fill="none"
-                        stroke={goalType === "weight_loss" ? "#F59E0B" : goalType === "muscle_gain" ? "#3B82F6" : "#10B981"}
-                        strokeLinecap="round" strokeWidth="6"
-                        strokeDasharray={`${(goalRingValue / 100) * 251.3} 251.3`}
-                      />
-                    </svg>
-                    <div className="text-center">
-                      <span className="text-[22px] font-black text-slate-900">{goalRingValue}</span>
+                  {/* Right stats */}
+                  <div className="flex-1 min-w-0 space-y-2.5">
+                    {/* Current weight */}
+                    <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
+                      <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">{goalRightMetric.label}</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[22px] font-black leading-none text-slate-900">{goalRightMetric.value}</span>
+                        <span className="text-[10px] font-bold text-slate-400">{goalRightMetric.unit.replace(' ▾', '')}</span>
+                      </div>
+                      {goalWeight !== currentWeight && (
+                        <p className="mt-0.5 text-[9px] font-semibold" style={{ color: goalColor }}>
+                          Target: {goalWeight.toFixed(1)} kg
+                        </p>
+                      )}
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${goalRingValue}%`, backgroundColor: goalColor }} />
+                      </div>
+                    </div>
+
+                    {/* BMI badge */}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[12px] font-black"
+                        style={{ backgroundColor: goalBg, color: goalColor }}
+                      >
+                        {bmi.toFixed(1)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-slate-900">BMI · {bmiLabel}</p>
+                        <p className="text-[9px] text-slate-400">{goalSubLabel}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {(goalType === "weight_loss" || goalType === "muscle_gain") && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
+                {/* ── Divider ── */}
+                <div className="mx-5 h-px bg-slate-100" />
+
+                {/* ── Nutrition targets row ── */}
+                <div className="grid grid-cols-4 gap-px bg-slate-100">
+                  {[
+                    { label: 'Calories', value: calTarget3.toLocaleString(), unit: 'kcal', color: '#FB923C' },
+                    { label: 'Protein', value: `${protTarget3}`, unit: 'g', color: '#818CF8' },
+                    { label: 'Carbs', value: `${carbTarget3}`, unit: 'g', color: '#34D399' },
+                    { label: 'Fat', value: `${fatTarget3}`, unit: 'g', color: '#F472B6' },
+                  ].map((m) => (
+                    <div key={m.label} className="flex flex-col items-center bg-white px-1 py-3">
+                      <p className="text-[13px] font-black text-slate-900">{m.value}</p>
+                      <p className="text-[8px] font-semibold text-slate-400">{m.unit}</p>
+                      <p className="mt-0.5 text-[8px] font-extrabold uppercase tracking-wide" style={{ color: m.color }}>{m.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Weight input strip ── */}
+                {(goalType === 'weight_loss' || goalType === 'muscle_gain') && (
+                  <div className="flex items-center gap-2 px-5 py-3">
+                    <Scale className="h-4 w-4 shrink-0 text-slate-400" />
                     <input
                       type="number"
                       value={showWeightInput ? newWeight : currentWeight.toFixed(1)}
@@ -1499,22 +1736,26 @@ export default function ProgressRedesigned() {
                       onChange={(e) => setNewWeight(e.target.value)}
                       placeholder={`${currentWeight}`}
                       step="0.1"
-                      className="h-10 flex-1 rounded-[10px] border border-slate-200 bg-slate-50 px-3 text-[15px] font-bold text-slate-800"
+                      className="flex-1 min-w-0 rounded-[10px] border border-slate-200 bg-slate-50 px-3 py-2 text-[15px] font-black text-slate-900 outline-none focus:border-slate-300"
                     />
-                    <span className="text-[13px] font-bold text-slate-500">kg</span>
+                    <span className="text-[12px] font-bold text-slate-500">kg</span>
                     {showWeightInput && (
                       <button
                         type="button"
                         onClick={handleLogWeight}
                         disabled={isLoggingWeight}
-                        className="h-10 rounded-[10px] bg-emerald-600 px-4 text-[13px] font-black text-white active:scale-95 disabled:opacity-60"
+                        className="shrink-0 rounded-[10px] px-4 py-2 text-[12px] font-black text-white active:scale-95 disabled:opacity-60"
+                        style={{ backgroundColor: goalColor }}
                       >
-                        {isLoggingWeight ? "..." : "Save"}
+                        {isLoggingWeight ? '...' : 'Save'}
                       </button>
                     )}
                   </div>
                 )}
+
               </article>
+                );
+              })()}
             </section>
 
             <section className="mb-5">

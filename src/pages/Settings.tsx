@@ -195,7 +195,7 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-4">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
         <div className="container max-w-2xl mx-auto px-4 py-4">
@@ -583,29 +583,6 @@ const Settings = () => {
         </Card>
       </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-        <div className="container max-w-2xl mx-auto px-4">
-          <div className="flex justify-around py-2">
-            <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/dashboard")}>
-              <Utensils className="h-5 w-5" />
-              <span className="text-xs mt-1">{t('nav_home')}</span>
-            </Button>
-            <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/meals")}>
-              <Utensils className="h-5 w-5" />
-              <span className="text-xs mt-1">{t('nav_meals')}</span>
-            </Button>
-            <Button variant="ghost" className="flex-col h-auto py-2" onClick={() => navigate("/schedule")}>
-              <Clock className="h-5 w-5" />
-              <span className="text-xs mt-1">{t('nav_schedule')}</span>
-            </Button>
-            <Button variant="ghost" className="flex-col h-auto py-2 text-primary" onClick={() => navigate("/settings")}>
-              <Bell className="h-5 w-5" />
-              <span className="text-xs mt-1">{t('nav_settings')}</span>
-            </Button>
-          </div>
-        </div>
-      </nav>
     </div>
   );
 };

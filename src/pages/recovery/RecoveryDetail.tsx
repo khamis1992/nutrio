@@ -57,7 +57,7 @@ export default function RecoveryDetail() {
   const completedCount = partnerBookings.filter((b) => b.status === "completed").length;
 
   return (
-    <div className="pb-4">
+    <div className="pb-32">
       {/* Cover */}
       <div className="h-48 bg-gradient-to-br from-violet-200 to-purple-300 dark:from-violet-950 dark:to-purple-950 relative">
         <button
@@ -210,7 +210,7 @@ export default function RecoveryDetail() {
       </div>
 
       {/* Book Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm border-t">
+      <div className="fixed bottom-14 left-0 right-0 p-4 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm border-t z-30" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
         <Button
           className="w-full h-12 bg-violet-600 hover:bg-violet-700 text-base"
           onClick={() => setBookingOpen(true)}
