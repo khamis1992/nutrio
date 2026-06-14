@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useState, useCallback, useRef } from "react";
+import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
@@ -37,6 +38,9 @@ import {
   Utensils,
   UtensilsCrossed,
   Wallet,
+  Heart,
+  BarChart2,
+  Users,
   Wheat,
   XCircle,
   type LucideIcon,
@@ -2055,27 +2059,27 @@ const Dashboard = () => {
           <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 whitespace-nowrap">Quick</span>
             <div className="h-[28px] w-px bg-slate-100 shrink-0" />
-            {[
-              { img: "/icons/quick-tracker.png",   label: "Tracker",   bg: "bg-emerald-50",  ring: "ring-emerald-100", shadow: "shadow-[0_4px_10px_rgba(16,185,129,0.15)]",  to: "/tracker" },
-              { img: "/icons/quick-favorites.png", label: "Favorites", bg: "bg-rose-50",     ring: "ring-rose-100",    shadow: "shadow-[0_4px_10px_rgba(244,63,94,0.15)]",   to: "/favorites" },
-              { img: "/icons/quick-progress.png",  label: "Progress",  bg: "bg-blue-50",    ring: "ring-blue-100",    shadow: "shadow-[0_4px_10px_rgba(59,130,246,0.15)]",  to: "/progress" },
-              { img: "/icons/quick-community.png", label: "Community", bg: "bg-teal-50",    ring: "ring-teal-100",    shadow: "shadow-[0_4px_10px_rgba(20,184,166,0.15)]",  to: "/community" },
-            ].map(({ img, label, to }) => (
+            {([
+              { icon: Utensils,  label: "Tracker",   circleBg: "#059669", to: "/tracker" },
+              { icon: Heart,     label: "Favorites", circleBg: "#E11D48", to: "/favorites" },
+              { icon: BarChart2, label: "Progress",  circleBg: "#D97706", to: "/progress" },
+              { icon: Users,     label: "Community", circleBg: "#4F46E5", to: "/community" },
+            ] as { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; circleBg: string; to: string }[]).map(({ icon: Icon, label, circleBg, to }) => (
               <motion.button
                 key={label}
                 type="button"
                 onClick={() => navigate(to)}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.92 }}
-                className="flex flex-1 flex-col items-center gap-1.5"
+                className="flex flex-1 flex-col items-center gap-1.5 rounded-[14px] bg-white py-2 shadow-[0_2px_8px_rgba(0,0,0,0.07)] ring-1 ring-slate-100"
                 aria-label={label}
               >
-                {/* Icon + oval shadow */}
-                <div className="relative flex items-center justify-center">
-                  <img src={img} alt={label} className="relative z-10 h-[54px] w-[54px] object-contain drop-shadow-sm" />
-                  {/* Oval shadow beneath icon */}
-                  <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 h-[8px] w-[36px] rounded-full bg-black/10 blur-[3px]" />
+                <div
+                  className="flex h-[44px] w-[44px] items-center justify-center rounded-full"
+                  style={{ backgroundColor: circleBg }}
+                >
+                  <Icon className="h-[20px] w-[20px] text-white" strokeWidth={2} />
                 </div>
-                <p className="text-[10px] font-bold leading-tight text-slate-600">{label}</p>
+                <p className="text-[10px] font-bold leading-tight text-slate-700">{label}</p>
               </motion.button>
             ))}
           </div>
