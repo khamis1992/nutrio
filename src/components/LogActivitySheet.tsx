@@ -83,20 +83,27 @@ const CATEGORY_GRADIENTS: Record<string, { from: string; to: string; shadow: str
 
 function ActivityIllustration({ activity, size }: { activity: Activity; size?: number }) {
   const s = size ?? 60;
-  const iconSize = s * 0.47;
-  const g = CATEGORY_GRADIENTS[activity.category] ?? CATEGORY_GRADIENTS.Sports;
-  const Icon = activity.icon ?? g.Icon;
+  const imgSrc = `/activities/${activity.id}.png`;
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-full text-white"
-      style={{
-        width: s,
-        height: s,
-        backgroundImage: `linear-gradient(135deg, ${g.from}, ${g.to})`,
-        boxShadow: `0 8px 18px ${g.shadow}`,
-      }}
+      className="flex shrink-0 items-center justify-center rounded-2xl overflow-hidden bg-slate-50"
+      style={{ width: s, height: s, boxShadow: "0 4px 12px rgba(0,0,0,0.10)" }}
     >
-      <Icon weight="bold" width={iconSize} height={iconSize} />
+      <img
+        src={imgSrc}
+        alt={activity.name}
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          // fallback to gradient icon if image missing
+          const el = e.currentTarget.parentElement;
+          if (el) {
+            const g = CATEGORY_GRADIENTS[activity.category] ?? CATEGORY_GRADIENTS.Sports;
+            el.style.backgroundImage = `linear-gradient(135deg, ${g.from}, ${g.to})`;
+            el.style.boxShadow = `0 8px 18px ${g.shadow}`;
+          }
+          e.currentTarget.style.display = 'none';
+        }}
+      />
     </div>
   );
 }
