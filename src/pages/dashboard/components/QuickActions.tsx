@@ -162,15 +162,11 @@ interface QuickAction {
   id: string;
   title: string;
   description: string;
-  cta: string;
   href: string;
   icon: (props: { className?: string }) => JSX.Element;
-  /** Tailwind classes for the colored icon tile */
   tileBg: string;
   tileText: string;
-  /** Tailwind classes for the CTA button */
-  ctaClasses: string;
-  /** Tailwind classes for accent text */
+  accentBar: string;
   accent: string;
 }
 
@@ -178,41 +174,35 @@ const actions: QuickAction[] = [
   {
     id: "goals",
     title: "Update Goals",
-    description: "Changed your fitness goals? Refresh your daily targets.",
-    cta: "Edit Profile",
+    description: "Refresh your daily targets when goals change.",
     href: "/personal-info",
     icon: GoalsIcon,
     tileBg: "bg-gradient-to-br from-emerald-400 to-emerald-600",
     tileText: "text-white",
-    ctaClasses:
-      "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20",
-    accent: "text-emerald-700 dark:text-emerald-400",
+    accentBar: "bg-emerald-500",
+    accent: "group-hover:text-emerald-600",
   },
   {
     id: "meal-plan",
     title: "View Meal Plan",
     description: "See your AI-curated weekly menu at a glance.",
-    cta: "Open Planner",
     href: "/schedule",
     icon: MealPlanIcon,
     tileBg: "bg-gradient-to-br from-sky-400 to-blue-600",
     tileText: "text-white",
-    ctaClasses:
-      "bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20",
-    accent: "text-blue-700 dark:text-blue-400",
+    accentBar: "bg-sky-500",
+    accent: "group-hover:text-sky-600",
   },
   {
     id: "weight",
     title: "Log Weight",
     description: "Track weigh-ins to see real progress over time.",
-    cta: "Add Entry",
     href: "/weight-tracking",
     icon: WeightIcon,
     tileBg: "bg-gradient-to-br from-amber-400 to-orange-500",
     tileText: "text-white",
-    ctaClasses:
-      "bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-500/20",
-    accent: "text-orange-700 dark:text-orange-400",
+    accentBar: "bg-amber-500",
+    accent: "group-hover:text-amber-600",
   },
 ];
 
@@ -225,7 +215,6 @@ export function QuickActions() {
 
   return (
     <div className="mt-8">
-      {/* Section header */}
       <div className="flex items-end justify-between mb-4 px-1">
         <div>
           <h2 className="text-base font-semibold text-foreground">Quick Actions</h2>
@@ -235,46 +224,41 @@ export function QuickActions() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
             <Card
               key={action.id}
-              className="group relative overflow-hidden border-border/60 bg-card hover:border-border hover:shadow-md transition-all duration-200"
+              onClick={() => navigate(action.href)}
+              className={`group relative cursor-pointer overflow-hidden border-border/60 bg-card p-0 hover:border-border hover:shadow-md transition-all duration-200 text-left`}
+              role="button"
+              aria-label={`Go to ${action.title}`}
             >
+              <div className={`absolute top-0 left-0 h-full w-1 ${action.accentBar}`} />
               <CardContent className="p-5">
-                {/* Top row: icon tile + arrow */}
-                <div className="flex items-start justify-between mb-4">
-                  <div
-                    className={`w-14 h-14 rounded-2xl ${action.tileBg} ${action.tileText} flex items-center justify-center shadow-lg shadow-current/10 group-hover:scale-105 transition-transform duration-200`}
-                  >
-                    <Icon className="w-7 h-7" />
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-2xl ${action.tileBg} ${action.tileText} flex items-center justify-center shadow-lg shadow-current/10 shrink-0 group-hover:scale-105 transition-transform duration-200`}
+                    >
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-foreground">
+                        {action.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                        {action.description}
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => navigate(action.href)}
-                    aria-label={`Go to ${action.title}`}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${action.accent} hover:bg-current/10`}
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-muted-foreground/60 group-hover:text-foreground ${action.accent} transition-colors`}
                   >
                     <ArrowRight className="w-4 h-4" />
-                  </button>
+                  </div>
                 </div>
-
-                {/* Title + description */}
-                <h3 className={`font-semibold text-base mb-1 ${action.accent}`}>
-                  {action.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4 min-h-[2.5rem]">
-                  {action.description}
-                </p>
-
-                {/* CTA button */}
-                <button
-                  onClick={() => navigate(action.href)}
-                  className={`w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 active:scale-[0.98] ${action.ctaClasses}`}
-                >
-                  {action.cta}
-                </button>
               </CardContent>
             </Card>
           );

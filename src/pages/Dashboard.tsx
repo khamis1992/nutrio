@@ -765,7 +765,7 @@ const Dashboard = () => {
           </div>
 
           {/* Today's Meals skeleton */}
-          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+          <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <div className="h-3 w-28 rounded-full bg-emerald-100/60 animate-pulse" />
@@ -840,7 +840,7 @@ const Dashboard = () => {
           </div>
 
           {/* Activity section skeleton */}
-          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+          <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
               <div className="h-3 w-28 rounded-full bg-emerald-100/60 animate-pulse" />
@@ -869,7 +869,7 @@ const Dashboard = () => {
           </div>
 
           {/* Active orders skeleton */}
-          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+          <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
@@ -890,7 +890,7 @@ const Dashboard = () => {
           </div>
 
           {/* Top restaurants skeleton */}
-          <div className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+          <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="h-5 w-5 rounded-full bg-emerald-100/60 animate-pulse" />
@@ -1189,7 +1189,7 @@ const Dashboard = () => {
                     <Link
                       to="/notifications"
                       onClick={() => setShowNotificationsDropdown(false)}
-                      className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-4 py-3 text-[13px] font-semibold text-[#10B981] transition hover:bg-[#F0FDF6]"
+                      className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-4 py-3 text-[13px] font-semibold text-emerald-600 transition hover:bg-emerald-50"
                     >
                       View all notifications
                       <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
@@ -1209,7 +1209,7 @@ const Dashboard = () => {
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 16 }}
           animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={prefersReducedMotion ? undefined : { duration: 0.35, ease: "easeOut", delay: 0.05 }}
-          className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+          className="mt-5 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -1218,7 +1218,7 @@ const Dashboard = () => {
             </div>
             <Link
               to="/schedule"
-              className="flex h-[30px] items-center gap-1 rounded-full bg-[#F0FDF6] px-2.5 text-[11px] font-semibold text-[#10B981]"
+              className="flex h-[30px] items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-600"
             >
               Schedule
               <ChevronRight className="h-3 w-3" />
@@ -1241,7 +1241,7 @@ const Dashboard = () => {
                 return (
                   <Link
                     to="/meals"
-                    className="block rounded-2xl bg-gradient-to-br from-[#F0FDF6] via-[#F6FFF9] to-[#F0F7FF] p-5 ring-1 ring-emerald-100/60 transition active:scale-[0.98]"
+                    className="block rounded-2xl bg-gradient-to-br from-[#F0FDF6] via-[#F6FFF9] to-[#F0F7FF] p-5 ring-1 ring-emerald-100/60 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition active:scale-[0.98]"
                   >
                     <div className="flex items-center gap-4">
                       <div className="flex -space-x-3">
@@ -1342,7 +1342,7 @@ const Dashboard = () => {
                       {/* Order Now CTA */}
                       <Link
                         to="/meals"
-                        className="flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-[#10B981] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FDF6]"
+                        className="flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-[#10B981] shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition hover:bg-emerald-50"
                       >
                         <Plus className="h-[13px] w-[13px]" strokeWidth={2.5} />
                         Order Now
@@ -1386,7 +1386,7 @@ const Dashboard = () => {
                         </div>
                         <Link
                           to={`/meals/${meal.meal?.id}`}
-                          className="mt-3 flex items-center justify-center gap-1 rounded-full bg-[#F0FDF6] py-2 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]"
+                          className="mt-3 flex items-center justify-center gap-1 rounded-full bg-emerald-50 py-2 text-[12px] font-semibold text-emerald-600 transition hover:bg-emerald-100"
                         >
                           View Full Details
                           <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
@@ -1401,7 +1401,7 @@ const Dashboard = () => {
           </div>
 
           {todayMealsError && (
-            <div className="mt-3 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-3">
+            <div className="mt-3 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
               <div className="flex items-center gap-3">
                 <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[16px] w-[16px]" strokeWidth={1.75} />
@@ -1434,7 +1434,7 @@ const Dashboard = () => {
           initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
           animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut" }}
-          className="mt-5 rounded-[24px] bg-white px-4 py-4 shadow-[0_4px_16px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
+          className="mt-5 rounded-2xl bg-white px-4 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
         >
           <div className="flex items-center gap-4">
             {/* Balance Ring */}
@@ -1499,7 +1499,7 @@ const Dashboard = () => {
           <SubscriptionNudge />
         </div>
 
-        <section className="mt-4 rounded-[24px] bg-white px-4 pb-5 pt-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+        <section className="mt-4 rounded-2xl bg-white px-4 pb-5 pt-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Calendar className="h-5 w-5 text-slate-500" strokeWidth={2} />
@@ -1547,7 +1547,7 @@ const Dashboard = () => {
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? undefined : { delay: 0.08, type: "spring", stiffness: 280, damping: 26 }}
-              className="cursor-pointer rounded-[18px] bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
+              className="cursor-pointer rounded-2xl bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
               onClick={() => navigate("/water-tracker")}
             >
               <div className="flex items-center gap-1.5 mb-2">
@@ -1573,7 +1573,7 @@ const Dashboard = () => {
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
               animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? undefined : { delay: 0.1, type: "spring", stiffness: 280, damping: 26 }}
-              className="cursor-pointer rounded-[18px] bg-white p-3 shadow-[0_4px_16px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
+              className="cursor-pointer rounded-2xl bg-white p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
               onClick={() => navigate("/step-counter")}
             >
               <div className="flex items-center gap-1.5 mb-2">
@@ -1648,7 +1648,7 @@ const Dashboard = () => {
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             transition={prefersReducedMotion ? undefined : { duration: 0.4, ease: "easeOut", delay: 0.1 }}
-            className="mt-3 rounded-[24px] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)] ring-1 ring-slate-100/80"
+            className="mt-3 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
           >
             {/* Row: Ring + Macros */}
             <div className="flex items-center gap-3">
@@ -1729,7 +1729,7 @@ const Dashboard = () => {
                 onClick={() => setLogMealOpen(true)}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
-                className="w-full flex items-center gap-3 rounded-[16px] border border-slate-200 bg-white px-3 py-2.5 cursor-pointer"
+                className="w-full flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 cursor-pointer ring-1 ring-slate-100"
               >
                 {/* Left icon */}
                 <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-emerald-500">
@@ -1846,7 +1846,7 @@ const Dashboard = () => {
               >
                 <Link
                   to="/meals"
-                  className={`block rounded-2xl border p-3.5 shadow-sm transition-all hover:shadow-md hover:scale-[1.01] ${top.bg} ring-1 ${top.ring}`}
+                    className={`block rounded-2xl p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 transition-all hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] hover:scale-[1.01] ${top.bg} ${top.ring}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.06)]`}>
@@ -1871,7 +1871,7 @@ const Dashboard = () => {
               <h2 className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Activity Details</h2>
             </div>
             <div className="mt-2.5 flex items-center gap-2.5">
-              <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 shadow-[0_6px_14px_rgba(15,23,42,0.03)]">
+              <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full bg-white px-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
                 <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_7px_14px_rgba(249,115,22,0.2)]">
                   <Flame className="h-[18px] w-[18px]" />
                 </div>
@@ -1880,7 +1880,7 @@ const Dashboard = () => {
                   <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{totalBurned} Cal</p>
                 </div>
               </div>
-              <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 shadow-[0_6px_14px_rgba(15,23,42,0.03)]">
+              <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full bg-white px-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
                 <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#19C878] to-[#079A59] text-white shadow-[0_7px_14px_rgba(16,185,129,0.18)]">
                   <Activity className="h-[18px] w-[18px]" />
                 </div>
@@ -2052,7 +2052,7 @@ const Dashboard = () => {
           {user && <BodyCorrelationWidget />}
 
           {/* ── Quick Access Icon Row ── */}
-          <div className="mt-4 flex items-center gap-2 rounded-[18px] bg-white px-3 py-3 shadow-[0_4px_14px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
+          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
             <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 whitespace-nowrap">Quick</span>
             <div className="h-[28px] w-px bg-slate-100 shrink-0" />
             {[
@@ -2082,7 +2082,7 @@ const Dashboard = () => {
 
           {/* Active Orders section */}
           {ordersError && (
-            <div className="mt-4 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-4">
+            <div className="mt-4 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
               <div className="flex items-center gap-3">
                 <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -2103,7 +2103,7 @@ const Dashboard = () => {
             </div>
           )}
           {activeOrders.length > 0 && (
-            <section className="mt-5 rounded-[24px] bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
+            <section className="mt-5 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_6px_12px_rgba(16,185,129,0.18)]">
@@ -2114,7 +2114,7 @@ const Dashboard = () => {
                     <p className="text-[11px] font-medium text-slate-500">{totalActiveOrders} order{totalActiveOrders !== 1 ? "s" : ""} in progress{totalActiveOrders > 3 ? ` · Showing first ${activeOrders.length}` : ""}</p>
                   </div>
                 </div>
-                <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-[#F0FDF6] px-3 py-1.5 text-[12px] font-semibold text-[#10B981] transition hover:bg-[#E0F9EE]">
+                <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-600 transition hover:bg-emerald-100">
                   View All
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
@@ -2145,7 +2145,7 @@ const Dashboard = () => {
                       key={order.id}
                       variants={prefersReducedMotion ? undefined : staggerItem}
                       whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
-                      className="overflow-hidden rounded-[18px] border border-slate-100 bg-white shadow-[0_4px_12px_rgba(15,23,42,0.04)] transition hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+                      className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]"
                     >
                       <Link to={`/live/${order.id}`} className="block">
                         <div className="flex items-center gap-4 p-4">
@@ -2180,7 +2180,7 @@ const Dashboard = () => {
                               </div>
                             ) : (
                               <div className="mt-1.5 flex items-center gap-1.5">
-                                <div className={`h-[4px] w-[4px] rounded-full ${config.badgeClass.replace("bg-", "").split(" ")[0]}`.replace(/\[([^\]]+)\]/g, "$1")} />
+                                <div className={`h-[4px] w-[4px] rounded-full ${config.badgeClass.replace("bg-", "").split(" ")[0]}`.replace(/\[([^\]]+)\]/g, "$$$1")} />
                                 <p className="text-[12px] font-medium text-slate-400">{config.hint}</p>
                               </div>
                             )}
@@ -2225,7 +2225,7 @@ const Dashboard = () => {
 
           {/* Monthly Order Stats */}
           {monthlyStats.total > 0 && (
-            <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_6px_16px_rgba(15,23,42,0.04)]">
+            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
               <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_10px_rgba(16,185,129,0.2)]">
                 <ShoppingBag className="h-[16px] w-[16px]" strokeWidth={2} />
               </div>
@@ -2237,7 +2237,7 @@ const Dashboard = () => {
                 </p>
               </div>
               {monthlyStats.total > 0 && (
-                <span className="rounded-full bg-[#ECFDF5] px-2.5 py-1 text-[11px] font-extrabold text-[#10B981]">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-600">
                   {Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%
                 </span>
               )}
@@ -2245,7 +2245,7 @@ const Dashboard = () => {
           )}
 
           {(topRestaurantsError && !topRestaurantsLoading && topRestaurants.length === 0) && (
-            <div className="mt-5 rounded-3xl ring-1 ring-amber-100 bg-amber-50 p-4">
+            <div className="mt-5 rounded-2xl ring-1 ring-amber-100 bg-amber-50 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
               <div className="flex items-center gap-3">
                 <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
                   <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
