@@ -41,13 +41,18 @@ ALTER TABLE program_meal_completions ENABLE ROW LEVEL SECURITY;
 
 -- Exercise completion policies
 -- Clients can manage their own completions
+DO $$ BEGIN
 CREATE POLICY "clients_manage_own_exercise_completions" ON program_exercise_completions
   FOR ALL
   TO authenticated
   USING (client_id = auth.uid())
   WITH CHECK (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can view completions for their programs
+DO $$ BEGIN
 CREATE POLICY "coaches_view_program_exercise_completions" ON program_exercise_completions
   FOR SELECT
   TO authenticated
@@ -59,16 +64,24 @@ CREATE POLICY "coaches_view_program_exercise_completions" ON program_exercise_co
       AND cp.coach_id = auth.uid()
     )
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Meal completion policies
 -- Clients can manage their own completions
+DO $$ BEGIN
 CREATE POLICY "clients_manage_own_meal_completions" ON program_meal_completions
   FOR ALL
   TO authenticated
   USING (client_id = auth.uid())
   WITH CHECK (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can view completions for their programs
+DO $$ BEGIN
 CREATE POLICY "coaches_view_program_meal_completions" ON program_meal_completions
   FOR SELECT
   TO authenticated
@@ -80,3 +93,6 @@ CREATE POLICY "coaches_view_program_meal_completions" ON program_meal_completion
       AND cp.coach_id = auth.uid()
     )
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+

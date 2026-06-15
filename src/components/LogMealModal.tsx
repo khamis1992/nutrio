@@ -167,7 +167,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent hideCloseButton className="w-full max-w-full max-h-[85dvh] rounded-3xl bg-white flex flex-col p-0 overflow-hidden">
-          <DialogTitle className="sr-only">Log Meal</DialogTitle>
+          <DialogTitle className="sr-only">{t("log_meal_title")}</DialogTitle>
 
           {/* Header */}
           <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 shrink-0">
@@ -176,8 +176,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                 <Utensils className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900 leading-tight">Log Meal</h2>
-                <p className="text-xs text-gray-500 leading-tight">Search or choose food to add</p>
+                <h2 className="text-lg font-bold text-gray-900 leading-tight">{t("log_meal_title")}</h2>
+                <p className="text-xs text-gray-500 leading-tight">{t("search_or_choose_food")}</p>
               </div>
             </div>
             <button
@@ -213,8 +213,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
           {/* Recent meals list */}
           <div className="flex-1 overflow-y-auto px-4 pb-2">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold text-gray-900 text-sm">Recently Logged</p>
-              <button className="text-xs font-semibold text-green-600">View all</button>
+              <p className="font-semibold text-gray-900 text-sm">{t("recently_logged")}</p>
+              <button className="text-xs font-semibold text-green-600">{t("view_all_small")}</button>
             </div>
             <div className="space-y-2">
               {loading ? (
@@ -272,8 +272,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                   <span className="text-white font-bold text-xs">i</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-green-700 text-sm">Can't find your food?</p>
-                  <p className="text-xs text-green-600">Use Scan Food to add it instantly</p>
+                  <p className="font-semibold text-green-700 text-sm">{t("cant_find_food")}</p>
+                  <p className="text-xs text-green-600">{t("use_scan_food")}</p>
                 </div>
               </div>
               <button onClick={() => setShowScanChoice(true)} className="text-green-600 font-semibold text-sm">→</button>
@@ -311,7 +311,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
             <div className="flex justify-center mb-2">
               <div className="w-10 h-1 rounded-full bg-gray-200" />
             </div>
-            <h3 className="text-center text-base font-bold text-gray-900 mb-4">Choose Scan Method</h3>
+            <h3 className="text-center text-base font-bold text-gray-900 mb-4">{t("choose_scan_method")}</h3>
             <button
               onClick={() => {
                 setShowScanChoice(false);
@@ -323,8 +323,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                 <Barcode className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Scan Barcode</p>
-                <p className="text-sm text-gray-500">Scan product barcode to get nutritional info</p>
+                <p className="font-semibold text-gray-900">{t("scan_barcode")}</p>
+                <p className="text-sm text-gray-500">{t("scan_barcode_desc")}</p>
               </div>
             </button>
             <button
@@ -338,8 +338,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                 <Camera className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">Photo Analysis</p>
-                <p className="text-sm text-gray-500">Take a photo of your food to analyze it with AI</p>
+                <p className="font-semibold text-gray-900">{t("photo_analysis")}</p>
+                <p className="text-sm text-gray-500">{t("photo_analysis_desc")}</p>
               </div>
             </button>
             <button

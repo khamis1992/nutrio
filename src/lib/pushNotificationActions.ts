@@ -45,7 +45,7 @@ const ACTION_REGISTRY: Record<NotificationActionCategory, NotificationAction[]> 
       label: "Snooze 30min",
       icon: Clock,
       handler: () => {
-        console.log("Meal reminder snoozed for 30 minutes");
+
       },
       variant: "outline",
     },
@@ -69,7 +69,7 @@ const ACTION_REGISTRY: Record<NotificationActionCategory, NotificationAction[]> 
       label: "Snooze",
       icon: Clock,
       handler: () => {
-        console.log("Streak risk snoozed");
+
       },
       variant: "outline",
     },
@@ -113,7 +113,7 @@ const ACTION_REGISTRY: Record<NotificationActionCategory, NotificationAction[]> 
       label: "Maybe Later",
       icon: X,
       handler: () => {
-        console.log("Challenge invitation dismissed");
+
       },
       variant: "ghost",
     },

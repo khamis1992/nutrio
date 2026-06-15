@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,7 @@ interface SubscriptionData {
 }
 
 export default function BodyProgressDashboard() {
+  const { t } = useLanguage();
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[]>([]);
   const [healthScore, setHealthScore] = useState<HealthScore | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
@@ -661,7 +663,7 @@ export default function BodyProgressDashboard() {
                 ) : (
                   <div className="text-center py-8 text-slate-500">
                     <Snowflake className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>No freezes scheduled yet</p>
+                    <p>{t("no_freezes_scheduled")}</p>
                     <p className="text-sm">You can freeze your subscription for up to 7 days per billing cycle</p>
                   </div>
                 )}
@@ -673,7 +675,7 @@ export default function BodyProgressDashboard() {
             {/* Metrics History Table */}
             <Card>
               <CardHeader>
-                <CardTitle>Weekly Metrics History</CardTitle>
+                <CardTitle>{t("weekly_metrics_history")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {bodyMetrics.length > 0 ? (
@@ -714,7 +716,7 @@ export default function BodyProgressDashboard() {
                 ) : (
                   <div className="text-center py-12 text-slate-500">
                     <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>No metrics recorded yet</p>
+                    <p>{t("no_metrics_recorded")}</p>
                   </div>
                 )}
               </CardContent>

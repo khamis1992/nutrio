@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, ChevronDown, ChevronUp, Crown, Zap, Star } from "lucide-react";
@@ -44,6 +45,7 @@ export function PlanComparisonTable({
   billingInterval,
   onBillingIntervalChange,
 }: PlanComparisonTableProps) {
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -226,7 +228,7 @@ export function PlanComparisonTable({
                     )}>
                       <div className="flex items-center justify-center gap-1.5 mb-1">
                         <Icon className="h-3.5 w-3.5 text-primary" />
-                        <p className="text-xs font-bold text-foreground">{display.en}</p>
+                        <p className="text-xs font-bold text-foreground">{language === "ar" ? display.ar : display.en}</p>
                       </div>
                       {isCurrent && (
                         <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4 mb-1">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -44,6 +45,7 @@ interface FavoriteRestaurant {
 
 const Favorites = () => {
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("favorites_title")} — Nutrio`; }, [t]);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -53,6 +55,7 @@ const Favorites = () => {
   
   const [restaurants, setRestaurants] = useState<FavoriteRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("restaurants");
 
   useEffect(() => {
@@ -71,7 +74,7 @@ const Favorites = () => {
     if (!user) return;
     
     setLoading(true);
-    
+    setFetchError(null);
     try {
       const { data: favData, error: favError } = await supabase
         .from("user_favorite_restaurants")
@@ -117,6 +120,7 @@ const Favorites = () => {
       }
     } catch (err) {
       console.error("Error fetching favorites:", err);
+      setFetchError(err instanceof Error ? err.message : String(err));
       toast({
         title: t("error"),
         description: t("failed_to_load_favorites"),
@@ -165,8 +169,8 @@ const Favorites = () => {
             <Heart className="h-5 w-5 text-emerald-600 fill-emerald-600" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">My Favorites</h1>
-            <p className="text-sm text-gray-500">All your saved favorites</p>
+            <h1 className="text-xl font-bold text-gray-900">{t("favorites_title")}</h1>
+            <p className="text-sm text-gray-500">{t("favorites_subtitle")}</p>
           </div>
         </div>
       </div>
@@ -180,20 +184,40 @@ const Favorites = () => {
               className="flex-1 rounded-xl py-2.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm text-gray-500 transition-all"
             >
               <Utensils className="w-4 h-4 mr-2" />
-              Restaurants ({restaurants.length})
+              {t("favorites_restaurants_tab")} ({restaurants.length})
             </TabsTrigger>
             <TabsTrigger 
               value="meals" 
               className="flex-1 rounded-xl py-2.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm text-gray-500 transition-all"
             >
               <TrendingUp className="w-4 h-4 mr-2" />
-              Top Meals ({topMeals.length})
+              {t("favorites_meals_tab")} ({topMeals.length})
             </TabsTrigger>
           </TabsList>
 
-          {loading || topMealsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          {fetchError && !loading ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-4 text-center max-w-xs">{fetchError}</p>
+              <Button variant="outline" size="sm" onClick={fetchRestaurants}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                {t("retry")}
+              </Button>
+            </div>
+          ) : loading || topMealsLoading ? (
+            <div className="space-y-3 py-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-card rounded-2xl border p-4 flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              ))}
             </div>
           ) : (
             <>

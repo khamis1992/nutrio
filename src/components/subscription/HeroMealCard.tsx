@@ -84,7 +84,7 @@ export function HeroMealCard({
               {isUnlimited ? "∞" : isPaused ? "❄" : effectiveMealsLeft}
             </p>
             <p className="text-xs text-white/70 mt-1 font-medium">
-              {isUnlimited ? "unlimited" : isPaused ? "Paused" : "meals left"}
+              {isUnlimited ? t("unlimited_label") : isPaused ? t("paused_label") : t("meals_left_label_short")}
             </p>
             {!isUnlimited && rolloverCredits > 0 && remainingMeals === 0 && (
               <p className="text-xs text-white/60 mt-0.5">({rolloverCredits} rollover)</p>

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { getNavArrows } from "@/lib/rtl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 
@@ -6,7 +7,10 @@ import { cn } from "@/lib/utils";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+function Calendar({
+  className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+  const isRTL = typeof document !== "undefined" && document.documentElement.dir === "rtl";
+  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -66,8 +70,8 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ..._props }) => <ChevronLeft className="h-3.5 w-3.5" />,
-        IconRight: ({ ..._props }) => <ChevronRight className="h-3.5 w-3.5" />,
+        IconLeft: ({ ..._props }) => <PrevIcon className="h-3.5 w-3.5" />,
+        IconRight: ({ ..._props }) => <NextIcon className="h-3.5 w-3.5" />,
       }}
       {...props}
     />

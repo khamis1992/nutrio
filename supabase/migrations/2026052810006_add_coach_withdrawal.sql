@@ -27,28 +27,44 @@ CREATE INDEX IF NOT EXISTS idx_coach_withdrawals_pending
 ALTER TABLE coach_withdrawal_requests ENABLE ROW LEVEL SECURITY;
 
 -- Coaches can view their own withdrawal requests
+DO $$ BEGIN
 CREATE POLICY "coaches_view_own_withdrawals" ON coach_withdrawal_requests
   FOR SELECT
   TO authenticated
   USING (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can insert their own withdrawal requests
+DO $$ BEGIN
 CREATE POLICY "coaches_insert_withdrawals" ON coach_withdrawal_requests
   FOR INSERT
   TO authenticated
   WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Admins can update any withdrawal request (approve/reject/mark processed)
+DO $$ BEGIN
 CREATE POLICY "admins_manage_withdrawals" ON coach_withdrawal_requests
   FOR UPDATE
   TO authenticated
   USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND "role" = 'admin'));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Admins can view all withdrawal requests
+DO $$ BEGIN
 CREATE POLICY "admins_view_withdrawals" ON coach_withdrawal_requests
   FOR SELECT
   TO authenticated
   USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND "role" = 'admin'));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Add withdrawal notification type if it doesn't exist
 DO $$

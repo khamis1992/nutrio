@@ -620,7 +620,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   const handleTakePhoto = async () => {
-    console.log("[LogMeal] handleTakePhoto called, isNative:", isNative, "ref:", !!cameraInputRef.current);
+
     if (isNative) {
       try {
         // Request camera permission explicitly before opening camera
@@ -648,7 +648,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
   };
 
   const handlePickFromGallery = async () => {
-    console.log("[LogMeal] handlePickFromGallery called, isNative:", isNative, "ref:", !!galleryInputRef.current);
+
     if (isNative) {
       try {
         const photo = await Camera.getPhoto({
@@ -699,8 +699,8 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
         side="bottom"
         className="h-[95vh] p-0 rounded-t-3xl overflow-hidden flex flex-col bg-white [&>button]:hidden"
       >
-        <SheetTitle className="sr-only">Log Meal</SheetTitle>
-        <SheetDescription className="sr-only">Log your meals and track nutrition</SheetDescription>
+        <SheetTitle className="sr-only">{t("log_meal_title")}</SheetTitle>
+        <SheetDescription className="sr-only">{t("log_meal_desc")}</SheetDescription>
 
         {/* ── MAIN VIEW ── */}
         {view === "main" && (
@@ -925,7 +925,7 @@ export function LogMealDialog({ open, onOpenChange, userId, onMealLogged }: LogM
                           </div>
                         </button>
                         <button
-                          onClick={() => { console.log("[LogMeal] barcode scanner button clicked"); setShowBarcodeScanner(true); }}
+                          onClick={() => {setShowBarcodeScanner(true); }}
                           className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-green-200 bg-green-50 hover:bg-green-100 transition-colors"
                         >
                           <div className="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">

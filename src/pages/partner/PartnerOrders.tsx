@@ -244,7 +244,7 @@ const PartnerOrders = () => {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((e) => {
         // Browser might block autoplay until user interaction
-        console.log("Audio play failed:", e);
+
       });
     }
   };

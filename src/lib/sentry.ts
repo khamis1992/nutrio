@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 
 export function initSentry() {
   if (import.meta.env.DEV) {
-    console.log("Sentry disabled in development");
+
     return;
   }
 
@@ -49,7 +49,7 @@ export function captureError(error: Error, context?: Record<string, unknown>) {
 
 export function captureMessage(message: string, level: Sentry.SeverityLevel = "info") {
   if (import.meta.env.DEV) {
-    console.log(`[${level}]`, message);
+
     return;
   }
   

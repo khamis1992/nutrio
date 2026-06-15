@@ -35,7 +35,7 @@ class TrackingSocketService {
     this.config = config;
     
     if (this.ws?.readyState === WebSocket.OPEN) {
-      console.log('[TrackingSocket] Already connected');
+
       return;
     }
 
@@ -56,7 +56,7 @@ class TrackingSocketService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log('[TrackingSocket] Connected');
+
       this.reconnectAttempts = 0;
       this.config?.onConnect?.();
 
@@ -74,7 +74,7 @@ class TrackingSocketService {
     };
 
     this.ws.onclose = () => {
-      console.log('[TrackingSocket] Disconnected');
+
       this.config?.onDisconnect?.();
       this.scheduleReconnect();
     };
@@ -117,7 +117,7 @@ class TrackingSocketService {
         break;
 
       case 'fleet:subscribed':
-        console.log('[TrackingSocket] Subscribed to city:', (data as { cityId: string }).cityId);
+
         break;
 
       case 'error': {
@@ -128,7 +128,7 @@ class TrackingSocketService {
       }
 
       default:
-        console.log('[TrackingSocket] Unknown event:', event);
+
     }
   }
 
@@ -169,8 +169,6 @@ class TrackingSocketService {
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
-    console.log(`[TrackingSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-
     this.reconnectTimeout = setTimeout(() => {
       if (this.config) {
         this.connect(this.config);
@@ -207,7 +205,7 @@ class TrackingSocketService {
     if (this.ws) {
       this.ws.close();
       this.ws = null;
-      console.log('[TrackingSocket] Disconnected manually');
+
     }
   }
 

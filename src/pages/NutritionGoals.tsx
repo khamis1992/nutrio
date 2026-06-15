@@ -21,7 +21,7 @@ const NutritionGoals = () => {
           </Button>
           <div>
             <h1 className="text-base font-semibold">Nutrition Goals</h1>
-            <p className="text-xs text-muted-foreground">Set your body metrics and nutrition targets</p>
+            <p className="text-xs text-muted-foreground">{t("nutrition_goals_desc")}</p>
           </div>
         </div>
       </div>
@@ -30,7 +30,7 @@ const NutritionGoals = () => {
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Nutrition Goals</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Set your body metrics and nutrition targets</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("nutrition_goals_desc")}</p>
           </div>
           <div className="relative shrink-0">
             <div className="relative h-20 w-20 rounded-full border border-emerald-200 bg-emerald-50">

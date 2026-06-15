@@ -12,8 +12,10 @@ import {
   TrendingUp
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const About = () => {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -24,9 +26,9 @@ const About = () => {
           </Link>
           
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/about" className="text-sm font-medium text-primary transition-colors">About</Link>
-            <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
-            <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">For Restaurants</Link>
+            <Link to="/about" className="text-sm font-medium text-primary transition-colors">{t("about")}</Link>
+            <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t("nav_contact")}</Link>
+            <Link to="/partner/auth" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">{t("nav_for_restaurants")}</Link>
           </div>
 
           <div className="flex items-center gap-3">
@@ -34,7 +36,7 @@ const About = () => {
               <Button variant="ghost" size="sm">Log in</Button>
             </Link>
             <Link to="/onboarding">
-              <Button variant="gradient" size="sm">Get Started</Button>
+              <Button variant="gradient" size="sm">{t("nav_get_started")}</Button>
             </Link>
           </div>
         </div>
@@ -49,7 +51,7 @@ const About = () => {
           </Badge>
           <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-6">
             Transforming Lives Through{" "}
-            <span className="text-gradient">Better Nutrition</span>
+            <span className="text-gradient">{t("about_better_nutrition")}</span>
           </h1>
           <p className="text-lg text-muted-foreground">
             NUTRIO was founded with a simple mission: make healthy eating accessible, 
@@ -63,7 +65,7 @@ const About = () => {
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
             <div>
-              <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
+              <h2 className="text-3xl font-bold mb-6">{t("about_our_mission")}</h2>
               <p className="text-muted-foreground mb-4">
                 We believe that everyone deserves access to nutritious, delicious meals 
                 tailored to their unique health goals. Whether you're looking to lose weight, 
@@ -78,7 +80,7 @@ const About = () => {
               <Card variant="stat">
                 <CardContent className="p-6 text-center">
                   <div className="text-3xl font-bold text-primary mb-2">15K+</div>
-                  <p className="text-sm text-muted-foreground">Active Users</p>
+                  <p className="text-sm text-muted-foreground">{t("about_active_users")}</p>
                 </CardContent>
               </Card>
               <Card variant="stat">
@@ -90,13 +92,13 @@ const About = () => {
               <Card variant="stat">
                 <CardContent className="p-6 text-center">
                   <div className="text-3xl font-bold text-primary mb-2">50K+</div>
-                  <p className="text-sm text-muted-foreground">Meals Delivered</p>
+                  <p className="text-sm text-muted-foreground">{t("about_meals_delivered")}</p>
                 </CardContent>
               </Card>
               <Card variant="stat">
                 <CardContent className="p-6 text-center">
                   <div className="text-3xl font-bold text-primary mb-2">4.8★</div>
-                  <p className="text-sm text-muted-foreground">Average Rating</p>
+                  <p className="text-sm text-muted-foreground">{t("about_average_rating")}</p>
                 </CardContent>
               </Card>
             </div>
@@ -108,8 +110,8 @@ const About = () => {
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-12">
-            <Badge variant="soft" className="mb-4">Our Values</Badge>
-            <h2 className="text-3xl font-bold">What Drives Us</h2>
+            <Badge variant="soft" className="mb-4">{t("about_our_values")}</Badge>
+            <h2 className="text-3xl font-bold">{t("about_what_drives_us")}</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">

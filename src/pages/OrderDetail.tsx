@@ -148,6 +148,7 @@ const OrderDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("order_detail_title")} — Nutrio`; }, [t]);
 
   const statusSteps: { key: OrderStatus; label: string; icon: React.ElementType }[] = [
     { key: 'pending', label: t("order_status_placed"), icon: Package },
@@ -341,7 +342,7 @@ const OrderDetail = () => {
       setOrder(transformed);
     } catch (error) {
       console.error("Error fetching order detail:", error);
-      navigate("/tracking");
+      navigate("/orders");
     } finally {
       setLoading(false);
     }
@@ -438,7 +439,7 @@ const OrderDetail = () => {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate("/tracking")}
+            onClick={() => navigate("/orders")}
             className="text-white hover:bg-white/10"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -760,7 +761,7 @@ const OrderDetail = () => {
         )}
 
         {/* View Order History Link */}
-        <Link to="/tracking">
+        <Link to="/orders">
           <Button 
             variant="ghost" 
             className="w-full text-gray-500"

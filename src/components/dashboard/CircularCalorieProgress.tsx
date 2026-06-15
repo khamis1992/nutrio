@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 
 const easeOut: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
 
-export function CircularCalorieProgress({ 
+export function CircularCalorieProgress({
   consumed = 0, 
   target = 2000, 
   protein = { consumed: 0, target: 0 }, 

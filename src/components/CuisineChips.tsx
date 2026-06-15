@@ -8,13 +8,13 @@ interface CuisineChipsProps {
 }
 
 const cuisines = [
-  { id: "all", label: "All", icon: "✨" },
-  { id: "healthy", label: "Healthy", icon: "🥗" },
-  { id: "italian", label: "Italian", icon: "🍝" },
-  { id: "asian", label: "Asian", icon: "🥢" },
-  { id: "mediterranean", label: "Mediterranean", icon: "🫒" },
-  { id: "vegan", label: "Vegan", icon: "🌱" },
-  { id: "protein", label: "High Protein", icon: "💪" },
+  { id: "all", labelKey: "cuisine_all", icon: "✨" },
+  { id: "healthy", label: t("healthy_label"), icon: "🥗" },
+  { id: "italian", labelKey: "cuisine_italian", icon: "🍝" },
+  { id: "asian", labelKey: "cuisine_asian", icon: "🥢" },
+  { id: "mediterranean", labelKey: "cuisine_mediterranean", icon: "🫒" },
+  { id: "vegan", labelKey: "cuisine_vegan", icon: "🌱" },
+  { id: "protein", labelKey: "cuisine_high_protein", icon: "💪" },
 ];
 
 export function CuisineChips({ selectedCuisine, onSelect }: CuisineChipsProps) {

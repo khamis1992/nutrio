@@ -36,11 +36,11 @@ const QCWrapper = ({ children }: { children: React.ReactNode }) => (
 const origRender = rtlRender;
 const origRenderHook = rtlRenderHook;
 
-// @ts-ignore — override the module's render
+// @ts-expect-error — override the module's render
 (rtlRender as any) = (ui: any, options?: any) =>
   origRender(ui, { ...options, wrapper: QCWrapper });
 
-// @ts-ignore — override the module's renderHook
+// @ts-expect-error — override the module's renderHook
 (rtlRenderHook as any) = (hook: any, options?: any) =>
   origRenderHook(hook, { ...options, wrapper: QCWrapper });
 

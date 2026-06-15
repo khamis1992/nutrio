@@ -2,7 +2,7 @@ import posthog from "posthog-js";
 
 export function initPostHog() {
   if (import.meta.env.DEV) {
-    console.log("PostHog disabled in development");
+
     return;
   }
 
@@ -60,7 +60,7 @@ export function trackEvent(
   properties?: Record<string, unknown>
 ) {
   if (import.meta.env.DEV) {
-    console.log("[Analytics]", eventName, properties);
+
     return;
   }
 

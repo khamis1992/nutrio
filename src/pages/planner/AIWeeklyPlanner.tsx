@@ -128,7 +128,7 @@ export default function AIWeeklyPlanner() {
         .single();
 
       if (error) {
-        console.log("No plan found for this week");
+
         setWeeklyPlan(null);
       } else {
         // Transform data to match our interface

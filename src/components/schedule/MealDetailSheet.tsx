@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,12 +66,13 @@ const MealDetailSheet = ({
   selectedMeal,
   togglingMealId,
   mealTypeConfig,
-  t,
+  t: _t,
   onTimeSlotOpen,
   onToggleCompletion,
   onReschedule,
   onDelete,
 }: MealDetailSheetProps) => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   return (
@@ -146,7 +148,7 @@ const MealDetailSheet = ({
                 >
                   <Flame className="h-5 w-5 text-amber-500 mx-auto mb-1" />
                   <p className="text-xl font-black text-slate-900 dark:text-white">{selectedMeal.meal.calories}</p>
-                  <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wide">Calories</p>
+                  <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wide">{t("calories")}</p>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -156,7 +158,7 @@ const MealDetailSheet = ({
                 >
                   <Beef className="h-5 w-5 text-rose-500 mx-auto mb-1" />
                   <p className="text-xl font-black text-slate-900 dark:text-white">{selectedMeal.meal.protein_g}g</p>
-                  <p className="text-[10px] text-rose-500 font-semibold uppercase tracking-wide">Protein</p>
+                  <p className="text-[10px] text-rose-500 font-semibold uppercase tracking-wide">{t("protein_label")}</p>
                 </motion.div>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -166,7 +168,7 @@ const MealDetailSheet = ({
                 >
                   <Leaf className="h-5 w-5 text-blue-500 mx-auto mb-1" />
                   <p className="text-xl font-black text-slate-900 dark:text-white">{selectedMeal.meal.carbs_g}g</p>
-                  <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">Carbs</p>
+                  <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide">{t("carbs")}</p>
                 </motion.div>
               </div>
 
@@ -177,7 +179,7 @@ const MealDetailSheet = ({
                       <Clock className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Delivery Time</p>
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{t("delivery_time_label")}</p>
                       <p className="text-sm font-bold text-slate-900 dark:text-white">
                         {selectedMeal.delivery_time_slot || "Not scheduled"}
                       </p>

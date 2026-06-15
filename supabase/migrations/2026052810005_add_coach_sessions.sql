@@ -29,24 +29,36 @@ CREATE INDEX IF NOT EXISTS idx_coach_sessions_client_time
 ALTER TABLE coach_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Coaches can manage their own sessions
+DO $$ BEGIN
 CREATE POLICY "coaches_manage_own_sessions" ON coach_sessions
   FOR ALL
   TO authenticated
   USING (coach_id = auth.uid())
   WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can view their own sessions
+DO $$ BEGIN
 CREATE POLICY "clients_view_own_sessions" ON coach_sessions
   FOR SELECT
   TO authenticated
   USING (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can update status of their own sessions (confirm/cancel)
+DO $$ BEGIN
 CREATE POLICY "clients_update_own_sessions" ON coach_sessions
   FOR UPDATE
   TO authenticated
   USING (client_id = auth.uid())
   WITH CHECK (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Add coach_session_scheduled notification type if it doesn't exist
 DO $$

@@ -1,4 +1,6 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useCallback, type ReactNode } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
@@ -190,41 +192,42 @@ const QatarPreview = () => (
   </div>
 );
 
-const SLIDES: CarouselSlide[] = [
-  {
-    id: "meals",
-    eyebrow: "Fresh daily plans",
-    title: "Healthy meals made for your routine",
-    subtitle: "Chef-prepared bowls, wraps, and protein packs delivered across Qatar exactly when you need them.",
-    accent: "#10B981",
-    glow: "rgba(16,185,129,0.24)",
-    preview: <MealPreview />,
-  },
-  {
-    id: "track",
-    eyebrow: "Smart nutrition",
-    title: "Your calories and macros stay in sync",
-    subtitle: "Track meals, workouts, and progress with a clean dashboard built for fast daily check-ins.",
-    accent: "#F97316",
-    glow: "rgba(249,115,22,0.22)",
-    preview: <TrackerPreview />,
-  },
-  {
-    id: "community",
-    eyebrow: "Built for Qatar",
-    title: "Eat smarter with a local wellness community",
-    subtitle: "Discover trusted restaurants, follow your plan, and keep every delivery moving with confidence.",
-    accent: "#0EA5E9",
-    glow: "rgba(14,165,233,0.2)",
-    preview: <QatarPreview />,
-  },
-];
-
 interface OnboardingCarouselProps {
   onFinish: () => void;
 }
 
 export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
+  const { t, isRTL } = useLanguage();
+  const { PrevIcon, ArrowNext } = getNavArrows(isRTL);
+  const SLIDES: CarouselSlide[] = [
+    {
+      id: "meals",
+      eyebrow: "Fresh daily plans",
+      title: t("onboarding_carousel_title_1"),
+      subtitle: t("onboarding_carousel_subtitle_1"),
+      accent: "#10B981",
+      glow: "rgba(16,185,129,0.24)",
+      preview: <MealPreview />,
+    },
+    {
+      id: "track",
+      eyebrow: "Smart nutrition",
+      title: t("onboarding_carousel_title_2"),
+      subtitle: t("onboarding_carousel_subtitle_2"),
+      accent: "#F97316",
+      glow: "rgba(249,115,22,0.22)",
+      preview: <TrackerPreview />,
+    },
+    {
+      id: "community",
+      eyebrow: "Built for Qatar",
+      title: t("onboarding_carousel_title_3"),
+      subtitle: t("onboarding_carousel_subtitle_3"),
+      accent: "#0EA5E9",
+      glow: "rgba(14,165,233,0.2)",
+      preview: <QatarPreview />,
+    },
+  ];
   const [activeIndex, setActiveIndex] = useState(0);
   const [exiting, setExiting] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -335,7 +338,7 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                           width: index === activeIndex ? 30 : 10,
                           backgroundColor: index === activeIndex ? current.accent : "#D1D5DB",
                         }}
-                        aria-label={`Go to onboarding page ${index + 1}`}
+                        aria-label={t("onboarding_goto_page", { index: String(index + 1) })}
                       />
                     ))}
                   </div>
@@ -348,9 +351,9 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                         type="button"
                         onClick={() => setActiveIndex((i) => i - 1)}
                         className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] border border-slate-200 bg-white text-slate-700 shadow-[0_12px_26px_rgba(15,23,42,0.08)] active:scale-95"
-                        aria-label="Previous onboarding page"
+                        aria-label={t("onboarding_previous_page")}
                       >
-                        <ChevronLeft className="h-6 w-6" />
+                        <PrevIcon className="h-6 w-6" />
                       </motion.button>
                     )}
 
@@ -366,8 +369,8 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                             : `linear-gradient(135deg, ${current.accent} 0%, #059669 100%)`,
                       }}
                     >
-                      {isLast ? "Get Started" : "Next"}
-                      <ArrowRight className="h-5 w-5" strokeWidth={2.8} />
+                      {isLast ? t("onboarding_get_started") : t("onboarding_next")}
+                      <ArrowNext className="h-5 w-5" strokeWidth={2.8} />
                     </motion.button>
                   </div>
                 </div>

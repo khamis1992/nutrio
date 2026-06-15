@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Flame, Dumbbell, ChevronRight, ChefHat, Star } from "lucide-react";
@@ -41,8 +42,8 @@ export function FeaturedHeroStrip({ meals }: FeaturedHeroStripProps) {
             <ChefHat className="h-5 w-5" strokeWidth={2.5} />
           </span>
           <div>
-            <h2 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-[#151D2B]">Featured This Week</h2>
-            <p className="mt-0.5 text-[15px] font-medium leading-tight text-[#748096]">Our chefs&apos; top recommendations</p>
+            <h2 className="text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-[#151D2B]">{t("featured_this_week")}</h2>
+            <p className="mt-0.5 text-[15px] font-medium leading-tight text-[#748096]">{t("chefs_top_recommendations")}</p>
           </div>
         </div>
       </div>

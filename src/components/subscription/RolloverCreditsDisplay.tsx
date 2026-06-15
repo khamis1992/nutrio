@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -17,10 +18,11 @@ interface RolloverCreditsDisplayProps {
   className?: string;
 }
 
-export function RolloverCreditsDisplay({ 
+export function RolloverCreditsDisplay({
   subscriptionId, 
   className 
 }: RolloverCreditsDisplayProps) {
+  const { t } = useLanguage();
   const { data: rolloverInfo, isLoading } = useRolloverCredits(subscriptionId);
 
   // Must call hook unconditionally before any early returns (Rules of Hooks)
@@ -185,11 +187,11 @@ export function RolloverCreditBreakdown({
       </div>
       <div className="border-t pt-2 mt-2">
         <div className="flex justify-between items-center text-xs text-muted-foreground">
-          <span>Remaining Rollover</span>
+          <span>{t("remaining_rollover")}</span>
           <span>{remainingRollover}</span>
         </div>
         <div className="flex justify-between items-center text-xs text-muted-foreground">
-          <span>Remaining New Credits</span>
+          <span>{t("remaining_new_credits")}</span>
           <span>{remainingNew}</span>
         </div>
       </div>

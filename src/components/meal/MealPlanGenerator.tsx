@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,53 +72,6 @@ type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
-const MEAL_TYPE_CONFIG: Record<MealType, {
-  icon: typeof Coffee;
-  gradient: string;
-  bgGradient: string;
-  textColor: string;
-  bgColorLight: string;
-  label: string;
-  time: string;
-}> = {
-  breakfast: {
-    icon: Coffee,
-    gradient: "from-amber-400 to-orange-500",
-    bgGradient: "bg-gradient-to-br from-amber-50 to-orange-50",
-    textColor: "text-amber-600",
-    bgColorLight: "bg-amber-100",
-    label: "Breakfast",
-    time: "8:00 AM",
-  },
-  lunch: {
-    icon: Sun,
-    gradient: "from-emerald-400 to-teal-500",
-    bgGradient: "bg-gradient-to-br from-emerald-50 to-teal-50",
-    textColor: "text-emerald-600",
-    bgColorLight: "bg-emerald-100",
-    label: "Lunch",
-    time: "1:00 PM",
-  },
-  dinner: {
-    icon: Moon,
-    gradient: "from-indigo-400 to-purple-500",
-    bgGradient: "bg-gradient-to-br from-indigo-50 to-purple-50",
-    textColor: "text-indigo-600",
-    bgColorLight: "bg-indigo-100",
-    label: "Dinner",
-    time: "7:00 PM",
-  },
-  snack: {
-    icon: Apple,
-    gradient: "from-pink-400 to-rose-500",
-    bgGradient: "bg-gradient-to-br from-pink-50 to-rose-50",
-    textColor: "text-pink-600",
-    bgColorLight: "bg-pink-100",
-    label: "Snack",
-    time: "3:00 PM",
-  },
-};
-
 const CALORIE_TARGETS: Record<MealType, { percent: number; tolerance: number }> = {
   breakfast: { percent: 0.25, tolerance: 0.3 },
   lunch: { percent: 0.35, tolerance: 0.3 },
@@ -152,7 +106,7 @@ export const MealPlanGenerator = ({
   isScheduleEmpty,
 }: MealPlanGeneratorProps) => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { toast: uiToast } = useToast();
   const { remainingMeals, isUnlimited, hasActiveSubscription } = useSubscription();
   const { favoriteIds } = useFavoriteRestaurants();
@@ -518,7 +472,7 @@ export const MealPlanGenerator = ({
             onClick={onClose}
             className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
           >
-            <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+            <PrevIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
           </button>
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-500" />

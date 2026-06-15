@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { forwardRef, useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -309,7 +310,9 @@ const Dashboard = () => {
   const { activeGoal } = useNutritionGoals(user?.id);
   const { subscription, remainingMeals, totalMeals, isUnlimited } = useSubscription();
   const { rolloverCredits } = useDashboardRolloverCredits(user?.id);
-  const { t, language } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
+  useEffect(() => { document.title = `${t("dashboard_title")} — Nutrio`; }, [t]);
+  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   const { unreadCount } = useNotifications(user?.id);
   const { summary: weeklySummary, loading: weeklyLoading } = useWeeklySummary(user?.id);
   const [logMealOpen, setLogMealOpen] = useState(false);
@@ -934,13 +937,13 @@ const Dashboard = () => {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
             <AlertCircle className="h-8 w-8" />
           </div>
-          <h2 className="text-lg font-semibold text-slate-900">Something went wrong</h2>
-          <p className="text-sm text-slate-500">We couldn&#39;t load your profile. Please try again.</p>
+          <h2 className="text-lg font-semibold text-slate-900">{t("dashboard_something_went_wrong")}</h2>
+          <p className="text-sm text-slate-500">{t("profile_load_error")}</p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-full bg-[#10B981] px-7 py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(16,185,129,0.3)]"
           >
-            Retry
+            {t("retry_button")}
           </button>
         </div>
       </div>
@@ -956,7 +959,7 @@ const Dashboard = () => {
   const userName = rawUserName.charAt(0).toUpperCase() + rawUserName.slice(1).toLowerCase();
   const qatarNow = getQatarNow();
   const hourNow = qatarNow.getHours();
-  const timeGreeting = hourNow < 12 ? "Good morning ☀️" : hourNow < 18 ? "Good afternoon ☀️" : "Good evening 🌙";
+  const timeGreeting = hourNow < 12 ? t("good_morning") : hourNow < 18 ? t("good_afternoon") : t("good_evening");
   const dateLabel = formatLocaleDate(selectedDate, language, { weekday: "short", month: "short", day: "numeric" });
   const dailyCalories = profile?.daily_calorie_target || 2066;
   const calConsumed = Math.round(todayProgress.calories);
@@ -1008,7 +1011,7 @@ const Dashboard = () => {
 
   const macroCards = [
     {
-      label: "Carbs",
+      label: t("carbs"),
       value: Math.round(todayProgress.carbs),
       target: carbsTarget,
       Icon: Wheat,
@@ -1017,7 +1020,7 @@ const Dashboard = () => {
       pillClass: "bg-[#DDF8E7] text-[#11A85A]",
     },
     {
-      label: "Protein",
+      label: t("protein_label"),
       value: Math.round(todayProgress.protein),
       target: proteinTarget,
       Icon: Drumstick,
@@ -1026,7 +1029,7 @@ const Dashboard = () => {
       pillClass: "bg-[#FFF0DA] text-[#E06E00]",
     },
     {
-      label: "Fat",
+      label: t("fat_label"),
       value: Math.round(todayProgress.fat),
       target: fatTarget,
       Icon: FatIcon,
@@ -1098,7 +1101,7 @@ const Dashboard = () => {
                 type="button"
                 onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
                 className="relative flex h-[36px] w-[36px] items-center justify-center text-slate-950"
-                aria-label="Notifications"
+                aria-label={t("Notifications")}
               >
                 <Bell className="h-[27px] w-[27px]" strokeWidth={2.15} />
                 {displayedUnreadCount > 0 && (
@@ -1119,7 +1122,7 @@ const Dashboard = () => {
                     className="absolute right-0 top-[44px] z-50 w-[340px] max-w-[calc(100vw-40px)] rounded-[22px] bg-white shadow-[0_16px_40px_rgba(0,0,0,0.14)] ring-1 ring-slate-200/80 overflow-hidden"
                   >
                     <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                      <h3 className="text-[14px] font-extrabold tracking-[-0.01em] text-slate-950">Notifications</h3>
+                      <h3 className="text-[14px] font-extrabold tracking-[-0.01em] text-slate-950">{t("dashboard_notifications_title")}</h3>
                       {displayedUnreadCount > 0 && (
                         <span className="rounded-full bg-[#FEF2F2] px-2 py-0.5 text-[10px] font-bold text-[#EF4444]">
                           {displayedUnreadCount} new
@@ -1145,8 +1148,8 @@ const Dashboard = () => {
                           <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-slate-100">
                             <Bell className="h-[20px] w-[20px] text-slate-400" strokeWidth={1.5} />
                           </div>
-                          <p className="mt-3 text-[13px] font-semibold text-slate-700">All caught up</p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">No new notifications</p>
+                          <p className="mt-3 text-[13px] font-semibold text-slate-700">{t("dashboard_all_caught_up")}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">{t("dashboard_no_new_notifications")}</p>
                         </div>
                       ) : (
                         recentNotifications.map((notif) => {
@@ -1196,7 +1199,7 @@ const Dashboard = () => {
                       className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-4 py-3 text-[13px] font-semibold text-emerald-600 transition hover:bg-emerald-50"
                     >
                       View all notifications
-                      <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                      <NextIcon className="h-[14px] w-[14px]" strokeWidth={2} />
                     </Link>
                   </motion.div>
                 )}
@@ -1217,24 +1220,24 @@ const Dashboard = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Today's Meals</h2>
-              <p className="mt-0.5 text-[11px] font-medium text-slate-500">What's on your plate today</p>
+              <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">{t("dashboard_today_meals")}</h2>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500">{t("dashboard_today_meals_desc")}</p>
             </div>
             <Link
               to="/schedule"
               className="flex h-[30px] items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-600"
             >
-              Schedule
-              <ChevronRight className="h-3 w-3" />
+              {t("today_meals_schedule")}
+              <NextIcon className="h-3 w-3" />
             </Link>
           </div>
 
           <div className="mt-3 space-y-2">
             {(() => {
               const slots = [
-                { type: "breakfast", label: "Breakfast", icon: Coffee, color: "from-amber-400 to-orange-500", bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-200" },
-                { type: "lunch", label: "Lunch", icon: Soup, color: "from-emerald-400 to-teal-500", bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-200" },
-                { type: "dinner", label: "Dinner", icon: UtensilsCrossed, color: "from-violet-400 to-purple-500", bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-200" },
+                { type: "breakfast", label: t("breakfast"), icon: Coffee, color: "from-amber-400 to-orange-500", bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-200" },
+                { type: "lunch", label: t("lunch"), icon: Soup, color: "from-emerald-400 to-teal-500", bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-200" },
+                { type: "dinner", label: t("dinner"), icon: UtensilsCrossed, color: "from-violet-400 to-purple-500", bg: "bg-violet-50", text: "text-violet-600", ring: "ring-violet-200" },
               ];
               const hasAnyMeal = slots.some((s) => {
                 const m = todayMeals.find((tm) => tm.type === s.type);
@@ -1260,9 +1263,9 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[14px] font-extrabold text-slate-900">Plan your meals for today</h3>
+                        <h3 className="text-[14px] font-extrabold text-slate-900">{t("dashboard_plan_meals_for_today")}</h3>
                         <p className="mt-0.5 text-[12px] text-slate-500 leading-relaxed">
-                          Fresh, nutritious meals delivered to your door — curated by local restaurants.
+                          {t("today_meals_desc")}
                         </p>
                       </div>
                       <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_6px_14px_rgba(16,185,129,0.3)]">
@@ -1332,7 +1335,7 @@ const Dashboard = () => {
                       </div>
 
                       <div className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-white text-slate-500 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition-transform ${expandedMeal === `${slot.type}-${meal.schedule_id}` ? "rotate-90" : ""}`}>
-                        <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                        <NextIcon className="h-[14px] w-[14px]" strokeWidth={2} />
                       </div>
                     </>
                   ) : (
@@ -1340,7 +1343,7 @@ const Dashboard = () => {
                       {/* Empty Slot */}
                       <div className="min-w-0 flex-1">
                         <p className={`text-[13px] font-semibold ${slot.text}`}>{slot.label}</p>
-                        <p className="mt-0.5 text-[11px] font-medium text-slate-400">No meal planned</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-slate-400">{t("dashboard_no_meal_planned")}</p>
                       </div>
 
                       {/* Order Now CTA */}
@@ -1365,27 +1368,27 @@ const Dashboard = () => {
                       className="overflow-hidden"
                     >
                       <div className="mx-3 mb-2 mt-1 rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Nutrition Facts</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">{t("dashboard_nutrition_facts")}</p>
                         <div className="mt-3 grid grid-cols-4 gap-2">
                           <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-2.5 text-center ring-1 ring-amber-100">
                             <Flame className="mx-auto h-[18px] w-[18px] text-amber-500" strokeWidth={1.75} />
                             <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.calories || 0}</p>
-                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">Cal</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600">{t("cal_short")}</p>
                           </div>
                           <div className="rounded-xl bg-gradient-to-br from-rose-50 to-pink-50 p-2.5 text-center ring-1 ring-rose-100">
                             <Drumstick className="mx-auto h-[18px] w-[18px] text-rose-500" strokeWidth={1.75} />
                             <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.protein_g || 0}g</p>
-                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-rose-600">Protein</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-rose-600">{t("dashboard_protein")}</p>
                           </div>
                           <div className="rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-2.5 text-center ring-1 ring-blue-100">
                             <Wheat className="mx-auto h-[18px] w-[18px] text-blue-500" strokeWidth={1.75} />
                             <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.carbs_g || 0}g</p>
-                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">Carbs</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">{t("dashboard_carbs")}</p>
                           </div>
                           <div className="rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 p-2.5 text-center ring-1 ring-purple-100">
                             <FatIcon className="mx-auto h-[18px] w-[18px] text-purple-500" strokeWidth={1.75} />
                             <p className="mt-1 text-[16px] font-extrabold leading-none text-slate-950">{meal.meal?.fat_g || 0}g</p>
-                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-purple-600">Fat</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-purple-600">{t("fat_short")}</p>
                           </div>
                         </div>
                         <Link
@@ -1393,7 +1396,7 @@ const Dashboard = () => {
                           className="mt-3 flex items-center justify-center gap-1 rounded-full bg-emerald-50 py-2 text-[12px] font-semibold text-emerald-600 transition hover:bg-emerald-100"
                         >
                           View Full Details
-                          <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                          <NextIcon className="h-[14px] w-[14px]" strokeWidth={2} />
                         </Link>
                       </div>
                     </motion.div>
@@ -1411,15 +1414,15 @@ const Dashboard = () => {
                   <AlertCircle className="h-[16px] w-[16px]" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-semibold text-slate-800">Couldn&apos;t load today&apos;s meals</p>
-                  <p className="text-[10px] text-slate-500">Tap to try again</p>
+                  <p className="text-[12px] font-semibold text-slate-800">{t("dashboard_today_error")}</p>
+                  <p className="text-[10px] text-slate-500">{t("dashboard_tap_to_try_again")}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => { setTodayMealsError(false); setTodayMealsLoading(true); fetchTodayMeals(); }}
                   className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
                 >
-                  Retry
+                  {t("retry_button")}
                 </button>
               </div>
             </div>
@@ -1462,13 +1465,13 @@ const Dashboard = () => {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-[18px] font-extrabold leading-none tracking-[-0.04em] text-[#10A95F]">{isUnlimited ? "∞" : animatedBalance}</span>
-                <span className="text-[8px] font-medium text-slate-400 mt-0.5">meals left</span>
+                <span className="text-[8px] font-medium text-slate-400 mt-0.5">{t("meals_left_label_short")}</span>
               </div>
             </div>
 
             {/* Balance Info */}
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-slate-500">Monthly Balance</p>
+              <p className="text-[12px] font-semibold text-slate-500">{t("monthly_balance")}</p>
               <p className="mt-0.5 text-[22px] font-extrabold leading-none tracking-[-0.04em] text-slate-950">
                 {balanceDisplay}<span className="text-[14px] font-medium text-slate-400">/{totalMealsDisplay}</span>
               </p>
@@ -1488,7 +1491,7 @@ const Dashboard = () => {
               type="button"
               onClick={() => navigate("/subscription")}
               className="flex shrink-0 flex-col items-center gap-1 rounded-[16px] bg-gradient-to-br from-orange-50 to-amber-50 p-3 ring-1 ring-orange-100/60 transition active:scale-95"
-              aria-label="View subscription"
+              aria-label={t("view_subscription_aria")}
             >
               <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-gradient-to-br from-[#FF8A2A] to-[#F97316] text-white shadow-[0_6px_12px_rgba(249,115,22,0.2)]">
                 <Crown className="h-[16px] w-[16px]" />
@@ -1515,9 +1518,9 @@ const Dashboard = () => {
                 onClick={goToPrevDay}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_3px_8px_rgba(15,23,42,0.03)]"
-                aria-label="Previous day"
+                aria-label={t("previous_day")}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <PrevIcon className="h-4 w-4" />
               </motion.button>
               <motion.button
                 type="button"
@@ -1525,9 +1528,9 @@ const Dashboard = () => {
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
                 disabled={isToday}
                 className="flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-[0_3px_8px_rgba(15,23,42,0.03)] disabled:opacity-50"
-                aria-label="Next day"
+                aria-label={t("next_day")}
               >
-                <ChevronRight className="h-4 w-4" />
+                <NextIcon className="h-4 w-4" />
               </motion.button>
             </div>
           </div>
@@ -1535,7 +1538,7 @@ const Dashboard = () => {
           <div className="mt-4 flex h-[32px] items-center rounded-full border border-[#F8DDB5] bg-[#FFF9F1] px-3">
             <div className="flex items-center gap-2 text-[#7A4A18]">
               <Flame className="h-[15px] w-[15px] text-[#E98A05]" />
-              <span className="whitespace-nowrap text-[12px] font-semibold">Daily Streak</span>
+              <span className="whitespace-nowrap text-[12px] font-semibold">{t("daily_streak")}</span>
             </div>
             <div className="mx-3 flex flex-1 items-center justify-between gap-2">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -1556,11 +1559,11 @@ const Dashboard = () => {
             >
               <div className="flex items-center gap-1.5 mb-2">
                 <Droplets className="h-[16px] w-[16px] text-[#3B82F6]" strokeWidth={2} />
-                <p className="text-[11px] font-semibold text-slate-400">Water</p>
+                <p className="text-[11px] font-semibold text-slate-400">{t("water")}</p>
               </div>
               <p className="text-[22px] font-extrabold leading-none tracking-[-0.03em] text-slate-800">
                 {Math.round(waterToday / 240 * 10) / 10}
-                <span className="ml-1 text-[13px] font-semibold text-slate-400">cups</span>
+                <span className="ml-1 text-[13px] font-semibold text-slate-400">{t("cups")}</span>
               </p>
               <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-[#E2E8F0]">
                 <motion.div
@@ -1582,11 +1585,11 @@ const Dashboard = () => {
             >
               <div className="flex items-center gap-1.5 mb-2">
                 <Footprints className="h-[16px] w-[16px] text-[#F97316]" strokeWidth={2} />
-                <p className="text-[11px] font-semibold text-slate-400">Steps</p>
+                <p className="text-[11px] font-semibold text-slate-400">{t("steps")}</p>
               </div>
               <p className="text-[22px] font-extrabold leading-none tracking-[-0.03em] text-slate-800">
                 {stepsToday.toLocaleString()}
-                <span className="ml-1 text-[13px] font-semibold text-slate-400">steps</span>
+                <span className="ml-1 text-[13px] font-semibold text-slate-400">{t("steps")}</span>
               </p>
               <div className="mt-2.5 h-[5px] w-full overflow-hidden rounded-full bg-[#FEE2E2]">
                 <motion.div
@@ -1678,7 +1681,7 @@ const Dashboard = () => {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                   <span className="text-[19px] font-extrabold leading-none tracking-[-0.04em]" style={{ color: ringColor }}>{calRemaining}</span>
-                  <span className="mt-0.5 text-[9px] font-bold uppercase leading-none" style={{ color: ringColor }}>Remaining</span>
+                  <span className="mt-0.5 text-[9px] font-bold uppercase leading-none" style={{ color: ringColor }}>{t("dashboard_remaining")}</span>
                   <span className="mt-0.5 text-[8px] font-medium text-slate-400">{Math.round(consumedPct)}%</span>
                 </div>
               </div>
@@ -1710,14 +1713,14 @@ const Dashboard = () => {
                   <div className="flex flex-1 items-center gap-1.5 rounded-[10px] bg-[#F0FDF9] px-2.5 py-1.5">
                     <Utensils className="h-[12px] w-[12px] text-[#10B981] shrink-0" strokeWidth={2} />
                     <div>
-                      <p className="text-[8px] font-semibold uppercase text-[#10B981] leading-none">Consumed</p>
+                      <p className="text-[8px] font-semibold uppercase text-[#10B981] leading-none">{t("consumed")}</p>
                       <p className="text-[13px] font-extrabold leading-tight tracking-[-0.03em] text-slate-900">{animatedCalories}</p>
                     </div>
                   </div>
                   <div className="flex flex-1 items-center gap-1.5 rounded-[10px] bg-[#FFF7ED] px-2.5 py-1.5">
                     <Flame className="h-[12px] w-[12px] text-[#F97316] shrink-0" strokeWidth={2} />
                     <div>
-                      <p className="text-[8px] font-semibold uppercase text-[#F97316] leading-none">Burned</p>
+                      <p className="text-[8px] font-semibold uppercase text-[#F97316] leading-none">{t("burned")}</p>
                       <p className="text-[13px] font-extrabold leading-tight tracking-[-0.03em] text-slate-900">{animatedBurned}</p>
                     </div>
                   </div>
@@ -1741,8 +1744,8 @@ const Dashboard = () => {
                 </div>
                 {/* Text */}
                 <div className="flex-1 text-left">
-                  <p className="text-[15px] font-bold leading-tight text-slate-800">Log Meal</p>
-                  <p className="text-[11px] font-medium text-slate-400">Tap to add food</p>
+                  <p className="text-[15px] font-bold leading-tight text-slate-800">{t("log_meal")}</p>
+                  <p className="text-[11px] font-medium text-slate-400">{t("dashboard_tap_to_add")}</p>
                 </div>
                 {/* Right plus button */}
                 <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] bg-emerald-500">
@@ -1786,7 +1789,7 @@ const Dashboard = () => {
                   <span className="text-[20px]">{trend}</span>
                   <div>
                     <span className={`text-[14px] font-extrabold tracking-[-0.03em] ${trendColor}`}>{deltaAbs} kg</span>
-                    <p className="text-[10px] font-medium text-slate-400">7-day trend</p>
+                    <p className="text-[10px] font-medium text-slate-400">{t("day_trend")}</p>
                   </div>
                 </div>
                 <div className="flex-1" />
@@ -1857,11 +1860,11 @@ const Dashboard = () => {
                       <suggestionIcon className={`h-[18px] w-[18px] ${top.color}`} strokeWidth={2} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-bold text-slate-800">What to Eat</p>
+                      <p className="text-[12px] font-bold text-slate-800">{t("dashboard_what_to_eat")}</p>
                       <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">{suggestion}</p>
                     </div>
                     <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_2px_5px_rgba(0,0,0,0.05)]">
-                      <ChevronRight className="h-[14px] w-[14px]" strokeWidth={2} />
+                      <NextIcon className="h-[14px] w-[14px]" strokeWidth={2} />
                     </div>
                   </div>
                 </Link>
@@ -1872,7 +1875,7 @@ const Dashboard = () => {
           <div className="mt-5">
             <div className="flex items-center gap-1.5">
               <Activity className="h-5 w-5 text-[#10A95F]" strokeWidth={2.1} />
-              <h2 className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">Activity Details</h2>
+              <h2 className="text-[14px] font-extrabold tracking-[-0.02em] text-slate-950">{t("activity_details")}</h2>
             </div>
             <div className="mt-2.5 flex items-center gap-2.5">
               <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full bg-white px-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
@@ -1880,8 +1883,8 @@ const Dashboard = () => {
                   <Flame className="h-[18px] w-[18px]" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium leading-tight text-slate-500">Total Burned</p>
-                  <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{totalBurned} Cal</p>
+                  <p className="text-[11px] font-medium leading-tight text-slate-500">{t("total_burned_label")}</p>
+                  <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{totalBurned} {t("cal_short")}</p>
                 </div>
               </div>
               <div className="flex h-[48px] flex-1 items-center gap-2.5 rounded-full bg-white px-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
@@ -1889,7 +1892,7 @@ const Dashboard = () => {
                   <Activity className="h-[18px] w-[18px]" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium leading-tight text-slate-500">Sessions</p>
+                  <p className="text-[11px] font-medium leading-tight text-slate-500">{t("sessions")}</p>
                   <p className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{workoutCount}</p>
                 </div>
               </div>
@@ -1899,7 +1902,7 @@ const Dashboard = () => {
                 onClick={() => setSheetOpen(true)}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                 className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#20C978] to-[#059A5A] text-white shadow-[0_10px_20px_rgba(5,150,90,0.28)]"
-                aria-label="Log activity"
+                aria-label={t("log_activity")}
               >
                 <Plus className="h-[22px] w-[22px]" strokeWidth={2} />
               </motion.button>
@@ -1927,12 +1930,12 @@ const Dashboard = () => {
                 {/* Stats */}
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-extrabold tracking-[-0.01em] text-slate-950">
-                    Level {gamification.level}
+                    {t("level_format", { level: String(gamification.level) })}
                   </p>
                   <p className="mt-0.5 text-[11px] font-medium text-violet-500 truncate">
                     {gamification.earnedBadges > 0
-                      ? `${gamification.earnedBadges} of ${gamification.totalBadges} badges earned`
-                      : "Start earning badges today"}
+                      ? t("badges_earned", { earned: String(gamification.earnedBadges), total: String(gamification.totalBadges) })
+                      : t("start_earning_badges")}
                   </p>
                   <div className="mt-2 h-[4px] w-full overflow-hidden rounded-full bg-violet-200">
                     <motion.div
@@ -1972,7 +1975,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Expand Chevron */}
-                <ChevronRight className={`h-[16px] w-[16px] text-violet-300 transition-transform ${showAchievements ? "rotate-90" : ""}`} strokeWidth={2} />
+                <NextIcon className={`h-[16px] w-[16px] text-violet-300 transition-transform ${showAchievements ? "rotate-90" : ""}`} strokeWidth={2} />
               </div>
             </motion.div>
 
@@ -2022,7 +2025,7 @@ const Dashboard = () => {
                     {/* Next Unlocks */}
                     {gamification.earnedBadges < gamification.totalBadges && (
                       <div>
-                        <p className="text-[10px] font-semibold text-slate-500 mb-2">Next to unlock</p>
+                        <p className="text-[10px] font-semibold text-slate-500 mb-2">{t("dashboard_next_unlock")}</p>
                         <div className="space-y-1.5">
                           {gamification.badges
                             .filter((b) => !gamification.earnedIds.has(b.id))
@@ -2057,13 +2060,13 @@ const Dashboard = () => {
 
           {/* ── Quick Access Icon Row ── */}
           <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100">
-            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 whitespace-nowrap">Quick</span>
+            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 whitespace-nowrap">{t("quick")}</span>
             <div className="h-[28px] w-px bg-slate-100 shrink-0" />
             {([
-              { icon: Utensils,  label: "Tracker",   circleBg: "#059669", to: "/tracker" },
-              { icon: Heart,     label: "Favorites", circleBg: "#E11D48", to: "/favorites" },
-              { icon: BarChart2, label: "Progress",  circleBg: "#D97706", to: "/progress" },
-              { icon: Users,     label: "Community", circleBg: "#4F46E5", to: "/community" },
+              { icon: Utensils,  label: t("tracker_label"),   circleBg: "#059669", to: "/tracker" },
+              { icon: Heart,     label: t("favorites_label"), circleBg: "#E11D48", to: "/favorites" },
+              { icon: BarChart2, label: t("progress_label"),  circleBg: "#D97706", to: "/progress" },
+              { icon: Users,     label: t("community_label"), circleBg: "#4F46E5", to: "/community" },
             ] as { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; circleBg: string; to: string }[]).map(({ icon: Icon, label, circleBg, to }) => (
               <motion.button
                 key={label}
@@ -2092,8 +2095,8 @@ const Dashboard = () => {
                   <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-slate-800">Couldn&apos;t load orders</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">Check your connection and try again</p>
+                  <p className="text-[13px] font-semibold text-slate-800">{t("dashboard_orders_error")}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{t("dashboard_orders_error_desc")}</p>
                 </div>
                 <button
                   type="button"
@@ -2101,7 +2104,7 @@ const Dashboard = () => {
                   className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-200"
                 >
                   <RefreshCw className="h-[13px] w-[13px]" strokeWidth={2} />
-                  Retry
+                  {t("retry_button")}
                 </button>
               </div>
             </div>
@@ -2114,24 +2117,24 @@ const Dashboard = () => {
                     <ShoppingBag className="h-[17px] w-[17px]" strokeWidth={2} />
                   </div>
                   <div>
-                    <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">Active Orders</h2>
-                    <p className="text-[11px] font-medium text-slate-500">{totalActiveOrders} order{totalActiveOrders !== 1 ? "s" : ""} in progress{totalActiveOrders > 3 ? ` · Showing first ${activeOrders.length}` : ""}</p>
+                    <h2 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-950">{t("active_orders")}</h2>
+                    <p className="text-[11px] font-medium text-slate-500">{t("orders_in_progress_full", { count: String(totalActiveOrders), plural: totalActiveOrders !== 1 ? "s" : "", show: String(activeOrders.length) })}</p>
                   </div>
                 </div>
                 <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-600 transition hover:bg-emerald-100">
-                  View All
-                  <ChevronRight className="h-3.5 w-3.5" />
+                  {t("orders_section_view_all")}
+                  <NextIcon className="h-3.5 w-3.5" />
                 </Link>
               </div>
 
               <div className="mt-4 space-y-3">
                 {activeOrders.map((order) => {
                   const statusConfig: Record<string, { label: string; Icon: React.ElementType; badgeClass: string; iconBg: string; hint: string }> = {
-                    pending: { label: "Pending", Icon: Clock, badgeClass: "bg-[#FFF3D6] text-[#B45309]", iconBg: "bg-gradient-to-br from-[#F59E0B] to-[#D97706]", hint: "Awaiting confirmation · ~5 min" },
-                    confirmed: { label: "Confirmed", Icon: CheckCircle2, badgeClass: "bg-[#DBEAFE] text-[#1E40AF]", iconBg: "bg-gradient-to-br from-[#3B82F6] to-[#2563EB]", hint: "Order accepted · ~10 min" },
-                    preparing: { label: "Preparing", Icon: Flame, badgeClass: "bg-[#FFF3D6] text-[#B45309]", iconBg: "bg-gradient-to-br from-[#F59E0B] to-[#D97706]", hint: "Cooking your meal · ~20 min" },
-                    ready: { label: "Ready", Icon: Package, badgeClass: "bg-[#D1FAE5] text-[#065F46]", iconBg: "bg-gradient-to-br from-[#10B981] to-[#059669]", hint: "Ready for pickup" },
-                    out_for_delivery: { label: "On The Way", Icon: Bike, badgeClass: "bg-[#E0F2FE] text-[#0369A1]", iconBg: "bg-gradient-to-br from-[#0EA5E9] to-[#0284C7]", hint: "On the way · ~15 min" },
+                    pending: { label: t("order_status_pending"), Icon: Clock, badgeClass: "bg-[#FFF3D6] text-[#B45309]", iconBg: "bg-gradient-to-br from-[#F59E0B] to-[#D97706]", hint: t("order_awaiting") },
+                    confirmed: { label: t("order_status_confirmed"), Icon: CheckCircle2, badgeClass: "bg-[#DBEAFE] text-[#1E40AF]", iconBg: "bg-gradient-to-br from-[#3B82F6] to-[#2563EB]", hint: t("order_accepted") },
+                    preparing: { label: t("order_status_preparing"), Icon: Flame, badgeClass: "bg-[#FFF3D6] text-[#B45309]", iconBg: "bg-gradient-to-br from-[#F59E0B] to-[#D97706]", hint: t("order_cooking") },
+                    ready: { label: t("order_status_ready"), Icon: Package, badgeClass: "bg-[#D1FAE5] text-[#065F46]", iconBg: "bg-gradient-to-br from-[#10B981] to-[#059669]", hint: t("order_ready_pickup") },
+                    out_for_delivery: { label: t("order_status_on_the_way"), Icon: Bike, badgeClass: "bg-[#E0F2FE] text-[#0369A1]", iconBg: "bg-gradient-to-br from-[#0EA5E9] to-[#0284C7]", hint: t("order_on_the_way_hint") },
                   };
 
                   const etaMin = order.order_status === "out_for_delivery" && order.updated_at
@@ -2170,7 +2173,7 @@ const Dashboard = () => {
                               <div className="mt-2">
                                 <div className="flex items-center gap-2">
                                   <span className="shrink-0 text-[13px] font-extrabold text-sky-600">
-                                    {etaMin <= 0 ? "Arriving now" : `~${etaMin} min`}
+                                    {etaMin <= 0 ? t("arriving_now") : t("eta_min", { minutes: String(etaMin) })}
                                   </span>
                                   <div className="h-[4px] flex-1 overflow-hidden rounded-full bg-sky-100">
                                     <motion.div
@@ -2190,7 +2193,7 @@ const Dashboard = () => {
                             )}
                           </div>
 
-                          <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" strokeWidth={2} />
+                          <NextIcon className="h-5 w-5 shrink-0 text-slate-300" strokeWidth={2} />
                         </div>
                       </Link>
 
@@ -2203,7 +2206,7 @@ const Dashboard = () => {
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-slate-100 py-2 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-200"
                           >
                             <Pencil className="h-[13px] w-[13px]" strokeWidth={2} />
-                            Reschedule
+                            {t("reschedule_button")}
                           </button>
                           <button
                             type="button"
@@ -2216,7 +2219,7 @@ const Dashboard = () => {
                             ) : (
                               <XCircle className="h-[13px] w-[13px]" strokeWidth={2} />
                             )}
-                            Cancel
+                            {t("cancel_button")}
                           </button>
                         </div>
                       )}
@@ -2234,9 +2237,9 @@ const Dashboard = () => {
                 <ShoppingBag className="h-[16px] w-[16px]" strokeWidth={2} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold text-slate-900">This Month</p>
+                <p className="text-[12px] font-bold text-slate-900">{t("dashboard_this_month")}</p>
                 <p className="text-[10px] font-medium text-slate-500">
-                  {monthlyStats.total} orders · {monthlyStats.completed} completed
+                  {t("orders_monthly_stats", { count: String(monthlyStats.completed) })}
                   {monthlyStats.cancelled > 0 && ` · ${monthlyStats.cancelled} cancelled`}
                 </p>
               </div>
@@ -2255,8 +2258,8 @@ const Dashboard = () => {
                   <AlertCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-slate-800">Couldn&apos;t load featured restaurants</p>
-                  <p className="text-[10px] text-slate-500">Tap to try again</p>
+                  <p className="text-[13px] font-semibold text-slate-800">{t("dashboard_featured_error")}</p>
+                  <p className="text-[10px] text-slate-500">{t("dashboard_tap_to_try_again")}</p>
                 </div>
                 <button
                   type="button"
@@ -2264,7 +2267,7 @@ const Dashboard = () => {
                   className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-200"
                 >
                   <RefreshCw className="h-[13px] w-[13px]" strokeWidth={2} />
-                  Retry
+                  {t("retry_button")}
                 </button>
               </div>
             </div>

@@ -11,9 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Loader2, Send, Paperclip, X, Image, FileText } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Plus, MessageCircle, Clock, CheckCircle, AlertCircle, Loader2, RefreshCw, Send, Paperclip, X, Image, FileText } from "lucide-react";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -49,26 +51,44 @@ interface TicketAttachment {
   created_at: string;
 }
 
-const statusConfig: Record<TicketStatus, { label: string; icon: React.ReactNode; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  open: { label: "Open", icon: <AlertCircle className="w-3 h-3" />, variant: "destructive" },
-  in_progress: { label: "In Progress", icon: <Clock className="w-3 h-3" />, variant: "default" },
-  resolved: { label: "Resolved", icon: <CheckCircle className="w-3 h-3" />, variant: "secondary" },
-  closed: { label: "Closed", icon: <CheckCircle className="w-3 h-3" />, variant: "outline" },
+const statusLabels: Record<TicketStatus, string> = {
+  open: "status_open",
+  in_progress: "in_progress",
+  resolved: "status_resolved",
+  closed: "status_closed",
+};
+
+const statusConfig: Record<TicketStatus, { icon: React.ReactNode; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+  open: { icon: <AlertCircle className="w-3 h-3" />, variant: "destructive" },
+  in_progress: { icon: <Clock className="w-3 h-3" />, variant: "default" },
+  resolved: { icon: <CheckCircle className="w-3 h-3" />, variant: "secondary" },
+  closed: { icon: <CheckCircle className="w-3 h-3" />, variant: "outline" },
+};
+
+const categoryKeys: Record<string, string> = {
+  general: "category_general",
+  order: "category_order_issue",
+  subscription: "category_subscription",
+  technical: "category_technical",
+  billing: "category_billing",
+  feedback: "category_feedback",
 };
 
 const categories = [
-  { value: "general", label: "General Inquiry" },
-  { value: "order", label: "Order Issue" },
-  { value: "subscription", label: "Subscription" },
-  { value: "technical", label: "Technical Problem" },
-  { value: "billing", label: "Billing" },
-  { value: "feedback", label: "Feedback" },
+  { value: "general" },
+  { value: "order" },
+  { value: "subscription" },
+  { value: "technical" },
+  { value: "billing" },
+  { value: "feedback" },
 ];
 
 export default function Support() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  useEffect(() => { document.title = `${t("support")} — Nutrio`; }, [t]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [newMessage, setNewMessage] = useState("");
   
@@ -83,7 +103,7 @@ export default function Support() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageFileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: tickets, isLoading } = useQuery({
+  const { data: tickets, isLoading, isError: ticketsError, error: ticketsErrorObj } = useQuery({
     queryKey: ["user-support-tickets"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -97,7 +117,7 @@ export default function Support() {
     enabled: !!user,
   });
 
-  const { data: messages, isLoading: messagesLoading } = useQuery({
+  const { data: messages, isLoading: messagesLoading, isError: messagesError } = useQuery({
     queryKey: ["ticket-messages", selectedTicket?.id],
     queryFn: async () => {
       if (!selectedTicket) return [];
@@ -263,8 +283,19 @@ export default function Support() {
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Support Center</h1>
-            <p className="text-muted-foreground">Get help with your orders and account</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all shrink-0"
+                aria-label={t("go_back")}
+              >
+                <ArrowLeft className="h-4.5 w-4.5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold">{t("support_center_title")}</h1>
+                <p className="text-muted-foreground">{t("support_subtitle")}</p>
+              </div>
+            </div>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -275,14 +306,14 @@ export default function Support() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Support Ticket</DialogTitle>
+                <DialogTitle>{t("support_create_ticket")}</DialogTitle>
                 <DialogDescription>
                   Describe your issue and we'll get back to you as soon as possible.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreateTicket} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium">Category</label>
+                  <label className="text-sm font-medium">{t("support_category")}</label>
                   <Select
                     value={newTicket.category}
                     onValueChange={(value) => setNewTicket({ ...newTicket, category: value })}
@@ -293,22 +324,22 @@ export default function Support() {
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
+                          {t(categoryKeys[cat.value])}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Subject</label>
+                  <label className="text-sm font-medium">{t("support_subject")}</label>
                   <Input
                     value={newTicket.subject}
                     onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
-                    placeholder="Brief description of your issue"
+                    placeholder={t("support_ticket_desc")}
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Description</label>
+                  <label className="text-sm font-medium">{t("support_description")}</label>
                   <Textarea
                     value={newTicket.description}
                     onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
@@ -317,7 +348,7 @@ export default function Support() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Attachments</label>
+                  <label className="text-sm font-medium">{t("support_attachments")}</label>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -364,16 +395,29 @@ export default function Support() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : tickets?.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <MessageCircle className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No support tickets yet</h3>
+              <h3 className="text-lg font-medium mb-2">{t("support_no_tickets")}</h3>
               <p className="text-muted-foreground text-center mb-4">
-                Need help? Create a support ticket and our team will assist you.
+                {t("support_empty_prompt")}
               </p>
               <Button onClick={() => setIsCreateOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -384,7 +428,7 @@ export default function Support() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Your Tickets</h2>
+              <h2 className="text-lg font-semibold">{t("support_your_tickets")}</h2>
               {tickets?.map((ticket) => (
                 <Card
                   key={ticket.id}
@@ -398,7 +442,7 @@ export default function Support() {
                       <CardTitle className="text-base">{ticket.subject}</CardTitle>
                       <Badge variant={statusConfig[ticket.status].variant} className="flex items-center gap-1">
                         {statusConfig[ticket.status].icon}
-                        {statusConfig[ticket.status].label}
+                        {t(statusLabels[ticket.status])}
                       </Badge>
                     </div>
                     <CardDescription>
@@ -523,7 +567,7 @@ export default function Support() {
                 <Card className="h-[500px] flex items-center justify-center">
                   <div className="text-center text-muted-foreground">
                     <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Select a ticket to view details</p>
+                    <p>{t("support_select_ticket")}</p>
                   </div>
                 </Card>
               )}

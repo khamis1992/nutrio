@@ -34,7 +34,7 @@ export function CustomerNavigation() {
   const location = useLocation();
   const { isApprovedAffiliate } = useAffiliateApplication();
   const { settings: platformSettings } = usePlatformSettings();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const scheduleCount = useScheduleCount();
 
   const isActive = (path: string) => {
@@ -53,18 +53,20 @@ export function CustomerNavigation() {
   const showAffiliateTab = isApprovedAffiliate && platformSettings.features.referral_program;
 
   const navItems = [
-    { icon: Salad, label: t("nav_home"), to: "/dashboard" },
-    { icon: Utensils, label: t("nav_meals"), to: "/meals" },
-    { icon: Calendar, label: t("nav_schedule"), to: "/schedule" },
-    ...(showAffiliateTab ? [{ icon: Users, label: t("nav_affiliate"), to: "/affiliate" }] : []),
-    { icon: User, label: t("nav_profile"), to: "/profile" },
+    { key: "home", icon: Salad, label: t("nav_home"), to: "/dashboard" },
+    { key: "meals", icon: Utensils, label: t("nav_meals"), to: "/meals" },
+    { key: "schedule", icon: Calendar, label: t("nav_schedule"), to: "/schedule" },
+    ...(showAffiliateTab ? [{ key: "affiliate", icon: Users, label: t("nav_affiliate"), to: "/affiliate" }] : []),
+    { key: "profile", icon: User, label: t("nav_profile"), to: "/profile" },
   ];
 
+  const visibleNavItems = isRTL ? [...navItems].reverse() : navItems;
+
   return (
-    <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50 safe-bottom-nav">
+    <nav dir="ltr" aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-border z-50 safe-bottom-nav">
       <div className="container mx-auto px-4">
         <div className="flex justify-around items-center h-16">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isScheduleTab = item.to === "/schedule";
             const active = isActive(item.to);
             return (

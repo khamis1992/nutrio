@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemo } from "react";
 import {
@@ -45,6 +46,7 @@ function getHeroState(props: SmartHeroCardProps): HeroState {
 }
 
 export function SmartHeroCard(props: SmartHeroCardProps) {
+  const { t } = useLanguage();
   const state = useMemo(() => getHeroState(props), [
     props.hourNow, props.workoutCount, props.totalBurned, props.activeOrdersCount, props.deliveryEta, props.calLeft
   ]);
@@ -71,12 +73,12 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
         : "Plan your meals today",
       subtitle: todayMealsCount > 0
         ? "You're set for the day — view schedule"
-        : "Start your day right with a healthy breakfast",
+        : t("healthy_breakfast_message"),
       primaryValue: todayMealsCount.toString(),
       primaryLabel: "meals",
       accent: "from-emerald-500 to-teal-500",
       icon: ShoppingBag,
-      action: { label: "View Schedule", to: "/schedule" },
+      action: { label: t("action_view_schedule"), to: "/schedule" },
     },
     "evening-order": {
       title: `${calLeft.toLocaleString()} cal remaining`,
@@ -85,7 +87,7 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
       primaryLabel: "cal",
       accent: "from-violet-500 to-fuchsia-500",
       icon: Flame,
-      action: { label: "Order Dinner", to: "/meals" },
+      action: { label: t("action_order_dinner"), to: "/meals" },
     },
     "post-workout": {
       title: `Great workout!`,
@@ -94,7 +96,7 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
       primaryLabel: "earned",
       accent: "from-amber-500 to-orange-500",
       icon: Dumbbell,
-      action: { label: "Log Meal", to: undefined as string | undefined },
+      action: { label: t("action_log_meal"), to: undefined as string | undefined },
     },
     delivery: {
       title: "Your order is on the way",
@@ -103,7 +105,7 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
       primaryLabel: "min",
       accent: "from-sky-400 to-blue-500",
       icon: Bike,
-      action: { label: "Track Order", to: "/orders" },
+      action: { label: t("action_track_order"), to: "/orders" },
     },
     default: {
       title: `${balanceDisplay} meals remaining`,
@@ -112,7 +114,7 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
       primaryLabel: "meals",
       accent: "from-emerald-500 to-teal-500",
       icon: Crown,
-      action: { label: "View Plan", to: "/subscription" },
+      action: { label: t("action_view_plan"), to: "/subscription" },
     },
   };
 
@@ -241,17 +243,17 @@ export function SmartHeroCard(props: SmartHeroCardProps) {
       {/* Compact secondary stats row */}
       <div className="flex items-center gap-1 border-t border-slate-100 bg-white px-4 py-2.5">
         <div className="flex-1 text-center">
-          <p className="text-[10px] font-medium text-slate-500">Plan</p>
+          <p className="text-[10px] font-medium text-slate-500">{t("plan_label")}</p>
           <p className="text-[13px] font-extrabold text-slate-900">{planName}</p>
         </div>
         <div className="h-[24px] w-px bg-slate-200" />
         <div className="flex-1 text-center">
-          <p className="text-[10px] font-medium text-slate-500">Meals</p>
+          <p className="text-[10px] font-medium text-slate-500">{t("meals_label")}</p>
           <p className="text-[13px] font-extrabold text-slate-900">{balanceDisplay}/{totalMeals}</p>
         </div>
         <div className="h-[24px] w-px bg-slate-200" />
         <div className="flex-1 text-center">
-          <p className="text-[10px] font-medium text-slate-500">Joined</p>
+          <p className="text-[10px] font-medium text-slate-500">{t("joined")}</p>
           <p className="text-[11px] font-extrabold text-slate-700">{joinedLabel}</p>
         </div>
       </div>

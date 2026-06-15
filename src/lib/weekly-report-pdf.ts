@@ -110,8 +110,8 @@ export class WeeklyReportPDFGenerator {
         this.logoBase64 = reader.result as string;
       };
       reader.readAsDataURL(blob);
-    } catch (error) {
-      console.log('Logo not found, will use text-based logo');
+    } catch {
+      // Logo loading is optional — continue without it
     }
   }
 

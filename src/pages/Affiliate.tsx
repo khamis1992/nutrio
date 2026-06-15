@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { NavChevronRight } from "@/components/ui/nav-chevron";
@@ -105,6 +105,7 @@ export default function Affiliate() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("affiliate_title")} — Nutrio`; }, [t]);
   const { profile } = useProfile();
   const { isApprovedAffiliate, loading: applicationLoading } = useAffiliateApplication();
   const {
@@ -201,11 +202,25 @@ export default function Affiliate() {
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading || applicationLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <div className="container max-w-md mx-auto px-4 py-6 space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-card rounded-2xl border p-5 space-y-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <Skeleton className="h-2 w-full rounded-full" />
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
         </div>
-        <p className="text-sm text-muted-foreground">{t("affiliate_loading_data")}</p>
       </div>
     );
   }

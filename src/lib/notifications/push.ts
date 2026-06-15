@@ -24,12 +24,12 @@ class PushNotificationService {
 
   async initialize(): Promise<void> {
     if (!Capacitor.isNativePlatform()) {
-      console.log("Push notifications only available on native platforms");
+
       return;
     }
 
     if (this.initialized) {
-      console.log("Push notification service already initialized");
+
       return;
     }
 
@@ -51,7 +51,7 @@ class PushNotificationService {
     await PushNotifications.register();
 
     PushNotifications.addListener("registration", (token) => {
-      console.log("FCM token registered:", token.value.substring(0, 20) + "...");
+
       this.fcmToken = token.value;
       this.saveTokenToDatabase(token.value);
     });
@@ -61,17 +61,17 @@ class PushNotificationService {
     });
 
     PushNotifications.addListener("pushNotificationReceived", (notification) => {
-      console.log("Push received in foreground:", notification.title);
+
       // Handle foreground notification display if needed
     });
 
     PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      console.log("Push notification tapped:", action.actionId);
+
       this.handleNotificationTap(action.notification.data as PushNotificationData);
     });
 
     this.initialized = true;
-    console.log("Push notification service initialized successfully");
+
   }
 
   private async saveTokenToDatabase(token: string): Promise<void> {
@@ -99,8 +99,6 @@ class PushNotificationService {
 
       if (error) {
         console.error("Error saving push token:", error.message);
-      } else {
-        console.log("Push token saved to database successfully");
       }
     } catch (err) {
       console.error("Unexpected error saving push token:", err);

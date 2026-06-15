@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Wallet } from "lucide-react";
 
@@ -22,6 +23,7 @@ export const MealActionBar = ({
   isUnlimited,
   remainingMeals,
 }: MealActionBarProps) => {
+  const { t } = useLanguage();
   const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
   return (
@@ -34,16 +36,16 @@ export const MealActionBar = ({
       <div>
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <p className="text-sm text-muted-foreground">Selected</p>
+            <p className="text-sm text-muted-foreground">{t("selected")}</p>
             <p className="font-semibold text-foreground">{meal.name}</p>
             {noMealsLeft && (
-              <p className="text-xs text-warning font-medium mt-0.5">No meals left — buy with wallet</p>
+              <p className="text-xs text-warning font-medium mt-0.5">{t("no_meals_left_buy")}</p>
             )}
           </div>
           <div className="flex items-center gap-4">
             {hasActiveSubscription && (isUnlimited || remainingMeals > 0) && (
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Meals Left</p>
+                <p className="text-xs text-muted-foreground">{t("label_meals_left")}</p>
                 <p className="text-sm font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
                   {isUnlimited ? "\u221E" : remainingMeals}
                 </p>
@@ -122,7 +124,7 @@ export const MealActionBar = ({
             </motion.button>
           </div>
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-4">Tap + to add to your schedule</p>
+        <p className="text-center text-xs text-muted-foreground mt-4">{t("tap_to_add_schedule")}</p>
       </div>
     </motion.div>
   );

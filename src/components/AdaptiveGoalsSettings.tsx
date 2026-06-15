@@ -161,7 +161,7 @@ export const AdaptiveGoalsSettings = () => {
                     </div>
                     <div className="text-right">
                       <Badge variant={adjustment.applied ? "default" : "secondary"}>
-                        {adjustment.applied ? "Applied" : "Pending"}
+                        {adjustment.applied ? t("applied_status") : t("pending_status")}
                       </Badge>
                       <p className="text-xs text-muted-foreground mt-1">
                         {adjustment.previous_calories} → {adjustment.new_calories}

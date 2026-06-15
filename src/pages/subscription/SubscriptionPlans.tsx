@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ const TIER_DISPLAY: Record<string, { en: string; ar: string; icon: typeof Zap; b
 };
 
 export default function SubscriptionPlans() {
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +42,7 @@ export default function SubscriptionPlans() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Please sign in to subscribe");
-        navigate("/auth");
+        navigate("/subscription");
         return;
       }
       navigate(`/subscription/checkout?plan=${planTier}`);
@@ -63,7 +65,7 @@ export default function SubscriptionPlans() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive mb-4 font-medium">Failed to load subscription plans</p>
+          <p className="text-destructive mb-4 font-medium">{t("subscription_plans_load_error")}</p>
           <Button onClick={() => window.location.reload()} className="rounded-2xl">
             Retry
           </Button>
@@ -82,7 +84,7 @@ export default function SubscriptionPlans() {
           >
             <ArrowLeft className="h-4 w-4 text-foreground" />
           </button>
-          <h1 className="text-base font-bold tracking-tight">Choose Your Plan</h1>
+          <h1 className="text-base font-bold tracking-tight">{t("plans_choose_your_plan")}</h1>
         </div>
       </header>
 
@@ -181,7 +183,7 @@ export default function SubscriptionPlans() {
                         <Icon className={cn("h-5 w-5", isPopular ? "text-amber-600" : "text-primary")} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-foreground">{display.en}</h3>
+                        <h3 className="font-bold text-foreground">{language === "ar" ? display.ar : display.en}</h3>
                         <p className="text-xs text-emerald-600 font-semibold">{display.ar}</p>
                       </div>
                     </div>
@@ -252,7 +254,7 @@ export default function SubscriptionPlans() {
                     {isLoading && selectedPlan === plan.tier ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      `Subscribe to ${display.en}`
+                      language === "ar" ? `اشترك في ${display.ar}` : `Subscribe to ${display.en}`
                     )}
                   </Button>
 

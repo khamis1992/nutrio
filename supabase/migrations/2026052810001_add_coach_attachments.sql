@@ -21,6 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_coach_attachments_message
 ALTER TABLE coach_chat_attachments ENABLE ROW LEVEL SECURITY;
 
 -- Users who are part of the conversation can view attachments
+DO $$ BEGIN
 CREATE POLICY "conversation_participants_view_attachments" ON coach_chat_attachments
   FOR SELECT
   TO authenticated
@@ -31,8 +32,12 @@ CREATE POLICY "conversation_participants_view_attachments" ON coach_chat_attachm
         AND (coach_messages.coach_id = auth.uid() OR coach_messages.client_id = auth.uid())
     )
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Users who are part of the conversation can insert attachments
+DO $$ BEGIN
 CREATE POLICY "conversation_participants_insert_attachments" ON coach_chat_attachments
   FOR INSERT
   TO authenticated
@@ -44,6 +49,9 @@ CREATE POLICY "conversation_participants_insert_attachments" ON coach_chat_attac
     )
     AND uploaded_by = auth.uid()
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Create storage bucket for coach attachments
 -- Note: Storage bucket creation is handled via Supabase Dashboard or Management API.

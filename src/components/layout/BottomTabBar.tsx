@@ -3,11 +3,11 @@ import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Home, UtensilsCrossed, Calendar, User } from "lucide-react";
 
-const tabs = [
-  { path: "/dashboard", labelKey: "home", Icon: Home },
-  { path: "/meals", labelKey: "meals", Icon: UtensilsCrossed },
-  { path: "/schedule", labelKey: "schedule", Icon: Calendar },
-  { path: "/profile", labelKey: "profile", Icon: User },
+const navItems = [
+  { key: "home", path: "/dashboard", labelKey: "nav_home", Icon: Home },
+  { key: "meals", path: "/meals", labelKey: "nav_meals", Icon: UtensilsCrossed },
+  { key: "schedule", path: "/schedule", labelKey: "nav_schedule", Icon: Calendar },
+  { key: "profile", path: "/profile", labelKey: "nav_profile", Icon: User },
 ];
 
 interface BottomTabBarProps {
@@ -18,18 +18,23 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
   const location = useLocation();
   const { t, isRTL } = useLanguage();
 
-  const activeIndex = tabs.findIndex(
-    (tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path)
-  );
-  const displayTabs = isRTL ? [...tabs].reverse() : tabs;
-  const rtlActiveIndex = isRTL
-    ? displayTabs.findIndex(
-        (tab) => location.pathname === tab.path || location.pathname.endsWith(tab.path)
-      )
-    : activeIndex;
+  const visibleNavItems = isRTL ? [...navItems].reverse() : navItems;
+
+  // Track which item is active based on path, not position
+  const activeTab = navItems.find(
+    (item) => location.pathname === item.path || location.pathname.startsWith(item.path + "/")
+  )?.key ?? null;
+
+  const isActiveTab = (item: typeof navItems[0]) => {
+    if (item.path === "/dashboard") {
+      return location.pathname === "/dashboard";
+    }
+    return location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+  };
 
   return (
     <nav
+      dir="ltr"
       data-testid="bottom-tab-bar"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-[1000]"
       style={{
@@ -51,8 +56,8 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
         }}
       >
         <div className="mx-auto flex h-full max-w-[430px] items-center justify-around px-2">
-          {displayTabs.map((tab, i) => {
-            const active = i === rtlActiveIndex;
+          {visibleNavItems.map((tab) => {
+            const active = isActiveTab(tab);
             const IconComponent = tab.Icon;
 
             return (

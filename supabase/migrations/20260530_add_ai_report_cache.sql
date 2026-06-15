@@ -17,8 +17,12 @@ CREATE INDEX IF NOT EXISTS idx_ai_report_cache_user_week
 
 ALTER TABLE ai_report_cache ENABLE ROW LEVEL SECURITY;
 
+DO $$ BEGIN
 CREATE POLICY "users_manage_own_report_cache" ON ai_report_cache
   FOR ALL
   TO authenticated
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+

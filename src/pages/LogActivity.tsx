@@ -342,7 +342,7 @@ export default function LogActivity() {
                 <Dumbbell className="h-7 w-7" strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-[17px] font-black text-[#111827]">Detected Workouts</h3>
+                <h3 className="text-[17px] font-black text-[#111827]">{t("detected_workouts")}</h3>
                 <p className="mt-0.5 text-[14px] font-medium text-[#7A869A]">
                   {sessions.length > 0
                     ? `${sessions.length} workout${sessions.length === 1 ? "" : "s"} logged today`

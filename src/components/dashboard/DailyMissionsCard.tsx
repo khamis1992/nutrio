@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { motion } from "framer-motion";
 import { Target, Gift, CheckCircle2, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export function DailyMissionsCard({
   allComplete,
   onClaimBonus,
 }: DailyMissionsCardProps) {
+  const { t } = useLanguage();
   if (missions.length === 0) return null;
 
   const allDone = allComplete;
@@ -35,8 +37,8 @@ export function DailyMissionsCard({
             <Target className="w-3.5 h-3.5 text-white" />
           </div>
           <div>
-            <h3 className="text-[13px] font-extrabold text-slate-900">Daily Missions</h3>
-            <p className="text-[10px] text-slate-500">Complete all 3 for bonus XP</p>
+            <h3 className="text-[13px] font-extrabold text-slate-900">{t("daily_missions")}</h3>
+            <p className="text-[10px] text-slate-500">{t("daily_missions_desc")}</p>
           </div>
         </div>
         {allDone && !bonusClaimed && (

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Bell, Users, ChevronRight, ArrowLeft } from "lucide-react";
+import { Bell, Users, ChevronRight } from "lucide-react";
+import { getNavArrows } from "@/lib/rtl";
 import { CommunityChallengeCard } from "@/components/community/CommunityChallengeCard";
 import { GamificationWidget } from "@/components/GamificationWidget";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
@@ -25,7 +26,8 @@ function SectionLabel({ label }: { label: string }) {
 }
 
 export default function Community() {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
+  const { ArrowPrev } = getNavArrows(isRTL);
   const navigate = useNavigate();
 
   return (
@@ -40,11 +42,11 @@ export default function Community() {
         <div className="flex items-start justify-between pb-6">
           <div className="flex items-start gap-3">
             <button onClick={() => navigate(-1)} className="mt-0.5 flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition hover:bg-slate-50 hover:text-slate-600" aria-label="Go back">
-              <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              <ArrowPrev className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
             <div className="space-y-0.5 min-w-0">
-              <h1 className="text-[26px] leading-[1.05] font-extrabold text-slate-900 tracking-[-0.03em]">{t("community") || "Community"}</h1>
-              <p className="text-[13px] font-medium text-slate-500">{t("community_subtitle") || "Connect, challenge, and grow together"}</p>
+              <h1 className="text-[26px] leading-[1.05] font-extrabold text-slate-900 tracking-[-0.03em]">{t("community")}</h1>
+              <p className="text-[13px] font-medium text-slate-500">{t("community_subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5">
@@ -68,35 +70,35 @@ export default function Community() {
               <img alt="coach-2" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop" className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-extrabold text-slate-900">Need guidance?</p>
-              <p className="mt-0.5 text-[13px] text-slate-500">Match with a certified nutrition coach.</p>
+              <p className="text-[15px] font-extrabold text-slate-900">{t("community_need_guidance")}</p>
+              <p className="mt-0.5 text-[13px] text-slate-500">{t("community_match_coach")}</p>
             </div>
             <span className="inline-flex h-[42px] items-center gap-2 rounded-full bg-emerald-500 px-5 text-[13px] font-extrabold text-white shadow-[0_4px_10px_rgba(16,185,129,0.2)] transition group-hover:shadow-[0_6px_14px_rgba(16,185,129,0.28)]">
-              Find Coach <ChevronRight className="h-4 w-4" />
+              {t("community_find_coach")} <ChevronRight className="h-4 w-4" />
             </span>
           </div>
         </motion.div>
 
         {/* ═══════ YOUR JOURNEY ═══════ */}
-        <SectionLabel label="Your Journey" />
+        <SectionLabel label={t("community_your_journey")} />
         <div className="mb-6">
           <DashboardErrorBoundary name="community gamification"><GamificationWidget /></DashboardErrorBoundary>
         </div>
 
         {/* ═══════ ACTIVE EVENTS ═══════ */}
-        <SectionLabel label="Active Events" />
+        <SectionLabel label={t("community_active_events")} />
         <div className="mb-6">
           <DashboardErrorBoundary name="community challenges"><CommunityChallengeCard /></DashboardErrorBoundary>
         </div>
 
         {/* ═══════ DISCOVER ═══════ */}
-        <SectionLabel label="Discover" />
+        <SectionLabel label={t("community_discover")} />
         <div className="mb-6">
           <DashboardErrorBoundary name="popular combos"><PopularCombos /></DashboardErrorBoundary>
         </div>
 
         {/* ═══════ GROWTH ═══════ */}
-        <SectionLabel label="Growth" />
+        <SectionLabel label={t("community_growth")} />
         <DashboardErrorBoundary name="referral milestones"><ReferralMilestonesWidget /></DashboardErrorBoundary>
 
       </div>

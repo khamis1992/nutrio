@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, Lock, Sparkles, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { UserBadge } from "@/lib/badges";
 
 interface AchievementsSectionProps {
@@ -11,12 +12,35 @@ interface AchievementsSectionProps {
   className?: string;
 }
 
+const badgeNameKeyMap: Record<string, string> = {
+  "First Bite": "achievements_first_bite",
+  "Salad Sampler": "badge_salad_sampler",
+  "Week Warrior": "badge_week_warrior",
+  "Nutrition Ninja": "badge_nutrition_ninja",
+  "Variety King": "badge_variety_king",
+  "Explorer": "badge_explorer",
+  "Social Butterfly": "achievements_social_butterfly",
+  "Hydration Hero": "badge_hydration_hero",
+  "Protein King": "badge_protein_king",
+  "Streak Master": "badge_streak_master",
+  "Subscription Hero": "badge_subscription_hero",
+  "30-Day Streak": "badge_30day_streak",
+  "Goal Crusher": "badge_goal_crusher",
+  "NUTRIO Royalty": "badge_nutrio_royalty",
+};
+
+function tBadge(t: (key: string) => string, name: string): string {
+  const key = badgeNameKeyMap[name];
+  return key ? t(key) : name;
+}
+
 export function AchievementsSection({
   badges,
   unlockedCount,
   totalCount,
   className,
 }: AchievementsSectionProps) {
+  const { t } = useLanguage();
   const [showAll, setShowAll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -40,11 +64,11 @@ export function AchievementsSection({
           <Trophy className="h-6 w-6 text-white" strokeWidth={2} />
         </div>
         <div>
-          <h3 className="text-[16px] font-black tracking-[-0.03em] text-slate-900">Achievements</h3>
+          <h3 className="text-[16px] font-black tracking-[-0.03em] text-slate-900">{t("achievements_title")}</h3>
           <p className="text-[11px] font-medium text-slate-500">
             {unlockedCount > 0
-              ? `${unlockedCount} of ${totalCount} unlocked — keep going!`
-              : "Celebrate your progress and stay motivated"}
+              ? t("achievements_unlocked_summary", { unlocked: unlockedCount, total: totalCount })
+              : t("achievements_celebrate_progress")}
           </p>
         </div>
         <div className="ml-auto shrink-0 rounded-full bg-violet-50 px-3 py-1.5">
@@ -106,7 +130,7 @@ export function AchievementsSection({
                     isUnlocked ? "text-slate-800" : "text-slate-400",
                   )}
                 >
-                  {badge.name}
+                  {tBadge(t, badge.name)}
                 </p>
 
                 {/* Description — only for featured */}
@@ -128,7 +152,7 @@ export function AchievementsSection({
                     />
                   </div>
                   <p className={cn("mt-1 text-[9px] font-semibold", isUnlocked ? "text-violet-500" : "text-slate-400")}>
-                    {isUnlocked ? "Unlocked" : "Locked"}
+                    {isUnlocked ? t("achievements_unlocked") : t("achievements_locked")}
                   </p>
                 </div>
               </motion.div>
@@ -143,9 +167,9 @@ export function AchievementsSection({
         className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-2xl bg-violet-50 py-2.5 text-[13px] font-bold text-violet-600 hover:bg-violet-100 transition-colors"
       >
         {showAll ? (
-          <>Show Less <ChevronUp className="h-4 w-4" /></>
+          <>{t("achievements_show_less")} <ChevronUp className="h-4 w-4" /></>
         ) : (
-          <>View All ({totalCount}) <ChevronDown className="h-4 w-4" /></>
+          <>{t("achievements_view_all", { count: totalCount })} <ChevronDown className="h-4 w-4" /></>
         )}
       </button>
 
@@ -179,7 +203,7 @@ export function AchievementsSection({
                   <Lock className="absolute inset-0 m-auto h-4 w-4 text-slate-300" />
                 )}
               </div>
-              <p className="mt-1 text-[9px] font-semibold text-slate-600 line-clamp-2">{badge.name}</p>
+              <p className="mt-1 text-[9px] font-semibold text-slate-600 line-clamp-2">{tBadge(t, badge.name)}</p>
             </div>
           ))}
         </motion.div>

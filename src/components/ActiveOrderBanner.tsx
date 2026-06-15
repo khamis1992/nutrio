@@ -523,7 +523,7 @@ const handleCancelOrder = async (orderId: string) => {
                               setCancelDialogOpen(true);
                             }}
                             disabled={cancelling === cancellableOrderId}
-                            aria-label="Cancel order"
+                            aria-label={t("cancel_button")}
                             className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-red-50 border border-red-200 flex items-center justify-center hover:bg-red-100 hover:border-red-300 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
                           >
                             {cancelling === cancellableOrderId ? (

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, type ReactNode } from "react";
 import {
   AlertCircle,
@@ -177,12 +178,12 @@ function PerfRingCard({
 }
 
 const goalFocusCategories = [
-  { id: "weight_loss", label: "Weight Loss", icon: <Scale className="h-7 w-7" />, color: "#10B981" },
-  { id: "muscle_gain", label: "Muscle Gain", icon: <Dumbbell className="h-7 w-7" />, color: "#3B82F6" },
-  { id: "general_health", label: "Healthy Lifestyle", icon: <Leaf className="h-7 w-7" />, color: "#10B981" },
-  { id: "keto", label: "Keto", icon: <Flame className="h-7 w-7" />, color: "#F97316" },
-  { id: "balance", label: "Balance", icon: <Sprout className="h-7 w-7" />, color: "#8B5CF6" },
-  { id: "energy", label: "Energy", icon: <Zap className="h-7 w-7" />, color: "#F59E0B" },
+  { id: "weight_loss", label: t("goal_weight_loss"), icon: <Scale className="h-7 w-7" />, color: "#10B981" },
+  { id: "muscle_gain", label: t("goal_muscle_gain"), icon: <Dumbbell className="h-7 w-7" />, color: "#3B82F6" },
+  { id: "general_health", label: t("goal_healthy_lifestyle"), icon: <Leaf className="h-7 w-7" />, color: "#10B981" },
+  { id: "keto", label: t("goal_keto"), icon: <Flame className="h-7 w-7" />, color: "#F97316" },
+  { id: "balance", label: t("goal_balance"), icon: <Sprout className="h-7 w-7" />, color: "#8B5CF6" },
+  { id: "energy", label: t("goal_energy"), icon: <Zap className="h-7 w-7" />, color: "#F59E0B" },
 ];
 
 const goalTypeLabel: Record<string, string> = {
@@ -245,7 +246,7 @@ export const GoalsTab = ({
               </div>
 
               <h2 className="text-[34px] font-black leading-[1.05] tracking-[-0.045em]">{goalName}</h2>
-              <p className="mt-1 text-[14px] font-semibold text-white/85">Your transformation progress</p>
+              <p className="mt-1 text-[14px] font-semibold text-white/85">{t("transformation_progress")}</p>
 
               {/* Current → Goal */}
               <div className="mt-4 flex items-center gap-2">
@@ -254,7 +255,7 @@ export const GoalsTab = ({
                     <p className="text-[22px] font-black leading-none">{currentWeight}</p>
                     <p className="text-[11px] font-extrabold text-white/80">kg</p>
                   </div>
-                  <p className="mt-1 text-[11px] font-semibold text-white/74">Current</p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/74">{t("current_label")}</p>
                 </div>
                 <ArrowRight className="h-5 w-5 shrink-0 text-white/75" />
                 <div className="min-w-[78px] rounded-[14px] border border-white/10 bg-white/14 px-3 py-2 shadow-[inset_0_1px_8px_rgba(255,255,255,0.12)] backdrop-blur-md">
@@ -262,7 +263,7 @@ export const GoalsTab = ({
                     <p className="text-[22px] font-black leading-none">{goalWeight}</p>
                     <p className="text-[11px] font-extrabold text-white/80">kg</p>
                   </div>
-                  <p className="mt-1 text-[11px] font-semibold text-white/74">Goal</p>
+                  <p className="mt-1 text-[11px] font-semibold text-white/74">{t("goal_label")}</p>
                 </div>
               </div>
             </div>
@@ -275,7 +276,7 @@ export const GoalsTab = ({
                   {progressPct}
                   <span className="text-[20px]">%</span>
                 </p>
-                <p className="mt-1 text-[13px] font-semibold text-white/95 drop-shadow-sm">Progress</p>
+                <p className="mt-1 text-[13px] font-semibold text-white/95 drop-shadow-sm">{t("progress_label")}</p>
               </div>
             </div>
           </div>
@@ -288,7 +289,7 @@ export const GoalsTab = ({
           {/* Ahead of last month pill */}
           <div className="mt-3 inline-flex items-center gap-2 rounded-[13px] border border-white/10 bg-white/14 px-3 py-2 backdrop-blur-md">
             <TrendingUp className="h-5 w-5 text-[#57F0B3]" />
-            <span className="text-[12px] font-bold leading-tight">You're ahead of<br />last month!</span>
+            <span className="text-[12px] font-bold leading-tight">{t("ahead_of_last_month")}</span>
           </div>
         </div>
 
@@ -301,7 +302,7 @@ export const GoalsTab = ({
       </section>
 
       <section>
-        <SectionHeader title="Goal Focus" action="View All" />
+        <SectionHeader title={t("section_goal_focus")} action={t("view_all")} />
         <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {goalFocusCategories.slice(0, 4).map((category) => {
             const active = selectedFocus === category.id;
@@ -340,16 +341,16 @@ export const GoalsTab = ({
             <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-emerald-600">
               <UserRound className="h-4 w-4" />
             </div>
-            <h3 className="text-[15px] font-extrabold text-slate-950">Body Metrics</h3>
+            <h3 className="text-[15px] font-extrabold text-slate-950">{t("body_metrics_label")}</h3>
           </div>
           <div className="grid grid-cols-[1fr_48px_1fr] items-center gap-2">
             <div className="space-y-4">
               <div>
-                <p className="text-[11px] font-semibold text-slate-500">Current Weight</p>
+                <p className="text-[11px] font-semibold text-slate-500">{t("current_weight_label")}</p>
                 <p className="text-[23px] font-black tracking-[-0.04em] text-slate-950">{currentWeight}<span className="ml-1 text-[12px] font-bold text-slate-500">kg</span></p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-500">Height</p>
+                <p className="text-[11px] font-semibold text-slate-500">{t("height_label")}</p>
                 <p className="text-[22px] font-black tracking-[-0.04em] text-slate-950">{height}<span className="ml-1 text-[12px] font-bold text-slate-500">cm</span></p>
               </div>
             </div>
@@ -359,11 +360,11 @@ export const GoalsTab = ({
             </svg>
             <div className="space-y-4 text-left">
               <div>
-                <p className="text-[11px] font-semibold text-slate-500">Goal Weight</p>
+                <p className="text-[11px] font-semibold text-slate-500">{t("goal_weight_label")}</p>
                 <p className="text-[23px] font-black tracking-[-0.04em] text-slate-950">{goalWeight}<span className="ml-1 text-[12px] font-bold text-slate-500">kg</span></p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-500">BMI</p>
+                <p className="text-[11px] font-semibold text-slate-500">{t("bmi_label")}</p>
                 <p className="text-[22px] font-black tracking-[-0.04em] text-slate-950">{bmi}</p>
                 <p className="text-[11px] font-extrabold text-emerald-600">{bmiLabel}</p>
               </div>
@@ -381,9 +382,9 @@ export const GoalsTab = ({
               <div className="grid h-10 w-10 place-items-center rounded-full bg-violet-100 text-violet-600 shadow-[0_8px_14px_rgba(124,58,237,0.18)]">
                 <Bot className="h-6 w-6" />
               </div>
-              <h3 className="text-[18px] font-black tracking-[-0.03em] text-slate-950">AI Coach</h3>
+              <h3 className="text-[18px] font-black tracking-[-0.03em] text-slate-950">{t("ai_coach_label")}</h3>
             </div>
-            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-black text-emerald-600">NEW</span>
+            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-black text-emerald-600">{t("new_badge")}</span>
           </div>
           <div className="mt-4 flex gap-3">
             <div className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-full bg-[linear-gradient(180deg,#EEF2FF,#A5B4FC)] text-indigo-700 shadow-[0_10px_18px_rgba(99,102,241,0.22)]">
@@ -402,12 +403,12 @@ export const GoalsTab = ({
 
       <section className="grid grid-cols-[0.96fr_1.54fr] gap-3">
         <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.055)]">
-          <h3 className="mb-4 text-[17px] font-black tracking-[-0.03em] text-slate-950">This Week</h3>
+          <h3 className="mb-4 text-[17px] font-black tracking-[-0.03em] text-slate-950">{t("this_week_label")}</h3>
           <div className="space-y-3">
             {[
-              { icon: <Flame className="h-4 w-4" />, label: "Calories On Track", done: true, color: "bg-emerald-100 text-emerald-600" },
+              { icon: <Flame className="h-4 w-4" />, label: t("achieve_calories_track"), done: true, color: "bg-emerald-100 text-emerald-600" },
               { icon: <CalendarDays className="h-4 w-4" />, label: "5 Day Streak", done: true, color: "bg-emerald-100 text-emerald-600" },
-              { icon: <Zap className="h-4 w-4" />, label: "Water Improved", done: true, color: "bg-blue-100 text-blue-500" },
+              { icon: <Zap className="h-4 w-4" />, label: t("achieve_water_improved"), done: true, color: "bg-blue-100 text-blue-500" },
               { icon: <AlertCircle className="h-4 w-4" />, label: "Late Night Snacking", done: false, color: "bg-orange-100 text-orange-500" },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2">
@@ -421,8 +422,8 @@ export const GoalsTab = ({
 
         <div className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.055)]">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-[17px] font-black tracking-[-0.03em] text-slate-950">Achievements</h3>
-            <button className="text-[13px] font-black text-emerald-600">View All</button>
+            <h3 className="text-[17px] font-black tracking-[-0.03em] text-slate-950">{t("achievements_label")}</h3>
+            <button className="text-[13px] font-black text-emerald-600">{t("view_all")}</button>
           </div>
           <div className="grid grid-cols-4 gap-3">
             {[

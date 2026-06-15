@@ -225,8 +225,8 @@ export default function ReferralTracking() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-xl font-semibold">Referral Tracking</h1>
-              <p className="text-xs text-muted-foreground">Detailed stats for your referrals</p>
+              <h1 className="text-xl font-semibold">{t("referral_title")}</h1>
+              <p className="text-xs text-muted-foreground">{t("referral_desc")}</p>
             </div>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function ReferralTracking() {
             <CardContent className="p-4 text-center">
               <Users className="h-6 w-6 text-primary mx-auto mb-2" />
               <p className="text-2xl font-bold">{stats.totalReferrals}</p>
-              <p className="text-xs text-muted-foreground">Total Referrals</p>
+              <p className="text-xs text-muted-foreground">{t("referral_total")}</p>
             </CardContent>
           </Card>
           <Card>
@@ -260,7 +260,7 @@ export default function ReferralTracking() {
             <CardContent className="p-4 text-center">
               <ShoppingBag className="h-6 w-6 text-violet-500 mx-auto mb-2" />
               <p className="text-2xl font-bold">{formatCurrency(stats.avgOrderValue)}</p>
-              <p className="text-xs text-muted-foreground">Avg Order Value</p>
+              <p className="text-xs text-muted-foreground">{t("referral_avg_order")}</p>
             </CardContent>
           </Card>
         </div>
@@ -284,7 +284,7 @@ export default function ReferralTracking() {
                   <SelectValue placeholder="Tier" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Tiers</SelectItem>
+                  <SelectItem value="all">{t("referral_all_tiers")}</SelectItem>
                   <SelectItem value="1">{t("affiliate_tier1_label")}</SelectItem>
                   <SelectItem value="2">{t("affiliate_tier2_label")}</SelectItem>
                   <SelectItem value="3">{t("affiliate_tier3_label")}</SelectItem>
@@ -296,11 +296,11 @@ export default function ReferralTracking() {
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Newest First</SelectItem>
-                  <SelectItem value="oldest">Oldest First</SelectItem>
-                  <SelectItem value="most-orders">Most Orders</SelectItem>
-                  <SelectItem value="highest-earnings">Highest Earnings</SelectItem>
-                  <SelectItem value="most-spent">Most Spent</SelectItem>
+                  <SelectItem value="newest">{t("referral_newest")}</SelectItem>
+                  <SelectItem value="oldest">{t("referral_oldest")}</SelectItem>
+                  <SelectItem value="most-orders">{t("referral_most_orders")}</SelectItem>
+                  <SelectItem value="highest-earnings">{t("referral_highest_earnings")}</SelectItem>
+                  <SelectItem value="most-spent">{t("referral_most_spent")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -313,7 +313,7 @@ export default function ReferralTracking() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                <p className="text-muted-foreground font-medium">No referrals found</p>
+                <p className="text-muted-foreground font-medium">{t("referral_empty")}</p>
                 <p className="text-sm text-muted-foreground">
                   {referrals.length === 0 
                     ? "Start sharing your link to build your network!" 
@@ -378,7 +378,7 @@ export default function ReferralTracking() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-muted-foreground text-sm">
                             <ShoppingBag className="h-4 w-4" />
-                            <span>Total Orders</span>
+                            <span>{t("referral_total_orders")}</span>
                           </div>
                           <p className="font-semibold text-lg">{referral.total_orders}</p>
                         </div>
@@ -392,7 +392,7 @@ export default function ReferralTracking() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-muted-foreground text-sm">
                             <Award className="h-4 w-4" />
-                            <span>Your Earnings</span>
+                            <span>{t("referral_your_earnings")}</span>
                           </div>
                           <p className="font-semibold text-lg text-green-600">
                             {formatCurrency(referral.commissions_earned)}
@@ -401,7 +401,7 @@ export default function ReferralTracking() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-muted-foreground text-sm">
                             <Clock className="h-4 w-4" />
-                            <span>Last Order</span>
+                            <span>{t("referral_last_order")}</span>
                           </div>
                           <p className="font-semibold text-lg">
                             {referral.last_order_date 
@@ -437,8 +437,8 @@ export default function ReferralTracking() {
         {referrals.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Breakdown by Tier</CardTitle>
-              <CardDescription>Commission summary per tier level</CardDescription>
+              <CardTitle className="text-lg">{t("referral_tier_breakdown")}</CardTitle>
+              <CardDescription>{t("referral_tier_desc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {[1, 2, 3].map(tier => {

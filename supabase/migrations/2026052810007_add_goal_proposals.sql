@@ -29,23 +29,35 @@ CREATE INDEX IF NOT EXISTS idx_goal_proposals_client
 ALTER TABLE goal_proposals ENABLE ROW LEVEL SECURITY;
 
 -- Coaches can manage proposals for their clients
+DO $$ BEGIN
 CREATE POLICY "coaches_manage_proposals" ON goal_proposals
   FOR ALL
   TO authenticated
   USING (coach_id = auth.uid())
   WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can view their own proposals and update status (accept/reject)
+DO $$ BEGIN
 CREATE POLICY "clients_view_own_proposals" ON goal_proposals
   FOR SELECT
   TO authenticated
   USING (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
 
+
+DO $$ BEGIN
 CREATE POLICY "clients_update_own_proposals" ON goal_proposals
   FOR UPDATE
   TO authenticated
   USING (client_id = auth.uid())
   WITH CHECK (client_id = auth.uid() AND (status IN ('accepted', 'rejected')));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Add coach_milestone and coach_goal_accepted notification types
 DO $$

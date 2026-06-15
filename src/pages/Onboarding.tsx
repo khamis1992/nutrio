@@ -1025,7 +1025,7 @@ const Onboarding = () => {
                     </div>
                   ) : (
                     <div className="p-3 bg-muted rounded-xl text-center">
-                      <p className="text-sm text-muted-foreground">No preferences available</p>
+                      <p className="text-sm text-muted-foreground">{t("onboarding_no_preferences")}</p>
                     </div>
                   )}
                 </div>
@@ -1083,7 +1083,7 @@ const Onboarding = () => {
                     </div>
                   ) : (
                     <div className="p-3 bg-muted rounded-xl text-center">
-                      <p className="text-sm text-muted-foreground">No allergies available</p>
+                      <p className="text-sm text-muted-foreground">{t("onboarding_no_allergies")}</p>
                     </div>
                   )}
                 </div>

@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +46,6 @@ import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import EmptyMealSlot from "@/components/schedule/EmptyMealSlot";
 import ScheduleHeader from "@/components/schedule/ScheduleHeader";
-import DateHeroCard from "@/components/schedule/DateHeroCard";
 import WeeklyProgressBar from "@/components/schedule/WeeklyProgressBar";
 import MealDetailSheet from "@/components/schedule/MealDetailSheet";
 import { MealPlanGenerator } from "@/components/meal/MealPlanGenerator";
@@ -146,6 +146,8 @@ const MEAL_TYPE_STEP: Record<string, number> = {
 
 const Schedule = () => {
   const { t, isRTL } = useLanguage();
+  useEffect(() => { document.title = `${t("nav_schedule")} — Nutrio`; }, [t]);
+  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   const DAYS = isRTL ? DAYS_AR : DAYS_EN;
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -271,10 +273,17 @@ const Schedule = () => {
     let mealsMap: Record<string, { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null }> = {};
 
     if (mealIds.length > 0) {
-      const { data: mealsData } = await supabase
+      const { data: mealsData, error: mealsError } = await supabase
         .from("meals")
         .select("id, name, calories, protein_g, carbs_g, fat_g, image_url")
         .in("id", mealIds);
+
+      if (mealsError) {
+        console.error("Error fetching meals for schedule:", mealsError);
+        setError(mealsError.message);
+        setLoading(false);
+        return;
+      }
 
       mealsMap = (mealsData || []).reduce((acc: Record<string, { id: string; name: string; calories: number; protein_g: number; carbs_g: number; fat_g: number; image_url: string | null }>, meal) => {
         acc[meal.id] = meal;
@@ -527,7 +536,7 @@ const Schedule = () => {
               onClick={() => navigate("/dashboard")}
               className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
             >
-              <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+              <PrevIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </button>
             <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t("schedule")}</h1>
             <div className="w-11" />
@@ -561,8 +570,8 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-[#FCFCFB] pb-20">
-      {/* ── Native iOS/Android Header ───────────────────────────── */}
+    <div className="min-h-screen bg-white pb-20">
+      {/* ── Unified Header (date info + calendar) ─────────────── */}
       <ScheduleHeader
         currentWeekStart={currentWeekStart}
         selectedDate={selectedDate}
@@ -575,24 +584,12 @@ const Schedule = () => {
         getDayStatus={getDayStatus}
         onWeekChange={setCurrentWeekStart}
         onDateSelect={setSelectedDate}
-        onJumpToToday={() => {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          setSelectedDate(today);
-          setCurrentWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
-        }}
         onBack={() => navigate("/dashboard")}
+        dailyNutrition={dailyNutrition}
       />
 
       {/* ── Content Area ─────────────────────────────── */}
-      <div className="mx-auto max-w-[432px] px-[18px] pb-[154px]">
-
-        {/* ── Date Hero Card ─────────────────────────────── */}
-        <DateHeroCard
-          selectedDate={selectedDate}
-          dailyNutrition={dailyNutrition}
-          t={t}
-        />
+      <div className="mx-auto max-w-[432px] px-[18px] pb-[154px] mt-4">
 
         {/* ── Weekly Stats ─────────────────────────────── */}
         <WeeklyProgressBar
@@ -622,10 +619,10 @@ const Schedule = () => {
                 <Wallet className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 text-left">
-                <p className="text-sm font-bold text-gray-900 dark:text-white">Out of meal credits</p>
-                <p className="text-xs text-gray-500">Tap to buy extra credits</p>
+                <p className="text-sm font-bold text-slate-900">{t("schedule_out_of_credits")}</p>
+                <p className="text-xs text-slate-500">{t("schedule_buy_extra")}</p>
               </div>
-              <ChevronRight className="h-5 w-5 text-gray-400" />
+              <NextIcon className="h-5 w-5 text-slate-400" />
             </button>
           </motion.div>
         )}
@@ -637,30 +634,25 @@ const Schedule = () => {
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 dark:ring-gray-800 border-0"
+                className="bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100"
               >
-                <div className="flex items-center gap-3 p-4 pl-5 animate-pulse">
-                  <div className="w-[72px] h-[72px] rounded-2xl bg-gray-200 dark:bg-gray-700" />
+                <div className="flex items-center gap-3 p-3.5 animate-pulse">
+                  <div className="w-[76px] h-[76px] rounded-2xl bg-slate-200" />
                   <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                      <div className="h-3 w-3 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                      <div className="h-3 w-14 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                    </div>
-                    <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                    <div className="flex items-center gap-2">
-                      <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded-lg" />
-                      <div className="h-3 w-20 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                    <div className="h-3 w-20 bg-slate-200 rounded-full" />
+                    <div className="h-4 w-40 bg-slate-200 rounded-full" />
+                    <div className="flex gap-2">
+                      <div className="h-5 w-16 bg-slate-200 rounded-md" />
+                      <div className="h-5 w-20 bg-slate-200 rounded-md" />
                     </div>
                   </div>
-                  <div className="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+                  <div className="w-[46px] h-[46px] rounded-full bg-slate-200" />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="relative mt-[11px] space-y-[10px] pl-[16px]">
-            <div className="pointer-events-none absolute left-[4px] top-[38px] bottom-[38px] border-l-2 border-dashed border-slate-200" />
+          <div className="mt-[11px] space-y-[10px]">
             {MEAL_TYPES.map((mealType, typeIndex) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
@@ -669,156 +661,164 @@ const Schedule = () => {
                const mealTypeName = t(mealType);
               const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
+              const sectionHeaderColors = ["bg-amber-400", "bg-emerald-400", "bg-indigo-400", "bg-pink-400"];
+              const sectionHeaderBorder = ["border-amber-100", "border-emerald-100", "border-indigo-100", "border-pink-100"];
+              const sectionTextColors = ["text-amber-600", "text-emerald-600", "text-indigo-600", "text-pink-600"];
+
+              const sectionHeader = (
+                <div className="flex items-center gap-2.5 px-1 pt-3 pb-1">
+                  <div className={`h-2 w-2 rounded-full ${sectionHeaderColors[typeIndex]}`} />
+                  <span className={`text-[11px] font-extrabold uppercase tracking-[0.12em] ${sectionTextColors[typeIndex]}`}>
+                    {mealTypeName}
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400">·</span>
+                  <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {timeLabel}
+                  </span>
+                  <div className="ml-2 h-px flex-1 bg-slate-100" />
+                </div>
+              );
+
               if (typeMeals.length > 0) {
-                return typeMeals.map((schedule, mealIndex) => (
-                  <motion.div
-                    key={schedule.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: typeIndex * 0.05 + mealIndex * 0.05 }}
-                    onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
-                    className={`group relative bg-white dark:bg-gray-900 rounded-[22px] overflow-hidden shadow-[0_2px_10px_rgba(15,23,42,0.07)] border-0 active:scale-[0.98] transition-all cursor-pointer ${
-                      schedule.is_completed ? "ring-2 ring-emerald-400/40 shadow-emerald-100" : "ring-1 ring-slate-100/80"
-                    }`}
-                  >
-                    <span className={`absolute left-[-17px] top-[38px] z-10 h-[8px] w-[8px] rounded-full ring-2 ring-white ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
-                    {/* Colored accent bar */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] rounded-l-[22px] bg-gradient-to-b ${config.gradient}`} />
+                return (
+                  <div key={mealType}>
+                    {sectionHeader}
+                    {typeMeals.map((schedule, mealIndex) => {
+                      const stripeColor = sectionHeaderColors[typeIndex];
+                      return (
+                        <motion.div
+                          key={schedule.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: typeIndex * 0.05 + mealIndex * 0.05 }}
+                          onClick={() => {
+                            setSelectedMeal(schedule);
+                            setShowMealSheet(true);
+                          }}
+                          className={`relative cursor-pointer rounded-[18px] bg-white ring-1 shadow-[0_1px_4px_rgba(15,23,42,0.04)] active:scale-[0.98] transition-all ${
+                            schedule.is_completed ? "ring-emerald-200/70" : "ring-slate-100"
+                          }`}
+                        >
+                          <span className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full ${stripeColor}`} />
+                          <div className="flex items-center gap-3 p-3 pl-[18px]">
+                            {schedule.meal?.image_url ? (
+                              <div className="relative shrink-0">
+                                <img
+                                  src={schedule.meal.image_url}
+                                  alt={schedule.meal.name}
+                                  className={`h-[56px] w-[56px] rounded-xl object-cover ring-1 ring-slate-100 shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all ${
+                                    schedule.is_completed ? "opacity-60 saturate-[0.3]" : ""
+                                  }`}
+                                />
+                                {schedule.is_completed && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="h-6 w-6 rounded-full bg-emerald-500 shadow-[0_2px_8px_rgba(16,185,129,0.4)] flex items-center justify-center">
+                                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className={`h-[56px] w-[56px] shrink-0 rounded-xl flex items-center justify-center ring-1 ring-white/60 shadow-[0_2px_8px_rgba(15,23,42,0.06)] ${config.bgGradient} ${
+                                schedule.is_completed ? "opacity-60" : ""
+                              }`}>
+                                <MealIcon className={`h-6 w-6 ${config.textColor}`} />
+                              </div>
+                            )}
 
-                    <div className="flex items-center gap-3 p-4 pl-5">
-                      {/* Meal Image */}
-                      {schedule.meal?.image_url ? (
-                        <div className="relative">
-                          <img
-                            src={schedule.meal.image_url}
-                            alt={schedule.meal.name}
-                            className={`rounded-[16px] object-cover shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition-all ${
-                              schedule.is_completed ? "opacity-50 grayscale" : ""
-                            }`}
-                            style={{ width: 72, height: 72 }}
-                          />
-                          {schedule.is_completed && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
-                                <Check className="h-4 w-4 text-white" />
+                            <div className="min-w-0 flex-1">
+                              <h3
+                                className={`truncate text-[15px] font-bold text-slate-900 ${
+                                  schedule.is_completed ? "line-through text-slate-400" : ""
+                                }`}
+                              >
+                                {schedule.meal?.name}
+                              </h3>
+                              <div className="mt-1.5 flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-100">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                  {schedule.meal.calories} kcal
+                                </span>
+                                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-blue-100">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                                  {schedule.meal.protein_g}g protein
+                                </span>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className={`rounded-[16px] flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.08)] ${config.bgGradient} ${
-                          schedule.is_completed ? "opacity-60" : ""
-                        }`} style={{ width: 72, height: 72 }}>
-                          <MealIcon className={`h-8 w-8 ${config.textColor}`} />
-                          {schedule.is_completed && (
-                            <div className="absolute">
-                              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
-                                <Check className="h-4 w-4 text-white" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${config.textColor}`}>
-                            {mealTypeName}
-                          </span>
-                          <span className="text-[10px] text-gray-300">·</span>
-                          <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {schedule.delivery_time_slot || timeLabel}
-                          </span>
-                        </div>
-                        <h3 className={`text-base font-bold text-gray-900 dark:text-white truncate mb-1 ${
-                          schedule.is_completed ? "line-through text-gray-400" : ""
-                        }`}>
-                          {schedule.meal?.name}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${config.bgGradient} ${config.textColor}`}>
-                            {schedule.meal.calories} kcal
-                          </span>
-                          <span className="text-xs text-gray-400 font-medium">{schedule.meal.protein_g}g protein</span>
-                        </div>
-                      </div>
-
-                      {/* Completion Toggle */}
-                      <motion.button
-                        onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={togglingMealId === schedule.id}
-                        className={`w-[52px] h-[52px] rounded-full flex items-center justify-center shrink-0 transition-all ${
-                          schedule.is_completed
-                            ? "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/30"
-                            : "bg-white border-2 border-slate-200 dark:bg-gray-800 dark:border-gray-700 active:border-emerald-400 active:bg-emerald-50"
-                        } disabled:opacity-60`}
-                      >
-                        {togglingMealId === schedule.id ? (
-                          <Loader2 className="h-5 w-5 text-white animate-spin" />
-                        ) : schedule.is_completed ? (
-                          <Check className="h-6 w-6 text-white" />
-                        ) : (
-                          <Circle className="h-6 w-6 text-gray-300" />
-                        )}
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                ));
+                            <motion.button
+                              onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
+                              whileTap={{ scale: 0.85 }}
+                              disabled={togglingMealId === schedule.id}
+                              className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full transition-all ${
+                                schedule.is_completed
+                                  ? "bg-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)]"
+                                  : "bg-white border-2 border-slate-200 active:border-emerald-400 active:bg-emerald-50"
+                              } disabled:opacity-60`}
+                            >
+                              {togglingMealId === schedule.id ? (
+                                <Loader2 className="h-4 w-4 text-white animate-spin" />
+                              ) : schedule.is_completed ? (
+                                <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                              ) : (
+                                <Circle className="h-5 w-5 text-slate-300" />
+                              )}
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                );
               }
 
-              /* ── Empty Slot Card(s) ─── */
               const isFirstSlot = typeIndex === 0;
               const maxEmptySlots = mealType === "snack"
                 ? Math.max(1, Math.ceil((snacksPerMonth || 0) / 30) - typeMeals.length)
                 : 1;
 
-              return Array.from({ length: maxEmptySlots }).map((_, emptyIdx) => (
-                <motion.div
-                  key={`empty-${mealType}-${emptyIdx}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: (typeIndex + emptyIdx) * 0.05 }}
-                  className="relative"
-                >
-                  <span className={`absolute left-[-15px] top-[34px] z-10 h-[7px] w-[7px] rounded-full ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
-                  <EmptyMealSlot
-                    config={config}
-                    mealTypeName={emptyIdx > 0 ? `${mealTypeName} ${emptyIdx + 1}` : mealTypeName}
-                    timeLabel={timeLabel}
-                    noMealsLeft={noMealsLeft || (mealType === "snack" && remainingSnacks <= 0)}
-                    isFirstSlot={isFirstSlot && emptyIdx === 0}
-                    onSwipeRight={() => {
-                      if (!user) {
-                        promptLogin({
-                          title: t("sign_in_to_schedule"),
-                          description: t("sign_in_to_schedule_desc"),
-                          actionLabel: t("sign_in"),
-                          signUpLabel: t("create_free_account"),
-                        });
-                      } else if (!noMealsLeft) {
-                        openWizard(mealType);
-                      }
-                    }}
-                    onSwipeLeft={() => {
-                      if (!user) {
-                        promptLogin({
-                          title: t("sign_in_to_schedule"),
-                          description: t("sign_in_to_schedule_desc"),
-                          actionLabel: t("sign_in"),
-                          signUpLabel: t("create_free_account"),
-                        });
-                      } else if (!noMealsLeft) {
-                        setWizardAutoFill(true);
-                        setShowWizard(true);
-                      }
-                    }}
-                    onBuyCredits={() => setShowBuyCredit(true)}
-                  />
-                </motion.div>
-              ));
+              return (
+                <div key={mealType}>
+                  {sectionHeader}
+                  {Array.from({ length: maxEmptySlots }).map((_, emptyIdx) => (
+                    <EmptyMealSlot
+                      key={`empty-${mealType}-${emptyIdx}`}
+                      config={config}
+                      mealTypeName={emptyIdx > 0 ? `${mealTypeName} ${emptyIdx + 1}` : mealTypeName}
+                      timeLabel={timeLabel}
+                      noMealsLeft={noMealsLeft || (mealType === "snack" && remainingSnacks <= 0)}
+                      isFirstSlot={isFirstSlot && emptyIdx === 0}
+                      onSwipeRight={() => {
+                        if (!user) {
+                          promptLogin({
+                            title: t("sign_in_to_schedule"),
+                            description: t("sign_in_to_schedule_desc"),
+                            actionLabel: t("sign_in"),
+                            signUpLabel: t("create_free_account"),
+                          });
+                        } else if (!noMealsLeft) {
+                          openWizard(mealType);
+                        }
+                      }}
+                      onSwipeLeft={() => {
+                        if (!user) {
+                          promptLogin({
+                            title: t("sign_in_to_schedule"),
+                            description: t("sign_in_to_schedule_desc"),
+                            actionLabel: t("sign_in"),
+                            signUpLabel: t("create_free_account"),
+                          });
+                        } else if (!noMealsLeft) {
+                          setWizardAutoFill(true);
+                          setShowWizard(true);
+                        }
+                      }}
+                      onBuyCredits={() => setShowBuyCredit(true)}
+                    />
+                  ))}
+                </div>
+              );
             })}
           </div>
         )}
@@ -888,19 +888,19 @@ const Schedule = () => {
                 <Wallet className="w-7 h-7 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-gray-900 dark:text-white">Buy Extra Meal</h3>
-                <p className="text-xs text-gray-400 font-medium">Add 1 credit to your plan</p>
+                <h3 className="text-lg font-black text-slate-900">{t("schedule_buy_extra_title")}</h3>
+                <p className="text-xs text-slate-400 font-medium">Add 1 credit to your plan</p>
               </div>
             </div>
 
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 space-y-3 mb-5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Price per credit</span>
+                <span className="text-slate-500">{t("schedule_price_per_credit")}</span>
                 <span className="font-bold text-amber-600 text-lg">{formatCurrency(pricePerMeal)}</span>
               </div>
               <div className="h-px bg-amber-200/50" />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Your wallet balance</span>
+                <span className="text-slate-500">{t("schedule_wallet_balance")}</span>
                 <span className={`font-bold ${(wallet?.balance || 0) >= pricePerMeal ? "text-emerald-600" : "text-red-500"}`}>
                   {formatCurrency(wallet?.balance || 0)}
                 </span>
@@ -1011,46 +1011,31 @@ const Schedule = () => {
 
             return (
               <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 24 }}
-                className="fixed left-4 right-4 z-40"
-                style={{ bottom: "max(100px, calc(env(safe-area-inset-bottom) + 80px))" }}
+                initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.96 }}
+                className="fixed left-0 right-0 z-40 flex justify-center"
+                style={{ bottom: "max(100px, calc(env(safe-area-inset-bottom) + 90px))" }}
               >
                 <motion.button
                   onClick={() => setShowMealPlanGenerator(true)}
-                  whileTap={{ scale: 0.97 }}
-                  whileHover={{ scale: 1.01 }}
-                  className="relative w-full flex items-center gap-3 rounded-[20px] cursor-pointer border-0 px-4 py-3"
-                  style={{
-                    background: "linear-gradient(135deg, #065F46 0%, #047857 60%, #059669 100%)",
-                    boxShadow: "0 8px 24px rgba(6,78,59,0.35)",
-                  }}
+                  whileTap={{ scale: 0.95 }}
+                  className="group relative flex items-center gap-2 rounded-full border border-emerald-200 bg-white pl-2 pr-1.5 py-1.5 shadow-[0_10px_30px_rgba(5,150,105,0.22)] transition-all active:border-emerald-300"
                 >
-                  {/* Left icon */}
-                  <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px]" style={{ background: "rgba(255,255,255,0.15)" }}>
-                    <Sparkles className="h-[22px] w-[22px] text-white" strokeWidth={1.75} />
-                  </div>
-                  {/* Text */}
-                  <div className="flex-1 text-left">
-                    <p className="text-[16px] font-extrabold leading-tight text-white">Fill My Week</p>
-                    <p className="text-[12px] font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>Auto-plan all 7 days</p>
-                  </div>
-                  {/* Right arrow */}
-                  <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-white">
-                    <ArrowRight className="h-[18px] w-[18px] text-emerald-700" strokeWidth={2.5} />
-                  </div>
-                  {/* Notification badge */}
                   {(isWeekEmpty || hasUnusedSlots) && (
                     <motion.span
-                      animate={{ scale: [1, 1.3, 1] }}
+                      animate={{ scale: [1, 1.25, 1] }}
                       transition={{ repeat: Infinity, duration: 2 }}
-                      className="absolute right-3 -top-[6px] flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#FF3E65] text-[11px] font-black text-white shadow-lg"
-                      style={{ boxShadow: "0 4px 12px rgba(244,63,94,0.5), 0 0 0 2px white" }}
-                    >
-                      1
-                    </motion.span>
+                      className="absolute -right-0.5 -top-1 h-3.5 w-3.5 rounded-full bg-amber-400 ring-2 ring-white"
+                    />
                   )}
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)]">
+                    <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </span>
+                  <span className="pr-2 text-[14px] font-black text-emerald-950">{t("schedule_fill_my_week")}</span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
+                    <ArrowRight className="h-[16px] w-[16px]" strokeWidth={2.5} />
+                  </span>
                 </motion.button>
               </motion.div>
             );

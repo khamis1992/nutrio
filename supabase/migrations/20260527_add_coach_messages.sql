@@ -23,12 +23,17 @@ CREATE INDEX IF NOT EXISTS idx_coach_messages_unread_coach ON coach_messages(coa
 ALTER TABLE coach_messages ENABLE ROW LEVEL SECURITY;
 
 -- Coaches can read their own messages
+DO $$ BEGIN
 CREATE POLICY "coaches_read_own_messages" ON coach_messages
   FOR SELECT
   TO authenticated
   USING (coach_id = auth.uid() OR client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can insert messages to their clients
+DO $$ BEGIN
 CREATE POLICY "coaches_insert_messages" ON coach_messages
   FOR INSERT
   TO authenticated
@@ -36,16 +41,27 @@ CREATE POLICY "coaches_insert_messages" ON coach_messages
     (sender_role = 'coach' AND coach_id = auth.uid()) OR
     (sender_role = 'client' AND client_id = auth.uid())
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Both can mark messages as read
+DO $$ BEGIN
 CREATE POLICY "users_update_read_status" ON coach_messages
   FOR UPDATE
   TO authenticated
   USING (client_id = auth.uid() OR coach_id = auth.uid())
   WITH CHECK (client_id = auth.uid() OR coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Enable realtime
+DO $$ BEGIN
 ALTER PUBLICATION supabase_realtime ADD TABLE coach_messages;
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Function to notify on new message
 CREATE OR REPLACE FUNCTION notify_coach_message()

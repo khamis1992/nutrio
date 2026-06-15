@@ -65,37 +65,61 @@ ALTER TABLE program_meals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE program_exercises ENABLE ROW LEVEL SECURITY;
 
 -- coach_programs policies
+DO $$ BEGIN
 CREATE POLICY "coaches_manage_own_programs" ON coach_programs
   FOR ALL
   TO authenticated
   USING (coach_id = auth.uid())
   WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
 
+
+DO $$ BEGIN
 CREATE POLICY "clients_view_own_programs" ON coach_programs
   FOR SELECT
   TO authenticated
   USING (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- program_meals policies
+DO $$ BEGIN
 CREATE POLICY "coaches_manage_own_program_meals" ON program_meals
   FOR ALL
   TO authenticated
   USING (EXISTS (SELECT 1 FROM coach_programs WHERE id = program_meals.program_id AND coach_id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM coach_programs WHERE id = program_meals.program_id AND coach_id = auth.uid()));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
 
+
+DO $$ BEGIN
 CREATE POLICY "clients_view_own_program_meals" ON program_meals
   FOR SELECT
   TO authenticated
   USING (EXISTS (SELECT 1 FROM coach_programs WHERE id = program_meals.program_id AND client_id = auth.uid()));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- program_exercises policies
+DO $$ BEGIN
 CREATE POLICY "coaches_manage_own_program_exercises" ON program_exercises
   FOR ALL
   TO authenticated
   USING (EXISTS (SELECT 1 FROM coach_programs WHERE id = program_exercises.program_id AND coach_id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM coach_programs WHERE id = program_exercises.program_id AND coach_id = auth.uid()));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
 
+
+DO $$ BEGIN
 CREATE POLICY "clients_view_own_program_exercises" ON program_exercises
   FOR SELECT
   TO authenticated
   USING (EXISTS (SELECT 1 FROM coach_programs WHERE id = program_exercises.program_id AND client_id = auth.uid()));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+

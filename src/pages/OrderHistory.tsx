@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OneTapReorder } from "@/components/OneTapReorder";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { EmptyState } from "@/components/EmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ArrowLeft, 
   Package,
@@ -113,6 +114,7 @@ const statusConfig: Record<string, { labelKey: string; icon: React.ElementType; 
 
 const OrderHistory = () => {
   const { t, isRTL } = useLanguage();
+  useEffect(() => { document.title = `${t("order_history")} — Nutrio`; }, [t]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -749,12 +751,20 @@ const OrderHistory = () => {
 
       {/* Content */}
       <div className="px-4 pt-4">
-        {loading && orders.length === 0 && scheduledMeals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground">{t("loading")}</p>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card rounded-2xl border p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <>

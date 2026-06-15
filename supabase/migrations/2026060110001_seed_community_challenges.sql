@@ -1,3 +1,4 @@
+DO $$ BEGIN
 -- Seed community challenges
 INSERT INTO community_challenges (title, description, challenge_type, difficulty_level, category, target_value, reward_points, xp_reward, participant_count, is_active, start_date, end_date)
 VALUES
@@ -57,3 +58,6 @@ VALUES
     '2026-05-01',
     '2026-06-30'
   );
+
+EXCEPTION WHEN unique_violation OR not_null_violation OR check_violation OR integrity_constraint_violation THEN null;
+END $$;

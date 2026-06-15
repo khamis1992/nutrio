@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,7 +99,9 @@ const ADDON_TEMPLATES = [
   { name: "Spicy Sauce", description: "Extra hot sauce", price: 1, category: "extras" },
 ];
 
-export function MealAddonsManager({ mealId, mealName, restaurantId, open, onOpenChange }: MealAddonsManagerProps) {
+export function MealAddonsManager({
+  mealId, mealName, restaurantId, open, onOpenChange }: MealAddonsManagerProps) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -744,7 +747,7 @@ export function MealAddonsManager({ mealId, mealName, restaurantId, open, onOpen
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("cancel_button")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>

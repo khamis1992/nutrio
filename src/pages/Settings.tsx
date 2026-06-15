@@ -58,6 +58,7 @@ const Settings = () => {
   const { subscription, hasActiveSubscription, isPaused, pauseSubscription, resumeSubscription, refetch: refetchSubscription } = useSubscription();
   const { settings: platformSettings, loading: settingsLoading } = usePlatformSettings();
   const { t, language, setLanguage } = useLanguage();
+  useEffect(() => { document.title = `${t("nav_settings")} — Nutrio`; }, [t]);
   const { theme, toggleTheme, isDark } = useTheme();
   
   const [loading, setLoading] = useState(true);

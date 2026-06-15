@@ -14,8 +14,16 @@ CREATE TABLE IF NOT EXISTS coach_pricing (
 
 ALTER TABLE coach_pricing ENABLE ROW LEVEL SECURITY;
 
+DO $$ BEGIN
 CREATE POLICY "coach_manage_own_pricing" ON coach_pricing FOR ALL TO authenticated USING (coach_id = auth.uid()) WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE POLICY "public_read_active_pricing" ON coach_pricing FOR SELECT TO authenticated USING (is_active = true);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- 2. Coach Subscriptions — client subscriptions to coaches
 CREATE TABLE IF NOT EXISTS coach_subscriptions (
@@ -34,14 +42,34 @@ CREATE TABLE IF NOT EXISTS coach_subscriptions (
   UNIQUE(coach_id, client_id, status)
 );
 
+DO $$ BEGIN
 CREATE INDEX idx_coach_subscriptions_active ON coach_subscriptions(coach_id, status) WHERE status = 'active';
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE INDEX idx_coach_subscriptions_client ON coach_subscriptions(client_id, status);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 ALTER TABLE coach_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DO $$ BEGIN
 CREATE POLICY "coach_view_own_subscriptions" ON coach_subscriptions FOR SELECT TO authenticated USING (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE POLICY "client_view_own_subscriptions" ON coach_subscriptions FOR SELECT TO authenticated USING (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE POLICY "system_manage_subscriptions" ON coach_subscriptions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- 3. Coach Earnings — immutable ledger
 CREATE TABLE IF NOT EXISTS coach_earnings (
@@ -59,13 +87,29 @@ CREATE TABLE IF NOT EXISTS coach_earnings (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+DO $$ BEGIN
 CREATE INDEX idx_coach_earnings_coach ON coach_earnings(coach_id, created_at DESC);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE INDEX idx_coach_earnings_status ON coach_earnings(status, created_at);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 ALTER TABLE coach_earnings ENABLE ROW LEVEL SECURITY;
 
+DO $$ BEGIN
 CREATE POLICY "coach_view_own_earnings" ON coach_earnings FOR SELECT TO authenticated USING (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE POLICY "admin_manage_earnings" ON coach_earnings FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- 4. Platform Commission Config — admin sets the cut
 CREATE TABLE IF NOT EXISTS platform_commission_config (
@@ -83,8 +127,16 @@ WHERE NOT EXISTS (SELECT 1 FROM platform_commission_config);
 
 ALTER TABLE platform_commission_config ENABLE ROW LEVEL SECURITY;
 
+DO $$ BEGIN
 CREATE POLICY "admin_manage_commission" ON platform_commission_config FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'));
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
+DO $$ BEGIN
 CREATE POLICY "public_read_commission" ON platform_commission_config FOR SELECT TO authenticated USING (true);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- 5. Auto-renewal function
 CREATE OR REPLACE FUNCTION process_coach_subscription_renewal()
@@ -163,9 +215,13 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trigger_coach_subscription_earning ON coach_subscriptions;
+DO $$ BEGIN
 CREATE TRIGGER trigger_coach_subscription_earning
   AFTER INSERT ON coach_subscriptions
   FOR EACH ROW EXECUTE FUNCTION create_initial_coach_earning();
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Schedule auto-renewal (runs every hour)
 SELECT cron.schedule('coach-billing', '0 * * * *', 'SELECT process_coach_subscription_renewal()');

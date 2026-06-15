@@ -81,6 +81,7 @@ function dbPlanToUiPlan(p: DbSubscriptionPlan, billingInterval: BillingInterval,
 
 export default function SubscriptionPage() {
   const { t, isRTL } = useLanguage();
+  useEffect(() => { document.title = `${t("subscription")} — Nutrio`; }, [t]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -483,8 +484,8 @@ export default function SubscriptionPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-extrabold text-slate-950">Meals left</p>
-                  <p className="mt-0.5 text-xs font-medium text-slate-500">This cycle</p>
+                  <p className="text-sm font-extrabold text-slate-950">{t("subscription_meals_left")}</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">{t("subscription_this_cycle")}</p>
                 </div>
               </div>
 
@@ -570,7 +571,7 @@ export default function SubscriptionPage() {
             <Utensils className="h-5 w-5 shrink-0 text-[#22C55E]" />
             <div className="min-w-0">
               <p className="text-lg font-bold leading-none tabular-nums">{isUnlimited ? "∞" : totalMeals}</p>
-              <p className="mt-0.5 text-[10px] font-medium text-slate-500">Monthly Meals</p>
+              <p className="mt-0.5 text-[10px] font-medium text-slate-500">{t("subscription_monthly_meals")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">

@@ -76,7 +76,7 @@ const MealDetail = () => {
 
   const { wallet, refresh: refetchWallet } = useWallet();
 
-  const pricePerMeal = subscription?.price_per_meal ?? 50; // TODO: fetch from subscription plan's price_per_meal
+  const pricePerMeal = subscription?.price_per_meal ?? 50;
   const [buyMealDialogOpen, setBuyMealDialogOpen] = useState(false);
   const [topupDialogOpen, setTopupDialogOpen] = useState(false);
   const [buyMealLoading, setBuyMealLoading] = useState(false);

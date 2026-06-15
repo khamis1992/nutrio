@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ interface NutritionData {
 }
 
 export default function NutritionDashboard() {
+  const { t } = useLanguage();
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats[]>([]);
@@ -358,7 +360,7 @@ export default function NutritionDashboard() {
                   ) : (
                     <div className="text-center py-8 text-slate-400">
                       <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>No weekly data yet</p>
+                      <p>{t("no_weekly_data_yet")}</p>
                     </div>
                   )}
                 </CardContent>

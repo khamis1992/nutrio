@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -119,7 +120,7 @@ function CalendarView({
   goalMl: number;
   onClose: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const dayHeaders = [t('water_mon'), t('water_tue'), t('water_wed'), t('water_thu'), t('water_fri'), t('water_sat'), t('water_sun')];
   const weekStartsOn = 1; // Monday
   const monthStart = startOfMonth(calendarMonth);
@@ -199,7 +200,7 @@ function CalendarView({
 export default function WaterTracker() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { toast } = useToast();
   const {
     totalMl,

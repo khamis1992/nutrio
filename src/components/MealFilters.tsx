@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,7 @@ export const MealFilters = ({
   maxCarbs,
   maxFat,
 }: MealFiltersProps) => {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState<MealFiltersState>(filters);
 
@@ -108,7 +110,7 @@ export const MealFilters = ({
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
         <SheetHeader>
-          <SheetTitle>Filter Meals</SheetTitle>
+          <SheetTitle>{t("filter_meals")}</SheetTitle>
           <SheetDescription>
             Narrow down meals by dietary preferences and nutritional values
           </SheetDescription>

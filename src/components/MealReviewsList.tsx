@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,7 +208,7 @@ export function MealReviewsList({
                 </div>
                 {showWriteReview && (
                   <Button onClick={onWriteReview} className="w-full">
-                    Write a Review
+                    {t("write_a_review")}
                   </Button>
                 )}
               </div>
@@ -235,7 +236,7 @@ export function MealReviewsList({
                 Be the first to review {mealName}!
               </p>
               {showWriteReview && (
-                <Button onClick={onWriteReview}>Write a Review</Button>
+                <Button onClick={onWriteReview}>{t("write_a_review")}</Button>
               )}
             </div>
           </CardContent>

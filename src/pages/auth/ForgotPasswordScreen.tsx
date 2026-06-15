@@ -59,7 +59,7 @@ export const ForgotPasswordScreen = ({
               <Input
                 id="forgot-email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder={t("email_placeholder")}
                 value={forgotEmail}
                 onChange={(e) => { onEmailChange(e.target.value); onErrorClear(); }}
                 className={`h-12 pl-11 rounded-2xl border-0 bg-gray-100 text-slate-600 placeholder:text-gray-400 focus-visible:ring-1 focus-visible:ring-primary ${forgotError ? "ring-1 ring-destructive" : ""}`}

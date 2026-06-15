@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -148,7 +149,8 @@ const MealWizard = ({
   showMealTypeTabs = true,
 }: MealWizardProps) => {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
+  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   const navigate = useNavigate();
   const { remainingMeals, isUnlimited, incrementMealUsage, subscription } = useSubscription();
 
@@ -337,7 +339,7 @@ const MealWizard = ({
             }}
             className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
           >
-            <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+            <PrevIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
           </button>
 
           <div className="text-center">
@@ -522,8 +524,8 @@ const MealWizard = ({
                   <div className="mx-auto mb-4 max-w-[430px] pt-5 sm:max-w-none">
                     <div className="mb-5 space-y-4 lg:flex lg:items-start lg:justify-between lg:space-y-0">
                       <div>
-                        <h3 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950 sm:text-[24px]">Select Restaurant</h3>
-                        <p className="mt-2 text-[15px] font-medium leading-snug text-slate-500 sm:text-[16px]">Choose a restaurant to see available meals</p>
+                        <h3 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950 sm:text-[24px]">{t("mealwizard_select_restaurant")}</h3>
+                        <p className="mt-2 text-[15px] font-medium leading-snug text-slate-500 sm:text-[16px]">{t("mealwizard_choose_restaurant_desc")}</p>
                       </div>
                       <div className="relative lg:w-[360px]">
                         <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" strokeWidth={2.2} />
@@ -590,7 +592,7 @@ const MealWizard = ({
                                   <Star className="h-3.5 w-3.5 fill-[#F59E0B] text-[#F59E0B] sm:h-4 sm:w-4" />
                                   {meta.rating.toFixed(1)}
                                 </span>
-                                <ChevronRight className="h-5 w-5 text-slate-500 sm:h-6 sm:w-6" strokeWidth={2.4} />
+                                <NextIcon className="h-5 w-5 text-slate-500 sm:h-6 sm:w-6" strokeWidth={2.4} />
                               </div>
                             </div>
                           </motion.button>
@@ -682,7 +684,7 @@ const MealWizard = ({
                 ) : selectedRestaurant ? (
                   <div className="text-center py-12">
                     <ChefHat className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No meals available at this restaurant</p>
+                    <p className="text-gray-500">{t("mealwizard_no_meals")}</p>
                   </div>
                 ) : null}
               </div>
@@ -717,7 +719,7 @@ const MealWizard = ({
                       {MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]) < MEAL_TYPES.length - 1 ? (
                         <>
                           Next: {MEAL_TYPE_CONFIG[MEAL_TYPES[MEAL_TYPES.indexOf(currentMealType as (typeof MEAL_TYPES)[number]) + 1] as keyof typeof MEAL_TYPE_CONFIG].label}
-                          <ChevronRight className="h-5 w-5" />
+                          <NextIcon className="h-5 w-5" />
                         </>
                       ) : (
                         <>
@@ -759,8 +761,8 @@ const MealWizard = ({
             >
               <div className="flex flex-col flex-1">
                 <section className="rounded-[20px] border border-slate-100 bg-white px-4 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-                  <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950">Daily Nutrition</h2>
-                  <p className="mt-2 text-[14px] font-medium leading-snug text-slate-500">Here's your estimated nutrition for today</p>
+                  <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950">{t("mealwizard_daily_nutrition")}</h2>
+                  <p className="mt-2 text-[14px] font-medium leading-snug text-slate-500">{t("mealwizard_estimated_nutrition")}</p>
 
                   <div className="mt-4 rounded-[18px] border border-slate-200 bg-white px-2 py-4">
                     <div className="grid grid-cols-3 divide-x divide-slate-200">
@@ -791,7 +793,7 @@ const MealWizard = ({
 
                 <section className="mt-5">
                   <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.04em] text-slate-950">{selectedMealEntries.length} Meal Selected</h2>
-                  <p className="mt-2 text-[14px] font-medium leading-snug text-slate-500">You can review your meal before placing the order</p>
+                  <p className="mt-2 text-[14px] font-medium leading-snug text-slate-500">{t("mealwizard_review_meal")}</p>
 
                   <div className="mt-4 space-y-3">
                     {selectedMealEntries.map(({ type, meal, config }, index) => {
@@ -838,7 +840,7 @@ const MealWizard = ({
                             className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-950 transition active:scale-95"
                             aria-label={`Edit ${config.label}`}
                           >
-                            <ChevronRight className="h-6 w-6" strokeWidth={2.5} />
+                            <NextIcon className="h-6 w-6" strokeWidth={2.5} />
                           </button>
                         </div>
                       </motion.div>

@@ -24,6 +24,7 @@ BEGIN
   END IF;
 END $$;
 
+DO $$ BEGIN
 CREATE POLICY "clients_request_coaches" ON public.coach_client_assignments
   FOR INSERT
   TO authenticated
@@ -32,10 +33,14 @@ CREATE POLICY "clients_request_coaches" ON public.coach_client_assignments
     AND coach_id IS NOT NULL
     AND status = 'pending'
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- 3. Fix invite acceptance: allow updating NULL client_id rows by invite_code
 -- This policy allows clients to claim an invite row where client_id is NULL
 -- The actual update will set client_id to auth.uid() via Profile.tsx handleConnectCoach
+DO $$ BEGIN
 CREATE POLICY "clients_accept_invites_by_code" ON public.coach_client_assignments
   FOR UPDATE
   TO authenticated
@@ -48,3 +53,6 @@ CREATE POLICY "clients_accept_invites_by_code" ON public.coach_client_assignment
     client_id = auth.uid()
     AND status = 'active'
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+

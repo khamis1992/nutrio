@@ -19,12 +19,17 @@ CREATE INDEX IF NOT EXISTS idx_coach_reviews_coach
 ALTER TABLE coach_reviews ENABLE ROW LEVEL SECURITY;
 
 -- Anyone authenticated can view reviews (for directory display)
+DO $$ BEGIN
 CREATE POLICY "public_read_reviews" ON coach_reviews
   FOR SELECT
   TO authenticated
   USING (true);
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can insert their own review (must have an active or past subscription)
+DO $$ BEGIN
 CREATE POLICY "clients_insert_own_review" ON coach_reviews
   FOR INSERT
   TO authenticated
@@ -36,13 +41,20 @@ CREATE POLICY "clients_insert_own_review" ON coach_reviews
         AND client_id = auth.uid()
     )
   );
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can update their own review
+DO $$ BEGIN
 CREATE POLICY "clients_update_own_review" ON coach_reviews
   FOR UPDATE
   TO authenticated
   USING (client_id = auth.uid())
   WITH CHECK (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Rating summary view for coach directory display
 CREATE OR REPLACE VIEW coach_rating_summary AS

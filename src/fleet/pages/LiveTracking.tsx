@@ -68,7 +68,6 @@ export default function LiveTracking() {
       // Add layer group for markers
       markerLayer.current = L.layerGroup().addTo(map.current);
 
-      console.log('[LiveTracking] Map loaded successfully');
     } catch (error) {
       console.error('[LiveTracking] Error initializing map:', error);
       setMapError('Failed to initialize map');
@@ -229,15 +228,15 @@ export default function LiveTracking() {
       token: token || '',
       userRole: 'fleet_manager',
       onConnect: () => {
-        console.log('[LiveTracking] WebSocket connected');
+
         setIsConnected(true);
       },
       onDisconnect: () => {
-        console.log('[LiveTracking] WebSocket disconnected');
+
         setIsConnected(false);
       },
       onDriverLocation: (location) => {
-        console.log('[LiveTracking] Driver location update:', location);
+
         setDrivers(prev => prev.map(d =>
           d.id === location.driverId
             ? { ...d, currentLatitude: location.latitude, currentLongitude: location.longitude }

@@ -255,7 +255,7 @@ export function useAutoWorkoutDetection() {
   const updateThresholds = useCallback((newThreshold: number, newMinDuration?: number) => {
     if (newThreshold >= 50 && newThreshold <= 200) {
       // Can't modify const, but logic uses these - in production would be state
-      console.log(`Sensitivity updated: threshold=${newThreshold}, minDuration=${newMinDuration ?? MIN_WORKOUT_DURATION}`);
+
     }
   }, []);
 

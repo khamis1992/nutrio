@@ -42,7 +42,7 @@ export function BodyCorrelationWidget() {
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-white/70 p-2.5 shadow-[0_2px_6px_rgba(0,0,0,0.03)]">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.03em] text-emerald-600">High Protein</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.03em] text-emerald-600">{t("high_protein")}</span>
             <Activity className="h-[12px] w-[12px] text-emerald-500" strokeWidth={2} />
           </div>
           <p className="text-[18px] font-extrabold leading-none tracking-[-0.03em] text-slate-900">
@@ -61,7 +61,7 @@ export function BodyCorrelationWidget() {
 
         <div className="rounded-xl bg-white/70 p-2.5 shadow-[0_2px_6px_rgba(0,0,0,0.03)]">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.03em] text-amber-600">Low Protein</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.03em] text-amber-600">{t("low_protein")}</span>
             <Activity className="h-[12px] w-[12px] text-amber-500" strokeWidth={2} />
           </div>
           <p className="text-[18px] font-extrabold leading-none tracking-[-0.03em] text-slate-900">

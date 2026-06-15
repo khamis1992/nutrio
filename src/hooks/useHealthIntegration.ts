@@ -229,7 +229,7 @@ export function useHealthIntegration() {
       .maybeSingle();
     
     if (!tokens?.access_token) {
-      console.log("No Google Fit tokens found");
+
       return [];
     }
     
@@ -242,7 +242,7 @@ export function useHealthIntegration() {
         );
 
         if (refreshError || !refreshResult?.success || !refreshResult.access_token) {
-          console.log("Google Fit token refresh failed:", refreshError?.message ?? refreshResult?.error);
+
           return [];
         }
 

@@ -24,7 +24,7 @@ export function ReferralMilestonesWidget() {
   const [walletBalance, setWalletBalance] = useState(0); const [commissionRate, setCommissionRate] = useState(10);
   const [referralCode, setReferralCode] = useState(""); const [loading, setLoading] = useState(true); const [copied, setCopied] = useState(false);
 
-  const fetchData = useCallback(async () => { if (!user) { setLoading(false); return; } try { const { data: p } = await supabase.from("profiles").select("referral_code, affiliate_balance, total_affiliate_earnings").eq("user_id", user.id).single(); const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("tier1_referrer_id", user.id); const { data: s } = await supabase.from("platform_settings").select("value").eq("key", "affiliate_settings").maybeSingle(); setTotalReferrals(count || 0); setTotalEarnings(Number(p?.total_affiliate_earnings || 0)); setWalletBalance(Number(p?.affiliate_balance || 0)); setCommissionRate(((s?.value as Record<string, number>) || {}).tier1_commission || 10); setReferralCode(p?.referral_code || ""); } catch (err) { console.error(err); } finally { setLoading(false); } }, [user]);
+  const fetchData = useCallback(async () => { if (!user) { setLoading(false); return; } try { const { data: p } = await supabase.from("profiles").select("referral_code, affiliate_balance, total_affiliate_earnings").eq("user_id", user.id).single(); const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("tier1_referrer_id", user.id); const { data: s } = await supabase.from("platform_settings").select("value").eq("key", "affiliate_settings").maybeSingle(); setTotalReferrals(count || 0); setTotalEarnings(Number(p?.total_affiliate_earnings || 0)); setWalletBalance(Number(p?.affiliate_balance || 0)); setCommissionRate(((s?.value as Record<string, number>) || {}).tier1_commission || 10); setReferralCode(p?.referral_code || ""); } catch (err) { console.error(err); toast.error("Failed to load referral milestones"); } finally { setLoading(false); } }, [user]);
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const getCurrentTierIndex = () => { for (let i = TIERS.length - 1; i >= 0; i--) { if (totalReferrals >= TIERS[i].minReferrals) return i; } return 0; };
@@ -81,8 +81,8 @@ export function ReferralMilestonesWidget() {
 
           {!hasReferrals && (
             <div className="p-3 rounded-xl bg-white/70 mt-2">
-              <p className="text-[13px] font-extrabold text-slate-800 mb-1">Start earning rewards</p>
-              <p className="text-[11px] text-slate-500 leading-relaxed">Share your link. Earn <span className="font-extrabold text-emerald-600">{commissionRate}%</span> on every friend's order — plus bonuses up to {formatCurrency(20)}.</p>
+              <p className="text-[13px] font-extrabold text-slate-800 mb-1">{t("start_earning_rewards")}</p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">{t("share_link_earn")} <span className="font-extrabold text-emerald-600">{commissionRate}%</span> on every friend's order — plus bonuses up to {formatCurrency(20)}.</p>
             </div>
           )}
         </div>
@@ -91,8 +91,8 @@ export function ReferralMilestonesWidget() {
         {hasReferrals && (
           <Link to="/wallet" className="mx-4 mb-3 p-3 rounded-xl bg-white flex items-center gap-3 hover:shadow-sm transition-shadow group">
             <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center"><TrendingUp className="w-4 h-4 text-emerald-600" /></div>
-            <div className="flex-1"><p className="text-[10px] font-semibold text-slate-500">Wallet credit</p><p className="text-[16px] font-extrabold text-slate-800">{formatCurrency(walletBalance)}</p></div>
-            <div className="text-right"><p className="text-[9px] text-slate-400">Use toward</p><p className="text-[9px] font-bold text-emerald-600">subscription</p></div>
+            <div className="flex-1"><p className="text-[10px] font-semibold text-slate-500">{t("wallet_credit")}</p><p className="text-[16px] font-extrabold text-slate-800">{formatCurrency(walletBalance)}</p></div>
+            <div className="text-right"><p className="text-[9px] text-slate-400">{t("use_toward")}</p><p className="text-[9px] font-bold text-emerald-600">subscription</p></div>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
           </Link>
         )}

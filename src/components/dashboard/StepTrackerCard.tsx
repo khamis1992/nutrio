@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Footprints, Target } from "lucide-react";
@@ -5,6 +6,7 @@ import { getStepData, mergeHealthSteps, setDailyGoal, type StepData } from "@/li
 import { getCachedHealthData } from "@/lib/healthKit";
 
 export function StepTrackerCard() {
+  const { t } = useLanguage();
   const [data, setData] = useState<StepData>(() => getStepData());
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(data.dailyGoal));
@@ -41,7 +43,7 @@ export function StepTrackerCard() {
             <Footprints className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[13px] font-extrabold text-slate-900">Steps</p>
+            <p className="text-[13px] font-extrabold text-slate-900">{t("steps")}</p>
             {editingGoal ? (
               <div className="flex items-center gap-1">
                 <input
@@ -90,10 +92,10 @@ export function StepTrackerCard() {
         )}
         {remaining > 0 ? (
           <p className="text-[11px] font-semibold text-purple-500">
-            {remaining.toLocaleString()} steps to go
+            {t("steps_to_go", { count: String(remaining) })}
           </p>
         ) : (
-          <p className="text-[11px] font-semibold text-emerald-500">Goal reached!</p>
+          <p className="text-[11px] font-semibold text-emerald-500">{t("goal_reached")}</p>
         )}
       </div>
     </motion.div>

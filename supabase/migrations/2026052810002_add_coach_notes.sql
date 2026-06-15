@@ -18,26 +18,42 @@ CREATE INDEX IF NOT EXISTS idx_coach_notes_coach_client
 ALTER TABLE coach_notes ENABLE ROW LEVEL SECURITY;
 
 -- Coaches can read their own notes
+DO $$ BEGIN
 CREATE POLICY "coaches_read_own_notes" ON coach_notes
   FOR SELECT
   TO authenticated
   USING (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can insert notes for their clients
+DO $$ BEGIN
 CREATE POLICY "coaches_insert_notes" ON coach_notes
   FOR INSERT
   TO authenticated
   WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can update their own notes
+DO $$ BEGIN
 CREATE POLICY "coaches_update_own_notes" ON coach_notes
   FOR UPDATE
   TO authenticated
   USING (coach_id = auth.uid())
   WITH CHECK (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can delete their own notes
+DO $$ BEGIN
 CREATE POLICY "coaches_delete_own_notes" ON coach_notes
   FOR DELETE
   TO authenticated
   USING (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+

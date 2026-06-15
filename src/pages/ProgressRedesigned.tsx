@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -33,6 +33,7 @@ import {
   Zap,
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatLocaleDate } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -163,11 +164,11 @@ function HumanSilhouette() {
   );
 }
 
-const goalTypeLabel: Record<string, string> = {
-  weight_loss: "Weight Loss",
-  muscle_gain: "Muscle Gain",
-  maintenance: "Maintenance",
-  general_health: "Healthy Lifestyle",
+const goalTypeLabelKey: Record<string, string> = {
+  weight_loss: "goal_weight_loss",
+  muscle_gain: "goal_muscle_gain",
+  maintenance: "goal_maintenance",
+  general_health: "goal_healthy_lifestyle",
 };
 
 const goalTypeIcon: Record<string, LucideIcon> = {
@@ -191,6 +192,7 @@ export default function ProgressRedesigned() {
   const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
   const { toast } = useToast();
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("progress_title")} — Nutrio`; }, [t]);
   const [activeTab, setActiveTab] = useState<"today" | "week" | "goals">("today");
   const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [showWeightInput, setShowWeightInput] = useState(false);
@@ -248,10 +250,10 @@ export default function ProgressRedesigned() {
   const height = profile?.height_cm ?? 175;
   const firstName = profile?.full_name?.split(" ")[0] ?? "Adam";
   const goalType = activeGoal?.goal_type ?? "weight_loss";
-  const goalName = goalTypeLabel[goalType] ?? "Weight Loss";
+  const goalName = t(goalTypeLabelKey[goalType] ?? "goal_weight_loss");
   const weightDiff = Math.abs(currentWeight - goalWeight);
   const bmi = height > 0 ? Number((currentWeight / Math.pow(height / 100, 2)).toFixed(1)) : 24.5;
-  const bmiLabel = bmi < 18.5 ? "Underweight" : bmi < 25 ? "Healthy" : bmi < 30 ? "Overweight" : "High";
+  const bmiLabel = bmi < 18.5 ? t("progress_bmi_underweight") : bmi < 25 ? t("progress_bmi_healthy") : bmi < 30 ? t("progress_bmi_overweight") : t("progress_bmi_high");
 
   const progressPct = useMemo(() => {
     if (goalWeight > 0 && currentWeight > goalWeight) {
@@ -273,31 +275,31 @@ export default function ProgressRedesigned() {
 
   const goalRingLabel = useMemo(() => {
     switch (goalType) {
-      case "weight_loss": return "to target";
-      case "muscle_gain": return "protein goal";
-      case "maintenance": return "on track";
-      default: return "wellness";
+      case "weight_loss": return t("progress_to_target");
+      case "muscle_gain": return t("progress_protein_goal");
+      case "maintenance": return t("progress_on_track");
+      default: return t("progress_wellness");
     }
-  }, [goalType]);
+  }, [goalType, t]);
 
   const goalRightMetric = useMemo(() => {
     switch (goalType) {
-      case "weight_loss": return { label: "Current Weight", value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
-      case "muscle_gain": return { label: "Weekly Avg Protein", value: `${weeklySummary?.macros?.protein?.consumed ?? 0}`, unit: "g" };
-      case "maintenance": return { label: "Current Weight", value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
-      default: return { label: "Current Streak", value: `${streaks.logging?.currentStreak ?? 0}`, unit: "days" };
+      case "weight_loss": return { label: t("current_weight_label2"), value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
+      case "muscle_gain": return { label: t("weekly_avg_protein"), value: `${weeklySummary?.macros?.protein?.consumed ?? 0}`, unit: "g" };
+      case "maintenance": return { label: t("current_weight_label2"), value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
+      default: return { label: t("daily_streak"), value: `${streaks.logging?.currentStreak ?? 0}`, unit: "days" };
     }
   }, [goalType, currentWeight, weeklySummary, streaks]);
 
   const goalSubLabel = useMemo(() => {
     const isLoss = goalType === "weight_loss";
     switch (goalType) {
-      case "weight_loss": return isLoss ? `−${weightDiff.toFixed(0)} kg target` : `+${weightDiff.toFixed(0)} kg target`;
-      case "muscle_gain": return `target: ${activeGoal?.protein_target_g ?? 120}g`;
-      case "maintenance": return "stay within range";
-      default: return `best: ${streaks.logging?.bestStreak ?? 0} days`;
+      case "weight_loss": return t("progress_kg_left_target", { kg: weightDiff.toFixed(0) });
+      case "muscle_gain": return t("progress_target_grams", { value: activeGoal?.protein_target_g ?? 120 });
+      case "maintenance": return t("progress_stay_within_range");
+      default: return t("progress_best_days", { value: streaks.logging?.bestStreak ?? 0 });
     }
-  }, [goalType, weightDiff, activeGoal, streaks]);
+  }, [goalType, weightDiff, activeGoal, streaks, t]);
 
   const isLoading = profileLoading || goalsLoading;
 
@@ -306,12 +308,12 @@ export default function ProgressRedesigned() {
     const cals = weeklySummary?.calories;
     const calTarget = activeGoal?.daily_calorie_target ?? 2000;
     const calPct = calTarget > 0 ? Math.min(100, Math.round(((cals?.thisWeekAvg ?? 0) / calTarget) * 100)) : 0;
-    const getStatus = (pct: number) => (pct >= 80 ? "Excellent" : pct >= 60 ? "On Track" : "Improve");
+    const getStatus = (pct: number) => (pct >= 80 ? t("progress_excellent") : pct >= 60 ? t("progress_on_track_status") : t("progress_improve"));
     return [
-      { label: "Calories", value: calPct, status: getStatus(calPct), Icon: Flame, color: "#F97316", track: "#FFEDD5" },
-      { label: "Protein", value: macros?.protein?.percentage ?? 0, status: getStatus(macros?.protein?.percentage ?? 0), Icon: Target, color: "#3B82F6", track: "#DBEAFE" },
-      { label: "Carbs", value: macros?.carbs?.percentage ?? 0, status: getStatus(macros?.carbs?.percentage ?? 0), Icon: Wheat, color: "#F7B731", track: "#FEF3C7" },
-      { label: "Fat", value: macros?.fat?.percentage ?? 0, status: getStatus(macros?.fat?.percentage ?? 0), Icon: Droplet, color: "#10B981", track: "#D1FAE5" },
+      { label: t("calories"), value: calPct, status: getStatus(calPct), Icon: Flame, color: "#F97316", track: "#FFEDD5" },
+      { label: t("protein"), value: macros?.protein?.percentage ?? 0, status: getStatus(macros?.protein?.percentage ?? 0), Icon: Target, color: "#3B82F6", track: "#DBEAFE" },
+      { label: t("carbs"), value: macros?.carbs?.percentage ?? 0, status: getStatus(macros?.carbs?.percentage ?? 0), Icon: Wheat, color: "#F7B731", track: "#FEF3C7" },
+      { label: t("fat_label"), value: macros?.fat?.percentage ?? 0, status: getStatus(macros?.fat?.percentage ?? 0), Icon: Droplet, color: "#10B981", track: "#D1FAE5" },
     ];
   }, [weeklySummary, activeGoal?.daily_calorie_target]);
 
@@ -321,37 +323,37 @@ export default function ProgressRedesigned() {
     const logStreak = streaks.logging?.currentStreak ?? 0;
     switch (goalType) {
       case "weight_loss":
-        if (currentWeight <= goalWeight) return "You hit your goal weight! Set a new target to keep the momentum.";
-        return `Only ${Math.max(1, Math.round(weightDiff))} kg left to reach your target weight.`;
+        if (currentWeight <= goalWeight) return t("progress_hit_goal_weight");
+        return t("progress_kg_left_target", { kg: Math.max(1, Math.round(weightDiff)) });
       case "muscle_gain":
-        if (currentWeight >= goalWeight) return "Goal weight reached! Time to set a new target and keep building.";
-        return `${Math.max(1, Math.round(weightDiff))} kg to go — keep hitting protein and pushing heavier.`;
+        if (currentWeight >= goalWeight) return t("progress_goal_reached_new_target");
+        return t("progress_kg_to_go", { kg: Math.max(1, Math.round(weightDiff)) });
       case "maintenance":
-        if (!todayLogged) return "Log today's meals to stay on track with your maintenance plan.";
+        if (!todayLogged) return t("progress_log_today_maintenance");
         return logStreak > 0
-          ? `${logStreak}-day streak — consistency is key for maintenance.`
-          : "Start your streak — consistency keeps you at your best.";
+          ? t("progress_day_streak_consistency", { streak: logStreak })
+          : t("progress_start_streak_consistency");
       default:
-        if (!todayLogged) return "Log your meals today to build healthy tracking habits.";
+        if (!todayLogged) return t("progress_log_meals_today");
         return logStreak > 0
-          ? `${logStreak}-day streak! Each day builds a healthier you.`
-          : "Start tracking today — small steps lead to big changes.";
+          ? t("progress_day_streak_health", { streak: logStreak })
+          : t("progress_start_tracking");
     }
-  }, [goalType, currentWeight, goalWeight, weightDiff, streaks, todayLogged]);
+  }, [goalType, currentWeight, goalWeight, weightDiff, streaks, todayLogged, t]);
 
   const keepGoingSubtext = useMemo(() => {
     const proteinPct = weeklySummary?.macros?.protein?.percentage ?? 0;
     switch (goalType) {
       case "weight_loss":
-        return proteinPct >= 80 ? "Protein intake is solid — keep it up to preserve muscle." : "Boost protein to protect muscle while losing weight.";
+        return proteinPct >= 80 ? t("progress_protein_solid") : t("progress_boost_protein_loss");
       case "muscle_gain":
-        return proteinPct >= 80 ? "Protein on point — your muscles are getting what they need." : "Increase protein to fuel muscle growth effectively.";
+        return proteinPct >= 80 ? t("progress_protein_on_point") : t("progress_increase_protein_muscle");
       case "maintenance":
-        return "Stay balanced with your macros and keep moving daily.";
+        return t("progress_stay_balanced");
       default:
-        return "Aim for balanced meals with protein, carbs, and healthy fats.";
+        return t("progress_aim_balanced_meals");
     }
-  }, [goalType, weeklySummary]);
+  }, [goalType, weeklySummary, t]);
 
   const weeklyChecklist = useMemo(() => {
     const logStreak = streaks.logging?.currentStreak ?? 0;
@@ -363,31 +365,31 @@ export default function ProgressRedesigned() {
     switch (goalType) {
       case "weight_loss":
         return [
-          { label: "Calorie Deficit", Icon: Flame, color: "#F97316", done: calPct <= 100 && calPct > 0 },
+          { label: t("calorie_deficit"), Icon: Flame, color: "#F97316", done: calPct <= 100 && calPct > 0 },
           { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: "Protein Target", Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
-          { label: "Water Intake", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
+          { label: t("protein_target_label"), Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
+          { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
       case "muscle_gain":
         return [
-          { label: "Protein Target", Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
-          { label: "Calorie Surplus", Icon: Flame, color: "#F97316", done: calPct >= 90 },
+          { label: t("protein_target_label"), Icon: Target, color: "#3B82F6", done: proteinPct >= 80 },
+          { label: t("calorie_surplus"), Icon: Flame, color: "#F97316", done: calPct >= 90 },
           { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: "Workouts Logged", Icon: Activity, color: "#8B5CF6", done: weekdayData.filter(d => d.hasWorkout).length >= 3 },
+          { label: t("workouts_logged_label"), Icon: Activity, color: "#8B5CF6", done: weekdayData.filter(d => d.hasWorkout).length >= 3 },
         ];
       case "maintenance":
         return [
-          { label: "Calories On Track", Icon: Flame, color: "#F97316", done: calPct >= 80 && calPct <= 110 },
+          { label: t("calories_on_track"), Icon: Flame, color: "#F97316", done: calPct >= 80 && calPct <= 110 },
           { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: "Balanced Macros", Icon: Leaf, color: "#10B981", done: proteinPct >= 70 },
-          { label: "Water Intake", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
+          { label: t("balanced_macros"), Icon: Leaf, color: "#10B981", done: proteinPct >= 70 },
+          { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
       default:
         return [
-          { label: "Meals Logged", Icon: Apple, color: "#10B981", done: todayLogged },
+          { label: t("meals_logged_label"), Icon: Apple, color: "#10B981", done: todayLogged },
           { label: `${logStreak} Day Streak`, Icon: CalendarCheck, color: "#10B981", done: logStreak > 0 },
-          { label: "Protein Target", Icon: Target, color: "#3B82F6", done: proteinPct >= 70 },
-          { label: "Water Intake", Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
+          { label: t("protein_target_label"), Icon: Target, color: "#3B82F6", done: proteinPct >= 70 },
+          { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
     }
   }, [goalType, streaks, weeklySummary, activeGoal, todayLogged, weekdayData]);
@@ -423,7 +425,7 @@ export default function ProgressRedesigned() {
         fiber_target_g: activeGoal?.fiber_target_g ?? 25,
         is_active: true,
       });
-      toast({ description: `Goal changed to ${goalTypeLabel[newGoalType]}` });
+      toast({ description: `${t("goal_updated")}: ${t(goalTypeLabelKey[newGoalType] ?? "goal_weight_loss")}` });
       setShowGoalPicker(false);
     } catch {
       toast({ description: "Failed to change goal. Try again.", variant: "destructive" });
@@ -502,7 +504,7 @@ export default function ProgressRedesigned() {
           >
             <ArrowLeft className="h-7 w-7" strokeWidth={2.6} />
           </button>
-          <h1 className="text-[23px] font-black tracking-[-0.06em] text-[#111827]">Progress</h1>
+          <h1 className="text-[23px] font-black tracking-[-0.06em] text-[#111827]">{t("progress_title")}</h1>
           <button
             aria-label="Open calendar"
             className="grid h-10 w-10 place-items-center rounded-full text-[#0F172A] active:bg-slate-100"
@@ -515,7 +517,7 @@ export default function ProgressRedesigned() {
 
         {showCalendar && (
           <div className="mb-6 rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-            <label className="mb-2 block text-[13px] font-extrabold text-slate-700">Select date to view progress</label>
+            <label className="mb-2 block text-[13px] font-extrabold text-slate-700">{t("progress_select_date")}</label>
             <div className="flex items-center gap-3">
               <input
                 type="date"
@@ -535,16 +537,16 @@ export default function ProgressRedesigned() {
         )}
 
         <div className="mb-6 grid h-[58px] grid-cols-3 rounded-full bg-[#F3F6FA] p-1 shadow-inner shadow-slate-200/60">
-          {['Today', 'Week', 'Goals'].map((tab) => {
-            const tabKey = tab.toLowerCase() as "today" | "week" | "goals";
+          {[{ key: "today", label: t("progress_today") }, { key: "week", label: t("progress_week") }, { key: "goals", label: t("progress_goals") }].map((tab) => {
+            const tabKey = tab.key as "today" | "week" | "goals";
             return (
               <button
-                key={tab}
+                key={tab.key}
                 onClick={() => setActiveTab(tabKey)}
                 className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === tabKey ? 'bg-white text-[#00A86B] shadow-[0_10px_22px_rgba(15,23,42,0.10)]' : 'text-slate-500'}`}
                 type="button"
               >
-                {tab}
+                {tab.label}
               </button>
             );
           })}
@@ -565,7 +567,7 @@ export default function ProgressRedesigned() {
           const fatPct = fatTarget > 0 ? Math.min(100, Math.round((fatConsumed / fatTarget) * 100)) : 0;
           const overallPct = Math.round((dailyPct + proteinPct) / 2);
           const realMealScore = mealQualityScore > 0 ? Math.round(mealQualityScore) : overallPct;
-          const mealQualityScoreLabel = realMealScore >= 80 ? "Good" : realMealScore >= 60 ? "Moderate" : "Needs Work";
+          const mealQualityScoreLabel = realMealScore >= 80 ? t("progress_good") : realMealScore >= 60 ? t("progress_moderate") : t("progress_needs_work");
           const weekScores = weeklyQuality.map((d) => d.avgScore);
           const daysLogged = weekScores.length;
           const completeness = Math.min(1, daysLogged / 7);
@@ -597,13 +599,13 @@ export default function ProgressRedesigned() {
             <>
               <section className="mb-5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900 flex items-center gap-2">Hello, {firstName}! <Hand className="h-5 w-5 text-amber-400" /></h2>
-                  <p className="text-[13px] text-slate-500 font-medium">Here's your daily nutrition overview.</p>
+                  <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900 flex items-center gap-2">{t("progress_greeting", { name: firstName })} <Hand className="h-5 w-5 text-amber-400" /></h2>
+                  <p className="text-[13px] text-slate-500 font-medium">{t("progress_daily_overview")}</p>
                 </div>
                 {(streaks.logging?.currentStreak ?? 0) > 0 && (
                   <div className="flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1.5">
                     <Flame className="h-4 w-4 text-orange-500" />
-                    <span className="text-[12px] font-black text-orange-600">{streaks.logging?.currentStreak} day streak</span>
+                    <span className="text-[12px] font-black text-orange-600">{t("progress_day_streak", { count: streaks.logging?.currentStreak ?? 0 })}</span>
                   </div>
                 )}
               </section>
@@ -615,7 +617,7 @@ export default function ProgressRedesigned() {
                     {/* ── Top banner: date + streak ── */}
                     <div className="flex items-center justify-between px-5 pt-4 pb-3">
                       <div>
-                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Today</p>
+                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">{t("progress_today")}</p>
                         <p className="text-[15px] font-black text-slate-900">{dayName}</p>
                       </div>
                       {(streaks.logging?.currentStreak ?? 0) > 0 ? (
@@ -626,7 +628,7 @@ export default function ProgressRedesigned() {
                       ) : (
                         <div className="flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 ring-1 ring-slate-100">
                           <CalendarCheck className="h-3.5 w-3.5 text-slate-400" />
-                          <span className="text-[11px] font-bold text-slate-500">Start streak</span>
+                          <span className="text-[11px] font-bold text-slate-500">{t("progress_start_streak")}</span>
                         </div>
                       )}
                     </div>
@@ -653,7 +655,7 @@ export default function ProgressRedesigned() {
                           />
                           {/* Center text */}
                           <text x="55" y="50" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0F172A" fontFamily="system-ui">{calConsumed > 999 ? `${(calConsumed/1000).toFixed(1)}k` : calConsumed}</text>
-                          <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">kcal</text>
+                          <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">{t("progress_kcal_unit")}</text>
                         </svg>
                         {/* Legend dots */}
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
@@ -667,7 +669,7 @@ export default function ProgressRedesigned() {
                         {/* Calorie remaining */}
                         <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
                           <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">
-                            {calTarget - calConsumed > 0 ? 'Remaining' : 'Over target'}
+                            {calTarget - calConsumed > 0 ? t("progress_remaining") : t("progress_over_target")}
                           </p>
                           <div className="flex items-baseline gap-1">
                             <span className={`text-[22px] font-black leading-none ${calTarget - calConsumed > 0 ? 'text-slate-900' : 'text-rose-500'}`}>
@@ -693,9 +695,9 @@ export default function ProgressRedesigned() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-[11px] font-black text-slate-900">
-                              {overallPct >= 80 ? 'Great day!' : overallPct >= 50 ? 'On track' : 'Keep going'}
+                              {overallPct >= 80 ? t("progress_great_day") : overallPct >= 50 ? t("progress_on_track") : t("progress_keep_going")}
                             </p>
-                            <p className="text-[9px] text-slate-400">Daily score</p>
+                            <p className="text-[9px] text-slate-400">{t("progress_daily_score")}</p>
                           </div>
                         </div>
                       </div>
@@ -707,8 +709,8 @@ export default function ProgressRedesigned() {
                     {/* ── Macro bars ── */}
                     <div className="grid grid-cols-3 gap-px bg-slate-100">
                       {[
-                        { label: 'Protein', current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#818CF8', light: '#EEF2FF' },
-                        { label: 'Carbs', current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#FB923C', light: '#FFF7ED' },
+                        { label: t('protein'), current: proteinConsumed, target: proteinTarget, unit: 'g', pct: proteinPct, color: '#818CF8', light: '#EEF2FF' },
+                        { label: t('carbs'), current: carbsConsumed, target: carbsTarget, unit: 'g', pct: carbsPct, color: '#FB923C', light: '#FFF7ED' },
                         { label: 'Fat', current: fatConsumed, target: fatTarget, unit: 'g', pct: fatPct, color: '#F472B6', light: '#FDF2F8' },
                       ].map((m) => (
                         <div key={m.label} className="flex flex-col items-center bg-white px-2 py-3">
@@ -750,21 +752,21 @@ export default function ProgressRedesigned() {
                       <div className="min-w-0 flex-1">
                         <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm">
                           <CalendarCheck className="h-4 w-4" />
-                          Today • {dayName}
+                          {t("progress_today")} • {dayName}
                         </div>
 
                         <div className="flex items-start gap-2 mb-3">
                           <Flame className="mt-0.5 h-5 w-5 text-amber-300" />
                           <div>
                             <p className="text-[26px] font-black leading-none tracking-[-0.06em]">{calConsumed.toLocaleString()}<span className="ml-1 text-[14px] font-bold">kcal</span></p>
-                            <p className="mt-0.5 text-[11px] font-semibold text-white/80">calories logged today</p>
+                            <p className="mt-0.5 text-[11px] font-semibold text-white/80">{t("progress_calories_logged_today")}</p>
                           </div>
                         </div>
 
                         <div className="mb-3 rounded-[14px] bg-white/10 px-4 py-3 backdrop-blur-sm">
                           <div className="flex items-center gap-2 mb-2">
                             <Target className="h-5 w-5 text-amber-300" />
-                            <p className="text-[14px] font-black">Set a nutrition goal</p>
+                            <p className="text-[14px] font-black">{t("progress_set_goal")}</p>
                           </div>
                           <p className="text-[11px] font-medium leading-relaxed text-white/80">
                             Set your calorie and macro targets to track daily progress and get personalized insights.
@@ -777,7 +779,7 @@ export default function ProgressRedesigned() {
                           className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3 text-[14px] font-black text-emerald-700 shadow-[0_8px_20px_rgba(0,0,0,0.12)] active:scale-[0.98] transition-transform"
                         >
                           <Target className="h-4 w-4" />
-                          Set Your Goal
+                          {t("progress_set_your_goal")}
                         </button>
                       </div>
 
@@ -789,7 +791,7 @@ export default function ProgressRedesigned() {
                           </svg>
                           <div className="text-center">
                             <Target className="mx-auto h-9 w-9 text-amber-300" />
-                            <div className="mt-2 text-[10px] font-semibold text-white/70">Goal not set</div>
+                            <div className="mt-2 text-[10px] font-semibold text-white/70">{t("progress_goal_not_set")}</div>
                           </div>
                         </div>
                       </div>
@@ -803,10 +805,10 @@ export default function ProgressRedesigned() {
                 <section className="mb-5">
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      { icon: Flame, label: "Calories", current: calConsumed, target: calTarget, unit: "kcal", color: "#F97316", bg: "#FFF7ED" },
-                      { icon: Target, label: "Protein", current: proteinConsumed, target: proteinTarget, unit: "g", color: "#3B82F6", bg: "#EFF6FF" },
-                      { icon: Leaf, label: "Carbs", current: carbsConsumed, target: carbsTarget, unit: "g", color: "#10B981", bg: "#ECFDF5" },
-                      { icon: Droplet, label: "Fat", current: fatConsumed, target: fatTarget, unit: "g", color: "#8B5CF6", bg: "#F5F3FF" },
+                      { icon: Flame, label: t("calories"), current: calConsumed, target: calTarget, unit: t("progress_kcal_unit"), color: "#F97316", bg: "#FFF7ED" },
+                      { icon: Target, label: t("protein"), current: proteinConsumed, target: proteinTarget, unit: t("progress_gram_unit"), color: "#3B82F6", bg: "#EFF6FF" },
+                      { icon: Leaf, label: t("carbs"), current: carbsConsumed, target: carbsTarget, unit: t("progress_gram_unit"), color: "#10B981", bg: "#ECFDF5" },
+                      { icon: Droplet, label: t("fat_label"), current: fatConsumed, target: fatTarget, unit: t("progress_gram_unit"), color: "#8B5CF6", bg: "#F5F3FF" },
                     ].map((n) => {
                       const NIcon = n.icon;
                       const pct = n.target > 0 ? Math.min(100, Math.round((n.current / n.target) * 100)) : 0;
@@ -834,9 +836,9 @@ export default function ProgressRedesigned() {
                 confidence={aiConfidence}
                 mealQualityStatus={mealQualityScoreLabel}
                 summary={aiInsight || (scoreTrend !== null ? `${scoreTrend >= 0 ? '+' : ''}${scoreTrend}% vs last week` : "")}
-                proteinStatus={proteinPct >= 80 ? "On Track" : "Need More"}
-                hydrationStatus={(waterSummary?.percentage ?? 0) >= 60 ? "On Track" : "Need More"}
-                calorieStatus={dailyPct >= 80 ? "On Track" : dailyPct >= 50 ? "Need More" : "Off Track"}
+                proteinStatus={proteinPct >= 80 ? t("progress_on_track_status") : t("progress_improve")}
+                hydrationStatus={(waterSummary?.percentage ?? 0) >= 60 ? t("progress_on_track_status") : t("progress_improve")}
+                calorieStatus={dailyPct >= 80 ? t("progress_on_track_status") : dailyPct >= 50 ? t("progress_improve") : t("progress_off_track")}
                 loading={aiInsightLoading}
                 onViewAnalysis={() => navigate("/ai-report")}
               />
@@ -844,7 +846,7 @@ export default function ProgressRedesigned() {
               {/* Smart Recommendations */}
               <section className="mb-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[14px] font-black text-slate-900">Smart Recommendations</h3>
+                  <h3 className="text-[14px] font-black text-slate-900">{t("progress_smart_recommendations")}</h3>
 
                 </div>
 
@@ -880,7 +882,12 @@ export default function ProgressRedesigned() {
                         sleep: "bg-purple-100 text-purple-600",
                         general: "bg-indigo-100 text-indigo-600",
                       };
-                      const priorityBadge: Record<string, string> = {
+                        const priorityLabels: Record<string, string> = {
+    high: t("priority_high"),
+    medium: t("priority_medium"),
+    low: t("priority_low"),
+  };
+              const priorityBadge: Record<string, string> = {
                         high: "bg-red-100 text-red-700",
                         medium: "bg-amber-100 text-amber-700",
                         low: "bg-slate-100 text-slate-600",
@@ -908,7 +915,7 @@ export default function ProgressRedesigned() {
                               <div className="flex items-center gap-2 mb-0.5">
                                 <p className="text-[13px] font-bold text-slate-900 truncate">{r.title}</p>
                                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${badgeColors}`}>
-                                  {r.priority}
+                                  {priorityLabels[r.priority] || r.priority}
                                 </span>
                               </div>
                               <p className="text-[11px] leading-relaxed text-slate-500 line-clamp-2">{r.description}</p>
@@ -952,10 +959,10 @@ export default function ProgressRedesigned() {
                     <section className="mb-5">
                       <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-[14px] font-black text-slate-900">Weight Forecast</h3>
-                          <span className="text-[11px] font-bold text-emerald-600">Target: {goalWeight} kg</span>
+                          <h3 className="text-[14px] font-black text-slate-900">{t("progress_weight_forecast")}</h3>
+                          <span className="text-[11px] font-bold text-emerald-600">{t("progress_target_label")} {goalWeight} {t("progress_kg_unit")}</span>
                         </div>
-                        <p className="text-[12px] text-slate-500 py-4 text-center">Log your weight a few times to see a trend.</p>
+                        <p className="text-[12px] text-slate-500 py-4 text-center">{t("progress_log_weight_msg")}</p>
                       </article>
                     </section>
                   );
@@ -1002,11 +1009,11 @@ export default function ProgressRedesigned() {
                   <section className="mb-5">
                     <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-[14px] font-black text-slate-900">Weight Forecast</h3>
-                        <span className="text-[11px] font-bold text-emerald-600">Target: {goalWeight} kg</span>
+                        <h3 className="text-[14px] font-black text-slate-900">{t("progress_weight_forecast")}</h3>
+                        <span className="text-[11px] font-bold text-emerald-600">{t("progress_target_label")} {goalWeight} {t("progress_kg_unit")}</span>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{currentWeight} kg Today</span>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{currentWeight} {t("progress_kg_unit")} {t("progress_today")}</span>
                       </div>
                       <svg className="w-full h-16" viewBox="0 0 200 60" preserveAspectRatio="none">
                         <defs>
@@ -1050,12 +1057,12 @@ export default function ProgressRedesigned() {
                       <div className="flex items-center justify-between mt-1">
                         <p className="text-[11px] font-semibold text-slate-600">
                           {weeklyChange !== 0
-                            ? `${weeklyChange < 0 ? "Losing" : "Gaining"} ${Math.abs(weeklyChange).toFixed(1)} kg/week`
-                            : "Weight stable"}
-                          {daysToGoal && daysToGoal > 0 ? ` · ~${daysToGoal} days to goal` : ""}
+                            ? `${weeklyChange < 0 ? t("progress_losing") : t("progress_gaining")} ${Math.abs(weeklyChange).toFixed(1)} ${t("progress_kg_unit")}/${t("progress_week").toLowerCase()}`
+                            : t("progress_weight_stable")}
+                          {daysToGoal && daysToGoal > 0 ? ` · ${t("progress_days_to_goal", { days: daysToGoal })}` : ""}
                         </p>
                         <p className="text-[10px] font-medium text-slate-500">
-                          {weeklyChange < 0 ? "On track" : weeklyChange > 0 ? "Trending up" : "Steady"}
+                          {weeklyChange < 0 ? t("progress_on_track") : weeklyChange > 0 ? t("progress_trending_up") : t("progress_steady")}
                         </p>
                       </div>
                     </article>
@@ -1085,7 +1092,7 @@ export default function ProgressRedesigned() {
                 const calPct2 = calTarget2 > 0 ? Math.min(100, Math.round((calAvg / calTarget2) * 100)) : 0;
                 const daysLogged2 = weekdayData.filter(d => d.calories > 0).length;
                 const scoreColor = weekScore >= 80 ? '#10B981' : weekScore >= 60 ? '#F59E0B' : '#F87171';
-                const scoreLabel = weekScore >= 80 ? 'Excellent week!' : weekScore >= 60 ? 'Good progress' : 'Keep going';
+                const scoreLabel = weekScore >= 80 ? t("progress_excellent_week") : weekScore >= 60 ? t("progress_good_progress_status") : t("progress_keep_going");
                 const weekCircumference = 2 * Math.PI * 46;
                 const consistencyCircumference = 2 * Math.PI * 34;
                 return (
@@ -1094,8 +1101,8 @@ export default function ProgressRedesigned() {
                 {/* ── Top banner ── */}
                 <div className="flex items-center justify-between px-5 pt-4 pb-3">
                   <div>
-                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">This Week</p>
-                    <p className="text-[15px] font-black text-slate-900">Weekly Performance</p>
+                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">{t("progress_this_week")}</p>
+                    <p className="text-[15px] font-black text-slate-900">{t("progress_weekly_performance")}</p>
                   </div>
                   {streak > 0 ? (
                     <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 ring-1 ring-orange-100">
@@ -1133,12 +1140,12 @@ export default function ProgressRedesigned() {
                       />
                       {/* Center */}
                       <text x="55" y="50" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0F172A" fontFamily="system-ui">{weekScore}</text>
-                      <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">score</text>
+                      <text x="55" y="63" textAnchor="middle" fontSize="9" fontWeight="700" fill="#94A3B8" fontFamily="system-ui">{t("progress_score_label")}</text>
                     </svg>
                     {/* Legend */}
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />Consist.</span>
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400" style={{ color: scoreColor }}><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: scoreColor }} />Score</span>
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full bg-[#818CF8] inline-block" />{t("progress_consistency_short")}</span>
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400" style={{ color: scoreColor }}><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: scoreColor }} />{t("progress_score")}</span>
                     </div>
                   </div>
 
@@ -1146,7 +1153,7 @@ export default function ProgressRedesigned() {
                   <div className="flex-1 min-w-0 space-y-2.5">
                     {/* Score label */}
                     <div className="rounded-[14px] bg-slate-50 px-3 py-2.5">
-                      <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">Weekly Score</p>
+                      <p className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">{t("progress_weekly_score")}</p>
                       <div className="flex items-baseline gap-1">
                         <span className="text-[22px] font-black leading-none" style={{ color: scoreColor }}>{weekScore}</span>
                         <span className="text-[10px] font-bold text-slate-400">/ 100</span>
@@ -1180,9 +1187,9 @@ export default function ProgressRedesigned() {
                 {/* ── Metric bars row ── */}
                 <div className="grid grid-cols-3 gap-px bg-slate-100">
                   {[
-                    { label: 'Calories', value: `${calPct2}%`, sub: `${calAvg.toLocaleString()} avg`, pct: calPct2, color: '#FB923C' },
-                    { label: 'Protein', value: `${protPct}%`, sub: 'of target', pct: protPct, color: '#818CF8' },
-                    { label: 'Hydration', value: `${waterDays}/7`, sub: 'days met goal', pct: Math.round((waterDays / 7) * 100), color: '#38BDF8' },
+                    { label: t('calories'), value: `${calPct2}%`, sub: `${calAvg.toLocaleString()} avg`, pct: calPct2, color: '#FB923C' },
+                    { label: t('protein'), value: `${protPct}%`, sub: 'of target', pct: protPct, color: '#818CF8' },
+                    { label: t('progress_hydration'), value: `${waterDays}/7`, sub: 'days met goal', pct: Math.round((waterDays / 7) * 100), color: '#38BDF8' },
                   ].map((m) => (
                     <div key={m.label} className="flex flex-col items-center bg-white px-2 py-3">
                       <div className="mb-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
@@ -1197,7 +1204,7 @@ export default function ProgressRedesigned() {
 
                 {/* ── Days logged strip ── */}
                 <div className="flex items-center gap-2 px-5 py-3">
-                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400 shrink-0">Days logged</p>
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400 shrink-0">{t("progress_days_logged")}</p>
                   <div className="flex flex-1 items-center gap-1">
                     {['M','T','W','T','F','S','S'].map((d, i) => {
                       const dayData = weekdayData[i];
@@ -1225,11 +1232,11 @@ export default function ProgressRedesigned() {
             <section className="mb-5">
               <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[16px] font-black tracking-[-0.04em] text-slate-900">Your Week</h3>
+                  <h3 className="text-[16px] font-black tracking-[-0.04em] text-slate-900">{t("progress_your_week")}</h3>
                   <div className="flex items-center gap-3 text-[10px]">
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> On Track</span>
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" /> Partial</span>
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" /> No Data</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /> {t("progress_on_track_legend")}</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" /> {t("progress_partial_legend")}</span>
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" /> {t("progress_no_data_legend")}</span>
                   </div>
                 </div>
                 
@@ -1247,7 +1254,7 @@ export default function ProgressRedesigned() {
                     <tbody>
                       {/* Meals Logged Row */}
                       <tr>
-                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Meals Logged</td>
+                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">{t("progress_meals_logged")}</td>
                         {weekdayData.map((day, i) => {
                           const hasData = day.calories > 0;
                           const onTarget = hasData && day.calories >= calorieTarget * 0.9 && day.calories <= calorieTarget * 1.1;
@@ -1267,7 +1274,7 @@ export default function ProgressRedesigned() {
                       </tr>
                       {/* Workouts Row */}
                       <tr>
-                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Workouts</td>
+                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">{t("progress_workouts")}</td>
                         {weekdayData.map((day, i) => (
                           <td key={i} className="py-2">
                             <div className="flex justify-center">
@@ -1280,7 +1287,7 @@ export default function ProgressRedesigned() {
                       </tr>
                       {/* Water Goal Row */}
                       <tr>
-                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">Water Goal</td>
+                        <td className="py-2 text-[10px] font-semibold text-slate-500 text-left">{t("progress_water_goal")}</td>
                         {weekdayData.map((day, i) => (
                           <td key={i} className="py-2">
                             <div className="flex justify-center">
@@ -1299,13 +1306,13 @@ export default function ProgressRedesigned() {
 
             {/* Nutrient Trends with Line Graphs */}
             <section className="mb-5">
-              <SectionHeader title="Nutrient Trends" />
+              <SectionHeader title={t("progress_nutrient_trends")} />
               <div className="grid grid-cols-3 gap-2.5">
                 {/* Calories Trend */}
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                  <p className="text-[10px] font-semibold text-slate-500 mb-1">Calories (avg)</p>
+                  <p className="text-[10px] font-semibold text-slate-500 mb-1">{t("progress_calories_avg")}</p>
                   <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
-                    {weeklySummary?.calories.thisWeekAvg.toLocaleString() ?? "—"}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">kcal</span>
+                    {weeklySummary?.calories.thisWeekAvg.toLocaleString() ?? "—"}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">{t("progress_kcal_unit")}</span>
                   </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
                     <polyline
@@ -1324,12 +1331,12 @@ export default function ProgressRedesigned() {
                   </svg>
                   <div className="flex items-center gap-1 text-[10px] font-bold mt-1" style={{ color: (weeklySummary?.calories.changePercent ?? 0) >= 0 ? "#059669" : "#EF4444" }}>
                     {(weeklySummary?.calories.changePercent ?? 0) >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                    {Math.abs(weeklySummary?.calories.changePercent ?? 0)}% vs last week
+                    {t("progress_vs_last_week_pct", { change: Math.abs(weeklySummary?.calories.changePercent ?? 0) })}
                   </div>
                 </article>
                 {/* Protein Trend */}
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                  <p className="text-[10px] font-semibold text-slate-500 mb-1">Protein (avg)</p>
+                  <p className="text-[10px] font-semibold text-slate-500 mb-1">{t("progress_protein_avg")}</p>
                   <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
                     {weeklySummary?.macros.protein.consumed ?? "—"}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">g</span>
                   </p>
@@ -1350,18 +1357,18 @@ export default function ProgressRedesigned() {
                   </svg>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
                     <ArrowUp className="h-3 w-3" />
-                    {weeklySummary?.macros.protein.percentage ?? 0}% of target
+                    {t("progress_of_target_pct", { value: weeklySummary?.macros.protein.percentage ?? 0 })}
                   </div>
                 </article>
                 {/* Water Trend */}
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                  <p className="text-[10px] font-semibold text-slate-500 mb-1">Water (avg)</p>
+                  <p className="text-[10px] font-semibold text-slate-500 mb-1">{t("progress_water_avg")}</p>
                   <p className="text-[24px] font-black tracking-[-0.04em] text-slate-900">
                     {(() => {
                       const avg = weekdayData.length > 0
                         ? weekdayData.reduce((s, d) => s + d.waterGlasses, 0) / weekdayData.length
                         : 0;
-                      return <>{avg.toFixed(1)}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">Glasses</span></>;
+                      return <>{avg.toFixed(1)}<span className="text-[12px] font-semibold text-slate-500 ml-0.5">{t("progress_glasses")}</span></>;
                     })()}
                   </p>
                   <svg className="w-full h-10 mt-2" viewBox="0 0 80 40" preserveAspectRatio="none">
@@ -1381,7 +1388,7 @@ export default function ProgressRedesigned() {
                   </svg>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 mt-1">
                     <Check className="h-3 w-3" />
-                    {weekdayData.filter(d => d.waterGlasses >= 8).length}/7 days hit goal
+                    {t("progress_days_hit_goal", { count: weekdayData.filter(d => d.waterGlasses >= 8).length })}
                   </div>
                 </article>
               </div>
@@ -1389,13 +1396,13 @@ export default function ProgressRedesigned() {
 
             {/* This Week Highlights - 3 Separate Cards */}
             <section className="mb-5">
-              <h3 className="text-[14px] font-black text-slate-800 mb-3">This Week Highlights</h3>
+              <h3 className="text-[14px] font-black text-slate-800 mb-3">{t("progress_week_highlights")}</h3>
               <div className="grid grid-cols-3 gap-2.5">
                 <article className="rounded-[16px] border border-slate-100 bg-white p-3 shadow-[0_8px_20px_rgba(15,23,42,0.05)] text-center">
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-amber-100 mb-2">
                     <Trophy className="h-5 w-5 text-amber-600" />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700">Best Protein Day</p>
+                  <p className="text-[10px] font-bold text-slate-700">{t("progress_best_protein")}</p>
                   <p className="text-[9px] text-slate-500">
                     {(() => {
                       const best = weekdayData.reduce((a, b) => b.protein > a.protein ? b : a, weekdayData[0]);
@@ -1413,7 +1420,7 @@ export default function ProgressRedesigned() {
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-orange-100 mb-2">
                     <Flame className="h-5 w-5 text-orange-500" />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700">Highest Calories</p>
+                  <p className="text-[10px] font-bold text-slate-700">{t("progress_highest_calories")}</p>
                   <p className="text-[9px] text-slate-500">
                     {(() => {
                       const best = weekdayData.reduce((a, b) => b.calories > a.calories ? b : a, weekdayData[0]);
@@ -1431,7 +1438,7 @@ export default function ProgressRedesigned() {
                   <div className="grid h-10 w-10 mx-auto place-items-center rounded-full bg-blue-100 mb-2">
                     <Droplet className="h-5 w-5 text-blue-500" />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-700">Most Hydrated</p>
+                  <p className="text-[10px] font-bold text-slate-700">{t("progress_most_hydrated")}</p>
                   <p className="text-[9px] text-slate-500">
                     {(() => {
                       const best = weekdayData.reduce((a, b) => b.waterGlasses > a.waterGlasses ? b : a, weekdayData[0]);
@@ -1451,12 +1458,12 @@ export default function ProgressRedesigned() {
             {/* This Week vs Last Week */}
             <section className="mb-5">
               <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                <h3 className="text-[13px] font-black text-slate-800 mb-3">This Week vs Last Week</h3>
+                <h3 className="text-[13px] font-black text-slate-800 mb-3">{t("progress_week_vs_last")}</h3>
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Flame className="h-4 w-4" style={{ color: '#F97316' }} />
-                      <span className="text-[11px] font-semibold text-slate-600">Calories</span>
+                      <span className="text-[11px] font-semibold text-slate-600">{t("progress_calories_compare")}</span>
                     </div>
                     <span className={`text-[11px] font-bold ${(weeklySummary?.calories.changePercent ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                       {(weeklySummary?.calories.changePercent ?? 0) >= 0 ? '+' : ''}{weeklySummary?.calories.changePercent ?? 0}% {(weeklySummary?.calories.trend === 'up' ? '↑' : weeklySummary?.calories.trend === 'down' ? '↓' : '→')}
@@ -1465,16 +1472,16 @@ export default function ProgressRedesigned() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Target className="h-4 w-4" style={{ color: '#3B82F6' }} />
-                      <span className="text-[11px] font-semibold text-slate-600">Protein</span>
+                      <span className="text-[11px] font-semibold text-slate-600">{t("progress_protein_compare")}</span>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-600">
-                      {weeklySummary?.macros.protein.percentage ?? 0}% of target
+                      {t("progress_of_target_pct", { value: weeklySummary?.macros.protein.percentage ?? 0 })}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Droplet className="h-4 w-4" style={{ color: '#0EA5E9' }} />
-                      <span className="text-[11px] font-semibold text-slate-600">Water</span>
+                      <span className="text-[11px] font-semibold text-slate-600">{t("progress_water_compare")}</span>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-600">
                       {weekdayData.filter(d => d.waterGlasses >= 8).length}/7 days
@@ -1483,7 +1490,7 @@ export default function ProgressRedesigned() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4" style={{ color: '#10B981' }} />
-                      <span className="text-[11px] font-semibold text-slate-600">Consistency</span>
+                      <span className="text-[11px] font-semibold text-slate-600">{t("progress_consistency_compare")}</span>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-600">
                       {weeklySummary?.consistency.percentage ?? 0}% {weeklySummary?.consistency.percentage >= 70 ? '↑' : '→'}
@@ -1497,15 +1504,15 @@ export default function ProgressRedesigned() {
             <section className="mb-5">
               <div className="grid grid-cols-2 gap-3">
                 <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <h3 className="text-[13px] font-black text-slate-800 mb-3">Habit Consistency</h3>
+                  <h3 className="text-[13px] font-black text-slate-800 mb-3">{t("progress_habit_consistency")}</h3>
                   <div className="space-y-3">
                     {(() => {
                       const waterDays = weekdayData.filter(d => d.waterGlasses > 0).length;
                       const workoutDays = weekdayData.filter(d => d.hasWorkout).length;
                       const habits = [
-                        { label: 'Meal Logging', days: weeklySummary?.consistency.daysLogged ?? 0, pct: weeklySummary?.consistency.percentage ?? 0, color: '#10B981' },
-                        { label: 'Water Tracking', days: waterDays, pct: Math.round((waterDays / 7) * 100), color: '#0EA5E9' },
-                        { label: 'Workouts', days: workoutDays, pct: Math.round((workoutDays / 7) * 100), color: '#8B5CF6' },
+                        { label: t('meal_logging_label'), days: weeklySummary?.consistency.daysLogged ?? 0, pct: weeklySummary?.consistency.percentage ?? 0, color: '#10B981' },
+                        { label: t('water_tracking_label'), days: waterDays, pct: Math.round((waterDays / 7) * 100), color: '#0EA5E9' },
+                        { label: t('workouts_label'), days: workoutDays, pct: Math.round((workoutDays / 7) * 100), color: '#8B5CF6' },
                       ];
                       return habits.map((habit) => (
                         <div key={habit.label}>
@@ -1522,17 +1529,17 @@ export default function ProgressRedesigned() {
                   </div>
                 </article>
                 <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-                  <h3 className="text-[13px] font-black text-slate-800 mb-2">Weekly Goal Progress</h3>
+                  <h3 className="text-[13px] font-black text-slate-800 mb-2">{t("progress_weekly_goal_progress")}</h3>
                   {(() => {
                     const calOnTarget = weeklySummary && Math.abs(weeklySummary.calories.thisWeekAvg - (activeGoal?.daily_calorie_target ?? 2000)) <= 200;
                     const proteinOnTarget = (weeklySummary?.macros.protein.percentage ?? 0) >= 80;
                     const waterOnTarget = weekdayData.filter(d => d.waterGlasses >= 8).length >= 4;
                     const activityOnTarget = weekdayData.filter(d => d.hasWorkout).length >= 3;
                     const goals = [
-                      { label: 'Calories Goal', done: calOnTarget },
-                      { label: 'Protein Goal', done: proteinOnTarget },
-                      { label: 'Water Goal', done: waterOnTarget },
-                      { label: 'Activity Goal', done: activityOnTarget },
+                      { label: t('calories_goal'), done: calOnTarget },
+                      { label: t('protein_goal_label'), done: proteinOnTarget },
+                      { label: t('water_goal'), done: waterOnTarget },
+                      { label: t('activity_goal'), done: activityOnTarget },
                     ];
                     const doneCount = goals.filter(g => g.done).length;
                     const goalPct = Math.round((doneCount / goals.length) * 100);
@@ -1547,7 +1554,7 @@ export default function ProgressRedesigned() {
                           </svg>
                           <div className="text-center">
                             <span className="text-[22px] font-black text-slate-900">{goalPct}%</span>
-                            <p className="text-[9px] font-semibold text-slate-500">Completed</p>
+                            <p className="text-[9px] font-semibold text-slate-500">{t("progress_completed")}</p>
                           </div>
                         </div>
                         <div className="mt-3 space-y-1.5">
@@ -1573,7 +1580,7 @@ export default function ProgressRedesigned() {
                   <Trophy className="h-5 w-5 text-white" strokeWidth={2.5} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">Keep going, {firstName}!</h3>
+                  <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">{t("progress_keep_going_message", { name: firstName })}</h3>
                   <p className="mt-0.5 text-[11px] font-medium text-slate-500">{keepGoingMessage}</p>
                 </div>
               </div>
@@ -1588,7 +1595,7 @@ export default function ProgressRedesigned() {
             <section className="mb-5">
               {/* Goal type selector pills */}
               <div className="mb-3 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-                {Object.entries(goalTypeLabel).map(([key, label]) => {
+                {Object.entries(goalTypeLabelKey).map(([key, labelKey]) => {
                   const Icon = goalTypeIcon[key] ?? Leaf;
                   const isActive = goalType === key;
                   const goalColors: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
@@ -1604,7 +1611,7 @@ export default function ProgressRedesigned() {
                       style={isActive ? { backgroundColor: activeColor } : {}}
                     >
                       <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      {label}
+                      {t(labelKey)}
                     </button>
                   );
                 })}
@@ -1628,7 +1635,7 @@ export default function ProgressRedesigned() {
                 {/* ── Top banner ── */}
                 <div className="flex items-center justify-between px-5 pt-4 pb-3">
                   <div>
-                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Active Goal</p>
+                    <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">{t("progress_active_goal")}</p>
                     <p className="text-[15px] font-black text-slate-900">{goalName}</p>
                   </div>
                   <div
@@ -1666,8 +1673,8 @@ export default function ProgressRedesigned() {
                     </svg>
                     {/* Legend */}
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: goalColor }} />Goal</span>
-                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: bmi < 25 ? '#34D399' : '#F59E0B' }} />BMI</span>
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: goalColor }} />{t("progress_goal_legend")}</span>
+                      <span className="flex items-center gap-1 text-[8px] font-bold text-slate-400"><span className="h-1.5 w-1.5 rounded-full inline-block" style={{ backgroundColor: bmi < 25 ? '#34D399' : '#F59E0B' }} />{t("progress_bmi")}</span>
                     </div>
                   </div>
 
@@ -1682,7 +1689,7 @@ export default function ProgressRedesigned() {
                       </div>
                       {goalWeight !== currentWeight && (
                         <p className="mt-0.5 text-[9px] font-semibold" style={{ color: goalColor }}>
-                          Target: {goalWeight.toFixed(1)} kg
+                          {t("progress_target_label")} {goalWeight.toFixed(1)} {t("progress_kg_unit")}
                         </p>
                       )}
                       <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
@@ -1699,7 +1706,7 @@ export default function ProgressRedesigned() {
                         {bmi.toFixed(1)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[11px] font-black text-slate-900">BMI · {bmiLabel}</p>
+                        <p className="text-[11px] font-black text-slate-900">{t("progress_bmi_label", { label: bmiLabel })}</p>
                         <p className="text-[9px] text-slate-400">{goalSubLabel}</p>
                       </div>
                     </div>
@@ -1712,10 +1719,10 @@ export default function ProgressRedesigned() {
                 {/* ── Nutrition targets row ── */}
                 <div className="grid grid-cols-4 gap-px bg-slate-100">
                   {[
-                    { label: 'Calories', value: calTarget3.toLocaleString(), unit: 'kcal', color: '#FB923C' },
-                    { label: 'Protein', value: `${protTarget3}`, unit: 'g', color: '#818CF8' },
-                    { label: 'Carbs', value: `${carbTarget3}`, unit: 'g', color: '#34D399' },
-                    { label: 'Fat', value: `${fatTarget3}`, unit: 'g', color: '#F472B6' },
+                    { label: t('calories'), value: calTarget3.toLocaleString(), unit: 'kcal', color: '#FB923C' },
+                    { label: t('protein'), value: `${protTarget3}`, unit: 'g', color: '#818CF8' },
+                    { label: t('carbs'), value: `${carbTarget3}`, unit: 'g', color: '#34D399' },
+                    { label: t('fat_label'), value: `${fatTarget3}`, unit: t('progress_gram_unit'), color: '#F472B6' },
                   ].map((m) => (
                     <div key={m.label} className="flex flex-col items-center bg-white px-1 py-3">
                       <p className="text-[13px] font-black text-slate-900">{m.value}</p>
@@ -1738,7 +1745,7 @@ export default function ProgressRedesigned() {
                       step="0.1"
                       className="flex-1 min-w-0 rounded-[10px] border border-slate-200 bg-slate-50 px-3 py-2 text-[15px] font-black text-slate-900 outline-none focus:border-slate-300"
                     />
-                    <span className="text-[12px] font-bold text-slate-500">kg</span>
+                    <span className="text-[12px] font-bold text-slate-500">{t("progress_kg_unit")}</span>
                     {showWeightInput && (
                       <button
                         type="button"
@@ -1747,7 +1754,7 @@ export default function ProgressRedesigned() {
                         className="shrink-0 rounded-[10px] px-4 py-2 text-[12px] font-black text-white active:scale-95 disabled:opacity-60"
                         style={{ backgroundColor: goalColor }}
                       >
-                        {isLoggingWeight ? '...' : 'Save'}
+                        {isLoggingWeight ? '...' : t("progress_save")}
                       </button>
                     )}
                   </div>
@@ -1760,15 +1767,15 @@ export default function ProgressRedesigned() {
 
             <section className="mb-5">
               <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
-                <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-wider mb-3">Your Plan</h3>
+                <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-wider mb-3">{t("progress_your_plan")}</h3>
 
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
                   {[
-                    { label: "Calories", value: activeGoal?.daily_calorie_target ?? 2000, unit: "kcal", pct: activeGoal?.daily_calorie_target ? Math.min(100, Math.round(((weeklySummary?.calories?.thisWeekAvg ?? 0) / activeGoal.daily_calorie_target) * 100)) : 0 },
-                    { label: "Protein", value: activeGoal?.protein_target_g ?? 120, unit: "g", pct: weeklySummary?.macros?.protein?.percentage ?? 0 },
-                    { label: "Carbs", value: activeGoal?.carbs_target_g ?? 250, unit: "g", pct: weeklySummary?.macros?.carbs?.percentage ?? 0 },
-                    { label: "Fat", value: activeGoal?.fat_target_g ?? 65, unit: "g", pct: weeklySummary?.macros?.fat?.percentage ?? 0 },
-                    { label: "Fiber", value: activeGoal?.fiber_target_g ?? 25, unit: "g", pct: 0 },
+                    { label: t("calories"), value: activeGoal?.daily_calorie_target ?? 2000, unit: t("progress_kcal_unit"), pct: activeGoal?.daily_calorie_target ? Math.min(100, Math.round(((weeklySummary?.calories?.thisWeekAvg ?? 0) / activeGoal.daily_calorie_target) * 100)) : 0 },
+                    { label: t("protein"), value: activeGoal?.protein_target_g ?? 120, unit: t("progress_gram_unit"), pct: weeklySummary?.macros?.protein?.percentage ?? 0 },
+                    { label: t("carbs"), value: activeGoal?.carbs_target_g ?? 250, unit: t("progress_gram_unit"), pct: weeklySummary?.macros?.carbs?.percentage ?? 0 },
+                    { label: t("fat_label"), value: activeGoal?.fat_target_g ?? 65, unit: t("progress_gram_unit"), pct: weeklySummary?.macros?.fat?.percentage ?? 0 },
+                    { label: t("fiber"), value: activeGoal?.fiber_target_g ?? 25, unit: t("progress_gram_unit"), pct: 0 },
                   ].map((m) => (
                     <div key={m.label} className="flex items-center gap-2 shrink-0 rounded-[12px] bg-slate-50 px-3 py-2">
                       <div className={`h-2 w-2 rounded-full ${m.pct >= 80 ? 'bg-emerald-500' : m.pct >= 50 ? 'bg-amber-500' : m.pct > 0 ? 'bg-red-400' : 'bg-slate-300'}`} />
@@ -1793,17 +1800,17 @@ export default function ProgressRedesigned() {
 
         {coachProposals.length > 0 && (
         <section className="mb-5">
-          <SectionHeader title="Coach Goals" />
+          <SectionHeader title={t("progress_coach_goals")} />
           <div className="space-y-3">
             {coachProposals.map((proposal) => {
               const prog = coachGoalProgress.find((p) => p.proposalId === proposal.id);
               const goalTypeDisplay: Record<string, string> = {
-                weight_target: "Weight Target",
-                calorie_target: "Calorie Target",
-                macro_target: "Macro Target",
-                meal_adherence: "Meal Adherence",
-                workout_frequency: "Workout Frequency",
-                streak_target: "Streak Target",
+                weight_target: t("progress_weight_target"),
+                calorie_target: t("progress_calorie_target"),
+                macro_target: t("progress_macro_target"),
+                meal_adherence: t("progress_meal_adherence"),
+                workout_frequency: t("progress_workout_frequency"),
+                streak_target: t("progress_streak_target"),
               };
               const goalIcon: Record<string, LucideIcon> = {
                 weight_target: Scale,
@@ -1846,9 +1853,9 @@ export default function ProgressRedesigned() {
                           </span>
                         </div>
                         <p className="text-[11px] font-medium text-slate-500">
-                          From {proposal.coach_name}
+                          {t("progress_from_coach", { name: proposal.coach_name })}
                           {proposal.deadline && prog?.daysRemaining != null && (
-                            <> · {prog.daysRemaining} days left</>
+                            <> · {t("progress_days_left", { count: prog.daysRemaining })}</>
                           )}
                         </p>
                       </div>
@@ -1857,7 +1864,7 @@ export default function ProgressRedesigned() {
                     <div className="mt-3 flex items-center gap-3">
                       <div className="rounded-[12px] bg-slate-50 px-3 py-2 text-center">
                         <p className="text-[18px] font-black text-slate-900">{prog?.currentValue ?? "—"}</p>
-                        <p className="text-[9px] font-bold text-slate-500">CURRENT</p>
+                        <p className="text-[9px] font-bold text-slate-500">{t("progress_current")}</p>
                       </div>
                       <div className="flex-1">
                         <div className="h-2 rounded-full bg-slate-100">
@@ -1871,13 +1878,13 @@ export default function ProgressRedesigned() {
                       </div>
                       <div className="rounded-[12px] bg-emerald-50 px-3 py-2 text-center">
                         <p className="text-[18px] font-black text-emerald-700">{proposal.target_value}</p>
-                        <p className="text-[9px] font-bold text-emerald-400">TARGET</p>
+                        <p className="text-[9px] font-bold text-emerald-400">{t("progress_target")}</p>
                       </div>
                     </div>
 
                     {prog && (
                       <p className="mt-2 text-[11px] font-semibold text-slate-500">
-                        {prog.progressPct}% of goal reached · {prog.unit}
+                        {t("progress_of_goal_reached", { pct: prog.progressPct, unit: prog.unit })}
                       </p>
                     )}
 
@@ -1892,14 +1899,14 @@ export default function ProgressRedesigned() {
                           onClick={() => acceptCoachGoal(proposal.id)}
                           className="flex-1 h-11 rounded-[12px] bg-emerald-600 text-[13px] font-bold text-white active:scale-95 transition-all hover:bg-emerald-700"
                         >
-                          Accept Goal
+                          {t("progress_accept_goal")}
                         </button>
                         <button
                           type="button"
                           onClick={() => rejectCoachGoal(proposal.id)}
                           className="h-11 rounded-[12px] bg-slate-100 px-5 text-[13px] font-bold text-slate-500 active:scale-95 transition-all hover:bg-slate-200"
                         >
-                          Decline
+                          {t("progress_decline")}
                         </button>
                       </div>
                     )}
@@ -1913,21 +1920,21 @@ export default function ProgressRedesigned() {
 
         {activeTab === "week" && (
         <section className="mb-5">
-          <SectionHeader action={showWeekDetails ? "Hide Details" : "View Details"} title="Weekly Performance" onClick={() => setShowWeekDetails(!showWeekDetails)} />
+          <SectionHeader action={showWeekDetails ? t("progress_hide_details") : t("progress_view_details")} title={t("progress_weekly_performance_title")} onClick={() => setShowWeekDetails(!showWeekDetails)} />
           <div className="grid grid-cols-4 gap-2.5">
             {weeklyMetrics.map((metric) => <MetricRing key={metric.label} metric={metric} />)}
           </div>
           {showWeekDetails && weeklySummary && (
             <div className="mt-4 grid grid-cols-2 gap-3">
               <article className="rounded-[16px] border border-slate-100 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-                <span className="text-[11px] font-semibold text-slate-500">Avg Calories/Day</span>
-                <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.calories.thisWeekAvg}<span className="ml-1 text-[11px] font-bold text-slate-500">kcal</span></p>
+                <span className="text-[11px] font-semibold text-slate-500">{t("progress_avg_calories_day")}</span>
+                <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.calories.thisWeekAvg}<span className="ml-1 text-[11px] font-bold text-slate-500">{t("progress_kcal_unit")}</span></p>
                 <span className="text-[10px] font-semibold text-slate-500">vs {weeklySummary.calories.lastWeekAvg} last week</span>
               </article>
               <article className="rounded-[16px] border border-slate-100 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-                <span className="text-[11px] font-semibold text-slate-500">Days Logged</span>
+                <span className="text-[11px] font-semibold text-slate-500">{t("progress_days_logged_label")}</span>
                 <p className="text-[26px] font-black tracking-[-0.05em] text-slate-950">{weeklySummary.consistency.daysLogged}<span className="text-slate-500">/7</span></p>
-                <span className="text-[10px] font-semibold text-slate-500">streak: {weeklySummary.consistency.streak}</span>
+                <span className="text-[10px] font-semibold text-slate-500">{t("progress_streak_label")} {weeklySummary.consistency.streak}</span>
               </article>
             </div>
           )}
@@ -1941,27 +1948,27 @@ export default function ProgressRedesigned() {
               <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-emerald-600">
                 <UserRound className="h-5 w-5" />
               </div>
-              <h3 className="text-[16px] font-black tracking-[-0.04em]">Body Metrics</h3>
+              <h3 className="text-[16px] font-black tracking-[-0.04em]">{t("progress_body_metrics")}</h3>
             </div>
             <div className="grid grid-cols-[1fr_64px_1fr] items-center gap-3">
               <div className="space-y-6">
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-500">Current Weight</p>
-                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{currentWeight}<span className="ml-1 text-[12px] font-bold">kg</span></p>
+                  <p className="text-[11px] font-semibold text-slate-500">{t("progress_current_weight")}</p>
+                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{currentWeight}<span className="ml-1 text-[12px] font-bold">{t("progress_kg_unit")}</span></p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-500">Height</p>
-                  <p className="mt-1 text-[22px] font-black tracking-[-0.05em]">{height}<span className="ml-1 text-[12px] font-bold">cm</span></p>
+                  <p className="text-[11px] font-semibold text-slate-500">{t("progress_height")}</p>
+                  <p className="mt-1 text-[22px] font-black tracking-[-0.05em]">{height}<span className="ml-1 text-[12px] font-bold">{t("units_cm")}</span></p>
                 </div>
               </div>
               <HumanSilhouette />
               <div className="space-y-6 text-right">
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-500">Goal Weight</p>
-                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{activeGoal?.target_weight_kg ? `${goalWeight}` : "—"}<span className="ml-1 text-[12px] font-bold">kg</span></p>
+                  <p className="text-[11px] font-semibold text-slate-500">{t("progress_goal_weight")}</p>
+                  <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{activeGoal?.target_weight_kg ? `${goalWeight}` : "—"}<span className="ml-1 text-[12px] font-bold">{t("progress_kg_unit")}</span></p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-slate-500">BMI</p>
+                  <p className="text-[11px] font-semibold text-slate-500">{t("progress_bmi")}</p>
                   <p className="mt-1 text-[24px] font-black tracking-[-0.06em]">{bmi}</p>
                   <p className="text-[11px] font-extrabold text-[#00A86B]">{bmiLabel}</p>
                 </div>

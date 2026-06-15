@@ -1,4 +1,5 @@
 import { Sparkles, ChevronRight, Drumstick, Droplets, Leaf, Check, AlertCircle } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
 interface AIInsightImageCardProps {
@@ -80,6 +81,7 @@ export function AIInsightImageCard({
   loading,
   onViewAnalysis,
 }: AIInsightImageCardProps) {
+  const { t } = useLanguage();
   const overallGood = score >= 60;
   const statusColor = overallGood ? "from-violet-600 via-purple-500 to-indigo-600" : "from-amber-500 via-orange-500 to-rose-500";
   const accentColor = overallGood ? "violet" : "amber";
@@ -109,8 +111,8 @@ export function AIInsightImageCard({
               <Sparkles size={19} className="text-white" />
             </div>
             <div>
-              <h3 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-900">AI Insight</h3>
-              <p className="text-[11px] font-medium text-slate-400">Smart nutrition analysis</p>
+              <h3 className="text-[16px] font-extrabold tracking-[-0.02em] text-slate-900">{t("progress_ai_insight")}</h3>
+              <p className="text-[11px] font-medium text-slate-400">{t("progress_smart_nutrition_analysis")}</p>
             </div>
           </div>
           {/* Score badge */}
@@ -145,7 +147,7 @@ export function AIInsightImageCard({
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">AI Summary</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400">{t("progress_ai_summary")}</p>
               <p className={cn(
                 "mt-0.5 text-[15px] font-extrabold tracking-[-0.02em]",
                 overallGood ? "text-violet-700" : "text-amber-600"
@@ -155,11 +157,11 @@ export function AIInsightImageCard({
               {loading ? (
                 <div className="mt-1.5 flex items-center gap-2">
                   <div className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-violet-300 border-t-violet-500" />
-                  <span className="text-[11px] font-medium text-violet-300">Generating insight...</span>
+                  <span className="text-[11px] font-medium text-violet-300">{t("progress_generating_insight")}</span>
                 </div>
               ) : (
                 <p className="mt-1 text-[11px] font-medium leading-[1.5] text-slate-500 line-clamp-2">
-                  {summary || "Track your meals consistently to unlock AI-powered insights."}
+                  {summary || t("progress_track_to_unlock_ai")}
                 </p>
               )}
             </div>
@@ -169,7 +171,7 @@ export function AIInsightImageCard({
         {/* Confidence pill */}
         <div className="mt-3 flex items-center gap-2">
           <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-600">
-            {confidence}% confidence
+            {t("progress_confidence", { value: confidence })}
           </span>
         </div>
 
@@ -177,21 +179,21 @@ export function AIInsightImageCard({
         <div className="mt-3 space-y-1 rounded-2xl bg-white/60 backdrop-blur-sm p-2 ring-1 ring-violet-100/40">
           <StatusRow
             icon={<Drumstick size={14} />}
-            title="Protein"
+            title={t("nutrition_protein")}
             status={proteinStatus}
             success={proteinStatus.toLowerCase().includes("track") || proteinStatus.toLowerCase().includes("good")}
           />
           <div className="h-px bg-violet-50 mx-1" />
           <StatusRow
             icon={<Droplets size={14} />}
-            title="Hydration"
+            title={t("nutrition_hydration")}
             status={hydrationStatus}
             success={hydrationStatus.toLowerCase().includes("track") || hydrationStatus.toLowerCase().includes("good")}
           />
           <div className="h-px bg-violet-50 mx-1" />
           <StatusRow
             icon={<Leaf size={14} />}
-            title="Calories"
+            title={t("nutrition_calories")}
             status={calorieStatus}
             success={calorieStatus.toLowerCase().includes("track") || calorieStatus.toLowerCase().includes("good")}
           />
@@ -201,11 +203,11 @@ export function AIInsightImageCard({
         <button
           onClick={onViewAnalysis}
           className="mt-4 flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 px-5 py-3.5 text-left font-bold text-white shadow-[0_8px_24px_rgba(124,58,237,0.3)] active:scale-[0.98] transition-all hover:shadow-[0_12px_28px_rgba(124,58,237,0.4)]"
-          aria-label="View full AI analysis"
+          aria-label={t("progress_view_full_ai_analysis")}
         >
           <span className="flex items-center gap-2.5">
             <Sparkles size={17} className="text-white/90" />
-            <span className="text-[13px]">View Full AI Analysis</span>
+            <span className="text-[13px]">{t("progress_view_full_ai_analysis")}</span>
           </span>
           <ChevronRight size={18} className="text-white/80" />
         </button>

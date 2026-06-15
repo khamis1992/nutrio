@@ -44,10 +44,10 @@ export function useWeekdayData(userId: string | undefined, calorieTarget: number
           .lte("log_date", format(sun, "yyyy-MM-dd")),
         supabase
           .from("workout_sessions")
-          .select("completed_at")
+          .select("session_date")
           .eq("user_id", userId)
-          .gte("completed_at", format(mon, "yyyy-MM-dd"))
-          .lte("completed_at", format(sun, "yyyy-MM-dd") + "T23:59:59"),
+          .gte("session_date", format(mon, "yyyy-MM-dd"))
+          .lte("session_date", format(sun, "yyyy-MM-dd")),
       ]);
 
       const waterByDate = new Map<string, number>();
@@ -63,7 +63,7 @@ export function useWeekdayData(userId: string | undefined, calorieTarget: number
         });
       }
 
-      const workoutDates = new Set((workouts ?? []).map((w) => w.completed_at?.split("T")[0]));
+      const workoutDates = new Set((workouts ?? []).map((w) => w.session_date));
 
       const result: DayEntry[] = [];
       for (let i = 0; i < 7; i++) {

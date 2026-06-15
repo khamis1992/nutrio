@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,7 +85,8 @@ export default function Tracker() {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
+  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   const today = format(new Date(), "yyyy-MM-dd");
 
   const {
@@ -163,7 +165,7 @@ export default function Tracker() {
             onClick={() => navigate(-1)}
             className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0"
           >
-            <ChevronLeft className="h-5 w-5 text-slate-600" />
+            <PrevIcon className="h-5 w-5 text-slate-600" />
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-[17px] font-extrabold text-slate-900 leading-tight">{t("tracker")}</h1>
@@ -431,7 +433,7 @@ export default function Tracker() {
                   <p className="text-[11px] text-slate-500">{t("track_daily_results")}</p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-emerald-400" />
+              <NextIcon className="w-4 h-4 text-emerald-400" />
             </button>
 
           </div>

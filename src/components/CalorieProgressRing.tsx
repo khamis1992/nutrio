@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -81,7 +82,7 @@ const CalorieProgressRing = ({ consumed, target }: CalorieProgressRingProps) => 
 
   return (
     <div className="flex flex-col items-center">
-      <p className="text-sm text-muted-foreground mb-4 font-medium">Daily-Calorie Target</p>
+      <p className="text-sm text-muted-foreground mb-4 font-medium">{t("daily_calorie_target")}</p>
       
       <div className="relative">
         <svg 

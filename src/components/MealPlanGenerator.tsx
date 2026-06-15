@@ -50,6 +50,8 @@ interface NutritionTargets {
 }
 
 export function MealPlanGenerator() {
+  const { isRTL } = useLanguage();
+  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   const [meals, setMeals] = useState<Meal[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlanDay[]>([]);

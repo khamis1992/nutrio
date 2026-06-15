@@ -96,25 +96,41 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trigger_goal_update_on_weight ON body_measurements;
+DO $$ BEGIN
 CREATE TRIGGER trigger_goal_update_on_weight
   AFTER INSERT OR UPDATE ON body_measurements
   FOR EACH ROW
   EXECUTE FUNCTION update_goal_current_value();
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 DROP TRIGGER IF EXISTS trigger_goal_update_on_progress ON progress_logs;
+DO $$ BEGIN
 CREATE TRIGGER trigger_goal_update_on_progress
   AFTER INSERT OR UPDATE ON progress_logs
   FOR EACH ROW
   EXECUTE FUNCTION update_goal_current_value();
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 DROP TRIGGER IF EXISTS trigger_goal_update_on_streak ON user_streaks;
+DO $$ BEGIN
 CREATE TRIGGER trigger_goal_update_on_streak
   AFTER INSERT OR UPDATE ON user_streaks
   FOR EACH ROW
   EXECUTE FUNCTION update_goal_current_value();
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 DROP TRIGGER IF EXISTS trigger_goal_update_on_meals ON meal_schedules;
+DO $$ BEGIN
 CREATE TRIGGER trigger_goal_update_on_meals
   AFTER INSERT OR UPDATE ON meal_schedules
   FOR EACH ROW
   EXECUTE FUNCTION update_goal_current_value();
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+

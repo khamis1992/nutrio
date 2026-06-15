@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useRef } from "react";
 import { Camera, ImageIcon, Loader2, User, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -232,7 +233,7 @@ export const AvatarUpload = ({
                   className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl text-muted-foreground active:bg-muted transition-colors"
                 >
                   <X className="w-4 h-4" />
-                  <span className="font-semibold">Cancel</span>
+                  <span className="font-semibold">{t("cancel_button")}</span>
                 </button>
               </div>
             </motion.div>

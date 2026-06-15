@@ -103,7 +103,7 @@ export function useGoogleFitWorkouts() {
       .maybeSingle();
     
     if (!tokenData?.refresh_token) {
-      console.log("No refresh token found");
+
       return false;
     }
     
@@ -117,7 +117,6 @@ export function useGoogleFitWorkouts() {
         return false;
       }
 
-      console.log("Token refreshed successfully");
       return true;
     } catch (error) {
       console.error("Failed to refresh token:", error);
@@ -211,16 +210,16 @@ export function useGoogleFitWorkouts() {
         .maybeSingle();
       
       if (!tokenData?.access_token) {
-        console.log("No Google Fit token found");
+
         return [];
       }
       
       // Check if token is expired and try to refresh
       if (tokenData.expires_at * 1000 < Date.now()) {
-        console.log("Token expired, attempting refresh...");
+
         const refreshed = await refreshToken();
         if (!refreshed) {
-          console.log("Token refresh failed");
+
           return [];
         }
         // Re-fetch the new token

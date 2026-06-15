@@ -45,7 +45,7 @@ export function AdjustmentItem({ adjustment }: AdjustmentItemProps) {
                     Applied
                   </>
                 ) : (
-                  "Pending"
+                  t("pending_status")
                 )}
               </Badge>
               <span className="text-sm text-muted-foreground">

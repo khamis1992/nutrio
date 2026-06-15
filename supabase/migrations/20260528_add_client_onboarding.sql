@@ -21,29 +21,45 @@ CREATE TABLE IF NOT EXISTS client_onboarding_responses (
 ALTER TABLE client_onboarding_responses ENABLE ROW LEVEL SECURITY;
 
 -- Clients can view their own onboarding responses
+DO $$ BEGIN
 CREATE POLICY "clients_view_own_onboarding" ON client_onboarding_responses
   FOR SELECT
   TO authenticated
   USING (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can insert their own onboarding responses
+DO $$ BEGIN
 CREATE POLICY "clients_insert_onboarding" ON client_onboarding_responses
   FOR INSERT
   TO authenticated
   WITH CHECK (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Clients can update their own onboarding responses (upsert via application logic)
+DO $$ BEGIN
 CREATE POLICY "clients_update_own_onboarding" ON client_onboarding_responses
   FOR UPDATE
   TO authenticated
   USING (client_id = auth.uid())
   WITH CHECK (client_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Coaches can view onboarding responses of their clients
+DO $$ BEGIN
 CREATE POLICY "coaches_view_client_onboarding" ON client_onboarding_responses
   FOR SELECT
   TO authenticated
   USING (coach_id = auth.uid());
+EXCEPTION WHEN duplicate_object OR duplicate_table THEN null;
+END $$;
+
 
 -- Add coach_onboarding notification type if it doesn't exist
 DO $$

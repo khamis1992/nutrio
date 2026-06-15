@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { downloadInvoice } from "@/services/walletService";
 
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
 
 interface Invoice {
@@ -38,15 +39,25 @@ interface Invoice {
   pdf_url: string | null;
 }
 
-const invoiceTypeConfig: Record<string, { icon: typeof Receipt; color: string; label: string }> = {
-  'wallet_topup': { icon: Wallet, color: 'text-green-600', label: 'Wallet Top-up' },
-  'subscription': { icon: Crown, color: 'text-purple-600', label: 'Subscription' },
-  'order': { icon: Truck, color: 'text-blue-600', label: 'Order' },
-  'partner_payout': { icon: User, color: 'text-amber-600', label: 'Partner Payout' },
-  'driver_payout': { icon: User, color: 'text-amber-600', label: 'Driver Payout' },
+const invoiceTypeLabels: Record<string, string> = {
+  'wallet_topup': 'invoice_type_wallet_topup',
+  'subscription': 'invoice_type_subscription',
+  'order': 'invoice_type_order',
+  'partner_payout': 'invoice_type_partner_payout',
+  'driver_payout': 'invoice_type_driver_payout',
+};
+
+const invoiceTypeConfig: Record<string, { icon: typeof Receipt; color: string }> = {
+  'wallet_topup': { icon: Wallet, color: 'text-green-600' },
+  'subscription': { icon: Crown, color: 'text-purple-600' },
+  'order': { icon: Truck, color: 'text-blue-600' },
+  'partner_payout': { icon: User, color: 'text-amber-600' },
+  'driver_payout': { icon: User, color: 'text-amber-600' },
 };
 
 export default function InvoiceHistory() {
+  const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("invoice_history_title")} — Nutrio`; }, [t]);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -117,9 +128,15 @@ export default function InvoiceHistory() {
     return (
       <div className="min-h-screen bg-background">        <main className="container max-w-md mx-auto px-4 py-6">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold">Invoice History</h1>
-              <Receipt className="h-6 w-6 text-muted-foreground" />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all shrink-0"
+                aria-label={t("go_back")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <h1 className="text-2xl font-bold">{t("invoice_history_title")}</h1>
             </div>
 
             <div className="space-y-4">
@@ -140,12 +157,19 @@ export default function InvoiceHistory() {
 
   return (
     <div className="min-h-screen bg-background pb-20"><main className="container max-w-md mx-auto px-4 py-6 pb-20">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all shrink-0"
+            aria-label={t("go_back")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <div>
-            <h1 className="text-2xl font-bold">Invoice History</h1>
-            <p className="text-muted-foreground">All your invoices in one place</p>
+            <h1 className="text-2xl font-bold">{t("invoice_history_title")}</h1>
+            <p className="text-muted-foreground">{t("invoice_history_subtitle")}</p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+          <div className="ml-auto w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
             <Receipt className="h-6 w-6 text-blue-600" />
           </div>
         </div>
@@ -154,9 +178,9 @@ export default function InvoiceHistory() {
           <Card>
             <CardContent className="py-12 text-center">
               <Receipt className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-muted-foreground">No invoices yet</p>
+              <p className="text-muted-foreground">{t("invoice_history_empty")}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Your invoices will appear here after you make purchases
+                {t("invoice_history_empty_desc")}
               </p>
             </CardContent>
           </Card>
@@ -186,7 +210,7 @@ export default function InvoiceHistory() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <p className="font-semibold truncate">
-                              {config.label}
+                              {t(invoiceTypeLabels[invoice.invoice_type])}
                             </p>
                             <Badge className={status.color}>
                               <StatusIcon className="h-3 w-3 mr-1" />

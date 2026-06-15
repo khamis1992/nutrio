@@ -76,12 +76,20 @@ const TYPE_CONFIG: Record<Notification["type"], { icon: React.ElementType; bg: s
   },
 };
 
+const filterLabelKeys: Record<string, string> = {
+  all: "all",
+  orders: "orders",
+  meals: "meals",
+  messages: "filter_messages",
+  offers: "filter_offers",
+};
+
 const FILTERS = [
-  { key: "all", label: "All", icon: Bell },
-  { key: "orders", label: "Orders", icon: Truck },
-  { key: "meals", label: "Meals", icon: Utensils },
-  { key: "messages", label: "Messages", icon: MessageCircle },
-  { key: "offers", label: "Offers", icon: Sparkles },
+  { key: "all", icon: Bell },
+  { key: "orders", icon: Truck },
+  { key: "meals", icon: Utensils },
+  { key: "messages", icon: MessageCircle },
+  { key: "offers", icon: Sparkles },
 ] as const;
 
 type FilterKey = typeof FILTERS[number]["key"];
@@ -210,7 +218,7 @@ function CoachReplySheet({
             <h2 className="text-[14px] font-extrabold text-slate-900 truncate">
               {coachInfo?.coachName || "Your Coach"}
             </h2>
-            <p className="text-[10px] text-slate-500">Coach</p>
+            <p className="text-[10px] text-slate-500">{t("coach")}</p>
           </div>
         </div>
       </div>
@@ -221,13 +229,22 @@ function CoachReplySheet({
         className="flex-1 overflow-y-auto px-4 py-3 space-y-2"
       >
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 text-violet-500 animate-spin" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-card rounded-2xl border p-4 flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+                <Skeleton className="h-4 w-4 rounded" />
+              </div>
+            ))}
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <MessageCircle className="w-10 h-10 text-slate-200 mb-3" />
-            <p className="text-[13px] text-slate-400">No messages yet</p>
+            <p className="text-[13px] text-slate-400">{t("notifications_no_messages")}</p>
           </div>
         ) : (
           <AnimatePresence>
@@ -300,6 +317,7 @@ function CoachReplySheet({
 
 export default function Notifications() {
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("Notifications")} — Nutrio`; }, [t]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -466,7 +484,7 @@ export default function Notifications() {
                   }`}
                 >
                   <Icon className={isActive ? "h-4 w-4" : "h-4 w-4 text-slate-400"} strokeWidth={isActive ? 2.5 : 2} />
-                  {f.label}
+                  {t(filterLabelKeys[f.key])}
                 </motion.button>
               );
             })}
@@ -498,8 +516,8 @@ export default function Notifications() {
               <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner">
                 <BellOff className="h-12 w-12 text-slate-400" strokeWidth={1.5} />
               </div>
-              <h3 className="mt-6 text-[17px] font-semibold text-slate-900">All caught up!</h3>
-              <p className="mt-1.5 text-[14px] text-slate-500">You have no new notifications</p>
+              <h3 className="mt-6 text-[17px] font-semibold text-slate-900">{t("dashboard_all_caught_up")}</h3>
+              <p className="mt-1.5 text-[14px] text-slate-500">{t("notifications_no_new")}</p>
             </motion.div>
           ) : (
             <div className="mt-4 space-y-6">

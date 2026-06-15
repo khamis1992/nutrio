@@ -98,6 +98,7 @@ export default defineConfig(({ mode }) => ({
   // Optimizations for mobile
   build: {
     outDir: 'dist',
+    chunkSizeWarningLimit: 1000,
     // NOTE: Do NOT set build.target here — @vitejs/plugin-legacy controls the
     // target automatically. Setting 'esnext' here causes the legacy plugin to
     // emit a warning and may produce incorrect output for older Android WebViews.

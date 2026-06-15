@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Coffee, Heart, Search, Store, Soup, Utensils, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowLeft, Coffee, Heart, RefreshCw, Search, Store, Soup, Utensils, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
@@ -52,6 +53,7 @@ const truncDesc = (v: string | null | undefined, fb: string) => { const t = v?.t
 
 const RestaurantCard = ({ restaurant, isFavorite, onToggleFavorite }: { restaurant: ShowcaseRestaurant; isFavorite: (rid: string) => boolean; onToggleFavorite: (rid: string | undefined, rn: string) => void; }) => {
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("nav_meals")} — Nutrio`; }, [t]);
   const fav = restaurant.liveRestaurantId ? isFavorite(restaurant.liveRestaurantId) : false;
   const card = (
     <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 transition hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
@@ -86,11 +88,69 @@ const Meals = () => {
 
   const handleToggleFavorite = useCallback((rid: string | undefined, rn: string) => {
     if (!rid) return; Haptics.impact({ style: "medium" });
-    if (!user) { promptLogin({ title: "Save your favorites", description: "Sign in to keep your favorite restaurants and meals synced.", actionLabel: "Sign in", signUpLabel: "Create free account" }); return; }
+    if (!user) { promptLogin({ title: t("save_your_favorites"), description: t("sign_in_to_save_favorites_desc"), actionLabel: t("sign_in"), signUpLabel: t("create_free_account") }); return; }
     toggleFavorite(rid, rn);
   }, [promptLogin, toggleFavorite, user]);
 
-  useEffect(() => { (async () => { try { const { data: rd } = await supabase.from("restaurants").select("id, name, description, logo_url, rating, total_orders, cuisine_types").eq("approval_status","approved").eq("is_active",true).neq("name","test").not("name","ilike","%test%").not("description","ilike","%test%"); if (!rd) return; const ids = rd.map((r) => r.id); let mc: Record<string, number> = {}; if (ids.length > 0) { const { data: md } = await supabase.from("meals").select("restaurant_id").in("restaurant_id", ids); if (md) { mc = md.reduce<Record<string, number>>((a, m) => { if (m.restaurant_id) a[m.restaurant_id] = (a[m.restaurant_id] || 0) + 1; return a; }, {}); } } setRestaurants(rd.map((r) => ({ id: r.id, name: r.name, description: r.description, logo_url: r.logo_url, rating: Number(r.rating || 0), total_orders: r.total_orders || 0, meal_count: mc[r.id] || 0, cuisine_types: r.cuisine_types || [] }))); } catch (e) { console.error(e); } })(); }, []);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: rd, error: rdError } = await supabase
+          .from("restaurants")
+          .select("id, name, description, logo_url, rating, total_orders, cuisine_types")
+          .eq("approval_status", "approved")
+          .eq("is_active", true)
+          .neq("name", "test")
+          .not("name", "ilike", "%test%")
+          .not("description", "ilike", "%test%");
+
+        if (rdError) {
+          console.error("Error fetching restaurants:", rdError);
+          setFetchError(rdError.message);
+          return;
+        }
+        if (!rd) return;
+
+        const ids = rd.map((r) => r.id);
+        let mc: Record<string, number> = {};
+        if (ids.length > 0) {
+          const { data: md, error: mdError } = await supabase
+            .from("meals")
+            .select("restaurant_id")
+            .in("restaurant_id", ids);
+
+          if (mdError) {
+            console.error("Error fetching meal counts:", mdError);
+            // Non-fatal — continue with zero counts
+          }
+          if (md) {
+            mc = md.reduce<Record<string, number>>((a, m) => {
+              if (m.restaurant_id) a[m.restaurant_id] = (a[m.restaurant_id] || 0) + 1;
+              return a;
+            }, {});
+          }
+        }
+
+        setRestaurants(
+          rd.map((r) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            logo_url: r.logo_url,
+            rating: Number(r.rating || 0),
+            total_orders: r.total_orders || 0,
+            meal_count: mc[r.id] || 0,
+            cuisine_types: r.cuisine_types || [],
+          }))
+        );
+      } catch (e) {
+        console.error("Error loading restaurants:", e);
+        setFetchError(e instanceof Error ? e.message : "Failed to load restaurants");
+      }
+    })();
+  }, []);
 
   const hydrateRestaurant = useCallback((t: RestaurantTemplate): ShowcaseRestaurant => { const rm = restaurants.find((r) => normalize(r.name) === normalize(t.name)); return { ...t, description: truncDesc(rm?.description, t.description), meals: rm?.meal_count || t.meals, liveRestaurantId: rm?.id }; }, [restaurants]);
   const search = searchQuery.trim().toLowerCase();
@@ -115,8 +175,37 @@ const Meals = () => {
     return true;
   });
 
+  const hasNoResults = visibleRestaurants.length === 0 && restaurantTemplates.length > 0 && !fetchError;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
+      {hasNoResults && (
+        <div className="mx-auto max-w-[430px] px-5 pt-20 pb-10 text-center">
+          <div className="w-20 h-20 mx-auto mb-5 rounded-3xl bg-muted flex items-center justify-center">
+            <Search className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">{t("no_matches_found")}</h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">{t("no_matches_hint")}</p>
+          <Button variant="outline" onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}>
+            {t("clear_filters")}
+          </Button>
+        </div>
+      )}
+      {fetchError && (
+        <div className="mx-auto max-w-[430px] px-5 pt-4">
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-destructive">{t("meals_could_not_load")}</p>
+              <p className="text-sm text-muted-foreground mt-1">{fetchError}</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => { setFetchError(null); window.location.reload(); }}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                {t("retry")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero Header: Illustration on Gradient ── */}
       <div className="sticky top-0 z-20">
@@ -149,7 +238,7 @@ const Meals = () => {
                 <Link
                   to="/dashboard"
                   className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white backdrop-blur-sm transition active:scale-95"
-                  aria-label="Back"
+                  aria-label={t("back")}
                 >
                   <ArrowLeft className="h-[20px] w-[20px]" strokeWidth={2.5} />
                 </Link>
@@ -162,7 +251,7 @@ const Meals = () => {
                         ? "border-rose-300/60 bg-rose-500/80 text-white"
                         : "border-white/20 bg-white/15 text-white"
                     )}
-                    aria-label="Toggle favorites"
+                    aria-label={t("toggle_favorites_aria")}
                   >
                     <Heart className={cn("h-[18px] w-[18px]", showFavoritesOnly && "fill-white")} strokeWidth={2} />
                   </button>
@@ -172,9 +261,9 @@ const Meals = () => {
               {/* Title block */}
               <div className="mb-5">
                 <h1 className="text-[30px] font-black leading-[1.1] tracking-[-0.03em] text-white">
-                  Discover{" "}
+                  {t("discover")}{" "}
                   <em className="not-italic text-emerald-300">{t("meals")}</em>
-                  <br />You&apos;ll Love
+                  <br />{t("meals_youll_love")}
                 </h1>
                 <p className="mt-1.5 text-[13px] font-medium text-white/65">
                   {t("meals_page_subtitle")}

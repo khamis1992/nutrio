@@ -61,7 +61,7 @@ export const PromoVideo = () => {
               setIsLoading(false);
             })
             .catch((err) => {
-              console.log("[PromoVideo] Autoplay blocked:", err);
+
               setNeedsUserInteraction(true);
               setIsLoading(false);
             });

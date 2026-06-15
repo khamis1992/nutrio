@@ -120,7 +120,7 @@ const PersonalInfo = () => {
             size="icon"
             onClick={() => navigate(-1)}
             className="rounded-full"
-            aria-label="Go back"
+            aria-label={t("go_back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -133,7 +133,7 @@ const PersonalInfo = () => {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <CardTitle className="text-2xl font-bold tracking-tight">Profile Details</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">Manage your personal information</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("personal_info_manage")}</p>
               </div>
               <div className="relative shrink-0">
                 <div className="relative h-20 w-20 rounded-full border border-emerald-200 bg-emerald-50">
@@ -159,7 +159,7 @@ const PersonalInfo = () => {
                   <Label htmlFor="fullName" className="text-sm font-semibold">
                     Full Name
                   </Label>
-                  <p className="text-xs text-muted-foreground">This will be displayed on your profile</p>
+                  <p className="text-xs text-muted-foreground">{t("personal_info_display")}</p>
                 </div>
               </div>
               <div className="relative">
@@ -182,7 +182,7 @@ const PersonalInfo = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-semibold">{t("gender")}</Label>
-                  <p className="text-xs text-muted-foreground">Select your gender</p>
+                  <p className="text-xs text-muted-foreground">{t("personal_info_sex")}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -208,7 +208,7 @@ const PersonalInfo = () => {
                   <Label htmlFor="age" className="text-sm font-semibold">
                     Age
                   </Label>
-                  <p className="text-xs text-muted-foreground">Enter your age</p>
+                  <p className="text-xs text-muted-foreground">{t("personal_info_age")}</p>
                 </div>
               </div>
               <div className="relative">
@@ -236,7 +236,7 @@ const PersonalInfo = () => {
                 </div>
                 <div>
                   <Label className="text-sm font-semibold">Email Address</Label>
-                  <p className="text-xs text-muted-foreground">We&apos;ll never share your email</p>
+                  <p className="text-xs text-muted-foreground">{t("personal_info_email_privacy")}</p>
                 </div>
               </div>
               <div className="relative">

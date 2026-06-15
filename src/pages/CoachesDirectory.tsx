@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -32,6 +33,7 @@ interface CoachProfile {
 }
 
 export default function CoachesDirectory() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -430,7 +432,7 @@ export default function CoachesDirectory() {
                         ) : isConnected ? (
                           "Connected"
                         ) : isPending ? (
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Pending</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{t("pending_status")}</span>
                         ) : (
                           "Request"
                         )}

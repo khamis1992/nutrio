@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect, useState, useId } from "react";
 import { Lock, Star, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,11 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBadges } from "@/hooks/useBadges";
 import { cn } from "@/lib/utils";
 
-const LEVEL_NAMES: Record<number, string> = { 1: "Beginner", 2: "Explorer", 3: "Dedicated", 4: "Warrior", 5: "Champion", 6: "Elite", 7: "Master", 8: "Legend", 9: "Mythic", 10: "Transcendent" };
-function getLevelName(l: number) { return l >= 10 ? "Transcendent" : (LEVEL_NAMES[l] || `Level ${l}`); }
 type UserGamification = { xp: number; level: number; xpToNextLevel: number };
 
 export function GamificationWidget() {
+  const { t } = useLanguage();
+  const LEVEL_NAMES: Record<number, string> = { 1: t("beginner"), 2: t("explorer"), 3: t("dedicated"), 4: t("warrior"), 5: t("champion"), 6: "Elite", 7: "Master", 8: "Legend", 9: "Mythic", 10: t("transcendent") };
+  function getLevelName(l: number) { return l >= 10 ? t("transcendent") : (LEVEL_NAMES[l] || t("level_format", { level: String(l) })); }
   const { user } = useAuth();
   const { badges, unlockedCount, totalCount } = useBadges(user?.id);
   const [g, setG] = useState<UserGamification>({ xp: 0, level: 1, xpToNextLevel: 100 });
@@ -105,7 +107,7 @@ export function GamificationWidget() {
       {/* KEEP THIS SECTION IDENTICAL TO ORIGINAL — DO NOT MODIFY */}
       <div className="mx-4 mb-5">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">Badges</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{t("badges_title")}</p>
           <span className="text-[11px] font-extrabold text-amber-600">{unlockedCount}<span className="text-slate-300">/{totalCount}</span></span>
         </div>
         <div className="flex items-end justify-center gap-2">

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,9 @@ interface SideDrawerProps {
   trigger?: React.ReactNode;
 }
 
-export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
+export function SideDrawer({
+  open, onOpenChange, trigger }: SideDrawerProps) {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { favoriteIds } = useFavoriteRestaurants();
   const { hasActiveSubscription, isVip, subscription } = useSubscription();
@@ -74,7 +77,7 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
           ),
-          label: "Schedule",
+          label: t("nav_schedule"),
           description: "Plan your weekly meals",
           to: "/schedule",
         }] : []),
@@ -101,7 +104,7 @@ export function SideDrawer({ open, onOpenChange, trigger }: SideDrawerProps) {
               <line x1="6" y1="20" x2="6" y2="16" />
             </svg>
           ),
-          label: "Progress",
+          label: t("progress_label"),
           description: "Track weight, nutrition & health metrics",
           to: "/progress",
           badge: "Updated",

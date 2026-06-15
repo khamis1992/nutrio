@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { z } from "zod";
@@ -19,6 +20,7 @@ const passwordSchema = z
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +68,7 @@ const ResetPassword = () => {
       await supabase.auth.signOut();
       setTimeout(() => navigate("/auth"), 3000);
     } catch (err) {
-      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to update password", variant: "destructive" });
+      toast({ title: t("error"), description: err instanceof Error ? err.message : t("reset_failed_update"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -94,9 +96,9 @@ const ResetPassword = () => {
         >
           <Lock className="w-9 h-9 text-destructive" />
         </div>
-        <h2 className="text-[22px] font-extrabold text-gray-900 mb-2 text-center">Invalid or Expired Link</h2>
+        <h2 className="text-[22px] font-extrabold text-gray-900 mb-2 text-center">{t("reset_invalid_link")}</h2>
         <p className="text-sm text-gray-400 text-center leading-relaxed mb-8">
-          This password reset link is invalid or has expired. Please request a new one.
+          {t("reset_link_expired_desc")}
         </p>
         <Button asChild   variant="gradient" size="xl" className="w-full rounded-2xl font-bold">
           <Link to="/auth">Back to Sign In</Link>
@@ -139,10 +141,10 @@ const ResetPassword = () => {
           </div>
 
           <h1 className="text-[28px] font-extrabold text-gray-900 text-center mb-3">
-            You're All Set!
+            {t("reset_all_set")}
           </h1>
           <p className="text-sm text-gray-400 text-center leading-relaxed">
-            You've successfully changed your password.
+            {t("reset_password_changed_desc")}
           </p>
         </div>
 
@@ -154,7 +156,7 @@ const ResetPassword = () => {
             className="w-full rounded-2xl font-bold"
             style={{ height: 56, fontSize: 16 }}
           >
-            <Link to="/auth">Sign in</Link>
+            <Link to="/auth">{t("reset_sign_in")}</Link>
           </Button>
         </div>
       </div>

@@ -118,7 +118,7 @@ export function CreditDashboard() {
                   {t("credit_start_subscription") || "Start Your Subscription"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {t("credit_subscribe_desc") || "Subscribe now and get healthy meals daily"}
+                  {t("credit_subscribe_desc") || t("subscribe_healthy_meals")}
                 </p>
               </div>
               <ChevronRight className="w-4 h-4 text-primary shrink-0" />

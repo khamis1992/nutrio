@@ -36,6 +36,14 @@ import {
   AlertTriangle,
   HelpCircle,
   Users,
+  ShoppingBag,
+  Receipt,
+  Bell,
+  Settings,
+  Clock,
+  Crown,
+  Heart,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -186,6 +194,7 @@ const Profile = () => {
   const { toast } = useToast();
   const { isApprovedAffiliate } = useAffiliateApplication();
   const { t, isRTL, language, setLanguage } = useLanguage();
+  useEffect(() => { document.title = `${t("profile_tab")} — Nutrio`; }, [t]);
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [coachConnecting, setCoachConnecting] = useState(false);
@@ -307,17 +316,30 @@ const Profile = () => {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F9FA]">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center gap-4"
-        >
-          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      <div className="min-h-screen bg-[#F7F9FA]">
+        <div className="container max-w-md mx-auto px-4 py-8 space-y-4">
+          {/* Profile header skeleton */}
+          <div className="bg-card rounded-2xl border p-5 space-y-4">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
           </div>
-          <p className="text-slate-500 animate-pulse">{t("loading_profile")}</p>
-        </motion.div>
+          {/* Menu items skeleton */}
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-card rounded-2xl border p-4 flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <Skeleton className="h-5 w-5 rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -388,7 +410,7 @@ const Profile = () => {
         <div className="px-4 mt-4">
           <article className="rounded-[18px] border border-slate-100 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[14px] font-black text-slate-800">Achievements</h3>
+              <h3 className="text-[14px] font-black text-slate-800">{t("profile_achievements")}</h3>
               <span className="text-[11px] font-bold text-emerald-600">{unlockedCount}/{totalCount} Unlocked</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -401,7 +423,7 @@ const Profile = () => {
               className="mt-3 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-700"
             >
               {showAllBadges ? (
-                <>Show Less <ChevronUp className="h-3 w-3" /></>
+                <>{t("profile_show_less")}<ChevronUp className="h-3 w-3" /></>
               ) : (
                 <>View All ({totalCount}) <ChevronDown className="h-3 w-3" /></>
               )}
@@ -513,6 +535,22 @@ const Profile = () => {
               }
             />
 
+
+            <MenuRow
+              icon={<Heart className="w-full h-full" />}
+              iconBg="bg-rose-500"
+              label={t("health_dashboard_menu")}
+              subtitle={t("health_dashboard_desc")}
+              onClick={() => navigate("/health/dashboard")}
+            />
+            <MenuRow
+              icon={<MapPin className="w-full h-full" />}
+              iconBg="bg-slate-500"
+              label={t("addresses")}
+              subtitle={t("addresses_desc")}
+              onClick={() => navigate("/addresses")}
+            />
+
           </CardSection>
 
           {/* ─── Finance ─── */}
@@ -526,11 +564,45 @@ const Profile = () => {
               onClick={() => navigate("/wallet")}
             />
             <MenuRow
-              icon={<Tag className="w-full h-full" />}
-              iconBg="bg-emerald-500"
-              label={t("offers_coupons")}
-              subtitle={t("offers_coupons_subtitle")}
-              onClick={() => navigate("/wallet")}
+              icon={<ShoppingBag className="w-full h-full" />}
+              iconBg="bg-blue-500"
+              label={t("order_history_menu")}
+              subtitle={t("order_history_subtitle")}
+              onClick={() => navigate("/orders")}
+            />
+            <MenuRow
+              icon={<Receipt className="w-full h-full" />}
+              iconBg="bg-violet-500"
+              label={t("invoice_history_menu")}
+              subtitle={t("invoice_history_subtitle")}
+              onClick={() => navigate("/invoices")}
+            />
+            <MenuRow
+              icon={<Crown className="w-full h-full" />}
+              iconBg="bg-amber-500"
+              label={t("subscription_menu")}
+              subtitle={t("subscription_subtitle")}
+              onClick={() => navigate("/subscription")}
+              showDivider={false}
+            />
+          </CardSection>
+
+          {/* ─── Discover ─── */}
+          <SectionLabel>{t("discover")}</SectionLabel>
+          <CardSection>
+            <MenuRow
+              icon={<Heart className="w-full h-full" />}
+              iconBg="bg-red-500"
+              label={t("favorites_menu")}
+              subtitle={t("favorites_desc")}
+              onClick={() => navigate("/favorites")}
+            />
+            <MenuRow
+              icon={<Users className="w-full h-full" />}
+              iconBg="bg-purple-500"
+              label={t("community_menu")}
+              subtitle={t("community_desc")}
+              onClick={() => navigate("/community")}
               showDivider={false}
             />
           </CardSection>
@@ -570,6 +642,20 @@ const Profile = () => {
               label={t("privacy_security")}
               subtitle={t("privacy_security_subtitle")}
               onClick={() => navigate("/privacy")}
+            />
+            <MenuRow
+              icon={<Bell className="w-full h-full" />}
+              iconBg="bg-sky-500"
+              label={t("notifications_menu")}
+              subtitle={t("notifications_subtitle")}
+              onClick={() => navigate("/notifications")}
+            />
+            <MenuRow
+              icon={<Settings className="w-full h-full" />}
+              iconBg="bg-slate-500"
+              label={t("settings_menu")}
+              subtitle={t("settings_subtitle")}
+              onClick={() => navigate("/settings")}
             />
             <MenuRow
               icon={<LogOut className="w-full h-full" />}

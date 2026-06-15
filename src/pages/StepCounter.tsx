@@ -1,3 +1,4 @@
+import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,7 +40,7 @@ export default function StepCounter() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const calPerStep = calcCaloriesPerStep(profile?.current_weight_kg, 3.5);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [steps, setSteps] = useState(0);

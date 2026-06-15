@@ -1,3 +1,4 @@
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -16,11 +17,12 @@ interface RolloverCreditsDisplayProps {
   billingCycleEnd: string;
 }
 
-export function RolloverCreditsDisplay({ 
+export function RolloverCreditsDisplay({
   rolloverCredits, 
   rollovers,
   billingCycleEnd 
 }: RolloverCreditsDisplayProps) {
+  const { t } = useLanguage();
   const totalRollover = rollovers.reduce((sum, r) => sum + r.rollover_credits, 0);
   const activeRollovers = rollovers.filter(r => !r.consumed);
   const hasRollover = totalRollover > 0;
@@ -124,7 +126,7 @@ export function RolloverCreditsDisplay({
         ) : (
           <div className="text-center py-8 text-slate-500">
             <RotateCcw className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No rollover credits</p>
+            <p>{t("no_rollover_credits")}</p>
             <p className="text-sm mt-1">
               Unused credits rollover up to 20% at the end of each billing cycle
             </p>
@@ -141,8 +143,8 @@ export function RolloverCreditsDisplay({
               </p>
               <ul className="text-sm text-slate-500 space-y-1 list-disc list-inside">
                 <li>Up to 20% of unused credits rollover each cycle</li>
-                <li>Rollover credits are consumed before new credits</li>
-                <li>Rollover expires at the end of the next billing cycle</li>
+                <li>{t("rollover_consumed_first")}</li>
+                <li>{t("rollover_expires_end")}</li>
                 <li>Current cycle ends: {billingCycleEnd ? format(parseISO(billingCycleEnd), "MMMM d, yyyy") : "--"}</li>
               </ul>
             </div>

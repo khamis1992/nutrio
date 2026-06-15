@@ -112,7 +112,7 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
             </div>
             <div>
               <h3 className="font-bold text-gray-700">{t('rollover_credits_title')}</h3>
-              <p className="text-gray-500 text-sm mt-1">An active subscription is required to earn and use rollover credits.</p>
+              <p className="text-gray-500 text-sm mt-1">{t("rollover_sub_required")}</p>
             </div>
           </div>
         </CardContent>
@@ -186,7 +186,7 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
           </div>
           <div className="text-right">
             <p className="text-4xl font-black text-white leading-none">{totalRollover}</p>
-            <p className="text-white/70 text-[10px] font-medium mt-0.5">Available Meals</p>
+            <p className="text-white/70 text-[10px] font-medium mt-0.5">{t("available_meals")}</p>
           </div>
         </div>
 
@@ -238,7 +238,7 @@ export function RolloverCreditsWidget({ hasActiveSubscription, subscriptionEndDa
         {/* Footer note */}
         <div className="flex items-start gap-2 text-[11px] text-white/50">
           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          <p>Credits are automatically deducted when you schedule a meal. They expire with your current plan.</p>
+          <p>{t("credits_auto_deduct")} They expire with your current plan.</p>
         </div>
       </div>
     </div>

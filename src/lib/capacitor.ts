@@ -630,7 +630,6 @@ export const initializeNativeApp = async () => {
       console.warn("Push notification permission check failed:", err)
     );
 
-    console.log("Native app initialized successfully");
   } catch (error) {
     console.error("Error initializing native app:", error);
     try {

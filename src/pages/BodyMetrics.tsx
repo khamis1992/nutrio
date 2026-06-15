@@ -165,7 +165,7 @@ const BodyMetrics = () => {
           </Button>
           <div>
             <h1 className="text-base font-semibold">Body Metrics</h1>
-            <p className="text-xs text-muted-foreground">Track your weight and body measurements</p>
+            <p className="text-xs text-muted-foreground">{t("body_metrics_title")}</p>
           </div>
         </div>
       </div>
@@ -174,7 +174,7 @@ const BodyMetrics = () => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Body Metrics</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Track your weight and body measurements</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("body_metrics_title")}</p>
           </div>
           <div className="relative shrink-0">
             <div className="relative h-20 w-20 rounded-full border border-emerald-200 bg-emerald-50">
@@ -187,8 +187,8 @@ const BodyMetrics = () => {
 
         <Card className="rounded-[24px] border-border/70 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Log New Measurement</CardTitle>
-            <p className="text-sm text-muted-foreground">Enter your current body measurements</p>
+            <CardTitle className="text-lg">{t("body_metrics_log_new")}</CardTitle>
+            <p className="text-sm text-muted-foreground">{t("body_metrics_log_desc")}</p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -304,8 +304,8 @@ const BodyMetrics = () => {
         ) : metricsHistory && metricsHistory.length > 0 ? (
           <Card className="rounded-[24px] border-border/70 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Measurement History</CardTitle>
-              <p className="text-sm text-muted-foreground">Your logged body measurements</p>
+              <CardTitle className="text-lg">{t("body_metrics_history")}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t("body_metrics_history_desc")}</p>
             </CardHeader>
             <CardContent className="space-y-3">
               {metricsHistory.map((metric) => (
@@ -349,8 +349,8 @@ const BodyMetrics = () => {
             <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-muted">
               <TrendingUp className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium text-muted-foreground">No measurements yet</p>
-            <p className="text-xs text-muted-foreground">Log your first body measurement above</p>
+            <p className="text-sm font-medium text-muted-foreground">{t("body_metrics_empty")}</p>
+            <p className="text-xs text-muted-foreground">{t("body_metrics_empty_desc")}</p>
           </div>
         )}
 
@@ -362,7 +362,7 @@ const BodyMetrics = () => {
               </div>
               <div>
                 <CardTitle className="text-lg">Dietary Preferences</CardTitle>
-                <p className="text-sm text-muted-foreground">Select your food preferences and dietary restrictions</p>
+                <p className="text-sm text-muted-foreground">{t("body_metrics_preferences")}</p>
               </div>
             </div>
           </CardHeader>
@@ -376,7 +376,7 @@ const BodyMetrics = () => {
                 <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-muted">
                   <Utensils className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium text-muted-foreground">No dietary preferences available</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("body_metrics_no_prefs")}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

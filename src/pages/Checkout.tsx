@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { PaymentMethod } from '@/lib/payment-simulation-config';
 import { useCheckoutFlowVariant } from '@/hooks/useExperiments';
 import { useProfile } from '@/hooks/useProfile';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffect } from 'react';
 
 interface CartItem {
   meal_id: string;
@@ -47,6 +47,7 @@ export default function Checkout() {
   const location = useLocation();
   const { user } = useAuth();
   const { t } = useLanguage();
+  useEffect(() => { document.title = `${t("checkout_title")} — Nutrio`; }, [t]);
   const { toast } = useToast();
   const checkoutVariant = useCheckoutFlowVariant();
   const { profile } = useProfile();
@@ -465,7 +466,7 @@ export default function Checkout() {
             {/* Quick Simulation Buttons — Development Only */}
             {import.meta.env.DEV && (
               <div className="bg-primary/10 border border-primary/20 p-4 rounded-lg">
-                <p className="text-sm font-medium text-primary mb-2">Development Testing:</p>
+                <p className="text-sm font-medium text-primary mb-2">{t("checkout_dev_testing")}</p>
                 <div className="flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => handleQuickSimulate('credit_card')}>
                     Test Card
@@ -520,7 +521,7 @@ export default function Checkout() {
             {(selectedMethod === 'apple_pay' || selectedMethod === 'google_pay') && (
               <div className="bg-muted p-8 text-center rounded-lg">
                 <p className="text-muted-foreground mb-4">
-                  {selectedMethod === 'apple_pay' ? 'Apple' : 'Google'} Pay button would appear here
+                  {selectedMethod === 'apple_pay' ? t("checkout_apple_pay_placeholder") : t("checkout_google_pay_placeholder")}
                 </p>
                 <Button onClick={() => processCardPayment({
                   number: selectedMethod,

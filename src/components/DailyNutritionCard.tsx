@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getNavArrows } from "@/lib/rtl";
 import { motion, useReducedMotion } from "framer-motion";
 import { Flame, Plus, Calendar, Utensils, Activity, Wheat, Dumbbell, Apple, ChevronRight } from "lucide-react";
 import { NavChevronLeft, NavChevronRight } from "@/components/ui/nav-chevron";
@@ -131,7 +132,7 @@ export const DailyNutritionCard: React.FC<DailyNutritionCardProps> = ({
   weekDays,
 }) => {
   const { user } = useAuth();
-  const { t, language } = useLanguage();
+  const { t, isRTL, language } = useLanguage();
   const prefersReducedMotion = useReducedMotion();
   const [totalBurned, setTotalBurned] = useState(burnedCaloriesProp ?? 0);
   const [workoutCount, setWorkoutCount] = useState(workoutSessionCountProp ?? 0);
