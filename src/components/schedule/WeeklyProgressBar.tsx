@@ -1,90 +1,123 @@
 import { motion } from "framer-motion";
-import { Flame } from "lucide-react";
+import { Flame, Target, Utensils, CalendarCheck } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface WeeklyProgressBarProps {
   weekProgressPct: number;
   weekProgress: { total: number; completed: number; calories: number };
 }
 
-const getStreakLabel = (pct: number) => {
-  if (pct >= 100) return "Perfect week!";
-  if (pct >= 75) return "Almost there";
-  if (pct >= 50) return "Halfway done";
-  if (pct >= 25) return "Good start";
-  return "Getting started";
-};
-
 const WeeklyProgressBar = ({ weekProgressPct, weekProgress }: WeeklyProgressBarProps) => {
+  const { isRTL } = useLanguage();
   const pct = Math.max(0, Math.min(100, weekProgressPct || 0));
-  const streakLabel = getStreakLabel(pct);
   const hasMeals = weekProgress.total > 0;
 
+  // Stroke dash for circular progress
+  const radius = 32;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDash = (pct / 100) * circumference;
+
+  const stats = [
+    {
+      icon: CalendarCheck,
+      label: isRTL ? "الأيام المكملة" : "Done Days",
+      value: hasMeals ? weekProgress.completed : 0,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+    },
+    {
+      icon: Utensils,
+      label: isRTL ? "الوجبات الإجمالية" : "Total Meals",
+      value: weekProgress.total,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+    },
+    {
+      icon: Target,
+      label: isRTL ? "متوسط الالتزام" : "Avg Commit",
+      value: `${pct}%`,
+      color: "text-violet-600",
+      bg: "bg-violet-50",
+    },
+    {
+      icon: Flame,
+      label: isRTL ? "سلسلة الأيام" : "Day Streak",
+      value: hasMeals ? weekProgress.completed : 0,
+      color: "text-orange-600",
+      bg: "bg-orange-50",
+    },
+  ];
+
   return (
-    <div className="mb-3 overflow-hidden rounded-[18px] bg-white ring-1 ring-slate-100 shadow-[0_1px_4px_rgba(15,23,42,0.04)]">
-      <div className="px-4 pt-4 pb-0.5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50">
-            <Flame className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2.5} />
-          </div>
-          <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400">Week</span>
-          <div className="h-px flex-1 bg-slate-100" />
-          {hasMeals && (
-            <motion.span
-              key={pct}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-[13px] font-bold text-slate-700"
-            >
-              {streakLabel}
-            </motion.span>
-          )}
-        </div>
+    <div className="mb-3 overflow-hidden rounded-[18px] bg-white ring-1 ring-slate-100 shadow-[0_1px_4px_rgba(15,23,42,0.04)]" dir={isRTL ? "rtl" : "ltr"}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-50">
+        <p className="text-[11px] font-semibold text-slate-400">
+          {isRTL ? "تقدمك نحو أهدافك" : "Progress toward your goals"}
+        </p>
+        <h3 className="text-[15px] font-extrabold text-slate-900">
+          {isRTL ? "ملخص الأسبوع" : "Week Summary"}
+        </h3>
       </div>
 
-      <div className="px-4 pb-4 pt-3">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-              className="h-full rounded-full"
-              style={{
-                background: "linear-gradient(90deg, #34D399 0%, #10B981 50%, #059669 100%)",
-                boxShadow: "0 2px 8px rgba(16,185,129,0.3)",
-              }}
+      {/* Body: stats + circular progress */}
+      <div className="flex items-center gap-3 px-4 py-4">
+        {/* 4 stats grid */}
+        <div className="flex flex-1 flex-wrap gap-y-3">
+          {stats.map((stat, i) => {
+            const Icon = stat.icon;
+            return (
+              <div key={i} className="flex w-1/2 flex-col items-end gap-0.5 pr-2">
+                <span className="text-[10px] font-semibold text-slate-400">{stat.label}</span>
+                <div className="flex items-center gap-1.5">
+                  <motion.span
+                    key={String(stat.value)}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className={`text-[18px] font-black ${stat.color}`}
+                  >
+                    {stat.value}
+                  </motion.span>
+                  <div className={`flex h-6 w-6 items-center justify-center rounded-md ${stat.bg}`}>
+                    <Icon className={`h-3.5 w-3.5 ${stat.color}`} strokeWidth={2.5} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Circular progress */}
+        <div className="relative flex h-[80px] w-[80px] shrink-0 items-center justify-center">
+          <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+            <circle cx="40" cy="40" r={radius} fill="none" stroke="#f1f5f9" strokeWidth="8" />
+            <motion.circle
+              cx="40" cy="40" r={radius}
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              initial={{ strokeDashoffset: circumference }}
+              animate={{ strokeDashoffset: circumference - strokeDash }}
+              transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
             />
-            <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0))" }} />
+          </svg>
+          <div className="absolute flex flex-col items-center">
+            <span className="text-[16px] font-black text-emerald-600">{pct}%</span>
           </div>
-          <motion.div
-            key={pct}
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
-            className="shrink-0 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-[0_2px_8px_rgba(16,185,129,0.3)]"
-          >
-            {pct}%
-          </motion.div>
         </div>
-
-        {hasMeals && (
-          <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[17px] font-black text-slate-900">{weekProgress.completed}</span>
-              <span className="text-[10px] font-semibold text-slate-400">/ {weekProgress.total} meals</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[15px] font-black text-emerald-600">{weekProgress.calories.toLocaleString()}</span>
-              <span className="text-[10px] font-semibold text-slate-400">kcal</span>
-            </div>
-          </div>
-        )}
-
-        {!hasMeals && (
-          <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-            <p className="text-center text-[12px] font-semibold text-slate-400">No meals scheduled this week</p>
-          </div>
-        )}
       </div>
+
+      {/* No meals message */}
+      {!hasMeals && (
+        <div className="border-t border-slate-50 px-4 py-3 flex items-center justify-end gap-2">
+          <span className="text-[12px] font-semibold text-slate-400">
+            {isRTL ? "لا توجد وجبات مجدولة هذا الأسبوع" : "No meals scheduled this week"}
+          </span>
+          <span className="text-lg">🌿</span>
+        </div>
+      )}
     </div>
   );
 };

@@ -570,7 +570,7 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-[#F7F8FA] pb-20">
       {/* ── Unified Header (date info + calendar) ─────────────── */}
       <ScheduleHeader
         currentWeekStart={currentWeekStart}
@@ -589,7 +589,7 @@ const Schedule = () => {
       />
 
       {/* ── Content Area ─────────────────────────────── */}
-      <div className="mx-auto max-w-[432px] px-[18px] pb-[154px] mt-4">
+      <div className="mx-auto max-w-[432px] px-[16px] pb-[154px] mt-3">
 
         {/* ── Weekly Stats ─────────────────────────────── */}
         <WeeklyProgressBar
@@ -652,7 +652,7 @@ const Schedule = () => {
             ))}
           </div>
         ) : (
-          <div className="mt-[11px] space-y-[10px]">
+          <div className="mt-2 space-y-[10px]">
             {MEAL_TYPES.map((mealType, typeIndex) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
@@ -661,31 +661,13 @@ const Schedule = () => {
                const mealTypeName = t(mealType);
               const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
-              const sectionHeaderColors = ["bg-amber-400", "bg-emerald-400", "bg-indigo-400", "bg-pink-400"];
-              const sectionHeaderBorder = ["border-amber-100", "border-emerald-100", "border-indigo-100", "border-pink-100"];
-              const sectionTextColors = ["text-amber-600", "text-emerald-600", "text-indigo-600", "text-pink-600"];
-
-              const sectionHeader = (
-                <div className="flex items-center gap-2.5 px-1 pt-3 pb-1">
-                  <div className={`h-2 w-2 rounded-full ${sectionHeaderColors[typeIndex]}`} />
-                  <span className={`text-[11px] font-extrabold uppercase tracking-[0.12em] ${sectionTextColors[typeIndex]}`}>
-                    {mealTypeName}
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-400">·</span>
-                  <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {timeLabel}
-                  </span>
-                  <div className="ml-2 h-px flex-1 bg-slate-100" />
-                </div>
-              );
+              const dotColors = ["bg-amber-400", "bg-emerald-400", "bg-indigo-400", "bg-pink-400"];
 
               if (typeMeals.length > 0) {
                 return (
                   <div key={mealType}>
-                    {sectionHeader}
                     {typeMeals.map((schedule, mealIndex) => {
-                      const stripeColor = sectionHeaderColors[typeIndex];
+                      const dotColor = dotColors[typeIndex];
                       return (
                         <motion.div
                           key={schedule.id}
@@ -699,9 +681,9 @@ const Schedule = () => {
                           className={`relative cursor-pointer rounded-[18px] bg-white ring-1 shadow-[0_1px_4px_rgba(15,23,42,0.04)] active:scale-[0.98] transition-all ${
                             schedule.is_completed ? "ring-emerald-200/70" : "ring-slate-100"
                           }`}
+                          dir="rtl"
                         >
-                          <span className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full ${stripeColor}`} />
-                          <div className="flex items-center gap-3 p-3 pl-[18px]">
+                          <div className="flex items-center gap-3 p-3 pr-3">
                             {schedule.meal?.image_url ? (
                               <div className="relative shrink-0">
                                 <img
@@ -727,22 +709,23 @@ const Schedule = () => {
                               </div>
                             )}
 
-                            <div className="min-w-0 flex-1">
-                              <h3
-                                className={`truncate text-[15px] font-bold text-slate-900 ${
+                              <div className="min-w-0 flex-1 text-right">
+                              <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                                <h3 className={`truncate text-[14px] font-extrabold text-slate-900 ${
                                   schedule.is_completed ? "line-through text-slate-400" : ""
-                                }`}
-                              >
-                                {schedule.meal?.name}
-                              </h3>
-                              <div className="mt-1.5 flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-100">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                }`}>
+                                  {schedule.meal?.name}
+                                </h3>
+                                <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} />
+                              </div>
+                              <div className="flex items-center justify-end gap-1 mb-1">
+                                <span className="text-[11px] text-slate-400 font-medium">{schedule.delivery_time_slot || timeLabel}</span>
+                                <Clock className="h-3 w-3 text-slate-400" />
+                              </div>
+                              <div className="flex items-center justify-end gap-2">
+                                <span className="text-[11px] text-slate-400">{schedule.meal.protein_g}g protein</span>
+                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${config.bgGradient} ${config.textColor}`}>
                                   {schedule.meal.calories} kcal
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-blue-100">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                                  {schedule.meal.protein_g}g protein
                                 </span>
                               </div>
                             </div>
@@ -780,7 +763,6 @@ const Schedule = () => {
 
               return (
                 <div key={mealType}>
-                  {sectionHeader}
                   {Array.from({ length: maxEmptySlots }).map((_, emptyIdx) => (
                     <EmptyMealSlot
                       key={`empty-${mealType}-${emptyIdx}`}
@@ -1020,22 +1002,27 @@ const Schedule = () => {
                 <motion.button
                   onClick={() => setShowMealPlanGenerator(true)}
                   whileTap={{ scale: 0.95 }}
-                  className="group relative flex items-center gap-2 rounded-full border border-emerald-200 bg-white pl-2 pr-1.5 py-1.5 shadow-[0_10px_30px_rgba(5,150,105,0.22)] transition-all active:border-emerald-300"
+                  className="group relative flex w-full max-w-[380px] items-center gap-3 rounded-[18px] border border-slate-100 bg-white px-4 py-3 shadow-[0_2px_12px_rgba(15,23,42,0.08)] transition-all active:scale-[0.98]"
                 >
-                  {(isWeekEmpty || hasUnusedSlots) && (
-                    <motion.span
-                      animate={{ scale: [1, 1.25, 1] }}
-                      transition={{ repeat: Infinity, duration: 2 }}
-                      className="absolute -right-0.5 -top-1 h-3.5 w-3.5 rounded-full bg-amber-400 ring-2 ring-white"
-                    />
-                  )}
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)]">
-                    <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />
-                  </span>
-                  <span className="pr-2 text-[14px] font-black text-emerald-950">{t("schedule_fill_my_week")}</span>
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100">
-                    <ArrowRight className="h-[16px] w-[16px]" strokeWidth={2.5} />
-                  </span>
+                  {/* Calendar icon */}
+                  <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[12px] bg-slate-100">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="3" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1 text-right" dir="rtl">
+                    <p className="text-[14px] font-extrabold text-slate-900">املأ أسبوعك بسهولة</p>
+                    <p className="text-[11px] font-medium text-slate-400">اختر وجباتك المفضلة وسنقوم بجدولتها لك</p>
+                  </div>
+                  {/* Green action button */}
+                  <div className="flex h-[44px] min-w-[100px] shrink-0 items-center justify-center gap-1.5 rounded-full bg-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)]">
+                    <Sparkles className="h-[15px] w-[15px] text-white" strokeWidth={2} />
+                    <span className="text-[13px] font-extrabold text-white">املأ أسبوعي</span>
+                  </div>
                 </motion.button>
               </motion.div>
             );
