@@ -659,8 +659,8 @@ const Schedule = () => {
             ))}
           </div>
         ) : (
-          <div className="relative mt-[11px] space-y-[9px] pl-[14px]">
-            <div className="pointer-events-none absolute left-[3px] top-[37px] bottom-[37px] border-l-2 border-dashed border-[#D9DFE8]" />
+          <div className="relative mt-[11px] space-y-[10px] pl-[16px]">
+            <div className="pointer-events-none absolute left-[4px] top-[38px] bottom-[38px] border-l-2 border-dashed border-slate-200" />
             {MEAL_TYPES.map((mealType, typeIndex) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
@@ -677,13 +677,13 @@ const Schedule = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: typeIndex * 0.05 + mealIndex * 0.05 }}
                     onClick={() => { setSelectedMeal(schedule); setShowMealSheet(true); }}
-                    className={`group relative bg-white dark:bg-gray-900 rounded-[24px] overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-100 dark:ring-gray-800 border-0 active:scale-[0.98] transition-all cursor-pointer ${
-                      schedule.is_completed ? "ring-2 ring-emerald-400/30" : ""
+                    className={`group relative bg-white dark:bg-gray-900 rounded-[22px] overflow-hidden shadow-[0_2px_10px_rgba(15,23,42,0.07)] border-0 active:scale-[0.98] transition-all cursor-pointer ${
+                      schedule.is_completed ? "ring-2 ring-emerald-400/40 shadow-emerald-100" : "ring-1 ring-slate-100/80"
                     }`}
                   >
-                    <span className={`absolute left-[-15px] top-[36px] z-10 h-[7px] w-[7px] rounded-full ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
+                    <span className={`absolute left-[-17px] top-[38px] z-10 h-[8px] w-[8px] rounded-full ring-2 ring-white ${typeIndex === 0 ? "bg-[#F7A800]" : typeIndex === 1 ? "bg-[#05B779]" : typeIndex === 2 ? "bg-[#6C5BFF]" : "bg-[#F05286]"}`} />
                     {/* Colored accent bar */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${config.gradient}`} />
+                    <div className={`absolute left-0 top-0 bottom-0 w-[5px] rounded-l-[22px] bg-gradient-to-b ${config.gradient}`} />
 
                     <div className="flex items-center gap-3 p-4 pl-5">
                       {/* Meal Image */}
@@ -692,8 +692,8 @@ const Schedule = () => {
                           <img
                             src={schedule.meal.image_url}
                             alt={schedule.meal.name}
-                            className={`w-18 h-18 rounded-2xl object-cover shadow-md transition-all ${
-                              schedule.is_completed ? "opacity-60 grayscale" : ""
+                            className={`rounded-[16px] object-cover shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition-all ${
+                              schedule.is_completed ? "opacity-50 grayscale" : ""
                             }`}
                             style={{ width: 72, height: 72 }}
                           />
@@ -706,9 +706,9 @@ const Schedule = () => {
                           )}
                         </div>
                       ) : (
-                        <div className={`w-18 h-18 rounded-2xl flex items-center justify-center shadow-md ${config.bgGradient} ${
+                        <div className={`rounded-[16px] flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.08)] ${config.bgGradient} ${
                           schedule.is_completed ? "opacity-60" : ""
-                        }`}>
+                        }`} style={{ width: 72, height: 72 }}>
                           <MealIcon className={`h-8 w-8 ${config.textColor}`} />
                           {schedule.is_completed && (
                             <div className="absolute">
@@ -750,10 +750,10 @@ const Schedule = () => {
                         onClick={(e) => toggleMealCompletion(schedule.id, schedule.is_completed, e)}
                         whileTap={{ scale: 0.9 }}
                         disabled={togglingMealId === schedule.id}
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+                        className={`w-[52px] h-[52px] rounded-full flex items-center justify-center shrink-0 transition-all ${
                           schedule.is_completed
                             ? "bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/30"
-                            : "bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 active:bg-emerald-50"
+                            : "bg-white border-2 border-slate-200 dark:bg-gray-800 dark:border-gray-700 active:border-emerald-400 active:bg-emerald-50"
                         } disabled:opacity-60`}
                       >
                         {togglingMealId === schedule.id ? (
