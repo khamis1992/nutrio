@@ -477,7 +477,7 @@ export function LogActivitySheet({ open, onOpenChange, onBurnedUpdate }: LogActi
                 <ArrowLeft className="w-4 h-4" /> {t("back")}
               </button>
               <div className="flex items-center gap-3">
-                <span className="text-4xl">{selected.emoji}</span>
+                <ActivityIllustration activity={selected} size={56} />
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{activityName(selected)}</h2>
                   <p className="text-sm text-gray-500">{categoryLabel(selected.category)}</p>
