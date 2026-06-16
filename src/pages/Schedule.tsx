@@ -36,7 +36,7 @@ import {
   Clock,
   Wallet,
   Sparkles,
-  ChevronLeft,
+  ArrowLeft, ChevronLeft,
   ArrowRight,
 } from "lucide-react";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
@@ -357,17 +357,22 @@ const Schedule = () => {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; error?: string; was_already_completed?: boolean; nothing_to_undo?: boolean };
+      // Normalize RPC response — DB may return short keys (s/e/a) or long keys (success/error/was_already_completed)
+      const raw = data as Record<string, unknown>;
+      const success = raw.success ?? raw.s ?? false;
+      const errMsg = (raw.error ?? raw.e ?? 'Failed to update meal') as string;
+      const wasAlreadyCompleted = (raw.was_already_completed ?? raw.a ?? false) as boolean;
+      const nothingToUndo = (raw.nothing_to_undo ?? raw.u ?? false) as boolean;
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update meal');
+      if (!success) {
+        throw new Error(errMsg);
       }
 
       setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_completed: !isCompleted } : s));
 
       window.dispatchEvent(new CustomEvent("nutrio:meal-progress-changed"));
 
-      if (!isCompleted && !result.was_already_completed) {
+      if (!isCompleted && !wasAlreadyCompleted) {
         if (navigator.vibrate) navigator.vibrate(10);
       }
     } catch (err) {
@@ -401,11 +406,16 @@ const Schedule = () => {
         return;
       }
 
-      const result = data as { success?: boolean; error?: string; refunded_addons?: number };
-      if (!result?.success) {
+      // Normalize RPC response — DB may return short keys (s/e) or long keys (success/error)
+      const raw = data as Record<string, unknown>;
+      const cancelSuccess = raw.success ?? raw.s ?? false;
+      const cancelErrMsg = (raw.error ?? raw.e) as string | undefined;
+      const cancelRefunded = (raw.refunded_addons ?? 0) as number;
+
+      if (!cancelSuccess) {
         toast({
           title: t("error"),
-          description: result?.error || t("failed_to_remove_meal"),
+          description: cancelErrMsg || t("failed_to_remove_meal"),
           variant: "destructive"
         });
         return;
@@ -416,8 +426,8 @@ const Schedule = () => {
         meal_name: scheduleToDelete?.meal?.name,
         meal_type: scheduleToDelete?.meal_type,
         scheduled_date: scheduleToDelete?.scheduled_date,
-        had_addons: (result.refunded_addons || 0) > 0,
-        addon_amount: result.refunded_addons || 0,
+        had_addons: cancelRefunded > 0,
+        addon_amount: cancelRefunded,
       });
 
       setSchedules(prev => prev.filter(s => s.id !== scheduleId));
@@ -536,7 +546,7 @@ const Schedule = () => {
               onClick={() => navigate("/dashboard")}
               className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
             >
-              <PrevIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+              <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </button>
             <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t("schedule")}</h1>
             <div className="w-11" />
@@ -618,7 +628,7 @@ const Schedule = () => {
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
                 <Wallet className="h-5 w-5 text-white" />
               </div>
-              <div className="flex-1 text-left">
+              <div className={`flex-1 ${isRTL ? "text-right" : "text-left"}`}>
                 <p className="text-sm font-bold text-slate-900">{t("schedule_out_of_credits")}</p>
                 <p className="text-xs text-slate-500">{t("schedule_buy_extra")}</p>
               </div>
@@ -681,7 +691,7 @@ const Schedule = () => {
                           className={`relative cursor-pointer rounded-[18px] bg-white ring-1 shadow-[0_1px_4px_rgba(15,23,42,0.04)] active:scale-[0.98] transition-all ${
                             schedule.is_completed ? "ring-emerald-200/70" : "ring-slate-100"
                           }`}
-                          dir="rtl"
+                          dir={isRTL ? "rtl" : "ltr"}
                         >
                           <div className="flex items-center gap-3 p-3 pr-3">
                             {schedule.meal?.image_url ? (
@@ -709,7 +719,7 @@ const Schedule = () => {
                               </div>
                             )}
 
-                              <div className="min-w-0 flex-1 text-right">
+                              <div className={`min-w-0 flex-1 ${isRTL ? "text-right" : "text-left"}`}>
                               <div className="flex items-center justify-end gap-1.5 mb-0.5">
                                 <h3 className={`truncate text-[14px] font-extrabold text-slate-900 ${
                                   schedule.is_completed ? "line-through text-slate-400" : ""
@@ -1014,14 +1024,14 @@ const Schedule = () => {
                     </svg>
                   </div>
                   {/* Text */}
-                  <div className="flex-1 text-right" dir="rtl">
-                    <p className="text-[14px] font-extrabold text-slate-900">املأ أسبوعك بسهولة</p>
-                    <p className="text-[11px] font-medium text-slate-400">اختر وجباتك المفضلة وسنقوم بجدولتها لك</p>
+                  <div className={`flex-1 ${isRTL ? "text-right" : "text-left"}`} dir={isRTL ? "rtl" : "ltr"}>
+                    <p className="text-[14px] font-extrabold text-slate-900">{t("schedule_fill_week_title")}</p>
+                    <p className="text-[11px] font-medium text-slate-400">{t("schedule_fill_week_desc")}</p>
                   </div>
                   {/* Green action button */}
                   <div className="flex h-[44px] min-w-[100px] shrink-0 items-center justify-center gap-1.5 rounded-full bg-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)]">
                     <Sparkles className="h-[15px] w-[15px] text-white" strokeWidth={2} />
-                    <span className="text-[13px] font-extrabold text-white">املأ أسبوعي</span>
+                    <span className="text-[13px] font-extrabold text-white">{t("schedule_fill_my_week")}</span>
                   </div>
                 </motion.button>
               </motion.div>

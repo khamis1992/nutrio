@@ -82,7 +82,7 @@ export default function MyBookings() {
             onClick={() => navigate(-1)}
             className="bg-gray-100 dark:bg-gray-800 rounded-full p-2"
           >
-            <ArrowLeft className={`w-5 h-5 ${isRTL ? "rotate-180" : ""}`} />
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold">
             {isRTL ? t("recovery_my_bookings_ar") : t("recovery_my_bookings")}

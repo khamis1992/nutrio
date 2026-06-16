@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Pencil, Loader2, ChevronLeft, ChevronRight, Footprints, Weight, Activity, BarChart3, ArrowUp, CheckCircle2, Droplets } from "lucide-react";
+import { Minus, Plus, Pencil, Loader2, ArrowLeft, ChevronLeft, ChevronRight, Footprints, Weight, Activity, BarChart3, ArrowUp, CheckCircle2, Droplets } from "lucide-react";
 import { TrackerInsights } from "@/components/TrackerInsights";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -165,7 +165,7 @@ export default function Tracker() {
             onClick={() => navigate(-1)}
             className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0"
           >
-            <PrevIcon className="h-5 w-5 text-slate-600" />
+            <ArrowLeft className="h-5 w-5 text-slate-600" />
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-[17px] font-extrabold text-slate-900 leading-tight">{t("tracker")}</h1>

@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   User,
   ArrowLeft,
@@ -357,7 +358,7 @@ const Profile = () => {
               onClick={() => navigate(-1)}
               className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center active:bg-slate-200"
             >
-              {isRTL ? <ArrowRight className="w-4 h-4 text-slate-700" /> : <ArrowLeft className="w-4 h-4 text-slate-700" />}
+              <ArrowLeft className="w-4 h-4 text-slate-700" />
           </button>
           <h1 className="text-[17px] font-bold flex-1 text-slate-900">
             {t("profile_settings")}

@@ -13,35 +13,42 @@ const WeeklyProgressBar = ({ weekProgressPct, weekProgress }: WeeklyProgressBarP
   const hasMeals = weekProgress.total > 0;
 
   // Stroke dash for circular progress
-  const radius = 32;
+  const radius = 30;
   const circumference = 2 * Math.PI * radius;
-  const strokeDash = (pct / 100) * circumference;
 
   const stats = [
     {
       icon: CalendarCheck,
-      label: isRTL ? "الأيام المكملة" : "Done Days",
+      labelKey: "schedule_done_days",
+      labelAR: "الأيام المكتملة",
+      labelEN: "Done Days",
       value: hasMeals ? weekProgress.completed : 0,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
     },
     {
       icon: Utensils,
-      label: isRTL ? "الوجبات الإجمالية" : "Total Meals",
+      labelKey: "schedule_total_meals",
+      labelAR: "إجمالي الوجبات",
+      labelEN: "Total Meals",
       value: weekProgress.total,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
       icon: Target,
-      label: isRTL ? "متوسط الالتزام" : "Avg Commit",
+      labelKey: "schedule_avg_commit",
+      labelAR: "متوسط الالتزام",
+      labelEN: "Avg Commit",
       value: `${pct}%`,
       color: "text-violet-600",
       bg: "bg-violet-50",
     },
     {
       icon: Flame,
-      label: isRTL ? "سلسلة الأيام" : "Day Streak",
+      labelKey: "schedule_day_streak",
+      labelAR: "سلسلة الأيام",
+      labelEN: "Day Streak",
       value: hasMeals ? weekProgress.completed : 0,
       color: "text-orange-600",
       bg: "bg-orange-50",
@@ -49,76 +56,111 @@ const WeeklyProgressBar = ({ weekProgressPct, weekProgress }: WeeklyProgressBarP
   ];
 
   return (
-    <div className="mb-3 overflow-hidden rounded-[18px] bg-white ring-1 ring-slate-100 shadow-[0_1px_4px_rgba(15,23,42,0.04)]" dir={isRTL ? "rtl" : "ltr"}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-50">
-        <p className="text-[11px] font-semibold text-slate-400">
-          {isRTL ? "تقدمك نحو أهدافك" : "Progress toward your goals"}
-        </p>
-        <h3 className="text-[15px] font-extrabold text-slate-900">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-3 overflow-hidden rounded-[18px] bg-white ring-1 ring-slate-100 shadow-[0_1px_4px_rgba(15,23,42,0.04)]"
+      dir={isRTL ? "rtl" : "ltr"}
+    >
+      {/* ── Header ── */}
+      <div className="flex items-center justify-center px-4 pt-4 pb-3 border-b border-slate-50">
+        <h3 className="text-[15px] font-extrabold text-slate-900 text-center">
           {isRTL ? "ملخص الأسبوع" : "Week Summary"}
         </h3>
       </div>
 
-      {/* Body: stats + circular progress */}
-      <div className="flex items-center gap-3 px-4 py-4">
-        {/* 4 stats grid */}
-        <div className="flex flex-1 flex-wrap gap-y-3">
+      {/* ── Body: 2-col stats grid + circular progress ── */}
+      <div className={`flex items-center gap-4 px-4 py-4 ${isRTL ? "flex-row-reverse" : "flex-row"}`}>
+        {/* KPI Grid — CSS Grid for perfect alignment */}
+        <div className="grid flex-1 grid-cols-2 gap-x-3 gap-y-4">
           {stats.map((stat, i) => {
             const Icon = stat.icon;
+            const label = isRTL ? stat.labelAR : stat.labelEN;
             return (
-              <div key={i} className="flex w-1/2 flex-col items-end gap-0.5 pr-2">
-                <span className="text-[10px] font-semibold text-slate-400">{stat.label}</span>
-                <div className="flex items-center gap-1.5">
+              <div
+                key={i}
+                className={`flex items-center gap-2.5 ${isRTL ? "flex-row-reverse text-right" : "flex-row text-left"}`}
+              >
+                {/* Icon badge */}
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${stat.bg}`}
+                >
+                  <Icon className={`h-4 w-4 ${stat.color}`} strokeWidth={2.5} />
+                </div>
+                {/* Label + value stacked */}
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[10px] font-semibold text-slate-400 leading-tight truncate">
+                    {label}
+                  </span>
                   <motion.span
                     key={String(stat.value)}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className={`text-[18px] font-black ${stat.color}`}
+                    className={`text-[17px] font-black leading-tight ${stat.color}`}
                   >
                     {stat.value}
                   </motion.span>
-                  <div className={`flex h-6 w-6 items-center justify-center rounded-md ${stat.bg}`}>
-                    <Icon className={`h-3.5 w-3.5 ${stat.color}`} strokeWidth={2.5} />
-                  </div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Circular progress */}
+        {/* Circular progress — perfectly centered in its column */}
         <div className="relative flex h-[80px] w-[80px] shrink-0 items-center justify-center">
-          <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-            <circle cx="40" cy="40" r={radius} fill="none" stroke="#f1f5f9" strokeWidth="8" />
+          <svg
+            width="80"
+            height="80"
+            viewBox="0 0 80 80"
+            className="-rotate-90"
+          >
+            {/* Track */}
+            <circle
+              cx="40"
+              cy="40"
+              r={radius}
+              fill="none"
+              stroke="#f1f5f9"
+              strokeWidth="7"
+            />
+            {/* Progress arc */}
             <motion.circle
-              cx="40" cy="40" r={radius}
+              cx="40"
+              cy="40"
+              r={radius}
               fill="none"
               stroke="#10b981"
-              strokeWidth="8"
+              strokeWidth="7"
               strokeLinecap="round"
               strokeDasharray={circumference}
               initial={{ strokeDashoffset: circumference }}
-              animate={{ strokeDashoffset: circumference - strokeDash }}
+              animate={{
+                strokeDashoffset: circumference - (pct / 100) * circumference,
+              }}
               transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
             />
           </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className="text-[16px] font-black text-emerald-600">{pct}%</span>
+          {/* Percentage label centered inside the ring */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[16px] font-black text-emerald-600 leading-none">
+              {pct}%
+            </span>
           </div>
         </div>
       </div>
 
-      {/* No meals message */}
+      {/* ── Empty-state message ── */}
       {!hasMeals && (
-        <div className="border-t border-slate-50 px-4 py-3 flex items-center justify-end gap-2">
-          <span className="text-[12px] font-semibold text-slate-400">
-            {isRTL ? "لا توجد وجبات مجدولة هذا الأسبوع" : "No meals scheduled this week"}
-          </span>
+        <div className="border-t border-slate-50 px-4 py-3 flex items-center justify-center gap-2">
           <span className="text-lg">🌿</span>
+          <span className="text-[12px] font-semibold text-slate-400">
+            {isRTL
+              ? "لا توجد وجبات مجدولة هذا الأسبوع"
+              : "No meals scheduled this week"}
+          </span>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

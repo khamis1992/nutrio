@@ -64,7 +64,7 @@ export default function RecoveryDetail() {
           onClick={() => navigate(-1)}
           className={`absolute top-4 ${isRTL ? "right-4" : "left-4"} bg-white/80 backdrop-blur-sm rounded-full p-2`}
         >
-          <ArrowLeft className={`w-5 h-5 ${isRTL ? "rotate-180" : ""}`} />
+          <ArrowLeft className="w-5 h-5" />
         </button>
         {partner.logo_url && (
           <img

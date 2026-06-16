@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
+import { ArrowLeft,
   Coffee,
   Sun,
   Moon,
@@ -339,7 +339,7 @@ const MealWizard = ({
             }}
             className="w-11 h-11 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
           >
-            <PrevIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+            <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
           </button>
 
           <div className="text-center">
