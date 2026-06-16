@@ -266,12 +266,6 @@ interface TopRestaurant {
   meal_count: number;
 }
 
-interface MonthlyStats {
-  total: number;
-  completed: number;
-  cancelled: number;
-}
-
 interface GamificationBadge {
   id: string;
   name: string;
@@ -345,7 +339,6 @@ const Dashboard = () => {
   const [selectedSchedule, setSelectedSchedule] = useState<MealSchedule | null>(null);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ total: 0, completed: 0, cancelled: 0 });
   const [tick, setTick] = useState(0);
   const { todayProgress } = useTodayProgress(user?.id, selectedDate, progressKey);
   const { streaks } = useStreak(user?.id);
@@ -498,32 +491,6 @@ const Dashboard = () => {
   useEffect(() => {
     fetchActiveOrders();
   }, [fetchActiveOrders]);
-
-  const fetchMonthlyStats = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { data, error } = await supabase
-        .from("meal_schedules")
-        .select("order_status")
-        .eq("user_id", user.id)
-        .gte("scheduled_date", startOfMonth.split("T")[0])
-        .lte("scheduled_date", now.toISOString().split("T")[0]);
-
-      if (error) throw error;
-      const stats = { total: data?.length || 0, completed: 0, cancelled: 0 };
-      (data || []).forEach((s: { order_status: string }) => {
-        if (s.order_status === "delivered" || s.order_status === "completed") stats.completed++;
-        else if (s.order_status === "cancelled") stats.cancelled++;
-      });
-      setMonthlyStats(stats);
-    } catch { /* silent */ }
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchMonthlyStats();
-  }, [fetchMonthlyStats]);
 
   const handleCancelOrder = async (scheduleId: string) => {
     if (!window.confirm("Cancel this order? You can reorder anytime.")) return;
@@ -2228,27 +2195,6 @@ const Dashboard = () => {
                 })}
               </div>
             </section>
-          )}
-
-          {/* Monthly Order Stats */}
-          {monthlyStats.total > 0 && (
-            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-              <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_10px_rgba(16,185,129,0.2)]">
-                <ShoppingBag className="h-[16px] w-[16px]" strokeWidth={2} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold text-slate-900">{t("dashboard_this_month")}</p>
-                <p className="text-[10px] font-medium text-slate-500">
-                  {t("orders_monthly_stats", { count: String(monthlyStats.completed) })}
-                  {monthlyStats.cancelled > 0 && ` · ${monthlyStats.cancelled} cancelled`}
-                </p>
-              </div>
-              {monthlyStats.total > 0 && (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-600">
-                  {Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%
-                </span>
-              )}
-            </div>
           )}
 
           {(topRestaurantsError && !topRestaurantsLoading && topRestaurants.length === 0) && (
