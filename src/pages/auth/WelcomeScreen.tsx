@@ -1,47 +1,350 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
-import { motion } from "framer-motion";
+import { animate, motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Leaf, Lock, UserPlus } from "lucide-react";
+import { Flame, HeartPulse, Lock, UtensilsCrossed, UserPlus } from "lucide-react";
+
+/** Counts up from 0 to `target` over `duration` seconds. Honors reduced-motion. */
+const AnimatedNumber = ({ target, duration = 1.4, delay = 0, className }: { target: number; duration?: number; delay?: number; className?: string }) => {
+  const reduceMotion = useReducedMotion();
+  const [value, setValue] = useState(reduceMotion ? target : 0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const controls = animate(0, target, {
+      duration,
+      delay,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setValue(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [target, duration, delay, reduceMotion]);
+
+  return <span className={className}>{value.toLocaleString()}</span>;
+};
 
 interface WelcomeScreenProps { onSwitchView: (view: "signup" | "signin") => void; }
 
-export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
-  const { t } = useLanguage();
+const cardItem = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, delay: 0.4 + i * 0.08, ease: [0.22, 1, 0.36, 1] as const },
+  }),
+};
+
+/**
+ * Nutrition Ring Dial — premium fitness aesthetic.
+ * Three animated SVG arcs (protein emerald, carbs amber, fat sky) draw in
+ * sequence. Center shows total kcal with a flame. Three frosted macro cards
+ * stagger in around the dial.
+ */
+const NutritionRingDial = () => {
+  const reduceMotion = useReducedMotion();
+  const R = 50;
+  const C = 2 * Math.PI * R;
+  const macros = [
+    { label: "Protein", value: "142g", pct: 0.72, color: "#10B981", track: "#ECFDF5", iconBg: "bg-emerald-100 text-emerald-600", delay: 0 },
+    { label: "Carbs", value: "181g", pct: 0.58, color: "#F97316", track: "#FFF7ED", iconBg: "bg-orange-100 text-orange-500", delay: 0.15 },
+    { label: "Fat", value: "64g", pct: 0.45, color: "#0EA5E9", track: "#F0F9FF", iconBg: "bg-sky-100 text-sky-500", delay: 0.3 },
+  ];
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-white dark:bg-gray-950" style={{ maxWidth: 430, margin: "0 auto" }}>
-      {/* ── Hero ── */}
-      <div className="relative flex flex-col items-center justify-center overflow-hidden flex-1" style={{ background: "radial-gradient(1200px 600px at 80% -10%, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 60%), linear-gradient(135deg, #0FB56D 0%, #12C88A 55%, #0EBB79 100%)", paddingBottom: "2.75rem" }}>
-        <motion.div animate={{ scale: [1, 1.08, 1], x: [0, 8, 0], y: [0, 10, 0] }} transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }} style={{ position: "absolute", top: -80, right: -80, width: 260, height: 260, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
-        <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -12, 0], y: [0, -10, 0] }} transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }} style={{ position: "absolute", bottom: -40, left: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-        <svg aria-hidden width="420" height="420" viewBox="0 0 420 420" className="pointer-events-none absolute -right-16 top-12 opacity-60" style={{ filter: "blur(0.3px)" }}><defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#A7F3D0" stopOpacity="0.9" /><stop offset="100%" stopColor="#34D399" stopOpacity="0.55" /></linearGradient></defs><path d="M300 0c40 120-30 210-120 240 70-80 60-170-20-220 70 10 110 0 140-20z" fill="url(#lg1)" /><path d="M360 80c20 60-10 110-70 130 40-50 35-105-12-136 42 7 63 0 82-12z" fill="#A7F3D0" opacity="0.5" /></svg>
-        <svg aria-hidden width="420" height="420" viewBox="0 0 420 420" className="pointer-events-none absolute -left-24 bottom-6 opacity-60" style={{ filter: "blur(0.3px)" }}><defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#A7F3D0" stopOpacity="0.9" /><stop offset="100%" stopColor="#34D399" stopOpacity="0.55" /></linearGradient></defs><path d="M160 380c-60-10-120-70-130-150 60 80 150 80 210 10-30 80-60 120-80 140z" fill="url(#lg2)" /></svg>
-
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} className="flex items-center justify-center mb-8" style={{ width: 100, height: 100, borderRadius: 28, background: "#ffffff", boxShadow: "0 22px 50px rgba(0,0,0,0.18)" }}><Logo size="md" /></motion.div>
-        <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }} style={{ fontSize: 38, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.1, marginBottom: 14, letterSpacing: -0.5, padding: "0 28px" }}>{t("eat_smart")}<br />{t("live_better")}</motion.h1>
-        <div className="relative mt-1 mb-2" style={{ height: 16 }}><svg width="160" height="16" viewBox="0 0 160 16" className="mx-auto block"><defs><linearGradient id="swg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#A7F3D0" /><stop offset="100%" stopColor="#34D399" /></linearGradient></defs><path d="M5 11 C 55 2, 105 2, 155 11" stroke="url(#swg)" strokeWidth="6" strokeLinecap="round" fill="none" /><circle cx="144" cy="12" r="3" fill="#34D399" /></svg></div>
-        <motion.p initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.45, delay: 0.15, ease: "easeOut" }} style={{ fontSize: 17, color: "rgba(255,255,255,0.92)", textAlign: "center", lineHeight: 1.5, padding: "0 36px" }}>{t("personalized_nutrition_tagline")}</motion.p>
-        <div className="flex items-center gap-2 mt-4"><span className="inline-block w-2 h-2 rounded-full bg-white/95" /><span className="inline-block w-2 h-2 rounded-full bg-emerald-300/60" /><span className="inline-block w-2 h-2 rounded-full bg-emerald-300/50" /></div>
-      </div>
-
-      {/* Leaf connector */}
-      <div className="relative z-20" style={{ marginTop: -22 }}><div className="mx-auto flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-emerald-100"><div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-50 text-emerald-600"><Leaf className="w-5 h-5" /></div></div></div>
-
-      {/* Bottom card */}
-      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", damping: 24, stiffness: 220, delay: 0.05 }} className="flex flex-col bg-white dark:bg-gray-900" style={{ borderTopLeftRadius: 36, borderTopRightRadius: 36, marginTop: -12, zIndex: 10, paddingTop: 28, paddingLeft: 20, paddingRight: 20, paddingBottom: "max(28px, env(safe-area-inset-bottom, 28px))", boxShadow: "0 -4px 16px rgba(0,0,0,0.04)", backgroundImage: "radial-gradient(1200px 100px at 50% -60px, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0) 60%)" }}>
-        <div className="flex flex-col gap-4">
-          <Button variant="gradient" size="xl" className="w-full rounded-3xl font-extrabold h-16 text-[17px] shadow-[0_8px_24px_rgba(16,185,129,0.3)]" onClick={() => onSwitchView("signup")}>
-            <span className="flex items-center gap-3"><UserPlus className="w-[22px] h-[22px]" />{t("create_free_account")}</span>
-          </Button>
-          <button type="button" onClick={() => onSwitchView("signin")} className="w-full rounded-3xl font-semibold h-16 text-[16px] bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-            <span className="flex items-center justify-center gap-3"><Lock className="w-[20px] h-[20px] text-emerald-600" />{t("sign_in")}</span>
-          </button>
+    <div className="relative h-[308px] w-[276px]">
+      {/* Central ring dial card */}
+      <motion.div
+        initial={{ scale: 0.88, opacity: 0, y: 10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+        className="absolute inset-x-4 top-2 rounded-[36px] border border-white/80 bg-white/90 p-4 shadow-[0_28px_70px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">today</p>
+            <p className="text-[20px] font-extrabold tracking-[-0.03em] text-slate-950">
+              <AnimatedNumber target={1892} className="tabular-nums" /> kcal
+            </p>
+          </div>
+          <span className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-orange-100 text-orange-500">
+            <Flame className="h-5 w-5 fill-current" />
+          </span>
         </div>
 
-        <p className="mt-6 text-[12px] text-center text-slate-400">By continuing, you agree to our <span className="mx-1" /><Link to="/privacy" className="text-emerald-600 hover:underline">{t("privacy_policy")}</Link><span className="mx-1">|</span><Link to="/terms" className="text-emerald-600 hover:underline">{t("terms")}</Link></p>
+        {/* Triple-arc progress ring */}
+        <div className="relative mx-auto mt-4 h-[154px] w-[154px]">
+          <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120">
+            {/* Track circles */}
+            {macros.map((m, i) => (
+              <circle
+                key={`track-${m.label}`}
+                cx="60"
+                cy="60"
+                r={R - i * 6}
+                fill="none"
+                stroke={m.track}
+                strokeWidth="6"
+              />
+            ))}
+            {/* Animated arcs */}
+            {macros.map((m, i) => {
+              const r = R - i * 6;
+              const circ = 2 * Math.PI * r;
+              return (
+                <motion.circle
+                  key={`arc-${m.label}`}
+                  cx="60"
+                  cy="60"
+                  r={r}
+                  fill="none"
+                  stroke={m.color}
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={circ}
+                  initial={{ strokeDashoffset: circ }}
+                  animate={{ strokeDashoffset: circ * (1 - m.pct) }}
+                  transition={{ duration: 1.1, ease: "easeOut", delay: 0.5 + m.delay }}
+                />
+              );
+            })}
+          </svg>
+
+          {/* Center label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <motion.p
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 1.0, ease: [0.34, 1.56, 0.64, 1] }}
+              className="text-[30px] font-black tracking-[-0.05em] text-slate-950 tabular-nums"
+            >
+              <AnimatedNumber target={72} duration={1.2} delay={1.0} />%
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 1.15 }}
+              className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
+            >
+              goal hit
+            </motion.p>
+          </div>
+        </div>
       </motion.div>
+
+      {/* Floating macro cards — stagger in from bottom */}
+      <motion.div
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.45, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute bottom-7 left-0 right-0 grid grid-cols-3 gap-2"
+      >
+        {macros.map((m, i) => (
+          <motion.div
+            key={m.label}
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.65 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-[24px] border border-white/80 bg-white/90 p-3 text-center shadow-[0_18px_42px_rgba(15,23,42,0.1)] backdrop-blur-xl"
+          >
+            <div className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-2xl ${m.iconBg}`}>
+              <HeartPulse className="h-4 w-4" />
+            </div>
+            <p className="text-[14px] font-extrabold leading-none text-slate-950">{m.value}</p>
+            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{m.label}</p>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Small floating spark card top-right */}
+      <motion.div
+        initial={{ scale: 0.7, opacity: 0, y: -10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
+        className="absolute right-0 top-0 overflow-hidden rounded-[24px] border border-white/80 bg-white/85 px-3 py-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+      >
+        <motion.div
+          aria-hidden
+          initial={reduceMotion ? false : { x: "-120%" }}
+          animate={reduceMotion ? undefined : { x: "120%" }}
+          transition={reduceMotion ? undefined : { duration: 1.2, repeat: Infinity, repeatDelay: 2.8, ease: "easeInOut", delay: 1.4 }}
+          className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-gradient-to-r from-transparent via-white/55 to-transparent"
+        />
+        <div className="relative flex items-center gap-2.5">
+          <div>
+            <p className="text-[15px] font-extrabold leading-none text-slate-950">7</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">day streak</p>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export const WelcomeScreen = ({ onSwitchView }: WelcomeScreenProps) => {
+  const { t } = useLanguage();
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden bg-[#F7F8F3] text-slate-950">
+      {/* Background blobs — scale in from small */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <motion.div
+          initial={reduceMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+          animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="absolute"
+        >
+          <motion.div
+            animate={reduceMotion ? undefined : { scale: [1, 1.08, 1], x: [0, 12, 0], y: [0, -10, 0] }}
+            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -right-24 -top-24 h-[300px] w-[300px] rounded-full blur-3xl"
+            style={{ backgroundColor: "rgba(16,185,129,0.24)" }}
+          />
+        </motion.div>
+        <motion.div
+          initial={reduceMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+          animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+          className="absolute"
+        >
+          <motion.div
+            animate={reduceMotion ? undefined : { scale: [1, 1.1, 1], x: [0, -14, 0], y: [0, 10, 0] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+            className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-emerald-200/30 blur-3xl"
+          />
+        </motion.div>
+        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(#0f172a 0.8px, transparent 0.8px)", backgroundSize: "18px 18px" }} />
+      </div>
+
+      {/* Header — drops in from top, logo on LEFT (same as onboarding) */}
+      <motion.header
+        initial={reduceMotion ? { opacity: 0 } : { y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 flex items-center justify-between px-6 pt-[max(3rem,env(safe-area-inset-top))]"
+      >
+        <div className="flex items-center gap-3">
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { scale: 0.6, rotate: -8 }}
+            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+            className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+          >
+            <Logo size="sm" />
+          </motion.div>
+          <div>
+            <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">NUTRIO</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Fuel better</p>
+          </div>
+        </div>
+      </motion.header>
+
+      <main className="relative z-10 flex flex-1 flex-col px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {/* Preview illustration — identical to onboarding slide 1 */}
+        <div className="flex flex-1 items-center justify-center py-4">
+          <NutritionRingDial />
+        </div>
+
+        {/* Bottom info card — slides up, then children stagger in */}
+        <motion.div
+          initial={reduceMotion ? { opacity: 0 } : { y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl"
+        >
+          {/* Eyebrow pill row — dark pill + icon circle (same as onboarding) */}
+          <motion.div
+            custom={0}
+            variants={cardItem}
+            initial="hidden"
+            animate="visible"
+            className="mb-4 flex items-center justify-between"
+          >
+            <span className="inline-flex h-9 items-center rounded-full bg-slate-950 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white">
+              {t("eat_smart")}
+            </span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <UtensilsCrossed className="h-4 w-4" />
+            </span>
+          </motion.div>
+
+          {/* Headline */}
+          <motion.h1
+            custom={1}
+            variants={cardItem}
+            initial="hidden"
+            animate="visible"
+            className="text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-slate-950"
+          >
+            {t("live_better")}
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            custom={2}
+            variants={cardItem}
+            initial="hidden"
+            animate="visible"
+            className="mt-4 text-[15px] font-semibold leading-relaxed text-slate-500"
+          >
+            {t("personalized_nutrition_tagline")}
+          </motion.p>
+
+          {/* Primary CTA — full-width gradient pill (same shape as onboarding Next button) */}
+          <motion.div
+            custom={3}
+            variants={cardItem}
+            initial="hidden"
+            animate="visible"
+            className="mt-6"
+          >
+            <Button
+              type="button"
+              variant="gradient"
+              size="xl"
+              className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] text-[17px] font-black tracking-[-0.02em] text-white shadow-[0_18px_38px_rgba(15,23,42,0.18)]"
+              onClick={() => onSwitchView("signup")}
+            >
+              <UserPlus className="h-5 w-5" strokeWidth={2.8} />
+              {t("create_free_account")}
+            </Button>
+          </motion.div>
+
+          {/* Secondary CTA — outline pill (same shape, different style) */}
+          <motion.div
+            custom={4}
+            variants={cardItem}
+            initial="hidden"
+            animate="visible"
+            className="mt-3"
+          >
+            <button
+              type="button"
+              onClick={() => onSwitchView("signin")}
+              className="flex h-16 w-full items-center justify-center gap-3 rounded-[24px] border border-slate-200 bg-white text-[16px] font-extrabold text-slate-700 shadow-[0_12px_26px_rgba(15,23,42,0.08)] active:scale-[0.98] transition-all"
+            >
+              <Lock className="h-5 w-5 text-emerald-600" strokeWidth={2.8} />
+              {t("sign_in")}
+            </button>
+          </motion.div>
+
+          {/* Terms */}
+          <motion.p
+            custom={5}
+            variants={cardItem}
+            initial="hidden"
+            animate="visible"
+            className="mt-5 text-[12px] text-center text-slate-400"
+          >
+            By continuing, you agree to our{" "}
+            <Link to="/privacy" className="text-emerald-600 hover:underline font-semibold">{t("privacy_policy")}</Link>
+            <span className="mx-1.5 text-slate-300">|</span>
+            <Link to="/terms" className="text-emerald-600 hover:underline font-semibold">{t("terms")}</Link>
+          </motion.p>
+        </motion.div>
+      </main>
     </div>
   );
 };
