@@ -30,19 +30,31 @@ interface CarouselSlide {
 const MealPreview = () => (
   <div className="relative h-[308px] w-[276px]">
     <motion.div
-      animate={{ y: [0, -8, 0], rotate: [-2, 1.5, -2] }}
-      transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-      className="absolute left-3 top-4 h-[226px] w-[226px] rounded-full bg-[conic-gradient(from_120deg,#D9F99D,#6EE7B7,#FDE68A,#D9F99D)] shadow-[0_30px_70px_rgba(15,118,110,0.22)]"
+      initial={{ scale: 0.85, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.5, delay: 0.2, ease: [0.34, 1.56, 0.64, 1] }}
+      className="absolute left-3 top-4"
     >
-      <div className="absolute inset-5 rounded-full bg-white shadow-inner" />
-      <div className="absolute left-12 top-11 h-20 w-24 rounded-[34px] bg-emerald-300" />
-      <div className="absolute right-10 top-12 h-16 w-16 rounded-full bg-orange-300" />
-      <div className="absolute bottom-12 left-14 h-16 w-16 rounded-full bg-lime-200" />
-      <div className="absolute bottom-11 right-12 h-20 w-12 rounded-full bg-teal-300" />
-      <div className="absolute left-[84px] top-[82px] h-16 w-16 rounded-full bg-white shadow-[inset_0_0_0_10px_rgba(251,146,60,0.18)]" />
+      <motion.div
+        animate={{ y: [0, -8, 0], rotate: [-2, 1.5, -2] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+        className="h-[226px] w-[226px] rounded-full bg-[conic-gradient(from_120deg,#D9F99D,#6EE7B7,#FDE68A,#D9F99D)] shadow-[0_30px_70px_rgba(15,118,110,0.22)]"
+      >
+        <div className="absolute inset-5 rounded-full bg-white shadow-inner" />
+        <div className="absolute left-12 top-11 h-20 w-24 rounded-[34px] bg-emerald-300" />
+        <div className="absolute right-10 top-12 h-16 w-16 rounded-full bg-orange-300" />
+        <div className="absolute bottom-12 left-14 h-16 w-16 rounded-full bg-lime-200" />
+        <div className="absolute bottom-11 right-12 h-20 w-12 rounded-full bg-teal-300" />
+        <div className="absolute left-[84px] top-[82px] h-16 w-16 rounded-full bg-white shadow-[inset_0_0_0_10px_rgba(251,146,60,0.18)]" />
+      </motion.div>
     </motion.div>
 
-    <div className="absolute right-0 top-0 rounded-[24px] border border-white/80 bg-white/85 px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+    <motion.div
+      initial={{ scale: 0.7, opacity: 0, y: -10 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+      className="absolute right-0 top-0 rounded-[24px] border border-white/80 bg-white/85 px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+    >
       <div className="flex items-center gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
           <Star className="h-4 w-4 fill-current" />
@@ -52,9 +64,14 @@ const MealPreview = () => (
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">rated meals</p>
         </div>
       </div>
-    </div>
+    </motion.div>
 
-    <div className="absolute bottom-8 left-0 w-[244px] rounded-[30px] border border-white/80 bg-white/90 p-4 shadow-[0_24px_60px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+    <motion.div
+      initial={{ y: 30, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, delay: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute bottom-8 left-0 w-[244px] rounded-[30px] border border-white/80 bg-white/90 p-4 shadow-[0_24px_60px_rgba(15,23,42,0.14)] backdrop-blur-xl"
+    >
       <div className="flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-emerald-100 text-emerald-600">
           <UtensilsCrossed className="h-5 w-5" />
@@ -76,13 +93,18 @@ const MealPreview = () => (
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   </div>
 );
 
 const TrackerPreview = () => (
   <div className="relative h-[308px] w-[276px]">
-    <div className="absolute inset-x-4 top-2 rounded-[36px] border border-white/80 bg-white/90 p-4 shadow-[0_28px_70px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+    <motion.div
+      initial={{ scale: 0.88, opacity: 0, y: 12 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+      className="absolute inset-x-4 top-2 rounded-[36px] border border-white/80 bg-white/90 p-4 shadow-[0_28px_70px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">today</p>
@@ -106,7 +128,7 @@ const TrackerPreview = () => (
             strokeDasharray="314"
             initial={{ strokeDashoffset: 314 }}
             animate={{ strokeDashoffset: 82 }}
-            transition={{ duration: 1.2, ease: "easeOut" }}
+            transition={{ duration: 1.2, ease: "easeOut", delay: 0.5 }}
           />
           <defs>
             <linearGradient id="trackerRing" x1="0" y1="0" x2="1" y2="1">
@@ -120,9 +142,14 @@ const TrackerPreview = () => (
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">goal hit</p>
         </div>
       </div>
-    </div>
+    </motion.div>
 
-    <div className="absolute bottom-7 left-0 right-0 grid grid-cols-3 gap-2">
+    <motion.div
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute bottom-7 left-0 right-0 grid grid-cols-3 gap-2"
+    >
       {[
         ["Carbs", "181g", "bg-emerald-100 text-emerald-600"],
         ["Protein", "142g", "bg-orange-100 text-orange-500"],
@@ -136,28 +163,45 @@ const TrackerPreview = () => (
           <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
         </div>
       ))}
-    </div>
+    </motion.div>
   </div>
 );
 
 const QatarPreview = () => (
   <div className="relative h-[308px] w-[276px]">
-    <div className="absolute inset-x-1 top-5 h-[230px] rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_30px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+    <motion.div
+      initial={{ scale: 0.88, opacity: 0, y: 10 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+      className="absolute inset-x-1 top-5 h-[230px] rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_30px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+    >
       <div className="relative h-full overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#ECFDF5_0%,#F8FAFC_55%,#FFFBEB_100%)]">
         <div className="absolute left-5 top-8 h-28 w-44 rounded-full border-[14px] border-emerald-200/70" />
         <div className="absolute right-3 top-12 h-24 w-24 rounded-full border-[12px] border-orange-200/70" />
         <div className="absolute bottom-4 left-10 h-20 w-36 rounded-full border-[12px] border-teal-200/70" />
         <motion.div
-          animate={{ x: [0, 18, 4, 26], y: [0, -16, 10, -2] }}
-          transition={{ duration: 5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-          className="absolute left-[88px] top-[82px] flex h-14 w-14 items-center justify-center rounded-[22px] bg-emerald-500 text-white shadow-[0_18px_35px_rgba(16,185,129,0.38)]"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+          className=""
         >
-          <MapPin className="h-7 w-7 fill-current" />
+          <motion.div
+            animate={{ x: [0, 18, 4, 26], y: [0, -16, 10, -2] }}
+            transition={{ duration: 5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.8 }}
+            className="absolute left-[88px] top-[82px] flex h-14 w-14 items-center justify-center rounded-[22px] bg-emerald-500 text-white shadow-[0_18px_35px_rgba(16,185,129,0.38)]"
+          >
+            <MapPin className="h-7 w-7 fill-current" />
+          </motion.div>
         </motion.div>
       </div>
-    </div>
+    </motion.div>
 
-    <div className="absolute right-0 top-2 rounded-[24px] border border-white/80 bg-white/90 px-4 py-3 shadow-[0_18px_44px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+    <motion.div
+      initial={{ scale: 0.7, opacity: 0, y: -10 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+      className="absolute right-0 top-2 rounded-[24px] border border-white/80 bg-white/90 px-4 py-3 shadow-[0_18px_44px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+    >
       <div className="flex items-center gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
           <Clock3 className="h-4 w-4" />
@@ -167,9 +211,14 @@ const QatarPreview = () => (
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">delivery</p>
         </div>
       </div>
-    </div>
+    </motion.div>
 
-    <div className="absolute bottom-8 left-2 right-2 rounded-[30px] border border-white/80 bg-white/90 p-4 shadow-[0_24px_60px_rgba(15,23,42,0.14)] backdrop-blur-xl">
+    <motion.div
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, delay: 0.65, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute bottom-8 left-2 right-2 rounded-[30px] border border-white/80 bg-white/90 p-4 shadow-[0_24px_60px_rgba(15,23,42,0.14)] backdrop-blur-xl"
+    >
       <div className="flex items-center gap-3">
         <div className="flex -space-x-2">
           {[
@@ -188,9 +237,19 @@ const QatarPreview = () => (
           <p className="text-[12px] font-semibold text-slate-400">10k+ members eating smarter</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   </div>
 );
+
+// Stagger config for the bottom info card
+const cardItem = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, delay: 0.4 + i * 0.08, ease: [0.22, 1, 0.36, 1] as const },
+  }),
+};
 
 interface OnboardingCarouselProps {
   onFinish: () => void;
@@ -254,44 +313,74 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
       {!exiting && (
         <motion.div
           key="carousel"
-          initial={{ opacity: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0, y: reduceMotion ? 0 : -18 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
           className="fixed inset-0 z-50 mx-auto flex max-w-[430px] flex-col overflow-hidden bg-[#F7F8F3] text-slate-950"
         >
+          {/* Background blobs — scale in from small */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
             <motion.div
-              animate={reduceMotion ? undefined : { scale: [1, 1.08, 1], x: [0, 12, 0], y: [0, -10, 0] }}
-              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -right-24 -top-24 h-[300px] w-[300px] rounded-full blur-3xl"
-              style={{ backgroundColor: current.glow }}
-            />
+              initial={reduceMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+              animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="absolute"
+            >
+              <motion.div
+                animate={reduceMotion ? undefined : { scale: [1, 1.08, 1], x: [0, 12, 0], y: [0, -10, 0] }}
+                transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -right-24 -top-24 h-[300px] w-[300px] rounded-full blur-3xl"
+                style={{ backgroundColor: current.glow }}
+              />
+            </motion.div>
             <motion.div
-              animate={reduceMotion ? undefined : { scale: [1, 1.1, 1], x: [0, -14, 0], y: [0, 10, 0] }}
-              transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-              className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-emerald-200/30 blur-3xl"
-            />
+              initial={reduceMotion ? { opacity: 0 } : { scale: 0.5, opacity: 0 }}
+              animate={reduceMotion ? { opacity: 1 } : { scale: 1, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+              className="absolute"
+            >
+              <motion.div
+                animate={reduceMotion ? undefined : { scale: [1, 1.1, 1], x: [0, -14, 0], y: [0, 10, 0] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+                className="absolute -bottom-28 -left-20 h-[280px] w-[280px] rounded-full bg-emerald-200/30 blur-3xl"
+              />
+            </motion.div>
             <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: "radial-gradient(#0f172a 0.8px, transparent 0.8px)", backgroundSize: "18px 18px" }} />
           </div>
 
-          <header className="relative z-10 flex items-center justify-between px-6 pt-[max(3rem,env(safe-area-inset-top))]">
+          {/* Header — drops in from top */}
+          <motion.header
+            initial={reduceMotion ? { opacity: 0 } : { y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 flex items-center justify-between px-6 pt-[max(3rem,env(safe-area-inset-top))]"
+          >
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
+              <motion.div
+                initial={reduceMotion ? { opacity: 0 } : { scale: 0.6, rotate: -8 }}
+                animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
+                className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
+              >
                 <Logo size="sm" />
-              </div>
+              </motion.div>
               <div>
                 <p className="text-[16px] font-black tracking-[-0.04em] text-slate-950">NUTRIO</p>
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Fuel better</p>
               </div>
             </div>
-            <button
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.35, ease: "easeOut" }}
               type="button"
               onClick={finish}
               className="h-10 rounded-full border border-white/80 bg-white/80 px-4 text-[13px] font-extrabold text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl active:scale-95"
             >
               Skip
-            </button>
-          </header>
+            </motion.button>
+          </motion.header>
 
           <main className="relative z-10 flex flex-1 flex-col px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             <AnimatePresence mode="wait">
@@ -307,8 +396,20 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                   {current.preview}
                 </div>
 
-                <div className="rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl">
-                  <div className="mb-4 flex items-center justify-between">
+                {/* Bottom info card — slides up, then children stagger in */}
+                <motion.div
+                  initial={reduceMotion ? { opacity: 0 } : { y: 40, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="rounded-[38px] border border-white/80 bg-white/90 p-5 shadow-[0_28px_70px_rgba(15,23,42,0.12)] backdrop-blur-2xl"
+                >
+                  <motion.div
+                    custom={0}
+                    variants={cardItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="mb-4 flex items-center justify-between"
+                  >
                     <span className="inline-flex h-9 items-center gap-2 rounded-full bg-slate-950 px-3 text-[11px] font-black uppercase tracking-[0.14em] text-white">
                       <Sparkles className="h-3.5 w-3.5" style={{ color: current.accent }} />
                       {current.eyebrow}
@@ -318,16 +419,35 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                       {activeIndex === 1 && <HeartPulse className="h-4 w-4" />}
                       {activeIndex === 2 && <ShieldCheck className="h-4 w-4" />}
                     </span>
-                  </div>
+                  </motion.div>
 
-                  <h1 className="text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-slate-950">
+                  <motion.h1
+                    custom={1}
+                    variants={cardItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="text-[34px] font-black leading-[0.98] tracking-[-0.065em] text-slate-950"
+                  >
                     {current.title}
-                  </h1>
-                  <p className="mt-4 text-[15px] font-semibold leading-relaxed text-slate-500">
-                    {current.subtitle}
-                  </p>
+                  </motion.h1>
 
-                  <div className="mt-6 flex items-center gap-2">
+                  <motion.p
+                    custom={2}
+                    variants={cardItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="mt-4 text-[15px] font-semibold leading-relaxed text-slate-500"
+                  >
+                    {current.subtitle}
+                  </motion.p>
+
+                  <motion.div
+                    custom={3}
+                    variants={cardItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="mt-6 flex items-center gap-2"
+                  >
                     {SLIDES.map((slide, index) => (
                       <button
                         key={slide.id}
@@ -341,9 +461,15 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                         aria-label={t("onboarding_goto_page", { index: String(index + 1) })}
                       />
                     ))}
-                  </div>
+                  </motion.div>
 
-                  <div className="mt-6 flex gap-3">
+                  <motion.div
+                    custom={4}
+                    variants={cardItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="mt-6 flex gap-3"
+                  >
                     {activeIndex > 0 && (
                       <motion.button
                         initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
@@ -372,8 +498,8 @@ export function OnboardingCarousel({ onFinish }: OnboardingCarouselProps) {
                       {isLast ? t("onboarding_get_started") : t("onboarding_next")}
                       <ArrowNext className="h-5 w-5" strokeWidth={2.8} />
                     </motion.button>
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
               </motion.section>
             </AnimatePresence>
           </main>
