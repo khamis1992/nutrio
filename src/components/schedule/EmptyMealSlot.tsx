@@ -1,6 +1,7 @@
 import { KeyboardEvent } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Clock } from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
 interface EmptyMealSlotProps {
   config: {
@@ -10,68 +11,67 @@ interface EmptyMealSlotProps {
     nutritionBg: string; nutritionBorder: string;
   };
   mealTypeName: string; timeLabel: string; noMealsLeft: boolean; isFirstSlot: boolean;
-  onSwipeRight: () => void; onBuyCredits: () => void;
+  onSwipeRight: () => void; onBuyCredits: () => void; onSwipeLeft?: () => void;
 }
 
 const EmptyMealSlot = ({
   config, mealTypeName, timeLabel, noMealsLeft, onSwipeRight, onBuyCredits,
 }: EmptyMealSlotProps) => {
   const { t, isRTL } = useLanguage();
-  const MealIcon = config.icon;
+  const reduceMotion = useReducedMotion();
 
-  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      if (noMealsLeft) { onBuyCredits(); return; }
       onSwipeRight();
     }
   };
 
+  const handleClick = () => {
+    if (noMealsLeft) { onBuyCredits(); return; }
+    onSwipeRight();
+  };
+
+  const Chevron = isRTL ? ChevronLeft : ChevronRight;
+
   return (
-    <div
+    <motion.div
       role="button"
       tabIndex={0}
-      onClick={onSwipeRight}
-      onKeyDown={handleCardKeyDown}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       aria-label={`${t("schedule_add_meal")}: ${mealTypeName}`}
-      className={`flex h-[72px] w-full cursor-pointer items-center rounded-[18px] bg-white ring-1 ring-slate-100 shadow-[0_1px_4px_rgba(15,23,42,0.04)] px-3 ${isRTL ? "text-right" : "text-left"} transition-all active:scale-[0.99]`}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      whileTap={{ scale: 0.98 }}
+      className="mb-2 flex cursor-pointer items-center gap-4 rounded-[24px] border border-white/80 bg-white/90 p-4 backdrop-blur-xl transition-all hover:bg-white/95 active:bg-white/80"
       dir={isRTL ? "rtl" : "ltr"}
     >
-      {/* Icon — right side (RTL) */}
-      <div className={`flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full ${config.bgGradient}`}>
-        <MealIcon className={`h-5 w-5 stroke-[2.5] ${config.textColor}`} />
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] ${config.bgGradient}`}>
+        <config.icon className={`h-5 w-5 ${config.textColor}`} />
       </div>
 
-      {/* Text — middle */}
-      <div className={`${isRTL ? "ml-3" : "mr-3"} flex-1 min-w-0`}>
-        <div className={`flex items-center gap-1.5 ${isRTL ? "justify-start" : "justify-end"}`}>
-          <span className="text-[14px] font-extrabold text-slate-900">{mealTypeName}</span>
-          <span className={`h-2 w-2 rounded-full ${config.bgColor}`} />
-        </div>
-        <div className={`flex items-center gap-1 mt-0.5 ${isRTL ? "justify-start" : "justify-end"}`}>
-          <span className="text-[11px] font-medium text-slate-400">{timeLabel}</span>
-          <Clock className="h-3 w-3 text-slate-400 stroke-[2.5]" />
-        </div>
+      <div className={`flex-1 min-w-0 ${isRTL ? "text-right" : "text-left"}`}>
+        <span className="text-[16px] font-bold text-slate-900">
+          {noMealsLeft
+            ? (isRTL ? `أضف ${mealTypeName} — لا رصيد` : `Add ${mealTypeName} — no credits`)
+            : `${t("schedule_add_meal")} ${mealTypeName}`}
+        </span>
+        <p className="text-[13px] text-slate-400 font-medium leading-tight mt-0.5">{timeLabel}</p>
       </div>
 
-      {/* Action button */}
-      <div className="flex items-center gap-2 mr-2">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (noMealsLeft) { onBuyCredits(); return; }
-            onSwipeRight();
-          }}
-          className="flex h-[40px] items-center justify-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 shadow-[0_4px_12px_rgba(16,185,129,0.3)] hover:bg-emerald-600 transition-all active:scale-95 text-[12px] font-bold"
-          aria-label={noMealsLeft ? t("schedule_buy_credits") : `${t("schedule_add_meal")}: ${mealTypeName}`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14" />
-            <path d="M12 5v14" />
+      {!noMealsLeft && (
+        <span className="flex h-9 shrink-0 items-center rounded-full bg-emerald-500 px-4 text-[14px] font-bold text-white shadow-lg shadow-emerald-500/30">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+            <path d="M12 5v14M5 12h14" />
           </svg>
-          {t("schedule_add_meal")}
-        </button>
-      </div>
-    </div>
+          {t("add")}
+        </span>
+      )}
+      {noMealsLeft && <Chevron className="h-5 w-5 text-slate-300" strokeWidth={2.5} />}
+    </motion.div>
   );
 };
 
