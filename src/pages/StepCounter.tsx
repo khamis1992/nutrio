@@ -1,4 +1,4 @@
-import { getNavArrows } from "@/lib/rtl";
+﻿import { getNavArrows } from "@/lib/rtl";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -280,10 +280,10 @@ export default function StepCounter() {
     subDays(selectedDate, Math.floor(WEEK_DAYS / 2) - i)
   );
 
-  // History: all days of the current week (Mon–Sun)
+  // History: all days of the current week (Mon-Sun)
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
-  const weekLabel = `${format(weekStart, "MMM d")} – ${format(weekEnd, "MMM d, yyyy")}`;
+  const weekLabel = `${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`;
   const historyDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
   const historyEntries = historyDays.map((d) => {
     const key = getStepsKey(user?.id, format(d, "yyyy-MM-dd"));
@@ -305,26 +305,38 @@ export default function StepCounter() {
   const isBelowGoal = isToday(selectedDate) && steps < goalSteps;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-white pb-24 pt-safe">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-gray-100">
-        <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
+      <div className="sticky top-0 z-10 border-b border-orange-900/5 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-3 rtl:flex-row-reverse">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-orange-950 shadow-sm transition-transform active:scale-95"
+            aria-label="Go back"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">{t('steps_title')}</h1>
-          <div className="w-10 h-10" />
+          <div className="min-w-0 text-center">
+            <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#f97316]">
+              {format(selectedDate, "EEE, MMM d")}
+            </p>
+            <h1 className="truncate text-base font-extrabold leading-tight text-orange-950">{t('steps_title')}</h1>
+          </div>
+          <button
+            onClick={handleOpenAddSheet}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f97316] text-white shadow-[0_12px_24px_rgba(249,115,22,0.24)] transition-transform active:scale-95"
+            aria-label={t('steps_add')}
+          >
+            <Plus className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Health connection badge */}
         {healthKitConnected && enabledTypes.includes("steps") && (
-          <div className="px-4 pb-2">
+          <div className="mx-auto max-w-lg px-4 pb-2">
             <Badge
               variant="outline"
-              className="flex items-center gap-1.5 w-fit text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
+              className="flex w-fit items-center gap-1.5 rounded-full border-orange-200 bg-white text-xs font-bold text-[#ea580c]"
             >
               {healthPlatform === "apple_health" ? (
                 <Apple className="w-3 h-3" />
@@ -333,7 +345,7 @@ export default function StepCounter() {
               )}
               Connected to {healthPlatform === "apple_health" ? "Apple Health" : "Google Fit"}
               {lastSyncTimestamp && (
-                <span className="ml-1 text-emerald-500">
+                <span className="ml-1 text-orange-500">
                   &middot; {formatLastSync()}
                 </span>
               )}
@@ -342,23 +354,23 @@ export default function StepCounter() {
         )} 
 
         {/* Date selector */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto">
+        <div className="mx-auto max-w-lg px-4 pb-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {weekDates.map((d) => (
               <button
                 key={d.toISOString()}
                 onClick={() => setSelectedDate(d)}
                 className={cn(
-                  "flex-shrink-0 flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all",
+                  "flex min-h-[58px] min-w-[48px] flex-shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-3 transition-all",
                   isSameDay(d, selectedDate)
-                    ? "bg-orange-500 text-white"
-                    : "text-gray-600 hover:bg-gray-50 border border-gray-200"
+                    ? "bg-[#f97316] text-white shadow-[0_10px_20px_rgba(249,115,22,0.18)]"
+                    : "bg-white text-orange-950/55 ring-1 ring-orange-200/80"
                 )}
               >
-                <span className="text-xs font-medium">{format(d, "EEE")}</span>
-                <span className="text-sm font-bold">{format(d, "d")}</span>
+                <span className="text-[10px] font-extrabold uppercase">{format(d, "EEE")}</span>
+                <span className="text-base font-black">{format(d, "d")}</span>
                 {isSameDay(d, selectedDate) && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-200" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
                 )}
               </button>
             ))}
@@ -368,7 +380,7 @@ export default function StepCounter() {
               if (!calendarOpen) setCalendarMonth(selectedDate);
               setCalendarOpen((prev) => !prev);
             }}
-            className="flex justify-center w-full mt-2 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="mt-1 flex w-full justify-center p-2 text-orange-950/35 transition-colors hover:text-orange-950/60"
           >
             {calendarOpen
               ? <ChevronUp className="w-5 h-5" />
@@ -388,29 +400,29 @@ export default function StepCounter() {
         const R = 14; const CIRC = 2 * Math.PI * R;
 
         return (
-          <div className="bg-background border-b border-gray-100 px-4 pb-4">
+          <div className="border-b border-orange-900/5 bg-white px-4 pb-4">
             {/* Month nav */}
-            <div className="flex items-center justify-between mb-3 pt-2">
+            <div className="mx-auto mb-3 flex max-w-lg items-center justify-between pt-2">
               <button onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                <NavChevronLeft className="w-4 h-4 text-gray-600" />
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-orange-950 shadow-sm transition-transform active:scale-95">
+                <NavChevronLeft className="h-4 w-4" />
               </button>
-              <span className="font-bold text-gray-900">{format(calendarMonth, "MMMM yyyy")}</span>
+              <span className="font-black text-orange-950">{format(calendarMonth, "MMMM yyyy")}</span>
               <button onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-                <NavChevronRight className="w-4 h-4 text-gray-600" />
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-orange-950 shadow-sm transition-transform active:scale-95">
+                <NavChevronRight className="h-4 w-4" />
               </button>
             </div>
 
             {/* Day headers */}
-            <div className="grid grid-cols-7 mb-1">
+            <div className="mx-auto mb-1 grid max-w-lg grid-cols-7">
               {DAY_HEADERS.map((h) => (
-                <div key={h} className="text-center text-xs font-semibold text-gray-400">{h}</div>
+                <div key={h} className="text-center text-xs font-bold text-orange-950/35">{h}</div>
               ))}
             </div>
 
             {/* Day cells */}
-            <div className="grid grid-cols-7 gap-y-1">
+            <div className="mx-auto grid max-w-lg grid-cols-7 gap-y-1">
               {calDays.map((d) => {
                 const inMonth = isSameMonth(d, calendarMonth);
                 const isSelected = isSameDay(d, selectedDate);
@@ -426,20 +438,20 @@ export default function StepCounter() {
                   >
                     <div className="relative w-9 h-9">
                       <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r={R} fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                        <circle cx="18" cy="18" r={R} fill="none" stroke="#fed7aa" strokeWidth="3" />
                         {daySteps > 0 && (
                           <circle cx="18" cy="18" r={R} fill="none"
-                            stroke={isSelected ? "#ea580c" : "#fb923c"}
+                            stroke={isSelected ? "#f97316" : "#fdba74"}
                             strokeWidth="3" strokeLinecap="round"
                             strokeDasharray={`${dash} ${CIRC}`} />
                         )}
                       </svg>
                       <span className={cn(
                         "absolute inset-0 flex items-center justify-center text-xs font-bold",
-                        !inMonth && "text-gray-300",
-                        inMonth && isSelected && "text-orange-600",
-                        inMonth && !isSelected && isToday(d) && "text-orange-500",
-                        inMonth && !isSelected && !isToday(d) && "text-gray-700",
+                        !inMonth && "text-orange-950/20",
+                        inMonth && isSelected && "text-orange-950",
+                        inMonth && !isSelected && isToday(d) && "text-[#ea580c]",
+                        inMonth && !isSelected && !isToday(d) && "text-orange-950/65",
                       )}>
                         {format(d, "d")}
                       </span>
@@ -450,37 +462,37 @@ export default function StepCounter() {
             </div>
 
             {/* Collapse button */}
-            <div className="flex justify-end mt-2">
+            <div className="mx-auto mt-2 flex max-w-lg justify-end">
               <button onClick={() => setCalendarOpen(false)}
-                className="p-1 rounded-full hover:bg-gray-100 transition-colors">
-                <ChevronUp className="w-5 h-5 text-gray-400" />
+                className="rounded-full p-1 text-orange-950/35 transition-colors hover:bg-white hover:text-orange-950/60">
+                <ChevronUp className="h-5 w-5" />
               </button>
             </div>
           </div>
         );
       })()}
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="mx-auto max-w-lg px-4 py-4">
         {/* Warning banner */}
         {isBelowGoal && (
-          <div className="flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+          <div className="mb-4 flex items-center gap-2 rounded-2xl border border-amber-200 bg-white px-4 py-3 text-amber-800 shadow-sm">
             <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-            <p className="text-sm font-medium">
+            <p className="text-sm font-semibold">
               {t('steps_keep_going', { count: (goalSteps - steps).toLocaleString() })}
             </p>
           </div>
         )}
 
         {/* Circular progress */}
-        <div className="flex flex-col items-center">
-          <div className="relative w-64 h-64">
+        <div className="flex flex-col items-center rounded-[30px] border border-orange-200/80 bg-white px-5 py-7 shadow-[0_18px_45px_rgba(249,115,22,0.10)]">
+          <div className="relative h-60 w-60">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
               <circle
                 cx="60"
                 cy="60"
                 r="54"
                 fill="none"
-                stroke="#e5e7eb"
+                stroke="#fff7ed"
                 strokeWidth="12"
                 strokeLinecap="round"
                 strokeDasharray="339.3 339.3"
@@ -498,22 +510,22 @@ export default function StepCounter() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-sm font-medium text-gray-500">{t('steps_today')}</span>
-              <span className="text-4xl font-bold text-gray-900">{steps.toLocaleString()}</span>
-              <span className="text-sm text-gray-500">/ {goalSteps.toLocaleString()}</span>
+              <span className="text-sm font-bold text-orange-950/45">{t('steps_today')}</span>
+              <span className="text-[40px] font-black leading-none text-orange-950">{steps.toLocaleString()}</span>
+              <span className="mt-1 text-sm font-bold text-orange-950/45">/ {goalSteps.toLocaleString()}</span>
             </div>
             <button
               onClick={handleOpenAddSheet}
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2 w-14 h-14 rounded-full bg-orange-500 flex items-center justify-center shadow-lg hover:bg-orange-600 active:scale-95 transition-all text-white"
+              className="absolute bottom-0 left-1/2 flex h-14 w-14 -translate-x-1/2 translate-y-2 items-center justify-center rounded-full bg-[#f97316] text-white shadow-[0_14px_28px_rgba(249,115,22,0.24)] transition-all active:scale-95"
               aria-label={t('steps_add')}
             >
-              <Plus className="w-6 h-6" />
+              <Plus className="h-6 w-6" />
             </button>
           </div>
 
           {/* Goal selector */}
           <div className="mt-10 w-full">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 text-center">
+            <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-[0.12em] text-orange-950/45">
               {t('steps_goal')}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
@@ -522,10 +534,10 @@ export default function StepCounter() {
                   key={option}
                   onClick={() => handleSetGoal(option)}
                   className={cn(
-                    "px-4 py-1.5 rounded-full text-sm font-semibold border transition-all",
+                    "min-h-10 rounded-full border px-4 py-2 text-sm font-extrabold transition-all",
                     goalSteps === option
-                      ? "bg-orange-500 border-orange-500 text-white shadow-sm"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-500"
+                      ? "border-[#f97316] bg-[#f97316] text-white shadow-sm"
+                      : "border-orange-100 bg-white text-orange-950/60 hover:border-orange-300 hover:text-orange-600"
                   )}
                 >
                   {option >= 1000 ? `${option / 1000}k` : option}
@@ -534,16 +546,16 @@ export default function StepCounter() {
             </div>
           </div>
 
-          {/* Calories burned — auto-calculated from today's steps */}
+          {/* Calories burned - auto-calculated from today's steps */}
           {isToday(selectedDate) && (
-            <div className="mt-6 w-full flex items-center gap-3 bg-orange-50 rounded-2xl px-4 py-3">
-              <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                <Flame className="w-5 h-5 text-orange-500" />
+            <div className="mt-6 flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#f97316] shadow-sm">
+                <Flame className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs text-orange-400 font-medium">{t('steps_calories')}</p>
-                <p className="text-lg font-black text-orange-600">
-                  {burnedCal != null ? burnedCal : "—"} <span className="text-xs font-semibold">{t('steps_cal_unit')}</span>
+                <p className="text-xs font-bold text-orange-950/45">{t('steps_calories')}</p>
+                <p className="text-lg font-black text-orange-950">
+                  {burnedCal != null ? burnedCal : "-"} <span className="text-xs font-semibold text-orange-950/45">{t('steps_cal_unit')}</span>
                 </p>
               </div>
             </div>
@@ -553,14 +565,14 @@ export default function StepCounter() {
 
         {/* Auto-Detected Workouts Section */}
         {autoDetectedWorkouts.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <Dumbbell className="w-5 h-5 text-blue-500" />
+          <div className="mt-5 rounded-[28px] border border-orange-200/80 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-black text-orange-950">
+                <Dumbbell className="h-5 w-5 text-[#f97316]" />
                 Auto-Detected Workouts
                 {isAutoDetecting && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="flex items-center gap-1 rounded-full bg-[#fff7ed] px-2 py-0.5 text-xs font-bold text-[#ea580c]">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#f97316]" />
                     Monitoring
                   </span>
                 )}
@@ -570,37 +582,37 @@ export default function StepCounter() {
               {autoDetectedWorkouts.map((workout) => (
                 <div
                   key={workout.id}
-                  className="flex items-center justify-between bg-blue-50 rounded-xl px-4 py-3 border border-blue-100"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-orange-100 bg-[#fffaf5] px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                      <Dumbbell className="w-5 h-5 text-blue-600" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff7ed]">
+                      <Dumbbell className="h-5 w-5 text-[#ea580c]" />
                     </div>
-                    <div>
-                      <p className="font-bold text-gray-900">{workout.type}</p>
-                      <p className="text-xs text-gray-500">
-                        {format(workout.startTime, 'h:mm a')} • {workout.duration} min • {workout.stepRate} spm
+                    <div className="min-w-0">
+                      <p className="truncate font-black text-orange-950">{workout.type}</p>
+                      <p className="truncate text-xs font-medium text-orange-950/50">
+                        {format(workout.startTime, 'h:mm a')} - {workout.duration} min - {workout.stepRate} spm
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-blue-600">
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm font-black text-[#ea580c]">
                       {workout.calories} cal
                     </span>
                     <div className="flex gap-1">
                       <button
                         onClick={() => dismissAutoWorkout(workout.id)}
-                        className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-orange-950/50 shadow-sm transition-transform active:scale-95"
                         aria-label="Dismiss workout"
                       >
-                        <X className="w-4 h-4 text-gray-600" />
+                        <X className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => confirmAutoWorkout(workout)}
-                        className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center hover:bg-blue-600 transition-colors"
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f97316] text-white shadow-sm transition-transform active:scale-95"
                         aria-label="Confirm workout"
                       >
-                        <Check className="w-4 h-4 text-white" />
+                        <Check className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -611,63 +623,63 @@ export default function StepCounter() {
         )}
 
         {/* History */}
-        <div className="mt-10">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-900">{t('steps_history')}</h2>
+        <div className="mt-5 rounded-[28px] border border-orange-200/80 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[18px] font-black text-orange-950">{t('steps_history')}</h2>
           </div>
-          <p className="text-xs text-gray-500 mb-3">{weekLabel}</p>
-          <div className="rounded-2xl bg-gray-50 overflow-hidden divide-y divide-gray-100">
+          <p className="mb-3 text-xs font-semibold text-orange-950/50">{weekLabel}</p>
+          <div className="overflow-hidden rounded-2xl bg-[#fffaf5] divide-y divide-orange-900/5">
             {historyEntries.map((entry) => (
               <div
                 key={entry.date.toISOString()}
                 className={cn(
-                  "flex items-center py-3 px-4 gap-2",
-                  isSameDay(entry.date, selectedDate) && "bg-orange-50"
+                  "flex items-center gap-2 px-4 py-3",
+                  isSameDay(entry.date, selectedDate) && "bg-[#fff7ed]"
                 )}
               >
-                <span className="text-xs font-semibold text-gray-400 w-8 shrink-0">
+                <span className="w-8 shrink-0 text-xs font-bold text-orange-950/35">
                   {format(entry.date, "EEE")}
                 </span>
                 <div className="flex items-center gap-1.5 flex-1">
-                  <Footprints className="w-4 h-4 text-orange-400 shrink-0" />
-                  <span className="text-sm font-semibold text-gray-800">{entry.steps.toLocaleString()}</span>
+                  <Footprints className="h-4 w-4 shrink-0 text-[#f97316]" />
+                  <span className="text-sm font-bold text-orange-950">{entry.steps.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-1 justify-center w-14">
-                  <Clock className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span className="text-sm font-semibold text-gray-800">{entry.mins}m</span>
+                  <Clock className="h-4 w-4 shrink-0 text-[#f97316]" />
+                  <span className="text-sm font-bold text-orange-950">{entry.mins}m</span>
                 </div>
                 <div className="flex items-center gap-1 justify-center w-14">
-                  <Flame className="w-4 h-4 text-red-400 shrink-0" />
-                  <span className="text-sm font-semibold text-gray-800">{entry.cal}</span>
+                  <Flame className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span className="text-sm font-bold text-orange-950">{entry.cal}</span>
                 </div>
                 <div className="flex items-center gap-1 justify-end w-14">
-                  <MapPin className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span className="text-sm font-semibold text-gray-800">{entry.km.toFixed(1)}</span>
+                  <MapPin className="h-4 w-4 shrink-0 text-[#ea580c]" />
+                  <span className="text-sm font-bold text-orange-950">{entry.km.toFixed(1)}</span>
                 </div>
               </div>
             ))}
 
             {/* Totals row */}
-            <div className="px-4 pt-3 pb-1 bg-gray-100">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('steps_total')}</span>
+            <div className="bg-[#fff7ed] px-4 pb-1 pt-3">
+              <span className="text-xs font-extrabold uppercase tracking-[0.12em] text-orange-950/50">{t('steps_total')}</span>
             </div>
-            <div className="flex items-center pb-3 px-4 bg-gray-100 gap-2">
-              <span className="text-xs font-semibold text-gray-400 w-8 shrink-0" />
+            <div className="flex items-center gap-2 bg-[#fff7ed] px-4 pb-3">
+              <span className="w-8 shrink-0 text-xs font-semibold text-orange-950/35" />
               <div className="flex items-center gap-1.5 flex-1">
-                <Footprints className="w-4 h-4 text-orange-400 shrink-0" />
-                <span className="text-sm font-bold text-gray-900">{totals.steps.toLocaleString()}</span>
+                <Footprints className="h-4 w-4 shrink-0 text-[#f97316]" />
+                <span className="text-sm font-black text-orange-950">{totals.steps.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-1 justify-center w-14">
-                <Clock className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="text-sm font-bold text-gray-900">{totals.mins}m</span>
+                <Clock className="h-4 w-4 shrink-0 text-[#f97316]" />
+                <span className="text-sm font-black text-orange-950">{totals.mins}m</span>
               </div>
               <div className="flex items-center gap-1 justify-center w-14">
-                <Flame className="w-4 h-4 text-red-400 shrink-0" />
-                <span className="text-sm font-bold text-gray-900">{totals.cal}</span>
+                <Flame className="h-4 w-4 shrink-0 text-amber-500" />
+                <span className="text-sm font-black text-orange-950">{totals.cal}</span>
               </div>
               <div className="flex items-center gap-1 justify-end w-14">
-                <MapPin className="w-4 h-4 text-sky-400 shrink-0" />
-                <span className="text-sm font-bold text-gray-900">{totals.km.toFixed(1)}</span>
+                <MapPin className="h-4 w-4 shrink-0 text-[#ea580c]" />
+                <span className="text-sm font-black text-orange-950">{totals.km.toFixed(1)}</span>
               </div>
             </div>
           </div>
@@ -682,13 +694,13 @@ export default function StepCounter() {
             className="fixed inset-0 z-40 bg-black/40"
             onClick={() => setAddSheetOpen(false)}
           />
-          {/* Sheet — sits above the nav bar (nav is ~84px) */}
-          <div className="fixed left-0 right-0 z-50 bg-white rounded-t-3xl px-5 pt-5 shadow-xl"
+          {/* Sheet - sits above the nav bar (nav is ~84px) */}
+          <div className="fixed left-0 right-0 z-50 rounded-t-[30px] bg-white px-5 pt-5 shadow-[0_-18px_45px_rgba(249,115,22,0.14)]"
             style={{ bottom: 84, paddingBottom: 16 }}>
             {/* Handle */}
-            <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-5" />
+            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-orange-950/10" />
 
-            <h3 className="text-base font-bold text-gray-900 mb-4">{t('steps_add')}</h3>
+            <h3 className="mb-4 text-base font-black text-orange-950">{t('steps_add')}</h3>
 
             {/* Quick add options */}
             <div className="grid grid-cols-4 gap-2 mb-5">
@@ -696,17 +708,17 @@ export default function StepCounter() {
                 <button
                   key={amount}
                   onClick={() => handleQuickAdd(amount)}
-                  className="flex flex-col items-center py-3 rounded-2xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors"
+                  className="flex min-h-[72px] flex-col items-center justify-center rounded-2xl border border-orange-200 bg-[#fffaf5] py-3 transition-transform active:scale-95"
                 >
-                  <span className="text-sm font-black text-orange-600">+{amount >= 1000 ? `${amount / 1000}k` : amount}</span>
-                  <span className="text-[10px] text-orange-400 font-medium mt-0.5">steps</span>
+                  <span className="text-sm font-black text-[#ea580c]">+{amount >= 1000 ? `${amount / 1000}k` : amount}</span>
+                  <span className="mt-0.5 text-[10px] font-bold text-orange-950/45">steps</span>
                 </button>
               ))}
             </div>
 
             {/* Custom input */}
-            <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3 mb-4">
-              <Footprints className="w-5 h-5 text-orange-400 shrink-0" />
+            <div className="mb-4 flex items-center gap-3 rounded-2xl bg-[#fffaf5] px-4 py-3">
+              <Footprints className="h-5 w-5 shrink-0 text-[#f97316]" />
               <input
                 ref={inputRef}
                 type="number"
@@ -716,14 +728,14 @@ export default function StepCounter() {
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCustomAdd()}
-                className="flex-1 bg-transparent text-base font-semibold text-gray-900 placeholder-gray-400 outline-none"
+                className="min-w-0 flex-1 bg-transparent text-base font-bold text-orange-950 placeholder:text-orange-950/35 outline-none"
               />
             </div>
 
             <button
               onClick={handleCustomAdd}
               disabled={!customInput || parseInt(customInput, 10) <= 0}
-              className="w-full h-13 rounded-full bg-orange-500 text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-40 transition-colors hover:bg-orange-600 active:scale-95"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#f97316] text-base font-extrabold text-white transition-transform active:scale-95 disabled:opacity-40"
               style={{ height: 52 }}
             >
               <Check className="w-5 h-5" /> Add Steps
