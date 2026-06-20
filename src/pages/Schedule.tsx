@@ -33,7 +33,9 @@ import {
   Apple,
   Loader2,
   Check,
+  CalendarPlus,
   Clock,
+  Sparkles,
   Wallet,
   ArrowLeft, ChevronLeft,
   ArrowRight,
@@ -148,7 +150,7 @@ const Schedule = () => {
   const { t, isRTL } = useLanguage();
   const reduceMotion = useReducedMotion();
   useEffect(() => { document.title = `${t("nav_schedule")} — Nutrio`; }, [t]);
-  const { PrevIcon, NextIcon } = getNavArrows(isRTL);
+  const { NextIcon } = getNavArrows(isRTL);
   const DAYS = isRTL ? DAYS_AR : DAYS_EN;
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -540,7 +542,7 @@ const Schedule = () => {
 
   if (!settingsLoading && !settings.features.meal_scheduling) {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-[#F7F8F3] pb-20 dark:from-gray-900 dark:to-black">
+      <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC] pb-20 dark:from-gray-900 dark:to-black">
         <div className="sticky top-0 z-10 border-b border-slate-100/60" style={{ paddingTop: "env(safe-area-inset-top, 0px)", backgroundColor: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)" }}>
           <div className="flex items-center justify-between h-[44px] px-2 max-w-lg mx-auto">
             <button
@@ -582,27 +584,7 @@ const Schedule = () => {
   const weekProgressPct = weekProgress.total > 0 ? Math.round((weekProgress.completed / weekProgress.total) * 100) : 0;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#F7F8F3] pb-24">
-      {/* Background blobs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
-          aria-hidden
-          animate={reduceMotion ? undefined : { scale: [1, 1.08, 1], x: [0, 20, 0], y: [0, -10, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-32 -right-24 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl"
-        />
-        <motion.div
-          aria-hidden
-          animate={reduceMotion ? undefined : { scale: [1, 1.1, 1], x: [0, -15, 0], y: [0, 15, 0] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-40 -left-20 h-64 w-64 rounded-full bg-teal-300/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.06]"
-          style={{ backgroundImage: "radial-gradient(#0f172a 0.8px, transparent 0.8px)", backgroundSize: "18px 18px" }}
-        />
-      </div>
+    <div className="relative min-h-screen overflow-hidden bg-[#F8FAFC] pb-24">
       {/* Scroll progress bar — native iOS style sub-bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-0.5 bg-emerald-500 z-50 origin-left"
@@ -627,7 +609,7 @@ const Schedule = () => {
       />
 
       {/* ── Content Area ─────────────────────────────── */}
-      <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[120px]">
+      <div className="relative z-10 mx-auto max-w-[430px] px-3 pb-[120px] pt-4">
 
         {/* ── Weekly Stats ─────────────────────────────── */}
         <WeeklyProgressBar
@@ -637,6 +619,45 @@ const Schedule = () => {
           isUnlimited={isUnlimited}
           hasActiveSubscription={hasActiveSubscription}
         />
+
+        {!loading && hasActiveSubscription && (() => {
+          const totalSlots = 7 * 4;
+          const hasUnusedSlots = thisWeekSchedules.length < totalSlots;
+          const isWeekEmpty = thisWeekSchedules.length === 0;
+          const openSlots = Math.max(totalSlots - thisWeekSchedules.length, 0);
+
+          if (!isWeekEmpty && !hasUnusedSlots) return null;
+
+          return (
+            <motion.button
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => setShowMealPlanGenerator(true)}
+              whileTap={{ scale: 0.98 }}
+              className="mb-4 mt-2 flex w-full items-center gap-3 rounded-[24px] bg-white p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition active:bg-white/80"
+              dir={isRTL ? "rtl" : "ltr"}
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <CalendarPlus className="h-6 w-6" strokeWidth={2.4} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="mb-0.5 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" strokeWidth={2.5} />
+                  <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">
+                    {isWeekEmpty ? "Smart planner" : `${openSlots} open slots`}
+                  </span>
+                </div>
+                <p className="truncate text-[15px] font-black text-slate-950">{t("schedule_fill_week_title")}</p>
+                <p className="truncate text-[12px] font-semibold text-slate-500">{t("schedule_fill_week_desc")}</p>
+              </div>
+
+              <span className="flex h-10 shrink-0 items-center rounded-full bg-slate-950 px-4 text-[13px] font-black text-white">
+                {t("schedule_fill_my_week")}
+              </span>
+            </motion.button>
+          );
+        })()}
 
         {/* ── Smart Substitution Banner ─────────────────── */}
         <SmartSubstitutionBanner
@@ -687,7 +708,7 @@ const Schedule = () => {
             ))}
           </div>
         ) : (
-          <div className="mt-1">
+          <div className="mt-4">
             {MEAL_TYPES.map((mealType, typeIndex) => {
               const config = MEAL_TYPE_CONFIG[mealType];
               const MealIcon = config.icon;
@@ -696,14 +717,14 @@ const Schedule = () => {
               const mealTypeName = t(mealType);
               const noMealsLeft = hasActiveSubscription && !isUnlimited && remainingMeals <= 0;
 
-              const sectionLabelEN = `${mealTypeName.toUpperCase()} · ${timeLabel}`;
-              const sectionLabelAR = `${mealTypeName} · ${timeLabel}`;
+              const sectionLabelEN = `${mealTypeName.toUpperCase()} - ${timeLabel}`;
+              const sectionLabelAR = `${mealTypeName} - ${timeLabel}`;
               const sectionLabel = isRTL ? sectionLabelAR : sectionLabelEN;
 
               if (typeMeals.length > 0) {
                 return (
-                  <div key={mealType} className="mb-3">
-                    <p className="mb-2 px-1 text-[14px] font-bold text-slate-500" dir={isRTL ? "rtl" : "ltr"}>
+                  <section key={mealType} className="mb-3">
+                    <p className="mb-3 px-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-slate-500" dir={isRTL ? "rtl" : "ltr"}>
                       {sectionLabel}
                     </p>
                     <div className="space-y-2">
@@ -719,7 +740,7 @@ const Schedule = () => {
                               setSelectedMeal(schedule);
                               setShowMealSheet(true);
                             }}
-                            className="relative cursor-pointer rounded-[24px] border border-white/80 bg-white/90 p-3.5 backdrop-blur-xl transition-all hover:bg-white/95 active:bg-white/80"
+                            className="relative cursor-pointer rounded-[24px] bg-white p-3.5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.09)] active:bg-white/80"
                             dir={isRTL ? "rtl" : "ltr"}
                           >
                             <div className="flex items-center gap-3">
@@ -783,7 +804,7 @@ const Schedule = () => {
                         );
                       })}
                     </div>
-                  </div>
+                  </section>
                 );
               }
 
@@ -792,8 +813,8 @@ const Schedule = () => {
                 : 1;
 
               return (
-                <div key={mealType} className="mb-3">
-                  <p className="mb-2 px-1 text-[14px] font-bold text-slate-500" dir={isRTL ? "rtl" : "ltr"}>
+                <section key={mealType} className="mb-3">
+                  <p className="mb-3 px-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-slate-500" dir={isRTL ? "rtl" : "ltr"}>
                     {sectionLabel}
                   </p>
                   <div className="space-y-2">
@@ -838,7 +859,7 @@ const Schedule = () => {
                       );
                     })}
                   </div>
-                </div>
+                </section>
               );
             })}
           </div>
@@ -1021,51 +1042,6 @@ const Schedule = () => {
       </AnimatePresence>
 
       {/* ── Fill My Week FAB ─────────────────────────── */}
-      {!loading && hasActiveSubscription && (
-        <AnimatePresence>
-          {(() => {
-            const totalSlots = 7 * 4;
-            const hasUnusedSlots = thisWeekSchedules.length < totalSlots;
-            const isWeekEmpty = thisWeekSchedules.length === 0;
-
-            if (!isWeekEmpty && !hasUnusedSlots) return null;
-
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="fixed left-0 right-0 z-40 mx-auto max-w-[430px] px-3"
-                style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)" }}
-              >
-                <motion.button
-                  onClick={() => setShowMealPlanGenerator(true)}
-                  whileTap={{ scale: 0.97 }}
-                  className="flex w-full items-center gap-3 rounded-[24px] border border-white/80 bg-white/90 px-4 py-3.5 text-left backdrop-blur-2xl shadow-[0_4px_24px_rgba(16,185,129,0.12)] transition-all"
-                  dir={isRTL ? "rtl" : "ltr"}
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-emerald-50">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="3" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold text-slate-900 truncate">{t("schedule_fill_week_title")}</p>
-                    <p className="text-[12px] text-slate-400 font-medium truncate">{t("schedule_fill_week_desc")}</p>
-                  </div>
-                  <span className="flex h-8 items-center rounded-full bg-emerald-500 px-3 text-[13px] font-bold text-white">
-                    {t("schedule_fill_my_week")}
-                  </span>
-                </motion.button>
-              </motion.div>
-            );
-          })()}
-        </AnimatePresence>
-      )}
-
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }

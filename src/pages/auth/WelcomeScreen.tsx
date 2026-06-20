@@ -162,7 +162,7 @@ const NutritionRingDial = () => {
         initial={{ scale: 0.7, opacity: 0, y: -10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
-        className="absolute right-0 top-0 overflow-hidden rounded-[24px] border border-white/80 bg-white/85 px-3 py-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+        className="absolute right-0 -top-8 overflow-hidden rounded-[24px] border border-white/80 bg-white/85 px-3 py-2.5 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur-xl"
       >
         <motion.div
           aria-hidden
