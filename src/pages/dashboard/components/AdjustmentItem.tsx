@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Award, TrendingUp, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AdjustmentItemProps {
   adjustment: {
@@ -19,6 +19,7 @@ interface AdjustmentItemProps {
 }
 
 export function AdjustmentItem({ adjustment }: AdjustmentItemProps) {
+  const { t } = useLanguage();
   return (
     <Card
       key={adjustment.id}
