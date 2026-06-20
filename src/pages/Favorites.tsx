@@ -1,37 +1,38 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
+import { formatDistanceToNow } from "date-fns";
+import {
+  AlertCircle,
   ArrowLeft,
-  Heart,
-  Star,
-  Flame,
   Beef,
+  ChefHat,
   Clock,
+  ClipboardList,
+  Flame,
+  Heart,
+  RefreshCw,
+  RotateCcw,
+  ShoppingBag,
+  Star,
+  Trash2,
+  TrendingUp,
   Utensils,
   UtensilsCrossed,
-  Loader2,
-  Trash2,
-  RotateCcw,
-  TrendingUp,
-  Calendar,
-  ShoppingBag,
-  ClipboardList,
-  ForkKnife,
-  ChefHat
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+
+import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/hooks/useProfile";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
+import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { useTopMeals } from "@/hooks/useTopMeals";
-import { EmptyState } from "@/components/EmptyState";
-import { formatDistanceToNow } from "date-fns";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 interface FavoriteRestaurant {
   id: string;
@@ -43,20 +44,51 @@ interface FavoriteRestaurant {
   meal_count: number;
 }
 
+type StatTone = "amber" | "sky" | "orange" | "rose";
+
+const StatPill = ({
+  icon,
+  value,
+  label,
+  tone,
+}: {
+  icon: ReactNode;
+  value: string;
+  label?: string;
+  tone: StatTone;
+}) => (
+  <div
+    className={cn(
+      "flex min-h-9 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-black",
+      tone === "amber" && "bg-amber-50 text-amber-700",
+      tone === "sky" && "bg-sky-50 text-sky-700",
+      tone === "orange" && "bg-orange-50 text-orange-700",
+      tone === "rose" && "bg-rose-50 text-rose-700"
+    )}
+  >
+    {icon}
+    <span className="truncate">{value}</span>
+    {label && <span className="hidden text-[10px] font-extrabold opacity-70 xs:inline">{label}</span>}
+  </div>
+);
+
 const Favorites = () => {
   const { t } = useLanguage();
-  useEffect(() => { document.title = `${t("favorites_title")} — Nutrio`; }, [t]);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
   const { toggleFavorite } = useFavoriteRestaurants();
   const { topMeals, loading: topMealsLoading, removeFromTopMeals, fetchTopMeals } = useTopMeals();
-  
+
   const [restaurants, setRestaurants] = useState<FavoriteRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("restaurants");
+
+  useEffect(() => {
+    document.title = `${t("favorites_title")} - Nutrio`;
+  }, [t]);
 
   useEffect(() => {
     if (sessionStorage.getItem("nutrio_onboarding_done") === "true") return;
@@ -71,10 +103,15 @@ const Favorites = () => {
   }, [user]);
 
   const fetchRestaurants = async () => {
-    if (!user) return;
-    
+    if (!user) {
+      setRestaurants([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setFetchError(null);
+
     try {
       const { data: favData, error: favError } = await supabase
         .from("user_favorite_restaurants")
@@ -84,40 +121,49 @@ const Favorites = () => {
       if (favError) throw favError;
 
       const restaurantIds = (favData || []).map((f: { restaurant_id: string }) => f.restaurant_id);
-      
-      if (restaurantIds.length > 0) {
-        const { data: restaurantsData, error: restaurantsError } = await supabase
-          .from("restaurants")
-          .select("id, name, description, logo_url, rating, total_orders")
-          .in("id", restaurantIds);
 
-        if (restaurantsError) throw restaurantsError;
-
-        const { data: mealsCountData } = await supabase
-          .from("meals")
-          .select("restaurant_id")
-          .in("restaurant_id", restaurantIds);
-
-        const mealCounts: Record<string, number> = {};
-        (mealsCountData || []).forEach((meal: { restaurant_id: string }) => {
-          mealCounts[meal.restaurant_id] = (mealCounts[meal.restaurant_id] || 0) + 1;
-        });
-
-        const transformedRestaurants: FavoriteRestaurant[] = (restaurantsData || [])
-          .map((r: { id: string; name: string; description: string | null; logo_url: string | null; rating: number | string; total_orders: number }) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            logo_url: r.logo_url,
-            rating: parseFloat(String(r.rating)) || 0,
-            total_orders: r.total_orders || 0,
-            meal_count: mealCounts[r.id] || 0,
-          }));
-
-        setRestaurants(transformedRestaurants);
-      } else {
+      if (restaurantIds.length === 0) {
         setRestaurants([]);
+        return;
       }
+
+      const { data: restaurantsData, error: restaurantsError } = await supabase
+        .from("restaurants")
+        .select("id, name, description, logo_url, rating, total_orders")
+        .in("id", restaurantIds);
+
+      if (restaurantsError) throw restaurantsError;
+
+      const { data: mealsCountData } = await supabase
+        .from("meals")
+        .select("restaurant_id")
+        .in("restaurant_id", restaurantIds);
+
+      const mealCounts: Record<string, number> = {};
+      (mealsCountData || []).forEach((meal: { restaurant_id: string }) => {
+        mealCounts[meal.restaurant_id] = (mealCounts[meal.restaurant_id] || 0) + 1;
+      });
+
+      const transformedRestaurants: FavoriteRestaurant[] = (restaurantsData || []).map(
+        (restaurant: {
+          id: string;
+          name: string;
+          description: string | null;
+          logo_url: string | null;
+          rating: number | string;
+          total_orders: number;
+        }) => ({
+          id: restaurant.id,
+          name: restaurant.name,
+          description: restaurant.description,
+          logo_url: restaurant.logo_url,
+          rating: parseFloat(String(restaurant.rating)) || 0,
+          total_orders: restaurant.total_orders || 0,
+          meal_count: mealCounts[restaurant.id] || 0,
+        })
+      );
+
+      setRestaurants(transformedRestaurants);
     } catch (err) {
       console.error("Error fetching favorites:", err);
       setFetchError(err instanceof Error ? err.message : String(err));
@@ -133,7 +179,7 @@ const Favorites = () => {
 
   const handleRemoveFavorite = async (restaurantId: string, restaurantName: string) => {
     await toggleFavorite(restaurantId, restaurantName);
-    setRestaurants(prev => prev.filter(r => r.id !== restaurantId));
+    setRestaurants((prev) => prev.filter((restaurant) => restaurant.id !== restaurantId));
   };
 
   const handleRemoveTopMeal = async (topMealId: string, mealName: string) => {
@@ -154,253 +200,310 @@ const Favorites = () => {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8F9FA] pb-20 mx-auto max-w-[430px]">
-      {/* Header */}
-      <div className="bg-white px-4 pt-safe pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-700" />
-          </button>
-          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100">
-            <Heart className="h-5 w-5 text-emerald-600 fill-emerald-600" />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">{t("favorites_title")}</h1>
-            <p className="text-sm text-gray-500">{t("favorites_subtitle")}</p>
-          </div>
-        </div>
-      </div>
+  const isLoading = activeTab === "restaurants" ? loading : topMealsLoading;
+  const savedCount = restaurants.length + topMeals.length;
 
-      {/* Content */}
-      <div className="px-4 pt-4">
+  return (
+    <div className="min-h-screen bg-white pb-24 pt-safe text-slate-950">
+      <header className="sticky top-0 z-40 border-b border-rose-950/5 bg-white/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-800 shadow-[0_8px_22px_rgba(15,23,42,0.07)] transition active:scale-95"
+            aria-label={t("go_back")}
+          >
+            <ArrowLeft className="h-5 w-5 rtl-flip" />
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-600">Nutrio</p>
+            <h1 className="truncate text-[18px] font-black">{t("favorites_title")}</h1>
+          </div>
+
+          <button
+            type="button"
+            onClick={activeTab === "meals" ? handleRefreshTopMeals : fetchRestaurants}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-rose-600 shadow-[0_8px_22px_rgba(15,23,42,0.07)] transition active:scale-95"
+            aria-label={t("refresh")}
+          >
+            <RefreshCw className="h-5 w-5" />
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-lg px-4 py-4">
+        <section className="overflow-hidden rounded-[30px] border border-white/60 bg-white/70 p-5 text-slate-950 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-rose-600">
+                <Heart className="h-3.5 w-3.5 fill-current" />
+                Saved picks
+              </div>
+              <h2 className="mt-4 text-[28px] font-black leading-none">{savedCount}</h2>
+              <p className="mt-2 max-w-[15rem] text-sm font-semibold leading-relaxed text-slate-500">
+                {t("favorites_subtitle")}
+              </p>
+            </div>
+
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-rose-500/10 text-rose-600 shadow-sm">
+              <Heart className="h-8 w-8 fill-current" />
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-rose-50/80 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
+                {t("favorites_restaurants_tab")}
+              </p>
+              <p className="mt-1 text-xl font-black text-slate-950">{restaurants.length}</p>
+            </div>
+            <div className="rounded-2xl bg-rose-50/80 px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-rose-700">
+                {t("favorites_meals_tab")}
+              </p>
+              <p className="mt-1 text-xl font-black text-slate-950">{topMeals.length}</p>
+            </div>
+          </div>
+        </section>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full h-auto p-1 bg-gray-100 rounded-2xl mb-4">
-            <TabsTrigger 
-              value="restaurants" 
-              className="flex-1 rounded-xl py-2.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm text-gray-500 transition-all"
+          <TabsList className="my-4 grid h-12 w-full grid-cols-2 rounded-[18px] bg-white p-1 shadow-sm">
+            <TabsTrigger
+              value="restaurants"
+              className="rounded-[14px] text-xs font-black text-slate-500 transition-all data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md"
             >
-              <Utensils className="w-4 h-4 mr-2" />
+              <Utensils className="mr-2 h-4 w-4 rtl:ml-2 rtl:mr-0" />
               {t("favorites_restaurants_tab")} ({restaurants.length})
             </TabsTrigger>
-            <TabsTrigger 
-              value="meals" 
-              className="flex-1 rounded-xl py-2.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-sm text-gray-500 transition-all"
+            <TabsTrigger
+              value="meals"
+              className="rounded-[14px] text-xs font-black text-slate-500 transition-all data-[state=active]:bg-rose-600 data-[state=active]:text-white data-[state=active]:shadow-md"
             >
-              <TrendingUp className="w-4 h-4 mr-2" />
+              <TrendingUp className="mr-2 h-4 w-4 rtl:ml-2 rtl:mr-0" />
               {t("favorites_meals_tab")} ({topMeals.length})
             </TabsTrigger>
           </TabsList>
 
           {fetchError && !loading ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
-                <AlertCircle className="h-8 w-8 text-destructive" />
+            <div className="rounded-[24px] border border-red-100 bg-white p-5 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
+                <AlertCircle className="h-7 w-7 text-red-500" />
               </div>
-              <p className="text-sm text-muted-foreground mb-4 text-center max-w-xs">{fetchError}</p>
-              <Button variant="outline" size="sm" onClick={fetchRestaurants}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              <p className="mx-auto mb-4 max-w-xs text-sm font-semibold text-slate-500">{fetchError}</p>
+              <Button variant="outline" size="sm" onClick={fetchRestaurants} className="rounded-full">
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5 rtl:ml-1.5 rtl:mr-0" />
                 {t("retry")}
               </Button>
             </div>
-          ) : loading || topMealsLoading ? (
-            <div className="space-y-3 py-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-card rounded-2xl border p-4 flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full" />
+          ) : isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="flex items-center gap-3 rounded-[24px] bg-white p-4 shadow-sm">
+                  <Skeleton className="h-16 w-16 rounded-2xl" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-56" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                    <Skeleton className="h-8 w-full rounded-full" />
                   </div>
-                  <Skeleton className="h-6 w-16 rounded-full" />
                 </div>
               ))}
             </div>
           ) : (
             <>
-              <TabsContent value="restaurants" className="space-y-4 mt-0">
+              <TabsContent value="restaurants" className="mt-0 space-y-3">
                 {restaurants.length === 0 ? (
-                  <EmptyState
-                    icon={<Heart className="w-8 h-8" />}
-                    title={t("no_favorite_restaurants_title")}
-                    description={t("no_favorite_restaurants_desc")}
-                    actionLabel={t("browse_restaurants_btn")}
-                    actionHref="/meals"
-                  />
+                  <div className="rounded-[28px] bg-white p-5 shadow-sm">
+                    <EmptyState
+                      icon={<Heart className="h-8 w-8" />}
+                      title={t("no_favorite_restaurants_title")}
+                      description={t("no_favorite_restaurants_desc")}
+                      actionLabel={t("browse_restaurants_btn")}
+                      actionHref="/meals"
+                    />
+                  </div>
                 ) : (
                   restaurants.map((restaurant) => (
-                    <Card key={restaurant.id} className="overflow-hidden rounded-2xl border-0 shadow-sm bg-white">
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          <Link to={`/restaurant/${restaurant.id}`} className="shrink-0">
-                            <div className="w-[72px] h-[72px] rounded-xl bg-violet-100 flex items-center justify-center overflow-hidden">
-                              {restaurant.logo_url ? (
-                                <img
-                                  src={restaurant.logo_url}
-                                  alt={restaurant.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center">
-                                  <ChefHat className="w-8 h-8 text-violet-300" />
-                                </div>
-                              )}
-                            </div>
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <Link to={`/restaurant/${restaurant.id}`} className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-gray-900 truncate hover:text-emerald-600 transition-colors">
-                                  {restaurant.name}
-                                </h3>
-                              </Link>
-                              <button
-                                className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 transition-colors shrink-0"
-                                onClick={() => handleRemoveFavorite(restaurant.id, restaurant.name)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </button>
-                            </div>
-                            {restaurant.description && (
-                              <p className="text-sm text-gray-500 line-clamp-2 mt-1 leading-relaxed">
-                                {restaurant.description}
-                              </p>
+                    <article
+                      key={restaurant.id}
+                      className="overflow-hidden rounded-[26px] border border-white/60 bg-white/70 p-3 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+                    >
+                      <div className="flex gap-3">
+                        <Link to={`/restaurant/${restaurant.id}`} className="shrink-0">
+                          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] bg-rose-50">
+                            {restaurant.logo_url ? (
+                              <img
+                                src={restaurant.logo_url}
+                                alt={restaurant.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ChefHat className="h-9 w-9 text-rose-300" />
                             )}
-                            
-                            {/* Stats Row */}
-                            <div className="flex items-center gap-2 mt-3 flex-wrap">
-                              <div className="flex items-center gap-1.5">
-                                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-                                <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">{restaurant.rating.toFixed(1)}</span>
-                              </div>
-                              <div className="w-px h-4 bg-gray-200 shrink-0" />
-                              <div className="flex items-center gap-1.5">
-                                <ShoppingBag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">{restaurant.meal_count} Meals</span>
-                              </div>
-                              <div className="w-px h-4 bg-gray-200 shrink-0" />
-                              <div className="flex items-center gap-1.5">
-                                <ClipboardList className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">{restaurant.total_orders} Orders</span>
-                              </div>
-                            </div>
+                          </div>
+                        </Link>
+
+                        <div className="min-w-0 flex-1 py-1">
+                          <div className="flex items-start gap-2">
+                            <Link to={`/restaurant/${restaurant.id}`} className="min-w-0 flex-1">
+                              <h3 className="truncate text-[15px] font-black text-slate-950">{restaurant.name}</h3>
+                              {restaurant.description && (
+                                <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-slate-500">
+                                  {restaurant.description}
+                                </p>
+                              )}
+                            </Link>
+
+                            <button
+                              type="button"
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-500 transition active:scale-95"
+                              onClick={() => handleRemoveFavorite(restaurant.id, restaurant.name)}
+                              aria-label={t("remove")}
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-3 gap-1.5">
+                            <StatPill
+                              icon={<Star className="h-3.5 w-3.5 fill-current" />}
+                              value={restaurant.rating.toFixed(1)}
+                              tone="amber"
+                            />
+                            <StatPill
+                              icon={<ShoppingBag className="h-3.5 w-3.5" />}
+                              value={`${restaurant.meal_count}`}
+                              label="Meals"
+                              tone="rose"
+                            />
+                            <StatPill
+                              icon={<ClipboardList className="h-3.5 w-3.5" />}
+                              value={`${restaurant.total_orders}`}
+                              label="Orders"
+                              tone="sky"
+                            />
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </article>
                   ))
                 )}
               </TabsContent>
 
-              <TabsContent value="meals" className="space-y-4 mt-0">
-                {/* Info Card */}
-                <Card className="bg-emerald-50/50 border-emerald-100 rounded-2xl border-0">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <TrendingUp className="w-5 h-5 text-emerald-600 mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-medium text-sm text-gray-900">{t("how_top_meals_work")}</h3>
-                        <ul className="text-xs text-gray-500 mt-1 space-y-1">
-                          <li>• {t("top_meals_rule_1")}</li>
-                          <li>• {t("top_meals_rule_2")}</li>
-                          <li>• {t("top_meals_rule_3")}</li>
-                        </ul>
-                      </div>
-                      <button 
-                        className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-emerald-100 transition-colors shrink-0"
-                        onClick={handleRefreshTopMeals}
-                      >
-                        <RotateCcw className="h-4 w-4 text-gray-500" />
-                      </button>
+              <TabsContent value="meals" className="mt-0 space-y-3">
+                <section className="rounded-[24px] border border-white/60 bg-white/70 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                      <TrendingUp className="h-5 w-5" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-black text-slate-950">{t("how_top_meals_work")}</h3>
+                      <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                        {t("top_meals_rule_1")} {t("top_meals_rule_2")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition active:scale-95"
+                      onClick={handleRefreshTopMeals}
+                      aria-label={t("refresh")}
+                    >
+                      <RotateCcw className="h-5 w-5" />
+                    </button>
+                  </div>
+                </section>
 
                 {topMeals.length === 0 ? (
-                  <EmptyState
-                    icon={<UtensilsCrossed className="w-8 h-8" />}
-                    title={t("no_top_meals_title")}
-                    description={t("no_top_meals_desc")}
-                    actionLabel={t("browse_meals_btn")}
-                    actionHref="/meals"
-                  />
+                  <div className="rounded-[28px] bg-white p-5 shadow-sm">
+                    <EmptyState
+                      icon={<UtensilsCrossed className="h-8 w-8" />}
+                      title={t("no_top_meals_title")}
+                      description={t("no_top_meals_desc")}
+                      actionLabel={t("browse_meals_btn")}
+                      actionHref="/meals"
+                    />
+                  </div>
                 ) : (
                   topMeals.map((meal) => (
-                    <Card key={meal.id} className="overflow-hidden rounded-2xl border-0 shadow-sm bg-white">
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          <Link to={`/meals/${meal.meal_id}`} className="shrink-0">
-                            <div className="w-[72px] h-[72px] rounded-xl bg-violet-100 flex items-center justify-center overflow-hidden">
-                              {meal.image_url ? (
-                                <img 
-                                  src={meal.image_url} 
-                                  alt={meal.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center">
-                                  <ChefHat className="w-8 h-8 text-violet-300" />
-                                </div>
-                              )}
-                            </div>
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <Link to={`/meals/${meal.meal_id}`} className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-gray-900 truncate hover:text-emerald-600 transition-colors">
-                                  {meal.name}
-                                </h3>
-                              </Link>
-                              <button
-                                className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 transition-colors shrink-0"
-                                onClick={() => handleRemoveTopMeal(meal.id, meal.name)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </button>
-                            </div>
-                            <p className="text-xs text-gray-500">{meal.restaurant_name}</p>
-                            
-                            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 flex-wrap">
-                              <span className="flex items-center gap-1 whitespace-nowrap">
-                                <Flame className="w-3 h-3 text-orange-500 shrink-0" />
-                                {meal.calories} {t("cal")}
-                              </span>
-                              <span className="flex items-center gap-1 whitespace-nowrap">
-                                <Beef className="w-3 h-3 text-rose-500 shrink-0" />
-                                {meal.protein_g}g {t("protein")}
-                              </span>
-                              <span className="flex items-center gap-1 whitespace-nowrap">
-                                <Clock className="w-3 h-3 text-blue-500 shrink-0" />
-                                {meal.prep_time_minutes} {t("min_label")}
-                              </span>
-                            </div>
+                    <article
+                      key={meal.id}
+                      className="overflow-hidden rounded-[26px] border border-white/60 bg-white/70 p-3 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+                    >
+                      <div className="flex gap-3">
+                        <Link to={`/meals/${meal.meal_id}`} className="shrink-0">
+                          <div className="flex h-24 w-20 items-center justify-center overflow-hidden rounded-[22px] bg-orange-50">
+                            {meal.image_url ? (
+                              <img src={meal.image_url} alt={meal.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <ChefHat className="h-9 w-9 text-orange-300" />
+                            )}
+                          </div>
+                        </Link>
 
-                            <div className="flex items-center gap-3 mt-2">
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">
-                                <TrendingUp className="w-3 h-3" />
-                                {meal.order_count} {t("orders_count_label")}
+                        <div className="min-w-0 flex-1 py-1">
+                          <div className="flex items-start gap-2">
+                            <Link to={`/meals/${meal.meal_id}`} className="min-w-0 flex-1">
+                              <h3 className="line-clamp-2 text-[15px] font-black leading-tight text-slate-950">
+                                {meal.name}
+                              </h3>
+                              <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                                {meal.restaurant_name}
+                              </p>
+                            </Link>
+
+                            <button
+                              type="button"
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-500 transition active:scale-95"
+                              onClick={() => handleRemoveTopMeal(meal.id, meal.name)}
+                              aria-label={t("remove")}
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-3 gap-1.5">
+                            <StatPill
+                              icon={<Flame className="h-3.5 w-3.5" />}
+                              value={`${meal.calories}`}
+                              label={t("cal")}
+                              tone="orange"
+                            />
+                            <StatPill
+                              icon={<Beef className="h-3.5 w-3.5" />}
+                              value={`${meal.protein_g}g`}
+                              label={t("protein")}
+                              tone="rose"
+                            />
+                            <StatPill
+                              icon={<Clock className="h-3.5 w-3.5" />}
+                              value={`${meal.prep_time_minutes}`}
+                              label={t("min_label")}
+                              tone="sky"
+                            />
+                          </div>
+
+                          <div className="mt-2 flex min-h-8 items-center gap-2 overflow-hidden">
+                            <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-rose-50 px-2.5 text-[11px] font-black text-rose-700">
+                              <TrendingUp className="h-3.5 w-3.5" />
+                              {meal.order_count} {t("orders_count_label")}
+                            </span>
+                            {meal.last_ordered_at && (
+                              <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
+                                {t("last_ordered")}{" "}
+                                {formatDistanceToNow(new Date(meal.last_ordered_at), { addSuffix: true })}
                               </span>
-                              {meal.last_ordered_at && (
-                                <span className="text-xs text-gray-500 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {t("last_ordered")} {formatDistanceToNow(new Date(meal.last_ordered_at), { addSuffix: true })}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </article>
                   ))
                 )}
               </TabsContent>
             </>
           )}
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 };

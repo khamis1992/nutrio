@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Sparkles, Flame, TrendingUp, TrendingDown,
-  Droplets, Leaf, CalendarCheck, Brain,
+  Droplets, CalendarCheck, Brain, Target, Trophy,
   UtensilsCrossed, Apple, Star, Zap, FileDown, Loader2,
+  ShieldCheck, Clock3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -15,9 +16,9 @@ import { useTodayProgress } from "@/hooks/useTodayProgress";
 import { useWaterIntake } from "@/hooks/useWaterIntake";
 import { useMealQuality } from "@/hooks/useMealQuality";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
-import { professionalWeeklyReportPDF } from "@/lib/professional-weekly-report-pdf";
 import { generateWeeklyMealPlan, loadMealPlanImages } from "@/lib/meal-plan-generator";
 import { aiReportGenerator } from "@/lib/ai-report-generator";
+import { aiReportPDF } from "@/lib/ai-report-pdf";
 import type { AIReportContent } from "@/lib/ai-report-generator";
 import { supabase } from "@/integrations/supabase/client";
 import type { WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
@@ -28,6 +29,67 @@ const fadeIn = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 };
+
+const metricCards = [
+  {
+    label: "Meal Quality",
+    key: "quality",
+    icon: Star,
+    bg: "bg-emerald-50",
+    iconBg: "bg-emerald-100",
+    iconColor: "text-emerald-700",
+    accent: "text-emerald-700",
+  },
+  {
+    label: "Consistency",
+    key: "consistency",
+    icon: CalendarCheck,
+    bg: "bg-amber-50",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-700",
+    accent: "text-amber-700",
+  },
+  {
+    label: "Streak",
+    key: "streak",
+    icon: Flame,
+    bg: "bg-rose-50",
+    iconBg: "bg-rose-100",
+    iconColor: "text-rose-700",
+    accent: "text-rose-700",
+  },
+] as const;
+
+const macroRows = [
+  {
+    label: "Protein",
+    unit: "g",
+    key: "protein",
+    bar: "bg-rose-500",
+    chip: "bg-rose-50 text-rose-700",
+  },
+  {
+    label: "Carbs",
+    unit: "g",
+    key: "carbs",
+    bar: "bg-amber-500",
+    chip: "bg-amber-50 text-amber-700",
+  },
+  {
+    label: "Fat",
+    unit: "g",
+    key: "fat",
+    bar: "bg-sky-500",
+    chip: "bg-sky-50 text-sky-700",
+  },
+] as const;
+
+const todayRows = [
+  { label: "Calories", key: "calories", unit: "kcal", color: "text-orange-700", bg: "bg-orange-50" },
+  { label: "Protein", key: "protein", unit: "g", color: "text-rose-700", bg: "bg-rose-50" },
+  { label: "Carbs", key: "carbs", unit: "g", color: "text-amber-700", bg: "bg-amber-50" },
+  { label: "Fat", key: "fat", unit: "g", color: "text-sky-700", bg: "bg-sky-50" },
+] as const;
 
 export default function AIReportPage() {
   const navigate = useNavigate();
@@ -247,7 +309,7 @@ export default function AIReportPage() {
         mealImages: mealImages as any,
       };
 
-      await professionalWeeklyReportPDF.download(reportPayload);
+      await aiReportPDF.download(reportPayload, displayContent);
       toast.success("Report downloaded");
     } catch (err) {
       console.error("Error generating PDF:", err);
@@ -257,231 +319,322 @@ export default function AIReportPage() {
     }
   };
 
-  const scoreGrade = (pct: number) =>
-    pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-red-500";
-
-  const scoreBg = (pct: number) =>
-    pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-400";
+  const caloriesProgress = Math.min(
+    Math.round((reportData.calories.avg / Math.max(reportData.calories.target, 1)) * 100),
+    100
+  );
+  const hydrationProgress = Math.min(reportData.water.percentage, 100);
+  const trendTone = reportData.calories.trend === "up"
+    ? "text-rose-600 bg-rose-50"
+    : reportData.calories.trend === "down"
+      ? "text-emerald-700 bg-emerald-50"
+      : "text-slate-600 bg-slate-100";
+  const reportScore = Math.round(
+    (
+      Math.min(reportData.mealQuality.score, 100) +
+      Math.min(reportData.consistency.percentage, 100) +
+      caloriesProgress +
+      hydrationProgress
+    ) / 4
+  );
 
   return (
-    <div className="min-h-screen bg-[#f8f6ff]">
-      <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-lg border-b border-violet-100">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+    <div className="min-h-screen bg-[#F6F8F4] text-slate-950">
+      <div className="sticky top-0 z-50 border-b border-emerald-50 bg-[#F6F8F4]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <button
             onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full bg-violet-50 flex items-center justify-center active:scale-95 transition-transform"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition active:scale-95"
+            aria-label="Go back"
           >
-            <ArrowLeft className="w-4 h-4 text-violet-600" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <div>
-            <h1 className="text-[17px] font-extrabold text-slate-950">AI Nutrition Report</h1>
-            <p className="text-[11px] text-slate-400">{reportData.weekRange}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-600">Nutrition</p>
+            <h1 className="truncate text-[22px] font-black leading-tight">AI Report</h1>
           </div>
           <button
             onClick={handleDownloadPdf}
             disabled={generatingPdf}
-            className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[12px] font-bold shadow-md shadow-violet-200 active:scale-95 transition-all disabled:opacity-60"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition active:scale-95 disabled:opacity-60"
+            aria-label="Download report"
           >
             {generatingPdf ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <FileDown className="w-3.5 h-3.5" />
+              <FileDown className="h-4 w-4" />
             )}
-            {generatingPdf ? "Generating..." : "Download PDF"}
           </button>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-4 space-y-4 pb-4">
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 p-5 text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)]">
-          <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(circle_at_20%_30%,white_2px,transparent_3px),radial-gradient(circle_at_80%_20%,white_1px,transparent_2px)]" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-                <Brain className="w-5 h-5 text-white" />
+      <main className="mx-auto max-w-[430px] px-4 pb-44 pt-4">
+        <motion.section
+          variants={fadeIn}
+          initial="hidden"
+          animate="visible"
+          className="overflow-hidden rounded-[30px] bg-white shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-slate-100"
+        >
+          <div className="border-b border-slate-100 px-5 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-600">
+                  Weekly Intelligence
+                </p>
+                <h2 className="mt-1 text-[28px] font-black leading-tight">
+                  Nutrition report
+                </h2>
+                <p className="mt-1 text-[13px] font-bold text-slate-500">
+                  {reportData.weekRange}
+                </p>
               </div>
-              <div>
-                <p className="text-[13px] font-extrabold">Hello, {reportData.profile.name}</p>
-                <p className="text-[11px] text-white/70">{reportData.date}</p>
+              <div className="flex h-[74px] w-[74px] shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 ring-8 ring-emerald-50/60">
+                <div className="text-center">
+                  <p className="text-2xl font-black leading-none">{reportScore}</p>
+                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-wide">score</p>
+                </div>
               </div>
             </div>
+          </div>
 
+          <div className="px-5 py-5">
             {displayContent ? (
               <>
-                <p className="text-[14px] font-semibold leading-relaxed text-white/90">{displayContent.summary}</p>
+                <div className="rounded-[24px] bg-[#F8FBF6] p-4 ring-1 ring-emerald-50">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-emerald-600" />
+                    <p className="text-[12px] font-black uppercase tracking-[0.14em] text-slate-500">
+                      Executive summary
+                    </p>
+                  </div>
+                  <p className="text-[15px] font-semibold leading-7 text-slate-700">
+                    {displayContent.summary}
+                  </p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-[18px] bg-slate-50 p-3">
+                    <Target className="h-4 w-4 text-emerald-600" />
+                    <p className="mt-2 text-[11px] font-bold text-slate-500">Goal</p>
+                    <p className="mt-0.5 truncate text-[13px] font-black capitalize text-slate-900">
+                      {reportData.profile.goal.replace(/_/g, " ")}
+                    </p>
+                  </div>
+                  <div className="rounded-[18px] bg-slate-50 p-3">
+                    <Clock3 className="h-4 w-4 text-amber-600" />
+                    <p className="mt-2 text-[11px] font-bold text-slate-500">Logged</p>
+                    <p className="mt-0.5 text-[13px] font-black text-slate-900">
+                      {reportData.consistency.daysLogged}/7 days
+                    </p>
+                  </div>
+                  <div className="rounded-[18px] bg-slate-50 p-3">
+                    <ShieldCheck className="h-4 w-4 text-sky-600" />
+                    <p className="mt-2 text-[11px] font-bold text-slate-500">Mode</p>
+                    <p className="mt-0.5 text-[13px] font-black text-slate-900">
+                      {aiContent ? "AI" : "Rules"}
+                    </p>
+                  </div>
+                </div>
 
                 {enhancingAI && !aiContent && (
-                  <div className="mt-2.5 flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[10px] font-medium text-white/60 backdrop-blur-sm">
-                    <div className="w-2.5 h-2.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Personalizing...
-                  </div>
-                )}
-
-                {aiContent && (
-                  <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-200">
-                    <Sparkles className="w-3 h-3" />
-                    AI-enhanced
+                  <div className="mt-4 flex items-center gap-2 rounded-[18px] bg-emerald-50 px-3 py-3 text-xs font-bold text-emerald-700">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Personalizing report
                   </div>
                 )}
               </>
             ) : (
-              <div className="flex items-center gap-2 py-2">
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span className="text-[13px] text-white/70">Loading analysis...</span>
+              <div className="flex items-center gap-2 py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+                <span className="text-sm font-semibold text-slate-500">Loading analysis</span>
               </div>
             )}
           </div>
-        </motion.div>
+        </motion.section>
 
-        {/* Score Overview */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="grid grid-cols-3 gap-2">
-          {[
-            { label: "Meal Quality", value: reportData.mealQuality.score, max: 100, icon: Star, color: "violet" },
-            { label: "Consistency", value: Math.round(reportData.consistency.percentage), max: 100, icon: CalendarCheck, color: "emerald" },
-            { label: "Streak", value: reportData.consistency.streak, max: reportData.consistency.bestStreak || 7, icon: Flame, color: "amber" },
-          ].map((metric) => (
-            <div key={metric.label} className="bg-white rounded-2xl p-3 text-center shadow-[0_6px_16px_rgba(15,23,42,0.04)] ring-1 ring-slate-100/80">
-              <div className={`inline-flex h-8 w-8 items-center justify-center rounded-full bg-${metric.color}-100 mb-1.5`}>
-                <metric.icon className={`w-4 h-4 text-${metric.color}-600`} />
-              </div>
-              <p className="text-[20px] font-black text-slate-900 leading-none">{metric.value}</p>
-              <p className="text-[9px] font-semibold text-slate-400">/ {metric.max}</p>
-              <p className="text-[10px] font-bold text-slate-500 mt-1">{metric.label}</p>
-            </div>
-          ))}
-        </motion.div>
+        <motion.section
+          variants={fadeIn}
+          initial="hidden"
+          animate="visible"
+          className="mt-4 grid grid-cols-3 gap-3"
+        >
+          {metricCards.map((metric) => {
+            const Icon = metric.icon;
+            const value = metric.key === "quality"
+              ? reportData.mealQuality.score
+              : metric.key === "consistency"
+                ? Math.round(reportData.consistency.percentage)
+                : reportData.consistency.streak;
+            const max = metric.key === "streak" ? reportData.consistency.bestStreak || 7 : 100;
 
-        {/* Macros Card */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-          <div className="flex items-center gap-2 mb-4">
-            <Apple className="w-4 h-4 text-emerald-500" />
-            <h2 className="text-[15px] font-extrabold text-slate-950">Macro Breakdown</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              { label: "Protein", data: reportData.macros.protein, unit: "g", color: "rose" },
-              { label: "Carbs", data: reportData.macros.carbs, unit: "g", color: "amber" },
-              { label: "Fat", data: reportData.macros.fat, unit: "g", color: "blue" },
-            ].map((macro) => (
-              <div key={macro.label}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[12px] font-bold text-slate-700">{macro.label}</span>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    {macro.data.consumed} / {macro.data.target} {macro.unit}
-                  </span>
+            return (
+              <div key={metric.label} className="min-w-0 rounded-[24px] bg-white p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-full ${metric.iconBg}`}>
+                  <Icon className={`h-5 w-5 ${metric.iconColor}`} />
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${scoreBg(macro.data.percentage)}`}
-                    style={{ width: `${Math.min(macro.data.percentage, 100)}%` }}
+                <p className={`text-[28px] font-black leading-none ${metric.accent}`}>{value}</p>
+                <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.1em] text-slate-400">
+                  {metric.label}
+                </p>
+                <p className="mt-1 text-[11px] font-bold text-slate-500">of {max}</p>
+              </div>
+            );
+          })}
+        </motion.section>
+
+        <motion.section variants={fadeIn} initial="hidden" animate="visible" className="mt-4 rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Weekly average</p>
+              <h2 className="mt-1 text-[20px] font-black">Macro targets</h2>
+            </div>
+            <Apple className="h-6 w-6 text-emerald-600" />
+          </div>
+          <div className="space-y-4">
+            {macroRows.map((macro) => {
+              const data = reportData.macros[macro.key];
+              return (
+                <div key={macro.label}>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <span className={`rounded-full px-3 py-1.5 text-xs font-black ${macro.chip}`}>{macro.label}</span>
+                    <span className="text-sm font-black text-slate-700">
+                      {data.consumed} / {data.target}{macro.unit}
+                    </span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full transition-all ${macro.bar}`}
+                      style={{ width: `${Math.min(data.percentage, 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-right text-xs font-bold text-slate-400">{Math.round(data.percentage)}%</p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <motion.section variants={fadeIn} initial="hidden" animate="visible" className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Calories</p>
+                <p className="mt-3 text-[34px] font-black leading-none">{reportData.calories.avg}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">avg / {reportData.calories.target}</p>
+              </div>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black ${trendTone}`}>
+                {reportData.calories.trend === "up" ? <TrendingUp className="h-3 w-3" /> : reportData.calories.trend === "down" ? <TrendingDown className="h-3 w-3" /> : null}
+                {reportData.calories.change > 0 ? "+" : ""}{reportData.calories.change}%
+              </span>
+            </div>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-orange-500" style={{ width: `${caloriesProgress}%` }} />
+            </div>
+          </motion.section>
+
+          <motion.section variants={fadeIn} initial="hidden" animate="visible" className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Hydration</p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="relative flex h-[64px] w-[64px] shrink-0 items-center justify-center">
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 64 64" aria-hidden="true">
+                  <circle cx="32" cy="32" r="25" fill="none" stroke="#E2E8F0" strokeWidth="7" />
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="25"
+                    fill="none"
+                    stroke="#0284C7"
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(hydrationProgress / 100) * 157} 157`}
                   />
-                </div>
+                </svg>
+                <Droplets className="h-6 w-6 text-sky-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[34px] font-black leading-none">{reportData.water.avg}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">of {reportData.water.target}</p>
+              </div>
+            </div>
+          </motion.section>
+        </div>
+
+        <motion.section variants={fadeIn} initial="hidden" animate="visible" className="mt-4 rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="mb-4 flex items-center gap-2">
+            <UtensilsCrossed className="h-5 w-5 text-emerald-600" />
+            <h2 className="text-[20px] font-black">Today's snapshot</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {todayRows.map((item) => (
+              <div key={item.label} className={`rounded-[22px] p-4 ${item.bg}`}>
+                <p className={`text-[28px] font-black leading-none ${item.color}`}>{reportData.today[item.key]}</p>
+                <p className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">{item.unit}</p>
+                <p className="mt-3 text-sm font-black text-slate-700">{item.label}</p>
               </div>
             ))}
           </div>
-        </motion.div>
+        </motion.section>
 
-        {/* Calories Trend */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-4 h-4 text-orange-500" />
-            <h2 className="text-[15px] font-extrabold text-slate-950">Calories</h2>
-          </div>
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[32px] font-black leading-none text-slate-900">{reportData.calories.avg}</p>
-              <p className="text-[11px] font-semibold text-slate-400 mt-1">
-                avg daily / {reportData.calories.target} target
-              </p>
+        <motion.section variants={fadeIn} initial="hidden" animate="visible" className="mt-4 rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-600" />
+              <h2 className="text-[20px] font-black">Next best actions</h2>
             </div>
-            <div className={`flex items-center gap-1 text-[13px] font-bold ${reportData.calories.trend === "up" ? "text-red-500" : reportData.calories.trend === "down" ? "text-emerald-600" : "text-slate-400"}`}>
-              {reportData.calories.trend === "up" ? <TrendingUp className="w-4 h-4" /> : reportData.calories.trend === "down" ? <TrendingDown className="w-4 h-4" /> : null}
-              {reportData.calories.change > 0 ? "+" : ""}{reportData.calories.change}%
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Water & Hydration */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-          <div className="flex items-center gap-2 mb-4">
-            <Droplets className="w-4 h-4 text-blue-500" />
-            <h2 className="text-[15px] font-extrabold text-slate-950">Hydration</h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative flex h-16 w-16 items-center justify-center">
-              <svg className="absolute inset-0 -rotate-90" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="27" fill="none" stroke="#E2E8F0" strokeWidth="5" />
-                <circle cx="32" cy="32" r="27" fill="none" stroke="#3B82F6" strokeWidth="5" strokeLinecap="round"
-                  strokeDasharray={`${(reportData.water.percentage / 100) * 169.6} 169.6`} />
-              </svg>
-              <Droplets className="w-7 h-7 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-[24px] font-black text-slate-900">{reportData.water.avg}</p>
-              <p className="text-[11px] font-semibold text-slate-400">glasses / {reportData.water.target} target</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Today's Snapshot */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-          <div className="flex items-center gap-2 mb-4">
-            <UtensilsCrossed className="w-4 h-4 text-emerald-500" />
-            <h2 className="text-[15px] font-extrabold text-slate-950">Today's Snapshot</h2>
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-center">
-            {[
-              { label: "Cal", value: reportData.today.calories, unit: "kcal", color: "text-orange-600" },
-              { label: "Protein", value: reportData.today.protein, unit: "g", color: "text-rose-600" },
-              { label: "Carbs", value: reportData.today.carbs, unit: "g", color: "text-amber-600" },
-              { label: "Fat", value: reportData.today.fat, unit: "g", color: "text-blue-600" },
-            ].map((item) => (
-              <div key={item.label} className="bg-slate-50 rounded-xl p-2.5">
-                <p className={`text-[16px] font-black ${item.color}`}>{item.value}</p>
-                <p className="text-[9px] font-bold text-slate-400">{item.unit}</p>
-                <p className="text-[10px] font-semibold text-slate-600 mt-0.5">{item.label}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Smart Recommendations */}
-        {reportData.recommendations.length > 0 && (
-          <motion.div variants={fadeIn} initial="hidden" animate="visible" className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-            <div className="flex items-center gap-2 mb-4">
-              <Zap className="w-4 h-4 text-amber-500" />
-              <h2 className="text-[15px] font-extrabold text-slate-950">Recommendations</h2>
-            </div>
-            <div className="space-y-2">
-              {reportData.recommendations.map((rec, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 bg-violet-50/50 rounded-xl">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    rec.priority === "high" ? "bg-red-100" : rec.priority === "medium" ? "bg-amber-100" : "bg-slate-100"
-                  }`}>
-                    <Star className={`w-4 h-4 ${
-                      rec.priority === "high" ? "text-red-600" : rec.priority === "medium" ? "text-amber-600" : "text-slate-500"
-                    }`} />
-                  </div>
-                  <div>
-                    <p className="text-[12px] font-bold text-slate-800">{rec.title}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{rec.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Footer */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="text-center py-6">
-          <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-violet-100">
-            <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-            <span className="text-[11px] font-bold text-violet-600">
-              {aiContent ? "AI-Enhanced Report" : "Rule-Based Analysis"}
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">
+              {reportData.recommendations.length || 0}
             </span>
           </div>
-          <p className="text-[10px] text-slate-400 mt-2">Report generated on {reportData.date}</p>
+
+          <div className="space-y-3">
+            {reportData.recommendations.length > 0 ? reportData.recommendations.map((rec, i) => {
+              const priorityClass = rec.priority === "high"
+                ? "bg-rose-50 text-rose-700"
+                : rec.priority === "medium"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-slate-100 text-slate-600";
+
+              return (
+                <div key={`${rec.title}-${i}`} className="flex gap-3 rounded-[22px] bg-slate-50 p-3 ring-1 ring-slate-100">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${priorityClass}`}>
+                    <Trophy className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-black text-slate-900">{rec.title}</p>
+                    <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">{rec.description}</p>
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                <Sparkles className="mx-auto h-5 w-5 text-emerald-600" />
+                <p className="mt-2 text-sm font-black text-slate-800">No recommendations yet</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Log more meals to unlock personalized actions.</p>
+              </div>
+            )}
+          </div>
+        </motion.section>
+
+        <motion.div variants={fadeIn} initial="hidden" animate="visible" className="py-6 text-center">
+          <p className="text-xs font-semibold text-slate-400">Generated on {reportData.date}</p>
         </motion.div>
+      </main>
+
+      <div className="fixed inset-x-0 z-50 border-t border-slate-100 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 shadow-[0_-14px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl" style={{ bottom: "56px" }}>
+        <div className="mx-auto max-w-[430px]">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={generatingPdf}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-slate-950 text-[15px] font-black text-white shadow-[0_16px_30px_rgba(15,23,42,0.18)] transition active:scale-[0.99] disabled:opacity-60"
+          >
+            {generatingPdf ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <FileDown className="h-5 w-5" />
+            )}
+            {generatingPdf ? "Preparing PDF" : "Download professional PDF"}
+          </button>
+        </div>
       </div>
     </div>
   );
