@@ -642,7 +642,9 @@ const AdminOrders = () => {
             prev.map((o) => o.id === id ? { ...o, order_status: "cancelled" as OrderStatus } : o)
           );
         }
-      } catch {}
+      } catch {
+        // Silently skip failed cancellations
+      }
     }
     setSelectedOrders(new Set());
     toast({
@@ -666,7 +668,9 @@ const AdminOrders = () => {
             prev.map((o) => o.id === id ? { ...o, is_completed: true, order_status: "completed" as OrderStatus } : o)
           );
         }
-      } catch {}
+      } catch {
+        // Silently skip failed completions
+      }
     }
     setSelectedOrders(new Set());
     toast({

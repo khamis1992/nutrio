@@ -504,8 +504,8 @@ function generateSummary() {
   }
   
   // Save results
-  const fs = require('fs');
-  const path = require('path');
+  const fs = await import('fs');
+  const path = await import('path');
   const outputPath = path.join(__dirname, 'integration-results.json');
   fs.writeFileSync(outputPath, JSON.stringify(results, null, 2));
   console.log(`\n📝 Results saved to: ${outputPath}`);

@@ -717,7 +717,7 @@ serve(async (req) => {
     });
 
     // Save to database if requested (disabled - table doesn't exist yet)
-    let planId: string | null = null;
+    const planId: string | null = null;
     // Note: weekly_meal_plans table doesn't exist, skipping database save
     // if (save_to_database) {
     //   planId = await saveWeeklyPlan(user_id, week_start_date, bestPlan, supabaseClient);
