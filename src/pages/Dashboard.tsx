@@ -723,11 +723,7 @@ const Dashboard = () => {
   ];
 
   const shortcutActions = [
-    { icon: Utensils, label: t("tracker_label"), detail: "Food, water, steps", circleBg: "#047857", to: "/tracker" },
-    { icon: ShoppingBag, label: t("orders_section_view_all"), detail: "Live and scheduled", circleBg: "#0EA5E9", to: "/orders?tab=scheduled" },
     { icon: BarChart2, label: t("progress_label"), detail: "Goals and trends", circleBg: "#EA580C", to: "/progress" },
-    { icon: Heart, label: t("favorites_label"), detail: "Saved meals", circleBg: "#E11D48", to: "/favorites" },
-    { icon: Crown, label: "Plan", detail: planName, circleBg: "#4338CA", to: "/subscription" },
     { icon: Users, label: t("community_label"), detail: "People and coaches", circleBg: "#3B4CCA", to: "/community" },
   ] as { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; detail: string; circleBg: string; to: string }[];
 
@@ -770,14 +766,14 @@ const Dashboard = () => {
             </Link>
 
             <div className="flex items-center gap-2">
-              {/* Score pill */}
+              {/* Favorites */}
               <button
                 type="button"
-                onClick={() => navigate("/progress")}
-                className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100 transition active:scale-95"
+                onClick={() => navigate("/favorites")}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-rose-500 shadow-sm ring-1 ring-slate-200/80 transition active:scale-95"
+                aria-label={t("favorites_label")}
               >
-                <Flame className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2.2} />
-                <span className="text-[13px] font-black text-emerald-700">{dailyScore}</span>
+                <Heart className="h-5 w-5" strokeWidth={2.2} />
               </button>
 
               {/* Notifications */}
@@ -929,7 +925,8 @@ const Dashboard = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">{dateLabel}</p>
-                    <p className="mt-1 text-[28px] font-black leading-none tracking-[-0.05em] text-slate-950">
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Daily score</p>
+                    <p className="mt-0.5 text-[28px] font-black leading-none tracking-[-0.05em] text-slate-950">
                       {dailyScore}<span className="text-[14px] font-bold text-slate-400">/100</span>
                     </p>
                     <p className="mt-1.5 text-[11px] font-semibold text-slate-500">{calRemaining} {t("cal_short")} {t("dashboard_remaining")}</p>
@@ -965,37 +962,52 @@ const Dashboard = () => {
                 </div>
               </motion.button>
 
-              {/* Balance tile — spans 1 */}
-              <motion.div
+              {/* Subscription tile — spans 1 */}
+              <motion.button
+                type="button"
+                onClick={() => navigate("/subscription")}
                 initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
                 animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                className="col-span-1 flex flex-col items-center justify-between rounded-[24px] bg-orange-50 p-3 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-orange-100"
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+                className="col-span-1 flex min-h-[176px] flex-col items-stretch justify-between rounded-[24px] bg-white p-3 text-left shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition active:scale-[0.99]"
+                aria-label="Open subscription"
               >
-                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-orange-500">Meals</p>
-                <div className="relative flex h-[60px] w-[60px] items-center justify-center">
-                  <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
-                    <circle cx="40" cy="40" r={balanceRadius} fill="none" stroke="#D1FAE5" strokeWidth="7" />
-                    <motion.circle
-                      cx="40" cy="40" r={balanceRadius} fill="none" stroke="#059669"
-                      strokeLinecap="round" strokeWidth="7"
-                      strokeDasharray={balanceCirc} strokeDashoffset={balanceOffset}
-                      variants={progressRingVariants} initial="hidden" animate="visible"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[16px] font-black leading-none text-emerald-600">{balanceDisplay}</span>
-                    <span className="text-[7px] font-bold text-slate-400">left</span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">Subscription</p>
+                    <p className="mt-0.5 text-[13px] font-black leading-tight text-slate-950">Meal balance</p>
+                  </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                    <Crown className="h-4 w-4" strokeWidth={2.2} />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate("/subscription")}
-                  className="flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[9px] font-bold text-orange-600 ring-1 ring-orange-100"
-                >
-                  <Crown className="h-2.5 w-2.5" />
-                  {planName}
-                </button>
-              </motion.div>
+
+                <div className="flex justify-center py-1">
+                  <div className="relative flex h-[68px] w-[68px] items-center justify-center">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
+                      <circle cx="40" cy="40" r={balanceRadius} fill="none" stroke="#E2E8F0" strokeWidth="7" />
+                      <motion.circle
+                        cx="40" cy="40" r={balanceRadius} fill="none" stroke="#059669"
+                        strokeLinecap="round" strokeWidth="7"
+                        strokeDasharray={balanceCirc} strokeDashoffset={balanceOffset}
+                        variants={progressRingVariants} initial="hidden" animate="visible"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-[18px] font-black leading-none text-emerald-600">{balanceDisplay}</span>
+                      <span className="text-[7px] font-bold uppercase tracking-wide text-slate-400">left</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 rounded-[16px] bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200/80">
+                  <div className="min-w-0">
+                    <p className="truncate text-[10px] font-black text-slate-950">{planName}</p>
+                    <p className="text-[8px] font-bold uppercase tracking-wide text-slate-400">Manage plan</p>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.4} />
+                </div>
+              </motion.button>
             </div>
 
             {/* ── Quick Action Row ──────────────────────────────────── */}
@@ -1916,16 +1928,6 @@ const Dashboard = () => {
         )}
       </main>
 
-      {/* ── Floating Action Button ─────────────────────────────────── */}
-      <motion.button
-        type="button"
-        onClick={() => setLogMealOpen(true)}
-        whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
-        className="fixed bottom-6 right-1/2 z-40 flex h-14 w-14 translate-x-1/2 items-center justify-center rounded-full bg-emerald-600 text-white shadow-[0_12px_28px_rgba(16,185,129,0.3)]"
-        aria-label={t("log_meal")}
-      >
-        <Plus className="h-6 w-6" strokeWidth={2.5} />
-      </motion.button>
 
       {/* ── Modals ──────────────────────────────────────────────────── */}
       {user && (
