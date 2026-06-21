@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, Suspense, lazy } from "react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Truck,
@@ -11,7 +10,6 @@ import {
   RefreshCw,
   MapPin,
   ChefHat,
-  Package,
   CircleDot,
   User,
 } from "lucide-react";
@@ -391,38 +389,43 @@ export function CustomerDeliveryTracker({
 
   // ── Shared header ───────────────────────────────────────────────────────────
   const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
-    <div className="pt-[env(safe-area-inset-top,20px)] px-5 pb-4 flex items-center gap-3 bg-white border-b border-gray-100 sticky top-0 z-10">
+    <div className="sticky top-0 z-30 border-b border-emerald-50/90 bg-[#F7FAF8]/95 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))] backdrop-blur-xl">
+      <div className="mx-auto flex max-w-[430px] items-center gap-3">
       {onBack && (
         <button
           onClick={onBack}
-          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 shrink-0"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="h-5 w-5" />
         </button>
       )}
-      <div className="flex-1 min-w-0">
-        <h1 className="text-lg font-bold text-gray-900 leading-tight">{title}</h1>
-        {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+          {t("tracking_live_updates")}
+        </p>
+        <h1 className="truncate text-[22px] font-black leading-tight text-slate-950">{title}</h1>
+        {subtitle && <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-500">{subtitle}</p>}
       </div>
       <button
         onClick={handleRefresh}
         disabled={refreshing}
-        className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 disabled:opacity-40 transition-all"
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-600 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all disabled:opacity-40"
       >
-        <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+        <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
       </button>
+      </div>
     </div>
   );
 
   // ── Loading state ───────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="flex min-h-screen flex-col bg-[#F7FAF8]">
         <Header title={t("tracking_order_tracking")} />
-        <div className="flex-1 px-5 py-6 space-y-4">
-          <Skeleton className="h-48 w-full rounded-3xl" />
-          <Skeleton className="h-20 w-full rounded-2xl" />
-          <Skeleton className="h-32 w-full rounded-2xl" />
+        <div className="mx-auto w-full max-w-[430px] flex-1 space-y-4 px-4 py-5">
+          <Skeleton className="h-64 w-full rounded-[32px]" />
+          <Skeleton className="h-24 w-full rounded-[28px]" />
+          <Skeleton className="h-40 w-full rounded-[28px]" />
         </div>
       </div>
     );
@@ -431,31 +434,31 @@ export function CustomerDeliveryTracker({
   // ── No delivery job yet (preparing, no driver) ──────────────────────────────
   if (!deliveryJob) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="flex min-h-screen flex-col bg-[#F7FAF8]">
         <Header title={t("tracking_order_tracking")} subtitle={t("tracking_live_updates")} />
 
-        <div className="flex-1 flex flex-col px-5 py-6 pb-32">
+        <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col px-4 py-5 pb-28">
           {/* Animated illustration */}
-          <div className="flex flex-col items-center pt-4 pb-8">
-            <div className="relative w-40 h-40 mb-6">
+          <div className="mb-4 rounded-[32px] bg-white px-5 py-7 text-center shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+            <div className="relative mx-auto mb-6 h-36 w-36">
               {/* Outer pulse ring */}
               <span className="absolute inset-0 rounded-full bg-[#48a98b]/10 animate-ping [animation-duration:2s]" />
               <span className="absolute inset-2 rounded-full bg-[#48a98b]/15 animate-ping [animation-duration:2.4s] [animation-delay:0.4s]" />
               {/* Main circle */}
-              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-[#48a98b] to-[#2d8a6e] flex items-center justify-center shadow-lg shadow-[#48a98b]/30">
-                <ChefHat className="w-14 h-14 text-white" />
+              <div className="absolute inset-4 flex items-center justify-center rounded-full bg-emerald-500 shadow-[0_18px_34px_rgba(16,185,129,0.22)]">
+                <ChefHat className="h-12 w-12 text-white" />
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+            <h2 className="mb-2 text-[26px] font-black leading-tight text-slate-950">
               {t("tracking_preparing_order")}
             </h2>
-            <p className="text-sm text-gray-500 text-center max-w-xs leading-relaxed">
+            <p className="mx-auto max-w-xs text-[13px] font-semibold leading-relaxed text-slate-500">
               {t("tracking_kitchen_working")}
             </p>
 
             {/* Animated "finding driver" pill */}
-            <div className="mt-5 flex items-center gap-2 bg-[#eaf7f0] text-[#48a98b] px-4 py-2 rounded-full font-medium text-sm">
+            <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-600">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#48a98b] opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#48a98b]" />
@@ -465,8 +468,8 @@ export function CustomerDeliveryTracker({
           </div>
 
           {/* Progress steps */}
-          <div className="bg-gray-50 rounded-3xl p-5 mb-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">{t("tracking_order_progress")}</p>
+          <div className="mb-4 rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <p className="mb-4 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">{t("tracking_order_progress")}</p>
             <div className="space-y-4">
               {[
                 { Icon: CircleDot,    label: t("tracking_step_order_received"),   done: true,  current: false },
@@ -476,12 +479,12 @@ export function CustomerDeliveryTracker({
                 { Icon: CheckCircle2, label: t("tracking_step_delivered"),        done: false, current: false },
               ].map(({ Icon, label, done, current }, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
                     done
-                      ? "bg-[#48a98b] text-white"
+                      ? "bg-emerald-500 text-white"
                       : current
-                      ? "bg-white border-2 border-[#48a98b] text-[#48a98b] shadow-sm"
-                      : "bg-gray-200 text-gray-400"
+                      ? "border-2 border-emerald-500 bg-white text-emerald-600 shadow-sm"
+                      : "bg-slate-100 text-slate-400"
                   }`}>
                     {current ? (
                       <span className="relative flex items-center justify-center">
@@ -492,13 +495,13 @@ export function CustomerDeliveryTracker({
                       <Icon className="w-4 h-4" />
                     )}
                   </div>
-                  <span className={`text-sm font-medium ${
-                    done ? "text-[#48a98b]" : current ? "text-gray-900" : "text-gray-400"
+                  <span className={`text-sm font-bold ${
+                    done ? "text-emerald-600" : current ? "text-slate-950" : "text-slate-400"
                   }`}>
                     {label}
                   </span>
                   {current && (
-                    <span className="ml-auto text-xs bg-[#48a98b] text-white px-2.5 py-0.5 rounded-full font-semibold">
+                    <span className="ml-auto rounded-full bg-emerald-500 px-2.5 py-0.5 text-xs font-extrabold text-white">
                       {t("tracking_now")}
                     </span>
                   )}
@@ -508,11 +511,11 @@ export function CustomerDeliveryTracker({
           </div>
 
           {/* Info card */}
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3">
-            <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex gap-3 rounded-[24px] border border-amber-100 bg-amber-50 p-4">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
             <div>
-              <p className="text-sm font-semibold text-amber-800">{t("tracking_estimated_time")}</p>
-              <p className="text-xs text-amber-600 mt-0.5">
+              <p className="text-sm font-black text-amber-800">{t("tracking_estimated_time")}</p>
+              <p className="mt-0.5 text-xs font-semibold text-amber-600">
                 {t("tracking_map_appears")}
               </p>
             </div>
@@ -521,13 +524,13 @@ export function CustomerDeliveryTracker({
 
         {/* Bottom refresh button — sticky with safe area */}
         <div
-          className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-5 pt-3"
+          className="sticky bottom-0 left-0 right-0 border-t border-emerald-50 bg-white/95 px-4 pt-3 backdrop-blur-xl"
           style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}
         >
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="w-full h-[52px] flex items-center justify-center gap-2 rounded-2xl bg-[#48a98b] text-white font-semibold text-sm shadow-sm shadow-[#48a98b]/30 hover:bg-[#3a8b72] active:scale-[0.98] transition-all disabled:opacity-60"
+            className="mx-auto flex h-14 w-full max-w-[430px] items-center justify-center gap-2 rounded-full bg-emerald-500 text-sm font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.22)] transition-all active:scale-[0.98] disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? t("tracking_refreshing") : t("tracking_refresh_status")}
@@ -539,50 +542,78 @@ export function CustomerDeliveryTracker({
 
   // ── Has delivery job ────────────────────────────────────────────────────────
   const currentStep = getStatusStep(deliveryJob.status);
-  const statusIndex = getStatusIndex(deliveryJob.status);
+  const statusIndex = Math.max(0, getStatusIndex(deliveryJob.status));
   const showMap = driverLocation && ["accepted", "picked_up", "in_transit"].includes(deliveryJob.status ?? "");
   const eta = calculateETA();
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="flex min-h-screen flex-col bg-[#F7FAF8]">
       <Header
         title={t("tracking_live_tracking")}
         subtitle={currentStep.label}
       />
 
-      <div className="flex-1 px-5 py-5 space-y-4 pb-24">
+      <div className="mx-auto w-full max-w-[430px] flex-1 space-y-4 px-4 py-5 pb-24">
+
+        <div className="rounded-[32px] bg-white p-5 shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+                {deliveryJob.status === "delivered" ? t("tracking_step_delivered") : t("tracking_live_tracking")}
+              </p>
+              <h2 className="mt-1 text-[25px] font-black leading-tight text-slate-950">{currentStep.label}</h2>
+              <p className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-500">{currentStep.description}</p>
+            </div>
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              {deliveryJob.status === "delivered" ? <CheckCircle2 className="h-8 w-8" /> : <Truck className="h-8 w-8" />}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-emerald-50 p-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">{t("tracking_eta")}</p>
+              <p className="mt-1 text-[20px] font-black text-slate-950">{eta ?? "--"}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{t("tracking_updated").split("{time}")[0] || "Updated"}</p>
+              <p className="mt-1 text-[20px] font-black text-slate-950">
+                {driverLocation ? safeFormat(driverLocation.updated_at, "h:mm a", "--") : "--"}
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Progress stepper */}
-        <div className="bg-gray-50 rounded-3xl p-5">
+        <div className="rounded-[28px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
           <div className="relative flex justify-between">
             {/* Background line */}
-            <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200" />
+            <div className="absolute left-4 right-4 top-4 h-0.5 bg-slate-200" />
             {/* Active line */}
             <div
-              className="absolute top-4 left-4 h-0.5 bg-[#48a98b] transition-all duration-700"
-              style={{ width: `calc(${(statusIndex / (STEPS.length - 1)) * 100}% - 2rem)` }}
+              className="absolute left-4 top-4 h-0.5 bg-emerald-500 transition-all duration-700"
+              style={{ width: statusIndex <= 0 ? "0%" : `calc(${(statusIndex / (STEPS.length - 1)) * 100}% - 2rem)` }}
             />
             {STEPS.map(({ key, label, Icon }, i) => {
               const done = i < statusIndex;
               const active = i === statusIndex;
               return (
-                <div key={key} className="flex flex-col items-center gap-1.5 relative z-10">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                    done    ? "bg-[#48a98b] text-white" :
-                    active  ? "bg-white border-2 border-[#48a98b] text-[#48a98b] shadow-md" :
-                              "bg-white border-2 border-gray-200 text-gray-300"
+                <div key={key} className="relative z-10 flex flex-col items-center gap-1.5">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${
+                    done    ? "bg-emerald-500 text-white" :
+                    active  ? "border-2 border-emerald-500 bg-white text-emerald-600 shadow-md" :
+                              "border-2 border-slate-200 bg-white text-slate-300"
                   }`}>
                     {active ? (
                       <span className="relative flex items-center justify-center">
-                        <span className="animate-ping absolute h-5 w-5 rounded-full bg-[#48a98b] opacity-25" />
-                        <Icon className="w-3.5 h-3.5 relative" />
+                        <span className="absolute h-5 w-5 animate-ping rounded-full bg-emerald-500 opacity-25" />
+                        <Icon className="relative h-3.5 w-3.5" />
                       </span>
                     ) : (
-                      <Icon className="w-3.5 h-3.5" />
+                      <Icon className="h-3.5 w-3.5" />
                     )}
                   </div>
                   <span className={`text-[10px] font-medium text-center leading-tight max-w-[52px] ${
-                    done || active ? "text-gray-700" : "text-gray-400"
+                    done || active ? "text-slate-700" : "text-slate-400"
                   }`}>
                     {label}
                   </span>
@@ -591,26 +622,26 @@ export function CustomerDeliveryTracker({
             })}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-sm font-semibold text-gray-900">{currentStep.label}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{currentStep.description}</p>
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-sm font-black text-slate-950">{currentStep.label}</p>
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">{currentStep.description}</p>
           </div>
         </div>
 
         {/* Live Map */}
         {showMap && (
-          <div className="rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
+          <div className="overflow-hidden rounded-[32px] bg-white shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#48a98b] opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#48a98b]" />
                 </span>
-                <span className="text-sm font-semibold text-gray-900">{t("tracking_live_location")}</span>
+                <span className="text-sm font-black text-slate-950">{t("tracking_live_location")}</span>
               </div>
               {eta && (
-                <div className="flex items-center gap-1.5 bg-[#eaf7f0] text-[#48a98b] px-3 py-1 rounded-full text-xs font-semibold">
-                  <Navigation className="w-3 h-3" />
+                <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-600">
+                  <Navigation className="h-3 w-3" />
                   {t("tracking_eta").replace("{eta}", eta)}
                 </div>
               )}
@@ -619,7 +650,7 @@ export function CustomerDeliveryTracker({
               <MapContainer
                 center={[getMapCenter().lat, getMapCenter().lng]}
                 zoom={15}
-                style={{ height: "260px", width: "100%" }}
+                style={{ height: "320px", width: "100%" }}
                 scrollWheelZoom={false}
               >
                 {driverLocation && (
@@ -648,7 +679,7 @@ export function CustomerDeliveryTracker({
                 {routeHistory.length > 1 && (
                   <RoutePolyline
                     positions={routeHistory}
-                    color="#48a98b"
+                    color="#10B981"
                     weight={4}
                     opacity={0.7}
                   />
@@ -656,7 +687,7 @@ export function CustomerDeliveryTracker({
               </MapContainer>
             </Suspense>
             {driverLocation && (
-              <div className="bg-gray-50 px-4 py-2 text-xs text-gray-400">
+              <div className="bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-400">
                 {t("tracking_updated").replace("{time}", safeFormat(driverLocation.updated_at, "h:mm:ss a", "—"))}
                 {driverLocation.speed_kmh && (
                   <span className="ml-2">· {t("tracking_km_h").replace("{speed}", String(Math.round(driverLocation.speed_kmh)))}</span>
@@ -668,24 +699,24 @@ export function CustomerDeliveryTracker({
 
         {/* Driver card */}
         {deliveryJob.driver && deliveryJob.status !== "delivered" && (
-          <div className="bg-gray-50 rounded-3xl p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{t("tracking_your_driver")}</p>
+          <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">{t("tracking_your_driver")}</p>
             <div className="flex items-center gap-4">
               {/* Avatar */}
-              <div className="w-14 h-14 bg-[#eaf7f0] rounded-2xl flex items-center justify-center shrink-0">
-                <User className="w-7 h-7 text-green-600" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <User className="h-7 w-7" />
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-base leading-tight truncate">
+                <p className="truncate text-base font-black leading-tight text-slate-950">
                   {deliveryJob.driver.full_name || t("tracking_your_driver")}
                 </p>
                 {/* ETA */}
                 {driverLocation && customerLocation && deliveryJob.status === "picked_up" && (
                   <div className="flex items-center gap-1 mt-1">
-                    <Clock className="w-3.5 h-3.5 text-[#48a98b]" />
-                    <span className="text-sm font-semibold text-[#48a98b]">
+                    <Clock className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-sm font-extrabold text-emerald-600">
                       ~{getEtaMinutes(
                         driverLocation.lat,
                         driverLocation.lng,
@@ -699,17 +730,17 @@ export function CustomerDeliveryTracker({
                 {/* Vehicle info */}
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   {deliveryJob.driver.vehicle_type && (
-                    <span className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full capitalize">
+                    <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold capitalize text-slate-600">
                       {deliveryJob.driver.vehicle_type}
                     </span>
                   )}
                   {(deliveryJob.driver.vehicle_make || deliveryJob.driver.vehicle_model) && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs font-semibold text-slate-500">
                       {[deliveryJob.driver.vehicle_make, deliveryJob.driver.vehicle_model].filter(Boolean).join(" ")}
                     </span>
                   )}
                   {deliveryJob.driver.license_plate && (
-                    <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-mono">
+                    <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">
                       {deliveryJob.driver.license_plate}
                     </span>
                   )}
@@ -724,9 +755,9 @@ export function CustomerDeliveryTracker({
                       ? `tel:${deliveryJob.driver.phone_number}`
                       : `mailto:${deliveryJob.driver.email}`
                   }
-                  className="w-12 h-12 rounded-2xl bg-[#48a98b] flex items-center justify-center shrink-0 shadow-md shadow-[#48a98b]/30 active:scale-95 transition-transform"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 shadow-[0_12px_24px_rgba(16,185,129,0.22)] transition-transform active:scale-95"
                 >
-                  <Phone className="w-5 h-5 text-white" />
+                  <Phone className="h-5 w-5 text-white" />
                 </a>
               )}
             </div>
@@ -735,14 +766,14 @@ export function CustomerDeliveryTracker({
 
         {/* Delivered */}
         {deliveryJob.status === "delivered" && (
-          <div className="bg-[#eaf7f0] rounded-3xl p-6 flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-[#48a98b] rounded-full flex items-center justify-center mb-3 shadow-lg shadow-[#48a98b]/30">
-              <CheckCircle2 className="w-8 h-8 text-white" />
+          <div className="flex flex-col items-center rounded-[32px] bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 shadow-[0_16px_32px_rgba(16,185,129,0.22)]">
+              <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
-            <h3 className="font-bold text-lg text-[#2d6b55]">{t("tracking_order_delivered")}</h3>
-            <p className="text-sm text-[#48a98b] mt-1">{t("tracking_enjoy_meal")}</p>
+            <h3 className="text-lg font-black text-emerald-800">{t("tracking_order_delivered")}</h3>
+            <p className="mt-1 text-sm font-semibold text-emerald-600">{t("tracking_enjoy_meal")}</p>
             {deliveryJob.delivered_at && (
-              <p className="text-xs text-[#48a98b]/70 mt-2">
+              <p className="mt-2 text-xs font-semibold text-emerald-500">
                 {t("tracking_delivered_at").replace("{time}", safeFormat(deliveryJob.delivered_at, "h:mm a", "—"))}
               </p>
             )}

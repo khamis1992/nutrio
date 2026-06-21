@@ -111,6 +111,24 @@ export default function AIReportPage() {
     const weekMacros = weeklySummary?.macros;
     const calories = weeklySummary?.calories;
     const consistency = weeklySummary?.consistency;
+    const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
+    const caloriePct = Math.min(100, Math.round(((calories?.thisWeekAvg ?? 0) / Math.max(calorieTarget, 1)) * 100));
+    const proteinPct = weekMacros?.protein?.percentage ?? 0;
+    const hydrationPct = Math.min(100, waterSummary?.percentage ?? 0);
+    const consistencyPct = consistency?.percentage ?? 0;
+    const hasTodayNutrition =
+      (todayProgress?.calories ?? 0) > 0 ||
+      (todayProgress?.protein ?? 0) > 0 ||
+      (todayProgress?.carbs ?? 0) > 0 ||
+      (todayProgress?.fat ?? 0) > 0 ||
+      (waterSummary?.total ?? 0) > 0;
+    const nutritionFallbackScore = Math.round((caloriePct * 0.38) + (proteinPct * 0.32) + (hydrationPct * 0.2) + (consistencyPct * 0.1));
+    const weeklyFallbackScore = Math.round((caloriePct + proteinPct + consistencyPct) / 3);
+    const resolvedMealQualityScore = mealQualityScore > 0
+      ? Math.round(mealQualityScore)
+      : hasTodayNutrition
+        ? nutritionFallbackScore
+        : weeklyFallbackScore;
 
     return {
       date: format(new Date(), "MMMM d, yyyy"),
@@ -140,7 +158,7 @@ export default function AIReportPage() {
       },
       calories: {
         avg: Math.round(calories?.thisWeekAvg ?? 0),
-        target: activeGoal?.daily_calorie_target ?? 2000,
+        target: calorieTarget,
         change: calories?.changePercent ?? 0,
         trend: calories?.trend ?? "stable",
       },
@@ -156,7 +174,7 @@ export default function AIReportPage() {
         percentage: waterSummary?.percentage ?? 0,
       },
       mealQuality: {
-        score: Math.round(mealQualityScore),
+        score: resolvedMealQualityScore,
         weeklyAvg: weeklyQuality.length > 0
           ? Math.round(weeklyQuality.reduce((a, d) => a + d.avgScore, 0) / weeklyQuality.length)
           : 0,

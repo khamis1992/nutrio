@@ -1,6 +1,47 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { BloodMarkerDefinition, BloodWorkRecord, BloodMarker } from "@/lib/blood-markers";
 
+const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
+
+export async function getLatestAbnormalMarkers(userId: string): Promise<BloodMarker[]> {
+  const sixMonthsAgo = new Date(Date.now() - SIX_MONTHS_MS).toISOString().split("T")[0];
+
+  const { data: records, error: recError } = await supabase
+    .from("blood_work_records")
+    .select("id, test_date")
+    .eq("user_id", userId)
+    .gte("test_date", sixMonthsAgo)
+    .order("test_date", { ascending: false });
+
+  if (recError) throw recError;
+  if (!records || records.length === 0) return [];
+
+  const latestRecordId = records[0].id;
+
+  const { data: markers, error: markerError } = await supabase
+    .from("blood_markers")
+    .select("*")
+    .eq("record_id", latestRecordId)
+    .in("status", ["low", "high", "critical"])
+    .order("category", { ascending: true });
+
+  if (markerError) throw markerError;
+  return (markers || []) as BloodMarker[];
+}
+
+export async function hasBloodWork(userId: string): Promise<boolean> {
+  const sixMonthsAgo = new Date(Date.now() - SIX_MONTHS_MS).toISOString().split("T")[0];
+
+  const { count, error } = await supabase
+    .from("blood_work_records")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("test_date", sixMonthsAgo);
+
+  if (error) throw error;
+  return (count || 0) > 0;
+}
+
 // ─── Fetch marker definitions ──────────────────────────────────────────
 export async function fetchMarkerDefinitions(): Promise<BloodMarkerDefinition[]> {
   const { data, error } = await supabase

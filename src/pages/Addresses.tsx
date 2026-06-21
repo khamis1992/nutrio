@@ -13,8 +13,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -517,148 +515,202 @@ const Addresses = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-white">
         <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-12 w-full rounded-3xl" />
+          <Skeleton className="h-36 w-full rounded-[28px]" />
+          <Skeleton className="h-28 w-full rounded-[28px]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border pt-safe">
-        <div className="container max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 rtl:flex-row-reverse">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(-1)}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-xl font-semibold">{t("delivery_addresses_title")}</h1>
+    <div className="min-h-screen bg-white pb-24 text-slate-950">
+      <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/90 pt-safe backdrop-blur-xl">
+        <div className="container mx-auto max-w-2xl px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="h-11 w-11 rounded-full bg-white shadow-sm ring-1 ring-slate-200"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="min-w-0 flex-1 text-center">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Saved places</p>
+              <h1 className="truncate text-lg font-extrabold">{t("delivery_addresses_title")}</h1>
             </div>
-            <Button size="sm" onClick={openAddDialog}>
-              <Plus className="h-4 w-4 mr-1" />
-              {t("add_btn")}
+            <Button
+              size="icon"
+              onClick={openAddDialog}
+              className="h-11 w-11 rounded-full bg-slate-950 text-white shadow-lg shadow-slate-200 hover:bg-slate-800"
+              aria-label={t("add_btn")}
+            >
+              <Plus className="h-5 w-5" />
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <div className="container mx-auto max-w-2xl px-4 py-5">
+        <section className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-white p-5 text-slate-950">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-400">Address book</p>
+                <h2 className="mt-2 text-3xl font-black leading-none">{addresses.length}</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-500">
+                  {addresses.length === 1 ? "delivery place saved" : "delivery places saved"}
+                </p>
+              </div>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
+                <MapPin className="h-7 w-7" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-4">
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">Default</p>
+              <p className="mt-1 truncate text-base font-black">
+                {addresses.find((address) => address.is_default)?.label || "Not set"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openAddDialog}
+              className="flex min-h-20 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 text-sm font-extrabold text-white shadow-lg shadow-slate-200 transition active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4" />
+              {t("add_btn")}
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <main className="container mx-auto max-w-2xl px-4 space-y-3">
         {addresses.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <MapPin className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-muted-foreground mb-4">{t("no_addresses_saved")}</p>
-              <Button onClick={openAddDialog}>
-                <Plus className="h-4 w-4 mr-2" />
+          <section className="rounded-[30px] border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-50 text-slate-700">
+              <MapPin className="h-8 w-8" />
+            </div>
+            <p className="mb-5 text-sm font-semibold text-slate-500">{t("no_addresses_saved")}</p>
+            <Button
+              onClick={openAddDialog}
+              className="h-12 rounded-full bg-slate-950 px-6 font-extrabold text-white shadow-lg shadow-slate-200 hover:bg-slate-800"
+            >
+              <Plus className="mr-2 h-4 w-4" />
                 {t("add_first_address")}
-              </Button>
-            </CardContent>
-          </Card>
+            </Button>
+          </section>
         ) : (
           addresses.map((address) => (
-            <Card key={address.id} className={address.is_default ? "border-primary/50" : ""}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {getLabelIcon(address.label)}
-                      <span className="font-medium">{address.label}</span>
-                      {address.is_default && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Star className="h-3 w-3 mr-1" />
-                          {t("default_badge")}
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <p className="text-sm text-muted-foreground">
+            <article
+              key={address.id}
+              className={`rounded-[28px] border bg-white p-4 shadow-sm transition ${
+                address.is_default ? "border-rose-200 ring-4 ring-rose-50" : "border-slate-100"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                    address.is_default ? "bg-rose-500 text-white" : "bg-slate-50 text-slate-700"
+                  }`}
+                >
+                  {getLabelIcon(address.label)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-base font-black">{address.label}</h3>
+                    {address.is_default && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-rose-600">
+                        <Check className="h-3 w-3" />
+                        {t("default_badge")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm font-medium leading-5 text-slate-500">
+                    <p>
                       {address.address_line1}
                       {address.address_line2 && `, ${address.address_line2}`}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p>
                       {address.city}{address.state && `, ${address.state}`} {address.postal_code}
                     </p>
-                    <p className="text-sm text-muted-foreground">{address.country}</p>
+                    <p>{address.country}</p>
                     
                     {address.phone && (
-                      <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
+                      <p className="mt-2 flex items-center gap-1.5 text-slate-600">
+                        <Phone className="h-3.5 w-3.5 text-slate-400" />
                         {address.phone}
                       </p>
                     )}
                     
                     {address.delivery_instructions && (
-                      <p className="text-sm text-muted-foreground mt-2 italic">
+                      <p className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
                         "{address.delivery_instructions}"
                       </p>
                     )}
                   </div>
-                  
-                  <div className="flex items-center gap-1">
-                    {!address.is_default && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setAsDefault(address)}
-                        title={t("set_as_default")}
-                      >
-                        <Star className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(address)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => confirmDelete(address)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => openEditDialog(address)}
+                  className="h-11 rounded-2xl bg-slate-50 text-slate-700 hover:bg-slate-100"
+                >
+                  <Edit2 className="mr-1.5 h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setAsDefault(address)}
+                  disabled={address.is_default}
+                  title={t("set_as_default")}
+                  className="h-11 rounded-2xl bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-100"
+                >
+                  <Star className="mr-1.5 h-4 w-4" />
+                  {address.is_default ? "Set" : "Default"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => confirmDelete(address)}
+                  className="h-11 rounded-2xl bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
+                >
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            </article>
           ))
         )}
-      </div>
+      </main>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto rounded-[30px] border-slate-200 bg-white p-0">
+          <DialogHeader className="border-b border-slate-100 bg-white px-5 py-5 text-left">
+            <DialogTitle className="text-xl font-black">
               {editingAddress ? t("edit_address_title") : t("add_address_title")}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm font-medium text-slate-500">
               {editingAddress ? t("edit_address_desc") : t("add_address_desc")}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 px-5 py-5">
             {/* ── Location Picker ── */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">{t("pin_location")}</Label>
+                <Label className="text-sm font-extrabold">{t("pin_location")}</Label>
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
                   disabled={gpsLoading}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 active:scale-95 transition-all px-3 py-1.5 rounded-full disabled:opacity-50"
+                  className="flex min-h-9 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-700 transition-all hover:bg-slate-200 active:scale-95 disabled:opacity-50"
                 >
                   {gpsLoading ? (
                     <>
@@ -670,21 +722,21 @@ const Addresses = () => {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">{t("tap_map_hint")} — address fields fill automatically.</p>
-              <div className="relative rounded-2xl overflow-hidden border border-border/70 shadow-sm" style={{ height: 240 }}>
+              <p className="text-xs font-medium text-slate-500">{t("tap_map_hint")} - address fields fill automatically.</p>
+              <div className="relative overflow-hidden rounded-[26px] border border-slate-200 shadow-sm" style={{ height: 240 }}>
                 {/* GPS loading overlay */}
                 {gpsLoading && (
-                  <div className="absolute inset-0 z-[1000] bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                      <Navigation className="h-5 w-5 text-primary animate-pulse" />
+                  <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center gap-2 bg-white/80 backdrop-blur-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100">
+                      <Navigation className="h-5 w-5 animate-pulse text-slate-700" />
                     </div>
-                    <p className="text-xs font-semibold text-foreground">{t("detecting_location")}</p>
+                    <p className="text-xs font-extrabold text-slate-900">{t("detecting_location")}</p>
                   </div>
                 )}
                 {/* No-pin hint */}
                 {!pinPosition && !gpsLoading && (
                   <div className="absolute inset-0 z-[999] flex items-end justify-center pb-3 pointer-events-none">
-                    <span className="text-xs bg-background/90 text-muted-foreground px-3 py-1.5 rounded-full border border-border/60 shadow-sm">
+                    <span className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm">
                       {t("tap_map_hint")}
                     </span>
                   </div>
@@ -710,8 +762,8 @@ const Addresses = () => {
                           center={pinPosition}
                           radius={gpsAccuracy}
                           pathOptions={{
-                            color: "#16a34a",
-                            fillColor: "#16a34a",
+                            color: "#e11d48",
+                            fillColor: "#e11d48",
                             fillOpacity: 0.08,
                             weight: 1.5,
                             opacity: 0.5,
@@ -735,26 +787,26 @@ const Addresses = () => {
                 </MapContainer>
               </div>
               {pinPosition && (
-                <p className="text-xs text-primary font-medium flex items-center gap-1 flex-wrap">
+                <p className="flex flex-wrap items-center gap-1 text-xs font-bold text-rose-600">
                   <MapPin className="h-3 w-3 shrink-0" />
                   {pinPosition[0].toFixed(5)}, {pinPosition[1].toFixed(5)}
                   {gpsAccuracy !== null && !gpsLoading && (
-                    <span className="text-muted-foreground font-normal">· ±{gpsAccuracy}m {t("accuracy")}</span>
+                    <span className="font-medium text-slate-500">- +/-{gpsAccuracy}m {t("accuracy")}</span>
                   )}
                   {!gpsLoading && (
-                    <span className="text-muted-foreground font-normal">· {t("drag_map_hint")}</span>
+                    <span className="font-medium text-slate-500">- {t("drag_map_hint")}</span>
                   )}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Label</Label>
+              <Label className="font-extrabold">Label</Label>
               <Select
                 value={formData.label}
                 onValueChange={(value) => setFormData({ ...formData, label: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-white font-bold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -766,12 +818,12 @@ const Addresses = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>{t("address_line1_label")} *</Label>
+              <Label className="font-extrabold">{t("address_line1_label")} *</Label>
               <Input
                 placeholder={t("street_address_placeholder")}
                 value={formData.address_line1}
                 onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
-                className={formErrors.address_line1 ? "border-destructive" : ""}
+                className={`h-12 rounded-2xl bg-white font-semibold ${formErrors.address_line1 ? "border-destructive" : "border-slate-200"}`}
               />
               {formErrors.address_line1 && (
                 <p className="text-sm text-destructive">{formErrors.address_line1}</p>
@@ -779,82 +831,86 @@ const Addresses = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>{t("address_line2_label")}</Label>
+              <Label className="font-extrabold">{t("address_line2_label")}</Label>
               <Input
                 placeholder={t("apartment_placeholder")}
                 value={formData.address_line2}
                 onChange={(e) => setFormData({ ...formData, address_line2: e.target.value })}
+                className="h-12 rounded-2xl border-slate-200 bg-white font-semibold"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t("city_label")} *</Label>
+                <Label className="font-extrabold">{t("city_label")} *</Label>
                 <Input
                   placeholder={t("city_placeholder")}
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className={formErrors.city ? "border-destructive" : ""}
+                  className={`h-12 rounded-2xl bg-white font-semibold ${formErrors.city ? "border-destructive" : "border-slate-200"}`}
                 />
                 {formErrors.city && (
                   <p className="text-sm text-destructive">{formErrors.city}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>{t("state_label")}</Label>
+                <Label className="font-extrabold">{t("state_label")}</Label>
                 <Input
                   placeholder={t("state_placeholder")}
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  className="h-12 rounded-2xl border-slate-200 bg-white font-semibold"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t("postal_code_label")} *</Label>
+                <Label className="font-extrabold">{t("postal_code_label")} *</Label>
                 <Input
                   placeholder={t("zip_code_placeholder")}
                   value={formData.postal_code}
                   onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                  className={formErrors.postal_code ? "border-destructive" : ""}
+                  className={`h-12 rounded-2xl bg-white font-semibold ${formErrors.postal_code ? "border-destructive" : "border-slate-200"}`}
                 />
                 {formErrors.postal_code && (
                   <p className="text-sm text-destructive">{formErrors.postal_code}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>{t("country_label")} *</Label>
+                <Label className="font-extrabold">{t("country_label")} *</Label>
                 <Input
                   placeholder={t("country_placeholder")}
                   value={formData.country}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                  className={formErrors.country ? "border-destructive" : ""}
+                  className={`h-12 rounded-2xl bg-white font-semibold ${formErrors.country ? "border-destructive" : "border-slate-200"}`}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>{t("phone_number_label")}</Label>
+              <Label className="font-extrabold">{t("phone_number_label")}</Label>
               <Input
                 placeholder={t("phone_placeholder")}
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="h-12 rounded-2xl border-slate-200 bg-white font-semibold"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>{t("delivery_instructions_label")}</Label>
+              <Label className="font-extrabold">{t("delivery_instructions_label")}</Label>
               <Textarea
                 placeholder={t("instructions_placeholder")}
                 value={formData.delivery_instructions}
                 onChange={(e) => setFormData({ ...formData, delivery_instructions: e.target.value })}
                 rows={2}
+                className="rounded-2xl border-slate-200 bg-white font-semibold"
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="default">{t("set_default_label")}</Label>
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <Label htmlFor="default" className="font-extrabold">{t("set_default_label")}</Label>
               <Switch
                 id="default"
                 checked={formData.is_default}
@@ -863,11 +919,11 @@ const Addresses = () => {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="sticky bottom-0 gap-2 border-t border-slate-100 bg-white p-4">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-12 rounded-full border-slate-200 px-6 font-extrabold">
               {t("cancel")}
             </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
+            <Button onClick={handleSubmit} disabled={saving} className="h-12 rounded-full bg-slate-950 px-6 font-extrabold text-white shadow-lg shadow-slate-200 hover:bg-slate-800">
               {saving ? t("saving") : editingAddress ? t("update") : t("add_address")}
             </Button>
           </DialogFooter>

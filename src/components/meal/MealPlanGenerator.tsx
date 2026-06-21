@@ -108,7 +108,7 @@ export const MealPlanGenerator = ({
   const { user } = useAuth();
   const { t, isRTL } = useLanguage();
   const { toast: uiToast } = useToast();
-  const { remainingMeals, isUnlimited, hasActiveSubscription } = useSubscription();
+  const { remainingMeals, isUnlimited, hasActiveSubscription, incrementMealUsage, incrementSnackUsage, refetch: refetchSubscription } = useSubscription();
   const { favoriteIds } = useFavoriteRestaurants();
 
   const [phase, setPhase] = useState<"loading" | "preview" | "generating" | "applying" | "success">("loading");
@@ -431,6 +431,16 @@ export const MealPlanGenerator = ({
 
       const { error: insertError } = await supabase.from("meal_schedules").insert(inserts);
       if (insertError) throw insertError;
+
+      for (const slot of slotsToApply) {
+        if (slot.mealType === "snack" || slot.mealType === "snack2") {
+          await incrementSnackUsage();
+        } else {
+          await incrementMealUsage();
+        }
+      }
+
+      await refetchSubscription();
 
       setPhase("success");
       sonnerToast.success(`${inserts.length} meals scheduled for the week!`, {

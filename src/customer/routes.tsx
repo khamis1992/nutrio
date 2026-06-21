@@ -51,8 +51,8 @@ const CoachMessages = lazy(() => import("@/pages/CoachMessages"));
 // PHASE 2: Coach portal — gate behind coach role before enabling
 // const CoachOnboarding = lazy(() => import("@/pages/nutrio/CoachOnboarding"));
 // const CoachSubscription = lazy(() => import("@/pages/nutrio/CoachSubscription"));
-// const CoachPrograms = lazy(() => import("@/pages/nutrio/CoachPrograms"));
-// const GuidedWorkout = lazy(() => import("@/pages/nutrio/GuidedWorkout"));
+const CoachPrograms = lazy(() => import("@/pages/nutrio/CoachPrograms"));
+const GuidedWorkout = lazy(() => import("@/pages/nutrio/GuidedWorkout"));
 // const CoachSchedule = lazy(() => import("@/pages/coach/CoachSchedule"));
 // const WorkoutHistory = lazy(() => import("@/pages/nutrio/WorkoutHistory"));
 const AIReport = lazy(() => import("@/pages/AIReport"));
@@ -370,8 +370,8 @@ export const customerRoutes = (
     />
     {/* PHASE 2: Coach portal — <Route path="/coach-onboarding" element={<ProtectedRoute><CoachOnboarding /></ProtectedRoute>} /> */}
     {/* <Route path="/coach-subscription" element={<ProtectedRoute><CoachSubscription /></ProtectedRoute>} /> */}
-    {/* <Route path="/coach-programs" element={<ProtectedRoute><CoachPrograms /></ProtectedRoute>} /> */}
-    {/* <Route path="/coach-programs/workout/:programId/day/:dayNumber" element={<ProtectedRoute><GuidedWorkout /></ProtectedRoute>} /> */}
+    <Route path="/coach-programs" element={<ProtectedRoute><CoachPrograms /></ProtectedRoute>} />
+    <Route path="/coach-programs/workout/:programId/day/:dayNumber" element={<ProtectedRoute><GuidedWorkout /></ProtectedRoute>} />
     {/* <Route path="/workout-history" element={<ProtectedRoute><WorkoutHistory /></ProtectedRoute>} /> */}
     <Route
       path="/ai-report"

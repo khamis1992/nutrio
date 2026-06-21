@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Clock, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatLocaleDate } from "@/lib/dateUtils";
@@ -12,9 +11,6 @@ interface DeliverySchedulerProps {
   onSchedule: (result: { date: Date; time: string }) => void;
   onCancel?: () => void;
 }
-
-const formatDate = (date: Date) =>
-  date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -68,103 +64,143 @@ export const DeliveryScheduler = ({
   };
 
   return (
-    <div className="p-4 space-y-5">
-      {/* Date picker */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Calendar className="w-4 h-4 text-primary" />
-            Select Date
+    <div className="flex h-full min-h-0 flex-col bg-[#F8FAFC]">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3 pt-3">
+        <section className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.07)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">Delivery</p>
+              <h2 className="mt-0.5 text-[22px] font-black leading-tight text-slate-950">Choose time</h2>
+              <p className="mt-1 text-[13px] font-semibold leading-snug text-slate-500">{timeZone}</p>
+            </div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#E2F8EB] text-[#0B9B59]">
+              <Calendar className="h-5 w-5" strokeWidth={2.4} />
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setWeekOffset(w => Math.max(0, w - 1))}
-              disabled={weekOffset === 0}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setWeekOffset(w => w + 1)}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+
+          <div className="mt-3 rounded-[18px] bg-slate-50 p-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-black text-slate-950">Select date</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 disabled:opacity-35"
+                  onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                  disabled={weekOffset === 0}
+                  aria-label="Previous week"
+                >
+                  <ChevronLeft className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
+                  onClick={() => setWeekOffset((w) => w + 1)}
+                  aria-label="Next week"
+                >
+                  <ChevronRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-2.5 grid grid-cols-7 gap-1">
+              {weekDays.map((day) => {
+                const isPast = day < today;
+                const isSelected = isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, today);
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    disabled={isPast}
+                    onClick={() => setSelectedDate(day)}
+                    className={cn(
+                      "flex min-h-[46px] flex-col items-center justify-center rounded-[13px] text-center transition-all",
+                      isPast && "cursor-not-allowed opacity-30",
+                      isSelected && "bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]",
+                      !isSelected && !isPast && "bg-white text-slate-800 active:scale-95",
+                      isToday && !isSelected && "ring-2 ring-emerald-200"
+                    )}
+                  >
+                    <span className="text-[9px] font-extrabold uppercase leading-none opacity-70">
+                      {formatLocaleDate(day, language, { weekday: "short" })}
+                    </span>
+                    <span className="mt-1 text-[14px] font-black leading-none">{day.getDate()}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="mt-2.5 text-center text-[12px] font-bold text-slate-500">
+              {formatDate(selectedDate)}
+            </p>
           </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {weekDays.map((day) => {
-            const isPast = day < today;
-            const isSelected = isSameDay(day, selectedDate);
-            const isToday = isSameDay(day, today);
-            return (
+        </section>
+
+        <section className="rounded-[22px] border border-slate-100 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.07)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-black text-slate-950">Select time</p>
+              <p className="mt-1 text-[12px] font-semibold text-slate-500">Available delivery windows</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+              <Clock className="h-5 w-5" strokeWidth={2.4} />
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {timeSlots.map((slot) => (
               <button
-                key={day.toISOString()}
-                disabled={isPast}
-                onClick={() => setSelectedDate(day)}
+                key={slot}
+                type="button"
+                onClick={() => setSelectedTime(slot)}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-xl py-2 text-xs font-medium transition-all",
-                  isPast && "opacity-30 cursor-not-allowed",
-                  isSelected && "bg-primary text-primary-foreground shadow-sm",
-                  !isSelected && !isPast && "hover:bg-muted",
-                  isToday && !isSelected && "border border-primary/40"
+                  "flex min-h-[44px] items-center justify-center rounded-[15px] border px-2 text-[13px] font-black transition-all active:scale-95",
+                  selectedTime === slot
+                    ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]"
+                    : "border-slate-100 bg-slate-50 text-slate-700"
                 )}
               >
-                <span className="text-[10px] uppercase opacity-70">
-                  {formatLocaleDate(day, language, { weekday: "short" })}
-                </span>
-                <span className="text-sm font-semibold">{day.getDate()}</span>
+                {slot}
               </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          {formatDate(selectedDate)} &bull; {timeZone}
-        </p>
+            ))}
+          </div>
+        </section>
       </div>
 
-      {/* Time slot picker */}
-      <div>
-        <div className="flex items-center gap-2 text-sm font-medium mb-3">
-          <Clock className="w-4 h-4 text-primary" />
-          Select Time
+      <div className="shrink-0 border-t border-slate-100 bg-white/95 px-4 pt-3 backdrop-blur-2xl"
+        style={{ paddingBottom: "max(5.75rem, calc(env(safe-area-inset-bottom) + 5.25rem))" }}
+      >
+        <div className="mb-2.5 flex items-center justify-between rounded-[16px] bg-slate-50 px-4 py-2">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-black text-slate-950">{formatDate(selectedDate)}</p>
+            <p className="mt-0.5 text-[12px] font-semibold text-slate-500">{selectedTime || "Select a time"}</p>
+          </div>
+          {selectedTime && (
+            <span className="rounded-full bg-[#E2F8EB] px-3 py-1.5 text-[11px] font-black text-[#0B9B59]">
+              Ready
+            </span>
+          )}
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {timeSlots.map((slot) => (
+
+        <div className="flex gap-3">
+          {onCancel && (
             <button
-              key={slot}
-              onClick={() => setSelectedTime(slot)}
-              className={cn(
-                "py-2.5 rounded-xl text-sm font-medium border-2 transition-all",
-                selectedTime === slot
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/40"
-              )}
+              type="button"
+              className="flex min-h-[50px] flex-1 items-center justify-center rounded-[17px] bg-slate-100 px-4 text-[14px] font-black text-slate-600 active:scale-95"
+              onClick={onCancel}
             >
-              {slot}
+              Cancel
             </button>
-          ))}
+          )}
+          <button
+            type="button"
+            className="flex min-h-[50px] flex-[1.4] items-center justify-center rounded-[17px] bg-slate-950 px-4 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition disabled:bg-slate-300 disabled:text-white disabled:shadow-none"
+            disabled={!selectedTime}
+            onClick={handleConfirm}
+          >
+            Confirm time
+          </button>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3 pt-1">
-        {onCancel && (
-          <Button variant="outline" className="flex-1 rounded-xl" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-        <Button
-          className="flex-1 rounded-xl"
-          disabled={!selectedTime}
-          onClick={handleConfirm}
-        >
-          Confirm
-        </Button>
       </div>
     </div>
   );

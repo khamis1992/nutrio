@@ -19,6 +19,14 @@ const IDLE_TIMEOUT = 30 * 60 * 1000;
 const WARNING_TIME = 2 * 60 * 1000;
 const CHECK_INTERVAL = 1000;
 
+const isRememberMeEnabled = (): boolean => {
+  try {
+    return localStorage.getItem("nutrio_remember_me") === "true";
+  } catch {
+    return false;
+  }
+};
+
 const ACTIVITY_EVENTS = [
   "mousedown",
   "mousemove",
@@ -151,6 +159,7 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     resetIdleTimer();
 
     checkIntervalRef.current = setInterval(() => {
+      if (isRememberMeEnabled()) return;
       const now = Date.now();
       const idleTime = now - lastActivityRef.current;
       const timeLeft = Math.max(0, IDLE_TIMEOUT - idleTime);
@@ -168,6 +177,7 @@ export function SessionTimeoutManager({ children }: SessionTimeoutManagerProps) 
     }, CHECK_INTERVAL);
 
     countdownIntervalRef.current = setInterval(() => {
+      if (isRememberMeEnabled()) return;
       if (showWarningRef.current) {
         const now = Date.now();
         const idleTime = now - lastActivityRef.current;

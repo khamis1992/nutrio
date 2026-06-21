@@ -1006,8 +1006,6 @@ const Dashboard = () => {
     },
   ];
 
-
-
   return (
     <motion.div
       initial={prefersReducedMotion ? undefined : { opacity: 0 }}
@@ -1190,13 +1188,6 @@ const Dashboard = () => {
               <h2 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">{t("dashboard_today_meals")}</h2>
               <p className="mt-0.5 text-[11px] font-medium text-slate-500">{t("dashboard_today_meals_desc")}</p>
             </div>
-            <Link
-              to="/schedule"
-              className="flex h-[30px] items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-600"
-            >
-              {t("today_meals_schedule")}
-              <NextIcon className="h-3 w-3" />
-            </Link>
           </div>
 
           <div className="mt-3 space-y-2">
@@ -1502,18 +1493,36 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="mt-4 flex h-[32px] items-center rounded-full border border-[#F8DDB5] bg-[#FFF9F1] px-3">
-            <div className="flex items-center gap-2 text-[#7A4A18]">
-              <Flame className="h-[15px] w-[15px] text-[#E98A05]" />
-              <span className="whitespace-nowrap text-[12px] font-semibold">{t("daily_streak")}</span>
+          <motion.div
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+            animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.06, type: "spring", stiffness: 280, damping: 26 }}
+            className="mt-4 flex h-[40px] items-center rounded-2xl bg-emerald-50 px-3 ring-1 ring-emerald-100"
+          >
+            <div className="flex items-center gap-1.5">
+              <Flame className="h-[15px] w-[15px] text-emerald-500" />
+              <span className="whitespace-nowrap text-[12px] font-bold text-emerald-700">{t("daily_streak")}</span>
             </div>
-            <div className="mx-3 flex flex-1 items-center justify-between gap-2">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-[4px] flex-1 rounded-full bg-[#F59E0B]" />
-              ))}
+            <div className="mx-3 flex flex-1 items-center justify-between gap-1.5">
+              {Array.from({ length: 7 }).map((_, index) => {
+                const isComplete = index < completedThisWeek;
+                const isToday = index === completedThisWeek;
+                return (
+                  <div
+                    key={index}
+                    className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+                      isComplete
+                        ? "bg-emerald-500"
+                        : isToday
+                        ? "bg-emerald-200 ring-2 ring-emerald-300"
+                        : "bg-slate-200"
+                    }`}
+                  />
+                );
+              })}
             </div>
-            <span className="text-[13px] font-extrabold text-slate-900">{completedThisWeek}/7</span>
-          </div>
+            <span className="text-[13px] font-extrabold tabular-nums text-slate-900">{completedThisWeek}/7</span>
+          </motion.div>
 
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             {/* Water Card */}

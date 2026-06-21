@@ -306,22 +306,36 @@ export default function WaterTracker() {
   const waterTopY = 140 - (fillHeight / 100) * 120;
 
   return (
-    <div className="min-h-screen bg-background pb-36">
+    <div className="min-h-screen bg-[#F7FAF8] pb-36">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border">
-        <div className="flex items-center justify-between px-4 py-4 rtl:flex-row-reverse">
+      <div className="sticky top-0 z-10 border-b border-blue-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[430px] items-center justify-between px-4 py-4 rtl:flex-row-reverse">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5 text-foreground" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-bold text-foreground">{t('water_title')}</h1>
-          <div className="w-10 h-10" />
+          <div className="text-center">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-blue-500">
+              {format(selectedDate, "EEE, MMM d")}
+            </p>
+            <h1 className="text-[22px] font-black leading-tight text-slate-950">{t('water_title')}</h1>
+          </div>
+          <button
+            onClick={() => {
+              setGoalInput(String(goalMl));
+              setGoalDialogOpen(true);
+            }}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500 text-white shadow-[0_12px_24px_rgba(59,130,246,0.22)]"
+            aria-label={t('water_daily_goal')}
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Date selector / Calendar */}
-        <div className="px-4 pb-4">
+        <div className="mx-auto max-w-[430px] px-4 pb-4">
           {!calendarOpen ? (
             <>
               <div className="flex items-center justify-between gap-2 overflow-x-auto">
@@ -330,16 +344,16 @@ export default function WaterTracker() {
                     key={d.toISOString()}
                     onClick={() => setSelectedDate(d)}
                     className={cn(
-                      "flex-shrink-0 flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all",
+                      "flex min-h-[58px] flex-shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-3 transition-all",
                       isSameDay(d, selectedDate)
-                        ? "bg-blue-50 text-primary"
-                        : "text-muted-foreground hover:bg-muted"
+                        ? "bg-blue-500 text-white shadow-[0_10px_20px_rgba(59,130,246,0.18)]"
+                        : "bg-white text-slate-500 ring-1 ring-slate-100"
                     )}
                   >
-                    <span className="text-xs font-medium">{format(d, "EEE")}</span>
-                    <span className="text-sm font-bold">{format(d, "d")}</span>
+                    <span className="text-[10px] font-extrabold uppercase">{format(d, "EEE")}</span>
+                    <span className="text-base font-black">{format(d, "d")}</span>
                     {isSameDay(d, selectedDate) && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
                     )}
                   </button>
                 ))}
@@ -368,10 +382,13 @@ export default function WaterTracker() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="mx-auto max-w-[430px] px-4 py-5">
         {/* Water glass + progress */}
-        <div className="flex flex-col items-center py-8">
-          <div className="relative w-44 h-52 mb-4">
+        <div className="flex flex-col items-center rounded-[32px] bg-white px-5 py-7 shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-500">
+            <Droplets className="h-6 w-6" />
+          </div>
+          <div className="relative mb-4 h-52 w-44">
             <svg viewBox="0 0 120 160" className="water w-full h-full">
               <defs>
                 <clipPath id="glassClip">
@@ -407,18 +424,19 @@ export default function WaterTracker() {
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           ) : (
             <>
-              <p className="text-3xl font-bold text-foreground">{totalMl.toLocaleString()} {t('water_ml')}</p>
-              <div className="flex items-center gap-3 mt-2">
-                <p className="text-sm text-muted-foreground">{t('water_daily_goal')}: {goalMl.toLocaleString()} {t('water_ml')}</p>
-                <button
-                  onClick={() => {
-                    setGoalInput(String(goalMl));
-                    setGoalDialogOpen(true);
-                  }}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
+              <p className="text-[38px] font-black leading-none text-slate-950">{totalMl.toLocaleString()}</p>
+              <p className="mt-1 text-[13px] font-extrabold text-slate-400">{t('water_ml')}</p>
+              <div className="mt-5 w-full rounded-2xl bg-blue-50 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[12px] font-extrabold text-blue-600">{Math.min(100, percentage)}%</p>
+                  <p className="text-[12px] font-bold text-slate-500">{goalMl.toLocaleString()} {t('water_ml')}</p>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, percentage)}%` }}
+                  />
+                </div>
               </div>
             </>
           )}
@@ -426,21 +444,35 @@ export default function WaterTracker() {
       </div>
 
       {/* Bottom action bar - above nav */}
-      <div className="fixed bottom-20 left-0 right-0 bg-background border-t border-border p-4 z-40" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-        <div className="container mx-auto flex items-center gap-3">
-          <button
-            onClick={() => setAddWaterSheetOpen(true)}
-            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-primary hover:bg-muted transition-colors"
-          >
-            <Droplets className="w-5 h-5" />
-          </button>
+      <div className="fixed bottom-20 left-0 right-0 z-40 border-t border-blue-50/80 bg-white/92 px-4 py-3 shadow-[0_-16px_32px_rgba(15,23,42,0.08)] backdrop-blur-xl" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+        <div className="mx-auto flex max-w-[430px] items-center gap-3">
           <Button
             onClick={() => handleDrink(DEFAULT_DRINK_ML)}
             disabled={adding}
-            className="flex-1 h-12 rounded-xl font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="h-14 flex-1 rounded-full bg-blue-500 px-4 text-white shadow-[0_14px_28px_rgba(59,130,246,0.24)] hover:bg-blue-600 disabled:opacity-50"
           >
-            {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : `${t('water_drink')} (${DEFAULT_DRINK_ML} ${t('water_ml')})`}
+            {adding ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <span className="flex w-full items-center justify-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                  <Droplets className="h-5 w-5" />
+                </span>
+                <span className="flex flex-col items-start leading-tight">
+                  <span className="text-[15px] font-black">Add 200 mL</span>
+                  <span className="text-[10px] font-bold text-blue-100">Quick drink</span>
+                </span>
+              </span>
+            )}
           </Button>
+          <button
+            type="button"
+            onClick={() => setAddWaterSheetOpen(true)}
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-500 shadow-[0_10px_22px_rgba(15,23,42,0.06)] ring-1 ring-blue-100"
+            aria-label={t('water_add_water')}
+          >
+            <Plus className="h-6 w-6" />
+          </button>
         </div>
       </div>
 

@@ -647,13 +647,13 @@ const OrderHistory = () => {
           return (
             <div
               key={schedule.id}
-              className="bg-card/95 rounded-3xl border border-border/70 shadow-md overflow-hidden active:scale-[0.99] transition-all"
+              className="overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.99]"
               onClick={() => navigate(`/order/${schedule.id}`)}
             >
               <div className="p-4">
                 {/* Card header */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-14 h-14 rounded-2xl bg-muted overflow-hidden shrink-0 shadow-sm">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-slate-100 shadow-sm">
                     {schedule.meal?.image_url ? (
                       <img src={schedule.meal.image_url} alt={schedule.meal.name} className="w-full h-full object-cover" />
                     ) : (
@@ -663,36 +663,36 @@ const OrderHistory = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-base text-foreground truncate">
+                    <h3 className="truncate text-[16px] font-black leading-tight text-slate-950">
                       {schedule.meal?.name || "Unknown Meal"}
                     </h3>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    <p className="mt-1 truncate text-[12px] font-semibold text-slate-500">
                       {schedule.meal?.restaurant?.name || "Restaurant"}
                     </p>
                   </div>
-                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${statusInfo.color}`}>
+                  <span className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${statusInfo.color}`}>
                     <StatusIcon className="h-3 w-3" />
                     {statusInfo.label}
                   </span>
                 </div>
 
                 {/* Meta chips */}
-                <div className="flex items-center gap-2 pt-3 border-t border-border/60 flex-wrap">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(schedule.scheduled_date), "MMM d, yyyy")}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
                     <Clock className="h-3 w-3" />
                     {schedule.meal_type}
                   </span>
                   {schedule.meal?.calories ? (
-                    <span className="flex items-center gap-1 text-xs text-warning font-semibold bg-warning/10 px-2 py-1 rounded-full">
+                    <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-600">
                       <Flame className="h-3 w-3" />
                       {schedule.meal.calories} cal
                     </span>
                   ) : null}
-                  <span className="ml-auto text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                  <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-600">
                     {t("included_badge")}
                   </span>
                 </div>
@@ -700,16 +700,16 @@ const OrderHistory = () => {
 
               {/* Action buttons: Modify and Cancel */}
               {canCancel && (
-                <div className="px-4 pb-4 flex gap-2">
+                <div className="flex gap-2 px-4 pb-4">
                   <button
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-primary/20 text-primary bg-primary/5 text-sm font-semibold hover:bg-primary/10 active:scale-[0.98] transition-all"
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-emerald-50 text-sm font-extrabold text-emerald-700 transition-all active:scale-[0.98]"
                     onClick={(e) => { e.stopPropagation(); setModifyingSchedule(schedule); }}
                   >
                     <Pencil className="h-4 w-4" />
                     {t("modify_btn")}
                   </button>
                   <button
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-destructive/20 text-destructive bg-destructive/10 text-sm font-semibold hover:bg-destructive/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-red-50 text-sm font-extrabold text-red-600 transition-all active:scale-[0.98] disabled:opacity-50"
                     onClick={(e) => { e.stopPropagation(); handleCancelOrder(schedule.id, 'scheduled'); }}
                     disabled={cancelling === schedule.id}
                   >
@@ -731,7 +731,7 @@ const OrderHistory = () => {
 
   return (
     <div
-      className="min-h-screen pb-20"
+      className="min-h-screen bg-[#F7FAF8] pb-24"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -739,7 +739,7 @@ const OrderHistory = () => {
       {/* Pull-to-refresh indicator */}
       {pullDistance > 0 && (
         <div
-          className="flex items-center justify-center transition-all duration-200"
+          className="flex items-center justify-center bg-[#F7FAF8] transition-all duration-200"
           style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / minPullDistance, 1) }}
         >
           <div className="flex items-center gap-2 text-primary bg-primary/10 px-4 py-2 rounded-full">
@@ -763,31 +763,36 @@ const OrderHistory = () => {
       )}
 
       {/* Native header */}
-      <header className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/70 pt-safe">
-          <div className="px-4 pt-[env(safe-area-inset-top)] h-16 flex items-center justify-between rtl:flex-row-reverse">
+      <header className="sticky top-0 z-40 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+          <div className="mx-auto flex h-[76px] max-w-[430px] items-center justify-between px-4 pt-[env(safe-area-inset-top)] rtl:flex-row-reverse">
           <button
             onClick={() => navigate("/dashboard")}
-            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all active:scale-95"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-bold tracking-tight">{t("orders_page_title")}</h1>
+          <div className="text-center">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+              {t("scheduled_date_label")}
+            </p>
+            <h1 className="text-[22px] font-black leading-tight text-slate-950">{t("orders_page_title")}</h1>
+          </div>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80 active:scale-95 transition-all disabled:opacity-40"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 transition-all active:scale-95 disabled:opacity-40"
           >
-            <RefreshCw className={`h-4.5 w-4.5 text-foreground ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-[18px] w-[18px] ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </header>
 
       {/* Content */}
-      <div className="px-4 pt-4">
+      <div className="mx-auto max-w-[430px] px-4 pt-4">
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-card rounded-2xl border p-4 space-y-3">
+              <div key={i} className="space-y-3 rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
                 <div className="flex items-center gap-3">
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-2">
@@ -802,7 +807,7 @@ const OrderHistory = () => {
         ) : (
           <>
             {/* iOS-style segment control */}
-            <div className="bg-muted rounded-2xl p-1 flex gap-1 mb-5">
+            <div className="mb-4 grid grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
               {[
                 { id: "scheduled", label: t("upcoming_tab"), count: upcomingMeals.length },
                 { id: "completed", label: t("completed_tab"), count: completedMeals.length },
@@ -811,16 +816,16 @@ const OrderHistory = () => {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-full text-[12px] font-extrabold transition-all ${
                     activeTab === id
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-emerald-500 text-white shadow-sm"
+                      : "text-slate-500"
                   }`}
                 >
                   {label}
                   {count > 0 && (
                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                      activeTab === id ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
+                      activeTab === id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
                     }`}>
                       {count}
                     </span>
@@ -833,13 +838,15 @@ const OrderHistory = () => {
             {activeTab === "scheduled" && (
               <>
                 {monthlyStats.total > 0 && (
-                  <div className="mb-4 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-                    <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] text-white shadow-[0_4px_10px_rgba(16,185,129,0.2)]">
-                      <ShoppingBag className="h-[16px] w-[16px]" strokeWidth={2} />
+                  <div className="mb-4 rounded-[32px] bg-white p-5 shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+                    <div className="flex items-start gap-4">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                      <ShoppingBag className="h-8 w-8" strokeWidth={2} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[12px] font-bold text-slate-900">{t("dashboard_this_month")}</p>
-                      <p className="text-[10px] font-medium text-slate-500">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">{t("dashboard_this_month")}</p>
+                      <h2 className="mt-1 text-[25px] font-black leading-tight text-slate-950">{t("upcoming_tab")}</h2>
+                      <p className="mt-2 text-[12px] font-semibold text-slate-500">
                         {t("orders_monthly_stats", { count: String(monthlyStats.completed) })}
                         {monthlyStats.cancelled > 0 && ` · ${monthlyStats.cancelled} cancelled`}
                       </p>
@@ -849,12 +856,27 @@ const OrderHistory = () => {
                         {Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%
                       </span>
                     )}
+                    </div>
+                    <div className="mt-5 grid grid-cols-3 gap-2">
+                      <div className="rounded-2xl bg-emerald-50 p-3">
+                        <p className="text-[20px] font-black leading-none text-slate-950">{monthlyStats.total}</p>
+                        <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">total</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[20px] font-black leading-none text-slate-950">{monthlyStats.completed}</p>
+                        <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-500">done</p>
+                      </div>
+                      <div className="rounded-2xl bg-orange-50 p-3">
+                        <p className="text-[20px] font-black leading-none text-slate-950">{Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%</p>
+                        <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-orange-600">progress</p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {renderScheduledMeals(upcomingMeals)}
                 {scheduledHasMore && (
                   <button
-                    className="w-full mt-3 py-3 rounded-2xl border border-border/70 bg-card/90 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-extrabold text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.98] disabled:opacity-40"
                     onClick={loadMoreScheduled}
                     disabled={scheduledLoading}
                   >
@@ -870,7 +892,7 @@ const OrderHistory = () => {
                 {renderScheduledMeals(completedMeals)}
                 {scheduledHasMore && (
                   <button
-                    className="w-full mt-3 py-3 rounded-2xl border border-border/70 bg-card/90 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-extrabold text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.98] disabled:opacity-40"
                     onClick={loadMoreScheduled}
                     disabled={scheduledLoading}
                   >
@@ -1000,7 +1022,7 @@ const OrderHistory = () => {
                 )}
                 {ordersHasMore && (
                   <button
-                    className="w-full mt-3 py-3 rounded-2xl border border-border/70 bg-card/90 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                    className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-extrabold text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.98] disabled:opacity-40"
                     onClick={loadMoreOrders}
                     disabled={ordersLoading}
                   >

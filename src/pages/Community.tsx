@@ -1,26 +1,20 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Bell, Users, ChevronRight } from "lucide-react";
+import { Bell, ChevronRight } from "lucide-react";
 import { getNavArrows } from "@/lib/rtl";
 import { CommunityChallengeCard } from "@/components/community/CommunityChallengeCard";
-import { GamificationWidget } from "@/components/GamificationWidget";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
 import { pageVariants } from "@/lib/animations";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PopularCombos } from "@/components/community/PopularCombos";
 import { ReferralMilestonesWidget } from "@/components/dashboard/ReferralMilestonesWidget";
 
-/* ═══════════════════════════════════════════════
-   DESIGN SYSTEM — Inspired by Airbnb + Linear + Stripe
-   Single accent (emerald), surface ladder, pill geometry
-   Canvas: white | Surfaces: off-white → tinted → dark
-   ═══════════════════════════════════════════════ */
-
 function SectionLabel({ label }: { label: string }) {
   return (
-    <div className="mb-3 flex items-center gap-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</span>
-      <div className="h-px flex-1 bg-slate-100" />
+    <div className="mb-3 flex items-center justify-between px-1">
+      <span className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+        {label}
+      </span>
     </div>
   );
 }
@@ -32,75 +26,95 @@ export default function Community() {
 
   return (
     <motion.div
-      variants={pageVariants} initial="hidden" animate="visible"
-      className="min-h-screen bg-[#F8FAFC] pb-20"
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+      className="min-h-screen bg-[#F7FAF8] pb-24"
       style={{ overscrollBehaviorY: "contain" }}
     >
-      <div className="mx-auto min-h-screen max-w-[430px] bg-white px-5 pt-10 pb-20 shadow-[0_0_0_1px_rgba(15,23,42,0.04),0_18px_50px_rgba(15,23,42,0.06)]">
+      <div className="sticky top-0 z-40 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[78px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
+            aria-label="Go back"
+          >
+            <ArrowPrev className="h-5 w-5" strokeWidth={1.9} />
+          </button>
 
-        {/* ═══════ HEADER ═══════ */}
-        <div className="flex items-start justify-between pb-6">
-          <div className="flex items-start gap-3">
-            <button onClick={() => navigate(-1)} className="mt-0.5 flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-white text-slate-400 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition hover:bg-slate-50 hover:text-slate-600" aria-label="Go back">
-              <ArrowPrev className="h-[18px] w-[18px]" strokeWidth={1.8} />
-            </button>
-            <div className="space-y-0.5 min-w-0">
-              <h1 className="text-[26px] leading-[1.05] font-extrabold text-slate-900 tracking-[-0.03em]">{t("community")}</h1>
-              <p className="text-[13px] font-medium text-slate-500">{t("community_subtitle")}</p>
-            </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+              Nutrio
+            </p>
+            <h1 className="text-[24px] font-black leading-tight text-slate-950">
+              {t("community")}
+            </h1>
           </div>
-          <div className="flex items-center gap-2.5">
-            <button className="relative flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100" onClick={() => navigate("/notifications")} aria-label="Notifications">
-              <Bell className="h-[18px] w-[18px] text-slate-500" strokeWidth={1.8} />
-              <div className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-            </button>
-            <button className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_4px_10px_rgba(16,185,129,0.25)] active:scale-95 transition-transform" onClick={() => navigate("/coaches")} aria-label="Coaches">
-              <Users className="h-[18px] w-[18px]" strokeWidth={1.8} />
-            </button>
-          </div>
+
+          <button
+            className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
+            onClick={() => navigate("/notifications")}
+            aria-label="Notifications"
+          >
+            <Bell className="h-5 w-5" strokeWidth={1.9} />
+            <div className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+          </button>
         </div>
+      </div>
 
-        {/* ═══════ FIND COACH — Surface 1 ═══════ */}
-        <motion.div whileTap={{ scale: 0.988 }} onClick={() => navigate("/coaches")}
-          className="group mb-6 w-full cursor-pointer rounded-2xl bg-[#F8FAFC] p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-shadow"
+      <div className="mx-auto max-w-[430px] px-4 py-4">
+        <motion.div
+          whileTap={{ scale: 0.988 }}
+          onClick={() => navigate("/coaches")}
+          className="mb-5 cursor-pointer overflow-hidden rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
         >
           <div className="flex items-center gap-4">
             <div className="flex -space-x-3">
-              <img alt="coach-1" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=120&auto=format&fit=crop" className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm" />
-              <img alt="coach-2" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop" className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm" />
+              <img
+                alt="coach-1"
+                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=120&auto=format&fit=crop"
+                className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
+              />
+              <img
+                alt="coach-2"
+                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=120&auto=format&fit=crop"
+                className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
+              />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-extrabold text-slate-900">{t("community_need_guidance")}</p>
-              <p className="mt-0.5 text-[13px] text-slate-500">{t("community_match_coach")}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-black text-slate-950">
+                {t("community_need_guidance")}
+              </p>
+              <p className="mt-1 text-[12px] font-semibold text-slate-500">
+                {t("community_match_coach")}
+              </p>
             </div>
-            <span className="inline-flex h-[42px] items-center gap-2 rounded-full bg-emerald-500 px-5 text-[13px] font-extrabold text-white shadow-[0_4px_10px_rgba(16,185,129,0.2)] transition group-hover:shadow-[0_6px_14px_rgba(16,185,129,0.28)]">
-              {t("community_find_coach")} <ChevronRight className="h-4 w-4" />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <ChevronRight className="h-5 w-5" />
             </span>
           </div>
         </motion.div>
 
-        {/* ═══════ YOUR JOURNEY ═══════ */}
-        <SectionLabel label={t("community_your_journey")} />
-        <div className="mb-6">
-          <DashboardErrorBoundary name="community gamification"><GamificationWidget /></DashboardErrorBoundary>
-        </div>
-
-        {/* ═══════ ACTIVE EVENTS ═══════ */}
         <SectionLabel label={t("community_active_events")} />
-        <div className="mb-6">
-          <DashboardErrorBoundary name="community challenges"><CommunityChallengeCard /></DashboardErrorBoundary>
+        <div className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <DashboardErrorBoundary name="community challenges">
+            <CommunityChallengeCard />
+          </DashboardErrorBoundary>
         </div>
 
-        {/* ═══════ DISCOVER ═══════ */}
         <SectionLabel label={t("community_discover")} />
-        <div className="mb-6">
-          <DashboardErrorBoundary name="popular combos"><PopularCombos /></DashboardErrorBoundary>
+        <div className="mb-5 overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <DashboardErrorBoundary name="popular combos">
+            <PopularCombos />
+          </DashboardErrorBoundary>
         </div>
 
-        {/* ═══════ GROWTH ═══════ */}
         <SectionLabel label={t("community_growth")} />
-        <DashboardErrorBoundary name="referral milestones"><ReferralMilestonesWidget /></DashboardErrorBoundary>
-
+        <div className="overflow-hidden rounded-[28px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <DashboardErrorBoundary name="referral milestones">
+            <ReferralMilestonesWidget />
+          </DashboardErrorBoundary>
+        </div>
       </div>
     </motion.div>
   );

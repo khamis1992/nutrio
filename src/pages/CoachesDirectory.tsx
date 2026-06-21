@@ -1,23 +1,27 @@
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Users,
-  ChevronLeft,
-  Flame,
-  Target,
-  Star,
-  Loader2,
+  Award,
   CheckCircle2,
+  ChevronLeft,
   Clock,
+  Loader2,
+  MessageCircle,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  TrendingUp,
   UserPlus,
+  Users,
+  X,
 } from "lucide-react";
+
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { useCoachReviews } from "@/hooks/useCoachReviews";
-import { useCoachAvailability } from "@/hooks/useCoachAvailability";
 import { cn } from "@/lib/utils";
 
 interface CoachProfile {
@@ -32,6 +36,50 @@ interface CoachProfile {
   goalTypes: string[];
 }
 
+type CoachAvailability = {
+  isAccepting: boolean;
+  clientRange: string;
+  responseLabel: string | null;
+};
+
+const specialtyFallbacks = ["Weight Loss", "Muscle Gain", "Meal Planning", "Habit Coaching"];
+
+function CoachAvatar({ coach, size = "md" }: { coach: Pick<CoachProfile, "full_name" | "avatar_url">; size?: "md" | "lg" }) {
+  const sizeClass = size === "lg" ? "h-16 w-16" : "h-14 w-14";
+
+  return (
+    <div className={cn("shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100", sizeClass)}>
+      {coach.avatar_url ? (
+        <img src={coach.avatar_url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xl font-black text-emerald-700">
+          {(coach.full_name || "C")[0].toUpperCase()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ onApply }: { onApply: () => void }) {
+  return (
+    <div className="rounded-[30px] bg-white p-8 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600">
+        <Users className="h-8 w-8" />
+      </div>
+      <h3 className="mt-5 text-lg font-black text-slate-950">No coaches yet</h3>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+        Coaches will appear here once they join the platform.
+      </p>
+      <button
+        onClick={onApply}
+        className="mt-5 min-h-11 rounded-full bg-emerald-600 px-5 text-sm font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] active:scale-[0.98]"
+      >
+        Become a Coach
+      </button>
+    </div>
+  );
+}
+
 export default function CoachesDirectory() {
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -42,6 +90,8 @@ export default function CoachesDirectory() {
   const [requesting, setRequesting] = useState<string | null>(null);
   const [myCoach, setMyCoach] = useState<string | null>(null);
   const [myCoachProfile, setMyCoachProfile] = useState<CoachProfile | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSpecialty, setActiveSpecialty] = useState("All");
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(() => {
     try {
       const stored = sessionStorage.getItem("coach_pending_requests");
@@ -50,7 +100,7 @@ export default function CoachesDirectory() {
       return new Set<string>();
     }
   });
-  const [coachAvailabilities, setCoachAvailabilities] = useState<Map<string, { isAccepting: boolean; clientRange: string; responseLabel: string | null }>>(new Map());
+  const [coachAvailabilities, setCoachAvailabilities] = useState<Map<string, CoachAvailability>>(new Map());
 
   const fetchCoaches = useCallback(async () => {
     if (!user?.id) return;
@@ -66,7 +116,7 @@ export default function CoachesDirectory() {
         return;
       }
 
-      const coachIds = coachRoles.map((r) => r.user_id);
+      const coachIds = coachRoles.map((role) => role.user_id);
 
       const [{ data: profiles }, { data: assignments }, { data: goals }, { data: reviews }, { data: myAssignments }] = await Promise.all([
         supabase
@@ -99,52 +149,51 @@ export default function CoachesDirectory() {
       const goalMap = new Map<string, string[]>();
       const ratingMap = new Map<string, { sum: number; count: number }>();
 
-      for (const r of reviews || []) {
-        const entry = ratingMap.get(r.coach_id) || { sum: 0, count: 0 };
-        entry.sum += r.rating;
+      for (const review of reviews || []) {
+        const entry = ratingMap.get(review.coach_id) || { sum: 0, count: 0 };
+        entry.sum += review.rating;
         entry.count += 1;
-        ratingMap.set(r.coach_id, entry);
+        ratingMap.set(review.coach_id, entry);
       }
 
-      for (const g of goals || []) {
-        const existing = goalMap.get(g.user_id) || [];
-        existing.push(g.goal_type);
-        goalMap.set(g.user_id, existing);
+      for (const goal of goals || []) {
+        const existing = goalMap.get(goal.user_id) || [];
+        existing.push(goal.goal_type);
+        goalMap.set(goal.user_id, existing);
       }
 
-      for (const a of assignments || []) {
-        if (a.status === "active") {
-          clientCounts.set(a.coach_id, (clientCounts.get(a.coach_id) || 0) + 1);
-          if (a.client_id === user?.id) myActiveCoach.add(a.coach_id);
+      for (const assignment of assignments || []) {
+        if (assignment.status === "active") {
+          clientCounts.set(assignment.coach_id, (clientCounts.get(assignment.coach_id) || 0) + 1);
+          if (assignment.client_id === user.id) myActiveCoach.add(assignment.coach_id);
         }
-        if (a.client_id === user?.id && a.status === "pending") {
-          myPending.add(a.coach_id);
+        if (assignment.client_id === user.id && assignment.status === "pending") {
+          myPending.add(assignment.coach_id);
         }
       }
 
-      // Directly populate from user's own assignments (bypasses RLS timing issues on cold load)
-      for (const ma of myAssignments || []) {
-        if (ma.status === "active") myActiveCoach.add(ma.coach_id);
-        if (ma.status === "pending") myPending.add(ma.coach_id);
+      for (const assignment of myAssignments || []) {
+        if (assignment.status === "active") myActiveCoach.add(assignment.coach_id);
+        if (assignment.status === "pending") myPending.add(assignment.coach_id);
       }
 
       const sorted: CoachProfile[] = (profiles || [])
-        .filter((p) => p.user_id !== user?.id)
-        .map((p) => {
-          const ratings = ratingMap.get(p.user_id);
+        .filter((profile) => profile.user_id !== user.id)
+        .map((profile) => {
+          const ratings = ratingMap.get(profile.user_id);
           const avgRating = ratings && ratings.count > 0
             ? Math.round((ratings.sum / ratings.count) * 10) / 10
             : 0;
           return {
-            id: p.user_id,
-            full_name: p.full_name || "Unknown Coach",
-            avatar_url: p.avatar_url || null,
-            bio: p.bio || null,
-            specialties: p.specialties || [],
-            clientCount: clientCounts.get(p.user_id) || 0,
+            id: profile.user_id,
+            full_name: profile.full_name || "Unknown Coach",
+            avatar_url: profile.avatar_url || null,
+            bio: profile.bio || null,
+            specialties: profile.specialties || [],
+            clientCount: clientCounts.get(profile.user_id) || 0,
             rating: avgRating,
             verified: true,
-            goalTypes: goalMap.get(p.user_id) || [],
+            goalTypes: goalMap.get(profile.user_id) || [],
           };
         })
         .sort((a, b) => b.clientCount - a.clientCount);
@@ -153,8 +202,7 @@ export default function CoachesDirectory() {
       if (myActiveCoach.size > 0) {
         const activeId = [...myActiveCoach][0];
         setMyCoach(activeId);
-        const connectedProfile = sorted.find((c) => c.id === activeId) || null;
-        setMyCoachProfile(connectedProfile);
+        setMyCoachProfile(sorted.find((coach) => coach.id === activeId) || null);
       }
       setPendingRequests((prev) => {
         const merged = new Set(myPending);
@@ -172,42 +220,36 @@ export default function CoachesDirectory() {
     fetchCoaches();
   }, [fetchCoaches]);
 
-  // Fetch availability signals for all coaches
   useEffect(() => {
     if (!coaches.length) return;
     const fetchAvailabilities = async () => {
       try {
-        const coachIds = coaches.map(c => c.id);
-        const [{ data: pricingData }, { data: clientCounts }] = await Promise.all([
-          supabase.from("coach_pricing").select("coach_id, is_active").in("coach_id", coachIds),
-          supabase.from("coach_client_assignments").select("coach_id", { count: "exact", head: true })
-            .in("coach_id", coachIds)
-            .eq("status", "active")
-        ]);
-        const availMap = new Map<string, { isAccepting: boolean; clientRange: string; responseLabel: string | null }>();
+        const coachIds = coaches.map((coach) => coach.id);
+        const { data: pricingData } = await supabase
+          .from("coach_pricing")
+          .select("coach_id, is_active")
+          .in("coach_id", coachIds);
         const activeCountMap = new Map<string, number>();
-        
-        // Build client counts from assignments
-        if (clientCounts) {
-          // Individual counts for each coach
-          for (const cid of coachIds) {
-            const { count } = await supabase.from("coach_client_assignments")
-              .select("id", { count: "exact", head: true })
-              .eq("coach_id", cid)
-              .eq("status", "active");
-            activeCountMap.set(cid, count || 0);
-          }
+
+        for (const coachId of coachIds) {
+          const { count } = await supabase
+            .from("coach_client_assignments")
+            .select("id", { count: "exact", head: true })
+            .eq("coach_id", coachId)
+            .eq("status", "active");
+          activeCountMap.set(coachId, count || 0);
         }
-        
-        for (const p of pricingData || []) {
-          const count = activeCountMap.get(p.coach_id) || 0;
-          availMap.set(p.coach_id, {
-            isAccepting: p.is_active,
+
+        const availabilityMap = new Map<string, CoachAvailability>();
+        for (const pricing of pricingData || []) {
+          const count = activeCountMap.get(pricing.coach_id) || 0;
+          availabilityMap.set(pricing.coach_id, {
+            isAccepting: pricing.is_active,
             clientRange: count <= 5 ? "1-5" : count <= 10 ? "5-10" : "10+",
             responseLabel: null,
           });
         }
-        setCoachAvailabilities(availMap);
+        setCoachAvailabilities(availabilityMap);
       } catch (err) {
         console.error("Error fetching availabilities:", err);
       }
@@ -215,17 +257,17 @@ export default function CoachesDirectory() {
     fetchAvailabilities();
   }, [coaches]);
 
-  // Sync pending state to sessionStorage so it survives hard refresh
   useEffect(() => {
     try {
       sessionStorage.setItem("coach_pending_requests", JSON.stringify([...pendingRequests]));
-    } catch { /* intentionally empty */ }
+    } catch {
+      // sessionStorage can be unavailable in private contexts.
+    }
   }, [pendingRequests]);
 
   const handleRequestCoach = async (coachId: string) => {
     if (!user) return;
     setRequesting(coachId);
-    // Optimistically mark as pending so UI updates immediately
     setPendingRequests((prev) => {
       const next = new Set(prev);
       next.add(coachId);
@@ -258,7 +300,6 @@ export default function CoachesDirectory() {
         description: "Your coach will review and accept your request.",
       });
     } catch {
-      // Revert on failure
       setPendingRequests((prev) => {
         const next = new Set(prev);
         next.delete(coachId);
@@ -271,201 +312,324 @@ export default function CoachesDirectory() {
   };
 
   const hasCoach = myCoach !== null;
+  const acceptingCount = coaches.filter((coach) => coachAvailabilities.get(coach.id)?.isAccepting !== false).length;
+  const totalClients = coaches.reduce((sum, coach) => sum + coach.clientCount, 0);
+
+  const specialtyOptions = useMemo(() => {
+    const values = new Set<string>();
+    coaches.forEach((coach) => {
+      coach.specialties.forEach((specialty) => {
+        if (specialty) values.add(specialty);
+      });
+      coach.goalTypes.forEach((goal) => {
+        if (goal) values.add(goal.replace(/_/g, " "));
+      });
+    });
+
+    if (values.size === 0) {
+      specialtyFallbacks.forEach((item) => values.add(item));
+    }
+
+    return ["All", ...Array.from(values).slice(0, 6)];
+  }, [coaches]);
+
+  const filteredCoaches = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return coaches.filter((coach) => {
+      const specialtyText = [...coach.specialties, ...coach.goalTypes.map((goal) => goal.replace(/_/g, " "))].join(" ").toLowerCase();
+      const matchesQuery = !query
+        || coach.full_name.toLowerCase().includes(query)
+        || (coach.bio || "").toLowerCase().includes(query)
+        || specialtyText.includes(query);
+      const matchesSpecialty = activeSpecialty === "All" || specialtyText.includes(activeSpecialty.toLowerCase());
+      return matchesQuery && matchesSpecialty;
+    });
+  }, [activeSpecialty, coaches, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] pb-20">
-      <div className="max-w-[480px] mx-auto px-4 py-5">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm"
-          >
-            <ChevronLeft className="h-5 w-5 text-gray-700" />
-          </button>
-          <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-            <Users className="h-5 w-5 text-violet-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Find a Coach</h1>
-            <p className="text-xs text-gray-500">Connect with certified nutrition coaches</p>
+    <div className="min-h-screen bg-[#F7FAF8] pb-28">
+      <div className="sticky top-0 z-30 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+        <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
+              aria-label="Back"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">Nutrio coaching</p>
+              <h1 className="text-[24px] font-black leading-tight text-slate-950">Find a Coach</h1>
+            </div>
+            <button
+              onClick={() => navigate("/become-coach")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.2)]"
+              aria-label="Become a coach"
+            >
+              <UserPlus className="h-5 w-5" />
+            </button>
           </div>
         </div>
+      </div>
+
+      <main className="mx-auto max-w-[430px] px-4 py-4">
+        <section className="overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-emerald-100">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+                <Sparkles className="h-3.5 w-3.5" />
+                Human support
+              </div>
+              <h2 className="mt-3 text-[27px] font-black leading-tight tracking-[-0.03em] text-slate-950">
+                Match with nutrition guidance that fits your routine.
+              </h2>
+              <p className="mt-2 text-[13px] font-semibold leading-6 text-slate-500">
+                Compare verified coaches, request a connection, and start with programs built around your goals.
+              </p>
+            </div>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] bg-amber-50 text-amber-600 ring-1 ring-amber-100">
+              <Award className="h-6 w-6" />
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+              <p className="text-[20px] font-black leading-none text-slate-950">{coaches.length}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">coaches</p>
+            </div>
+            <div className="rounded-2xl bg-sky-50 p-3 ring-1 ring-sky-100">
+              <p className="text-[20px] font-black leading-none text-slate-950">{acceptingCount}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-sky-700">accepting</p>
+            </div>
+            <div className="rounded-2xl bg-orange-50 p-3 ring-1 ring-orange-100">
+              <p className="text-[20px] font-black leading-none text-slate-950">{totalClients}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-orange-700">clients</p>
+            </div>
+          </div>
+        </section>
 
         {hasCoach && myCoachProfile && (
-          <div className="mb-5 rounded-2xl bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 p-5 shadow-sm">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-200 to-purple-300 flex items-center justify-center shrink-0 overflow-hidden">
-                {myCoachProfile.avatar_url ? (
-                  <img src={myCoachProfile.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-lg font-bold text-violet-700">
-                    {(myCoachProfile.full_name || "C")[0].toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
+          <section className="mt-4 rounded-[30px] bg-emerald-50 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)] ring-1 ring-emerald-100">
+            <div className="flex items-start gap-3">
+              <CoachAvatar coach={myCoachProfile} size="lg" />
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-900">{myCoachProfile.full_name}</h3>
-                  <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
+                  <h3 className="truncate text-[16px] font-black text-slate-950">{myCoachProfile.full_name}</h3>
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
                 </div>
-                <p className="text-xs text-violet-600 font-semibold mt-0.5">Your Nutrition Coach</p>
+                <p className="mt-0.5 text-[12px] font-black uppercase tracking-[0.12em] text-emerald-700">Your coach</p>
                 {myCoachProfile.bio && (
-                  <p className="text-[11px] text-gray-500 mt-1.5 line-clamp-2">{myCoachProfile.bio}</p>
+                  <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-5 text-slate-600">{myCoachProfile.bio}</p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 onClick={() => navigate("/coach-programs")}
-                className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 active:scale-[0.98] transition-all"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 px-3 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] active:scale-[0.98]"
               >
-                My Programs
+                <TrendingUp className="h-4 w-4" />
+                Programs
               </button>
               <button
                 onClick={() => navigate("/profile")}
-                className="flex-1 py-2 rounded-xl bg-white border border-violet-200 text-violet-700 text-xs font-bold hover:bg-violet-50 active:scale-[0.98] transition-all"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-200 active:scale-[0.98]"
               >
-                Manage Connection
+                <MessageCircle className="h-4 w-4" />
+                Manage
               </button>
             </div>
-          </div>
+          </section>
         )}
+
+        <section className="mt-4 rounded-[28px] bg-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="flex min-h-12 items-center gap-2 rounded-[22px] bg-slate-50 px-3 ring-1 ring-slate-100">
+            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search coach, goal, or specialty"
+              className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-slate-800 outline-none placeholder:text-slate-400"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-400" aria-label="Clear search">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {specialtyOptions.map((specialty) => (
+              <button
+                key={specialty}
+                onClick={() => setActiveSpecialty(specialty)}
+                className={cn(
+                  "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-black transition-all",
+                  activeSpecialty === specialty
+                    ? "bg-emerald-600 text-white shadow-[0_10px_20px_rgba(16,185,129,0.16)]"
+                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-100"
+                )}
+              >
+                {specialty}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <div className="mt-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-[18px] font-black text-slate-950">Available coaches</h2>
+            <p className="text-[12px] font-semibold text-slate-500">
+              {loading ? "Loading matches" : `${filteredCoaches.length} of ${coaches.length} shown`}
+            </p>
+          </div>
+          {hasCoach && (
+            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+              Connected
+            </span>
+          )}
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
           </div>
         ) : coaches.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-violet-400" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">No coaches yet</h3>
-            <p className="text-sm text-gray-500">Coaches will appear here once they join the platform.</p>
+          <div className="mt-4">
+            <EmptyState onApply={() => navigate("/become-coach")} />
+          </div>
+        ) : filteredCoaches.length === 0 ? (
+          <div className="mt-4 rounded-[28px] bg-white p-7 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <Search className="mx-auto h-6 w-6 text-slate-300" />
+            <h3 className="mt-3 text-base font-black text-slate-950">No matches found</h3>
+            <p className="mt-1 text-sm font-semibold text-slate-500">Try another specialty or clear the search.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {coaches.map((coach, index) => {
+          <div className="mt-4 space-y-4">
+            {filteredCoaches.map((coach, index) => {
               const isConnected = myCoach === coach.id;
               const isPending = pendingRequests.has(coach.id);
+              const availability = coachAvailabilities.get(coach.id);
+              const coachTags = [
+                ...coach.specialties,
+                ...coach.goalTypes.map((goal) => goal.replace(/_/g, " ")),
+              ].filter(Boolean).slice(0, 3);
+
               return (
-                <motion.div
+                <motion.article
                   key={coach.id}
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05, type: "spring", stiffness: 260, damping: 26 }}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                  transition={{ delay: index * 0.04, type: "spring", stiffness: 260, damping: 26 }}
+                  className="overflow-hidden rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
                 >
-                  <div className="p-4">
-                    <div className="flex items-start gap-4">
-                      {/* Avatar */}
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center shrink-0 overflow-hidden">
-                        {coach.avatar_url ? (
-                          <img src={coach.avatar_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-lg font-bold text-violet-600">
-                            {(coach.full_name || "C")[0].toUpperCase()}
+                  <div className="flex items-start gap-3">
+                    <CoachAvatar coach={coach} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate text-[16px] font-black text-slate-950">{coach.full_name}</h3>
+                        {coach.verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />}
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 ring-1 ring-amber-100">
+                          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                          {coach.rating > 0 ? coach.rating : "New"}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-100">
+                          <Users className="h-3.5 w-3.5" />
+                          {coach.clientCount} client{coach.clientCount !== 1 ? "s" : ""}
+                        </span>
+                        {availability && (
+                          <span className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black ring-1",
+                            availability.isAccepting
+                              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                              : "bg-slate-50 text-slate-500 ring-slate-100"
+                          )}>
+                            <Clock className="h-3.5 w-3.5" />
+                            {availability.isAccepting ? "Accepting" : "Unavailable"}
                           </span>
                         )}
                       </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-gray-900 truncate">{coach.full_name}</h3>
-                          {coach.verified && (
-                            <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
-                          )}
-                        </div>
-
-                        {/* Stats */}
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                            {coach.rating > 0 ? coach.rating : "New"}
-                          </div>
-                          <span className="text-gray-300">·</span>
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Users className="w-3.5 h-3.5" />
-                            {coach.clientCount} client{coach.clientCount !== 1 ? "s" : ""}
-                          </div>
-                        </div>
-                        {/* Availability signals */}
-                        {coachAvailabilities.has(coach.id) && (
-                          <div className="flex items-center gap-2 mt-1.5">
-                            {(() => {
-                              const avail = coachAvailabilities.get(coach.id)!;
-                              return (
-                                <>
-                                  {avail.responseLabel && (
-                                    <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                      <Clock className="w-3 h-3" />
-                                      {avail.responseLabel}
-                                    </span>
-                                  )}
-                                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${avail.isAccepting ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                                    {avail.isAccepting ? "Accepting clients" : "Not accepting"}
-                                  </span>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action */}
-                      <button
-                        onClick={() => !isConnected && !isPending && handleRequestCoach(coach.id)}
-                        disabled={requesting === coach.id || isConnected || isPending}
-                        className={cn(
-                          "px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all active:scale-95",
-                          isConnected
-                            ? "bg-emerald-100 text-emerald-700"
-                            : isPending
-                            ? "bg-amber-50 text-amber-600"
-                            : "bg-violet-600 text-white shadow-md shadow-violet-600/20 hover:bg-violet-700"
-                        )}
-                      >
-                        {requesting === coach.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : isConnected ? (
-                          "Connected"
-                        ) : isPending ? (
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{t("pending_status")}</span>
-                        ) : (
-                          "Request"
-                        )}
-                      </button>
                     </div>
                   </div>
-                </motion.div>
+
+                  {coach.bio && (
+                    <p className="mt-3 line-clamp-2 text-[13px] font-semibold leading-6 text-slate-500">{coach.bio}</p>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {(coachTags.length > 0 ? coachTags : specialtyFallbacks.slice(0, 2)).map((tag) => (
+                      <span key={tag} className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black capitalize text-emerald-700 ring-1 ring-emerald-100">
+                        {tag}
+                      </span>
+                    ))}
+                    {availability?.clientRange && (
+                      <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-black text-sky-700 ring-1 ring-sky-100">
+                        {availability.clientRange} active clients
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => !isConnected && !isPending && handleRequestCoach(coach.id)}
+                    disabled={requesting === coach.id || isConnected || isPending}
+                    className={cn(
+                      "mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full text-[14px] font-black transition-all active:scale-[0.98] disabled:cursor-not-allowed",
+                      isConnected
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                        : isPending
+                          ? "bg-amber-50 text-amber-700 ring-1 ring-amber-100"
+                          : "bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)]"
+                    )}
+                  >
+                    {requesting === coach.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : isConnected ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        Connected
+                      </>
+                    ) : isPending ? (
+                      <>
+                        <Clock className="h-4 w-4" />
+                        {t("pending_status")}
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="h-4 w-4" />
+                        Request coach
+                      </>
+                    )}
+                  </button>
+                </motion.article>
               );
             })}
           </div>
         )}
 
-        {/* Become a Coach CTA */}
-        <div className="mt-6 bg-gradient-to-r from-violet-50 to-purple-50 rounded-2xl border border-violet-200 p-5 shadow-sm">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-              <UserPlus className="w-5 h-5 text-violet-600" />
+        <section className="mt-6 rounded-[30px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-emerald-100">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+              <UserPlus className="h-5 w-5" />
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Are you a nutrition professional?</h3>
-              <p className="text-[12px] text-violet-600 mt-0.5">
-                Apply to become a coach and start guiding clients on their health journey.
+            <div className="min-w-0">
+              <h3 className="text-[15px] font-black text-slate-950">Are you a nutrition professional?</h3>
+              <p className="mt-1 text-[12px] font-semibold leading-5 text-slate-500">
+                Apply to guide Nutrio clients with coaching, accountability, and meal planning.
               </p>
             </div>
           </div>
           <button
             onClick={() => navigate("/become-coach")}
-            className="w-full py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 active:scale-[0.98] transition-all"
+            className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-emerald-600 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] active:scale-[0.98]"
           >
             Become a Coach
           </button>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

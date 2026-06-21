@@ -161,21 +161,32 @@ export const useAuthPage = () => {
   const handleSignIn = async (values: SignInFormValues) => {
     setLoading(true);
     try {
+      // Set the remember-me flag BEFORE calling signIn() so the Supabase
+      // webSmartStorage adapter routes the session token to localStorage
+      // (persistent across browser restarts) instead of sessionStorage
+      // (cleared when the browser closes). Without this, the session is
+      // always written to sessionStorage regardless of the checkbox state.
+      if (rememberMe) {
+        localStorage.setItem("nutrio_remember_me", "true");
+      } else {
+        localStorage.removeItem("nutrio_remember_me");
+      }
+
       const { error } = await signIn(values.email, values.password);
       if (error) {
+        if (!rememberMe) localStorage.removeItem("nutrio_remember_me");
         toast({ title: t("signin_failed"), description: error.message.includes("Invalid login credentials") ? t("invalid_credentials") : error.message, variant: "destructive" });
       } else {
         if (enableBiometric) await biometricAuth.setCredentials(values.email, values.password);
         if (rememberMe) {
           localStorage.setItem("remembered_email", values.email);
-          localStorage.setItem("nutrio_remember_me", "true");
         } else {
           localStorage.removeItem("remembered_email");
-          localStorage.removeItem("nutrio_remember_me");
         }
         toast({ title: t("welcome_back"), description: t("sign_in_success") });
       }
     } catch {
+      if (!rememberMe) localStorage.removeItem("nutrio_remember_me");
       toast({ title: t("error"), description: t("unexpected_error"), variant: "destructive" });
     } finally {
       setLoading(false);

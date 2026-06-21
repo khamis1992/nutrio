@@ -317,21 +317,19 @@ const RestaurantDetail = () => {
 
   // Skeleton Loader Component
   const RestaurantDetailSkeleton = () => (
-    <div className="min-h-screen bg-background">
-      {/* Hero Skeleton */}
-      <Skeleton className="w-full h-[50vh] rounded-b-[40px]" />
+    <div className="min-h-screen bg-[#F7FAF8]">
+      <Skeleton className="h-[280px] w-full rounded-b-[34px]" />
       
-      {/* Content Skeleton */}
-      <div className="px-5 -mt-20 relative z-10 space-y-6">
-        <Skeleton className="w-full h-36 rounded-[32px] bg-white shadow-lg" />
-        <div className="flex gap-3 overflow-hidden">
+      <div className="relative z-10 mx-auto -mt-16 max-w-[430px] space-y-5 px-4">
+        <Skeleton className="h-40 w-full rounded-[30px] bg-white shadow-lg" />
+        <div className="flex gap-2 overflow-hidden">
           {[1,2,3,4,5].map(i => (
-            <Skeleton key={i} className="h-12 w-28 rounded-full shrink-0 bg-white" />
+            <Skeleton key={i} className="h-11 w-24 shrink-0 rounded-full bg-white" />
           ))}
         </div>
         <div className="space-y-4">
           {[1,2,3].map(i => (
-            <Skeleton key={i} className="w-full h-32 rounded-[24px] bg-white shadow-md" />
+            <Skeleton key={i} className="h-36 w-full rounded-[26px] bg-white shadow-md" />
           ))}
         </div>
       </div>
@@ -356,13 +354,13 @@ const RestaurantDetail = () => {
         whileTap={{ scale: 0.85 }}
         onClick={handleClick}
         className={`
-          w-12 h-12 rounded-full
+          h-10 w-10 rounded-full
           flex items-center justify-center
-          shadow-lg
+          shadow-[0_10px_18px_rgba(16,185,129,0.22)]
           transition-all duration-300
           ${isAdded 
             ? 'bg-emerald-500 text-white' 
-            : 'bg-[hsl(142,71%,45%)] text-white'
+            : 'bg-emerald-600 text-white'
           }
         `}
       >
@@ -402,33 +400,33 @@ const RestaurantDetail = () => {
   }
 
   return (
-    <div ref={scrollRef} className="min-h-screen bg-background overflow-y-auto pb-20">
+    <div ref={scrollRef} className="min-h-screen overflow-y-auto bg-[#F7FAF8] pb-24">
       {/* Animated Header */}
       <motion.header
         style={{ opacity: headerOpacitySpring }}
-        className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border shadow-sm"
+        className="fixed left-0 right-0 top-0 z-50 bg-[#F7FAF8]/95 backdrop-blur-xl"
       >
-        <div className="flex items-center justify-between px-4 h-16">
+        <div className="mx-auto flex h-[78px] max-w-[430px] items-center justify-between gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => navigate("/meals")}
-            className="w-11 h-11 rounded-full bg-[hsl(120,15%,94%)] flex items-center justify-center"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
           >
-            <NavChevronLeft className="w-6 h-6 text-[hsl(150,25%,15%)]" />
+            <NavChevronLeft className="h-6 w-6" />
           </motion.button>
           
-          <span className="font-semibold text-[hsl(150,25%,10%)] truncate max-w-[180px] text-lg">
+          <span className="max-w-[210px] truncate text-[17px] font-black text-slate-950">
             {restaurant.name}
           </span>
           
           <div className="flex items-center gap-2">
             <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={toggleFavorite}
-              className="w-11 h-11 rounded-full bg-[hsl(120,15%,94%)] flex items-center justify-center"
+            whileTap={{ scale: 0.9 }}
+            onClick={toggleFavorite}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
             >
               <Heart 
-                className={`w-5 h-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : 'text-[hsl(150,25%,15%)]'}`} 
+                className={`h-5 w-5 transition-colors ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} 
               />
             </motion.button>
           </div>
@@ -436,7 +434,7 @@ const RestaurantDetail = () => {
       </motion.header>
 
       {/* Hero Section */}
-      <div className="relative h-[55vh] overflow-hidden">
+      <div className="relative h-[310px] overflow-hidden rounded-b-[36px]">
         <motion.div
           style={{ scale: heroScale, opacity: heroOpacity }}
           className="absolute inset-0"
@@ -449,24 +447,24 @@ const RestaurantDetail = () => {
         </motion.div>
         
         {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(120,20%,98%)]/40 via-transparent to-[hsl(120,20%,98%)]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(120,20%,98%)] via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-[#F7FAF8]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#F7FAF8] via-transparent to-transparent" />
         
         {/* Floating Action Buttons */}
-        <div className="absolute top-12 left-4 right-4 flex items-center justify-between z-10">
+        <div className="absolute left-0 right-0 top-12 z-10 mx-auto flex max-w-[430px] items-center justify-between px-4">
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => navigate("/meals")}
-            className="w-11 h-11 rounded-full bg-white/80 backdrop-blur-xl flex items-center justify-center shadow-lg"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
           >
-            <NavChevronLeft className="w-6 h-6 text-[hsl(150,25%,15%)]" />
+            <NavChevronLeft className="h-6 w-6 text-slate-800" />
           </motion.button>
           
           <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={toggleFavorite}
-              className="w-11 h-11 rounded-full bg-white/80 backdrop-blur-xl flex items-center justify-center shadow-lg"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
             >
               <AnimatePresence>
                 {isFavorite && (
@@ -479,15 +477,15 @@ const RestaurantDetail = () => {
                 )}
               </AnimatePresence>
               <Heart 
-                className={`w-5 h-5 relative z-10 transition-colors ${isFavorite ? 'fill-white text-white' : 'text-[hsl(150,25%,15%)]'}`} 
+                className={`relative z-10 h-5 w-5 transition-colors ${isFavorite ? 'fill-white text-white' : 'text-slate-800'}`} 
               />
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={shareRestaurant}
-              className="w-11 h-11 rounded-full bg-white/80 backdrop-blur-xl flex items-center justify-center shadow-lg"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
             >
-              <Share2 className="w-5 h-5 text-[hsl(150,25%,15%)]" />
+              <Share2 className="h-5 w-5 text-slate-800" />
             </motion.button>
           </div>
         </div>
@@ -499,12 +497,12 @@ const RestaurantDetail = () => {
         initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-        className="relative -mt-28 mx-4 z-10"
+        className="relative z-10 mx-auto -mt-16 max-w-[430px] px-4"
       >
-        <div className="bg-white rounded-[32px] p-6 border border-[hsl(120,15%,90%)] shadow-xl">
+        <div className="rounded-[32px] bg-white p-5 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
           {/* Header Row */}
-          <div className="flex items-start gap-4 mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[hsl(142,71%,45%)] to-[hsl(168,76%,42%)] flex items-center justify-center text-3xl overflow-hidden shrink-0 shadow-lg">
+          <div className="mb-4 flex items-start gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-50 text-3xl shadow-sm ring-1 ring-slate-100">
               <img
                 src={getRestaurantImage(restaurant.logo_url, restaurant.id)}
                 alt={restaurant.name}
@@ -512,31 +510,46 @@ const RestaurantDetail = () => {
               />
             </div>
             
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-[hsl(150,25%,10%)] leading-tight">{restaurant.name}</h1>
-              <p className="text-[hsl(150,10%,45%)] text-sm mt-1">{restaurant.cuisine_type}</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-[26px] font-black leading-tight text-slate-950">{restaurant.name}</h1>
+              <p className="mt-1 text-[13px] font-bold text-slate-500">{restaurant.cuisine_type}</p>
             </div>
           </div>
 
           {/* Stats Row */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-1.5 bg-amber-100 px-3 py-1.5 rounded-full">
-              <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-              <span className="font-semibold text-amber-700 text-sm">{restaurant.rating.toFixed(1)}</span>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <div className="flex h-11 items-center gap-2 rounded-full bg-amber-50 px-3.5 ring-1 ring-amber-100">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-amber-500">
+                <Star className="h-3.5 w-3.5 fill-amber-500" />
+              </span>
+              <div className="leading-none">
+                <p className="text-[14px] font-black text-slate-950">{restaurant.rating.toFixed(1)}</p>
+                <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-amber-700">Rating</p>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[hsl(150,10%,45%)] text-sm">
-              <Clock className="w-4 h-4" />
-              <span>{restaurant.delivery_time || "Check restaurant for delivery times"}</span>
+            <div className="flex h-11 items-center gap-2 rounded-full bg-slate-50 px-3.5 ring-1 ring-slate-100">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-slate-500">
+                <Clock className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0 leading-none">
+                <p className="max-w-[92px] truncate text-[13px] font-black text-slate-950">{restaurant.delivery_time || "Open"}</p>
+                <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">Time</p>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-emerald-600 text-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{restaurant.opening_hours}</span>
+            <div className="flex h-11 items-center gap-2 rounded-full bg-emerald-50 px-3.5 ring-1 ring-emerald-100">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-white">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <div className="min-w-0 leading-none">
+                <p className="max-w-[112px] truncate text-[13px] font-black text-emerald-700">{restaurant.opening_hours}</p>
+                <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-emerald-700">Status</p>
+              </div>
             </div>
           </div>
 
           {/* Description */}
           {restaurant.description && (
-            <p className="text-[hsl(150,10%,45%)] text-sm leading-relaxed mb-4">
+            <p className="mb-4 text-[13px] font-semibold leading-relaxed text-slate-500">
               {restaurant.description}
             </p>
           )}
@@ -544,14 +557,20 @@ const RestaurantDetail = () => {
           {/* Contact Info Toggle */}
           <button
             onClick={() => setShowContactInfo(!showContactInfo)}
-            className="flex items-center justify-between w-full py-3 border-t border-[hsl(120,15%,90%)]"
+            className="flex min-h-[50px] w-full items-center justify-between rounded-2xl bg-slate-50 px-3.5 py-2.5 text-left active:scale-[0.99]"
           >
-            <span className="text-sm font-medium text-[hsl(150,25%,15%)]">{t("restaurant_contact_location")}</span>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-emerald-600">
+                <MapPin className="h-4 w-4" />
+              </span>
+              <span className="truncate text-[13px] font-black text-slate-700">{t("restaurant_contact_location")}</span>
+            </div>
             <motion.div
               animate={{ rotate: showContactInfo ? 180 : 0 }}
               transition={{ duration: 0.2 }}
+              className="shrink-0"
             >
-              <ChevronDown className="w-5 h-5 text-[hsl(150,10%,45%)]" />
+              <ChevronDown className="h-5 w-5 text-slate-400" />
             </motion.div>
           </button>
           
@@ -597,22 +616,21 @@ const RestaurantDetail = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mx-4 mt-6"
+          className="mx-auto mt-5 max-w-[430px] px-4"
         >
-          <div className="bg-gradient-to-r from-[hsl(142,71%,45%)]/10 via-[hsl(168,76%,42%)]/10 to-[hsl(142,71%,45%)]/10 border border-[hsl(142,71%,45%)]/30 rounded-[24px] p-5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[hsl(142,71%,45%)]/10 rounded-full blur-3xl" />
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(142,71%,45%)] to-[hsl(168,76%,42%)] flex items-center justify-center shadow-lg">
-                <Crown className="w-7 h-7 text-white" />
+          <div className="relative overflow-hidden rounded-[26px] bg-emerald-50 p-4 ring-1 ring-emerald-100">
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600">
+                <Crown className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-[hsl(150,25%,10%)] text-lg">{t("unlock_all_meals")}</p>
-                <p className="text-sm text-[hsl(150,10%,45%)]">{t("subscribe_to_order")}</p>
+                <p className="text-[15px] font-black text-slate-950">{t("unlock_all_meals")}</p>
+                <p className="text-[12px] font-semibold text-slate-500">{t("subscribe_to_order")}</p>
               </div>
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate("/subscription")}
-                className="px-5 py-2.5 bg-[hsl(142,71%,45%)] text-white font-semibold rounded-full text-sm shadow-lg shadow-[hsl(142,71%,45%)]/30"
+                className="h-10 rounded-full bg-emerald-600 px-4 text-[12px] font-black text-white shadow-[0_10px_20px_rgba(16,185,129,0.18)]"
               >
                 {t("subscribe")}
               </motion.button>
@@ -626,22 +644,22 @@ const RestaurantDetail = () => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="mx-4 mt-6"
+        className="mx-auto mt-5 max-w-[430px] px-4"
       >
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[hsl(150,10%,45%)]" />
+          <Search className="absolute left-8 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder={t("search_menu")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-14 pl-12 pr-12 bg-white border-[hsl(120,15%,90%)] rounded-2xl text-[hsl(150,25%,10%)] placeholder:text-[hsl(150,10%,45%)] text-base focus:border-[hsl(142,71%,45%)] focus:ring-[hsl(142,71%,45%)]/20 shadow-sm"
+            className="h-14 w-full rounded-full border-slate-100 bg-white pl-12 pr-14 text-[15px] font-bold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.055)] placeholder:text-slate-400 focus:border-emerald-300 focus:ring-emerald-100"
           />
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setFilterSheetOpen(true)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-[hsl(120,15%,94%)] flex items-center justify-center"
+            className="absolute right-6 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-slate-50 text-slate-600"
           >
-            <Filter className="w-4 h-4 text-[hsl(150,10%,45%)]" />
+            <Filter className="h-4 w-4" />
           </motion.button>
         </div>
       </motion.div>
@@ -653,7 +671,7 @@ const RestaurantDetail = () => {
         transition={{ delay: 0.4 }}
         className="mt-6"
       >
-        <div className="flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
+        <div className="mx-auto flex max-w-[430px] gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
           {MEAL_CATEGORIES.map((category, index) => {
             const isActive = activeCategory === category.id;
             const count = categoryCounts[category.id] || 0;
@@ -667,10 +685,10 @@ const RestaurantDetail = () => {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveCategory(category.id)}
                 className={`
-                  flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all shrink-0
+                  flex min-h-[42px] shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-black whitespace-nowrap transition-all
                   ${isActive
-                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/30'
-                    : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                    ? 'bg-emerald-600 text-white shadow-[0_10px_18px_rgba(16,185,129,0.18)]'
+                    : 'bg-white text-slate-500 shadow-sm ring-1 ring-slate-100'
                   }
                 `}
               >
@@ -678,7 +696,7 @@ const RestaurantDetail = () => {
                 <span>{category.label}</span>
                 <span className={`
                   text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none
-                  ${isActive ? 'bg-white/25 text-white' : 'bg-background text-muted-foreground'}
+                  ${isActive ? 'bg-white/25 text-white' : 'bg-slate-50 text-slate-400'}
                 `}>
                   {count}
                 </span>
@@ -693,11 +711,11 @@ const RestaurantDetail = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="px-4 mt-8"
+        className="mx-auto mt-7 max-w-[430px] px-4"
       >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-xl font-bold text-[hsl(150,25%,10%)]">{t("restaurant_menu")}</h3>
-          <span className="text-[hsl(150,10%,45%)] text-sm">{t("items_count", { count: filteredMeals.length })}</span>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-[22px] font-black text-slate-950">{t("restaurant_menu")}</h3>
+          <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-slate-500 shadow-sm ring-1 ring-slate-100">{t("items_count", { count: filteredMeals.length })}</span>
         </div>
         
         {filteredMeals.length === 0 ? (
@@ -715,7 +733,7 @@ const RestaurantDetail = () => {
             </p>
           </motion.div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredMeals.map((meal, index) => (
               <motion.div
                 key={meal.id}
@@ -726,14 +744,14 @@ const RestaurantDetail = () => {
                 <Link to={`/meals/${meal.id}`}>
                   <motion.div
                     whileTap={{ scale: 0.98 }}
-                    className="bg-white rounded-[24px] p-4 border border-[hsl(120,15%,90%)] group cursor-pointer overflow-hidden relative shadow-sm hover:shadow-md transition-shadow"
+                    className="group relative cursor-pointer overflow-hidden rounded-[26px] bg-white p-3 shadow-[0_12px_28px_rgba(15,23,42,0.055)] ring-1 ring-slate-100 transition-shadow"
                   >
                     {/* Background Gradient on Hover */}
                     <div className="absolute inset-0 bg-gradient-to-r from-[hsl(142,71%,45%)]/0 via-[hsl(142,71%,45%)]/0 to-[hsl(168,76%,42%)]/0 group-hover:from-[hsl(142,71%,45%)]/5 group-hover:via-[hsl(142,60%,95%)]/50 group-hover:to-[hsl(168,76%,42%)]/5 transition-all duration-500" />
                     
-                    <div className="flex gap-4 relative z-10">
+                    <div className="relative z-10 flex gap-3">
                       {/* Meal Image */}
-                      <div className="w-28 h-28 rounded-2xl bg-[hsl(120,20%,98%)] flex items-center justify-center text-4xl overflow-hidden shrink-0 relative">
+                      <div className="relative flex h-[112px] w-[112px] shrink-0 items-center justify-center overflow-hidden rounded-[22px] bg-slate-50 text-4xl">
                         <img
                           src={getMealImage(meal.image_url, meal.id, meal.meal_type)}
                           alt={meal.name}
@@ -743,7 +761,7 @@ const RestaurantDetail = () => {
                         {/* VIP Badge */}
                         {meal.is_vip_exclusive && (
                           <div className="absolute top-2 left-2">
-                            <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 text-[10px] px-2 py-0.5">
+                              <Badge className="border-0 bg-amber-500 px-2 py-0.5 text-[10px] text-white">
                               <Crown className="w-3 h-3 mr-1" />
                               {t("vip")}
                             </Badge>
@@ -752,9 +770,9 @@ const RestaurantDetail = () => {
                       </div>
                       
                       {/* Meal Info */}
-                      <div className="flex-1 min-w-0 py-1">
+                      <div className="min-w-0 flex-1 py-1">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-[hsl(150,25%,10%)] text-lg leading-tight group-hover:text-[hsl(142,71%,45%)] transition-colors">
+                          <h4 className="text-[16px] font-black leading-tight text-slate-950 transition-colors group-hover:text-emerald-600">
                             {meal.name}
                           </h4>
                           {hasActiveSubscription && (
@@ -765,38 +783,38 @@ const RestaurantDetail = () => {
                         </div>
                         
                         {meal.description && (
-                          <p className="text-[hsl(150,10%,45%)] text-sm mt-1 line-clamp-2">{meal.description}</p>
+                          <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-relaxed text-slate-500">{meal.description}</p>
                         )}
 
                         {/* Nutrition Row */}
-                        <div className="flex items-center gap-3 mt-3">
-                          <div className="flex items-center gap-1 text-[hsl(150,10%,45%)] text-xs">
-                            <Flame className="w-3.5 h-3.5 text-orange-500" />
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black text-slate-600">
+                            <Flame className="h-3.5 w-3.5 text-orange-500" />
                             <span>{t("calories_short", { calories: meal.calories })}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-[hsl(150,10%,45%)] text-xs">
-                            <Beef className="w-3.5 h-3.5 text-[hsl(142,71%,45%)]" />
+                          <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-slate-600">
+                            <Beef className="h-3.5 w-3.5 text-emerald-600" />
                             <span>{t("protein_short", { protein: meal.protein_g })}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-[hsl(150,10%,45%)] text-xs">
-                            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                          <div className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-slate-600">
+                            <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
                             <span>{meal.rating.toFixed(1)}</span>
                           </div>
                         </div>
 
                         {/* Tags */}
                         {meal.diet_tags.length > 0 && (
-                          <div className="flex gap-1.5 mt-3 flex-wrap">
+                          <div className="mt-2 flex flex-wrap gap-1.5">
                             {meal.diet_tags.slice(0, 2).map((tag) => (
                               <span 
                                 key={tag} 
-                                className="text-[10px] px-2 py-1 rounded-full bg-[hsl(120,15%,94%)] text-[hsl(150,10%,45%)] border border-[hsl(120,15%,90%)]"
+                                className="rounded-full bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-500"
                               >
                                 {tag}
                               </span>
                             ))}
                             {meal.diet_tags.length > 2 && (
-                              <span className="text-[10px] px-2 py-1 rounded-full bg-[hsl(120,15%,94%)] text-[hsl(150,10%,45%)]">
+                              <span className="rounded-full bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-500">
                                 +{meal.diet_tags.length - 2}
                               </span>
                             )}
@@ -834,15 +852,16 @@ const RestaurantDetail = () => {
 
       {/* Filter Sheet */}
       <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
-        <SheetContent side="bottom" className="h-[80vh] rounded-t-[32px] bg-white border-t border-[hsl(120,15%,90%)]">
-          <SheetHeader className="pb-6">
-            <SheetTitle className="text-2xl font-bold text-[hsl(150,25%,10%)] text-center">{t("filters")}</SheetTitle>
+        <SheetContent side="bottom" className="h-[82vh] rounded-t-[34px] border-t border-slate-100 bg-white px-4">
+          <div className="mx-auto mt-1 h-1.5 w-12 rounded-full bg-slate-200" />
+          <SheetHeader className="pb-6 pt-3">
+            <SheetTitle className="text-center text-[22px] font-black text-slate-950">{t("filters")}</SheetTitle>
           </SheetHeader>
           
           <div className="space-y-8 overflow-y-auto pb-24">
             {/* Dietary Tags */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-[hsl(150,10%,45%)] uppercase tracking-wider">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                 {t("dietary_preferences")}
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -851,10 +870,10 @@ const RestaurantDetail = () => {
                     key={tag}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setActiveDietTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
-                    className={`px-4 py-2.5 rounded-full text-sm border transition-colors ${
+                    className={`min-h-[42px] rounded-full px-4 text-[13px] font-black ring-1 transition-colors ${
                       activeDietTags.includes(tag)
-                        ? "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,45%)]"
-                        : "bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)]"
+                        ? "bg-emerald-600 text-white ring-emerald-600"
+                        : "bg-slate-50 text-slate-600 ring-slate-100"
                     }`}
                   >
                     {tag}
@@ -865,7 +884,7 @@ const RestaurantDetail = () => {
 
             {/* Calorie Range */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-[hsl(150,10%,45%)] uppercase tracking-wider">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                 {t("calorie_range")}
               </h3>
               <div className="flex gap-2 flex-wrap">
@@ -874,10 +893,10 @@ const RestaurantDetail = () => {
                     key={range}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setActiveCalorieRange(prev => prev === range ? null : range)}
-                    className={`px-4 py-2.5 rounded-full text-sm border transition-colors ${
+                    className={`min-h-[42px] rounded-full px-4 text-[13px] font-black ring-1 transition-colors ${
                       activeCalorieRange === range
-                        ? "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,45%)]"
-                        : "bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)]"
+                        ? "bg-emerald-600 text-white ring-emerald-600"
+                        : "bg-slate-50 text-slate-600 ring-slate-100"
                     }`}
                   >
                     {range}
@@ -888,7 +907,7 @@ const RestaurantDetail = () => {
 
             {/* Protein Range */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-[hsl(150,10%,45%)] uppercase tracking-wider">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                 {t("protein_content")}
               </h3>
               <div className="flex gap-2 flex-wrap">
@@ -897,10 +916,10 @@ const RestaurantDetail = () => {
                     key={range}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setActiveProteinRange(prev => prev === range ? null : range)}
-                    className={`px-4 py-2.5 rounded-full text-sm border transition-colors ${
+                    className={`min-h-[42px] rounded-full px-4 text-[13px] font-black ring-1 transition-colors ${
                       activeProteinRange === range
-                        ? "bg-[hsl(142,71%,45%)] text-white border-[hsl(142,71%,45%)]"
-                        : "bg-[hsl(120,20%,98%)] text-[hsl(150,25%,15%)] border-[hsl(120,15%,90%)] hover:bg-[hsl(142,71%,45%)] hover:text-white hover:border-[hsl(142,71%,45%)]"
+                        ? "bg-emerald-600 text-white ring-emerald-600"
+                        : "bg-slate-50 text-slate-600 ring-slate-100"
                     }`}
                   >
                     {range}
@@ -913,7 +932,7 @@ const RestaurantDetail = () => {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => setFilterSheetOpen(false)}
-              className="w-full h-14 rounded-2xl bg-[hsl(142,71%,45%)] text-white font-bold text-lg shadow-lg shadow-[hsl(142,71%,45%)]/30"
+              className="h-14 w-full rounded-full bg-emerald-600 text-[15px] font-black text-white shadow-[0_16px_30px_rgba(16,185,129,0.22)]"
             >
               {t("apply_filters")}
             </motion.button>

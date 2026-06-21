@@ -532,29 +532,6 @@ const Meals = () => {
             </div>
           </div>
 
-          <aside className="rounded-[30px] bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/80">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                <ShieldCheck className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-[17px] font-black text-slate-950">Plan-friendly picks</h2>
-                <p className="text-[13px] font-medium text-slate-500">Meals are curated for balance, freshness, and reliable delivery windows.</p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              {[
-                ["Protein-first", "Quick scan for recovery meals"],
-                ["Local favorites", "Qatar-friendly menus and timings"],
-                ["Smart schedule", "Add meals into your weekly plan"],
-              ].map(([title, copy]) => (
-                <div key={title} className="rounded-[18px] bg-slate-50 p-4">
-                  <p className="text-[14px] font-extrabold text-slate-900">{title}</p>
-                  <p className="mt-1 text-[12px] font-medium leading-relaxed text-slate-500">{copy}</p>
-                </div>
-              ))}
-            </div>
-          </aside>
         </section>
 
         <section className="mt-5 rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">

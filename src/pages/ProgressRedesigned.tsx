@@ -15,7 +15,6 @@ import {
   Droplet,
   Dumbbell,
   Flame,
-  Hand,
   Info,
   Leaf,
   Lock,
@@ -50,9 +49,7 @@ import { useAIInsight } from "@/hooks/useAIInsight";
 import { AIInsightImageCard } from "@/components/progress/AIInsightImageCard";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useBadges } from "@/hooks/useBadges";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
-import { AchievementsSection } from "@/components/progress/AchievementsSection";
 
 type RingMetric = {
   label: string;
@@ -187,7 +184,6 @@ export default function ProgressRedesigned() {
   const { streaks, loading: streaksLoading } = useStreak(user?.id);
   const { todayProgress } = useTodayProgress(user?.id, new Date(), 0);
   const { dailySummary: waterSummary, addWater: addWaterIntake } = useWaterIntake(user?.id);
-  const { badges, unlockedCount, totalCount } = useBadges(user?.id);
   const { days: weekdayData } = useWeekdayData(user?.id, activeGoal?.daily_calorie_target ?? 2000);
   const calorieTarget = activeGoal?.daily_calorie_target ?? 2000;
   const { toast } = useToast();
@@ -289,7 +285,7 @@ export default function ProgressRedesigned() {
       case "maintenance": return { label: t("current_weight_label2"), value: `${currentWeight.toFixed(1)}`, unit: "kg ▾" };
       default: return { label: t("daily_streak"), value: `${streaks.logging?.currentStreak ?? 0}`, unit: "days" };
     }
-  }, [goalType, currentWeight, weeklySummary, streaks]);
+  }, [goalType, currentWeight, weeklySummary, streaks, t]);
 
   const goalSubLabel = useMemo(() => {
     const isLoss = goalType === "weight_loss";
@@ -315,45 +311,9 @@ export default function ProgressRedesigned() {
       { label: t("carbs"), value: macros?.carbs?.percentage ?? 0, status: getStatus(macros?.carbs?.percentage ?? 0), Icon: Wheat, color: "#F7B731", track: "#FEF3C7" },
       { label: t("fat_label"), value: macros?.fat?.percentage ?? 0, status: getStatus(macros?.fat?.percentage ?? 0), Icon: Droplet, color: "#10B981", track: "#D1FAE5" },
     ];
-  }, [weeklySummary, activeGoal?.daily_calorie_target]);
+  }, [weeklySummary, activeGoal?.daily_calorie_target, t]);
 
   const todayLogged = streaks.logging?.lastLogDate === format(new Date(), "yyyy-MM-dd");
-
-  const keepGoingMessage = useMemo(() => {
-    const logStreak = streaks.logging?.currentStreak ?? 0;
-    switch (goalType) {
-      case "weight_loss":
-        if (currentWeight <= goalWeight) return t("progress_hit_goal_weight");
-        return t("progress_kg_left_target", { kg: Math.max(1, Math.round(weightDiff)) });
-      case "muscle_gain":
-        if (currentWeight >= goalWeight) return t("progress_goal_reached_new_target");
-        return t("progress_kg_to_go", { kg: Math.max(1, Math.round(weightDiff)) });
-      case "maintenance":
-        if (!todayLogged) return t("progress_log_today_maintenance");
-        return logStreak > 0
-          ? t("progress_day_streak_consistency", { streak: logStreak })
-          : t("progress_start_streak_consistency");
-      default:
-        if (!todayLogged) return t("progress_log_meals_today");
-        return logStreak > 0
-          ? t("progress_day_streak_health", { streak: logStreak })
-          : t("progress_start_tracking");
-    }
-  }, [goalType, currentWeight, goalWeight, weightDiff, streaks, todayLogged, t]);
-
-  const keepGoingSubtext = useMemo(() => {
-    const proteinPct = weeklySummary?.macros?.protein?.percentage ?? 0;
-    switch (goalType) {
-      case "weight_loss":
-        return proteinPct >= 80 ? t("progress_protein_solid") : t("progress_boost_protein_loss");
-      case "muscle_gain":
-        return proteinPct >= 80 ? t("progress_protein_on_point") : t("progress_increase_protein_muscle");
-      case "maintenance":
-        return t("progress_stay_balanced");
-      default:
-        return t("progress_aim_balanced_meals");
-    }
-  }, [goalType, weeklySummary, t]);
 
   const weeklyChecklist = useMemo(() => {
     const logStreak = streaks.logging?.currentStreak ?? 0;
@@ -392,7 +352,7 @@ export default function ProgressRedesigned() {
           { label: t("water_intake_label"), Icon: Droplet, color: "#60A5FA", done: waterStreak > 0 },
         ];
     }
-  }, [goalType, streaks, weeklySummary, activeGoal, todayLogged, weekdayData]);
+  }, [goalType, streaks, weeklySummary, activeGoal, todayLogged, weekdayData, t]);
 
   const coachRecommendation = useMemo(() => {
     const protein = activeGoal?.protein_target_g ?? 120;
@@ -437,6 +397,8 @@ export default function ProgressRedesigned() {
 
   const waterGlasses = waterSummary?.total ?? 0;
   const waterTarget = 8;
+  const showWeightForecastCard = false;
+  const showBodyMetricsCard = false;
 
   const handleLogWeight = async () => {
     const w = parseFloat(newWeight);
@@ -543,7 +505,7 @@ export default function ProgressRedesigned() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tabKey)}
-                className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === tabKey ? 'bg-white text-[#00A86B] shadow-[0_10px_22px_rgba(15,23,42,0.10)]' : 'text-slate-500'}`}
+                className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 ${activeTab === tabKey ? 'bg-white text-orange-600 shadow-[0_10px_22px_rgba(249,115,22,0.14)]' : 'text-slate-500'}`}
                 type="button"
               >
                 {tab.label}
@@ -565,21 +527,52 @@ export default function ProgressRedesigned() {
           const proteinPct = proteinTarget > 0 ? Math.min(100, Math.round((proteinConsumed / proteinTarget) * 100)) : 0;
           const carbsPct = carbsTarget > 0 ? Math.min(100, Math.round((carbsConsumed / carbsTarget) * 100)) : 0;
           const fatPct = fatTarget > 0 ? Math.min(100, Math.round((fatConsumed / fatTarget) * 100)) : 0;
-          const overallPct = Math.round((dailyPct + proteinPct) / 2);
-          const realMealScore = mealQualityScore > 0 ? Math.round(mealQualityScore) : overallPct;
-          const mealQualityScoreLabel = realMealScore >= 80 ? t("progress_good") : realMealScore >= 60 ? t("progress_moderate") : t("progress_needs_work");
+          const hydrationPct = Math.min(100, waterSummary?.percentage ?? 0);
+          const weeklyLoggedDays = weeklySummary?.consistency?.daysLogged ?? weekdayData.filter((d) => d.calories > 0).length;
+          const weeklyConsistencyPct = weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
+          const nutritionScore = Math.round((dailyPct * 0.38) + (proteinPct * 0.32) + (hydrationPct * 0.2) + (weeklyConsistencyPct * 0.1));
+          const hasTodayNutrition = calConsumed > 0 || proteinConsumed > 0 || carbsConsumed > 0 || fatConsumed > 0 || waterGlasses > 0;
+          const weeklyFallbackScore = weeklySummary
+            ? Math.round((
+                Math.min(100, Math.round(((weeklySummary.calories?.thisWeekAvg ?? 0) / calTarget) * 100)) +
+                (weeklySummary.macros?.protein?.percentage ?? 0) +
+                weeklyConsistencyPct
+              ) / 3)
+            : 0;
+          const realMealScore = mealQualityScore > 0
+            ? Math.round(mealQualityScore)
+            : hasTodayNutrition
+              ? nutritionScore
+              : weeklyFallbackScore;
+          const weeklyCaloriesPct = Math.min(100, Math.round(((weeklySummary?.calories?.thisWeekAvg ?? 0) / Math.max(calTarget, 1)) * 100));
+          const aiOverallScore = Math.round((
+            Math.min(realMealScore, 100) +
+            Math.min(weeklyConsistencyPct, 100) +
+            weeklyCaloriesPct +
+            hydrationPct
+          ) / 4);
+          const mealQualityScoreLabel = aiOverallScore >= 80 ? t("progress_good") : aiOverallScore >= 60 ? t("progress_moderate") : t("progress_needs_work");
           const weekScores = weeklyQuality.map((d) => d.avgScore);
-          const daysLogged = weekScores.length;
-          const completeness = Math.min(1, daysLogged / 7);
-          let consistencyFactor = 0.5;
-          if (daysLogged >= 2) {
-            const mean = weekScores.reduce((a: number, b: number) => a + b, 0) / daysLogged;
-            const variance = weekScores.reduce((a: number, s: number) => a + (s - mean) ** 2, 0) / daysLogged;
-            const stdDev = Math.sqrt(variance);
-            const cv = mean > 0 ? stdDev / mean : 1;
-            consistencyFactor = Math.max(0, 1 - Math.min(1, cv));
-          }
-          const aiConfidence = Math.round(completeness * consistencyFactor * 100);
+          const hasFoodLogged = calConsumed > 0 || proteinConsumed > 0 || carbsConsumed > 0 || fatConsumed > 0;
+          const hasHydrationLogged = waterGlasses > 0 || hydrationPct > 0;
+          const hasWeeklyContext = Boolean(weeklySummary) || weeklyLoggedDays > 0 || weekScores.length > 0;
+          const aiConfidence = hasFoodLogged && activeGoal
+            ? 100
+            : Math.min(100, Math.round(
+                (hasFoodLogged ? 45 : 0) +
+                (activeGoal ? 25 : 0) +
+                (hasHydrationLogged ? 15 : 0) +
+                (hasWeeklyContext ? 15 : 0)
+              ));
+          const missingConfidenceInputs = [
+            !hasFoodLogged ? "log today's meal" : null,
+            !activeGoal ? "set a nutrition goal" : null,
+            !hasHydrationLogged ? "add water intake" : null,
+            !hasWeeklyContext ? "track a few days this week" : null,
+          ].filter(Boolean);
+          const confidenceExplanation = aiConfidence >= 100
+            ? "High confidence: today's food and your goal are available."
+            : `Lower confidence because we still need you to ${missingConfidenceInputs.join(", ")}.`;
           const thisWeekAvg = weekScores.length >= 3 ? weekScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(-3).length : realMealScore;
           const lastWeekAvg = weekScores.length >= 6 ? weekScores.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(0, 3).length : null;
           const scoreTrend = lastWeekAvg && lastWeekAvg > 0
@@ -597,17 +590,23 @@ export default function ProgressRedesigned() {
 
           return (
             <>
-              <section className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-[20px] font-black tracking-[-0.04em] text-slate-900 flex items-center gap-2">{t("progress_greeting", { name: firstName })} <Hand className="h-5 w-5 text-amber-400" /></h2>
-                  <p className="text-[13px] text-slate-500 font-medium">{t("progress_daily_overview")}</p>
-                </div>
-                {(streaks.logging?.currentStreak ?? 0) > 0 && (
-                  <div className="flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1.5">
-                    <Flame className="h-4 w-4 text-orange-500" />
-                    <span className="text-[12px] font-black text-orange-600">{t("progress_day_streak", { count: streaks.logging?.currentStreak ?? 0 })}</span>
+              <section className="mb-5 overflow-hidden rounded-[24px] border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-white p-4 shadow-[0_12px_28px_rgba(249,115,22,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-[19px] font-black tracking-[-0.03em] text-slate-950">
+                        {t("progress_greeting", { name: firstName })}
+                      </h2>
+                      <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-500">{t("progress_daily_overview")}</p>
+                    </div>
                   </div>
-                )}
+                  {(streaks.logging?.currentStreak ?? 0) > 0 && (
+                    <div className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-orange-500 px-3.5 text-white shadow-[0_8px_18px_rgba(249,115,22,0.22)]">
+                      <Flame className="h-4 w-4" />
+                      <span className="whitespace-nowrap text-[12px] font-black">{t("progress_day_streak", { count: streaks.logging?.currentStreak ?? 0 })}</span>
+                    </div>
+                  )}
+                </div>
               </section>
 
               <section className="mb-5">
@@ -689,13 +688,13 @@ export default function ProgressRedesigned() {
                         <div className="flex items-center gap-2">
                           <div
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[13px] font-black text-white"
-                            style={{ backgroundColor: overallPct >= 80 ? '#10B981' : overallPct >= 50 ? '#F59E0B' : '#F87171' }}
+                            style={{ backgroundColor: nutritionScore >= 80 ? '#10B981' : nutritionScore >= 50 ? '#F59E0B' : '#F87171' }}
                           >
-                            {overallPct}
+                            {nutritionScore}
                           </div>
                           <div className="min-w-0">
                             <p className="text-[11px] font-black text-slate-900">
-                              {overallPct >= 80 ? t("progress_great_day") : overallPct >= 50 ? t("progress_on_track") : t("progress_keep_going")}
+                              {nutritionScore >= 80 ? t("progress_great_day") : nutritionScore >= 50 ? t("progress_on_track") : t("progress_keep_going")}
                             </p>
                             <p className="text-[9px] text-slate-400">{t("progress_daily_score")}</p>
                           </div>
@@ -832,8 +831,9 @@ export default function ProgressRedesigned() {
 
               {/* AI Insight */}
               <AIInsightImageCard
-                score={realMealScore}
+                score={aiOverallScore}
                 confidence={aiConfidence}
+                confidenceExplanation={confidenceExplanation}
                 mealQualityStatus={mealQualityScoreLabel}
                 summary={aiInsight || (scoreTrend !== null ? `${scoreTrend >= 0 ? '+' : ''}${scoreTrend}% vs last week` : "")}
                 proteinStatus={proteinPct >= 80 ? t("progress_on_track_status") : t("progress_improve")}
@@ -876,69 +876,76 @@ export default function ProgressRedesigned() {
                         general: Sparkles,
                       };
                       const catColors: Record<string, string> = {
-                        nutrition: "bg-emerald-100 text-emerald-600",
-                        hydration: "bg-blue-100 text-blue-600",
-                        activity: "bg-orange-100 text-orange-600",
-                        sleep: "bg-purple-100 text-purple-600",
-                        general: "bg-indigo-100 text-indigo-600",
+                        nutrition: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+                        hydration: "bg-sky-50 text-sky-600 ring-sky-100",
+                        activity: "bg-orange-50 text-orange-600 ring-orange-100",
+                        sleep: "bg-violet-50 text-violet-600 ring-violet-100",
+                        general: "bg-indigo-50 text-indigo-600 ring-indigo-100",
                       };
-                        const priorityLabels: Record<string, string> = {
-    high: t("priority_high"),
-    medium: t("priority_medium"),
-    low: t("priority_low"),
-  };
-              const priorityBadge: Record<string, string> = {
-                        high: "bg-red-100 text-red-700",
-                        medium: "bg-amber-100 text-amber-700",
-                        low: "bg-slate-100 text-slate-600",
+                      const priorityLabels: Record<string, string> = {
+                        high: t("priority_high"),
+                        medium: t("priority_medium"),
+                        low: t("priority_low"),
+                      };
+                      const priorityBadge: Record<string, string> = {
+                        high: "bg-rose-50 text-rose-600 ring-rose-100",
+                        medium: "bg-amber-50 text-amber-700 ring-amber-100",
+                        low: "bg-slate-100 text-slate-600 ring-slate-200",
                       };
                       const CatIcon = catIcons[r.category] || Sparkles;
-                      const iconColors = catColors[r.category] || "bg-slate-100 text-slate-600";
-                      const badgeColors = priorityBadge[r.priority] || "bg-slate-100 text-slate-600";
+                      const iconColors = catColors[r.category] || "bg-slate-50 text-slate-600 ring-slate-100";
+                      const badgeColors = priorityBadge[r.priority] || "bg-slate-100 text-slate-600 ring-slate-200";
                       const progress = r.progress;
+                      const progressPct = progress
+                        ? Math.min(100, Math.round((progress.value / progress.max) * 100))
+                        : 0;
+                      const accentColor = r.priority === "high" ? "#f43f5e" : r.priority === "medium" ? "#f59e0b" : "#64748b";
 
                       return (
                         <button
                           key={r.id}
                           type="button"
-                          className="w-full rounded-[14px] border border-l-4 border-slate-100 bg-white p-4 text-left shadow-[0_6px_16px_rgba(15,23,42,0.04)] active:scale-[0.99] transition-transform"
-                          style={{ borderLeftColor: r.priority === "high" ? "#EF4444" : r.priority === "medium" ? "#F59E0B" : "#94A3B8" }}
+                          className="w-full rounded-[24px] border border-slate-100 bg-white p-3.5 text-left shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-transform active:scale-[0.99]"
                           onClick={() => {
                             if (r.action_link) navigate(r.action_link);
                           }}
                         >
                           <div className="flex items-start gap-3">
-                            <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${iconColors.split(" ")[0]}`}>
-                              <CatIcon className={`h-4.5 w-4.5 ${iconColors.split(" ")[1]}`} />
+                            <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-[18px] ring-1 ${iconColors}`}>
+                              <CatIcon className="h-5 w-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-0.5">
-                                <p className="text-[13px] font-bold text-slate-900 truncate">{r.title}</p>
-                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${badgeColors}`}>
+                              <div className="mb-1 flex items-start gap-2">
+                                <p className="min-w-0 flex-1 truncate text-[14px] font-black tracking-[-0.02em] text-slate-950">{r.title}</p>
+                                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase ring-1 ${badgeColors}`}>
                                   {priorityLabels[r.priority] || r.priority}
                                 </span>
                               </div>
-                              <p className="text-[11px] leading-relaxed text-slate-500 line-clamp-2">{r.description}</p>
+                              <p className="line-clamp-2 text-[12px] font-semibold leading-relaxed text-slate-500">{r.description}</p>
                               {progress && (
-                                <div className="mt-2">
-                                  <div className="mb-1 flex items-center justify-between text-[10px]">
-                                    <span className="font-semibold text-slate-500">{progress.value}/{progress.max} {progress.unit}</span>
-                                    <span className="font-bold text-slate-500">{Math.round((progress.value / progress.max) * 100)}%</span>
+                                <div className="mt-3">
+                                  <div className="mb-1.5 flex items-center justify-between text-[10px]">
+                                    <span className="font-black text-slate-500">{progress.value}/{progress.max} {progress.unit}</span>
+                                    <span className="font-black" style={{ color: accentColor }}>{progressPct}%</span>
                                   </div>
-                                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                                     <div
                                       className="h-full rounded-full"
-                                      style={{
-                                        width: `${Math.min(100, Math.round((progress.value / progress.max) * 100))}%`,
-                                        backgroundColor: r.priority === "high" ? "#EF4444" : r.priority === "medium" ? "#F59E0B" : "#10B981",
-                                      }}
+                                      style={{ width: `${progressPct}%`, backgroundColor: accentColor }}
                                     />
                                   </div>
                                 </div>
                               )}
-                              {r.action_text && r.action_link && (
-                                <p className="mt-2 text-[10px] font-bold text-emerald-600">{r.action_text} →</p>
-                              )}
+                              <div className="mt-3 flex min-h-7 items-center justify-between">
+                                {r.action_text && r.action_link ? (
+                                  <span className="text-[11px] font-black text-orange-600">{r.action_text}</span>
+                                ) : (
+                                  <span className="text-[11px] font-bold text-slate-400">View recommendation</span>
+                                )}
+                                <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-50 text-slate-400">
+                                  <ChevronRight className="h-4 w-4" strokeWidth={2.6} />
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -949,7 +956,7 @@ export default function ProgressRedesigned() {
               </section>
 
               {/* Weight Forecast */}
-              {(() => {
+              {showWeightForecastCard && (() => {
                 const actualPoints = weightHistory.filter((p) => p.actual !== null);
                 const predictedPoints = weightHistory.filter((p) => p.predicted !== null);
                 const allPoints = weightHistory.filter((p) => p.actual !== null || p.predicted !== null);
@@ -1574,18 +1581,6 @@ export default function ProgressRedesigned() {
               </div>
             </section>
 
-            <section className="mb-4 overflow-hidden rounded-[24px] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
-              <div className="flex items-center gap-3 px-5 pt-5 pb-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#10B981] to-[#059669] shadow-[0_6px_14px_rgba(16,185,129,0.25)]">
-                  <Trophy className="h-5 w-5 text-white" strokeWidth={2.5} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-slate-950">{t("progress_keep_going_message", { name: firstName })}</h3>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">{keepGoingMessage}</p>
-                </div>
-              </div>
-            </section>
-
           </>
         )}
 
@@ -1765,6 +1760,116 @@ export default function ProgressRedesigned() {
               })()}
             </section>
 
+            <section className="mb-5 space-y-3">
+              {(() => {
+                const goalColors: Record<string, string> = { weight_loss: '#F59E0B', muscle_gain: '#818CF8', maintenance: '#10B981', general: '#F472B6' };
+                const goalLightBg: Record<string, string> = { weight_loss: '#FFF7ED', muscle_gain: '#EEF2FF', maintenance: '#ECFDF5', general: '#FDF2F8' };
+                const goalColor = goalColors[goalType] ?? '#10B981';
+                const goalBg = goalLightBg[goalType] ?? '#ECFDF5';
+                const latestWeight = weightHistory[weightHistory.length - 1]?.weight ?? currentWeight;
+                const firstWeight = weightHistory[0]?.weight ?? currentWeight;
+                const weeklyChange = weightHistory.length >= 2
+                  ? latestWeight - (weightHistory[Math.max(0, weightHistory.length - 2)]?.weight ?? latestWeight)
+                  : 0;
+                const remainingKg = Math.abs(currentWeight - goalWeight);
+                const weeklyPace = Math.max(0.1, Math.abs(weeklyChange));
+                const estimatedWeeks = goalType === "maintenance" ? 0 : Math.max(1, Math.ceil(remainingKg / weeklyPace));
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + estimatedWeeks * 7);
+                const paceLabel = goalType === "maintenance"
+                  ? "Hold your range"
+                  : weeklyChange === 0
+                    ? "Build momentum"
+                    : `${Math.abs(weeklyChange).toFixed(1)} kg/week`;
+                const timelineItems = [
+                  { label: "Start", value: `${firstWeight.toFixed(1)} kg`, done: true },
+                  { label: "Today", value: `${currentWeight.toFixed(1)} kg`, done: true },
+                  { label: "Target", value: goalType === "maintenance" ? "Maintain" : `${goalWeight.toFixed(1)} kg`, done: goalRingValue >= 100 },
+                ];
+                const milestones = goalType === "maintenance"
+                  ? [
+                      { label: "3 steady days", done: weeklySummary?.consistency?.daysLogged >= 3 },
+                      { label: "Protein steady", done: (weeklySummary?.macros?.protein?.percentage ?? 0) >= 80 },
+                      { label: "Balanced week", done: goalRingValue >= 80 },
+                    ]
+                  : [25, 50, 75, 100].map((pct) => ({ label: pct === 100 ? "Target reached" : `${pct}% milestone`, done: goalRingValue >= pct }));
+
+                return (
+                  <>
+                    <article className="rounded-[26px] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Goal timeline</p>
+                          <h3 className="mt-1 text-[17px] font-black text-slate-950">
+                            {goalType === "maintenance" ? "Stay consistent" : `${estimatedWeeks} week estimate`}
+                          </h3>
+                        </div>
+                        <div className="rounded-2xl px-3 py-2 text-right" style={{ backgroundColor: goalBg }}>
+                          <p className="text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: goalColor }}>Pace</p>
+                          <p className="text-[12px] font-black text-slate-900">{paceLabel}</p>
+                        </div>
+                      </div>
+
+                      <div className="relative grid grid-cols-3 gap-2">
+                        <div className="absolute left-[16%] right-[16%] top-[18px] h-1 rounded-full bg-slate-100" />
+                        <div className="absolute left-[16%] top-[18px] h-1 rounded-full transition-all duration-700" style={{ width: `${Math.min(goalRingValue, 100) * 0.68}%`, backgroundColor: goalColor }} />
+                        {timelineItems.map((item) => (
+                          <div key={item.label} className="relative z-10 flex flex-col items-center text-center">
+                            <div
+                              className={`grid h-9 w-9 place-items-center rounded-full text-white shadow-[0_8px_18px_rgba(15,23,42,0.08)] ${item.done ? "" : "bg-white text-slate-300 ring-1 ring-slate-200"}`}
+                              style={item.done ? { backgroundColor: goalColor } : undefined}
+                            >
+                              {item.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Target className="h-4 w-4" />}
+                            </div>
+                            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">{item.label}</p>
+                            <p className="mt-0.5 text-[12px] font-black text-slate-900">{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {goalType !== "maintenance" && (
+                        <p className="mt-4 text-center text-[11px] font-bold text-slate-400">
+                          Estimated target: {targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      )}
+                    </article>
+
+                    <article className="flex items-start gap-3 rounded-[24px] p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)] ring-1 ring-slate-100" style={{ backgroundColor: goalBg }}>
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white" style={{ color: goalColor }}>
+                        <Sparkles className="h-5 w-5" strokeWidth={2.4} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Next best action</p>
+                        <p className="mt-1 text-[14px] font-black leading-snug text-slate-950">{coachRecommendation}</p>
+                      </div>
+                    </article>
+
+                    <article className="rounded-[26px] bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">Milestone ladder</p>
+                          <h3 className="mt-1 text-[17px] font-black text-slate-950">Small wins</h3>
+                        </div>
+                        <span className="rounded-full px-3 py-1.5 text-[11px] font-black" style={{ backgroundColor: goalBg, color: goalColor }}>
+                          {milestones.filter((m) => m.done).length}/{milestones.length}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {milestones.map((milestone) => (
+                          <div key={milestone.label} className={`rounded-2xl px-2 py-3 text-center ${milestone.done ? "" : "bg-slate-50"}`} style={milestone.done ? { backgroundColor: goalBg } : undefined}>
+                            <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full ${milestone.done ? "text-white" : "bg-white text-slate-300 ring-1 ring-slate-200"}`} style={milestone.done ? { backgroundColor: goalColor } : undefined}>
+                              {milestone.done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Lock className="h-3.5 w-3.5" />}
+                            </div>
+                            <p className="mt-2 text-[10px] font-black leading-tight text-slate-700">{milestone.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  </>
+                );
+              })()}
+            </section>
+
             <section className="mb-5">
               <article className="rounded-[20px] border border-slate-100 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
                 <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-wider mb-3">{t("progress_your_plan")}</h3>
@@ -1789,12 +1894,6 @@ export default function ProgressRedesigned() {
               </article>
             </section>
 
-            <AchievementsSection
-              badges={badges}
-              unlockedCount={unlockedCount}
-              totalCount={totalCount}
-              className="mb-5"
-            />
           </>
         )}
 
@@ -1941,7 +2040,7 @@ export default function ProgressRedesigned() {
         </section>
         )}
 
-        {activeTab === "today" && (
+        {activeTab === "today" && showBodyMetricsCard && (
         <section className="mb-5">
           <article className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-[0_16px_34px_rgba(15,23,42,0.06)]">
             <div className="mb-5 flex items-center gap-2">

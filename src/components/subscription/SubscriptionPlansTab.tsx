@@ -1,8 +1,5 @@
-import { BadgePercent } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { BillingIntervalToggle, type BillingInterval } from "@/components/BillingIntervalToggle";
 import { PlanCard, type PlanCardData } from "@/components/subscription/PlanCard";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SubscriptionPlansTabProps {
   plans: PlanCardData[];
@@ -19,10 +16,8 @@ export function SubscriptionPlansTab({
   currentTier,
   onSelectPlan,
 }: SubscriptionPlansTabProps) {
-  const { t } = useLanguage();
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Plans list */}
       <div className="space-y-3">
         {plans.map((plan) => (
@@ -36,7 +31,7 @@ export function SubscriptionPlansTab({
       </div>
 
       {/* Annual billing toggle */}
-      <div className="mx-4 rounded-[18px] border border-slate-100 bg-white px-4 py-4 shadow-sm">
+      <div className="rounded-[24px] border border-emerald-200/80 bg-white px-4 py-4 shadow-sm">
         <BillingIntervalToggle
           value={billingInterval}
           onChange={onBillingIntervalChange}

@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { Wallet, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -15,55 +14,55 @@ export function WalletBalance({ balance, totalCredits, totalDebits, loading }: W
   
   if (loading) {
     return (
-      <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-white/20 rounded w-24" />
-            <div className="h-10 bg-white/20 rounded w-32" />
+      <div className="rounded-[28px] bg-white p-5 shadow-sm">
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 w-24 rounded bg-emerald-100" />
+          <div className="h-10 w-32 rounded bg-emerald-100" />
+          <div className="grid grid-cols-2 gap-3 pt-3">
+            <div className="h-16 rounded-2xl bg-emerald-50" />
+            <div className="h-16 rounded-2xl bg-emerald-50" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-green-100 text-sm font-medium flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              {t("available_balance")}
-            </p>
-            <p className="text-4xl font-bold mt-2">{formatCurrency(balance)}</p>
-            <p className="text-green-100 text-xs mt-1">{t("available_for_orders")}</p>
-          </div>
-          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center">
-            <Wallet className="h-8 w-8" />
-          </div>
+    <section className="overflow-hidden rounded-[28px] border border-emerald-200/80 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-extrabold text-emerald-950/55">
+            <Wallet className="h-4 w-4 text-[#24b893]" />
+            {t("available_balance")}
+          </p>
+          <p className="mt-2 text-4xl font-black tracking-tight text-emerald-950">{formatCurrency(balance)}</p>
+          <p className="mt-1 text-xs font-medium text-emerald-950/50">{t("available_for_orders")}</p>
         </div>
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#eefaf6] text-[#12785f]">
+          <Wallet className="h-7 w-7" />
+        </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-white/20">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-              <ArrowDownLeft className="h-4 w-4 text-green-200" />
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-[#eefaf6] p-3">
+          <div className="mb-2 flex items-center gap-2 text-[#12785f]">
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-white">
+              <ArrowDownLeft className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs text-green-100">{t("total_credits")}</p>
-              <p className="font-semibold">{formatCurrency(totalCredits)}</p>
-            </div>
+            <p className="text-[11px] font-bold uppercase tracking-wide">{t("total_credits")}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-              <ArrowUpRight className="h-4 w-4 text-green-200" />
-            </div>
-            <div>
-              <p className="text-xs text-green-100">{t("total_spent")}</p>
-              <p className="font-semibold">{formatCurrency(totalDebits)}</p>
-            </div>
-          </div>
+          <p className="text-sm font-black text-emerald-950">{formatCurrency(totalCredits)}</p>
         </div>
-      </CardContent>
-    </Card>
+        <div className="rounded-2xl bg-[#fff8ed] p-3">
+          <div className="mb-2 flex items-center gap-2 text-amber-700">
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-white">
+              <ArrowUpRight className="h-4 w-4" />
+            </div>
+            <p className="text-[11px] font-bold uppercase tracking-wide">{t("total_spent")}</p>
+          </div>
+          <p className="text-sm font-black text-emerald-950">{formatCurrency(totalDebits)}</p>
+        </div>
+      </div>
+    </section>
   );
 }

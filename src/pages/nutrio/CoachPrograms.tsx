@@ -20,6 +20,18 @@ import { useProgramCompletions } from "@/hooks/useProgramCompletions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type MealCatalogRow = {
+  id: string;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  image_url: string | null;
+  price: number;
+  restaurants?: { name?: string | null } | null;
+};
+
 const fadeInUp = {
   hidden: { opacity: 0, y: 12 },
   visible: {
@@ -95,7 +107,7 @@ export default function CoachPrograms() {
         .limit(200);
       if (data) {
         setAllMeals(
-          data.map((m: any) => ({
+          (data as MealCatalogRow[]).map((m) => ({
             id: m.id,
             name: m.name,
             calories: m.calories,
@@ -195,76 +207,109 @@ export default function CoachPrograms() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7FAF8]">
         <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 active:scale-95 transition-transform"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="w-5 h-5 text-slate-500" strokeWidth={2} />
-        </button>
-        <h1 className="text-[16px] font-extrabold text-slate-950 text-center">
-          My Programs
-        </h1>
-        <button
-          onClick={() => navigate("/workout-history")}
-          className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center active:scale-95 transition-transform"
-        >
-          <Clock className="w-4 h-4 text-slate-600" />
-        </button>
+    <div className="min-h-screen bg-[#F7FAF8] pb-24">
+      <div className="sticky top-0 z-20 bg-[#F7FAF8]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[78px] max-w-[430px] items-center justify-between gap-3 px-4 pt-[env(safe-area-inset-top)]">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 active:scale-95 transition-transform"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" strokeWidth={2} />
+          </button>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-emerald-600">Coach</p>
+            <h1 className="truncate text-[22px] font-black leading-tight text-slate-950">
+              My Programs
+            </h1>
+          </div>
+          <button
+            onClick={() => navigate("/workout-history")}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 active:scale-95 transition-transform"
+            aria-label="Workout history"
+          >
+            <Clock className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {programs.length === 0 ? (
-        <div className="p-4">
+        <div className="mx-auto max-w-[430px] px-4 py-4">
           <motion.div
             variants={fadeInUp}
             initial="hidden"
             animate="visible"
-            className="bg-white rounded-[24px] p-12 text-center shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+            className="rounded-[32px] bg-white px-6 py-12 text-center shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100"
           >
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <ChefHat className="w-8 h-8 text-slate-300" />
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <ChefHat className="h-8 w-8" />
             </div>
-            <h3 className="text-[15px] font-bold text-slate-900 mb-2">
+            <h3 className="mb-2 text-[18px] font-black text-slate-950">
               No programs yet
             </h3>
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[13px] font-semibold leading-relaxed text-slate-500">
               Your coach will create meal and workout programs for you.
             </p>
           </motion.div>
         </div>
       ) : (
-        <div className="p-4 space-y-4">
-          <div className="flex bg-white rounded-2xl p-1 shadow-sm ring-1 ring-slate-100">
+        <div className="mx-auto max-w-[430px] space-y-4 px-4 py-4">
+          <section className="rounded-[32px] bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-emerald-600">Active plan</p>
+                <h2 className="mt-1 text-[26px] font-black leading-tight text-slate-950">
+                  {programs.length} program{programs.length !== 1 ? "s" : ""}
+                </h2>
+                <p className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-500">
+                  Follow your coach's meals and workouts from one place.
+                </p>
+              </div>
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                <ChefHat className="h-7 w-7" />
+              </div>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+                <p className="text-[22px] font-black leading-none text-slate-950">{mealPrograms.length}</p>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Meal plans</p>
+              </div>
+              <div className="rounded-2xl bg-violet-50 px-4 py-3">
+                <p className="text-[22px] font-black leading-none text-slate-950">{workoutPrograms.length}</p>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-violet-700">Workouts</p>
+              </div>
+            </div>
+          </section>
+
+          <div className="sticky top-[78px] z-10 flex rounded-full bg-white p-1 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
             <button
               onClick={() => setActiveTab("meal")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-[13px] font-semibold transition-all ${
+              className={`flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-black transition-all ${
                 activeTab === "meal"
-                  ? "bg-emerald-600 text-white shadow-sm"
+                  ? "bg-emerald-600 text-white shadow-[0_10px_18px_rgba(16,185,129,0.2)]"
                   : "text-slate-500"
               }`}
             >
-              <UtensilsCrossed className="w-4 h-4" />
-              Meal Plans ({mealPrograms.length})
+              <UtensilsCrossed className="h-4 w-4" />
+              Meals
             </button>
             <button
               onClick={() => setActiveTab("workout")}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-[13px] font-semibold transition-all ${
+              className={`flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full px-3 text-[13px] font-black transition-all ${
                 activeTab === "workout"
-                  ? "bg-purple-600 text-white shadow-sm"
+                  ? "bg-violet-600 text-white shadow-[0_10px_18px_rgba(124,58,237,0.2)]"
                   : "text-slate-500"
               }`}
             >
-              <Dumbbell className="w-4 h-4" />
-              Workouts ({workoutPrograms.length})
+              <Dumbbell className="h-4 w-4" />
+              Workouts
             </button>
           </div>
 
@@ -294,36 +339,39 @@ export default function CoachPrograms() {
                   variants={fadeInUp}
                   initial="hidden"
                   animate="visible"
-                  className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+                  className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.055)] ring-1 ring-slate-100"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-[15px] font-extrabold text-slate-950">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                      <UtensilsCrossed className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[18px] font-black leading-tight text-slate-950">
                         {program.title}
                       </h3>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="mt-1 text-[11px] font-bold text-slate-400">
                         {new Date(program.start_date).toLocaleDateString(
                           "en-US",
                           { month: "short", day: "numeric" }
                         )}{" "}
-                        &rarr;{" "}
+                        -{" "}
                         {new Date(program.end_date).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                         })}
                       </p>
                     </div>
-                    <div className="px-3 py-1.5 rounded-full bg-emerald-50 text-[11px] font-bold text-emerald-600">
-                      {completedMeals}/{totalMeals} done
+                    <div className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700">
+                      {completedMeals}/{totalMeals}
                     </div>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 mb-3 overflow-hidden">
+                  <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
                       style={{ width: `${mealProgress}%` }}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {days.slice(0, 7).map((date) => {
                       const dayMeals = programMeals.filter(
                         (m) =>
@@ -333,22 +381,22 @@ export default function CoachPrograms() {
                       return (
                         <div
                           key={date}
-                          className="border border-slate-100 rounded-2xl p-3"
+                          className="rounded-[24px] bg-slate-50 p-3"
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[11px] font-bold text-slate-500">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-[12px] font-black text-slate-700">
                               {new Date(date).toLocaleDateString("en-US", {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",
                               })}
                             </p>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-400">
                               {dayMeals.length} meal
                               {dayMeals.length !== 1 ? "s" : ""}
                             </span>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             {dayMeals.map((meal) => {
                               const done = isMealCompleted(meal.id);
                               const scheduled = scheduledMeals.has(meal.id);
@@ -356,31 +404,32 @@ export default function CoachPrograms() {
                               return (
                                 <div
                                   key={meal.id}
-                                  className="flex items-center gap-2 text-[12px]"
+                                  className="flex min-h-[48px] items-center gap-2 rounded-2xl bg-white px-2.5 py-2 text-[12px]"
                                 >
                                   <button
                                     onClick={() => toggleMeal(meal.id)}
-                                    className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all ${
+                                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ${
                                       done
                                         ? "bg-emerald-500 text-white"
-                                        : "border border-slate-300 text-transparent hover:border-emerald-400"
+                                        : "bg-slate-100 text-transparent ring-1 ring-slate-200 hover:ring-emerald-300"
                                     }`}
+                                    aria-label="Toggle meal completion"
                                   >
-                                    <Check className="w-3 h-3" />
+                                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
                                   </button>
-                                  <div className="flex-1 min-w-0">
+                                  <div className="min-w-0 flex-1">
                                     <span
                                       className={`${
                                         done
                                           ? "text-slate-400 line-through"
                                           : "text-slate-700"
-                                      } font-medium`}
+                                      } block truncate font-black`}
                                     >
                                       {mealData?.name || meal.meal_type}
                                     </span>
                                     {mealData && (
-                                      <span className="text-[10px] text-slate-400 ml-1.5">
-                                        {mealData.calories}cal &middot; {mealData.protein_g}P
+                                      <span className="text-[10px] font-bold text-slate-400">
+                                        {mealData.calories} cal · {mealData.protein_g}P
                                       </span>
                                     )}
                                   </div>
@@ -389,20 +438,20 @@ export default function CoachPrograms() {
                                       setScheduleTarget({ id: meal.id, mealId: meal.meal_id, date: meal.assigned_date, type: meal.meal_type })
                                     }
                                     disabled={scheduled}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all shrink-0 ${
+                                    className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-[10px] font-black transition-all ${
                                       scheduled
                                         ? "bg-emerald-100 text-emerald-600"
                                         : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95"
                                     }`}
                                   >
-                                    <CalendarPlus className="w-3 h-3" />
+                                    <CalendarPlus className="h-3 w-3" />
                                     {scheduled ? "Added" : "Schedule"}
                                   </button>
                                   <button
                                     onClick={() => setReplaceTarget(meal)}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 active:scale-95 transition-all shrink-0"
+                                    className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 text-[10px] font-black text-amber-600 transition-all hover:bg-amber-100 active:scale-95"
                                   >
-                                    <Shuffle className="w-3 h-3" />
+                                    <Shuffle className="h-3 w-3" />
                                     Replace
                                   </button>
                                 </div>
@@ -444,30 +493,33 @@ export default function CoachPrograms() {
                   variants={fadeInUp}
                   initial="hidden"
                   animate="visible"
-                  className="bg-white rounded-[24px] p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80"
+                  className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.055)] ring-1 ring-slate-100"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-[15px] font-extrabold text-slate-950">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+                      <Dumbbell className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[18px] font-black leading-tight text-slate-950">
                         {program.title}
                       </h3>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="mt-1 text-[11px] font-bold text-slate-400">
                         {new Date(program.start_date).toLocaleDateString(
                           "en-US",
                           { month: "short", day: "numeric" }
                         )}{" "}
-                        &rarr;{" "}
+                        -{" "}
                         {new Date(program.end_date).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                         })}
                       </p>
                     </div>
-                    <div className="px-3 py-1.5 rounded-full bg-purple-50 text-[11px] font-bold text-purple-600">
-                      {completedExercises}/{totalExercises} done
+                    <div className="shrink-0 rounded-full bg-violet-50 px-3 py-1.5 text-[11px] font-black text-violet-700">
+                      {completedExercises}/{totalExercises}
                     </div>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 mb-3 overflow-hidden">
+                  <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
                         workoutProgress >= 80
@@ -479,7 +531,7 @@ export default function CoachPrograms() {
                       style={{ width: `${workoutProgress}%` }}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {days.map((dayNum) => {
                       const dayExercises = programExercises.filter(
                         (e) =>
@@ -492,14 +544,16 @@ export default function CoachPrograms() {
                       return (
                         <div
                           key={dayNum}
-                          className="border border-slate-100 rounded-2xl p-3"
+                          className="rounded-[24px] bg-slate-50 p-3"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-[11px] font-bold text-slate-500">
-                              Day {dayNum} ({dayExercises.length} exercise
-                              {dayExercises.length !== 1 ? "s" : ""})
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <p className="text-[12px] font-black text-slate-700">
+                              Day {dayNum}
+                              <span className="ml-1 text-[10px] font-bold text-slate-400">
+                                {dayExercises.length} exercise{dayExercises.length !== 1 ? "s" : ""}
+                              </span>
                             </p>
-                            <div className="flex items-center gap-2">
+                            <div className="flex shrink-0 items-center gap-1.5">
                               {dayExercises.length > 0 && (
                                 <button
                                   onClick={() =>
@@ -507,16 +561,16 @@ export default function CoachPrograms() {
                                       `/coach-programs/workout/${program.id}/day/${dayNum}`
                                     )
                                   }
-                                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 text-[10px] font-bold text-purple-600 hover:bg-purple-100 transition-colors"
+                                  className="flex h-8 items-center gap-1 rounded-full bg-violet-600 px-3 text-[10px] font-black text-white shadow-[0_8px_16px_rgba(124,58,237,0.18)] transition-transform active:scale-95"
                                 >
-                                  <Play className="w-3 h-3" />
+                                  <Play className="h-3 w-3" />
                                   Start
                                 </button>
                               )}
                               {dayCompleted === dayExercises.length &&
                                 dayExercises.length > 0 && (
-                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                    &check; Complete
+                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-600">
+                                    Done
                                   </span>
                                 )}
                             </div>
@@ -527,41 +581,40 @@ export default function CoachPrograms() {
                               return (
                                 <div
                                   key={exercise.id}
-                                  className="flex items-center gap-2 text-[12px]"
+                                  className="flex min-h-[46px] items-center gap-2 rounded-2xl bg-white px-2.5 py-2 text-[12px]"
                                 >
                                   <button
                                     onClick={() =>
                                       toggleExercise(exercise.id)
                                     }
-                                    className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all ${
+                                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ${
                                       done
-                                        ? "bg-purple-500 text-white"
-                                        : "border border-slate-300 text-transparent hover:border-purple-400"
+                                        ? "bg-violet-500 text-white"
+                                        : "bg-slate-100 text-transparent ring-1 ring-slate-200 hover:ring-violet-300"
                                     }`}
+                                    aria-label="Toggle exercise completion"
                                   >
-                                    <Check className="w-3 h-3" />
+                                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
                                   </button>
-                                  <span
-                                    className={`font-medium ${
-                                      done
-                                        ? "text-slate-400 line-through"
-                                        : "text-slate-700"
-                                    }`}
-                                  >
-                                    {exercise.exercise_name}
-                                  </span>
-                                  <span
-                                    className={`text-[11px] ${
-                                      done ? "text-slate-300" : "text-slate-400"
-                                    }`}
-                                  >
-                                    {exercise.sets}&times;{exercise.reps}
-                                  </span>
-                                  {exercise.notes && (
-                                    <span className="text-slate-400 text-[10px] truncate">
-                                      ({exercise.notes})
+                                  <div className="min-w-0 flex-1">
+                                    <span
+                                      className={`block truncate font-black ${
+                                        done
+                                          ? "text-slate-400 line-through"
+                                          : "text-slate-700"
+                                      }`}
+                                    >
+                                      {exercise.exercise_name}
                                     </span>
-                                  )}
+                                    <span
+                                      className={`text-[10px] font-bold ${
+                                        done ? "text-slate-300" : "text-slate-400"
+                                      }`}
+                                    >
+                                      {exercise.sets}x{exercise.reps}
+                                      {exercise.notes ? ` · ${exercise.notes}` : ""}
+                                    </span>
+                                  </div>
                                 </div>
                               );
                             })}
@@ -577,33 +630,34 @@ export default function CoachPrograms() {
       )}
 
       {replaceTarget && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center pb-24" onClick={() => setReplaceTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 pb-[env(safe-area-inset-bottom)]" onClick={() => setReplaceTarget(null)}>
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-t-[28px] max-h-[75vh] flex flex-col shadow-2xl"
+            className="flex max-h-[82vh] w-full max-w-[430px] flex-col rounded-t-[34px] bg-white shadow-[0_-18px_44px_rgba(15,23,42,0.18)]"
           >
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-200" />
+            <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
               <div>
-                <h2 className="text-[16px] font-extrabold text-slate-950">Replace Meal</h2>
+                <h2 className="text-[20px] font-black text-slate-950">Replace Meal</h2>
                 {replaceCurrentMeal && (
-                  <p className="text-[11px] text-slate-400">
-                    Current: {replaceCurrentMeal.name} ({replaceCurrentMeal.calories}cal &middot; {replaceCurrentMeal.protein_g}P)
+                  <p className="mt-1 text-[12px] font-semibold text-slate-400">
+                    Current: {replaceCurrentMeal.name} ({replaceCurrentMeal.calories} cal · {replaceCurrentMeal.protein_g}P)
                   </p>
                 )}
               </div>
-              <button onClick={() => setReplaceTarget(null)} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+              <button onClick={() => setReplaceTarget(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                <X className="h-4 w-4 text-slate-500" />
               </button>
             </div>
             <div className="px-4 pb-2">
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 rounded-xl text-[10px] font-semibold text-amber-700">
-                <Shuffle className="w-3 h-3" /> Similar meals by nutrition profile &mdash; closest match first
+              <div className="flex items-center gap-1.5 rounded-2xl bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-700">
+                <Shuffle className="h-3.5 w-3.5" /> Closest nutrition matches first
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 pb-20 space-y-2">
+            <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-8">
               {replaceSimilar.map(({ meal, distance }) => {
                 const pct = Math.max(0, Math.round((1 - distance / 2) * 100));
                 const isGood = pct >= 80;
@@ -621,18 +675,18 @@ export default function CoachPrograms() {
                   <button
                     key={meal.id}
                     onClick={() => handleReplaceMeal(meal.id)}
-                    className="w-full bg-slate-50 rounded-2xl p-3 flex items-center gap-3 text-left active:scale-[0.98] transition-transform hover:bg-slate-100"
+                    className="flex w-full items-center gap-3 rounded-[22px] bg-slate-50 p-3 text-left transition-transform hover:bg-slate-100 active:scale-[0.98]"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white">
                       {meal.image_url ? (
-                        <img src={meal.image_url} alt="" className="w-full h-full object-cover" />
+                        <img src={meal.image_url} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <UtensilsCrossed className="w-5 h-5 text-slate-300" />
+                        <UtensilsCrossed className="h-5 w-5 text-slate-300" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-bold text-slate-800 truncate">{meal.name}</p>
-                      <div className="flex gap-1.5 mt-1 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-black text-slate-800">{meal.name}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
                         {macroDiff.map((m) => {
                           const diff = m.after - m.current;
                           const diffSign = diff > 0 ? "+" : "";
@@ -643,7 +697,7 @@ export default function CoachPrograms() {
                               ? "text-amber-500"
                               : "text-emerald-600";
                           return (
-                            <span key={m.label} className="text-[9px] text-slate-500">
+                            <span key={m.label} className="text-[9px] font-bold text-slate-500">
                               {m.label}:
                               <span className={diffColor}>{m.after}</span>
                               <span className={diffColor}> ({diffSign}{diff})</span>
@@ -652,8 +706,8 @@ export default function CoachPrograms() {
                         })}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeColor}`}>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-black ${badgeColor}`}>
                         {pct}% match
                       </span>
                     </div>
@@ -662,7 +716,7 @@ export default function CoachPrograms() {
               })}
               {replaceSimilar.length === 0 && (
                 <div className="py-8 text-center">
-                  <p className="text-[13px] text-slate-400">No alternative meals available</p>
+                  <p className="text-[13px] font-semibold text-slate-400">No alternative meals available</p>
                 </div>
               )}
             </div>
@@ -671,19 +725,20 @@ export default function CoachPrograms() {
       )}
 
       {scheduleTarget && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end justify-center pb-24" onClick={() => setScheduleTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 pb-[env(safe-area-inset-bottom)]" onClick={() => setScheduleTarget(null)}>
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-t-[28px] flex flex-col shadow-2xl"
+            className="flex w-full max-w-[430px] flex-col rounded-t-[34px] bg-white shadow-[0_-18px_44px_rgba(15,23,42,0.18)]"
           >
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
+            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-slate-200" />
+            <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
               <div>
-                <h2 className="text-[16px] font-extrabold text-slate-950">Select Delivery Time</h2>
-                <p className="text-[11px] text-slate-400">
-                  {scheduleTarget.type} &middot;{" "}
+                <h2 className="text-[20px] font-black text-slate-950">Select Delivery Time</h2>
+                <p className="mt-1 text-[12px] font-semibold text-slate-400">
+                  {scheduleTarget.type} ·{" "}
                   {new Date(scheduleTarget.date).toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",
@@ -691,19 +746,19 @@ export default function CoachPrograms() {
                   })}
                 </p>
               </div>
-              <button onClick={() => setScheduleTarget(null)} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
-                <X className="w-4 h-4 text-slate-500" />
+              <button onClick={() => setScheduleTarget(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100">
+                <X className="h-4 w-4 text-slate-500" />
               </button>
             </div>
-            <div className="px-4 pb-20 space-y-2">
+            <div className="space-y-2 px-4 pb-8">
               {["7:00 AM", "8:00 AM", "9:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "5:00 PM", "6:00 PM", "7:00 PM"].map((slot) => (
                 <button
                   key={slot}
                   onClick={() => handleScheduleMeal(slot)}
-                  className="w-full bg-slate-50 rounded-2xl p-3 flex items-center gap-3 text-left active:scale-[0.98] transition-transform hover:bg-slate-100"
+                  className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl bg-slate-50 px-4 text-left transition-transform hover:bg-slate-100 active:scale-[0.98]"
                 >
-                  <Clock className="w-4 h-4 text-emerald-500" />
-                  <span className="text-[14px] font-bold text-slate-800">{slot}</span>
+                  <Clock className="h-4 w-4 text-emerald-500" />
+                  <span className="text-[15px] font-black text-slate-800">{slot}</span>
                 </button>
               ))}
             </div>

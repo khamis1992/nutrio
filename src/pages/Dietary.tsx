@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ArrowLeft, Check, Leaf, Loader2, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDietTags } from "@/hooks/useDietTags";
@@ -121,95 +119,104 @@ const Dietary = () => {
   }, [fetchDietaryDataCb]);
 
   const isLoading = dietaryLoading || dietTagsLoading;
+  const selectedDietCount = dietTags.filter((tag) => userDietPreferences.includes(tag.id)).length;
+  const selectedAllergyCount = allergyTags.filter((tag) => userDietPreferences.includes(tag.id)).length;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 pt-safe">
-        <div className="flex items-center gap-3 px-4 py-4 rtl:flex-row-reverse">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-lg font-semibold">{t("dietary_and_allergies")}</h1>
-            <p className="text-xs text-muted-foreground">{t("manage_dietary_preferences")}</p>
+    <div className="min-h-screen bg-[#F7FAF8] pb-24">
+      <div className="sticky top-0 z-20 bg-[#F7FAF8]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[78px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 active:scale-95"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" strokeWidth={2.1} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-600">Nutrio</p>
+            <h1 className="truncate text-[23px] font-black leading-tight text-slate-950">{t("dietary_and_allergies")}</h1>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6 max-w-2xl mx-auto">
+      <div className="mx-auto max-w-[430px] space-y-4 px-4 py-4">
+        <section className="overflow-hidden rounded-[34px] bg-white shadow-[0_18px_42px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
+          <div className="flex items-start justify-between gap-4 px-5 pb-5 pt-5">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-600">
+                {t("manage_dietary_preferences")}
+              </p>
+              <h2 className="mt-2 text-[28px] font-black leading-tight text-slate-950">
+                Personalize meals
+              </h2>
+              <p className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-500">
+                Choose what fits your lifestyle and flag ingredients to avoid.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-px bg-slate-100">
+            <div className="bg-white px-4 py-3">
+              <p className="text-[23px] font-black leading-none text-slate-950">{selectedDietCount}</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">{t("dietary_preferences")}</p>
+            </div>
+            <div className="bg-white px-4 py-3">
+              <p className="text-[23px] font-black leading-none text-slate-950">{selectedAllergyCount}</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-700">{t("allergies_and_intolerances")}</p>
+            </div>
+          </div>
+        </section>
+
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="flex justify-center rounded-[28px] bg-white py-14 shadow-[0_14px_34px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+            <Loader2 className="h-7 w-7 animate-spin text-emerald-500" />
           </div>
         ) : (
           <>
-            {/* Dietary Preferences */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">{t("dietary_preferences")}</CardTitle>
-                <CardDescription>{t("select_dietary_styles")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {dietTags.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("no_dietary_tags_available")}</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {dietTags.map(tag => {
-                      const isSelected = userDietPreferences.includes(tag.id);
-                      const translatedName = getTranslatedTagName(tag.name);
-                      return (
-                        <button
-                          key={tag.id}
-                          onClick={() => toggleDietPreference(tag.id)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all duration-200",
-                            isSelected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                          )}
-                        >
-                          {isSelected && <Check className="w-3 h-3" />}
-                          {translatedName}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <PreferenceSection
+              title={t("dietary_preferences")}
+              description={t("select_dietary_styles")}
+              icon={<Leaf className="h-5 w-5" />}
+              tone="emerald"
+              emptyText={t("no_dietary_tags_available")}
+            >
+              {dietTags.map(tag => {
+                const isSelected = userDietPreferences.includes(tag.id);
+                const translatedName = getTranslatedTagName(tag.name);
+                return (
+                  <PreferenceChip
+                    key={tag.id}
+                    selected={isSelected}
+                    label={translatedName}
+                    tone="emerald"
+                    onClick={() => toggleDietPreference(tag.id)}
+                  />
+                );
+              })}
+            </PreferenceSection>
 
-            {/* Allergies & Intolerances */}
             {allergyTags.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">{t("allergies_and_intolerances")}</CardTitle>
-                  <CardDescription>{t("select_food_allergies")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {allergyTags.map(tag => {
-                      const isSelected = userDietPreferences.includes(tag.id);
-                      const translatedName = getTranslatedTagName(tag.name);
-                      return (
-                        <button
-                          key={tag.id}
-                          onClick={() => toggleDietPreference(tag.id)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all duration-200",
-                            isSelected
-                              ? "border-amber-500 bg-amber-500 text-white"
-                              : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400"
-                          )}
-                        >
-                          {isSelected && <Check className="w-3 h-3" />}
-                          {translatedName}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+              <PreferenceSection
+                title={t("allergies_and_intolerances")}
+                description={t("select_food_allergies")}
+                icon={<ShieldAlert className="h-5 w-5" />}
+                tone="amber"
+              >
+                {allergyTags.map(tag => {
+                  const isSelected = userDietPreferences.includes(tag.id);
+                  const translatedName = getTranslatedTagName(tag.name);
+                  return (
+                    <PreferenceChip
+                      key={tag.id}
+                      selected={isSelected}
+                      label={translatedName}
+                      tone="amber"
+                      onClick={() => toggleDietPreference(tag.id)}
+                    />
+                  );
+                })}
+              </PreferenceSection>
             )}
           </>
         )}
@@ -217,5 +224,76 @@ const Dietary = () => {
     </div>
   );
 };
+
+function PreferenceSection({
+  title,
+  description,
+  icon,
+  tone,
+  emptyText,
+  children,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  tone: "emerald" | "amber";
+  emptyText?: string;
+  children: React.ReactNode;
+}) {
+  const toneClass = tone === "emerald" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600";
+
+  return (
+    <section className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.055)] ring-1 ring-slate-100">
+      <div className="mb-4 flex items-start gap-3">
+        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl", toneClass)}>
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[18px] font-black leading-tight text-slate-950">{title}</h3>
+          <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-500">{description}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {children}
+      </div>
+      {emptyText && !children ? (
+        <p className="text-[13px] font-semibold text-slate-400">{emptyText}</p>
+      ) : null}
+    </section>
+  );
+}
+
+function PreferenceChip({
+  selected,
+  label,
+  tone,
+  onClick,
+}: {
+  selected: boolean;
+  label: string;
+  tone: "emerald" | "amber";
+  onClick: () => void;
+}) {
+  const selectedClass = tone === "emerald"
+    ? "bg-emerald-600 text-white shadow-[0_10px_18px_rgba(16,185,129,0.18)]"
+    : "bg-amber-500 text-white shadow-[0_10px_18px_rgba(245,158,11,0.18)]";
+  const idleClass = tone === "emerald"
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+    : "bg-amber-50 text-amber-700 ring-amber-100";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex min-h-[42px] items-center gap-1.5 rounded-full px-4 text-[13px] font-black ring-1 transition-transform active:scale-95",
+        selected ? selectedClass : idleClass,
+      )}
+    >
+      {selected ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
+      {label}
+    </button>
+  );
+}
 
 export default Dietary;

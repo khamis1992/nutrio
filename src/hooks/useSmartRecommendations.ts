@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getLatestAbnormalMarkers } from "@/services/blood-work";
+import { getAbnormalMarkerTags, type HealthTag } from "@/lib/meal-health-tagger";
 
 interface SmartRecommendation {
   id: string;
-  category: "nutrition" | "hydration" | "activity" | "sleep" | "general";
+  category: "nutrition" | "hydration" | "activity" | "sleep" | "general" | "blood";
   priority: "high" | "medium" | "low";
   title: string;
   description: string;
@@ -31,7 +33,7 @@ export function useSmartRecommendations(userId: string | undefined) {
         .split("T")[0];
 
       // Fetch real weekly logs directly (always populated)
-      const [logsRes, waterRes, goalRes, streakRes] = await Promise.all([
+      const [logsRes, waterRes, goalRes, streakRes, abnormalMarkers] = await Promise.all([
         supabase
           .from("progress_logs")
           .select("log_date, calories_consumed, protein_consumed_g, carbs_consumed_g, fat_consumed_g")
@@ -53,12 +55,14 @@ export function useSmartRecommendations(userId: string | undefined) {
           .from("user_streaks")
           .select("streak_type, current_streak, best_streak")
           .eq("user_id", userId),
+        getLatestAbnormalMarkers(userId),
       ]);
 
       const logs = logsRes.data || [];
       const waterLogs = waterRes.data || [];
       const goal = goalRes.data;
       const streaks = streakRes.data || [];
+      const bloodMarkers = abnormalMarkers || [];
 
       const recs: SmartRecommendation[] = [];
 
@@ -92,6 +96,40 @@ export function useSmartRecommendations(userId: string | undefined) {
       const bestStreak = loggingStreak?.best_streak || 0;
 
       // ─── High Priority ──────────────────────────────────────────────
+
+      const bloodRecMap: Record<string, { title: string; desc: string; link: string }> = {
+        "vitamin d": { title: "Low Vitamin D", desc: "Add fatty fish, eggs, and fortified milk. Get 15 min sunlight daily.", link: "/meals?filter=vitamin-d-rich" },
+        "ldl": { title: "High LDL Cholesterol", desc: "Reduce saturated fats. Add oats, legumes, and apples for soluble fiber.", link: "/meals?filter=heart-healthy" },
+        "total cholesterol": { title: "High Cholesterol", desc: "Reduce saturated fats. Add oats, legumes, and apples for soluble fiber.", link: "/meals?filter=heart-healthy" },
+        "triglycerides": { title: "High Triglycerides", desc: "Reduce refined carbs and sugars. Add omega-3 rich foods.", link: "/meals?filter=heart-healthy" },
+        "glucose": { title: "High Blood Sugar", desc: "Reduce sugars and simple carbs. Pair carbs with protein and fiber at every meal.", link: "/meals?filter=low-glycemic" },
+        "hba1c": { title: "Elevated HbA1c", desc: "Focus on low-glycemic foods. Reduce refined sugars and increase fiber intake.", link: "/meals?filter=low-glycemic" },
+        "fasting glucose": { title: "High Fasting Glucose", desc: "Reduce evening carbs. Add protein and fiber to dinner.", link: "/meals?filter=low-glycemic" },
+        "hemoglobin": { title: "Abnormal Hemoglobin", desc: "Eat red meat, spinach, and lentils with vitamin C to improve absorption.", link: "/meals?filter=iron-rich" },
+        "iron": { title: "Low Iron", desc: "Add liver, lentils, and spinach. Avoid tea/coffee with meals.", link: "/meals?filter=iron-rich" },
+        "ferritin": { title: "Low Ferritin", desc: "Boost iron intake with red meat, lentils, and fortified cereals.", link: "/meals?filter=iron-rich" },
+        "vitamin b12": { title: "Low Vitamin B12", desc: "Add animal protein, eggs, and fortified foods to your meals.", link: "/meals?filter=b12-rich" },
+        "crp": { title: "Elevated Inflammation", desc: "Add anti-inflammatory foods: turmeric, berries, fatty fish, and leafy greens.", link: "/meals?filter=anti-inflammatory" },
+        "esr": { title: "Elevated Inflammation", desc: "Add anti-inflammatory foods: turmeric, berries, fatty fish, and leafy greens.", link: "/meals?filter=anti-inflammatory" },
+        "tsh": { title: "Thyroid Imbalance", desc: "Consult your endocrinologist. Add iodine-rich foods like fish and dairy.", link: "/health/dashboard" },
+      };
+
+      for (const marker of bloodMarkers) {
+        const key = marker.marker_name.toLowerCase();
+        const rec = bloodRecMap[key];
+        if (!rec) continue;
+        const tags = getAbnormalMarkerTags(marker.marker_name);
+        const filterParam = tags.length > 0 ? tags[0] : "";
+        recs.push({
+          id: `blood-${key}`,
+          category: "blood",
+          priority: marker.status === "critical" ? "high" : "high",
+          title: rec.title,
+          description: `${rec.desc} (${marker.value} ${marker.unit} — ${marker.status})`,
+          action_text: "View matching meals",
+          action_link: filterParam ? `/meals?filter=${filterParam}` : "/health/dashboard",
+        });
+      }
 
       if (daysLogged < 3) {
         recs.push({

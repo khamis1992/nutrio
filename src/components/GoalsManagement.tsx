@@ -44,8 +44,8 @@ interface DietTag {
 
 const goalTypes = [
   { value: "weight_loss", labelKey: "goal_weight_loss", icon: Flame, color: "text-orange-500" },
-  { value: "muscle_gain", labelKey: "goal_muscle_gain", icon: Target, color: "text-blue-500" },
-  { value: "maintenance", labelKey: "goal_maintenance", icon: Check, color: "text-green-500" },
+  { value: "muscle_gain", labelKey: "goal_muscle_gain", icon: Target, color: "text-teal-500" },
+  { value: "maintenance", labelKey: "goal_maintenance", icon: Check, color: "text-emerald-500" },
   { value: "general_health", labelKey: "goal_general_health", icon: Leaf, color: "text-emerald-500" },
 ];
 
@@ -138,11 +138,11 @@ const ActivityLevelCard = ({
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
       className={cn(
-        "relative w-full text-left p-4 rounded-xl transition-all duration-300",
-        "border-2 flex items-center gap-4",
+        "relative flex min-h-[72px] w-full items-center gap-4 rounded-3xl p-4 text-left transition-all duration-300",
+        "border",
         selected
-          ? "border-primary bg-primary/5 shadow-md"
-          : "border-border bg-card hover:border-primary/20 hover:bg-muted/50"
+          ? "border-emerald-300 bg-white shadow-[0_12px_30px_rgba(16,185,129,0.14)]"
+          : "border-emerald-900/10 bg-white/80 hover:border-emerald-200 hover:bg-white"
       )}
     >
       <div className="flex gap-1">
@@ -153,18 +153,18 @@ const ActivityLevelCard = ({
               "w-2 h-2 rounded-full transition-all duration-300",
               i < intensityDots[level]
                 ? selected
-                  ? "bg-primary"
-                  : "bg-primary/40"
-                : "bg-muted-foreground/20"
+                  ? "bg-[#24b893]"
+                  : "bg-emerald-300"
+                : "bg-emerald-950/10"
             )}
           />
         ))}
       </div>
       <div className="flex-1">
-        <p className={cn("font-medium", selected && "text-primary")}>
+        <p className={cn("font-extrabold text-emerald-950", selected && "text-[#12785f]")}>
           {activityLevelLabels[level].title}
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm font-medium text-emerald-950/55">
           {activityLevelLabels[level].description}
         </p>
       </div>
@@ -175,7 +175,7 @@ const ActivityLevelCard = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
           >
-            <Check className="w-5 h-5 text-primary" />
+            <Check className="h-5 w-5 text-[#24b893]" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -199,37 +199,37 @@ const HealthGoalCard = ({
     gain: Flame,
   };
   const colors = {
-    lose: "from-blue-500/20 to-cyan-500/20 text-blue-600",
-    maintain: "from-green-500/20 to-emerald-500/20 text-green-600",
-    gain: "from-amber-500/20 to-orange-500/20 text-amber-600",
+    lose: "bg-amber-50 text-amber-600",
+    maintain: "bg-emerald-50 text-emerald-600",
+    gain: "bg-teal-50 text-teal-600",
   };
   const Icon = icons[goal];
 
   return (
     <motion.button
-      whileHover={{ scale: 1.02, y: -2 }}
+      whileHover={{ scale: 1.01, y: -1 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden rounded-2xl p-5 transition-all duration-300",
-        "border-2 text-left",
+        "relative min-h-[132px] overflow-hidden rounded-3xl p-4 transition-all duration-300",
+        "border text-left",
         selected
-          ? "border-primary bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg shadow-primary/10"
-          : "border-border bg-card hover:border-primary/30 hover:shadow-md"
+          ? "border-emerald-300 bg-white shadow-[0_14px_35px_rgba(16,185,129,0.16)]"
+          : "border-emerald-900/10 bg-white/80 hover:border-emerald-200 hover:bg-white"
       )}
     >
       <div
         className={cn(
-          "w-12 h-12 rounded-xl flex items-center justify-center mb-3 bg-gradient-to-br",
+          "mb-3 flex h-11 w-11 items-center justify-center rounded-2xl",
           colors[goal]
         )}
       >
         <Icon className="w-6 h-6" />
       </div>
-      <p className="font-semibold text-foreground mb-1">
+      <p className="mb-1 text-sm font-extrabold text-emerald-950">
         {goalLabels[goal].title}
       </p>
-      <p className="text-sm text-muted-foreground leading-relaxed">
+      <p className="text-xs font-medium leading-relaxed text-emerald-950/55">
         {goalLabels[goal].description}
       </p>
       <AnimatePresence>
@@ -238,9 +238,9 @@ const HealthGoalCard = ({
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
+            className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-[#24b893]"
           >
-            <Check className="w-4 h-4 text-primary-foreground" />
+            <Check className="h-4 w-4 text-white" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -450,86 +450,86 @@ export const GoalsManagement = () => {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-48 w-full bg-muted animate-pulse rounded-lg" />
-        <div className="h-48 w-full bg-muted animate-pulse rounded-lg" />
+        <div className="h-48 w-full animate-pulse rounded-[28px] bg-white" />
+        <div className="h-48 w-full animate-pulse rounded-[28px] bg-white" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Active Goal Card */}
       {activeGoal && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
+        <Card className="overflow-hidden rounded-[28px] border-emerald-200/80 bg-white shadow-sm">
+          <CardHeader className="bg-[#e9f8f2] pb-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm">
                   {(() => {
                     const GoalIcon = getGoalTypeInfo(activeGoal.goal_type).icon;
                     return <GoalIcon className={cn("h-6 w-6", getGoalTypeInfo(activeGoal.goal_type).color)} />;
                   })()}
                 </div>
-                <div>
-                  <CardTitle className="text-lg">{t("goal_active")}</CardTitle>
-                  <CardDescription>
+                <div className="min-w-0">
+                  <CardTitle className="text-lg font-black text-emerald-950">{t("goal_active")}</CardTitle>
+                  <CardDescription className="truncate font-medium text-emerald-950/60">
                     {t(getGoalTypeInfo(activeGoal.goal_type).labelKey)}
                   </CardDescription>
                 </div>
               </div>
-              <Badge variant="default" className="bg-primary">{t("active")}</Badge>
+              <Badge className="shrink-0 rounded-full bg-[#24b893] px-3 py-1 text-white hover:bg-[#24b893]">{t("active")}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Targets Grid */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-background rounded-lg p-3">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <div className="rounded-2xl bg-[#fff8ed] p-3">
+                <div className="mb-1 flex items-center gap-2 text-amber-700">
                   <Flame className="h-4 w-4" />
                   <span className="text-xs">{t("nutrient_calories")}</span>
                 </div>
-                <p className="text-xl font-bold">{activeGoal.daily_calorie_target.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{t("kcal_per_day")}</p>
+                <p className="text-xl font-black text-emerald-950">{activeGoal.daily_calorie_target.toLocaleString()}</p>
+                <p className="text-xs font-medium text-emerald-950/50">{t("kcal_per_day")}</p>
               </div>
-              <div className="bg-background rounded-lg p-3">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <div className="rounded-2xl bg-[#eefaf6] p-3">
+                <div className="mb-1 flex items-center gap-2 text-[#12785f]">
                   <Target className="h-4 w-4" />
                   <span className="text-xs">{t("nutrient_protein")}</span>
                 </div>
-                <p className="text-xl font-bold">{activeGoal.protein_target_g}g</p>
-                <p className="text-xs text-muted-foreground">{t("per_day")}</p>
+                <p className="text-xl font-black text-emerald-950">{activeGoal.protein_target_g}g</p>
+                <p className="text-xs font-medium text-emerald-950/50">{t("per_day")}</p>
               </div>
-              <div className="bg-background rounded-lg p-3">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <div className="rounded-2xl bg-[#fbf7e8] p-3">
+                <div className="mb-1 flex items-center gap-2 text-yellow-700">
                   <WheatIcon className="h-4 w-4" />
                   <span className="text-xs">{t("nutrient_carbs")}</span>
                 </div>
-                <p className="text-xl font-bold">{activeGoal.carbs_target_g}g</p>
-                <p className="text-xs text-muted-foreground">{t("per_day")}</p>
+                <p className="text-xl font-black text-emerald-950">{activeGoal.carbs_target_g}g</p>
+                <p className="text-xs font-medium text-emerald-950/50">{t("per_day")}</p>
               </div>
-              <div className="bg-background rounded-lg p-3">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <div className="rounded-2xl bg-[#eff8fb] p-3">
+                <div className="mb-1 flex items-center gap-2 text-teal-700">
                   <Droplet className="h-4 w-4" />
                   <span className="text-xs">{t("nutrient_fat")}</span>
                 </div>
-                <p className="text-xl font-bold">{activeGoal.fat_target_g}g</p>
-                <p className="text-xs text-muted-foreground">{t("per_day")}</p>
+                <p className="text-xl font-black text-emerald-950">{activeGoal.fat_target_g}g</p>
+                <p className="text-xs font-medium text-emerald-950/50">{t("per_day")}</p>
               </div>
             </div>
 
             {/* Target Weight & Date */}
             {(activeGoal.target_weight_kg || activeGoal.target_date) && (
-              <div className="flex gap-4 pt-2 border-t">
+              <div className="flex gap-4 border-t border-emerald-900/10 pt-2">
                 {activeGoal.target_weight_kg && (
                   <div>
-                    <p className="text-xs text-muted-foreground">{t("target_weight")}</p>
-                    <p className="font-medium">{activeGoal.target_weight_kg} kg</p>
+                    <p className="text-xs font-medium text-emerald-950/50">{t("target_weight")}</p>
+                    <p className="font-extrabold text-emerald-950">{activeGoal.target_weight_kg} kg</p>
                   </div>
                 )}
                 {activeGoal.target_date && (
                   <div>
-                    <p className="text-xs text-muted-foreground">{t("target_date")}</p>
-                    <p className="font-medium">{format(new Date(activeGoal.target_date), "MMM d, yyyy")}</p>
+                    <p className="text-xs font-medium text-emerald-950/50">{t("target_date")}</p>
+                    <p className="font-extrabold text-emerald-950">{format(new Date(activeGoal.target_date), "MMM d, yyyy")}</p>
                   </div>
                 )}
               </div>
@@ -541,20 +541,20 @@ export const GoalsManagement = () => {
 
 
       {/* Health Goal */}
-      <Card>
+      <Card className="rounded-[28px] border-emerald-200/80 bg-white/85 shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-amber-500" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50">
+              <Flame className="h-5 w-5 text-amber-500" />
             </div>
-            <div>
-              <CardTitle className="text-lg">{t("health_goal_title")}</CardTitle>
-              <CardDescription>{t("health_goal_description")}</CardDescription>
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-black text-emerald-950">{t("health_goal_title")}</CardTitle>
+              <CardDescription className="font-medium text-emerald-950/55">{t("health_goal_description")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {(["lose", "maintain", "gain"] as Goal[]).map((g) => (
               <HealthGoalCard
                 key={g}
@@ -568,19 +568,19 @@ export const GoalsManagement = () => {
       </Card>
 
       {/* Activity Level */}
-      <Card>
+      <Card className="rounded-[28px] border-emerald-200/80 bg-white/85 shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-green-500" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+              <Activity className="h-5 w-5 text-emerald-500" />
             </div>
-            <div>
-              <CardTitle className="text-lg">{t("activity_level_title")}</CardTitle>
-              <CardDescription>{t("activity_level_description")}</CardDescription>
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-black text-emerald-950">{t("activity_level_title")}</CardTitle>
+              <CardDescription className="font-medium text-emerald-950/55">{t("activity_level_description")}</CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {(["sedentary", "light", "moderate", "active", "very_active"] as ActivityLevel[]).map((a) => (
             <ActivityLevelCard
               key={a}
@@ -597,7 +597,7 @@ export const GoalsManagement = () => {
         <Button
           onClick={saveBodyMetrics}
           disabled={savingProfile}
-          className="w-full h-12 rounded-xl text-base font-medium"
+          className="h-[52px] w-full rounded-2xl bg-[#103f32] text-base font-extrabold text-white shadow-[0_14px_32px_rgba(16,63,50,0.20)] hover:bg-[#103f32]/95 active:scale-[0.99]"
         >
           {savingProfile ? (
             <>
@@ -618,39 +618,47 @@ export const GoalsManagement = () => {
 
       {/* Previous Goals */}
       {goals.length > 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t("previous_goals_title")}</CardTitle>
-            <CardDescription>{t("previous_goals_description")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {goals
-                .filter((g) => g.id !== activeGoal?.id)
-                .map((goal) => {
-                  const GoalIcon = getGoalTypeInfo(goal.goal_type).icon;
-                  return (
-                    <div
-                      key={goal.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                          <GoalIcon className={cn("h-5 w-5", getGoalTypeInfo(goal.goal_type).color)} />
-                        </div>
-                        <div>
-                          <p className="font-medium">{t(getGoalTypeInfo(goal.goal_type).labelKey)}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {goal.daily_calorie_target.toLocaleString()} {t("kcal_per_day")}
-                          </p>
-                        </div>
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-3 px-1">
+            <div className="min-w-0">
+              <h3 className="text-base font-black text-emerald-950">{t("previous_goals_title")}</h3>
+              <p className="truncate text-xs font-medium text-emerald-950/50">{goals.length - 1} saved</p>
+            </div>
+          </div>
+
+          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {goals
+              .filter((g) => g.id !== activeGoal?.id)
+              .map((goal) => {
+                const GoalIcon = getGoalTypeInfo(goal.goal_type).icon;
+                return (
+                  <div
+                    key={goal.id}
+                    className="min-w-[176px] snap-start rounded-3xl border border-emerald-200/80 bg-white p-3 shadow-sm"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#f3faf6]">
+                        <GoalIcon className={cn("h-[18px] w-[18px]", getGoalTypeInfo(goal.goal_type).color)} />
+                      </div>
+                      <p className="min-w-0 truncate text-sm font-extrabold text-emerald-950">
+                        {t(getGoalTypeInfo(goal.goal_type).labelKey)}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl bg-[#fff8ed] px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">{t("nutrient_calories")}</p>
+                        <p className="text-sm font-black text-emerald-950">{goal.daily_calorie_target.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-2xl bg-[#eefaf6] px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-[#12785f]">{t("nutrient_protein")}</p>
+                        <p className="text-sm font-black text-emerald-950">{goal.protein_target_g}g</p>
                       </div>
                     </div>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
+                  </div>
+                );
+              })}
+          </div>
+        </section>
       )}
 
       {/* Create New Goal Button */}
@@ -670,12 +678,12 @@ export const GoalsManagement = () => {
         }
       }}>
         <DialogTrigger asChild>
-          <Button className="w-full h-12 text-base font-medium" size="lg">
+          <Button className="h-[52px] w-full rounded-2xl border border-emerald-200 bg-white text-base font-extrabold text-emerald-950 shadow-sm hover:bg-emerald-50" size="lg">
             <Plus className="w-5 h-5 mr-2" />
             {t("goal_create_new")}
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto rounded-[28px]">
           <DialogHeader>
             <DialogTitle>{t("create_new_nutrition_goal")}</DialogTitle>
             <DialogDescription>
