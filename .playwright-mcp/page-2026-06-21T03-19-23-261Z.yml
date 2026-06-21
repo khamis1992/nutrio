@@ -1,0 +1,28 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img "Nutrio"
+      - img [ref=e6]
+    - navigation [ref=e8]:
+      - generic [ref=e10]:
+        - link "Home" [ref=e11] [cursor=pointer]:
+          - /url: /nutrio/dashboard
+          - generic [ref=e12]:
+            - img [ref=e14]
+            - generic [ref=e17]: Home
+        - link "Meals" [ref=e18] [cursor=pointer]:
+          - /url: /nutrio/meals
+          - generic [ref=e19]:
+            - img [ref=e21]
+            - generic [ref=e26]: Meals
+        - link "Schedule" [ref=e27] [cursor=pointer]:
+          - /url: /nutrio/schedule
+          - generic [ref=e28]:
+            - img [ref=e30]
+            - generic [ref=e32]: Schedule
+        - link "Profile" [ref=e33] [cursor=pointer]:
+          - /url: /nutrio/profile
+          - generic [ref=e34]:
+            - img [ref=e36]
+            - generic [ref=e39]: Profile

@@ -1,0 +1,50 @@
+- generic [active]:
+  - generic:
+    - region "Notifications alt+T"
+    - generic [ref=e1]:
+      - banner [ref=e2]:
+        - generic [ref=e3]:
+          - img "Nutrio Fuel" [ref=e5]
+          - generic [ref=e6]:
+            - paragraph [ref=e7]: NUTRIO
+            - paragraph [ref=e8]: Fuel better
+        - button "Skip" [ref=e9] [cursor=pointer]
+      - main [ref=e10]:
+        - generic [ref=e11]:
+          - generic [ref=e13]:
+            - generic [ref=e22]:
+              - img [ref=e24]
+              - generic [ref=e26]:
+                - paragraph [ref=e27]: "4.9"
+                - paragraph [ref=e28]: rated meals
+            - generic [ref=e29]:
+              - generic [ref=e30]:
+                - img [ref=e32]
+                - generic [ref=e37]:
+                  - paragraph [ref=e38]: Keto Green Bowl
+                  - paragraph [ref=e39]: Delivered by 12:30 PM
+              - generic [ref=e40]:
+                - generic [ref=e41]:
+                  - paragraph [ref=e42]: 38g
+                  - paragraph [ref=e43]: protein
+                - generic [ref=e44]:
+                  - paragraph [ref=e45]: "420"
+                  - paragraph [ref=e46]: kcal
+                - generic [ref=e47]:
+                  - paragraph [ref=e48]: 18g
+                  - paragraph [ref=e49]: carbs
+          - generic [ref=e50]:
+            - generic [ref=e51]:
+              - generic [ref=e52]:
+                - img [ref=e53]
+                - text: Fresh daily plans
+              - img [ref=e56]
+            - heading "Healthy meals made for your routine" [level=1] [ref=e59]
+            - paragraph [ref=e60]: Chef-prepared bowls, wraps, and protein packs delivered across Qatar exactly when you need them.
+            - generic [ref=e61]:
+              - button "Go to onboarding page 1" [ref=e62] [cursor=pointer]
+              - button "Go to onboarding page 2" [ref=e63] [cursor=pointer]
+              - button "Go to onboarding page 3" [ref=e64] [cursor=pointer]
+            - button "Next" [ref=e66] [cursor=pointer]:
+              - text: Next
+              - img [ref=e67]

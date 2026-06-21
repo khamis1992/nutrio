@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Actions - Variation 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+    <div class="max-w-md mx-auto">
+        <h2 class="text-base font-semibold text-black mb-4">Quick Actions</h2>
+
+        <div class="grid grid-cols-1 gap-3">
+            <!-- Update Goals -->
+            <button class="relative overflow-hidden bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all text-left group">
+                <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                <div class="flex items-start justify-between">
+                    <div class="flex gap-4">
+                        <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="12" cy="12" r="6"/>
+                                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-black">Update Goals</p>
+                            <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">Refresh your daily targets when your fitness goals change.</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300 group-hover:text-emerald-500 transition-colors mt-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </button>
+
+            <!-- View Meal Plan -->
+            <button class="relative overflow-hidden bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all text-left group">
+                <div class="absolute top-0 left-0 w-1 h-full bg-sky-500"></div>
+                <div class="flex items-start justify-between">
+                    <div class="flex gap-4">
+                        <div class="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M12 2v20M2 12h20"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-black">View Meal Plan</p>
+                            <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">See your AI-curated weekly menu at a glance.</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300 group-hover:text-sky-500 transition-colors mt-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </button>
+
+            <!-- Log Weight -->
+            <button class="relative overflow-hidden bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all text-left group">
+                <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+                <div class="flex items-start justify-between">
+                    <div class="flex gap-4">
+                        <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <rect x="4" y="6" width="16" height="10" rx="2"/>
+                                <path d="M8 20h8"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-black">Log Weight</p>
+                            <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">Track weigh-ins to see real progress over time.</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-300 group-hover:text-amber-500 transition-colors mt-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </button>
+        </div>
+    </div>
+</body>
+</html>
