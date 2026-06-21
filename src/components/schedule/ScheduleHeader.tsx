@@ -91,20 +91,20 @@ const ScheduleHeader = ({
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-100">
+            <div className="flex min-h-[94px] flex-col items-center justify-center rounded-[18px] bg-slate-50 p-3 text-center ring-1 ring-slate-100">
               <Utensils className="mb-2 h-4 w-4 text-emerald-600" />
-              <p className="text-[20px] font-black tabular-nums text-slate-950">{dailyNutrition.total}</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">meals</p>
+              <p className="w-full text-[20px] font-black tabular-nums text-slate-950">{dailyNutrition.total}</p>
+              <p className="w-full text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">meals</p>
             </div>
-            <div className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-100">
+            <div className="flex min-h-[94px] flex-col items-center justify-center rounded-[18px] bg-slate-50 p-3 text-center ring-1 ring-slate-100">
               <Flame className="mb-2 h-4 w-4 text-amber-600" />
-              <p className="text-[20px] font-black tabular-nums text-slate-950">{dailyNutrition.calories.toLocaleString()}</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">kcal</p>
+              <p className="w-full text-[20px] font-black tabular-nums text-slate-950">{dailyNutrition.calories.toLocaleString()}</p>
+              <p className="w-full text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">kcal</p>
             </div>
-            <div className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-100">
+            <div className="flex min-h-[94px] flex-col items-center justify-center rounded-[18px] bg-slate-50 p-3 text-center ring-1 ring-slate-100">
               <CalendarDays className="mb-2 h-4 w-4 text-sky-600" />
-              <p className="text-[20px] font-black tabular-nums text-slate-950">{dailyNutrition.completed}/{dailyNutrition.total}</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">done</p>
+              <p className="w-full text-[20px] font-black tabular-nums text-slate-950">{dailyNutrition.completed}/{dailyNutrition.total}</p>
+              <p className="w-full text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">done</p>
             </div>
           </div>
         </motion.div>

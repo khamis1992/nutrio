@@ -14,23 +14,23 @@ interface DriverMarkerProps {
 const SCOOTER_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36">
   <!-- Body -->
-  <rect x="22" y="18" width="20" height="28" rx="6" fill="#16a34a"/>
+  <rect x="22" y="18" width="20" height="28" rx="6" fill="#020617"/>
   <!-- Windshield -->
-  <rect x="26" y="20" width="12" height="8" rx="3" fill="#bbf7d0" opacity="0.9"/>
+  <rect x="26" y="20" width="12" height="8" rx="3" fill="#e2e8f0" opacity="0.9"/>
   <!-- Front wheel -->
-  <ellipse cx="32" cy="10" rx="5" ry="7" fill="#15803d"/>
-  <ellipse cx="32" cy="10" rx="2.5" ry="4" fill="#4ade80"/>
+  <ellipse cx="32" cy="10" rx="5" ry="7" fill="#0f172a"/>
+  <ellipse cx="32" cy="10" rx="2.5" ry="4" fill="#94a3b8"/>
   <!-- Rear wheel -->
-  <ellipse cx="32" cy="54" rx="5" ry="7" fill="#15803d"/>
-  <ellipse cx="32" cy="54" rx="2.5" ry="4" fill="#4ade80"/>
+  <ellipse cx="32" cy="54" rx="5" ry="7" fill="#0f172a"/>
+  <ellipse cx="32" cy="54" rx="2.5" ry="4" fill="#94a3b8"/>
   <!-- Handlebars -->
-  <rect x="16" y="14" width="10" height="3" rx="1.5" fill="#15803d"/>
-  <rect x="38" y="14" width="10" height="3" rx="1.5" fill="#15803d"/>
+  <rect x="16" y="14" width="10" height="3" rx="1.5" fill="#0f172a"/>
+  <rect x="38" y="14" width="10" height="3" rx="1.5" fill="#0f172a"/>
   <!-- Headlight -->
   <ellipse cx="32" cy="6" rx="3" ry="2" fill="#fef08a" opacity="0.95"/>
   <!-- Bag/box on back -->
-  <rect x="24" y="36" width="16" height="10" rx="3" fill="#166534"/>
-  <rect x="26" y="38" width="12" height="6" rx="2" fill="#4ade80" opacity="0.5"/>
+  <rect x="24" y="36" width="16" height="10" rx="3" fill="#111827"/>
+  <rect x="26" y="38" width="12" height="6" rx="2" fill="#cbd5e1" opacity="0.5"/>
 </svg>`;
 
 function createDriverIcon(heading: number = 0) {
@@ -43,9 +43,9 @@ function createDriverIcon(heading: number = 0) {
       <!-- Outer glow ring -->
       <div style="
         position:absolute; inset:0;
-        background:rgba(22,163,74,0.18);
+        background:rgba(2,6,23,0.14);
         border-radius:50%;
-        border:2px solid rgba(22,163,74,0.35);
+        border:2px solid rgba(2,6,23,0.28);
       "></div>
       <!-- White pill badge -->
       <div style="
@@ -54,7 +54,7 @@ function createDriverIcon(heading: number = 0) {
         border-radius:50%;
         width:40px; height:40px;
         display:flex; align-items:center; justify-content:center;
-        box-shadow:0 3px 12px rgba(0,0,0,0.22), 0 0 0 2px #16a34a;
+        box-shadow:0 3px 12px rgba(0,0,0,0.22), 0 0 0 2px #020617;
         transform:rotate(${heading}deg);
         transition:transform 0.3s ease-out;
       ">
@@ -85,15 +85,15 @@ function createPulseIcon(heading: number = 0) {
       <!-- Animated ping ring -->
       <div class="drv-ping" style="
         position:absolute; inset:0;
-        background:rgba(74,222,128,0.4);
+        background:rgba(2,6,23,0.24);
         border-radius:50%;
       "></div>
       <!-- Static halo -->
       <div style="
         position:absolute; inset:4px;
-        background:rgba(22,163,74,0.15);
+        background:rgba(2,6,23,0.12);
         border-radius:50%;
-        border:2px solid rgba(22,163,74,0.4);
+        border:2px solid rgba(2,6,23,0.3);
       "></div>
       <!-- White badge -->
       <div style="
@@ -102,7 +102,7 @@ function createPulseIcon(heading: number = 0) {
         border-radius:50%;
         width:44px; height:44px;
         display:flex; align-items:center; justify-content:center;
-        box-shadow:0 4px 16px rgba(0,0,0,0.25), 0 0 0 2.5px #16a34a;
+        box-shadow:0 4px 16px rgba(0,0,0,0.25), 0 0 0 2.5px #020617;
         transform:rotate(${heading}deg);
         transition:transform 0.3s ease-out;
       ">
@@ -145,7 +145,7 @@ export function DriverMarker({
             </div>
           )}
           {eta && (
-            <div className="text-primary font-medium">
+            <div className="font-medium text-[#020617]">
               ETA: {eta}
             </div>
           )}

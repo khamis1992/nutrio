@@ -113,12 +113,12 @@ const WeeklyProgressBar = ({
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-100">
+            <div key={stat.label} className="flex min-h-[108px] flex-col items-center justify-center rounded-[18px] bg-slate-50 p-3 text-center ring-1 ring-slate-100">
               <div className={`flex h-9 w-9 items-center justify-center rounded-2xl ${stat.tone}`}>
                 <Icon className="h-4 w-4" strokeWidth={2.5} />
               </div>
-              <p className="mt-3 truncate text-[16px] font-black tabular-nums text-slate-950">{stat.value}</p>
-              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{stat.label}</p>
+              <p className="mt-3 w-full truncate text-[16px] font-black tabular-nums text-slate-950">{stat.value}</p>
+              <p className="mt-0.5 w-full truncate text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">{stat.label}</p>
             </div>
           );
         })}

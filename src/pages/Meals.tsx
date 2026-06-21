@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { GuestLoginPrompt, useGuestLoginPrompt } from "@/components/GuestLoginPrompt";
+import { SmartRecommendations } from "@/components/SmartRecommendations";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavoriteRestaurants } from "@/hooks/useFavoriteRestaurants";
@@ -71,6 +72,9 @@ const CATEGORY_KEYWORDS: Record<MealCategory, string[]> = {
   dinner: ["dinner", "evening", "grill", "grilled", "bbq", "steak", "seafood"],
   snacks: ["snack", "snacks", "light", "dessert", "sweet", "vegan", "healthy", "protein", "fitness"],
 };
+
+const isMealCategory = (value: string | null): value is MealCategory =>
+  value === "all" || value === "breakfast" || value === "lunch" || value === "dinner" || value === "snacks";
 
 const restaurantTemplates: RestaurantTemplate[] = [
   {
@@ -257,19 +261,20 @@ const RestaurantCard = ({
           <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-[12px] font-bold">
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 text-emerald-700">
-            <Bike className="h-3.5 w-3.5" />
-            20-30 min
-          </span>
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-slate-100 px-2.5 text-slate-600">
-            <Utensils className="h-3.5 w-3.5" />
-            {restaurant.meals} meals
-          </span>
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 text-amber-700">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Macro checked
-          </span>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[
+            { Icon: Bike, value: "20-30", label: "min", tone: "text-sky-700" },
+            { Icon: Utensils, value: restaurant.meals, label: "meals", tone: "text-[#020617]" },
+            { Icon: ShieldCheck, value: "Macro", label: "checked", tone: "text-orange-700" },
+          ].map(({ Icon, value, label, tone }) => (
+            <div key={`${value}-${label}`} className="rounded-[16px] bg-white/75 px-2.5 py-2.5 ring-1 ring-slate-200/80 backdrop-blur">
+              <div className={`flex items-center gap-1.5 ${tone}`}>
+                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
+                <span className="truncate text-[13px] font-black leading-none">{value}</span>
+              </div>
+              <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-slate-400">{label}</p>
+            </div>
+          ))}
         </div>
       </div>
     </motion.article>
@@ -285,11 +290,14 @@ const RestaurantCard = ({
 };
 
 const Meals = () => {
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get("category");
+  const initialQuery = searchParams.get("q") || "";
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [featuredRestaurantIds, setFeaturedRestaurantIds] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<MealCategory>("all");
+  const [selectedCategory, setSelectedCategory] = useState<MealCategory>(isMealCategory(initialCategory) ? initialCategory : "all");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isFavorite, toggleFavorite } = useFavoriteRestaurants();
@@ -297,6 +305,13 @@ const Meals = () => {
   const { showLoginPrompt, setShowLoginPrompt, promptLogin, loginPromptConfig } = useGuestLoginPrompt();
   const { t, isRTL } = useLanguage();
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const category = searchParams.get("category");
+    const query = searchParams.get("q") || "";
+    setSelectedCategory(isMealCategory(category) ? category : "all");
+    setSearchQuery(query);
+  }, [searchParams]);
 
   const handleToggleFavorite = useCallback(
     (restaurantId: string | undefined, restaurantName: string) => {
@@ -497,44 +512,7 @@ const Meals = () => {
           </div>
         )}
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-stretch">
-          <div className="relative overflow-hidden rounded-[30px] bg-white p-5 text-slate-950 shadow-[0_18px_45px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 sm:p-7 lg:bg-slate-950 lg:text-white lg:shadow-[0_24px_70px_rgba(15,23,42,0.22)] lg:ring-0">
-            <img
-              src="/meals-header-illustration.png"
-              alt=""
-              className="absolute inset-y-0 right-0 hidden h-full w-[48%] object-cover opacity-60 mix-blend-screen lg:block"
-            />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(16,185,129,0.16),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(245,158,11,0.16),transparent_28%)] lg:bg-[radial-gradient(circle_at_12%_10%,rgba(16,185,129,0.45),transparent_32%),radial-gradient(circle_at_82%_20%,rgba(245,158,11,0.35),transparent_28%)]" />
-            <div className="relative max-w-2xl">
-              <span className="inline-flex h-9 items-center gap-2 rounded-full bg-emerald-50 px-3 text-[12px] font-extrabold uppercase tracking-[0.08em] text-emerald-700 ring-1 ring-emerald-100 backdrop-blur lg:bg-white/10 lg:text-emerald-100 lg:ring-white/15">
-                <Flame className="h-4 w-4 text-amber-300" />
-                Fresh in Doha
-              </span>
-              <h1 className="mt-5 max-w-[620px] text-[36px] font-black leading-[0.98] tracking-normal sm:text-[50px]">
-                Choose meals that match your day.
-              </h1>
-              <p className="mt-4 max-w-[540px] text-[15px] font-medium leading-relaxed text-slate-600 sm:text-[16px] lg:text-white/72">
-                Browse chef-made meals, compare nutrition signals, and schedule healthy delivery without leaving your plan.
-              </p>
-
-              <div className="mt-6 grid max-w-[520px] grid-cols-3 gap-2">
-                {[
-                  ["20-30", "min delivery"],
-                  ["fresh", "daily prep"],
-                  ["4.8", "avg rating"],
-                ].map(([value, label]) => (
-                  <div key={label} className="rounded-[18px] bg-slate-50 p-3 ring-1 ring-slate-200/80 backdrop-blur lg:bg-white/10 lg:ring-white/12">
-                    <p className="text-[22px] font-black tabular-nums">{value}</p>
-                    <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500 lg:text-white/55">{label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-        </section>
-
-        <section className="mt-5 rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+        <section className="rounded-[24px] bg-white p-3 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" strokeWidth={2.25} />

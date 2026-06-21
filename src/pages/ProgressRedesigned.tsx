@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ArrowDown,
   ArrowUp,
-  Brain,
   CalendarCheck,
   Check,
   ChevronRight,
@@ -44,9 +43,6 @@ import { useWaterIntake } from "@/hooks/useWaterIntake";
 import { useWeightChartData } from "@/hooks/useWeightChartData";
 import { useClientGoalProposals } from "@/hooks/useClientGoalProposals";
 import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
-import { useMealQuality } from "@/hooks/useMealQuality";
-import { useAIInsight } from "@/hooks/useAIInsight";
-import { AIInsightImageCard } from "@/components/progress/AIInsightImageCard";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useWeekdayData } from "@/hooks/useWeekdayData";
@@ -175,7 +171,11 @@ const goalTypeIcon: Record<string, LucideIcon> = {
   general_health: Leaf,
 };
 
-export default function ProgressRedesigned() {
+interface ProgressRedesignedProps {
+  embedded?: boolean;
+}
+
+export default function ProgressRedesigned({ embedded = false }: ProgressRedesignedProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useProfile();
@@ -202,40 +202,7 @@ export default function ProgressRedesigned() {
     rejectGoal: rejectCoachGoal,
   } = useClientGoalProposals(user?.id);
   const { recommendations: smartRecs, loading: smartRecsLoading, refresh: refreshRecs } = useSmartRecommendations(user?.id);
-  const { averageScore: mealQualityScore, weeklyQuality } = useMealQuality(user?.id);
   const { weightChartData: weightHistory } = useWeightChartData(user?.id);
-
-  const aiContext = useMemo(() => {
-    if (!weeklySummary) return null;
-    const weekScores = weeklyQuality.map((d) => d.avgScore);
-    const thisWeek = weekScores.length >= 3 ? weekScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(-3).length : mealQualityScore;
-    const lastWeek = weekScores.length >= 6 ? weekScores.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(0, 3).length : null;
-    return {
-      weeklyMacros: {
-        avgCalories: weeklySummary.calories?.thisWeekAvg ?? 0,
-        avgProtein: weeklySummary.macros?.protein?.consumed ?? 0,
-        avgCarbs: weeklySummary.macros?.carbs?.consumed ?? 0,
-        avgFat: weeklySummary.macros?.fat?.consumed ?? 0,
-      },
-      goals: {
-        calorieTarget: activeGoal?.daily_calorie_target ?? 2000,
-        proteinTarget: activeGoal?.protein_target_g ?? 120,
-        goalType: activeGoal?.goal_type ?? "general",
-      },
-      mealQuality: {
-        avgScore: Math.round(thisWeek),
-        trend: lastWeek && lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : null,
-      },
-      streak: {
-        current: streaks?.logging?.currentStreak ?? 2,
-        best: streaks?.logging?.bestStreak ?? 2,
-      },
-      daysLogged: weeklySummary?.consistency?.daysLogged ?? 0,
-      waterAvg: waterSummary?.total ?? 0,
-    };
-  }, [weeklySummary, weeklyQuality, mealQualityScore, activeGoal, streaks, waterSummary]);
-
-  const { insight: aiInsight, loading: aiInsightLoading } = useAIInsight(user?.id, aiContext);
   const [isApplyingSuggestion, setIsApplyingSuggestion] = useState(false);
   const [isLoggingWeight, setIsLoggingWeight] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -244,7 +211,6 @@ export default function ProgressRedesigned() {
   const currentWeight = profile?.current_weight_kg ?? 75;
   const goalWeight = activeGoal?.target_weight_kg ?? currentWeight;
   const height = profile?.height_cm ?? 175;
-  const firstName = profile?.full_name?.split(" ")[0] ?? "Adam";
   const goalType = activeGoal?.goal_type ?? "weight_loss";
   const goalName = t(goalTypeLabelKey[goalType] ?? "goal_weight_loss");
   const weightDiff = Math.abs(currentWeight - goalWeight);
@@ -454,9 +420,41 @@ export default function ProgressRedesigned() {
     toast({ description: "-1 glass", duration: 1200 });
   };
 
+  if (isLoading) {
+    return (
+      <main className={embedded ? "text-[#101827]" : "min-h-screen bg-[#FAFBFC] text-[#101827]"}>
+        <div className={embedded ? "w-full" : "mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-20 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]"}>
+          {!embedded && (
+            <div className="mb-6 flex items-center justify-between px-0.5">
+              <div className="h-10 w-10 rounded-full bg-slate-100" />
+              <div className="h-6 w-28 rounded-full bg-slate-100" />
+              <div className="h-10 w-10 rounded-full bg-slate-100" />
+            </div>
+          )}
+          <div className="animate-pulse space-y-4">
+            <div className="grid h-[58px] grid-cols-3 gap-1 rounded-full bg-slate-100 p-1">
+              <div className="rounded-full bg-white" />
+              <div className="rounded-full bg-slate-200/70" />
+              <div className="rounded-full bg-slate-200/70" />
+            </div>
+            <div className="h-20 rounded-[24px] bg-slate-100" />
+            <div className="h-72 rounded-[28px] bg-slate-100" />
+            <div className="grid grid-cols-4 gap-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-24 rounded-[18px] bg-slate-100" />
+              ))}
+            </div>
+            <div className="h-36 rounded-[24px] bg-slate-100" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-[#FAFBFC] text-[#101827]">
-      <div className="mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-20 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
+    <main className={embedded ? "text-[#101827]" : "min-h-screen bg-[#FAFBFC] text-[#101827]"}>
+      <div className={embedded ? "w-full" : "mx-auto min-h-screen w-full max-w-[430px] bg-white px-5 pb-20 pt-[calc(env(safe-area-inset-top,0px)+20px)] shadow-[0_24px_80px_rgba(15,23,42,0.06)]"}>
+        {!embedded && (
         <header className="mb-6 flex items-center justify-between px-0.5">
           <button
             aria-label="Go back"
@@ -476,8 +474,9 @@ export default function ProgressRedesigned() {
             <CalendarCheck className="h-[26px] w-[26px]" strokeWidth={2.4} />
           </button>
         </header>
+        )}
 
-        {showCalendar && (
+        {!embedded && showCalendar && (
           <div className="mb-6 rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
             <label className="mb-2 block text-[13px] font-extrabold text-slate-700">{t("progress_select_date")}</label>
             <div className="flex items-center gap-3">
@@ -498,14 +497,14 @@ export default function ProgressRedesigned() {
           </div>
         )}
 
-        <div className="mb-6 grid h-[58px] grid-cols-3 rounded-full bg-[#F3F6FA] p-1 shadow-inner shadow-slate-200/60">
+        <div className={`${embedded ? "mb-4" : "mb-6"} grid h-[58px] grid-cols-3 rounded-full bg-[#F3F6FA] p-1 shadow-inner shadow-slate-200/60`}>
           {[{ key: "today", label: t("progress_today") }, { key: "week", label: t("progress_week") }, { key: "goals", label: t("progress_goals") }].map((tab) => {
             const tabKey = tab.key as "today" | "week" | "goals";
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tabKey)}
-                className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 ${activeTab === tabKey ? 'bg-white text-orange-600 shadow-[0_10px_22px_rgba(249,115,22,0.14)]' : 'text-slate-500'}`}
+                className={`rounded-full text-[14px] font-extrabold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${activeTab === tabKey ? 'bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)]' : 'text-slate-500'}`}
                 type="button"
               >
                 {tab.label}
@@ -531,55 +530,7 @@ export default function ProgressRedesigned() {
           const weeklyLoggedDays = weeklySummary?.consistency?.daysLogged ?? weekdayData.filter((d) => d.calories > 0).length;
           const weeklyConsistencyPct = weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
           const nutritionScore = Math.round((dailyPct * 0.38) + (proteinPct * 0.32) + (hydrationPct * 0.2) + (weeklyConsistencyPct * 0.1));
-          const hasTodayNutrition = calConsumed > 0 || proteinConsumed > 0 || carbsConsumed > 0 || fatConsumed > 0 || waterGlasses > 0;
-          const weeklyFallbackScore = weeklySummary
-            ? Math.round((
-                Math.min(100, Math.round(((weeklySummary.calories?.thisWeekAvg ?? 0) / calTarget) * 100)) +
-                (weeklySummary.macros?.protein?.percentage ?? 0) +
-                weeklyConsistencyPct
-              ) / 3)
-            : 0;
-          const realMealScore = mealQualityScore > 0
-            ? Math.round(mealQualityScore)
-            : hasTodayNutrition
-              ? nutritionScore
-              : weeklyFallbackScore;
-          const weeklyCaloriesPct = Math.min(100, Math.round(((weeklySummary?.calories?.thisWeekAvg ?? 0) / Math.max(calTarget, 1)) * 100));
-          const aiOverallScore = Math.round((
-            Math.min(realMealScore, 100) +
-            Math.min(weeklyConsistencyPct, 100) +
-            weeklyCaloriesPct +
-            hydrationPct
-          ) / 4);
-          const mealQualityScoreLabel = aiOverallScore >= 80 ? t("progress_good") : aiOverallScore >= 60 ? t("progress_moderate") : t("progress_needs_work");
-          const weekScores = weeklyQuality.map((d) => d.avgScore);
-          const hasFoodLogged = calConsumed > 0 || proteinConsumed > 0 || carbsConsumed > 0 || fatConsumed > 0;
-          const hasHydrationLogged = waterGlasses > 0 || hydrationPct > 0;
-          const hasWeeklyContext = Boolean(weeklySummary) || weeklyLoggedDays > 0 || weekScores.length > 0;
-          const aiConfidence = hasFoodLogged && activeGoal
-            ? 100
-            : Math.min(100, Math.round(
-                (hasFoodLogged ? 45 : 0) +
-                (activeGoal ? 25 : 0) +
-                (hasHydrationLogged ? 15 : 0) +
-                (hasWeeklyContext ? 15 : 0)
-              ));
-          const missingConfidenceInputs = [
-            !hasFoodLogged ? "log today's meal" : null,
-            !activeGoal ? "set a nutrition goal" : null,
-            !hasHydrationLogged ? "add water intake" : null,
-            !hasWeeklyContext ? "track a few days this week" : null,
-          ].filter(Boolean);
-          const confidenceExplanation = aiConfidence >= 100
-            ? "High confidence: today's food and your goal are available."
-            : `Lower confidence because we still need you to ${missingConfidenceInputs.join(", ")}.`;
-          const thisWeekAvg = weekScores.length >= 3 ? weekScores.slice(-3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(-3).length : realMealScore;
-          const lastWeekAvg = weekScores.length >= 6 ? weekScores.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / weekScores.slice(0, 3).length : null;
-          const scoreTrend = lastWeekAvg && lastWeekAvg > 0
-            ? Math.round(((thisWeekAvg - lastWeekAvg) / lastWeekAvg) * 100)
-            : null;
           const dayName = format(new Date(), "EEEE, MMMM d");
-          const streakDays = profile?.streak_days ?? 0;
           const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
           const todayIdx = (new Date().getDay() + 6) % 7;
           const loggedDates = new Set(
@@ -590,25 +541,6 @@ export default function ProgressRedesigned() {
 
           return (
             <>
-              <section className="mb-5 overflow-hidden rounded-[24px] border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-white p-4 shadow-[0_12px_28px_rgba(249,115,22,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-[19px] font-black tracking-[-0.03em] text-slate-950">
-                        {t("progress_greeting", { name: firstName })}
-                      </h2>
-                      <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-500">{t("progress_daily_overview")}</p>
-                    </div>
-                  </div>
-                  {(streaks.logging?.currentStreak ?? 0) > 0 && (
-                    <div className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-orange-500 px-3.5 text-white shadow-[0_8px_18px_rgba(249,115,22,0.22)]">
-                      <Flame className="h-4 w-4" />
-                      <span className="whitespace-nowrap text-[12px] font-black">{t("progress_day_streak", { count: streaks.logging?.currentStreak ?? 0 })}</span>
-                    </div>
-                  )}
-                </div>
-              </section>
-
               <section className="mb-5">
                 {activeGoal ? (
                   <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_32px_rgba(15,23,42,0.10)] ring-1 ring-slate-100">
@@ -828,20 +760,6 @@ export default function ProgressRedesigned() {
                   </div>
                 </section>
               ) : null}
-
-              {/* AI Insight */}
-              <AIInsightImageCard
-                score={aiOverallScore}
-                confidence={aiConfidence}
-                confidenceExplanation={confidenceExplanation}
-                mealQualityStatus={mealQualityScoreLabel}
-                summary={aiInsight || (scoreTrend !== null ? `${scoreTrend >= 0 ? '+' : ''}${scoreTrend}% vs last week` : "")}
-                proteinStatus={proteinPct >= 80 ? t("progress_on_track_status") : t("progress_improve")}
-                hydrationStatus={(waterSummary?.percentage ?? 0) >= 60 ? t("progress_on_track_status") : t("progress_improve")}
-                calorieStatus={dailyPct >= 80 ? t("progress_on_track_status") : dailyPct >= 50 ? t("progress_improve") : t("progress_off_track")}
-                loading={aiInsightLoading}
-                onViewAnalysis={() => navigate("/ai-report")}
-              />
 
               {/* Smart Recommendations */}
               <section className="mb-5">

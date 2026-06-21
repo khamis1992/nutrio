@@ -64,16 +64,16 @@ interface ScheduledMeal {
 const ACTIVE_STATUSES = ["pending", "confirmed", "preparing", "ready", "out_for_delivery"];
 const COMPLETED_STATUSES = ["delivered", "completed"];
 
-const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; badgeColor: string }> = {
-  pending:          { label: t("order_status_pending"),       icon: CircleDot,    color: "text-amber-600",  badgeColor: "bg-amber-50 text-amber-600 border-amber-200" },
-  confirmed:        { label: t("order_status_confirmed"),     icon: CheckCircle2, color: "text-blue-600",   badgeColor: "bg-blue-50 text-blue-600 border-blue-200" },
-  preparing:        { label: t("order_status_preparing"),     icon: ChefHat,      color: "text-purple-600", badgeColor: "bg-purple-50 text-purple-600 border-purple-200" },
-  ready:            { label: t("order_status_ready"),         icon: CheckCircle2, color: "text-teal-600",   badgeColor: "bg-teal-50 text-teal-600 border-teal-200" },
-  out_for_delivery: { label: "In Delivery",   icon: Truck,        color: "text-[#48a98b]",  badgeColor: "bg-[#eaf7f0] text-[#48a98b] border-[#c5e8da]" },
-  delivered:        { label: t("order_status_delivered"),     icon: CheckCircle2, color: "text-[#48a98b]",  badgeColor: "bg-[#eaf7f0] text-[#48a98b] border-[#c5e8da]" },
-  completed:        { label: t("order_status_delivered"),     icon: CheckCircle2, color: "text-[#48a98b]",  badgeColor: "bg-[#eaf7f0] text-[#48a98b] border-[#c5e8da]" },
-  cancelled:        { label: t("order_status_cancelled"),     icon: XCircle,      color: "text-red-600",    badgeColor: "bg-red-50 text-red-600 border-red-200" },
-};
+const getStatusConfig = (t: (key: string) => string): Record<string, { label: string; icon: React.ElementType; color: string; badgeColor: string }> => ({
+  pending:          { label: t("order_status_pending"),       icon: CircleDot,    color: "text-orange-600",  badgeColor: "bg-orange-50 text-orange-700 border-orange-100" },
+  confirmed:        { label: t("order_status_confirmed"),     icon: CheckCircle2, color: "text-emerald-700", badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  preparing:        { label: t("order_status_preparing"),     icon: ChefHat,      color: "text-orange-700",  badgeColor: "bg-orange-50 text-orange-700 border-orange-100" },
+  ready:            { label: t("order_status_ready"),         icon: CheckCircle2, color: "text-emerald-700", badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  out_for_delivery: { label: "In Delivery",                   icon: Truck,        color: "text-blue-600",    badgeColor: "bg-blue-50 text-blue-700 border-blue-100" },
+  delivered:        { label: t("order_status_delivered"),     icon: CheckCircle2, color: "text-emerald-700", badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  completed:        { label: t("order_status_delivered"),     icon: CheckCircle2, color: "text-emerald-700", badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  cancelled:        { label: t("order_status_cancelled"),     icon: XCircle,      color: "text-red-600",     badgeColor: "bg-red-50 text-red-600 border-red-100" },
+});
 
 const TABS = ["All", "Active", "Completed", "Cancelled"] as const;
 type TabType = typeof TABS[number];
@@ -365,6 +365,7 @@ export default function DeliveryTracking() {
     Completed: unified.filter(o => o.tab === "Completed").length,
     Cancelled: unified.filter(o => o.tab === "Cancelled").length,
   };
+  const statusConfig = getStatusConfig(t);
 
   // ── Render card ─────────────────────────────────────────────────────────────
   const renderCard = (item: UnifiedOrder) => {
@@ -376,11 +377,11 @@ export default function DeliveryTracking() {
     return (
       <div
         key={item.id}
-        className="bg-white rounded-[24px] p-4 shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-100"
+        className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
       >
         {/* Top row */}
         <div className="flex justify-between items-center mb-3">
-          <span className="text-[#48a98b] font-bold text-sm">{item.shortId}</span>
+          <span className="text-sm font-bold text-emerald-700">{item.shortId}</span>
           <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${cfg.badgeColor}`}>
             <StatusIcon className="w-3.5 h-3.5" />
             {cfg.label}
@@ -401,12 +402,12 @@ export default function DeliveryTracking() {
               />
             ))}
             {validImages.length === 0 && (
-              <div className="w-[68px] h-[68px] rounded-full bg-gray-100 flex items-center justify-center border-2 border-white">
-                <UtensilsCrossed className="w-6 h-6 text-gray-400" />
+              <div className="flex h-[68px] w-[68px] items-center justify-center rounded-full border-2 border-white bg-emerald-50">
+                <UtensilsCrossed className="h-6 w-6 text-emerald-600" />
               </div>
             )}
             {extraCount > 0 && (
-              <div className="w-[68px] h-[68px] rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-500" style={{ zIndex: 8 }}>
+              <div className="flex h-[68px] w-[68px] items-center justify-center rounded-full border-2 border-white bg-orange-50 text-xs font-bold text-orange-600" style={{ zIndex: 8 }}>
                 +{extraCount}
               </div>
             )}
@@ -414,13 +415,13 @@ export default function DeliveryTracking() {
 
           {/* Info */}
           <div className="flex flex-col justify-center flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1 truncate pr-1">
+            <h3 className="mb-1 truncate pr-1 text-sm font-bold leading-snug text-slate-950">
               {item.restaurantName}
             </h3>
             <div className="flex items-center gap-2 text-xs">
-              {item.price > 0 && <span className="font-bold text-gray-900">{item.price} QAR</span>}
-              {item.price === 0 && <span className="text-[#48a98b] font-semibold text-xs bg-[#eaf7f0] px-2 py-0.5 rounded-full">Included</span>}
-              <span className="text-gray-400">{item.date}</span>
+              {item.price > 0 && <span className="font-bold text-slate-950">{item.price} QAR</span>}
+              {item.price === 0 && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">Included</span>}
+              <span className="text-slate-400">{item.date}</span>
             </div>
           </div>
         </div>
@@ -430,7 +431,7 @@ export default function DeliveryTracking() {
 
           {item.canModify && item.originalSchedule && (
             <button
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-[#48a98b]/30 text-[#48a98b] bg-[#eaf7f0] text-sm font-semibold hover:bg-[#d4f0e4] transition-all"
+              className="flex min-h-10 items-center gap-1.5 rounded-full bg-emerald-50 px-4 text-sm font-bold text-emerald-700 ring-1 ring-emerald-100 transition-all active:scale-95"
               onClick={() => setModifyingSchedule(item.originalSchedule!)}
             >
               <Pencil className="w-3.5 h-3.5" /> Modify
@@ -439,7 +440,7 @@ export default function DeliveryTracking() {
 
           {item.canCancel && (
             <button
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-red-200 text-red-600 bg-red-50 text-sm font-semibold hover:bg-red-100 transition-all disabled:opacity-50"
+              className="flex min-h-10 items-center gap-1.5 rounded-full bg-red-50 px-4 text-sm font-bold text-red-600 ring-1 ring-red-100 transition-all active:scale-95 disabled:opacity-50"
               onClick={() => handleCancel(item.id, item.sourceType)}
               disabled={cancelling === item.id}
             >
@@ -465,14 +466,14 @@ export default function DeliveryTracking() {
               orderTotal={0}
               variant="outline"
               size="default"
-              className="h-[36px] px-4 border-[#48a98b] text-[#48a98b] hover:bg-[#eaf7f0] rounded-full font-semibold text-sm flex items-center gap-1.5 ml-auto"
+              className="ml-auto flex h-10 items-center gap-1.5 rounded-full border-emerald-200 bg-white px-4 text-sm font-bold text-emerald-700 hover:bg-emerald-50"
             />
           )}
 
           {/* If completed scheduled meal with no reorder */}
           {item.tab === "Completed" && !item.canReorder && item.sourceType === "scheduled" && (
             <button
-              className="h-[36px] px-4 rounded-full border border-[#48a98b] text-[#48a98b] bg-transparent hover:bg-[#eaf7f0] text-sm font-semibold flex items-center gap-1.5 ml-auto transition-all"
+              className="ml-auto flex h-10 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-emerald-700 ring-1 ring-emerald-100 transition-all active:scale-95"
               onClick={() => navigate("/meals")}
             >
               Order Again <RotateCw className="w-3.5 h-3.5" />
@@ -486,14 +487,14 @@ export default function DeliveryTracking() {
   // ── Empty state ─────────────────────────────────────────────────────────────
   const renderEmpty = () => (
     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-      <div className="w-20 h-20 rounded-3xl bg-gray-100 flex items-center justify-center mb-4">
-        <ShoppingBag className="h-9 w-9 text-gray-400" />
+      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+        <ShoppingBag className="h-9 w-9" />
       </div>
-      <h3 className="font-bold text-lg text-gray-900 mb-1">No orders yet</h3>
-      <p className="text-sm text-gray-500 mb-6 max-w-xs">
+      <h3 className="mb-1 text-lg font-bold text-slate-950">No orders yet</h3>
+      <p className="mb-6 max-w-xs text-sm text-slate-500">
         {activeTab === "Active" ? "You have no active orders right now." : `No ${activeTab.toLowerCase()} orders found.`}
       </p>
-      <Button onClick={() => navigate("/meals")} className="rounded-2xl px-6 bg-[#48a98b] hover:bg-[#3a8b72]">
+      <Button onClick={() => navigate("/meals")} className="rounded-full bg-emerald-600 px-6 text-white shadow-[0_10px_24px_rgba(16,185,129,0.24)] hover:bg-emerald-700">
         Browse Meals
       </Button>
     </div>
@@ -502,7 +503,7 @@ export default function DeliveryTracking() {
   // ── Main render ─────────────────────────────────────────────────────────────
   return (
     <div
-      className="min-h-screen bg-white pb-4"
+      className="min-h-screen bg-[#F6F7F4] pb-4"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -510,7 +511,7 @@ export default function DeliveryTracking() {
       {/* Pull-to-refresh indicator */}
       {pullDistance > 0 && (
         <div className="flex items-center justify-center transition-all" style={{ height: pullDistance, opacity: Math.min(pullDistance / minPullDistance, 1) }}>
-          <div className="flex items-center gap-2 text-[#48a98b] bg-[#eaf7f0] px-4 py-2 rounded-full text-sm font-medium">
+          <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 ring-1 ring-emerald-100">
             <RotateCcw className="w-4 h-4" style={{ transform: `rotate(${pullDistance * 2}deg)` }} />
             {pullDistance > minPullDistance ? "Release to refresh" : "Pull to refresh"}
           </div>
@@ -518,36 +519,36 @@ export default function DeliveryTracking() {
       )}
 
       {/* Header */}
-      <div className="pt-[env(safe-area-inset-top,20px)] px-5 pb-3 flex items-center justify-between bg-white sticky top-0 z-10 border-b border-gray-100">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/70 bg-[#F6F7F4]/85 px-5 pb-3 pt-[env(safe-area-inset-top,20px)] backdrop-blur-xl">
+        <button onClick={() => navigate(-1)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200/80 transition active:scale-95">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-bold text-gray-900">My Orders</h1>
+        <h1 className="text-xl font-bold text-slate-950">My Orders</h1>
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-40 transition-all"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-100 transition-all active:scale-95 disabled:opacity-40"
         >
-          <RefreshCw className={`w-4.5 h-4.5 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4.5 h-4.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="px-5 py-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <div className="mx-5 my-4 flex items-center gap-2 overflow-x-auto rounded-[24px] bg-white p-2 shadow-[0_14px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 no-scrollbar">
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`relative px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+            className={`relative rounded-[16px] px-4 py-2 text-sm font-extrabold whitespace-nowrap transition-all ${
               activeTab === tab
-                ? "bg-[#48a98b] text-white border-[#48a98b]"
-                : "bg-transparent text-[#48a98b] border-[#48a98b]"
+                ? "bg-emerald-600 text-white shadow-[0_10px_24px_rgba(16,185,129,0.20)]"
+                : "bg-[#F6F7F4] text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
             }`}
           >
             {tab}
             {counts[tab] > 0 && (
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                activeTab === tab ? "bg-white/30 text-white" : "bg-[#eaf7f0] text-[#48a98b]"
+                activeTab === tab ? "bg-white/20 text-white" : "bg-white text-emerald-700 ring-1 ring-emerald-100"
               }`}>
                 {counts[tab]}
               </span>
@@ -560,17 +561,17 @@ export default function DeliveryTracking() {
       <div className="px-5 flex flex-col gap-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-[#eaf7f0] flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-[#48a98b]" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
+              <Loader2 className="h-6 w-6 animate-spin text-emerald-700" />
             </div>
-            <p className="text-sm text-gray-500">Loading your orders...</p>
+            <p className="text-sm text-slate-500">Loading your orders...</p>
           </div>
         ) : filtered.length === 0 ? renderEmpty() : (
           <>
             {filtered.map(renderCard)}
             {activeTab === "All" && ordersHasMore && (
               <button
-                className="w-full py-3 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3 text-sm font-bold text-emerald-700 shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-emerald-100 transition-all active:scale-95 disabled:opacity-40"
                 onClick={() => fetchOrders(ordersPage + 1, true)}
                 disabled={ordersLoading}
               >

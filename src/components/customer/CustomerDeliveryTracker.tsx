@@ -389,7 +389,7 @@ export function CustomerDeliveryTracker({
 
   // ── Shared header ───────────────────────────────────────────────────────────
   const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
-    <div className="sticky top-0 z-30 border-b border-emerald-50/90 bg-[#F7FAF8]/95 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))] backdrop-blur-xl">
+    <div className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#F6F7F4]/95 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))] backdrop-blur-xl">
       <div className="mx-auto flex max-w-[430px] items-center gap-3">
       {onBack && (
         <button
@@ -400,7 +400,7 @@ export function CustomerDeliveryTracker({
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
           {t("tracking_live_updates")}
         </p>
         <h1 className="truncate text-[22px] font-black leading-tight text-slate-950">{title}</h1>
@@ -420,7 +420,7 @@ export function CustomerDeliveryTracker({
   // ── Loading state ───────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#F7FAF8]">
+      <div className="flex min-h-screen flex-col bg-[#F6F7F4]">
         <Header title={t("tracking_order_tracking")} />
         <div className="mx-auto w-full max-w-[430px] flex-1 space-y-4 px-4 py-5">
           <Skeleton className="h-64 w-full rounded-[32px]" />
@@ -434,7 +434,7 @@ export function CustomerDeliveryTracker({
   // ── No delivery job yet (preparing, no driver) ──────────────────────────────
   if (!deliveryJob) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#F7FAF8]">
+      <div className="flex min-h-screen flex-col bg-[#F6F7F4]">
         <Header title={t("tracking_order_tracking")} subtitle={t("tracking_live_updates")} />
 
         <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col px-4 py-5 pb-28">
@@ -442,10 +442,10 @@ export function CustomerDeliveryTracker({
           <div className="mb-4 rounded-[32px] bg-white px-5 py-7 text-center shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
             <div className="relative mx-auto mb-6 h-36 w-36">
               {/* Outer pulse ring */}
-              <span className="absolute inset-0 rounded-full bg-[#48a98b]/10 animate-ping [animation-duration:2s]" />
-              <span className="absolute inset-2 rounded-full bg-[#48a98b]/15 animate-ping [animation-duration:2.4s] [animation-delay:0.4s]" />
+              <span className="absolute inset-0 rounded-full bg-[#020617]/10 animate-ping [animation-duration:2s]" />
+              <span className="absolute inset-2 rounded-full bg-[#020617]/15 animate-ping [animation-duration:2.4s] [animation-delay:0.4s]" />
               {/* Main circle */}
-              <div className="absolute inset-4 flex items-center justify-center rounded-full bg-emerald-500 shadow-[0_18px_34px_rgba(16,185,129,0.22)]">
+              <div className="absolute inset-4 flex items-center justify-center rounded-full bg-[#020617] shadow-[0_18px_34px_rgba(2,6,23,0.18)]">
                 <ChefHat className="h-12 w-12 text-white" />
               </div>
             </div>
@@ -458,10 +458,10 @@ export function CustomerDeliveryTracker({
             </p>
 
             {/* Animated "finding driver" pill */}
-            <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-extrabold text-emerald-600">
+            <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-extrabold text-[#020617]">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#48a98b] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#48a98b]" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#020617] opacity-40" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#020617]" />
               </span>
               {t("tracking_finding_driver_pill")}
             </div>
@@ -481,14 +481,14 @@ export function CustomerDeliveryTracker({
                 <div key={i} className="flex items-center gap-3">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
                     done
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-[#020617] text-white"
                       : current
-                      ? "border-2 border-emerald-500 bg-white text-emerald-600 shadow-sm"
+                      ? "border-2 border-[#020617] bg-white text-[#020617] shadow-sm"
                       : "bg-slate-100 text-slate-400"
                   }`}>
                     {current ? (
                       <span className="relative flex items-center justify-center">
-                        <span className="animate-ping absolute inline-flex h-5 w-5 rounded-full bg-[#48a98b] opacity-30" />
+                        <span className="animate-ping absolute inline-flex h-5 w-5 rounded-full bg-[#020617] opacity-25" />
                         <Icon className="w-4 h-4 relative" />
                       </span>
                     ) : (
@@ -496,12 +496,12 @@ export function CustomerDeliveryTracker({
                     )}
                   </div>
                   <span className={`text-sm font-bold ${
-                    done ? "text-emerald-600" : current ? "text-slate-950" : "text-slate-400"
+                    done ? "text-[#020617]" : current ? "text-slate-950" : "text-slate-400"
                   }`}>
                     {label}
                   </span>
                   {current && (
-                    <span className="ml-auto rounded-full bg-emerald-500 px-2.5 py-0.5 text-xs font-extrabold text-white">
+                    <span className="ml-auto rounded-full bg-[#020617] px-2.5 py-0.5 text-xs font-extrabold text-white">
                       {t("tracking_now")}
                     </span>
                   )}
@@ -511,11 +511,11 @@ export function CustomerDeliveryTracker({
           </div>
 
           {/* Info card */}
-          <div className="flex gap-3 rounded-[24px] border border-amber-100 bg-amber-50 p-4">
-            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+          <div className="flex gap-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#020617]" />
             <div>
-              <p className="text-sm font-black text-amber-800">{t("tracking_estimated_time")}</p>
-              <p className="mt-0.5 text-xs font-semibold text-amber-600">
+              <p className="text-sm font-black text-slate-950">{t("tracking_estimated_time")}</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">
                 {t("tracking_map_appears")}
               </p>
             </div>
@@ -524,13 +524,13 @@ export function CustomerDeliveryTracker({
 
         {/* Bottom refresh button — sticky with safe area */}
         <div
-          className="sticky bottom-0 left-0 right-0 border-t border-emerald-50 bg-white/95 px-4 pt-3 backdrop-blur-xl"
+          className="sticky bottom-0 left-0 right-0 border-t border-slate-200/70 bg-white/95 px-4 pt-3 backdrop-blur-xl"
           style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))" }}
         >
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="mx-auto flex h-14 w-full max-w-[430px] items-center justify-center gap-2 rounded-full bg-emerald-500 text-sm font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.22)] transition-all active:scale-[0.98] disabled:opacity-60"
+            className="mx-auto flex h-14 w-full max-w-[430px] items-center justify-center gap-2 rounded-full bg-[#020617] text-sm font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] transition-all active:scale-[0.98] disabled:opacity-60"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? t("tracking_refreshing") : t("tracking_refresh_status")}
@@ -547,7 +547,7 @@ export function CustomerDeliveryTracker({
   const eta = calculateETA();
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F7FAF8]">
+    <div className="flex min-h-screen flex-col bg-[#F6F7F4]">
       <Header
         title={t("tracking_live_tracking")}
         subtitle={currentStep.label}
@@ -558,20 +558,20 @@ export function CustomerDeliveryTracker({
         <div className="rounded-[32px] bg-white p-5 shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                 {deliveryJob.status === "delivered" ? t("tracking_step_delivered") : t("tracking_live_tracking")}
               </p>
               <h2 className="mt-1 text-[25px] font-black leading-tight text-slate-950">{currentStep.label}</h2>
               <p className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-500">{currentStep.description}</p>
             </div>
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[#020617]">
               {deliveryJob.status === "delivered" ? <CheckCircle2 className="h-8 w-8" /> : <Truck className="h-8 w-8" />}
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-emerald-50 p-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">{t("tracking_eta")}</p>
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{t("tracking_eta")}</p>
               <p className="mt-1 text-[20px] font-black text-slate-950">{eta ?? "--"}</p>
             </div>
             <div className="rounded-2xl bg-slate-50 p-3">
@@ -590,7 +590,7 @@ export function CustomerDeliveryTracker({
             <div className="absolute left-4 right-4 top-4 h-0.5 bg-slate-200" />
             {/* Active line */}
             <div
-              className="absolute left-4 top-4 h-0.5 bg-emerald-500 transition-all duration-700"
+              className="absolute left-4 top-4 h-0.5 bg-[#020617] transition-all duration-700"
               style={{ width: statusIndex <= 0 ? "0%" : `calc(${(statusIndex / (STEPS.length - 1)) * 100}% - 2rem)` }}
             />
             {STEPS.map(({ key, label, Icon }, i) => {
@@ -599,13 +599,13 @@ export function CustomerDeliveryTracker({
               return (
                 <div key={key} className="relative z-10 flex flex-col items-center gap-1.5">
                   <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-all ${
-                    done    ? "bg-emerald-500 text-white" :
-                    active  ? "border-2 border-emerald-500 bg-white text-emerald-600 shadow-md" :
+                    done    ? "bg-[#020617] text-white" :
+                    active  ? "border-2 border-[#020617] bg-white text-[#020617] shadow-md" :
                               "border-2 border-slate-200 bg-white text-slate-300"
                   }`}>
                     {active ? (
                       <span className="relative flex items-center justify-center">
-                        <span className="absolute h-5 w-5 animate-ping rounded-full bg-emerald-500 opacity-25" />
+                        <span className="absolute h-5 w-5 animate-ping rounded-full bg-[#020617] opacity-25" />
                         <Icon className="relative h-3.5 w-3.5" />
                       </span>
                     ) : (
@@ -634,13 +634,13 @@ export function CustomerDeliveryTracker({
             <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#48a98b] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#48a98b]" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#020617] opacity-40" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#020617]" />
                 </span>
                 <span className="text-sm font-black text-slate-950">{t("tracking_live_location")}</span>
               </div>
               {eta && (
-                <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-600">
+                <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-[#020617]">
                   <Navigation className="h-3 w-3" />
                   {t("tracking_eta").replace("{eta}", eta)}
                 </div>
@@ -679,7 +679,7 @@ export function CustomerDeliveryTracker({
                 {routeHistory.length > 1 && (
                   <RoutePolyline
                     positions={routeHistory}
-                    color="#10B981"
+                    color="#020617"
                     weight={4}
                     opacity={0.7}
                   />
@@ -703,7 +703,7 @@ export function CustomerDeliveryTracker({
             <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">{t("tracking_your_driver")}</p>
             <div className="flex items-center gap-4">
               {/* Avatar */}
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-[#020617]">
                 <User className="h-7 w-7" />
               </div>
 
@@ -715,8 +715,8 @@ export function CustomerDeliveryTracker({
                 {/* ETA */}
                 {driverLocation && customerLocation && deliveryJob.status === "picked_up" && (
                   <div className="flex items-center gap-1 mt-1">
-                    <Clock className="h-3.5 w-3.5 text-emerald-500" />
-                    <span className="text-sm font-extrabold text-emerald-600">
+                    <Clock className="h-3.5 w-3.5 text-[#020617]" />
+                    <span className="text-sm font-extrabold text-[#020617]">
                       ~{getEtaMinutes(
                         driverLocation.lat,
                         driverLocation.lng,
@@ -755,7 +755,7 @@ export function CustomerDeliveryTracker({
                       ? `tel:${deliveryJob.driver.phone_number}`
                       : `mailto:${deliveryJob.driver.email}`
                   }
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 shadow-[0_12px_24px_rgba(16,185,129,0.22)] transition-transform active:scale-95"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#020617] shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition-transform active:scale-95"
                 >
                   <Phone className="h-5 w-5 text-white" />
                 </a>
@@ -766,14 +766,14 @@ export function CustomerDeliveryTracker({
 
         {/* Delivered */}
         {deliveryJob.status === "delivered" && (
-          <div className="flex flex-col items-center rounded-[32px] bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
-            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 shadow-[0_16px_32px_rgba(16,185,129,0.22)]">
+          <div className="flex flex-col items-center rounded-[32px] bg-white p-6 text-center ring-1 ring-slate-100 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#020617] shadow-[0_16px_32px_rgba(2,6,23,0.18)]">
               <CheckCircle2 className="h-8 w-8 text-white" />
             </div>
-            <h3 className="text-lg font-black text-emerald-800">{t("tracking_order_delivered")}</h3>
-            <p className="mt-1 text-sm font-semibold text-emerald-600">{t("tracking_enjoy_meal")}</p>
+            <h3 className="text-lg font-black text-slate-950">{t("tracking_order_delivered")}</h3>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{t("tracking_enjoy_meal")}</p>
             {deliveryJob.delivered_at && (
-              <p className="mt-2 text-xs font-semibold text-emerald-500">
+              <p className="mt-2 text-xs font-semibold text-slate-500">
                 {t("tracking_delivered_at").replace("{time}", safeFormat(deliveryJob.delivered_at, "h:mm a", "—"))}
               </p>
             )}

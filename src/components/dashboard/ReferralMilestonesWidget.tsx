@@ -139,7 +139,7 @@ export function ReferralMilestonesWidget() {
         <div className="px-5 pb-4 pt-5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-slate-100">
                 <Users className="h-5 w-5" strokeWidth={2.2} />
               </div>
               <div className="min-w-0">
@@ -167,7 +167,7 @@ export function ReferralMilestonesWidget() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[24px] font-black leading-none text-emerald-600">{Math.round(referralProgress)}%</p>
+                <p className="text-[24px] font-black leading-none text-[#020617]">{Math.round(referralProgress)}%</p>
                 <p className="mt-1 text-[10px] font-bold text-slate-400">complete</p>
               </div>
             </div>
@@ -184,12 +184,12 @@ export function ReferralMilestonesWidget() {
                         "h-2.5 rounded-full transition-colors",
                         achieved
                           ? isCurrent
-                            ? "bg-emerald-600"
-                            : "bg-emerald-300"
+                            ? "bg-[#020617]"
+                            : "bg-slate-400"
                           : "bg-white ring-1 ring-slate-200",
                       )}
                     />
-                    <span className={cn("mt-2 block truncate text-center text-[8px] font-black", isCurrent ? "text-emerald-700" : achieved ? "text-emerald-600" : "text-slate-400")}>
+                    <span className={cn("mt-2 block truncate text-center text-[8px] font-black", isCurrent ? "text-slate-800" : achieved ? "text-slate-600" : "text-slate-400")}>
                       {tier.name}
                     </span>
                   </div>
@@ -201,7 +201,7 @@ export function ReferralMilestonesWidget() {
               <div className="mt-4 rounded-2xl bg-white px-3 py-3">
                 <div className="flex items-center justify-between text-[12px]">
                   <span className="font-black text-slate-700">
-                    <span className="text-emerald-700">{totalReferrals - currentTier.minReferrals}</span>
+                    <span className="text-[#020617]">{totalReferrals - currentTier.minReferrals}</span>
                     <span className="text-slate-400"> / {nextMinimum - currentTier.minReferrals} to {nextTier.name}</span>
                   </span>
                   {nextTier.bonus > 0 && (
@@ -211,7 +211,7 @@ export function ReferralMilestonesWidget() {
                   )}
                 </div>
                 <div className="mt-2 h-2 rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(referralProgress, 3)}%` }} />
+                  <div className="h-full rounded-full bg-[#020617] transition-all duration-500" style={{ width: `${Math.max(referralProgress, 3)}%` }} />
                 </div>
               </div>
             )}
@@ -220,7 +220,7 @@ export function ReferralMilestonesWidget() {
               <div className="mt-4 rounded-2xl bg-white px-3 py-3">
                 <p className="text-[14px] font-black text-slate-900">{t("start_earning_rewards")}</p>
                 <p className="mt-1 text-[12px] font-semibold leading-relaxed text-slate-500">
-                  {t("share_link_earn")} <span className="font-black text-emerald-700">{commissionRate}%</span> on every friend's order, plus bonuses up to {formatCurrency(20)}.
+                  {t("share_link_earn")} <span className="font-black text-[#020617]">{commissionRate}%</span> on every friend's order, plus bonuses up to {formatCurrency(20)}.
                 </p>
               </div>
             )}
@@ -229,9 +229,9 @@ export function ReferralMilestonesWidget() {
           {hasReferrals && (
             <Link
               to="/wallet"
-              className="group mt-3 flex min-h-[68px] items-center gap-3 rounded-[22px] bg-emerald-50 px-4 py-3 ring-1 ring-emerald-100 transition-transform active:scale-[0.985]"
+              className="group mt-3 flex min-h-[68px] items-center gap-3 rounded-[22px] bg-slate-50 px-4 py-3 ring-1 ring-slate-100 transition-transform active:scale-[0.985]"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#020617] ring-1 ring-slate-100">
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -240,9 +240,9 @@ export function ReferralMilestonesWidget() {
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-semibold text-slate-400">{t("use_toward")}</p>
-                <p className="text-[10px] font-black text-emerald-600">subscription</p>
+                <p className="text-[10px] font-black text-[#020617]">subscription</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-500" />
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-[#020617]" />
             </Link>
           )}
         </div>
@@ -250,7 +250,7 @@ export function ReferralMilestonesWidget() {
         <div className="space-y-2.5 border-t border-slate-100 px-5 pb-5 pt-4">
           <Link
             to="/affiliate"
-            className="flex min-h-[50px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.2)] transition-transform active:scale-[0.98]"
+            className="flex min-h-[50px] items-center justify-center gap-2 rounded-2xl bg-[#020617] px-4 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] transition-transform active:scale-[0.98]"
           >
             <Gift className="h-4 w-4" /> {hasReferrals ? "Invite Friends & Earn" : "Start Referring"}
           </Link>
@@ -261,7 +261,7 @@ export function ReferralMilestonesWidget() {
           >
             {copied ? (
               <>
-                <Check className="h-4 w-4 text-emerald-500" /> Link copied!
+                <Check className="h-4 w-4 text-[#020617]" /> Link copied!
               </>
             ) : (
               <>

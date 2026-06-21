@@ -119,7 +119,7 @@ export default function LiveMap() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-[#F6F7F4] flex flex-col">
         <div className="pt-[env(safe-area-inset-top,20px)] px-5 pb-4">
           <Skeleton className="h-9 w-9 rounded-full" />
         </div>
@@ -134,14 +134,14 @@ export default function LiveMap() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4 px-6">
+      <div className="min-h-screen bg-[#F6F7F4] flex flex-col items-center justify-center gap-4 px-6">
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
           <span className="text-red-500 text-2xl">!</span>
         </div>
         <h2 className="text-lg font-semibold text-gray-900">{error}</h2>
         <button
           onClick={() => navigate(-1)}
-          className="rounded-full bg-[#48a98b] px-6 py-2.5 text-sm font-bold text-white"
+          className="rounded-full bg-[#020617] px-6 py-2.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
         >
           {t("go_back") || "Go Back"}
         </button>

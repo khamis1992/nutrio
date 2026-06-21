@@ -35,6 +35,8 @@ import {
   Check,
   CalendarPlus,
   Clock,
+  Flame,
+  Beef,
   Sparkles,
   Wallet,
   ArrowLeft, ChevronLeft,
@@ -773,12 +775,20 @@ const Schedule = () => {
                                 }`}>
                                   {schedule.meal?.name}
                                 </h3>
-                                <div className={`flex items-center gap-2 mt-0.5 ${isRTL ? "justify-start" : "justify-start"}`}>
-                                  <span className="text-[12px] text-slate-400 font-medium">
-                                    {schedule.delivery_time_slot || timeLabel}
-                                  </span>
-                                  <span className="text-slate-300">·</span>
-                                  <span className="text-[12px] text-slate-400 font-medium">{schedule.meal.calories} kcal</span>
+                                <div className="mt-2 grid grid-cols-3 gap-1.5">
+                                  {[
+                                    { Icon: Clock, value: schedule.delivery_time_slot || timeLabel, label: "time", tone: "text-sky-700" },
+                                    { Icon: Flame, value: schedule.meal.calories, label: "kcal", tone: "text-orange-700" },
+                                    { Icon: Beef, value: `${schedule.meal.protein_g}g`, label: t("protein_label"), tone: "text-[#020617]" },
+                                  ].map(({ Icon, value, label, tone }) => (
+                                    <div key={`${label}-${value}`} className="min-w-0 rounded-[14px] bg-slate-50/80 px-2 py-2 ring-1 ring-slate-200/80 backdrop-blur">
+                                      <div className={`flex min-w-0 items-center gap-1 ${tone}`}>
+                                        <Icon className="h-3 w-3 shrink-0" strokeWidth={2.4} />
+                                        <span className="truncate text-[11px] font-black leading-none">{value}</span>
+                                      </div>
+                                      <p className="mt-1 truncate text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">{label}</p>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
 

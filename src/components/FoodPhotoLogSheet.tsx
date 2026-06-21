@@ -349,8 +349,8 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
           {/* ── CAPTURE VIEW ── */}
           {view === "capture" && (
             <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8 gap-6">
-              <div className="w-20 h-20 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <ScanLine className="w-10 h-10 text-emerald-500" />
+              <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center ring-1 ring-slate-100">
+                <ScanLine className="w-10 h-10 text-[#020617]" />
               </div>
               <div className="text-center">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">Snap & Log</h2>
@@ -361,7 +361,7 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
               <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
                 <button
                   onClick={handleTakePhoto}
-                  className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-emerald-500 text-white font-semibold active:scale-[0.98] transition-transform"
+                  className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-[#020617] text-white font-semibold shadow-[0_12px_26px_rgba(2,6,23,0.16)] active:scale-[0.98] transition-transform"
                 >
                   <CameraIcon className="w-7 h-7" />
                   <span className="text-sm">Take Photo</span>
@@ -381,14 +381,14 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
           {view === "scanning" && (
             <div className="flex-1 flex flex-col items-center justify-center px-6 gap-5">
               {previewUrl && (
-                <div className="w-48 h-48 rounded-3xl overflow-hidden shadow-lg border-2 border-emerald-100">
+                <div className="w-48 h-48 rounded-3xl overflow-hidden shadow-lg border-2 border-slate-100">
                   <img src={previewUrl} alt="Your meal" className="w-full h-full object-cover" />
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
+                <Sparkles className="w-5 h-5 text-[#020617] animate-pulse" />
                 <span className="text-gray-500 font-medium">Analyzing your meal...</span>
-                <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+                <Loader2 className="w-5 h-5 text-[#020617] animate-spin" />
               </div>
               <p className="text-xs text-gray-300">Identifying food items and estimating macros</p>
             </div>
@@ -436,7 +436,7 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
                         </span>
                         <button
                           onClick={() => adjustQuantity(i, 0.5)}
-                          className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center active:bg-emerald-600"
+                          className="w-7 h-7 rounded-full bg-[#020617] flex items-center justify-center active:bg-slate-800"
                         >
                           <Plus className="w-3 h-3 text-white" />
                         </button>
@@ -468,9 +468,9 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-semibold text-gray-700">Total</span>
-                    <span className="text-lg font-extrabold text-emerald-600">{totals.calories} cal</span>
+                    <span className="text-lg font-extrabold text-[#020617]">{totals.calories} cal</span>
                   </div>
-                  {macroBar("Protein", totals.protein, "bg-emerald-500")}
+                  {macroBar("Protein", totals.protein, "bg-[#020617]")}
                   {macroBar("Carbs", totals.carbs, "bg-amber-400")}
                   {macroBar("Fat", totals.fat, "bg-rose-400")}
                 </div>
@@ -486,7 +486,7 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
                   <button
                     onClick={handleLogMeals}
                     disabled={detectedItems.length === 0}
-                    className="flex-1 py-3 rounded-full bg-emerald-500 text-white font-bold text-sm disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-3 rounded-full bg-[#020617] text-white font-bold text-sm disabled:opacity-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                   >
                     <Check className="w-4 h-4" />
                     Log {detectedItems.length} items
@@ -499,8 +499,8 @@ export function FoodPhotoLogSheet({ open, onOpenChange, onLogComplete }: FoodPho
           {/* ── LOGGING VIEW (brief) ── */}
           {view === "logging" && (
             <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+              <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center ring-1 ring-slate-100">
+                <Loader2 className="w-8 h-8 text-[#020617] animate-spin" />
               </div>
               <p className="text-gray-500 font-medium">Saving to your log...</p>
             </div>

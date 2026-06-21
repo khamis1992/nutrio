@@ -65,7 +65,7 @@ export function RecipeShareCard() {
   return (
     <motion.div variants={fadeInUp}>
       <Card className="overflow-hidden border-0 shadow-card">
-        <div className="bg-gradient-to-r from-emerald-400 to-teal-600 px-5 py-3">
+        <div className="bg-[#020617] px-5 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">

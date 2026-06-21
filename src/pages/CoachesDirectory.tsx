@@ -48,11 +48,11 @@ function CoachAvatar({ coach, size = "md" }: { coach: Pick<CoachProfile, "full_n
   const sizeClass = size === "lg" ? "h-16 w-16" : "h-14 w-14";
 
   return (
-    <div className={cn("shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100", sizeClass)}>
+    <div className={cn("shrink-0 overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-100", sizeClass)}>
       {coach.avatar_url ? (
         <img src={coach.avatar_url} alt="" className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-xl font-black text-emerald-700">
+        <div className="flex h-full w-full items-center justify-center text-xl font-black text-slate-700">
           {(coach.full_name || "C")[0].toUpperCase()}
         </div>
       )}
@@ -63,7 +63,7 @@ function CoachAvatar({ coach, size = "md" }: { coach: Pick<CoachProfile, "full_n
 function EmptyState({ onApply }: { onApply: () => void }) {
   return (
     <div className="rounded-[30px] bg-white p-8 text-center shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-50 text-slate-700">
         <Users className="h-8 w-8" />
       </div>
       <h3 className="mt-5 text-lg font-black text-slate-950">No coaches yet</h3>
@@ -72,7 +72,7 @@ function EmptyState({ onApply }: { onApply: () => void }) {
       </p>
       <button
         onClick={onApply}
-        className="mt-5 min-h-11 rounded-full bg-emerald-600 px-5 text-sm font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] active:scale-[0.98]"
+        className="mt-5 min-h-11 rounded-full bg-[#020617] px-5 text-sm font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
       >
         Become a Coach
       </button>
@@ -347,8 +347,8 @@ export default function CoachesDirectory() {
   }, [activeSpecialty, coaches, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#F7FAF8] pb-28">
-      <div className="sticky top-0 z-30 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+    <div className="min-h-screen bg-white pb-28">
+      <div className="sticky top-0 z-30 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
           <div className="flex items-center gap-3">
             <button
@@ -359,25 +359,18 @@ export default function CoachesDirectory() {
               <ChevronLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">Nutrio coaching</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Nutrio coaching</p>
               <h1 className="text-[24px] font-black leading-tight text-slate-950">Find a Coach</h1>
             </div>
-            <button
-              onClick={() => navigate("/become-coach")}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.2)]"
-              aria-label="Become a coach"
-            >
-              <UserPlus className="h-5 w-5" />
-            </button>
           </div>
         </div>
       </div>
 
       <main className="mx-auto max-w-[430px] px-4 py-4">
-        <section className="overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-emerald-100">
+        <section className="overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-700 ring-1 ring-slate-100">
                 <Sparkles className="h-3.5 w-3.5" />
                 Human support
               </div>
@@ -394,15 +387,15 @@ export default function CoachesDirectory() {
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-2">
-            <div className="rounded-2xl bg-emerald-50 p-3 ring-1 ring-emerald-100">
+            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
               <p className="text-[20px] font-black leading-none text-slate-950">{coaches.length}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">coaches</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">coaches</p>
             </div>
-            <div className="rounded-2xl bg-sky-50 p-3 ring-1 ring-sky-100">
+            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-2xl bg-sky-50 p-3 text-center ring-1 ring-sky-100">
               <p className="text-[20px] font-black leading-none text-slate-950">{acceptingCount}</p>
               <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-sky-700">accepting</p>
             </div>
-            <div className="rounded-2xl bg-orange-50 p-3 ring-1 ring-orange-100">
+            <div className="flex min-h-[66px] flex-col items-center justify-center rounded-2xl bg-orange-50 p-3 text-center ring-1 ring-orange-100">
               <p className="text-[20px] font-black leading-none text-slate-950">{totalClients}</p>
               <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-orange-700">clients</p>
             </div>
@@ -410,15 +403,15 @@ export default function CoachesDirectory() {
         </section>
 
         {hasCoach && myCoachProfile && (
-          <section className="mt-4 rounded-[30px] bg-emerald-50 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)] ring-1 ring-emerald-100">
+          <section className="mt-4 rounded-[30px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.10)] ring-1 ring-slate-200">
             <div className="flex items-start gap-3">
               <CoachAvatar coach={myCoachProfile} size="lg" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="truncate text-[16px] font-black text-slate-950">{myCoachProfile.full_name}</h3>
-                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-slate-700" />
                 </div>
-                <p className="mt-0.5 text-[12px] font-black uppercase tracking-[0.12em] text-emerald-700">Your coach</p>
+                <p className="mt-0.5 text-[12px] font-black uppercase tracking-[0.12em] text-slate-600">Your coach</p>
                 {myCoachProfile.bio && (
                   <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-5 text-slate-600">{myCoachProfile.bio}</p>
                 )}
@@ -427,14 +420,14 @@ export default function CoachesDirectory() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 onClick={() => navigate("/coach-programs")}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 px-3 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] active:scale-[0.98]"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#020617] px-3 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
               >
                 <TrendingUp className="h-4 w-4" />
                 Programs
               </button>
               <button
                 onClick={() => navigate("/profile")}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-3 text-[13px] font-black text-emerald-700 ring-1 ring-emerald-200 active:scale-[0.98]"
+                className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-3 text-[13px] font-black text-slate-700 ring-1 ring-slate-200 active:scale-[0.98]"
               >
                 <MessageCircle className="h-4 w-4" />
                 Manage
@@ -467,7 +460,7 @@ export default function CoachesDirectory() {
                 className={cn(
                   "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-black transition-all",
                   activeSpecialty === specialty
-                    ? "bg-emerald-600 text-white shadow-[0_10px_20px_rgba(16,185,129,0.16)]"
+                    ? "bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.16)]"
                     : "bg-slate-50 text-slate-600 ring-1 ring-slate-100"
                 )}
               >
@@ -485,7 +478,7 @@ export default function CoachesDirectory() {
             </p>
           </div>
           {hasCoach && (
-            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+            <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-black text-slate-700 ring-1 ring-slate-100">
               Connected
             </span>
           )}
@@ -493,7 +486,7 @@ export default function CoachesDirectory() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-slate-700" />
           </div>
         ) : coaches.length === 0 ? (
           <div className="mt-4">
@@ -529,7 +522,7 @@ export default function CoachesDirectory() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-[16px] font-black text-slate-950">{coach.full_name}</h3>
-                        {coach.verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />}
+                        {coach.verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-700" />}
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -545,7 +538,7 @@ export default function CoachesDirectory() {
                           <span className={cn(
                             "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-black ring-1",
                             availability.isAccepting
-                              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                              ? "bg-slate-50 text-slate-700 ring-slate-100"
                               : "bg-slate-50 text-slate-500 ring-slate-100"
                           )}>
                             <Clock className="h-3.5 w-3.5" />
@@ -562,7 +555,7 @@ export default function CoachesDirectory() {
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {(coachTags.length > 0 ? coachTags : specialtyFallbacks.slice(0, 2)).map((tag) => (
-                      <span key={tag} className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-black capitalize text-emerald-700 ring-1 ring-emerald-100">
+                      <span key={tag} className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-black capitalize text-slate-700 ring-1 ring-slate-100">
                         {tag}
                       </span>
                     ))}
@@ -579,10 +572,10 @@ export default function CoachesDirectory() {
                     className={cn(
                       "mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full text-[14px] font-black transition-all active:scale-[0.98] disabled:cursor-not-allowed",
                       isConnected
-                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                        ? "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
                         : isPending
                           ? "bg-amber-50 text-amber-700 ring-1 ring-amber-100"
-                          : "bg-emerald-600 text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)]"
+                          : "bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)]"
                     )}
                   >
                     {requesting === coach.id ? (
@@ -610,9 +603,9 @@ export default function CoachesDirectory() {
           </div>
         )}
 
-        <section className="mt-6 rounded-[30px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-emerald-100">
+        <section className="mt-6 rounded-[30px] bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-slate-100">
               <UserPlus className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -624,7 +617,7 @@ export default function CoachesDirectory() {
           </div>
           <button
             onClick={() => navigate("/become-coach")}
-            className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-emerald-600 text-[14px] font-black text-white shadow-[0_12px_24px_rgba(16,185,129,0.18)] active:scale-[0.98]"
+            className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-[#020617] text-[14px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] active:scale-[0.98]"
           >
             Become a Coach
           </button>

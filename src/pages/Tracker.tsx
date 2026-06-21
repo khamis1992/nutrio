@@ -103,9 +103,9 @@ export default function Tracker() {
   const stepsPct = Math.round((steps / STEP_GOAL) * 100);
 
   return (
-    <div className="min-h-screen bg-[#F7FAF8] pb-28">
+    <div className="min-h-screen bg-[#F6F7F4] pb-28">
       {/* ── Header ── */}
-      <div className="sticky top-0 z-30 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+      <div className="sticky top-0 z-30 border-b border-slate-200/70 bg-[#F6F7F4]/95 backdrop-blur-xl">
         <div className="mx-auto max-w-[430px] px-4 pb-3 pt-4">
         <div className="flex items-center gap-3">
           <button
@@ -116,14 +116,14 @@ export default function Tracker() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
               {format(new Date(), "EEE, MMM d")}
             </p>
             <h1 className="text-[24px] font-black leading-tight text-slate-950">{t("tracker")}</h1>
           </div>
           <button
             onClick={() => navigate("/progress")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.16)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[#020617] shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100"
             aria-label={t("progress")}
           >
             <BarChart3 className="h-5 w-5" />
@@ -137,7 +137,7 @@ export default function Tracker() {
               className={cn(
                 "flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-extrabold transition-all",
                 activeTab === "today"
-                  ? "bg-emerald-500 text-white shadow-sm"
+                  ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                   : "text-slate-500"
               )}
             >
@@ -149,7 +149,7 @@ export default function Tracker() {
               className={cn(
                 "flex min-h-11 items-center justify-center gap-2 rounded-full text-[13px] font-extrabold transition-all",
                 activeTab === "insights"
-                  ? "bg-emerald-500 text-white shadow-sm"
+                  ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                   : "text-slate-500"
               )}
             >
@@ -184,7 +184,7 @@ export default function Tracker() {
             <section className="overflow-hidden rounded-[32px] bg-white p-5 shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                     {t("today")}
                   </p>
                   <h2 className="mt-1 text-[26px] font-black leading-tight text-slate-950">{t("tracker_subtitle")}</h2>
@@ -200,7 +200,7 @@ export default function Tracker() {
                       cy="20"
                       r="16"
                       fill="none"
-                      stroke="#34D399"
+                      stroke="#020617"
                       strokeWidth="4"
                       strokeLinecap="round"
                       strokeDasharray={`${Math.min(100, Math.max(0, stepsPct))} 100`}
@@ -218,13 +218,13 @@ export default function Tracker() {
                 <div className="overflow-hidden rounded-[24px] bg-white p-3.5 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-blue-100/80">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">{t("water")}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("water")}</p>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-[24px] font-black leading-none tracking-[-0.04em] text-slate-950">{waterMl.toLocaleString()}</span>
                         <span className="text-[11px] font-black text-slate-400">mL</span>
                       </div>
                     </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-[#020617] ring-1 ring-slate-200">
                       <Droplets className="h-4 w-4" />
                     </div>
                   </div>
@@ -233,7 +233,7 @@ export default function Tracker() {
                   </p>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                      className="h-full rounded-full bg-[#020617] transition-all duration-500"
                       style={{ width: `${Math.min(100, waterPct)}%` }}
                     />
                   </div>
@@ -242,12 +242,12 @@ export default function Tracker() {
                 <div className="overflow-hidden rounded-[24px] bg-white p-3.5 shadow-[0_10px_26px_rgba(15,23,42,0.06)] ring-1 ring-orange-100/80">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-600">{t("steps")}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{t("steps")}</p>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-[24px] font-black leading-none tracking-[-0.04em] text-slate-950">{steps.toLocaleString()}</span>
                       </div>
                     </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-[#020617] ring-1 ring-slate-200">
                       <Footprints className="h-4 w-4" />
                     </div>
                   </div>
@@ -256,7 +256,7 @@ export default function Tracker() {
                   </p>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-orange-500 transition-all duration-500"
+                      className="h-full rounded-full bg-[#020617] transition-all duration-500"
                       style={{ width: `${Math.min(100, stepsPct)}%` }}
                     />
                   </div>
@@ -268,8 +268,8 @@ export default function Tracker() {
             <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                    <Droplets className="h-[18px] w-[18px] text-blue-500" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                    <Droplets className="h-[18px] w-[18px] text-[#020617]" />
                   </div>
                   <span className="text-[13px] font-bold text-slate-700">{t("water")}</span>
                 </div>
@@ -283,7 +283,7 @@ export default function Tracker() {
                   </button>
                   <Link
                     to="/water-tracker"
-                    className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-sm"
+                    className="w-8 h-8 rounded-full bg-[#020617] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </Link>
@@ -298,19 +298,19 @@ export default function Tracker() {
               <p className="text-[11px] text-slate-400 mb-3">/ {waterTargetMl.toLocaleString()} mL goal</p>
               <div className="h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                  className="h-full rounded-full bg-[#020617] transition-all duration-500"
                   style={{ width: `${Math.min(100, waterPct)}%` }}
                 />
               </div>
-              <p className="text-[11px] text-blue-500 font-semibold mt-1.5">{waterPct}% of daily goal</p>
+              <p className="text-[11px] text-slate-600 font-semibold mt-1.5">{waterPct}% of daily goal</p>
             </div>
 
             {/* Steps Card */}
             <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
-                    <Footprints className="h-[18px] w-[18px] text-orange-500" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                    <Footprints className="h-[18px] w-[18px] text-[#020617]" />
                   </div>
                   <span className="text-[13px] font-bold text-slate-700">{t("steps")}</span>
                 </div>
@@ -324,7 +324,7 @@ export default function Tracker() {
                   </button>
                   <Link
                     to="/step-counter"
-                    className="w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-sm"
+                    className="w-8 h-8 rounded-full bg-[#020617] text-white flex items-center justify-center shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                     aria-label={t("add_steps")}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -340,25 +340,25 @@ export default function Tracker() {
               <p className="text-[11px] text-slate-400 mb-3">/ {STEP_GOAL.toLocaleString()} goal</p>
               <div className="h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-orange-500 transition-all duration-500"
+                  className="h-full rounded-full bg-[#020617] transition-all duration-500"
                   style={{ width: `${Math.min(100, stepsPct)}%` }}
                 />
               </div>
-              <p className="text-[11px] text-orange-500 font-semibold mt-1.5">{Math.min(100, stepsPct)}% of daily goal</p>
+              <p className="text-[11px] text-slate-600 font-semibold mt-1.5">{Math.min(100, stepsPct)}% of daily goal</p>
             </div>
 
             {/* Weight Card */}
             <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
-                    <Weight className="h-[18px] w-[18px] text-violet-500" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                    <Weight className="h-[18px] w-[18px] text-[#020617]" />
                   </div>
                   <span className="text-[13px] font-bold text-slate-700">{t("weight")}</span>
                 </div>
                 <button
                   onClick={() => setWeightDialogOpen(true)}
-                  className="px-3 py-1.5 rounded-full bg-violet-500 text-white text-[12px] font-semibold shadow-sm"
+                  className="px-3 py-1.5 rounded-full bg-[#020617] text-white text-[12px] font-semibold shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                 >
                   {t("update")}
                 </button>
@@ -368,7 +368,7 @@ export default function Tracker() {
                   <p className="text-[13px] text-slate-400 mb-3">{t("set_up_profile_cta")}</p>
                   <button
                     onClick={() => navigate("/profile")}
-                    className="px-4 py-2 rounded-full bg-violet-500 text-white font-semibold text-[13px]"
+                    className="px-4 py-2 rounded-full bg-[#020617] text-white font-semibold text-[13px] shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                   >
                     {t("set_up_profile")}
                   </button>
@@ -392,12 +392,12 @@ export default function Tracker() {
                   </p>
                   <div className="h-[6px] w-full overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-violet-500 transition-all duration-500"
+                      className="h-full rounded-full bg-[#020617] transition-all duration-500"
                       style={{ width: `${weightProgress}%` }}
                     />
                   </div>
                   <div className="flex items-center gap-1.5 mt-2">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <CheckCircle2 className="w-3 h-3 text-[#020617]" />
                     <span className="text-[11px] text-slate-400">{t("progress_towards_goal")}</span>
                   </div>
                 </>
@@ -408,8 +408,8 @@ export default function Tracker() {
             <div className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                    <Activity className="h-[18px] w-[18px] text-emerald-500" />
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                    <Activity className="h-[18px] w-[18px] text-[#020617]" />
                   </div>
                   <span className="text-[13px] font-bold text-slate-700">{t("bmi")} (kg/m²)</span>
                 </div>
@@ -466,7 +466,7 @@ export default function Tracker() {
       {/* ═══════ DIALOGS ═══════ */}
       {weightDialogOpen && (
         <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]" onClick={() => setWeightDialogOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={() => setWeightDialogOpen(false)} />
           <div
             className="relative mx-auto w-full max-w-[430px] rounded-t-[32px] bg-white px-5 pt-3 shadow-[0_-24px_48px_rgba(15,23,42,0.18)]"
             style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
@@ -474,7 +474,7 @@ export default function Tracker() {
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-violet-500">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                   {t("weight")}
                 </p>
                 <h2 className="mt-1 text-[24px] font-black leading-tight text-slate-950">{t("update_weight")}</h2>
@@ -489,9 +489,9 @@ export default function Tracker() {
               </button>
             </div>
 
-            <div className="rounded-[26px] bg-violet-50 p-4">
+            <div className="rounded-[26px] bg-slate-50 p-4">
               <label className="text-[12px] font-extrabold text-slate-600">{t("weight")} (kg)</label>
-              <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-violet-100 focus-within:ring-2 focus-within:ring-violet-400">
+              <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
                 <input
                   type="number"
                   step="0.1"
@@ -528,7 +528,7 @@ export default function Tracker() {
                 }
               }}
               disabled={submitting || !weightInput}
-              className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-violet-500 text-[15px] font-black text-white shadow-[0_14px_28px_rgba(139,92,246,0.22)] transition-colors disabled:opacity-45"
+              className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-[#020617] text-[15px] font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] transition-colors disabled:opacity-45"
             >
               {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : t("save")}
             </button>
@@ -538,7 +538,7 @@ export default function Tracker() {
 
       {bmiDialogOpen && (
         <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]" onClick={() => setBmiDialogOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={() => setBmiDialogOpen(false)} />
           <div
             className="relative mx-auto flex w-full max-w-[430px] flex-col rounded-t-[32px] bg-white shadow-[0_-24px_48px_rgba(15,23,42,0.18)]"
             style={{ maxHeight: "88dvh" }}
@@ -547,7 +547,7 @@ export default function Tracker() {
               <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                     {t("bmi")}
                   </p>
                   <h2 className="mt-1 text-[24px] font-black leading-tight text-slate-950">{t("edit_bmi")}</h2>
@@ -564,9 +564,9 @@ export default function Tracker() {
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-4">
-              <div className="rounded-[26px] bg-emerald-50 p-4">
+              <div className="rounded-[26px] bg-slate-50 p-4">
                 <label className="text-[12px] font-extrabold text-slate-600">{t("height")}</label>
-                <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-emerald-100 focus-within:ring-2 focus-within:ring-emerald-400">
+                <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
                   <input
                     type="number"
                     min="100"
@@ -580,9 +580,9 @@ export default function Tracker() {
                 </div>
               </div>
 
-              <div className="rounded-[26px] bg-violet-50 p-4">
+              <div className="rounded-[26px] bg-slate-50 p-4">
                 <label className="text-[12px] font-extrabold text-slate-600">{t("weight")}</label>
-                <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-violet-100 focus-within:ring-2 focus-within:ring-violet-400">
+                <div className="mt-3 flex items-center rounded-[22px] bg-white px-4 py-3 ring-1 ring-slate-200 focus-within:ring-2 focus-within:ring-[#020617]">
                   <input
                     type="number"
                     min="20"
@@ -631,7 +631,7 @@ export default function Tracker() {
                   }
                 }}
                 disabled={submitting}
-                className="flex h-14 items-center justify-center rounded-full bg-emerald-500 text-[15px] font-black text-white shadow-[0_14px_28px_rgba(16,185,129,0.22)] disabled:opacity-45"
+                className="flex h-14 items-center justify-center rounded-full bg-[#020617] text-[15px] font-black text-white shadow-[0_14px_28px_rgba(2,6,23,0.18)] disabled:opacity-45"
               >
                 {submitting ? t("saving_progress") : t("save")}
               </button>

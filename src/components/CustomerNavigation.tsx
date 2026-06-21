@@ -76,14 +76,14 @@ export function CustomerNavigation() {
                 onClick={handleNavClick}
                 className={`flex flex-col items-center justify-center gap-1 py-2 px-4 min-w-[60px] min-h-[48px] rounded-xl transition-colors ${
                   active
-                    ? "text-primary"
+                    ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <div className="relative">
-                  <item.icon className={`w-6 h-6 ${active ? "fill-primary/20" : ""}`} />
+                  <item.icon className="w-6 h-6" />
                   {isScheduleTab && scheduleCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#020617] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                       {scheduleCount > 9 ? "9+" : scheduleCount}
                     </span>
                   )}

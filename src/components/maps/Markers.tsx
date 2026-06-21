@@ -13,7 +13,7 @@ interface LocationMarkerProps {
 // Restaurant marker icon
 function createRestaurantIcon() {
   const iconHtml = renderToString(
-    <div className="bg-amber-500 rounded-full p-2 shadow-lg border-2 border-white">
+    <div className="rounded-full bg-[#020617] p-2 shadow-lg border-2 border-white">
       <Utensils className="w-5 h-5 text-white" />
     </div>
   );
@@ -30,7 +30,7 @@ function createRestaurantIcon() {
 // Customer marker icon
 function createCustomerIcon() {
   const iconHtml = renderToString(
-    <div className="bg-emerald-500 rounded-full p-2 shadow-lg border-2 border-white">
+    <div className="rounded-full bg-[#020617] p-2 shadow-lg border-2 border-white">
       <Home className="w-5 h-5 text-white" />
     </div>
   );
@@ -45,7 +45,7 @@ function createCustomerIcon() {
 }
 
 // Generic location marker icon
-function createLocationIcon(color: string = "#3b82f6") {
+function createLocationIcon(color: string = "#020617") {
   const iconHtml = renderToString(
     <div
       className="rounded-full p-2 shadow-lg border-2 border-white"
@@ -77,7 +77,7 @@ export function RestaurantMarker({
     >
       <Popup>
         <div className="text-sm">
-          <div className="font-semibold text-amber-600 flex items-center gap-2">
+          <div className="font-semibold text-[#020617] flex items-center gap-2">
             <Utensils className="w-4 h-4" />
             {title}
           </div>
@@ -85,7 +85,7 @@ export function RestaurantMarker({
             <div className="text-muted-foreground mt-1">{address}</div>
           )}
           {phone && (
-            <div className="text-primary mt-1">
+            <div className="mt-1 text-[#020617]">
               <a href={`tel:${phone}`} className="hover:underline">
                 {phone}
               </a>
@@ -110,7 +110,7 @@ export function CustomerMarker({
     >
       <Popup>
         <div className="text-sm">
-          <div className="font-semibold text-emerald-600 flex items-center gap-2">
+          <div className="font-semibold text-[#020617] flex items-center gap-2">
             <Home className="w-4 h-4" />
             {title}
           </div>
@@ -118,7 +118,7 @@ export function CustomerMarker({
             <div className="text-muted-foreground mt-1">{address}</div>
           )}
           {phone && (
-            <div className="text-primary mt-1">
+            <div className="mt-1 text-[#020617]">
               <a href={`tel:${phone}`} className="hover:underline">
                 {phone}
               </a>
@@ -140,7 +140,7 @@ export function GenericMarker({
   title,
   address,
   phone,
-  color = "#3b82f6",
+  color = "#020617",
 }: GenericMarkerProps) {
   return (
     <Marker
@@ -156,7 +156,7 @@ export function GenericMarker({
             <div className="text-muted-foreground mt-1">{address}</div>
           )}
           {phone && (
-            <div className="text-primary mt-1">
+            <div className="mt-1 text-[#020617]">
               <a href={`tel:${phone}`} className="hover:underline">
                 {phone}
               </a>

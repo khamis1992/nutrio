@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 
 import type { AIReportContent } from "@/lib/ai-report-generator";
+import { assetPath } from "@/lib/asset-path";
 import type { MealPlanMeal, WeeklyReportData } from "@/lib/professional-weekly-report-pdf";
 
 const PAGE = { w: 210, h: 297 };
@@ -11,13 +12,13 @@ const CONTENT_W = PAGE.w - M * 2;
 const BOTTOM = PAGE.h - 22;
 
 const C = {
-  paper: [255, 250, 245] as RGB,
+  paper: [246, 248, 244] as RGB,
   white: [255, 255, 255] as RGB,
-  ink: [30, 41, 31] as RGB,
-  muted: [103, 116, 91] as RGB,
-  line: [238, 226, 210] as RGB,
-  green: [16, 63, 50] as RGB,
-  greenSoft: [232, 247, 240] as RGB,
+  ink: [2, 6, 23] as RGB,
+  muted: [100, 116, 139] as RGB,
+  line: [226, 232, 240] as RGB,
+  green: [2, 6, 23] as RGB,
+  greenSoft: [241, 245, 249] as RGB,
   orange: [249, 115, 22] as RGB,
   orangeSoft: [255, 237, 213] as RGB,
   amber: [245, 158, 11] as RGB,
@@ -51,8 +52,10 @@ class AIReportPDF {
   private doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   private page = 1;
   private totalPages = 1;
+  private logoDataUrl: string | null = null;
 
   async download(data: WeeklyReportData, content?: AIReportContent | null) {
+    this.logoDataUrl = await this.loadLogo();
     const pdf = this.generate(data, content);
     pdf.save(`nutrio-ai-report-${format(new Date(), "yyyy-MM-dd")}.pdf`);
   }
@@ -108,11 +111,38 @@ class AIReportPDF {
     this.doc.setDrawColor(...C.line);
     this.doc.setLineWidth(0.25);
     this.doc.line(M, PAGE.h - 14, PAGE.w - M, PAGE.h - 14);
+    this.drawLogo(M, PAGE.h - 12.5, 8, 8);
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(8);
     this.doc.setTextColor(...C.muted);
-    this.doc.text("Nutrio AI Nutrition Report", M, PAGE.h - 8);
+    this.doc.text("Nutrio AI Nutrition Report", M + 10, PAGE.h - 8);
     this.doc.text(`${pageNumber} / ${this.totalPages}`, PAGE.w - M, PAGE.h - 8, { align: "right" });
+  }
+
+  private async loadLogo() {
+    if (this.logoDataUrl) return this.logoDataUrl;
+    try {
+      const response = await fetch(assetPath("/logo.png"));
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  private drawLogo(x: number, y: number, w: number, h: number) {
+    if (!this.logoDataUrl) return;
+    try {
+      this.doc.addImage(this.logoDataUrl, "PNG", x, y, w, h, undefined, "FAST");
+    } catch {
+      // Text branding remains available if the image cannot be embedded.
+    }
   }
 
   private card(x: number, y: number, w: number, h: number, fill: RGB = C.white, stroke: RGB = C.line) {
@@ -123,7 +153,7 @@ class AIReportPDF {
   }
 
   private sectionTitle(number: string, title: string, y: number, eyebrow?: string) {
-    this.doc.setFillColor(...C.orange);
+    this.doc.setFillColor(...C.green);
     this.doc.roundedRect(M, y - 1, 13, 10, 3, 3, "F");
     this.doc.setTextColor(...C.white);
     this.doc.setFont("helvetica", "bold");
@@ -132,7 +162,7 @@ class AIReportPDF {
 
     if (eyebrow) {
       this.doc.setFontSize(7);
-      this.doc.setTextColor(...C.orange);
+      this.doc.setTextColor(...C.muted);
       this.doc.text(eyebrow.toUpperCase(), M + 18, y);
     }
 
@@ -156,7 +186,7 @@ class AIReportPDF {
 
   private progressBar(x: number, y: number, w: number, value: number, color: RGB) {
     const clamped = clamp(value);
-    this.doc.setFillColor(244, 238, 229);
+    this.doc.setFillColor(226, 232, 240);
     this.doc.roundedRect(x, y, w, 4, 2, 2, "F");
     if (clamped > 0) {
       this.doc.setFillColor(...color);
@@ -166,7 +196,7 @@ class AIReportPDF {
 
   private ring(cx: number, cy: number, r: number, value: number, color: RGB) {
     const stroke = 4;
-    this.doc.setDrawColor(232, 222, 208);
+    this.doc.setDrawColor(226, 232, 240);
     this.doc.setLineWidth(stroke);
     this.doc.circle(cx, cy, r, "S");
     this.doc.setDrawColor(...color);
@@ -217,22 +247,26 @@ class AIReportPDF {
   private cover(data: WeeklyReportData, content?: AIReportContent | null) {
     this.doc.setFillColor(...C.green);
     this.doc.roundedRect(M, 14, CONTENT_W, 72, 9, 9, "F");
-    this.doc.setFillColor(...C.orange);
-    this.doc.circle(PAGE.w - M - 20, 38, 15, "F");
-    this.doc.setFillColor(255, 255, 255);
-    this.doc.circle(PAGE.w - M - 20, 38, 7, "F");
+    this.doc.setFillColor(15, 23, 42);
+    this.doc.circle(PAGE.w - M - 18, 35, 22, "F");
+    this.doc.setFillColor(...C.white);
+    this.doc.roundedRect(PAGE.w - M - 40, 24, 34, 34, 9, 9, "F");
+    this.drawLogo(PAGE.w - M - 34, 29, 22, 22);
 
     this.doc.setFont("helvetica", "bold");
     this.doc.setFontSize(9);
-    this.doc.setTextColor(194, 245, 225);
-    this.doc.text("NUTRIO AI", M + 9, 30);
+    this.doc.setTextColor(203, 213, 225);
+    this.doc.text("NUTRIO", M + 9, 28);
+    this.doc.setFontSize(7);
+    this.doc.text("AI NUTRITION INTELLIGENCE", M + 9, 35);
     this.doc.setFontSize(28);
     this.doc.setTextColor(...C.white);
-    this.doc.text("Nutrition Report", M + 9, 48);
+    this.doc.text("Nutrition Report", M + 9, 51);
     this.doc.setFontSize(10);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(`${format(new Date(data.weekStart), "MMM d")} - ${format(new Date(data.weekEnd), "MMM d, yyyy")}`, M + 9, 60);
-    this.doc.text(safe(data.userEmail), M + 9, 70);
+    this.doc.setTextColor(226, 232, 240);
+    this.doc.text(`${format(new Date(data.weekStart), "MMM d")} - ${format(new Date(data.weekEnd), "MMM d, yyyy")}`, M + 9, 63);
+    this.doc.text(safe(data.userEmail), M + 9, 73);
 
     this.card(M, 100, CONTENT_W, 58);
     this.doc.setFont("helvetica", "bold");

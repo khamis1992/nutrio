@@ -172,8 +172,8 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
           {/* Header */}
           <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center shrink-0">
-                <Utensils className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center shrink-0 ring-1 ring-slate-100">
+                <Utensils className="w-5 h-5 text-[#020617]" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-900 leading-tight">{t("log_meal_title")}</h2>
@@ -202,7 +202,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
             </div>
             <button
               onClick={() => setShowScanChoice(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-green-100 px-3 py-2.5 text-green-700 hover:bg-green-200 transition-colors text-sm font-semibold shrink-0"
+              className="flex items-center gap-1.5 rounded-xl bg-[#020617] px-3 py-2.5 text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition-colors hover:bg-slate-800 text-sm font-semibold shrink-0"
               aria-label="Scan Food"
             >
               <ScanLine className="w-4 h-4" />
@@ -214,12 +214,12 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
           <div className="flex-1 overflow-y-auto px-4 pb-2">
             <div className="flex items-center justify-between mb-3">
               <p className="font-semibold text-gray-900 text-sm">{t("recently_logged")}</p>
-              <button className="text-xs font-semibold text-green-600">{t("view_all_small")}</button>
+              <button className="text-xs font-semibold text-[#020617]">{t("view_all_small")}</button>
             </div>
             <div className="space-y-2">
               {loading ? (
                 <div className="flex justify-center py-6">
-                  <div className="w-6 h-6 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-4 border-[#020617] border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : recentItems.length === 0 ? (
                 <p className="text-center py-6 text-gray-400 text-sm">No recent meals found.</p>
@@ -234,7 +234,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                       key={item.id}
                       onClick={() => toggleItem(item)}
                       className={`flex items-center gap-3 p-3 rounded-2xl border bg-white shadow-sm transition-colors cursor-pointer select-none ${
-                        isSelected ? "border-green-500 bg-green-50" : "border-gray-200"
+                        isSelected ? "border-slate-950 bg-slate-50" : "border-gray-200"
                       }`}
                     >
                       <div className="w-11 h-11 rounded-xl overflow-hidden bg-gray-50 shrink-0">
@@ -257,7 +257,7 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
                         <div className="rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
                           {item.calories}
                         </div>
-                        {isSelected && <Plus className="w-4 h-4 text-green-600" />}
+                        {isSelected && <Plus className="w-4 h-4 text-[#020617]" />}
                       </div>
                     </div>
                   );
@@ -266,24 +266,24 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
             </div>
 
             {/* Can't find your food section */}
-            <div className="mt-4 mb-2 p-3 rounded-2xl bg-green-50 flex items-center justify-between">
+            <div className="mt-4 mb-2 p-3 rounded-2xl bg-slate-50 flex items-center justify-between ring-1 ring-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-green-600 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-full bg-[#020617] flex items-center justify-center shrink-0">
                   <span className="text-white font-bold text-xs">i</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-green-700 text-sm">{t("cant_find_food")}</p>
-                  <p className="text-xs text-green-600">{t("use_scan_food")}</p>
+                  <p className="font-semibold text-slate-950 text-sm">{t("cant_find_food")}</p>
+                  <p className="text-xs text-slate-500">{t("use_scan_food")}</p>
                 </div>
               </div>
-              <button onClick={() => setShowScanChoice(true)} className="text-green-600 font-semibold text-sm">→</button>
+              <button onClick={() => setShowScanChoice(true)} className="text-[#020617] font-semibold text-sm">→</button>
             </div>
           </div>
 
           {/* Bottom button */}
           <div className="px-4 pb-4 pt-2 shrink-0 border-t border-gray-100">
             <Button
-              className="w-full rounded-full bg-green-600 text-white h-12 text-sm font-semibold"
+              className="w-full rounded-full bg-[#020617] text-white h-12 text-sm font-semibold shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800 disabled:bg-slate-300 disabled:text-white disabled:shadow-none"
               onClick={handleAddSelected}
               disabled={selectedItems.length === 0 || loading}
             >
@@ -297,60 +297,65 @@ const LogMealModal = ({ open, onOpenChange, onMealLogged }: LogMealModalProps) =
               )}
             </Button>
           </div>
+
+          {/* Scan Food Choice Sheet */}
+          {showScanChoice && (
+            <div className="fixed inset-0 z-[9999] flex flex-col justify-end pointer-events-auto">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/40"
+                onClick={() => setShowScanChoice(false)}
+                aria-label="Close scan method"
+              />
+              <div className="relative z-10 max-h-[78dvh] overflow-y-auto rounded-t-[28px] bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+96px)] shadow-[0_-18px_45px_rgba(15,23,42,0.16)] ring-1 ring-slate-100 space-y-3">
+                <div className="flex justify-center mb-2">
+                  <div className="w-10 h-1 rounded-full bg-gray-200" />
+                </div>
+                <h3 className="text-center text-base font-bold text-gray-900 mb-4">{t("choose_scan_method")}</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScanChoice(false);
+                    setShowBarcodeScanner(true);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors text-left ring-1 ring-slate-100"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shrink-0 ring-1 ring-slate-200">
+                    <Barcode className="w-6 h-6 text-[#020617]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{t("scan_barcode")}</p>
+                    <p className="text-sm text-gray-500">{t("scan_barcode_desc")}</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScanChoice(false);
+                    setShowPhotoSheet(true);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors text-left ring-1 ring-slate-100"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0 ring-1 ring-orange-100">
+                    <Camera className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{t("photo_analysis")}</p>
+                    <p className="text-sm text-gray-500">{t("photo_analysis_desc")}</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowScanChoice(false)}
+                  className="w-full py-3 rounded-2xl bg-slate-100 text-slate-600 font-semibold text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
-
-      {/* Scan Food Choice Sheet - z-[300] to appear above Dialog z-[201] */}
-      {showScanChoice && (
-        <div className="fixed inset-0 z-[300] flex flex-col justify-end">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowScanChoice(false)}
-          />
-          <div className="relative bg-white rounded-t-3xl p-5 pb-8 space-y-3">
-            <div className="flex justify-center mb-2">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
-            </div>
-            <h3 className="text-center text-base font-bold text-gray-900 mb-4">{t("choose_scan_method")}</h3>
-            <button
-              onClick={() => {
-                setShowScanChoice(false);
-                setShowBarcodeScanner(true);
-              }}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center shrink-0">
-                <Barcode className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">{t("scan_barcode")}</p>
-                <p className="text-sm text-gray-500">{t("scan_barcode_desc")}</p>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setShowScanChoice(false);
-                setShowPhotoSheet(true);
-              }}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
-                <Camera className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">{t("photo_analysis")}</p>
-                <p className="text-sm text-gray-500">{t("photo_analysis_desc")}</p>
-              </div>
-            </button>
-            <button
-              onClick={() => setShowScanChoice(false)}
-              className="w-full py-3 rounded-2xl bg-gray-100 text-gray-600 font-semibold text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       <BarcodeScanner
         isOpen={showBarcodeScanner}

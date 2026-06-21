@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 import { 
@@ -21,7 +20,6 @@ import {
   XCircle,
   Truck,
   ChefHat,
-  CircleDot,
   MapPin,
   Store,
   UtensilsCrossed,
@@ -413,8 +411,8 @@ const OrderDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#020617]" />
       </div>
     );
   }
@@ -430,157 +428,148 @@ const OrderDetail = () => {
   const canCancel = order.order_status === "pending" || order.order_status === "confirmed";
   const isOutForDelivery = order.order_status === "out_for_delivery";
   const isDelivered = order.order_status === "delivered";
+  const activeStatusStep = statusSteps[currentStep] || statusSteps[0];
+  const ActiveStatusIcon = activeStatusStep.icon;
+  const orderNumber = order.id.slice(0, 8).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-white pb-24">
       {/* Header */}
-      <div className="bg-primary text-white sticky top-0 z-10 pt-safe">
-        <div className="flex items-center justify-between p-4 rtl:flex-row-reverse">
-          <Button 
-            variant="ghost" 
-            size="icon"
+      <div className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 pt-safe backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[430px] items-center justify-between gap-3 px-4 py-3 rtl:flex-row-reverse">
+          <button
             onClick={() => navigate("/orders")}
-            className="text-white hover:bg-white/10"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-800 shadow-[0_8px_22px_rgba(15,23,42,0.07)] ring-1 ring-slate-100 active:scale-95"
+            aria-label="Back to orders"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm font-medium">{t("order_realtime_tracking")}</span>
+          </button>
+          <div className="min-w-0 text-center">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">{t("order_detail_title")}</p>
+            <h1 className="truncate text-[18px] font-black leading-tight text-slate-950">#{orderNumber}</h1>
           </div>
-          <div className="w-10" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)]">
+            <Package className="h-5 w-5" />
+          </div>
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Restaurant Name */}
-        {order.meal?.restaurant && (
-          <div className="text-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">{order.meal.restaurant.name}</h1>
-            <p className="text-sm text-gray-500 mt-1">{t("order_number_prefix")}{order.id.slice(0, 8).toUpperCase()}</p>
+      <div className="mx-auto max-w-[430px] space-y-4 px-4 py-4">
+        {/* Status hero */}
+        <section className="overflow-hidden rounded-[30px] bg-[#020617] p-5 text-white shadow-[0_18px_38px_rgba(2,6,23,0.20)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">{t("order_realtime_tracking")}</p>
+              <h2 className="mt-2 text-[26px] font-black leading-tight tracking-[-0.03em]">
+                {isCancelled ? t("order_cancelled_title") : isCompleted ? t("order_status_delivered") : activeStatusStep.label}
+              </h2>
+              <p className="mt-2 text-[13px] font-semibold leading-5 text-white/65">
+                {order.meal?.restaurant?.name || t("order_scheduled_delivery")} · {format(new Date(order.scheduled_date), "MMM d")}
+              </p>
+            </div>
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-white/10 text-white ring-1 ring-white/10">
+              {isCancelled ? <XCircle className="h-7 w-7" /> : <ActiveStatusIcon className="h-7 w-7" />}
+            </div>
           </div>
-        )}
 
-        {/* Arriving Soon Card */}
-        {!isCancelled && !isCompleted && (
-          <Card className="bg-orange-400 border-orange-400 text-white overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <Clock className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium opacity-90">{t("order_arriving_soon")}</p>
-                  <p className="text-xl font-bold">{estimatedArrival === "__delivered__" ? t("order_status_delivered") : estimatedArrival}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <div className="rounded-[18px] bg-white/10 px-3 py-3 ring-1 ring-white/10">
+              <p className="text-[10px] font-black uppercase tracking-wide text-white/45">{t("order_arriving_soon")}</p>
+              <p className="mt-1 text-[18px] font-black leading-none">
+                {estimatedArrival === "__delivered__" ? t("order_status_delivered") : estimatedArrival}
+              </p>
+            </div>
+            <div className="rounded-[18px] bg-white/10 px-3 py-3 ring-1 ring-white/10">
+              <p className="text-[10px] font-black uppercase tracking-wide text-white/45">{t("order_delivery_type_label")}</p>
+              <p className="mt-1 truncate text-[18px] font-black capitalize leading-none">
+                {order.delivery_type === "free" ? t("order_free_delivery") : order.delivery_type || "Standard"}
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* Status Timeline */}
         {!isCancelled && (
-          <Card className="overflow-hidden">
-            <CardContent className="p-6">
-              <div className="space-y-0">
-                {statusSteps.map((step, index) => {
-                  const isCompleted = index <= currentStep;
-                  const isCurrent = index === currentStep;
-                  const isLast = index === statusSteps.length - 1;
+          <section className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[15px] font-black text-slate-950">{t("order_realtime_tracking")}</h3>
+              <span className="rounded-full bg-[#020617]/5 px-3 py-1 text-[11px] font-black text-[#020617]">{currentStep + 1}/{statusSteps.length}</span>
+            </div>
+            <div className="flex items-start justify-between gap-1">
+              {statusSteps.map((step, index) => {
+                const stepDone = index <= currentStep;
+                const isCurrent = index === currentStep;
+                const StepIcon = step.icon;
 
-                  return (
-                    <div key={step.key} className="flex gap-4">
-                      {/* Timeline line and icon */}
-                      <div className="flex flex-col items-center">
-                        <div 
-                          className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                            isCompleted 
-                              ? 'bg-orange-400 border-orange-400 text-white' 
-                              : 'bg-white border-gray-300 text-gray-400'
-                          } ${isCurrent ? 'ring-4 ring-orange-100' : ''}`}
-                        >
-                          {isCompleted ? (
-                            <CheckCircle2 className="h-4 w-4" />
-                          ) : (
-                            <CircleDot className="h-4 w-4" />
-                          )}
-                        </div>
-                        {!isLast && (
-                          <div 
-                            className={`w-0.5 h-12 mt-1 ${
-                              index < currentStep ? 'bg-orange-400' : 'bg-gray-200'
-                            }`} 
-                          />
-                        )}
-                      </div>
-
-                      {/* Label */}
-                      <div className={`pb-8 ${isLast ? '' : ''}`}>
-                        <p className={`font-medium ${
-                          isCompleted ? 'text-gray-900' : 'text-gray-400'
-                        } ${isCurrent ? 'text-orange-600' : ''}`}>
-                          {step.label}
-                        </p>
-                        {isCurrent && (
-                          <p className="text-sm text-gray-500 mt-0.5">
-                            {index === 0 && t("order_step_waiting")}
-                            {index === 1 && t("order_step_accepted")}
-                            {index === 2 && t("order_step_preparing_desc")}
-                            {index === 3 && t("order_step_ready_desc")}
-                            {index === 4 && t("order_step_on_way")}
-                            {index === 5 && t("order_step_enjoy")}
-                          </p>
-                        )}
+                return (
+                  <div key={step.key} className="flex min-w-0 flex-1 flex-col items-center">
+                    <div className={isCurrent ? "rounded-full bg-[#020617]/10 p-1" : "p-1"}>
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                        stepDone ? "bg-[#020617] text-white" : "bg-slate-100 text-slate-400"
+                      }`}>
+                        <StepIcon className="h-4 w-4" />
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                    <p className={`mt-1 max-w-[54px] truncate text-center text-[9px] font-black ${stepDone ? "text-slate-950" : "text-slate-400"}`}>
+                      {step.label}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 rounded-[18px] bg-slate-50 px-4 py-3">
+              <p className="text-[12px] font-bold leading-5 text-slate-600">
+                {currentStep === 0 && t("order_step_waiting")}
+                {currentStep === 1 && t("order_step_accepted")}
+                {currentStep === 2 && t("order_step_preparing_desc")}
+                {currentStep === 3 && t("order_step_ready_desc")}
+                {currentStep === 4 && t("order_step_on_way")}
+                {currentStep >= 5 && t("order_step_enjoy")}
+              </p>
+            </div>
+          </section>
         )}
 
         {/* Cancelled Order Message */}
         {isCancelled && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <XCircle className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-red-600">{t("order_cancelled_title")}</p>
-                  <p className="text-sm text-red-600/70">
-                    {t("order_cancelled_message")}
-                  </p>
-                </div>
+          <section className="rounded-[28px] border border-red-100 bg-red-50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white text-red-600 ring-1 ring-red-100">
+                <XCircle className="h-6 w-6" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="min-w-0">
+                <p className="font-black text-red-700">{t("order_cancelled_title")}</p>
+                <p className="mt-1 text-sm font-semibold leading-5 text-red-600/70">
+                  {t("order_cancelled_message")}
+                </p>
+              </div>
+            </div>
+          </section>
         )}
 
         {/* Food Image Card */}
         {order.meal && (
-          <Card className="overflow-hidden">
-            <div className="aspect-video relative">
+          <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="relative aspect-[1.35]">
               {order.meal.image_url ? (
                 <img 
                   src={order.meal.image_url} 
                   alt={order.meal.name}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                  <UtensilsCrossed className="h-16 w-16 text-gray-300" />
+                <div className="flex h-full w-full items-center justify-center bg-slate-100">
+                  <UtensilsCrossed className="h-16 w-16 text-slate-300" />
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                <h3 className="font-bold text-lg">{order.meal.name}</h3>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/65">{order.meal_type}</p>
+                <h3 className="mt-1 text-[21px] font-black leading-tight">{order.meal.name}</h3>
                 {order.meal.diet_tags.length > 0 && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {order.meal.diet_tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag.name} variant="secondary" className="bg-white/20 text-white border-0">
+                      <Badge key={tag.name} variant="secondary" className="border-0 bg-white/20 text-white">
                         {tag.name}
                       </Badge>
                     ))}
@@ -588,55 +577,55 @@ const OrderDetail = () => {
                 )}
               </div>
             </div>
-            <CardContent className="p-4">
+            <div className="p-4">
               {/* Nutrition Info */}
-              <div className="grid grid-cols-4 gap-3">
-                <div className="text-center p-3 rounded-xl bg-orange-50">
-                  <Flame className="h-5 w-5 mx-auto mb-1 text-orange-500" />
-                  <p className="text-lg font-bold text-gray-900">{order.meal.calories}</p>
-                  <p className="text-xs text-gray-500">cal</p>
+              <div className="grid grid-cols-4 gap-2">
+                <div className="rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+                  <Flame className="mx-auto mb-1 h-5 w-5 text-[#020617]" />
+                  <p className="text-lg font-black text-slate-950">{order.meal.calories}</p>
+                  <p className="text-xs font-bold text-slate-400">cal</p>
                 </div>
-                <div className="text-center p-3 rounded-xl bg-red-50">
-                  <Beef className="h-5 w-5 mx-auto mb-1 text-red-500" />
-                  <p className="text-lg font-bold text-gray-900">{order.meal.protein_g}g</p>
-                  <p className="text-xs text-gray-500">{t("protein")}</p>
+                <div className="rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+                  <Beef className="mx-auto mb-1 h-5 w-5 text-[#020617]" />
+                  <p className="text-lg font-black text-slate-950">{order.meal.protein_g}g</p>
+                  <p className="text-xs font-bold text-slate-400">{t("protein")}</p>
                 </div>
-                <div className="text-center p-3 rounded-xl bg-amber-50">
-                  <Wheat className="h-5 w-5 mx-auto mb-1 text-amber-500" />
-                  <p className="text-lg font-bold text-gray-900">{order.meal.carbs_g}g</p>
-                  <p className="text-xs text-gray-500">{t("carbs")}</p>
+                <div className="rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+                  <Wheat className="mx-auto mb-1 h-5 w-5 text-[#020617]" />
+                  <p className="text-lg font-black text-slate-950">{order.meal.carbs_g}g</p>
+                  <p className="text-xs font-bold text-slate-400">{t("carbs")}</p>
                 </div>
-                <div className="text-center p-3 rounded-xl bg-blue-50">
-                  <Droplets className="h-5 w-5 mx-auto mb-1 text-blue-500" />
-                  <p className="text-lg font-bold text-gray-900">{order.meal.fat_g}g</p>
-                  <p className="text-xs text-gray-500">{t("fat")}</p>
+                <div className="rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+                  <Droplets className="mx-auto mb-1 h-5 w-5 text-[#020617]" />
+                  <p className="text-lg font-black text-slate-950">{order.meal.fat_g}g</p>
+                  <p className="text-xs font-bold text-slate-400">{t("fat")}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         )}
 
         {/* Contact Section */}
         {order.meal?.restaurant && (
-          <Card>
-            <CardContent className="p-4 space-y-4">
+          <section className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-slate-50 ring-1 ring-slate-100">
                   {order.meal.restaurant.logo_url ? (
                     <img 
                       src={order.meal.restaurant.logo_url} 
                       alt={order.meal.restaurant.name}
-                      className="w-full h-full object-cover rounded-xl"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
-                    <Store className="h-6 w-6 text-orange-500" />
+                    <Store className="h-6 w-6 text-[#020617]" />
                   )}
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{order.meal.restaurant.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-black text-slate-950">{order.meal.restaurant.name}</p>
                   {order.meal.restaurant.address && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
+                    <p className="mt-1 flex items-center gap-1 truncate text-sm font-semibold text-slate-500">
+                      <MapPin className="h-3 w-3 shrink-0" />
                       {order.meal.restaurant.address}
                     </p>
                   )}
@@ -647,7 +636,7 @@ const OrderDetail = () => {
                 driverPhone ? (
                   <a
                     href={`tel:${driverPhone}`}
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 font-medium transition-colors border border-blue-200"
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#020617] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] transition active:scale-[0.98]"
                   >
                     <Phone className="h-5 w-5" />
                     {t("order_call_driver")}{driverName ? ` · ${driverName}` : ""}
@@ -655,7 +644,7 @@ const OrderDetail = () => {
                 ) : (
                   <button
                     disabled
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 rounded-xl text-blue-400 font-medium border border-blue-200 opacity-60 cursor-not-allowed"
+                    className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-slate-100 px-4 text-sm font-black text-slate-400 opacity-70"
                   >
                     <Phone className="h-5 w-5" />
                     {t("order_call_driver")}{driverName ? ` · ${driverName}` : ""}
@@ -664,60 +653,60 @@ const OrderDetail = () => {
               ) : order.meal.restaurant.phone ? (
                 <a
                   href={`tel:${order.meal.restaurant.phone}`}
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 font-medium transition-colors"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-slate-100 px-4 text-sm font-black text-slate-700 transition active:scale-[0.98]"
                 >
                   <Phone className="h-5 w-5" />
                   {t("order_contact_restaurant")}
                 </a>
               ) : null}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         )}
 
         {/* Delivery Info */}
-        <Card>
-          <CardContent className="p-4 space-y-3">
+        <section className="rounded-[28px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+          <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-orange-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-slate-50 text-[#020617] ring-1 ring-slate-100">
+                <Clock className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">{t("order_scheduled_delivery")}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm font-black text-slate-950">{t("order_scheduled_delivery")}</p>
+                <p className="text-sm font-semibold text-slate-500">
                   {format(new Date(order.scheduled_date), "EEEE, MMMM d, yyyy")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Truck className="h-5 w-5 text-blue-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-slate-50 text-[#020617] ring-1 ring-slate-100">
+                <Truck className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">{t("order_delivery_type_label")}</p>
-                <p className="text-sm text-gray-500 capitalize">
+                <p className="text-sm font-black text-slate-950">{t("order_delivery_type_label")}</p>
+                <p className="text-sm font-semibold capitalize text-slate-500">
                   {order.delivery_type === "free" ? t("order_free_delivery") : `${order.delivery_type || "Standard"} ${t("order_delivery_suffix")}`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-slate-50 text-[#020617] ring-1 ring-slate-100">
+                <CheckCircle2 className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{t("order_total_label")}</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className="text-sm font-black text-slate-950">{t("order_total_label")}</p>
+                <p className="text-lg font-black text-slate-950">
                   {formatCurrency((order.addons_total || 0))}
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {/* Actions */}
         {canCancel && (
           <Button 
             variant="outline" 
-            className="w-full h-12 text-red-600 border-red-200 hover:bg-red-50"
+            className="h-12 w-full rounded-full border-red-200 text-sm font-black text-red-600 hover:bg-red-50"
             onClick={handleCancelOrder}
             disabled={updating}
           >
@@ -732,7 +721,7 @@ const OrderDetail = () => {
 
         {isOutForDelivery && (
           <Button 
-            className="w-full h-12 bg-green-600 hover:bg-green-700"
+            className="h-12 w-full rounded-full bg-[#020617] text-sm font-black text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800"
             onClick={() => updateOrderStatus("delivered")}
             disabled={updating}
           >
@@ -747,7 +736,7 @@ const OrderDetail = () => {
 
         {isDelivered && (
           <Button 
-            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700"
+            className="h-12 w-full rounded-full bg-[#020617] text-sm font-black text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800"
             onClick={() => updateOrderStatus("completed")}
             disabled={updating}
           >
@@ -761,10 +750,10 @@ const OrderDetail = () => {
         )}
 
         {/* View Order History Link */}
-        <Link to="/orders">
+        <Link to="/orders" className="block">
           <Button 
             variant="ghost" 
-            className="w-full text-gray-500"
+            className="h-12 w-full rounded-full text-sm font-black text-slate-500 hover:bg-slate-50"
           >
             {t("order_view_all")}
             <ChevronRight className="h-4 w-4 ml-1" />

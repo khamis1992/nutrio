@@ -31,7 +31,7 @@ export function PopularCombos() {
     <div className="space-y-3">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-[16px] font-extrabold text-slate-900">{t("community_popular_combos")}</h2>
-        <button className="text-[13px] font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1" onClick={() => navigate("/meals")}>{t("community_view_all")} <ChevronRight className="h-4 w-4" /></button>
+        <button className="text-[13px] font-semibold text-slate-700 hover:text-slate-950 inline-flex items-center gap-1" onClick={() => navigate("/meals")}>{t("community_view_all")} <ChevronRight className="h-4 w-4" /></button>
       </div>
       <div className="relative">
         <div ref={scrollRef} className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" onScroll={(e) => setScrollPos(e.currentTarget.scrollLeft)}>

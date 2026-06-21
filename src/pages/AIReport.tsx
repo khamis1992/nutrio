@@ -374,14 +374,16 @@ export default function AIReportPage() {
           <button
             onClick={handleDownloadPdf}
             disabled={generatingPdf}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition active:scale-95 disabled:opacity-60"
-            aria-label="Download report"
+            className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#020617] px-3.5 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] transition active:scale-95 disabled:opacity-60"
+            aria-label="Download PDF report"
+            title="Download PDF report"
           >
             {generatingPdf ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <FileDown className="h-4 w-4" />
             )}
+            <span>PDF</span>
           </button>
         </div>
       </div>
@@ -638,22 +640,6 @@ export default function AIReportPage() {
         </motion.div>
       </main>
 
-      <div className="fixed inset-x-0 z-50 border-t border-slate-100 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 shadow-[0_-14px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl" style={{ bottom: "56px" }}>
-        <div className="mx-auto max-w-[430px]">
-          <button
-            onClick={handleDownloadPdf}
-            disabled={generatingPdf}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-slate-950 text-[15px] font-black text-white shadow-[0_16px_30px_rgba(15,23,42,0.18)] transition active:scale-[0.99] disabled:opacity-60"
-          >
-            {generatingPdf ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <FileDown className="h-5 w-5" />
-            )}
-            {generatingPdf ? "Preparing PDF" : "Download professional PDF"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

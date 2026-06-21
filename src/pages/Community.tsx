@@ -29,10 +29,10 @@ export default function Community() {
       variants={pageVariants}
       initial="hidden"
       animate="visible"
-      className="min-h-screen bg-[#F7FAF8] pb-24"
+      className="min-h-screen bg-white pb-24"
       style={{ overscrollBehaviorY: "contain" }}
     >
-      <div className="sticky top-0 z-40 border-b border-emerald-50/90 bg-[#F7FAF8]/95 backdrop-blur-xl">
+      <div className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[78px] max-w-[430px] items-center gap-3 px-4 pt-[env(safe-area-inset-top)]">
           <button
             onClick={() => navigate(-1)}
@@ -43,7 +43,7 @@ export default function Community() {
           </button>
 
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
               Nutrio
             </p>
             <h1 className="text-[24px] font-black leading-tight text-slate-950">
@@ -89,7 +89,7 @@ export default function Community() {
                 {t("community_match_coach")}
               </p>
             </div>
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.14)]">
               <ChevronRight className="h-5 w-5" />
             </span>
           </div>

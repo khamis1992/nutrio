@@ -11,7 +11,7 @@ interface RoutePolylineProps {
 
 export function RoutePolyline({
   positions,
-  color = "#22c55e",
+  color = "#020617",
   weight = 4,
   opacity = 0.8,
   dashed = false,
@@ -54,7 +54,7 @@ export function SpeedCodedPolyline({ positions }: SpeedCodedPolylineProps) {
     const speed = current.speed || 0;
 
     // Color based on speed
-    let color = "#22c55e"; // green - slow/stopped
+    let color = "#020617"; // system dark - slow/stopped
     if (speed > 60) color = "#ef4444"; // red - fast
     else if (speed > 30) color = "#f59e0b"; // orange - moderate
     else if (speed > 10) color = "#3b82f6"; // blue - moving

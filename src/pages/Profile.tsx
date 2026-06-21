@@ -99,14 +99,14 @@ const MetricCard = ({
   value: string;
   tone: string;
 }) => (
-  <div className="min-h-[92px] rounded-2xl border border-white/50 bg-white/78 p-3 shadow-[0_10px_28px_rgba(15,23,42,0.07)] backdrop-blur">
-    <div className={cn("mb-2 flex h-8 w-8 items-center justify-center rounded-xl", tone)}>
+  <div className="flex min-h-[82px] min-w-0 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-2.5 text-center shadow-[0_8px_22px_rgba(15,23,42,0.05)]">
+    <div className={cn("mb-1.5 flex h-7 w-7 items-center justify-center rounded-full", tone)}>
       {icon}
     </div>
-    <p className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+    <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.06em] text-slate-400">
       {label}
     </p>
-    <p className="mt-1 truncate text-[17px] font-black leading-none text-slate-900">
+    <p className="mt-1 w-full truncate text-[16px] font-black leading-none text-slate-900">
       {value}
     </p>
   </div>
@@ -425,25 +425,25 @@ const Profile = () => {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="relative mt-4 overflow-hidden rounded-[30px] border border-white/60 bg-white/70 p-5 text-slate-950 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+          className="relative mt-4 overflow-hidden rounded-[28px] border border-slate-200 bg-white p-4 text-slate-950 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"
         >
-          <div className="relative z-10 flex items-start gap-4">
-            <div className="rounded-[24px] bg-white/80 p-1.5 shadow-sm ring-1 ring-white/60">
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="shrink-0 rounded-[22px] bg-white p-1 shadow-sm ring-1 ring-slate-100">
               <AvatarUpload
                 currentAvatarUrl={profileAvatarUrl}
                 onAvatarUpdate={setAvatarUrl}
-                size="lg"
+                size="md"
               />
             </div>
-            <div className="min-w-0 flex-1 pt-1">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-700">
                 <Sparkles className="h-3 w-3" />
-                {isVip ? t("subscription_menu") : t("eat_healthy_live_better")}
+                <span className="truncate">{isVip ? t("subscription_menu") : t("eat_healthy_live_better")}</span>
               </div>
-              <h2 className="truncate text-[25px] font-black leading-tight tracking-normal text-slate-950">
+              <h2 className="truncate text-[22px] font-black leading-none tracking-[-0.03em] text-slate-950">
                 {displayName}
               </h2>
-              <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-relaxed text-slate-500">
+              <p className="mt-1 truncate text-[12px] font-semibold text-slate-500">
                 {currentCoach
                   ? `${t("your_coach")}: ${currentCoach.full_name || t("coach_default_name")}`
                   : t("eat_healthy_live_better")}
@@ -451,54 +451,54 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="relative z-10 mt-5 grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl bg-emerald-50/80 p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+          <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
+            <div className="flex min-h-[72px] min-w-0 flex-col items-center justify-center rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+              <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
                 {t("points_label")}
               </p>
-              <p className="mt-1 flex items-center gap-1 text-[18px] font-black text-slate-950">
+              <p className="mt-1 flex w-full items-center justify-center gap-1 text-[17px] font-black text-slate-950">
                 <Flame className="h-4 w-4 text-amber-500" />
                 {points}
               </p>
             </div>
-            <div className="rounded-2xl bg-emerald-50/80 p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+            <div className="flex min-h-[72px] min-w-0 flex-col items-center justify-center rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+              <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
                 {t("profile_achievements")}
               </p>
-              <p className="mt-1 flex items-center gap-1 text-[18px] font-black text-slate-950">
-                <Trophy className="h-4 w-4 text-lime-500" />
+              <p className="mt-1 flex w-full items-center justify-center gap-1 text-[17px] font-black text-slate-950">
+                <Trophy className="h-4 w-4 text-[#020617]" />
                 {unlockedCount}
               </p>
             </div>
-            <div className="rounded-2xl bg-emerald-50/80 p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+            <div className="flex min-h-[72px] min-w-0 flex-col items-center justify-center rounded-2xl bg-slate-50 p-3 text-center ring-1 ring-slate-100">
+              <p className="w-full truncate text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
                 {t("member_since")}
               </p>
-              <p className="mt-1 truncate text-[15px] font-black text-slate-950">
+              <p className="mt-1 w-full truncate text-[13px] font-black text-slate-950">
                 {profile?.created_at ? formatMemberDate(profile.created_at) : "-"}
               </p>
             </div>
           </div>
         </motion.section>
 
-        <section className="mt-4 grid grid-cols-3 gap-3">
+        <section className="mt-4 grid grid-cols-3 gap-2">
           <MetricCard
-            icon={<Target className="h-4 w-4 text-emerald-700" />}
+            icon={<Target className="h-3.5 w-3.5 text-[#020617]" />}
             label={t("goals")}
             value={calorieTarget > 0 ? `${calorieTarget}` : "-"}
-            tone="bg-emerald-100"
+            tone="bg-slate-100"
           />
           <MetricCard
-            icon={<Flame className="h-4 w-4 text-orange-700" />}
+            icon={<Flame className="h-3.5 w-3.5 text-amber-600" />}
             label={t("streak")}
             value={`${currentStreak}`}
-            tone="bg-orange-100"
+            tone="bg-amber-50"
           />
           <MetricCard
-            icon={<Crown className="h-4 w-4 text-violet-700" />}
-            label={t("subscription_menu")}
+            icon={<Crown className="h-3.5 w-3.5 text-[#020617]" />}
+            label="Plan"
             value={isVip ? "VIP" : "Free"}
-            tone="bg-violet-100"
+            tone="bg-slate-100"
           />
         </section>
 

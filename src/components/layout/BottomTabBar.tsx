@@ -82,7 +82,7 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
                     {active && (
                       <motion.div
                         layoutId="tab-indicator"
-                        className="absolute inset-0 rounded-[10px] bg-emerald-50"
+                        className="absolute inset-0 rounded-[10px] bg-[#020617]"
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -91,7 +91,7 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
                       style={{
                         width: 20,
                         height: 20,
-                        color: active ? "#10B981" : "#9CA3AF",
+                        color: active ? "#FFFFFF" : "#9CA3AF",
                         strokeWidth: active ? 2.25 : 1.75,
                       }}
                     />
@@ -100,7 +100,7 @@ export function BottomTabBar({ keyboardOpen = false }: BottomTabBarProps) {
                   {/* Label — always visible, same size */}
                   <span
                     className="text-[10px] font-semibold leading-none transition-colors duration-150"
-                    style={{ color: active ? "#10B981" : "#9CA3AF" }}
+                    style={{ color: active ? "#020617" : "#9CA3AF" }}
                   >
                     {t(tab.labelKey)}
                   </span>

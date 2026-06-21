@@ -631,9 +631,9 @@ const MealWizard = ({
                             </div>
 
                             <div className="mt-4 flex items-center justify-between gap-3">
-                              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                              <div className="grid min-w-0 flex-1 grid-cols-2 gap-1.5">
                                 {meta.tags.slice(0, 2).map((tag) => (
-                                  <span key={tag} className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold leading-none ${meta.tagClass}`}>{tag}</span>
+                                  <span key={tag} className="truncate rounded-[14px] bg-slate-50/80 px-2.5 py-2 text-center text-[10px] font-black leading-none text-[#020617] ring-1 ring-slate-200/80 backdrop-blur">{tag}</span>
                                 ))}
                               </div>
 
@@ -818,13 +818,15 @@ const MealWizard = ({
                                   </p>
                                 )}
                               </div>
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${config.bgGradient} ${config.textColor}`}>
-                                  {meal.calories} kcal
-                                </span>
-                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-600">
-                                  {meal.protein_g}g protein
-                                </span>
+                              <div className="mt-3 flex items-center gap-2">
+                                <div className="min-w-0 rounded-[14px] bg-slate-50/80 px-2.5 py-2 ring-1 ring-slate-200/80 backdrop-blur">
+                                  <p className="truncate text-[11px] font-black leading-none text-orange-700">{meal.calories}</p>
+                                  <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">kcal</p>
+                                </div>
+                                <div className="min-w-0 rounded-[14px] bg-slate-50/80 px-2.5 py-2 ring-1 ring-slate-200/80 backdrop-blur">
+                                  <p className="truncate text-[11px] font-black leading-none text-[#020617]">{meal.protein_g}g</p>
+                                  <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">protein</p>
+                                </div>
                                 <span className={`ml-auto inline-flex h-8 items-center justify-center rounded-full px-3 text-[12px] font-black ${
                                   isSelected ? "bg-emerald-500 text-white" : "bg-slate-950 text-white"
                                 }`}>
@@ -916,33 +918,44 @@ const MealWizard = ({
               style={{ paddingBottom: 'max(13rem, calc(9rem + env(safe-area-inset-bottom)))' }}
             >
               <div className="flex flex-1 flex-col">
-                <section className="rounded-[28px] border border-slate-100 bg-white p-4 shadow-[0_14px_36px_rgba(15,23,42,0.07)]">
+                <section className="rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-[0_14px_36px_rgba(15,23,42,0.07)] backdrop-blur-xl">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#020617]">
                         {format(selectedDate, "EEE, MMM d")}
                       </p>
                       <h2 className="mt-1 text-[24px] font-black leading-tight text-slate-950">Review order</h2>
                       <p className="mt-1 text-[13px] font-semibold leading-snug text-slate-500">{t("mealwizard_estimated_nutrition")}</p>
                     </div>
-                    <span className="rounded-full bg-[#E2F8EB] px-3 py-2 text-[12px] font-black text-[#0B9B59]">Fresh daily</span>
+                    <span className="rounded-[18px] bg-slate-950 px-3 py-2 text-center text-[11px] font-black leading-tight text-white shadow-[0_10px_20px_rgba(2,6,23,0.14)]">
+                      Fresh<br />daily
+                    </span>
                   </div>
 
                   <div className="mt-5 grid grid-cols-3 gap-2">
-                    <div className="rounded-[20px] bg-[#FFF7ED] px-2 py-3 text-center">
-                      <Flame className="mx-auto h-5 w-5 text-[#F97316]" strokeWidth={2.4} />
-                      <p className="mt-2 text-[22px] font-black leading-none text-slate-950">{totalCalories}</p>
-                      <p className="mt-1 text-[11px] font-extrabold text-slate-500">kcal</p>
+                    <div className="min-w-0 rounded-[18px] bg-slate-50/80 px-2.5 py-3 ring-1 ring-slate-200/80 backdrop-blur">
+                      <div className="flex items-center gap-1.5 text-orange-700">
+                        <Flame className="h-4 w-4 shrink-0" strokeWidth={2.4} />
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.08em]">Calories</p>
+                      </div>
+                      <p className="mt-2 truncate text-[22px] font-black leading-none text-[#020617]">{totalCalories}</p>
+                      <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">kcal</p>
                     </div>
-                    <div className="rounded-[20px] bg-[#FFF1F5] px-2 py-3 text-center">
-                      <Beef className="mx-auto h-5 w-5 text-[#F43F5E]" strokeWidth={2.4} />
-                      <p className="mt-2 text-[22px] font-black leading-none text-slate-950">{totalProtein}g</p>
-                      <p className="mt-1 text-[11px] font-extrabold text-slate-500">protein</p>
+                    <div className="min-w-0 rounded-[18px] bg-slate-50/80 px-2.5 py-3 ring-1 ring-slate-200/80 backdrop-blur">
+                      <div className="flex items-center gap-1.5 text-rose-700">
+                        <Beef className="h-4 w-4 shrink-0" strokeWidth={2.4} />
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.08em]">Protein</p>
+                      </div>
+                      <p className="mt-2 truncate text-[22px] font-black leading-none text-[#020617]">{totalProtein}g</p>
+                      <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">total</p>
                     </div>
-                    <div className="rounded-[20px] bg-[#ECFDF5] px-2 py-3 text-center">
-                      <Leaf className="mx-auto h-5 w-5 text-[#10A45D]" strokeWidth={2.4} />
-                      <p className="mt-2 text-[22px] font-black leading-none text-slate-950">{totalCarbs}g</p>
-                      <p className="mt-1 text-[11px] font-extrabold text-slate-500">carbs</p>
+                    <div className="min-w-0 rounded-[18px] bg-slate-50/80 px-2.5 py-3 ring-1 ring-slate-200/80 backdrop-blur">
+                      <div className="flex items-center gap-1.5 text-emerald-700">
+                        <Leaf className="h-4 w-4 shrink-0" strokeWidth={2.4} />
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.08em]">Carbs</p>
+                      </div>
+                      <p className="mt-2 truncate text-[22px] font-black leading-none text-[#020617]">{totalCarbs}g</p>
+                      <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-400">total</p>
                     </div>
                   </div>
                 </section>
@@ -1003,13 +1016,22 @@ const MealWizard = ({
                                 <NextIcon className="h-4.5 w-4.5" strokeWidth={2.5} />
                               </button>
                             </div>
-                            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-600">
+                            <div className="mt-3 grid grid-cols-3 gap-1.5">
+                              <span className="inline-flex min-w-0 flex-col rounded-[14px] bg-slate-50/80 px-2.5 py-2 text-[11px] font-extrabold text-slate-600 ring-1 ring-slate-200/80 backdrop-blur">
+                                <span className="flex min-w-0 items-center gap-1 text-[#020617]">
                                 <Clock className="h-3.5 w-3.5" />
                                 {config.time}
+                                </span>
+                                <span className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">time</span>
                               </span>
-                              <span className="rounded-full bg-[#FFF7ED] px-2.5 py-1 text-[11px] font-extrabold text-[#B94E05]">{meal.calories || 0} kcal</span>
-                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-600">{meal.protein_g || 0}g protein</span>
+                              <span className="rounded-[14px] bg-slate-50/80 px-2.5 py-2 text-[11px] font-black text-orange-700 ring-1 ring-slate-200/80 backdrop-blur">
+                                {meal.calories || 0}
+                                <span className="mt-1 block text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">kcal</span>
+                              </span>
+                              <span className="rounded-[14px] bg-slate-50/80 px-2.5 py-2 text-[11px] font-black text-[#020617] ring-1 ring-slate-200/80 backdrop-blur">
+                                {meal.protein_g || 0}g
+                                <span className="mt-1 block text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">protein</span>
+                              </span>
                             </div>
                           </div>
                         </div>

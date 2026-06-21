@@ -14,9 +14,10 @@ interface EmptyStateProps {
   actionLabel?: string;
   actionHref?: string;
   className?: string;
+  actionClassName?: string;
 }
 
-export function EmptyState({ icon, title, description, actionLabel, actionHref, className }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, actionLabel, actionHref, className, actionClassName }: EmptyStateProps) {
   return (
     <motion.div 
       variants={fadeVariants}
@@ -32,7 +33,10 @@ export function EmptyState({ icon, title, description, actionLabel, actionHref, 
       {actionLabel && actionHref && (
         <Link 
           to={actionHref}
-          className="mt-4 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className={cn(
+            "mt-4 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors",
+            actionClassName
+          )}
         >
           {actionLabel}
         </Link>

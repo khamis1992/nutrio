@@ -84,6 +84,13 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     setIsScanning(false);
   }, []);
 
+  const handleClose = useCallback((event?: React.MouseEvent | React.PointerEvent) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+    stopCamera();
+    onClose();
+  }, [onClose, stopCamera]);
+
   // Start camera using Capacitor on native, browser API on web
   const startCamera = useCallback(async () => {
     try {
@@ -311,7 +318,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     if (productData) {
       onScan(productData);
       stopCamera();
-      onClose();
+      handleClose();
     }
   };
 
@@ -356,14 +363,22 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background/95 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] bg-background/95 flex items-center justify-center p-4" onClick={handleClose}>
       <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Barcode className="h-5 w-5" />
             {t("scan_barcode") || "Scan Barcode"}
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={handleClose}
+            className="relative z-10 h-8 w-8"
+            aria-label={t("close") || "Close"}
+          >
             <X className="h-5 w-5" />
           </Button>
         </CardHeader>

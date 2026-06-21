@@ -75,12 +75,6 @@ interface ScheduledMeal {
   meal?: Meal & { restaurant?: Restaurant };
 }
 
-interface MonthlyStats {
-  total: number;
-  completed: number;
-  cancelled: number;
-}
-
 // Raw types from Supabase (with possible nulls)
 interface RawOrder {
   id: string;
@@ -111,10 +105,10 @@ interface RawScheduledMeal {
 
 const statusConfig: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
   pending: { labelKey: "status_pending", icon: CircleDot, color: "bg-warning/10 text-warning border-warning/20" },
-  confirmed: { labelKey: "status_confirmed", icon: CheckCircle2, color: "bg-primary/10 text-primary border-primary/20" },
-  preparing: { labelKey: "status_preparing", icon: ChefHat, color: "bg-primary/10 text-primary border-primary/20" },
+  confirmed: { labelKey: "status_confirmed", icon: CheckCircle2, color: "bg-[#020617]/5 text-[#020617] border-[#020617]/10" },
+  preparing: { labelKey: "status_preparing", icon: ChefHat, color: "bg-[#020617]/5 text-[#020617] border-[#020617]/10" },
   out_for_delivery: { labelKey: "status_out_for_delivery", icon: Truck, color: "bg-warning/10 text-warning border-warning/20" },
-  delivered: { labelKey: "status_delivered", icon: CheckCircle2, color: "bg-primary/10 text-primary border-primary/20" },
+  delivered: { labelKey: "status_delivered", icon: CheckCircle2, color: "bg-[#020617]/5 text-[#020617] border-[#020617]/10" },
   cancelled: { labelKey: "status_cancelled", icon: XCircle, color: "bg-destructive/10 text-destructive border-destructive/20" },
 };
 
@@ -149,33 +143,6 @@ const OrderHistory = () => {
   
   // Order modification state
   const [modifyingSchedule, setModifyingSchedule] = useState<ScheduledMeal | null>(null);
-  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({ total: 0, completed: 0, cancelled: 0 });
-  
-  const loadMonthlyStats = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { data, error } = await supabase
-        .from("meal_schedules")
-        .select("order_status")
-        .eq("user_id", user.id)
-        .gte("scheduled_date", startOfMonth.split("T")[0])
-        .lte("scheduled_date", now.toISOString().split("T")[0]);
-
-      if (error) throw error;
-      const stats = { total: data?.length || 0, completed: 0, cancelled: 0 };
-      (data || []).forEach((s: { order_status: string }) => {
-        if (s.order_status === "delivered" || s.order_status === "completed") stats.completed++;
-        else if (s.order_status === "cancelled") stats.cancelled++;
-      });
-      setMonthlyStats(stats);
-    } catch { /* silent */ }
-  }, [user?.id]);
-
-  useEffect(() => {
-    loadMonthlyStats();
-  }, [loadMonthlyStats]);
 
   // Pull to refresh handlers
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -620,6 +587,7 @@ const OrderHistory = () => {
   const todayStr = format(today, "yyyy-MM-dd");
   const upcomingMeals = scheduledMeals.filter(m => !m.is_completed && m.scheduled_date >= todayStr);
   const completedMeals = scheduledMeals.filter(m => m.is_completed);
+  const upcomingProgress = 0;
 
   const loading = ordersLoading || scheduledLoading;
 
@@ -633,6 +601,7 @@ const OrderHistory = () => {
           description={t("schedule_meals_cta")}
           actionLabel={t("browse_meals_btn")}
           actionHref="/meals"
+          actionClassName="rounded-full bg-[#020617] px-5 py-2.5 text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800"
         />
       );
     }
@@ -678,7 +647,7 @@ const OrderHistory = () => {
 
                 {/* Meta chips */}
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                  <span className="flex items-center gap-1 rounded-full bg-[#020617]/5 px-2.5 py-1 text-[11px] font-bold text-[#020617]">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(schedule.scheduled_date), "MMM d, yyyy")}
                   </span>
@@ -692,7 +661,7 @@ const OrderHistory = () => {
                       {schedule.meal.calories} cal
                     </span>
                   ) : null}
-                  <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-600">
+                  <span className="ml-auto rounded-full bg-[#020617]/5 px-2.5 py-1 text-[11px] font-extrabold text-[#020617]">
                     {t("included_badge")}
                   </span>
                 </div>
@@ -702,7 +671,7 @@ const OrderHistory = () => {
               {canCancel && (
                 <div className="flex gap-2 px-4 pb-4">
                   <button
-                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-emerald-50 text-sm font-extrabold text-emerald-700 transition-all active:scale-[0.98]"
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-[#020617] text-sm font-extrabold text-white transition-all active:scale-[0.98]"
                     onClick={(e) => { e.stopPropagation(); setModifyingSchedule(schedule); }}
                   >
                     <Pencil className="h-4 w-4" />
@@ -742,7 +711,7 @@ const OrderHistory = () => {
           className="flex items-center justify-center bg-[#F7FAF8] transition-all duration-200"
           style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / minPullDistance, 1) }}
         >
-          <div className="flex items-center gap-2 text-primary bg-primary/10 px-4 py-2 rounded-full">
+          <div className="flex items-center gap-2 rounded-full bg-[#020617]/5 px-4 py-2 text-[#020617]">
             <RotateCcw
               className="h-4 w-4"
               style={{ transform: `rotate(${pullDistance * 2}deg)` }}
@@ -756,9 +725,9 @@ const OrderHistory = () => {
 
       {/* Refreshing banner */}
       {refreshing && (
-        <div className="flex items-center justify-center py-3 bg-primary/5 border-b border-primary/10">
-          <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
-          <span className="text-sm font-medium text-primary">{t("refreshing_label")}</span>
+        <div className="flex items-center justify-center border-b border-[#020617]/10 bg-[#020617]/5 py-3">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#020617]" />
+          <span className="text-sm font-medium text-[#020617]">{t("refreshing_label")}</span>
         </div>
       )}
 
@@ -772,7 +741,7 @@ const OrderHistory = () => {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="text-center">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#020617]">
               {t("scheduled_date_label")}
             </p>
             <h1 className="text-[22px] font-black leading-tight text-slate-950">{t("orders_page_title")}</h1>
@@ -818,14 +787,14 @@ const OrderHistory = () => {
                   onClick={() => setActiveTab(id)}
                   className={`flex min-h-11 items-center justify-center gap-1.5 rounded-full text-[12px] font-extrabold transition-all ${
                     activeTab === id
-                      ? "bg-emerald-500 text-white shadow-sm"
+                      ? "bg-[#020617] text-white shadow-sm"
                       : "text-slate-500"
                   }`}
                 >
                   {label}
                   {count > 0 && (
                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                      activeTab === id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                      activeTab === id ? "bg-white/20 text-white" : "bg-[#020617]/5 text-[#020617]"
                     }`}>
                       {count}
                     </span>
@@ -837,44 +806,41 @@ const OrderHistory = () => {
             {/* Upcoming tab */}
             {activeTab === "scheduled" && (
               <>
-                {monthlyStats.total > 0 && (
+                {upcomingMeals.length > 0 && (
                   <div className="mb-4 rounded-[32px] bg-white p-5 shadow-[0_18px_38px_rgba(15,23,42,0.07)] ring-1 ring-slate-100">
                     <div className="flex items-start gap-4">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#020617]/5 text-[#020617]">
                       <ShoppingBag className="h-8 w-8" strokeWidth={2} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-emerald-600">{t("dashboard_this_month")}</p>
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#020617]">{t("dashboard_this_month")}</p>
                       <h2 className="mt-1 text-[25px] font-black leading-tight text-slate-950">{t("upcoming_tab")}</h2>
                       <p className="mt-2 text-[12px] font-semibold text-slate-500">
-                        {t("orders_monthly_stats", { count: String(monthlyStats.completed) })}
-                        {monthlyStats.cancelled > 0 && ` · ${monthlyStats.cancelled} cancelled`}
+                        {upcomingMeals.length} {t("orders_label")} · 0 completed
                       </p>
                     </div>
-                    {monthlyStats.total > 0 && (
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-600">
-                        {Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%
-                      </span>
-                    )}
+                    <span className="rounded-full bg-[#020617]/5 px-2.5 py-1 text-[11px] font-extrabold text-[#020617]">
+                      {upcomingProgress}%
+                    </span>
                     </div>
                     <div className="mt-5 grid grid-cols-3 gap-2">
-                      <div className="rounded-2xl bg-emerald-50 p-3">
-                        <p className="text-[20px] font-black leading-none text-slate-950">{monthlyStats.total}</p>
-                        <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">total</p>
+                      <div className="rounded-2xl bg-[#020617]/5 p-3">
+                        <p className="text-[20px] font-black leading-none text-slate-950">{upcomingMeals.length}</p>
+                        <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-[#020617]">total</p>
                       </div>
                       <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[20px] font-black leading-none text-slate-950">{monthlyStats.completed}</p>
+                        <p className="text-[20px] font-black leading-none text-slate-950">0</p>
                         <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-500">done</p>
                       </div>
                       <div className="rounded-2xl bg-orange-50 p-3">
-                        <p className="text-[20px] font-black leading-none text-slate-950">{Math.round((monthlyStats.completed / monthlyStats.total) * 100)}%</p>
+                        <p className="text-[20px] font-black leading-none text-slate-950">{upcomingProgress}%</p>
                         <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wide text-orange-600">progress</p>
                       </div>
                     </div>
                   </div>
                 )}
                 {renderScheduledMeals(upcomingMeals)}
-                {scheduledHasMore && (
+                {upcomingMeals.length > 0 && scheduledHasMore && (
                   <button
                     className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-extrabold text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition-all active:scale-[0.98] disabled:opacity-40"
                     onClick={loadMoreScheduled}
@@ -912,6 +878,7 @@ const OrderHistory = () => {
                     description={t("no_data_desc_orders")}
                     actionLabel={t("browse_meals_btn")}
                     actionHref="/meals"
+                    actionClassName="rounded-full bg-[#020617] px-5 py-2.5 text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)] hover:bg-slate-800"
                   />
                 ) : (
                   <div className="space-y-3">
@@ -968,7 +935,7 @@ const OrderHistory = () => {
                                       </p>
                                       <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                                     </div>
-                                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                    <span className="rounded-full bg-[#020617]/5 px-2 py-0.5 text-xs font-semibold text-[#020617]">
                                       Included
                                     </span>
                                   </div>
@@ -988,7 +955,7 @@ const OrderHistory = () => {
                                   {totalCalories} cal
                                 </span>
                               )}
-                              <span className="ml-auto text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                              <span className="ml-auto rounded-full bg-[#020617]/5 px-2 py-1 text-xs font-semibold text-[#020617]">
                                 {t("subscription")}
                               </span>
                             </div>

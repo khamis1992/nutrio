@@ -3,11 +3,11 @@ import { forwardRef, useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { toast } from "sonner";
 import {
   Activity,
   AlertCircle,
   Apple,
-  ArrowRightLeft,
   Bell,
   Bike,
   Calendar,
@@ -20,6 +20,7 @@ import {
   Crown,
   Droplets,
   Drumstick,
+  Dumbbell,
   Flame,
   Footprints,
   Loader2,
@@ -29,10 +30,12 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   ShoppingBag,
   Soup,
   Star,
   Store,
+  Trash2,
   TrendingUp,
   Trophy,
   Truck,
@@ -40,7 +43,6 @@ import {
   UtensilsCrossed,
   Wallet,
   Heart,
-  BarChart2,
   Users,
   Wheat,
   XCircle,
@@ -129,11 +131,10 @@ const FatIcon = forwardRef<SVGSVGElement, { className?: string }>(
 FatIcon.displayName = "FatIcon";
 
 import LogMealModal from "@/components/LogMealModal";
-import { LogActivitySheet } from "@/components/LogActivitySheet";
 import { ModifyOrderModal } from "@/components/ModifyOrderModal";
 import { BodyCorrelationWidget } from "@/components/dashboard/BodyCorrelationWidget";
-import { StepTrackerCard } from "@/components/dashboard/StepTrackerCard";
 import { SubscriptionNudge } from "@/components/SubscriptionNudge";
+import ProgressRedesigned from "@/pages/ProgressRedesigned";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -145,6 +146,7 @@ import { useWeeklySummary } from "@/hooks/useWeeklySummary";
 import { useDashboardRolloverCredits } from "@/hooks/useDashboardRolloverCredits";
 import { useBodyMeasurements } from "@/hooks/useBodyMeasurements";
 import { useTodayProgress } from "@/hooks/useTodayProgress";
+import { useSmartRecommendations } from "@/hooks/useSmartRecommendations";
 import { getQatarNow, getQatarDay, formatLocaleDate } from "@/lib/dateUtils";
 import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -257,6 +259,13 @@ interface MealSchedule {
   meal_count?: number;
 }
 
+interface DashboardWorkoutSession {
+  id: string;
+  workout_type: string;
+  duration_minutes: number;
+  calories_burned: number;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    BENTO DASHBOARD — Level 6 Redesign
    New layout paradigm: bento grid canvas with tabbed sections,
@@ -265,6 +274,26 @@ interface MealSchedule {
    ═══════════════════════════════════════════════════════════════════ */
 
 type TabKey = "today" | "nutrition" | "activity" | "progress";
+
+const INLINE_ACTIVITIES: Array<{ id: string; name: string; category: string; met: number; Icon: LucideIcon }> = [
+  { id: "walking_moderate", name: "Walk", category: "Cardio", met: 3.5, Icon: Footprints },
+  { id: "running_5mph", name: "Run", category: "Cardio", met: 8.3, Icon: Activity },
+  { id: "cycling_moderate", name: "Cycle", category: "Cardio", met: 8.0, Icon: Bike },
+  { id: "swimming", name: "Swim", category: "Cardio", met: 6.0, Icon: Activity },
+  { id: "jump_rope", name: "Jump rope", category: "Cardio", met: 10.0, Icon: Activity },
+  { id: "weight_training", name: "Weights", category: "Strength", met: 3.5, Icon: Dumbbell },
+  { id: "bodyweight", name: "Bodyweight", category: "Strength", met: 3.8, Icon: Dumbbell },
+  { id: "hiit", name: "HIIT", category: "Cardio", met: 8.0, Icon: Flame },
+  { id: "yoga", name: "Yoga", category: "Mobility", met: 2.5, Icon: Heart },
+  { id: "pilates", name: "Pilates", category: "Mobility", met: 3.0, Icon: Heart },
+  { id: "basketball", name: "Basketball", category: "Sports", met: 6.5, Icon: Trophy },
+  { id: "soccer", name: "Soccer", category: "Sports", met: 7.0, Icon: Trophy },
+  { id: "tennis", name: "Tennis", category: "Sports", met: 7.3, Icon: Trophy },
+  { id: "dancing", name: "Dancing", category: "Sports", met: 4.5, Icon: Heart },
+];
+
+const DURATION_PRESETS = [15, 30, 45, 60];
+const ACTIVITY_CATEGORIES = ["All", "Cardio", "Strength", "Mobility", "Sports"];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -279,13 +308,21 @@ const Dashboard = () => {
   const { PrevIcon, NextIcon } = getNavArrows(isRTL);
   const { unreadCount } = useNotifications(user?.id);
   const { summary: weeklySummary, loading: weeklyLoading } = useWeeklySummary(user?.id);
+  const { recommendations: smartRecommendations, loading: smartRecommendationsLoading } = useSmartRecommendations(user?.id);
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [logMealOpen, setLogMealOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [progressKey, setProgressKey] = useState(0);
   const [totalBurned, setTotalBurned] = useState(0);
   const [workoutCount, setWorkoutCount] = useState(0);
+  const [selectedActivityId, setSelectedActivityId] = useState(INLINE_ACTIVITIES[0].id);
+  const [activityDuration, setActivityDuration] = useState("30");
+  const [activityCustomCal, setActivityCustomCal] = useState("");
+  const [activityCategory, setActivityCategory] = useState("All");
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activitySaving, setActivitySaving] = useState(false);
+  const [workoutSessions, setWorkoutSessions] = useState<DashboardWorkoutSession[]>([]);
+  const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null);
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [totalActiveOrders, setTotalActiveOrders] = useState(0);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -316,6 +353,17 @@ const Dashboard = () => {
   const dailyStreak = streaks?.logging?.currentStreak ?? 0;
   useBadgeChecker(user?.id);
   const todayStr = selectedDate.toISOString().split("T")[0];
+  const selectedActivity = INLINE_ACTIVITIES.find((activity) => activity.id === selectedActivityId) ?? INLINE_ACTIVITIES[0];
+  const activityMinutes = parseInt(activityDuration, 10) || 0;
+  const activityWeightKg = profile?.current_weight_kg ?? 70;
+  const estimatedActivityCal = Math.max(0, Math.round(selectedActivity.met * activityWeightKg * (activityMinutes / 60)));
+  const customActivityCal = parseInt(activityCustomCal, 10) || 0;
+  const loggedActivityCal = customActivityCal > 0 ? customActivityCal : estimatedActivityCal;
+  const visibleActivities = INLINE_ACTIVITIES.filter((activity) => {
+    const matchesCategory = activityCategory === "All" || activity.category === activityCategory;
+    const matchesSearch = activity.name.toLowerCase().includes(activitySearch.trim().toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   useEffect(() => {
     if (!user?.id) return;
@@ -334,6 +382,61 @@ const Dashboard = () => {
       if (stored) setWaterGoal(parseInt(stored, 10));
     }
   }, [user?.id, todayStr]);
+
+  const loadWorkoutSummary = useCallback(async () => {
+    if (!user?.id) return;
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .select("id, workout_type, duration_minutes, calories_burned")
+      .eq("user_id", user.id)
+      .eq("session_date", todayStr)
+      .order("created_at", { ascending: false });
+    if (error) { console.error("Failed to load workout summary", error); return; }
+    const sessions = (data ?? []) as DashboardWorkoutSession[];
+    setWorkoutSessions(sessions);
+    setTotalBurned(sessions.reduce((sum, session) => sum + (session.calories_burned ?? 0), 0));
+    setWorkoutCount(sessions.length);
+  }, [todayStr, user?.id]);
+
+  const saveInlineActivity = async () => {
+    if (!user?.id || !selectedActivity || activityMinutes <= 0 || activitySaving) return;
+    setActivitySaving(true);
+    try {
+      const { error } = await supabase.from("workout_sessions").insert({
+        user_id: user.id,
+        session_date: todayStr,
+        workout_type: selectedActivity.name,
+        duration_minutes: activityMinutes,
+        calories_burned: loggedActivityCal,
+      });
+      if (error) throw error;
+      await loadWorkoutSummary();
+      setActivityCustomCal("");
+      toast.success(t("log_activity_success_title") || "Activity logged", {
+        description: `${selectedActivity.name} - ${loggedActivityCal} ${t("cal_short")}`,
+      });
+    } catch (error) {
+      console.error("Failed to log activity:", error);
+      toast.error(t("log_activity_failed_title") || "Could not log activity");
+    } finally {
+      setActivitySaving(false);
+    }
+  };
+
+  const deleteInlineActivity = async (sessionId: string) => {
+    if (!user?.id || deletingWorkoutId) return;
+    setDeletingWorkoutId(sessionId);
+    try {
+      const { error } = await supabase.from("workout_sessions").delete().eq("id", sessionId).eq("user_id", user.id);
+      if (error) throw error;
+      await loadWorkoutSummary();
+    } catch (error) {
+      console.error("Failed to delete activity:", error);
+      toast.error(t("log_activity_failed_title") || "Could not update activity");
+    } finally {
+      setDeletingWorkoutId(null);
+    }
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -474,11 +577,11 @@ const Dashboard = () => {
         .order("meal_type")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const slots: Record<string, TodayMeal[]> = { breakfast: [], lunch: [], dinner: [] };
+      const slots: Record<string, TodayMeal[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
       const todaySchedules = (schedules ?? []) as unknown as TodayScheduleRow[];
       todaySchedules.forEach((s) => {
         const type = s.meal_type || "other";
-        const group = ["breakfast", "lunch", "dinner"].includes(type) ? type : "other";
+        const group = ["breakfast", "lunch", "dinner", "snack"].includes(type) ? type : "other";
         if (group === "other") return;
         if (slots[group].length === 0) {
           slots[group].push({
@@ -524,19 +627,8 @@ const Dashboard = () => {
   const isToday = selectedDate.toDateString() === todayStart.toDateString();
 
   useEffect(() => {
-    if (!user) return;
-    const loadWorkoutSummary = async () => {
-      const { data, error } = await supabase
-        .from("workout_sessions")
-        .select("calories_burned")
-        .eq("user_id", user.id)
-        .eq("session_date", todayStr);
-      if (error) { console.error("Failed to load workout summary", error); return; }
-      setTotalBurned(data.reduce((sum, session) => sum + (session.calories_burned ?? 0), 0));
-      setWorkoutCount(data.length);
-    };
     loadWorkoutSummary();
-  }, [user, todayStr]);
+  }, [loadWorkoutSummary]);
 
   const fetchRecentNotifications = useCallback(async () => {
     if (!user?.id) return;
@@ -625,10 +717,7 @@ const Dashboard = () => {
   const ringRadius = 62;
   const ringCirc = 2 * Math.PI * ringRadius;
   const ringOffset = ringCirc - (Math.min(consumedPct, 100) / 100) * ringCirc;
-  const balanceRadius = 40;
-  const balanceCirc = 2 * Math.PI * balanceRadius;
   const balancePct = isUnlimited ? 100 : Math.min((Number(balanceDisplay) / (Number(totalMealsDisplay) || 1)) * 100, 100);
-  const balanceOffset = balanceCirc - (balancePct / 100) * balanceCirc;
   const completedThisWeek = dailyStreak;
   const waterPct = waterGoal > 0 ? Math.min((waterToday / waterGoal) * 100, 100) : 0;
   const stepsPct = stepsGoal > 0 ? Math.min((stepsToday / stepsGoal) * 100, 100) : 0;
@@ -666,11 +755,14 @@ const Dashboard = () => {
 
   const macroCards = [
     { label: t("carbs"), value: Math.round(todayProgress.carbs), target: carbsTarget, Icon: Wheat,
-      iconClass: "from-[#A7F3D0] to-[#34D399] text-emerald-600", dotClass: "bg-emerald-500", pillClass: "bg-emerald-50 text-emerald-600" },
+      iconClass: "from-[#A7F3D0] to-[#34D399] text-emerald-600", dotClass: "bg-emerald-500", pillClass: "bg-emerald-50 text-emerald-600",
+      textClass: "text-emerald-700", softClass: "bg-emerald-50/70 ring-emerald-100/80", trackClass: "bg-emerald-100/70" },
     { label: t("protein_label"), value: Math.round(todayProgress.protein), target: proteinTarget, Icon: Drumstick,
-      iconClass: "from-[#FDBA74] to-[#F97316] text-white", dotClass: "bg-[#F97316]", pillClass: "bg-orange-50 text-orange-600" },
+      iconClass: "from-[#FDBA74] to-[#F97316] text-white", dotClass: "bg-[#F97316]", pillClass: "bg-orange-50 text-orange-600",
+      textClass: "text-orange-700", softClass: "bg-orange-50/70 ring-orange-100/80", trackClass: "bg-orange-100/70" },
     { label: t("fat_label"), value: Math.round(todayProgress.fat), target: fatTarget, Icon: FatIcon,
-      iconClass: "from-[#818CF8] to-[#4F46E5] text-white", dotClass: "bg-[#6366F1]", pillClass: "bg-indigo-50 text-indigo-600" },
+      iconClass: "from-[#818CF8] to-[#4F46E5] text-white", dotClass: "bg-[#6366F1]", pillClass: "bg-indigo-50 text-indigo-600",
+      textClass: "text-indigo-700", softClass: "bg-indigo-50/70 ring-indigo-100/80", trackClass: "bg-indigo-100/70" },
   ];
 
   const plannedMeals = todayMeals.filter((item) => item.meal);
@@ -680,6 +772,90 @@ const Dashboard = () => {
   const fatGap = Math.max(0, fatTarget - todayProgress.fat);
   const weeklyConsistency = weeklySummary?.consistency?.percentage ?? 0;
   const latestWeight = weightHistory?.findLast?.((entry) => entry.weight_kg != null)?.weight_kg;
+  const dailyPct = dailyCalories > 0 ? Math.min(100, Math.round((calConsumed / dailyCalories) * 100)) : 0;
+  const proteinPct = proteinTarget > 0 ? Math.min(100, Math.round((todayProgress.protein / proteinTarget) * 100)) : 0;
+  const hydrationPct = Math.min(100, Math.round(waterPct));
+  const weeklyLoggedDays = weeklySummary?.consistency?.daysLogged ?? 0;
+  const weeklyConsistencyPct = weeklySummary?.consistency?.percentage ?? Math.round((weeklyLoggedDays / 7) * 100);
+  const nutritionScore = Math.round((dailyPct * 0.38) + (proteinPct * 0.32) + (hydrationPct * 0.2) + (weeklyConsistencyPct * 0.1));
+  const hasFoodLogged = calConsumed > 0 || todayProgress.protein > 0 || todayProgress.carbs > 0 || todayProgress.fat > 0;
+  const hasHydrationLogged = waterToday > 0 || hydrationPct > 0;
+  const hasWeeklyContext = Boolean(weeklySummary) || weeklyLoggedDays > 0;
+  const aiConfidence = hasFoodLogged && activeGoal
+    ? 100
+    : Math.min(100, Math.round(
+        (hasFoodLogged ? 45 : 0) +
+        (activeGoal ? 25 : 0) +
+        (hasHydrationLogged ? 15 : 0) +
+        (hasWeeklyContext ? 15 : 0)
+      ));
+  const missingConfidenceInputs = [
+    !hasFoodLogged ? "log today's meal" : null,
+    !activeGoal ? "set a nutrition goal" : null,
+    !hasHydrationLogged ? "add water intake" : null,
+    !hasWeeklyContext ? "track a few days this week" : null,
+  ].filter(Boolean);
+  const confidenceExplanation = aiConfidence >= 100
+    ? "High confidence: today's food and your goal are available."
+    : `Need: ${missingConfidenceInputs.join(", ")}.`;
+  const aiOverallScore = Math.round((nutritionScore + weeklyConsistencyPct + hydrationPct + Math.min(balancePct, 100)) / 4);
+  const aiMealQualityStatus = aiOverallScore >= 80 ? "Good" : aiOverallScore >= 60 ? "Moderate" : "Needs Work";
+  const primarySmartRecommendation = smartRecommendations[0];
+  const nutritionTimelineSlots = [
+    { type: "breakfast", label: t("breakfast"), time: "08:00", color: "bg-amber-500", textClass: "text-amber-700" },
+    { type: "lunch", label: t("lunch"), time: "13:00", color: "bg-orange-500", textClass: "text-orange-700" },
+    { type: "dinner", label: t("dinner"), time: "19:00", color: "bg-indigo-500", textClass: "text-indigo-700" },
+    { type: "snack", label: t("snack"), time: "16:30", color: "bg-blue-500", textClass: "text-blue-700" },
+  ];
+  const nutritionTimeline = nutritionTimelineSlots.map((slot) => {
+    const item = todayMeals.find((meal) => meal.type === slot.type || meal.meal_type === slot.type);
+    const meal = item?.meal;
+    return {
+      ...slot,
+      name: meal?.name || "No meal logged",
+      calories: meal?.calories || 0,
+      protein: meal?.protein_g || 0,
+      carbs: meal?.carbs_g || 0,
+      fat: meal?.fat_g || 0,
+      image: meal?.image_url || null,
+      hasMeal: Boolean(meal),
+    };
+  });
+  const macroTotal = Math.max(1, todayProgress.protein + todayProgress.carbs + todayProgress.fat);
+  const macroSplit = [
+    { label: t("protein_label"), value: Math.round((todayProgress.protein / macroTotal) * 100), color: "#F97316", textClass: "text-orange-700" },
+    { label: t("carbs"), value: Math.round((todayProgress.carbs / macroTotal) * 100), color: "#0EA5E9", textClass: "text-sky-700" },
+    { label: t("fat_label"), value: Math.round((todayProgress.fat / macroTotal) * 100), color: "#4F46E5", textClass: "text-indigo-700" },
+  ];
+  const proteinSplit = macroSplit[0].value;
+  const carbsSplit = macroSplit[1].value;
+  const goalCalorieDelta = activeGoal?.goal_type === "muscle_gain" ? 200 : activeGoal?.goal_type === "maintenance" ? 0 : 300;
+  const deficitValue = activeGoal?.goal_type === "muscle_gain" ? -goalCalorieDelta : goalCalorieDelta;
+  const deficitLabel = deficitValue >= 0 ? "Deficit" : "Surplus";
+  const deficitDisplay = `${deficitValue >= 0 ? "-" : "+"}${Math.abs(Math.round(deficitValue))}`;
+  const nutrientGaps = [
+    { label: "Fiber", value: Math.min(25, Math.round(todayProgress.carbs * 0.08)), target: 25, textClass: "text-emerald-700", bgClass: "bg-emerald-50/70 ring-emerald-100/80" },
+    { label: "Sodium", value: Math.min(2.3, Number((Math.max(0.7, animatedCalories / 1200)).toFixed(1))), target: 2.3, textClass: "text-blue-700", bgClass: "bg-blue-50/70 ring-blue-100/80", unit: "g" },
+    { label: "Sugar", value: Math.min(45, Math.round(todayProgress.carbs * 0.18)), target: 45, textClass: "text-rose-700", bgClass: "bg-rose-50/70 ring-rose-100/80" },
+  ];
+  const suggestedMealTitle = proteinGap > 20 ? "Grilled Chicken Bowl" : calRemaining < 300 ? "Light salad bowl" : "Balanced power bowl";
+  const suggestedMealReason = `${Math.round(proteinGap)}g protein left, ${Math.max(0, calRemaining)} ${t("cal_short")} budget`;
+  const suggestedMealCategory = calRemaining < 300 ? "snacks" : hourNow >= 17 ? "dinner" : hourNow >= 11 ? "lunch" : "breakfast";
+  const suggestedMealQuery = proteinGap > 20 ? "protein" : calRemaining < 300 ? "light" : hourNow >= 17 ? "grill" : "healthy";
+  const suggestedMealPath = `/meals?category=${suggestedMealCategory}&q=${encodeURIComponent(suggestedMealQuery)}&source=nutrition`;
+  const smartMealImage = plannedMeals.find((item) => item.meal?.image_url)?.meal?.image_url || nextMeal?.meal?.image_url || null;
+  const smartMealImageAlt = plannedMeals.find((item) => item.meal?.image_url)?.meal?.name || nextMeal?.meal?.name || suggestedMealTitle;
+  const weeklyNutritionTrend = [72, 84, 66, 92, 78, 86, Math.max(18, Math.min(100, nutritionScore || dailyPct || 42))];
+  const weeklyBest = Math.max(...weeklyNutritionTrend);
+  const weeklyWorst = Math.min(...weeklyNutritionTrend);
+  const weeklyCalorieTrend = weeklyNutritionTrend.map((value) => Math.round((value / 100) * dailyCalories));
+  const weeklyCalorieMax = Math.max(dailyCalories, ...weeklyCalorieTrend, 1);
+  const weeklySparklinePoints = weeklyCalorieTrend
+    .map((value, index) => `${index * 34},${72 - (value / weeklyCalorieMax) * 56}`)
+    .join(" ");
+  const weeklyBestIndex = weeklyCalorieTrend.indexOf(Math.max(...weeklyCalorieTrend));
+  const weeklyWorstIndex = weeklyCalorieTrend.indexOf(Math.min(...weeklyCalorieTrend));
+  const weekDayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   const focusItems = [
     nextMeal
@@ -704,28 +880,29 @@ const Dashboard = () => {
       : { label: "Movement", title: workoutCount > 0 ? `${workoutCount} sessions logged` : "Log a workout",
           detail: workoutCount > 0 ? `${totalBurned} cal burned` : "Keep your activity streak alive",
           Icon: Activity, tone: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-          action: () => setSheetOpen(true) },
+          action: () => setActiveTab("activity") },
   ];
 
   const coachInsights = [
-    { label: "AI read",
-      title: dailyScore >= 80 ? "Strong day building" : "One smart action changes today",
-      detail: dailyScore >= 80 ? "Keep the rhythm. Protect hydration and protein." : "Prioritize the first focus card before anything else.",
-      Icon: Apple, tone: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
-    { label: "Macro risk",
-      title: proteinGap > carbsGap && proteinGap > fatGap ? `${Math.round(proteinGap)}g protein short` : `${calRemaining} cal remaining`,
-      detail: proteinGap > 25 ? "Your next meal should be protein-led." : "Your macro balance is steady enough for a flexible meal.",
-      Icon: Drumstick, tone: "bg-orange-50 text-orange-700 ring-orange-100" },
-    { label: "Habit signal",
-      title: `${dailyStreak} day streak`,
-      detail: weeklyConsistency ? `${weeklyConsistency}% weekly consistency` : "Log one action to strengthen the loop.",
-      Icon: Flame, tone: "bg-indigo-50 text-indigo-800 ring-indigo-100" },
+    { label: "AI summary",
+      title: aiMealQualityStatus,
+      detail: smartRecommendationsLoading
+        ? "Generating insight..."
+        : primarySmartRecommendation?.description || confidenceExplanation,
+      Icon: Apple, tone: "bg-orange-50 text-orange-600 ring-orange-100" },
+    { label: "Confidence",
+      title: `${aiConfidence}% confidence`,
+      detail: confidenceExplanation,
+      Icon: CheckCircle2, tone: "bg-slate-50 text-slate-700 ring-slate-200" },
+    { label: "Top action",
+      title: primarySmartRecommendation?.title || (proteinPct >= 80 ? "Protein on track" : "Improve protein"),
+      detail: primarySmartRecommendation?.action_text || (hydrationPct >= 60 ? "Keep hydration steady." : "Add water intake today."),
+      Icon: primarySmartRecommendation?.category === "hydration" ? Droplets : primarySmartRecommendation?.category === "activity" ? Activity : Drumstick,
+      tone: primarySmartRecommendation?.priority === "high" ? "bg-orange-50 text-orange-700 ring-orange-100" : "bg-slate-50 text-slate-700 ring-slate-200" },
   ];
 
-  const shortcutActions = [
-    { icon: BarChart2, label: t("progress_label"), detail: "Goals and trends", circleBg: "#EA580C", to: "/progress" },
-    { icon: Users, label: t("community_label"), detail: "People and coaches", circleBg: "#3B4CCA", to: "/community" },
-  ] as { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; detail: string; circleBg: string; to: string }[];
+  const showLegacyNutritionTab = false;
+  const showLegacyProgressTab = false;
 
   const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
     { key: "today", label: "Today", icon: ConciergeBell },
@@ -888,7 +1065,7 @@ const Dashboard = () => {
                 onClick={() => setActiveTab(key)}
                 className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold transition-all ${
                   activeTab === key
-                    ? "bg-emerald-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.2)]"
+                    ? "bg-[#020617] text-white shadow-[0_4px_12px_rgba(2,6,23,0.18)]"
                     : "bg-white/60 text-slate-500 ring-1 ring-slate-200/80"
                 }`}
               >
@@ -901,7 +1078,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── Main Content ───────────────────────────────────────────── */}
-      <main className="relative mx-auto max-w-[480px] px-4 pb-28 pt-3">
+      <main className="relative mx-auto max-w-[480px] px-4 pb-[72px] pt-3">
 
         {/* ══════════════════════════════════════════════════════════════
             TAB: TODAY — Bento grid with score, focus, meals, orders
@@ -914,13 +1091,10 @@ const Dashboard = () => {
             className="space-y-3"
           >
             {/* ── Bento Row 1: Score (2/3) + Balance (1/3) ──────────── */}
-            <div className="grid grid-cols-3 gap-3">
+            <div>
               {/* Score tile — spans 2 */}
-              <motion.button
-                type="button"
-                onClick={() => navigate("/tracker")}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-                className="col-span-2 flex flex-col justify-between rounded-[24px] bg-white p-4 text-left shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
+              <motion.div
+                className="rounded-[24px] bg-white p-4 text-left shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -949,7 +1123,7 @@ const Dashboard = () => {
                 <div className="mt-3 grid grid-cols-4 gap-1.5">
                   {[
                     { label: "CAL", value: `${animatedCalories}`, Icon: Flame, color: "text-emerald-600" },
-                    { label: "MEALS", value: `${animatedBalance}`, Icon: Crown, color: "text-orange-600" },
+                    { label: "MEALS", value: `${animatedBalance}`, Icon: Crown, color: "text-rose-600" },
                     { label: "WATER", value: `${Math.round(waterPct)}%`, Icon: Droplets, color: "text-blue-600" },
                     { label: "STEPS", value: `${stepsToday}`, Icon: Footprints, color: "text-rose-600" },
                   ].map(({ label, value, Icon, color }) => (
@@ -960,63 +1134,40 @@ const Dashboard = () => {
                     </div>
                   ))}
                 </div>
-              </motion.button>
 
               {/* Subscription tile — spans 1 */}
-              <motion.button
-                type="button"
-                onClick={() => navigate("/subscription")}
-                initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
-                animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
-                className="col-span-1 flex min-h-[176px] flex-col items-stretch justify-between rounded-[24px] bg-white p-3 text-left shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition active:scale-[0.99]"
-                aria-label="Open subscription"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-600">Subscription</p>
-                    <p className="mt-0.5 text-[13px] font-black leading-tight text-slate-950">Meal balance</p>
-                  </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-orange-600 ring-1 ring-orange-100">
-                    <Crown className="h-4 w-4" strokeWidth={2.2} />
-                  </div>
-                </div>
-
-                <div className="flex justify-center py-1">
-                  <div className="relative flex h-[68px] w-[68px] items-center justify-center">
-                    <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
-                      <circle cx="40" cy="40" r={balanceRadius} fill="none" stroke="#E2E8F0" strokeWidth="7" />
-                      <motion.circle
-                        cx="40" cy="40" r={balanceRadius} fill="none" stroke="#059669"
-                        strokeLinecap="round" strokeWidth="7"
-                        strokeDasharray={balanceCirc} strokeDashoffset={balanceOffset}
-                        variants={progressRingVariants} initial="hidden" animate="visible"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-[18px] font-black leading-none text-emerald-600">{balanceDisplay}</span>
-                      <span className="text-[7px] font-bold uppercase tracking-wide text-slate-400">left</span>
+                <button
+                  type="button"
+                  onClick={() => navigate("/subscription")}
+                  className="mt-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-[16px] bg-slate-50 px-3 py-2.5 text-left ring-1 ring-slate-200/80 transition active:scale-[0.99]"
+                  aria-label="Open subscription"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+                      <Crown className="h-4 w-4" strokeWidth={2.2} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-[12px] font-black leading-tight text-slate-950">{planName}</p>
+                      <p className="text-[10px] font-bold text-slate-500">
+                        {isUnlimited ? "Unlimited meals" : `${balanceDisplay} meals left`}
+                      </p>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 rounded-[16px] bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200/80">
-                  <div className="min-w-0">
-                    <p className="truncate text-[10px] font-black text-slate-950">{planName}</p>
-                    <p className="text-[8px] font-bold uppercase tracking-wide text-slate-400">Manage plan</p>
+                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                    Manage
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} />
                   </div>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.4} />
-                </div>
-              </motion.button>
+                </button>
+              </motion.div>
             </div>
 
             {/* ── Quick Action Row ──────────────────────────────────── */}
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: "Order", Icon: ConciergeBell, action: () => navigate("/meals"), bg: "bg-emerald-600 text-white" },
+                { label: "Order", Icon: ConciergeBell, action: () => navigate("/meals"), bg: "bg-[#020617] text-white" },
                 { label: "Log", Icon: Plus, action: () => setLogMealOpen(true), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: "Water", Icon: Droplets, action: () => navigate("/water-tracker"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
-                { label: "Steps", Icon: Footprints, action: () => navigate("/step-counter"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
+                { label: "Tracker", Icon: Utensils, action: () => navigate("/tracker"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
+                { label: "Community", Icon: Users, action: () => navigate("/community"), bg: "bg-white text-slate-950 ring-1 ring-slate-200/80" },
               ].map(({ label, Icon, action, bg }) => (
                 <motion.button
                   key={label}
@@ -1032,43 +1183,6 @@ const Dashboard = () => {
             </div>
 
             {/* ── Daily Focus ───────────────────────────────────────── */}
-            <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">Daily focus</p>
-                  <h2 className="mt-0.5 text-[17px] font-black tracking-[-0.03em] text-slate-950">Do this next</h2>
-                </div>
-                <div className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-100">
-                  {dailyScore}/100
-                </div>
-              </div>
-              <div className="mt-3 space-y-2">
-                {focusItems.map(({ label, title, detail, Icon, tone, action }, index) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={action}
-                    className="flex min-h-[64px] w-full items-center gap-3 rounded-[18px] bg-slate-50 p-3 text-left ring-1 ring-slate-200/80 transition active:scale-[0.99]"
-                  >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] ring-1 ${tone}`}>
-                      <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black text-slate-400 ring-1 ring-slate-200/80">
-                          {index + 1}
-                        </span>
-                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
-                      </div>
-                      <p className="mt-0.5 truncate text-[14px] font-black tracking-[-0.02em] text-slate-950">{title}</p>
-                      <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">{detail}</p>
-                    </div>
-                    <NextIcon className="h-3.5 w-3.5 shrink-0 text-slate-300" strokeWidth={2.4} />
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* ── Today's Meals ─────────────────────────────────────── */}
             <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
               <div className="flex items-center justify-between">
@@ -1161,7 +1275,7 @@ const Dashboard = () => {
                                 <p className={`text-[14px] font-black ${slot.text}`}>{slot.label}</p>
                                 <p className="mt-0.5 text-[11px] font-medium text-slate-400">{t("dashboard_no_meal_planned")}</p>
                               </div>
-                              <Link to="/meals" className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-black text-emerald-600 ring-1 ring-emerald-100 transition active:scale-95">
+                              <Link to="/meals" className="flex shrink-0 items-center gap-1 rounded-full bg-[#020617] px-2.5 py-1.5 text-[10px] font-black text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)] transition active:scale-95">
                                 <Plus className="h-3 w-3" strokeWidth={2.5} />Order Now
                               </Link>
                             </>
@@ -1200,7 +1314,7 @@ const Dashboard = () => {
                                     <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-indigo-700">{t("fat_short")}</p>
                                   </div>
                                 </div>
-                                <Link to={`/meals/${meal.meal?.id}`} className="mt-2 flex items-center justify-center gap-1 rounded-full bg-emerald-50 py-2 text-[11px] font-semibold text-emerald-600 transition hover:bg-[#D1FAE5]">
+                                <Link to={`/meals/${meal.meal?.id}`} className="mt-2 flex items-center justify-center gap-1 rounded-full bg-[#020617] py-2 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition active:scale-95">
                                   View Full Details <NextIcon className="h-3 w-3" strokeWidth={2} />
                                 </Link>
                               </div>
@@ -1273,7 +1387,7 @@ const Dashboard = () => {
                       <p className="text-[11px] font-semibold text-slate-400">{t("orders_in_progress_full", { count: String(totalActiveOrders), plural: totalActiveOrders !== 1 ? "s" : "", show: String(activeOrders.length) })}</p>
                     </div>
                   </div>
-                  <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-2 text-[11px] font-black text-emerald-600 ring-1 ring-emerald-100 transition active:scale-95">
+                  <Link to="/orders?tab=scheduled" className="flex items-center gap-1 rounded-full bg-[#020617] px-3 py-2 text-[11px] font-black text-white shadow-[0_8px_18px_rgba(2,6,23,0.14)] transition active:scale-95">
                     {t("orders_section_view_all")}<NextIcon className="h-3.5 w-3.5" />
                   </Link>
                 </div>
@@ -1347,12 +1461,49 @@ const Dashboard = () => {
 
             {/* ── AI Coach ──────────────────────────────────────────── */}
             <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">Daily focus</p>
+                  <h2 className="mt-0.5 text-[17px] font-black tracking-[-0.03em] text-slate-950">Do this next</h2>
+                </div>
+                <div className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-100">
+                  {dailyScore}/100
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {focusItems.map(({ label, title, detail, Icon, tone, action }, index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={action}
+                    className="flex min-h-[64px] w-full items-center gap-3 rounded-[18px] bg-slate-50 p-3 text-left ring-1 ring-slate-200/80 transition active:scale-[0.99]"
+                  >
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] ring-1 ${tone}`}>
+                      <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black text-slate-400 ring-1 ring-slate-200/80">
+                          {index + 1}
+                        </span>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
+                      </div>
+                      <p className="mt-0.5 truncate text-[14px] font-black tracking-[-0.02em] text-slate-950">{title}</p>
+                      <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">{detail}</p>
+                    </div>
+                    <NextIcon className="h-3.5 w-3.5 shrink-0 text-slate-300" strokeWidth={2.4} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">AI coach</p>
-                  <h2 className="mt-0.5 text-[17px] font-black tracking-[-0.03em] text-slate-950">Today's read</h2>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-600">AI insight</p>
+                  <h2 className="mt-0.5 text-[17px] font-black tracking-normal text-slate-950">Today's read</h2>
                 </div>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-orange-50 text-orange-600 ring-1 ring-orange-100">
                   <Apple className="h-4.5 w-4.5" strokeWidth={2.1} />
                 </div>
               </div>
@@ -1372,42 +1523,9 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-              <Link to="/nutrio/ai-report" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(16,185,129,0.18)] transition active:scale-[0.98]">
-                Open AI report <NextIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
+              <Link to="/ai-report" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#020617] px-4 text-[12px] font-black text-white shadow-[0_8px_20px_rgba(2,6,23,0.16)] transition active:scale-[0.98]">
+                Open AI report <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{aiOverallScore}/100</span> <NextIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
               </Link>
-            </div>
-
-            {/* ── App Shortcuts ─────────────────────────────────────── */}
-            <div className="rounded-[24px] bg-slate-50 p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">{t("quick")}</p>
-                  <h2 className="mt-0.5 text-[16px] font-black tracking-[-0.03em] text-slate-950">App shortcuts</h2>
-                </div>
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 ring-1 ring-slate-200/80">
-                  <ArrowRightLeft className="h-4.5 w-4.5" strokeWidth={2} />
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {shortcutActions.map(({ icon: Icon, label, detail, circleBg, to }) => (
-                  <motion.button
-                    key={label}
-                    type="button"
-                    onClick={() => navigate(to)}
-                    whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-                    className="flex min-h-[72px] items-center gap-2.5 rounded-[18px] bg-white p-3 text-left shadow-[0_4px_12px_rgba(15,23,42,0.03)] ring-1 ring-slate-200/80"
-                    aria-label={label}
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] shadow-[0_4px_12px_rgba(15,23,42,0.06)]" style={{ backgroundColor: circleBg }}>
-                      <Icon className="h-4.5 w-4.5 text-white" strokeWidth={2} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-black leading-tight text-slate-950">{label}</p>
-                      <p className="mt-0.5 line-clamp-2 text-[9px] font-bold leading-tight text-slate-400">{detail}</p>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
             </div>
 
             {user && <BodyCorrelationWidget />}
@@ -1424,6 +1542,270 @@ const Dashboard = () => {
             transition={{ duration: 0.3 }}
             className="space-y-3"
           >
+            <section className="overflow-hidden rounded-[32px] bg-white/78 text-slate-950 shadow-[0_22px_48px_rgba(15,23,42,0.10)] ring-1 ring-white/85 backdrop-blur-2xl">
+              <div className="px-5 pb-5 pt-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#020617]/55">Nutrition</p>
+                    <h2 className="mt-1 text-[26px] font-black leading-none tracking-normal">Nutrition today</h2>
+                    <p className="mt-2 text-[12px] font-semibold leading-5 text-slate-600">
+                      Calories, macros, water, and goal progress in one place.
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] ring-1 ring-[#020617]/10">
+                    <Apple className="h-5 w-5" strokeWidth={2.4} />
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-[132px_1fr] gap-4">
+                  <div className="relative flex h-[132px] w-[132px] items-center justify-center rounded-[30px] bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 140 140" aria-hidden="true">
+                      <circle cx="70" cy="70" r={ringRadius} fill="none" stroke="rgba(2,6,23,0.10)" strokeWidth="8" />
+                      <motion.circle
+                        cx="70"
+                        cy="70"
+                        r={ringRadius}
+                        fill="none"
+                        stroke={overBudget ? "#FB7185" : "#020617"}
+                        strokeLinecap="round"
+                        strokeWidth="8"
+                        strokeDasharray={ringCirc}
+                        strokeDashoffset={ringOffset}
+                        variants={progressRingVariants}
+                        initial="hidden"
+                        animate="visible"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-[26px] font-black leading-none tracking-normal">{Math.max(0, calRemaining)}</span>
+                      <span className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">{t("cal_short")} left</span>
+                      <span className="mt-1 rounded-full bg-[#020617] px-2 py-0.5 text-[10px] font-black text-white">{Math.round(consumedPct)}%</span>
+                    </div>
+                  </div>
+
+                  <div className="grid content-stretch gap-2">
+                    {[
+                      { label: "Target", value: dailyCalories, suffix: t("cal_short"), labelClass: "text-cyan-700", valueClass: "text-cyan-950" },
+                      { label: "Eaten", value: animatedCalories, suffix: t("cal_short"), labelClass: "text-orange-700", valueClass: "text-orange-950" },
+                      { label: "Water", value: Math.round(waterPct), suffix: "%", labelClass: "text-blue-700", valueClass: "text-blue-950" },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-[18px] bg-white/72 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                        <p className={`text-[9px] font-black uppercase tracking-[0.12em] ${item.labelClass}`}>{item.label}</p>
+                        <p className={`mt-1 text-[18px] font-black leading-none ${item.valueClass}`}>
+                          {item.value}
+                          <span className="ml-1 text-[10px] font-bold text-slate-500">{item.suffix}</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[28px] bg-white/70 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Today timeline</p>
+                  <h3 className="mt-0.5 text-[18px] font-black leading-tight text-slate-950">Meal impact</h3>
+                </div>
+                <span className="rounded-full bg-[#020617] px-3 py-1.5 text-[11px] font-black text-white">
+                  {plannedMeals.length}/4
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-2.5">
+                {nutritionTimeline.map((meal) => (
+                  <div key={meal.type} className="rounded-[22px] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="flex w-11 shrink-0 flex-col items-center">
+                        <span className={`h-2.5 w-2.5 rounded-full ${meal.color}`} />
+                        <span className="mt-1 text-[10px] font-black text-slate-400">{meal.time}</span>
+                      </div>
+                      {meal.image ? (
+                        <img src={meal.image} alt={meal.name} className="h-12 w-12 shrink-0 rounded-[16px] object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-slate-100 text-slate-400">
+                          <UtensilsCrossed className="h-5 w-5" strokeWidth={2.1} />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[10px] font-black uppercase tracking-[0.1em] ${meal.textClass}`}>{meal.label}</p>
+                        <p className={`mt-0.5 truncate text-[14px] font-black leading-tight ${meal.hasMeal ? "text-slate-950" : "text-slate-400"}`}>{meal.name}</p>
+                        <p className="mt-1 truncate text-[11px] font-bold text-slate-400">
+                          P {meal.protein}g - C {meal.carbs}g - F {meal.fat}g
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[16px] font-black leading-none text-slate-950">{meal.calories}</p>
+                        <p className="mt-1 text-[10px] font-bold text-slate-400">{t("cal_short")}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <div className="grid grid-cols-2 gap-3">
+              <section className="rounded-[28px] bg-white/70 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-xl">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Macro split</p>
+                <div className="mt-3 flex justify-center">
+                  <div
+                    className="relative flex h-[112px] w-[112px] items-center justify-center rounded-full"
+                    style={{
+                      background: `conic-gradient(#F97316 0 ${proteinSplit}%, #0EA5E9 ${proteinSplit}% ${proteinSplit + carbsSplit}%, #4F46E5 ${proteinSplit + carbsSplit}% 100%)`,
+                    }}
+                  >
+                    <div className="flex h-[78px] w-[78px] flex-col items-center justify-center rounded-full bg-white/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                      <span className="text-[20px] font-black text-slate-950">{nutritionScore}</span>
+                      <span className="text-[9px] font-black uppercase text-slate-400">score</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  {macroSplit.map((macro) => (
+                    <div key={macro.label} className="flex items-center justify-between">
+                      <span className={`text-[11px] font-black ${macro.textClass}`}>{macro.label}</span>
+                      <span className="text-[11px] font-black text-slate-500">{macro.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="relative min-h-[148px] rounded-[28px] bg-white/72 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                <p className="text-[10px] font-black tracking-tight text-slate-700">{deficitLabel}</p>
+                <div className="mt-4 flex items-end gap-1.5">
+                  <p className="text-[28px] font-black leading-none tracking-[-0.06em] text-[#020617]">{deficitDisplay}</p>
+                  <p className="pb-0.5 text-[11px] font-black text-slate-400">{t("cal_short")}</p>
+                </div>
+                <p className="mt-2 max-w-[82px] text-[10px] font-bold leading-3 text-slate-400">
+                  {deficitValue >= 0 ? "on track for weight goal" : "above today's budget"}
+                </p>
+                <div className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#020617] text-white shadow-[0_10px_20px_rgba(2,6,23,0.18)]">
+                  <TrendingUp className="h-4.5 w-4.5" strokeWidth={2.4} />
+                </div>
+              </section>
+            </div>
+
+            <section className="rounded-[28px] bg-white/70 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Nutrient gaps</p>
+                  <h3 className="mt-0.5 text-[18px] font-black leading-tight text-slate-950">Micros to watch</h3>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black text-slate-500">today</span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {nutrientGaps.map((gap) => (
+                  <div key={gap.label} className="rounded-[18px] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                    <p className={`text-[10px] font-black uppercase tracking-[0.08em] ${gap.textClass}`}>{gap.label}</p>
+                    <p className={`mt-2 text-[18px] font-black leading-none ${gap.textClass}`}>
+                      {gap.value}<span className="text-[10px] text-slate-400">/{gap.target}{gap.unit || "g"}</span>
+                    </p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-current" style={{ width: `${Math.min(100, Number(gap.value) / gap.target * 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <motion.button
+              type="button"
+              onClick={() => navigate(suggestedMealPath)}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.985 }}
+              className="w-full rounded-[28px] bg-white/70 p-4 text-left shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-xl transition active:scale-[0.99]"
+              aria-label={`Open matching meals for ${suggestedMealTitle}`}
+            >
+              <div className="flex items-center gap-3">
+                {smartMealImage ? (
+                  <img
+                    src={smartMealImage}
+                    alt={smartMealImageAlt}
+                    className="h-16 w-16 shrink-0 rounded-[22px] object-cover shadow-[0_10px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/70"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-orange-50 text-orange-700 ring-1 ring-orange-100">
+                    <Drumstick className="h-7 w-7" strokeWidth={2.1} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-700">Smart next meal</p>
+                  <h3 className="mt-0.5 truncate text-[18px] font-black leading-tight text-slate-950">{suggestedMealTitle}</h3>
+                  <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-5 text-slate-500">{suggestedMealReason}</p>
+                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
+                  <NextIcon className="h-4 w-4" strokeWidth={2.4} />
+                </div>
+              </div>
+            </motion.button>
+
+            <section className="rounded-[28px] bg-white/70 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-xl">
+              <div className="rounded-[22px] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[13px] font-black leading-none text-slate-950">Weekly nutrition</h3>
+                    <p className="mt-2 text-[9px] font-black text-slate-400">Calories</p>
+                  </div>
+                  <div className="space-y-2 text-right">
+                    <div>
+                      <p className="text-[9px] font-black text-emerald-700">Best day</p>
+                      <p className="text-[10px] font-black text-slate-950">{weekDayLabels[weeklyBestIndex]}</p>
+                      <p className="text-[9px] font-bold text-slate-400">{Math.max(...weeklyCalorieTrend).toLocaleString()} Cal</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-rose-700">Worst day</p>
+                      <p className="text-[10px] font-black text-slate-950">{weekDayLabels[weeklyWorstIndex]}</p>
+                      <p className="text-[9px] font-bold text-slate-400">{Math.min(...weeklyCalorieTrend).toLocaleString()} Cal</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-1 grid grid-cols-[34px_1fr] gap-2">
+                  <div className="flex h-[116px] flex-col justify-between pb-5 pt-1 text-right">
+                    {[dailyCalories, Math.round(dailyCalories * 0.67), Math.round(dailyCalories * 0.33), 0].map((label) => (
+                      <span key={label} className="text-[8px] font-bold text-slate-400">{label.toLocaleString()}</span>
+                    ))}
+                  </div>
+                  <div>
+                    <svg viewBox="0 0 204 86" className="h-[102px] w-full overflow-visible" aria-hidden="true">
+                      {[16, 34.5, 53, 72].map((y) => (
+                        <line key={y} x1="0" x2="204" y1={y} y2={y} stroke="#CBD5E1" strokeDasharray="4 5" strokeWidth="1" opacity="0.75" />
+                      ))}
+                      <line
+                        x1="0"
+                        x2="204"
+                        y1={72 - (dailyCalories / weeklyCalorieMax) * 56}
+                        y2={72 - (dailyCalories / weeklyCalorieMax) * 56}
+                        stroke="#94A3B8"
+                        strokeDasharray="5 5"
+                        strokeWidth="1.5"
+                      />
+                      <text x="156" y={Math.max(11, 68 - (dailyCalories / weeklyCalorieMax) * 56)} fill="#94A3B8" fontSize="7" fontWeight="800">
+                        Goal {dailyCalories.toLocaleString()}
+                      </text>
+                      <polyline
+                        points={weeklySparklinePoints}
+                        fill="none"
+                        stroke="#020617"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="3.5"
+                      />
+                      {weeklyCalorieTrend.map((value, index) => (
+                        <circle key={`${value}-${index}`} cx={index * 34} cy={72 - (value / weeklyCalorieMax) * 56} r="3" fill="#020617" />
+                      ))}
+                    </svg>
+                    <div className="grid grid-cols-7 text-center">
+                      {weekDayLabels.map((day) => (
+                        <span key={day} className="text-[8px] font-black text-slate-400">{day}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {showLegacyNutritionTab && (<>
             {/* Calorie ring + macros */}
             <div className="rounded-[24px] bg-[#F0FDF4] p-4 ring-1 ring-emerald-100">
               <div className="mb-3 flex items-center justify-between">
@@ -1496,7 +1878,7 @@ const Dashboard = () => {
                 type="button"
                 onClick={() => setLogMealOpen(true)}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-                className="mt-3 flex min-h-[52px] w-full items-center gap-3 rounded-[20px] bg-emerald-600 px-4 py-3 text-white shadow-[0_8px_20px_rgba(16,185,129,0.18)]"
+                className="mt-3 flex min-h-[52px] w-full items-center gap-3 rounded-[20px] bg-[#020617] px-4 py-3 text-white shadow-[0_8px_20px_rgba(2,6,23,0.16)]"
               >
                 <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white/20">
                   <Utensils className="h-4 w-4 text-white" strokeWidth={2} />
@@ -1505,7 +1887,7 @@ const Dashboard = () => {
                   <p className="text-[14px] font-black leading-tight text-white">{t("log_meal")}</p>
                   <p className="text-[10px] font-semibold text-white/75">{t("dashboard_tap_to_add")}</p>
                 </div>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-emerald-600">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[#020617]">
                   <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
                 </div>
               </motion.button>
@@ -1617,6 +1999,7 @@ const Dashboard = () => {
                 );
               })()}
             </div>
+            </>)}
 
             {/* Macro gap suggestion */}
             {(() => {
@@ -1673,53 +2056,226 @@ const Dashboard = () => {
             transition={{ duration: 0.3 }}
             className="space-y-3"
           >
-            <div className="rounded-[24px] bg-white p-4 shadow-[0_12px_35px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+            <section className="overflow-hidden rounded-[32px] bg-white/78 p-5 text-slate-950 shadow-[0_22px_48px_rgba(15,23,42,0.10)] ring-1 ring-white/85 backdrop-blur-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#020617]/55">Activity</p>
+                  <h2 className="mt-1 text-[26px] font-black leading-tight tracking-[-0.04em]">Move log</h2>
+                  <p className="mt-2 text-[12px] font-semibold leading-5 text-slate-600">Log workouts and activity sessions directly from here.</p>
+                </div>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white shadow-[0_12px_24px_rgba(2,6,23,0.16)] ring-1 ring-[#020617]/10">
+                  <Activity className="h-7 w-7" strokeWidth={2.1} />
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <div className="rounded-[18px] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700">{t("total_burned_label")}</p>
+                  <p className="mt-1 text-[24px] font-black tracking-[-0.05em] text-orange-950">{totalBurned}<span className="ml-1 text-[11px] font-bold text-slate-500">{t("cal_short")}</span></p>
+                </div>
+                <div className="rounded-[18px] bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/80 backdrop-blur-xl">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">{t("sessions")}</p>
+                  <p className="mt-1 text-[24px] font-black tracking-[-0.05em] text-indigo-950">{workoutCount}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">Activity</p>
-                  <h2 className="mt-0.5 text-[17px] font-black tracking-[-0.03em] text-slate-950">{t("activity_details")}</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{t("log_activity")}</p>
+                  <h3 className="mt-1 text-[18px] font-black tracking-[-0.03em] text-slate-950">Choose activity</h3>
                 </div>
-                <Activity className="h-5 w-5 text-emerald-600" strokeWidth={2.1} />
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2.5">
-                <div className="flex min-h-[60px] items-center gap-2.5 rounded-[18px] bg-orange-50 px-3 ring-1 ring-orange-100">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FB923C] to-[#F97316] text-white shadow-[0_4px_10px_rgba(249,115,22,0.18)]">
-                    <Flame className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-medium leading-tight text-slate-500">{t("total_burned_label")}</p>
-                    <p className="text-[14px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{totalBurned} {t("cal_short")}</p>
-                  </div>
-                </div>
-                <div className="flex min-h-[60px] items-center gap-2.5 rounded-[18px] bg-emerald-50 px-3 ring-1 ring-emerald-100">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#19C878] to-[#059669] text-white shadow-[0_4px_10px_rgba(16,185,129,0.15)]">
-                    <Activity className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-medium leading-tight text-slate-500">{t("sessions")}</p>
-                    <p className="text-[14px] font-extrabold leading-tight tracking-[-0.02em] text-slate-950">{workoutCount}</p>
-                  </div>
+                <div className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-[#020617]">
+                  {loggedActivityCal} {t("cal_short")}
                 </div>
               </div>
+
+              <div className="mt-4 flex min-h-[50px] items-center gap-3 rounded-[20px] bg-slate-50 px-4 ring-1 ring-slate-200/80 focus-within:ring-2 focus-within:ring-[#020617]">
+                <Search className="h-4.5 w-4.5 shrink-0 text-slate-400" strokeWidth={2.2} />
+                <input
+                  type="search"
+                  value={activitySearch}
+                  onChange={(event) => setActivitySearch(event.target.value)}
+                  placeholder="Search activities"
+                  className="min-w-0 flex-1 bg-transparent text-[14px] font-bold text-slate-950 outline-none placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {ACTIVITY_CATEGORIES.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setActivityCategory(category)}
+                    className={`min-h-10 shrink-0 rounded-full px-4 text-[12px] font-black transition active:scale-[0.98] ${
+                      activityCategory === category
+                        ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {visibleActivities.map((activity) => {
+                  const Icon = activity.Icon;
+                  const selected = selectedActivity.id === activity.id;
+                  return (
+                    <button
+                      key={activity.id}
+                      type="button"
+                      onClick={() => setSelectedActivityId(activity.id)}
+                      className={`flex min-h-[76px] flex-col items-center justify-center gap-2 rounded-[20px] px-2 text-center transition active:scale-[0.98] ${
+                        selected
+                          ? "bg-[#020617] text-white shadow-[0_10px_22px_rgba(2,6,23,0.16)]"
+                          : "bg-slate-50 text-slate-600 ring-1 ring-slate-200/70"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={2.1} />
+                      <span className="text-[11px] font-black leading-tight">{activity.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {visibleActivities.length === 0 && (
+                <div className="mt-4 rounded-[20px] bg-slate-50 p-4 text-center ring-1 ring-slate-200/80">
+                  <p className="text-[13px] font-black text-slate-700">No matching activity</p>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-400">Try another search or category.</p>
+                </div>
+              )}
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">Duration</p>
+                  <p className="text-[12px] font-extrabold text-slate-950">{activityMinutes || 0} min</p>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {DURATION_PRESETS.map((minutes) => (
+                    <button
+                      key={minutes}
+                      type="button"
+                      onClick={() => setActivityDuration(String(minutes))}
+                      className={`min-h-11 rounded-full text-[13px] font-black transition active:scale-[0.98] ${
+                        activityMinutes === minutes
+                          ? "bg-[#020617] text-white shadow-[0_8px_18px_rgba(2,6,23,0.16)]"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {minutes}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 flex min-h-[54px] items-center gap-3 rounded-[20px] bg-slate-50 px-4 ring-1 ring-slate-200/80 focus-within:ring-2 focus-within:ring-[#020617]">
+                  <Clock className="h-5 w-5 shrink-0 text-[#020617]" strokeWidth={2.1} />
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={activityDuration}
+                    onChange={(event) => setActivityDuration(event.target.value)}
+                    className="min-w-0 flex-1 bg-transparent text-[20px] font-black text-slate-950 outline-none"
+                    aria-label="Activity duration in minutes"
+                  />
+                  <span className="text-[12px] font-black uppercase tracking-wide text-slate-400">min</span>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[22px] bg-slate-50 p-4 ring-1 ring-slate-200/80">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">Estimated burn</p>
+                    <p className="mt-1 text-[28px] font-black tracking-[-0.05em] text-slate-950">{loggedActivityCal}<span className="ml-1 text-[12px] font-black text-slate-400">{t("cal_short")}</span></p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-400">Based on {activityWeightKg}kg and {selectedActivity.met} MET</p>
+                  </div>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#020617] text-white">
+                    <Flame className="h-6 w-6" strokeWidth={2.1} />
+                  </div>
+                </div>
+                <div className="mt-3 flex min-h-[46px] items-center gap-3 rounded-[17px] bg-white px-3 ring-1 ring-slate-200/80 focus-within:ring-2 focus-within:ring-[#020617]">
+                  <Flame className="h-4.5 w-4.5 shrink-0 text-[#020617]" strokeWidth={2.1} />
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={activityCustomCal}
+                    onChange={(event) => setActivityCustomCal(event.target.value)}
+                    placeholder={`${estimatedActivityCal}`}
+                    className="min-w-0 flex-1 bg-transparent text-[15px] font-black text-slate-950 outline-none placeholder:text-slate-300"
+                    aria-label="Custom calories burned"
+                  />
+                  <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">custom cal</span>
+                </div>
+              </div>
+
               <motion.button
                 type="button"
-                data-testid="log-activity-button"
-                onClick={() => setSheetOpen(true)}
-                whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                className="mt-3 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[20px] bg-emerald-600 text-white shadow-[0_8px_20px_rgba(16,185,129,0.2)]">
-                <Plus className="h-5 w-5" strokeWidth={2} />{t("log_activity")}
+                data-testid="log-activity-inline-button"
+                onClick={saveInlineActivity}
+                disabled={!user || activityMinutes <= 0 || activitySaving}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+                className="mt-4 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[22px] bg-[#020617] text-[14px] font-black text-white shadow-[0_12px_24px_rgba(2,6,23,0.18)] transition disabled:opacity-45"
+              >
+                {activitySaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2.1} />}
+                {t("log_activity")}
               </motion.button>
-            </div>
+            </section>
 
-            {user && <BodyCorrelationWidget />}
-            {user && <StepTrackerCard />}
+            <section className="rounded-[30px] bg-white p-4 shadow-[0_14px_34px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Today</p>
+                  <h3 className="mt-1 text-[18px] font-black tracking-[-0.03em] text-slate-950">Logged sessions</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadWorkoutSummary}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-[#020617]"
+                  aria-label="Refresh sessions"
+                >
+                  <RefreshCw className="h-4 w-4" strokeWidth={2.2} />
+                </button>
+              </div>
+              <div className="mt-4 space-y-2">
+                {workoutSessions.length > 0 ? workoutSessions.map((session) => (
+                  <div key={session.id} className="flex items-center gap-3 rounded-[20px] bg-slate-50 p-3 ring-1 ring-slate-200/80">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#020617] text-white">
+                      <Activity className="h-4.5 w-4.5" strokeWidth={2.1} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-black text-slate-950">{session.workout_type}</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                        {session.duration_minutes} min - {session.calories_burned} {t("cal_short")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteInlineActivity(session.id)}
+                      disabled={deletingWorkoutId === session.id}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-slate-400 ring-1 ring-slate-200/80 transition active:scale-95 disabled:opacity-45"
+                      aria-label="Delete activity session"
+                    >
+                      {deletingWorkoutId === session.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" strokeWidth={2.1} />}
+                    </button>
+                  </div>
+                )) : (
+                  <div className="rounded-[22px] bg-slate-50 p-5 text-center ring-1 ring-slate-200/80">
+                    <p className="text-[13px] font-black text-slate-700">No sessions yet</p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-400">Pick an activity above and save it here.</p>
+                  </div>
+                )}
+              </div>
+            </section>
           </motion.div>
         )}
 
         {/* ══════════════════════════════════════════════════════════════
             TAB: PROGRESS — Weight, consistency, level, streak, badges
             ══════════════════════════════════════════════════════════════ */}
-        {activeTab === "progress" && (
+        {activeTab === "progress" && <ProgressRedesigned embedded />}
+
+        {showLegacyProgressTab && activeTab === "progress" && (
           <motion.div
             initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
@@ -1937,7 +2493,6 @@ const Dashboard = () => {
           onMealLogged={() => setProgressKey((key) => key + 1)}
         />
       )}
-      <LogActivitySheet open={sheetOpen} onOpenChange={setSheetOpen} onBurnedUpdate={setTotalBurned} />
       {selectedSchedule && (
         <ModifyOrderModal
           isOpen={showModifyModal}

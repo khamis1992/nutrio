@@ -72,6 +72,61 @@ type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
+const MEAL_TYPE_CONFIG = {
+  breakfast: {
+    icon: Coffee,
+    label: "breakfast",
+    gradient: "from-amber-400 to-orange-500",
+    bgGradient: "bg-gradient-to-br from-amber-50 to-orange-50",
+    textColor: "text-amber-600",
+    bgColor: "bg-amber-100",
+    borderColor: "border-amber-200",
+    ringColor: "ring-amber-400",
+    shadowColor: "shadow-amber-500/20",
+    nutritionBg: "bg-gradient-to-br from-amber-50 to-orange-50",
+    nutritionBorder: "border-amber-100",
+  },
+  lunch: {
+    icon: Sun,
+    label: "lunch",
+    gradient: "from-emerald-400 to-teal-500",
+    bgGradient: "bg-gradient-to-br from-emerald-50 to-teal-50",
+    textColor: "text-emerald-600",
+    bgColor: "bg-emerald-100",
+    borderColor: "border-emerald-200",
+    ringColor: "ring-emerald-400",
+    shadowColor: "shadow-emerald-500/20",
+    nutritionBg: "bg-gradient-to-br from-emerald-50 to-teal-50",
+    nutritionBorder: "border-emerald-100",
+  },
+  dinner: {
+    icon: Moon,
+    label: "dinner",
+    gradient: "from-indigo-400 to-purple-500",
+    bgGradient: "bg-gradient-to-br from-indigo-50 to-purple-50",
+    textColor: "text-indigo-600",
+    bgColor: "bg-indigo-100",
+    borderColor: "border-indigo-200",
+    ringColor: "ring-indigo-400",
+    shadowColor: "shadow-indigo-500/20",
+    nutritionBg: "bg-gradient-to-br from-indigo-50 to-purple-50",
+    nutritionBorder: "border-indigo-100",
+  },
+  snack: {
+    icon: Apple,
+    label: "snack",
+    gradient: "from-pink-400 to-rose-500",
+    bgGradient: "bg-gradient-to-br from-pink-50 to-rose-50",
+    textColor: "text-pink-600",
+    bgColor: "bg-pink-100",
+    borderColor: "border-pink-200",
+    ringColor: "ring-pink-400",
+    shadowColor: "shadow-pink-500/20",
+    nutritionBg: "bg-gradient-to-br from-pink-50 to-rose-50",
+    nutritionBorder: "border-pink-100",
+  },
+};
+
 const CALORIE_TARGETS: Record<MealType, { percent: number; tolerance: number }> = {
   breakfast: { percent: 0.25, tolerance: 0.3 },
   lunch: { percent: 0.35, tolerance: 0.3 },
